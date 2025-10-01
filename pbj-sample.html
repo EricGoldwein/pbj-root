@@ -192,16 +192,18 @@
       font-size: 0.9rem;
       color: rgba(255,255,255,0.95);
       font-style: italic;
-      margin-top: 15px;
+      margin-top: 10px;
+      margin-bottom: 0;
       padding: 20px;
-      background: rgba(96, 165, 250, 0.1);
+      background: rgba(16, 185, 129, 0.2);
       border-radius: 12px;
-      border: 1px solid rgba(96, 165, 250, 0.2);
-      font-weight: 500;
+      border: 2px solid rgba(16, 185, 129, 0.4);
+      font-weight: 600;
       text-align: center;
       max-width: 600px;
       margin-left: auto;
       margin-right: auto;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
     }
     
     .search-section {
@@ -604,8 +606,6 @@
     
     .consulting-services-box .example-image {
       max-width: 280px;
-      height: 200px;
-      object-fit: cover;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       transition: transform 0.3s ease;
@@ -748,11 +748,11 @@
       }
       
       .consulting-badge {
-        bottom: -25px;
+        bottom: -30px;
       }
       
       .chart-source {
-        bottom: -35px;
+        bottom: -25px;
         left: 15px;
         right: auto;
       }
@@ -776,6 +776,22 @@
       .comparison-grid {
         grid-template-columns: repeat(2, 1fr) !important;
         grid-template-rows: repeat(2, 1fr) !important;
+      }
+      
+      .comparison-card h4 {
+        font-size: 0.9rem;
+      }
+      
+      .comparison-card h4:before {
+        content: "";
+      }
+      
+      .comparison-card h4:after {
+        content: "";
+      }
+      
+      .metric-value:after {
+        content: "";
       }
       
       .search-title {
@@ -942,12 +958,15 @@
           <img src="seagate_ser_pbj.png" alt="PBJ Staffing Example" class="example-image">
         </a>
       </div>
-      <a href="https://www.320insight.com/words/pbj-seagate" target="_blank" class="read-more-link">
-        Read more about Seagate Nursing Home on The 320
-      </a>
-      <a href="mailto:eric@320insight.com" class="read-more-link" style="margin-top: 10px; display: inline-block; max-width: 300px; text-align: center;">
-        Contact Eric for custom data visualizations and reports
-      </a>
+      <div style="text-align: center;">
+        <a href="https://www.320insight.com/words/pbj-seagate" target="_blank" class="read-more-link">
+          Read more about Seagate Nursing Home on The 320
+        </a>
+        <br><br>
+        <a href="mailto:eric@320insight.com" class="read-more-link" style="display: inline-block; max-width: 300px;">
+          Contact Eric for custom data visualizations and reports
+        </a>
+      </div>
     </div>
 
     <div class="methodology-section">
@@ -1012,7 +1031,7 @@
         // Change title for mobile
         const searchTitle = document.querySelector('.search-title');
         if (searchTitle) {
-          searchTitle.textContent = 'Search by Date Range or Day';
+          searchTitle.textContent = 'Search Staffing Data';
         }
         
         // Change badge text for mobile
@@ -1031,6 +1050,12 @@
         const specificDayInput = document.getElementById('specificDay');
         if (specificDayInput) {
           specificDayInput.value = '2023-10-01'; // October 1, 2023
+        }
+        
+        // Show random date button on mobile
+        const randomDateContainer = document.querySelector('.random-date-container');
+        if (randomDateContainer) {
+          randomDateContainer.style.display = 'block';
         }
         
         // Hide non-HPRD metrics on mobile by default
@@ -1066,11 +1091,17 @@
         const randomIndex = Math.floor(Math.random() * allDates.length);
         const randomDate = allDates[randomIndex];
         
+        // Always set the search type to specific day first
+        document.getElementById('searchType').value = 'specificDay';
+        handleSearchTypeChange();
+        
         // Set the random date in the input
         document.getElementById('specificDay').value = randomDate;
         
-        // Trigger search automatically
-        searchData();
+        // Small delay to ensure UI updates, then trigger search
+        setTimeout(() => {
+          searchData();
+        }, 100);
       });
       
     });
@@ -1427,9 +1458,11 @@
       
       // Create labels and datasets
       const labels = groupedData.map(d => d.period);
-      const maxLabels = 12;
       
-      // Better logic for x-axis labels
+      // Better logic for x-axis labels - mobile gets fewer labels
+      const isMobile = window.innerWidth <= 768;
+      const maxLabels = isMobile ? 6 : 12;
+      
       let displayLabels;
       if (labels.length <= maxLabels) {
         displayLabels = labels;
@@ -1502,7 +1535,7 @@
             x: {
               ticks: {
                 color: 'rgba(255,255,255,0.8)',
-                maxTicksLimit: 12
+                maxTicksLimit: isMobile ? 6 : 12
               },
               grid: {
                 color: 'rgba(255,255,255,0.1)'
@@ -1727,6 +1760,18 @@
       const isMobile = window.innerWidth <= 768;
       const calendarEmoji = isMobile ? '' : '📅 ';
       
+      // Mobile-specific text formatting
+      const formatMobileText = (text) => {
+        if (!isMobile) return text;
+        return text
+          .replace(/📊/g, '')
+          .replace(/📅/g, '')
+          .replace(/📈/g, '')
+          .replace(/Average/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+      };
+      
       resultsSection.innerHTML = `
         <div class="specific-day-analysis">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
@@ -1740,7 +1785,7 @@
           
           <div class="comparison-grid" style="grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);">
             <div class="comparison-card">
-              <h4>📊 Day Performance</h4>
+              <h4>${formatMobileText('📊 Day Performance')}</h4>
               <div class="metric-row">
                 <span class="metric-label">Census:</span>
                 <span class="metric-value">${dayStats.census}</span>
@@ -1768,7 +1813,7 @@
             </div>
             
             <div class="comparison-card">
-              <h4>📅 vs ${dayName.split(',')[0]} ${year} Average</h4>
+              <h4>${formatMobileText(`📅 vs ${dayName.split(',')[0]} ${year} Average`)}</h4>
               <div class="metric-row">
                 <span class="metric-label">HPRD:</span>
                 <span class="metric-value ${dayStats.hprd > dayOfWeekStats.avgHprd ? 'positive' : 'negative'}">
@@ -1790,7 +1835,7 @@
             </div>
             
             <div class="comparison-card">
-              <h4>📊 vs ${year} Average</h4>
+              <h4>${formatMobileText(`📊 vs ${year} Average`)}</h4>
               <div class="metric-row">
                 <span class="metric-label">HPRD:</span>
                 <span class="metric-value ${dayStats.hprd > yearStats.avgHprd ? 'positive' : 'negative'}">
@@ -1812,7 +1857,7 @@
             </div>
             
             <div class="comparison-card">
-              <h4>📈 vs ${quarterFormatted} Average</h4>
+              <h4>${formatMobileText(`📈 vs ${quarterFormatted} Average`)}</h4>
               <div class="metric-row">
                 <span class="metric-label">HPRD:</span>
                 <span class="metric-value ${dayStats.hprd > quarterStats.avgHprd ? 'positive' : 'negative'}">

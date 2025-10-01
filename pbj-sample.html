@@ -1019,7 +1019,7 @@
         <ul>
           <li><strong>RN (Registered Nurse):</strong> RN, RN Admin, RNDON (Director of Nursing)</li>
           <li><strong>LPN (Licensed Practical Nurse):</strong> LPN, LPN Admin</li>
-          <li><strong>CNA (Certified Nursing Assistant):</strong> CNA, NA (Nursing Assistant), Medication Aide (if certified)</li>
+          <li><strong>Nursing Assistant:</strong> CNA (Certified Nursing Assistant), NAtr (Nursing Assistant in Training), Medication Aide/Technician</li>
         </ul>
         
         <h3>Formula</h3>
@@ -1899,100 +1899,62 @@
             </a>
           </div>
           
-          <div class="comparison-grid" style="grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);">
-            <div class="comparison-card">
-              <h4>${formatMobileText('📊 Day Performance')}</h4>
-              <div class="metric-row">
-                <span class="metric-label">Census:</span>
-                <span class="metric-value">${dayStats.census}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Total HPRD:</span>
-                <span class="metric-value">${dayStats.hprd}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">RN HPRD:</span>
-                <span class="metric-value">${dayStats.rnHprd}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">LPN HPRD:</span>
-                <span class="metric-value">${dayStats.lpnHprd}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">CNA HPRD:</span>
-                <span class="metric-value">${dayStats.cnaHprd}</span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Contract %:</span>
-                <span class="metric-value">${dayStats.contractPercentage}</span>
-              </div>
-            </div>
-            
-            <div class="comparison-card">
-              <h4>${formatMobileText(`📅 vs ${dayName.split(',')[0]} ${year} Average`)}</h4>
-              <div class="metric-row">
-                <span class="metric-label">HPRD:</span>
-                <span class="metric-value ${dayStats.hprd > dayOfWeekStats.avgHprd ? 'positive' : 'negative'}">
-                  ${dayStats.hprd} vs ${dayOfWeekStats.avgHprd}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Census:</span>
-                <span class="metric-value ${dayStats.census > dayOfWeekStats.avgCensus ? 'positive' : 'negative'}">
-                  ${dayStats.census} vs ${dayOfWeekStats.avgCensus}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Contract %:</span>
-                <span class="metric-value ${dayStats.contractPercentage > dayOfWeekStats.avgContract ? 'positive' : 'negative'}">
-                  ${dayStats.contractPercentage}% vs ${dayOfWeekStats.avgContract}%
-                </span>
-              </div>
-            </div>
-            
-            <div class="comparison-card">
-              <h4>${formatMobileText(`📊 vs ${year} Average`)}</h4>
-              <div class="metric-row">
-                <span class="metric-label">HPRD:</span>
-                <span class="metric-value ${dayStats.hprd > yearStats.avgHprd ? 'positive' : 'negative'}">
-                  ${dayStats.hprd} vs ${yearStats.avgHprd}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Census:</span>
-                <span class="metric-value ${dayStats.census > yearStats.avgCensus ? 'positive' : 'negative'}">
-                  ${dayStats.census} vs ${yearStats.avgCensus}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Contract %:</span>
-                <span class="metric-value ${dayStats.contractPercentage > yearStats.avgContract ? 'positive' : 'negative'}">
-                  ${dayStats.contractPercentage}% vs ${yearStats.avgContract}%
-                </span>
-              </div>
-            </div>
-            
-            <div class="comparison-card">
-              <h4>${formatMobileText(`📈 vs ${quarterFormatted} Average`)}</h4>
-              <div class="metric-row">
-                <span class="metric-label">HPRD:</span>
-                <span class="metric-value ${dayStats.hprd > quarterStats.avgHprd ? 'positive' : 'negative'}">
-                  ${dayStats.hprd} vs ${quarterStats.avgHprd}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Census:</span>
-                <span class="metric-value ${dayStats.census > quarterStats.avgCensus ? 'positive' : 'negative'}">
-                  ${dayStats.census} vs ${quarterStats.avgCensus}
-                </span>
-              </div>
-              <div class="metric-row">
-                <span class="metric-label">Contract %:</span>
-                <span class="metric-value ${dayStats.contractPercentage > quarterStats.avgContract ? 'positive' : 'negative'}">
-                  ${dayStats.contractPercentage}% vs ${quarterStats.avgContract}%
-                </span>
-              </div>
-            </div>
+          <div class="comparison-table">
+            <table style="width: 100%; border-collapse: collapse; background: rgba(30, 41, 59, 0.3); border-radius: 8px; overflow: hidden;">
+              <thead>
+                <tr style="background: rgba(96, 165, 250, 0.2);">
+                  <th style="padding: 12px; text-align: left; color: #60a5fa; font-weight: 600;">Metric</th>
+                  <th style="padding: 12px; text-align: center; color: #60a5fa; font-weight: 600;">${displayDate}</th>
+                  <th style="padding: 12px; text-align: center; color: #60a5fa; font-weight: 600;">${dayName.split(',')[0]} ${year}</th>
+                  <th style="padding: 12px; text-align: center; color: #60a5fa; font-weight: 600;">${year}</th>
+                  <th style="padding: 12px; text-align: center; color: #60a5fa; font-weight: 600;">${quarterFormatted}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid rgba(96, 165, 250, 0.2);">
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">Census</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.census}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgCensus}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgCensus}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgCensus}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(96, 165, 250, 0.2);">
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">Total HPRD</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.hprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgHprd}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(96, 165, 250, 0.2);">
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">RN HPRD</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.rnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgRnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgRnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgRnHprd}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(96, 165, 250, 0.2);">
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">LPN HPRD</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.lpnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgLpnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgLpnHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgLpnHprd}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(96, 165, 250, 0.2);">
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">Nursing Assistant HPRD</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.cnaHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgCnaHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgCnaHprd}</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgCnaHprd}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px; color: rgba(255,255,255,0.9); font-weight: 500;">Contract %</td>
+                  <td style="padding: 10px; text-align: center; color: white; font-weight: 600;">${dayStats.contractPercentage}%</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${dayOfWeekStats.avgContract}%</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${yearStats.avgContract}%</td>
+                  <td style="padding: 10px; text-align: center; color: white;">${quarterStats.avgContract}%</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       `;

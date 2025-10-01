@@ -1535,48 +1535,57 @@
         });
       }
       
+      // Create datasets array
+      const datasets = [
+        {
+          label: 'Total HPRD',
+          data: groupedData.map(d => d.avgHprd),
+          borderColor: '#60a5fa',
+          backgroundColor: 'rgba(96, 165, 250, 0.1)',
+          borderWidth: 4,
+          fill: true,
+          tension: 0.4
+        }
+      ];
+      
+      // Only add RN, LPN, CNA datasets on desktop
+      if (!isMobile) {
+        datasets.push(
+          {
+            label: 'RN HPRD',
+            data: groupedData.map(d => d.avgRnHprd),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4
+          },
+          {
+            label: 'LPN HPRD',
+            data: groupedData.map(d => d.avgLpnHprd),
+            borderColor: '#f59e0b',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4
+          },
+          {
+            label: 'CNA HPRD',
+            data: groupedData.map(d => d.avgCnaHprd),
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderWidth: 3,
+            fill: false,
+            tension: 0.4
+          }
+        );
+      }
+      
       window.trendsChart = new Chart(ctx, {
         type: 'line',
         data: {
           labels: labels, // Use original labels for tooltips
-          datasets: [
-            {
-              label: 'Total HPRD',
-              data: groupedData.map(d => d.avgHprd),
-              borderColor: '#60a5fa',
-              backgroundColor: 'rgba(96, 165, 250, 0.1)',
-              borderWidth: 4,
-              fill: true,
-              tension: 0.4
-            },
-            {
-              label: 'RN HPRD',
-              data: groupedData.map(d => d.avgRnHprd),
-              borderColor: '#ef4444',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              borderWidth: 3,
-              fill: false,
-              tension: 0.4
-            },
-            {
-              label: 'LPN HPRD',
-              data: groupedData.map(d => d.avgLpnHprd),
-              borderColor: '#f59e0b',
-              backgroundColor: 'rgba(245, 158, 11, 0.1)',
-              borderWidth: 3,
-              fill: false,
-              tension: 0.4
-            },
-            {
-              label: 'CNA HPRD',
-              data: groupedData.map(d => d.avgCnaHprd),
-              borderColor: '#10b981',
-              backgroundColor: 'rgba(16, 185, 129, 0.1)',
-              borderWidth: 3,
-              fill: false,
-              tension: 0.4
-            }
-          ]
+          datasets: datasets
         },
         options: {
           responsive: true,
@@ -1614,7 +1623,8 @@
                 }
               },
               ticks: {
-                color: 'rgba(255,255,255,0.8)'
+                color: 'rgba(255,255,255,0.8)',
+                padding: isMobile ? 15 : 8 // Add more padding on mobile
               },
               grid: {
                 color: 'rgba(255,255,255,0.1)'

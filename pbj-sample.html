@@ -227,9 +227,17 @@
       display: block;
     }
     
+    .mobile-random-date {
+      display: none;
+    }
+    
     @media (max-width: 768px) {
       .desktop-random-date {
         display: none !important; /* Force hide on mobile */
+      }
+      
+      .mobile-random-date {
+        display: block; /* Show on mobile */
       }
     }
     
@@ -940,6 +948,9 @@
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
       </div>
+      <div class="mobile-random-date" style="text-align: center; margin-top: 10px; display: none;">
+        <button id="randomDateBtn" style="background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Select Random Date</button>
+      </div>
       <div class="desktop-random-date" style="text-align: left; margin-top: 2px; display: none;">
         <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">Select random date</span>
       </div>
@@ -1072,10 +1083,10 @@
           specificDayInput.value = '2023-10-01'; // October 1, 2023
         }
         
-        // Show random date button on mobile
-        const randomDateContainer = document.querySelector('.random-date-container');
-        if (randomDateContainer) {
-          randomDateContainer.style.display = 'block';
+        // Show mobile random date button
+        const mobileRandomDate = document.querySelector('.mobile-random-date');
+        if (mobileRandomDate) {
+          mobileRandomDate.style.display = 'block';
         }
         
         // Hide non-HPRD metrics on mobile by default
@@ -1115,7 +1126,9 @@
       });
       
       // Set up random date button (mobile)
-      document.getElementById('randomDateBtn').addEventListener('click', function() {
+      const mobileRandomDateBtn = document.getElementById('randomDateBtn');
+      if (mobileRandomDateBtn) {
+        mobileRandomDateBtn.addEventListener('click', function() {
         if (facilityData.length === 0) {
           alert('Please wait for data to load first');
           return;
@@ -1137,7 +1150,8 @@
         setTimeout(() => {
           searchData();
         }, 100);
-      });
+        });
+      }
       
       // Set up desktop random date button
       const desktopRandomDateBtn = document.getElementById('desktopRandomDateBtn');
@@ -1165,8 +1179,8 @@
         searchData();
         });
       }
-      
-    });
+    }
+    );
 
     async function loadFacilityData() {
       try {

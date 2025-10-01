@@ -219,7 +219,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr 1fr 1fr auto;
       gap: 15px;
-      margin-bottom: 25px;
+      margin-bottom: 10px; /* Reduced from 25px */
       align-items: end;
     }
     
@@ -940,7 +940,7 @@
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
       </div>
-      <div class="desktop-random-date" style="text-align: left; margin-top: 5px; display: none;">
+      <div class="desktop-random-date" style="text-align: left; margin-top: 2px; display: none;">
         <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">Select random date</span>
       </div>
     </div>
@@ -1140,7 +1140,9 @@
       });
       
       // Set up desktop random date button
-      document.getElementById('desktopRandomDateBtn').addEventListener('click', function() {
+      const desktopRandomDateBtn = document.getElementById('desktopRandomDateBtn');
+      if (desktopRandomDateBtn) {
+        desktopRandomDateBtn.addEventListener('click', function() {
         if (facilityData.length === 0) {
           alert('Please wait for data to load first');
           return;
@@ -1161,7 +1163,8 @@
         
         // Trigger search
         searchData();
-      });
+        });
+      }
       
     });
 

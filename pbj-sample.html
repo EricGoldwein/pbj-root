@@ -193,11 +193,15 @@
       color: rgba(255,255,255,0.95);
       font-style: italic;
       margin-top: 15px;
-      padding: 15px;
-      background: rgba(96, 165, 250, 0.15);
-      border-radius: 8px;
-      border: 2px solid rgba(96, 165, 250, 0.4);
+      padding: 20px;
+      background: rgba(96, 165, 250, 0.1);
+      border-radius: 12px;
+      border: 1px solid rgba(96, 165, 250, 0.2);
       font-weight: 500;
+      text-align: center;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
     }
     
     .search-section {
@@ -449,7 +453,7 @@
     
     .consulting-badge {
       position: absolute;
-      bottom: -30px;
+      bottom: -40px;
       right: 15px;
       background: rgba(96, 165, 250, 0.2);
       color: #60a5fa;
@@ -463,7 +467,7 @@
     
     .chart-source {
       position: absolute;
-      bottom: -35px;
+      bottom: -40px;
       right: 120px;
       color: rgba(255,255,255,0.6);
       font-size: 9px;
@@ -767,6 +771,11 @@
       
       .metric-value:after {
         content: "";
+      }
+      
+      .comparison-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        grid-template-rows: repeat(2, 1fr) !important;
       }
       
       .search-title {

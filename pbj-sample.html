@@ -227,6 +227,12 @@
       display: block;
     }
     
+    @media (max-width: 768px) {
+      .desktop-random-date {
+        display: none !important; /* Force hide on mobile */
+      }
+    }
+    
     #specificDayControls {
       grid-column: 2;
       align-self: start;
@@ -934,8 +940,8 @@
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
       </div>
-      <div class="desktop-random-date" style="text-align: left; margin-top: 10px; display: none;">
-        <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">select random date</span>
+      <div class="desktop-random-date" style="text-align: left; margin-top: 5px; display: none;">
+        <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">Select random date</span>
       </div>
     </div>
 
@@ -1076,6 +1082,12 @@
         const chartContainer = document.querySelector('.chart-container');
         if (chartContainer) {
           chartContainer.setAttribute('data-mobile-hprd-only', 'true');
+        }
+        
+        // Explicitly hide desktop random date on mobile
+        const desktopRandomDate = document.querySelector('.desktop-random-date');
+        if (desktopRandomDate) {
+          desktopRandomDate.style.display = 'none';
         }
       }
       
@@ -1671,7 +1683,8 @@
           periodLabel = `${quarter} ${year}`;
         } else if (groupBy === 'month') {
           periodKey = `${workDate.getFullYear()}-${String(workDate.getMonth() + 1).padStart(2, '0')}`;
-          periodLabel = workDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+          periodLabel = `${monthNames[workDate.getMonth()]} ${workDate.getFullYear()}`;
         } else if (groupBy === 'year') {
           periodKey = workDate.getFullYear().toString();
           periodLabel = workDate.getFullYear().toString();

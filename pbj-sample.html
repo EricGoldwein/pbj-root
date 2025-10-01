@@ -589,14 +589,34 @@
     }
     
     .consulting-services-box .example-image {
-      max-width: 200px;
+      max-width: 280px;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       transition: transform 0.3s ease;
+      cursor: pointer;
     }
     
     .consulting-services-box .example-image:hover {
       transform: scale(1.05);
+    }
+    
+    .consulting-services-box .read-more-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: rgba(255,255,255,0.9);
+      text-decoration: none;
+      font-weight: 600;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.2);
+      transition: all 0.3s ease;
+    }
+    
+    .consulting-services-box .read-more-link:hover {
+      background: rgba(255,255,255,0.2);
+      color: white;
+      transform: translateY(-2px);
     }
     
     @media (max-width: 768px) {
@@ -606,7 +626,7 @@
       }
       
       .consulting-services-box .example-image {
-        max-width: 150px;
+        max-width: 220px;
       }
     }
     
@@ -812,9 +832,16 @@
       <h3>📊 Custom PBJ Analytics & Visualizations</h3>
       <p>320 Consulting builds custom charts and visualizations from PBJ staffing data and other sources, combining historical trend analysis with clear graphics that strengthen your data-driven case.</p>
       <div class="examples">
-        <img src="seagate_hprd_3.5.png" alt="HPRD Analysis Example" class="example-image">
-        <img src="seagate_ser_pbj.png" alt="PBJ Staffing Example" class="example-image">
+        <a href="seagate_hprd_3.5.png" target="_blank">
+          <img src="seagate_hprd_3.5.png" alt="HPRD Analysis Example" class="example-image">
+        </a>
+        <a href="seagate_ser_pbj.png" target="_blank">
+          <img src="seagate_ser_pbj.png" alt="PBJ Staffing Example" class="example-image">
+        </a>
       </div>
+      <a href="https://www.320insight.com/words/pbj-seagate" target="_blank" class="read-more-link">
+        Read more about Seagate Nursing Home on The 320
+      </a>
     </div>
 
     <div class="methodology-section">

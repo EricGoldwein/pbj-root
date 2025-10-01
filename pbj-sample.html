@@ -1125,32 +1125,34 @@
         createTrendsChart();
       });
       
-      // Set up random date button (mobile)
-      const mobileRandomDateBtn = document.getElementById('randomDateBtn');
-      if (mobileRandomDateBtn) {
-        mobileRandomDateBtn.addEventListener('click', function() {
-        if (facilityData.length === 0) {
-          alert('Please wait for data to load first');
-          return;
+      // Set up random date button (mobile) - only if on mobile
+      if (window.innerWidth <= 768) {
+        const mobileRandomDateBtn = document.getElementById('randomDateBtn');
+        if (mobileRandomDateBtn) {
+          mobileRandomDateBtn.addEventListener('click', function() {
+            if (facilityData.length === 0) {
+              alert('Please wait for data to load first');
+              return;
+            }
+            
+            // Get all available dates from the data
+            const allDates = facilityData.map(row => row.WorkDate).sort();
+            const randomIndex = Math.floor(Math.random() * allDates.length);
+            const randomDate = allDates[randomIndex];
+            
+            // Always set the search type to specific day first
+            document.getElementById('searchType').value = 'specificDay';
+            handleSearchTypeChange();
+            
+            // Set the random date in the input
+            document.getElementById('specificDay').value = randomDate;
+            
+            // Small delay to ensure UI updates, then trigger search
+            setTimeout(() => {
+              searchData();
+            }, 100);
+          });
         }
-        
-        // Get all available dates from the data
-        const allDates = facilityData.map(row => row.WorkDate).sort();
-        const randomIndex = Math.floor(Math.random() * allDates.length);
-        const randomDate = allDates[randomIndex];
-        
-        // Always set the search type to specific day first
-        document.getElementById('searchType').value = 'specificDay';
-        handleSearchTypeChange();
-        
-        // Set the random date in the input
-        document.getElementById('specificDay').value = randomDate;
-        
-        // Small delay to ensure UI updates, then trigger search
-        setTimeout(() => {
-          searchData();
-        }, 100);
-        });
       }
       
       // Set up desktop random date button

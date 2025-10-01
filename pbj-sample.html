@@ -217,7 +217,7 @@
     
     .search-controls {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr 1fr 1fr auto auto;
       gap: 15px;
       margin-bottom: 10px; /* Reduced from 25px */
       align-items: end;
@@ -849,6 +849,22 @@
       .desktop-random-date {
         display: none; /* Hide on mobile */
       }
+      
+      .comparison-table table {
+        font-size: 0.8rem;
+      }
+      
+      .comparison-table th,
+      .comparison-table td {
+        padding: 6px 4px !important;
+        font-size: 0.75rem;
+      }
+      
+      .comparison-table th:first-child,
+      .comparison-table td:first-child {
+        max-width: 80px;
+        word-wrap: break-word;
+      }
     }
   </style>
 </head>
@@ -958,12 +974,12 @@
           <input type="date" id="specificDay" style="width: 100%;">
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
+        <div class="desktop-random-date" style="text-align: left; margin-top: 2px; display: none;">
+          <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">Search random date</span>
+        </div>
       </div>
       <div class="mobile-random-date" style="text-align: center; margin-top: 10px; display: none;">
         <button id="randomDateBtn" style="background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Search Random Date</button>
-      </div>
-      <div class="desktop-random-date" style="text-align: left; margin-top: 2px; display: none;">
-        <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">Search random date</span>
       </div>
     </div>
 
@@ -1017,9 +1033,9 @@
         <h3>Total Nurse HPRD Calculation</h3>
         <p><strong>Total Nurse HPRD</strong> includes all nursing staff positions:</p>
         <ul>
-          <li><strong>RN (Registered Nurse):</strong> RN, RN Admin, RNDON (Director of Nursing)</li>
+          <li><strong>RN (Registered Nurse):</strong> RN, RN Admin, RN DON (Director of Nursing)</li>
           <li><strong>LPN (Licensed Practical Nurse):</strong> LPN, LPN Admin</li>
-          <li><strong>Nursing Assistant:</strong> CNA (Certified Nursing Assistant), NAtr (Nursing Assistant in Training), Medication Aide/Technician</li>
+          <li><strong>Nursing Assistant:</strong> CNA (Certified Nursing Assistant), Nurse Aide in Training, Medication Aide/Technician</li>
         </ul>
         
         <h3>Formula</h3>
@@ -1961,9 +1977,14 @@
     }
 
     function calculateStats(data) {
-      if (data.length === 0) return { avgHprd: 0, avgCensus: 0, avgContract: 0 };
+      if (data.length === 0) return { 
+        avgHprd: 0, avgCensus: 0, avgContract: 0, 
+        avgRnHprd: 0, avgLpnHprd: 0, avgCnaHprd: 0 
+      };
       
       let totalHprd = 0, totalCensus = 0, totalContract = 0;
+      let totalRnHprd = 0, totalLpnHprd = 0, totalCnaHprd = 0;
+      let validDays = 0;
       
       data.forEach(row => {
         const census = parseFloat(row.MDScensus || 0) || 0;
@@ -1971,7 +1992,19 @@
         const lpnHours = parseFloat(row.Hrs_LPN || 0) || 0;
         const cnaHours = parseFloat(row.Hrs_CNA || 0) || 0;
         const totalHours = rnHours + lpnHours + cnaHours;
-        const hprd = census > 0 ? totalHours / census : 0;
+        
+        if (census > 0) {
+          const hprd = totalHours / census;
+          const rnHprd = rnHours / census;
+          const lpnHprd = lpnHours / census;
+          const cnaHprd = cnaHours / census;
+          
+          totalHprd += hprd;
+          totalRnHprd += rnHprd;
+          totalLpnHprd += lpnHprd;
+          totalCnaHprd += cnaHprd;
+          validDays++;
+        }
         
         const rnContract = parseFloat(row.Hrs_RN_ctr || 0) || 0;
         const lpnContract = parseFloat(row.Hrs_LPN_ctr || 0) || 0;
@@ -1979,15 +2012,17 @@
         const totalContractHours = rnContract + lpnContract + cnaContract;
         const contractPercentage = totalHours > 0 ? (totalContractHours / totalHours * 100) : 0;
         
-        totalHprd += hprd;
         totalCensus += census;
         totalContract += contractPercentage;
       });
       
       return {
-        avgHprd: (totalHprd / data.length).toFixed(2),
-        avgCensus: Math.round(totalCensus / data.length),
-        avgContract: (totalContract / data.length).toFixed(1)
+        avgHprd: validDays > 0 ? parseFloat((totalHprd / validDays).toFixed(2)) : 0,
+        avgCensus: data.length > 0 ? Math.round(totalCensus / data.length) : 0,
+        avgContract: data.length > 0 ? parseFloat((totalContract / data.length).toFixed(1)) : 0,
+        avgRnHprd: validDays > 0 ? parseFloat((totalRnHprd / validDays).toFixed(2)) : 0,
+        avgLpnHprd: validDays > 0 ? parseFloat((totalLpnHprd / validDays).toFixed(2)) : 0,
+        avgCnaHprd: validDays > 0 ? parseFloat((totalCnaHprd / validDays).toFixed(2)) : 0
       };
     }
 

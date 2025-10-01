@@ -190,13 +190,13 @@
     
     .sample-note {
       font-size: 0.9rem;
-      color: rgba(255,255,255,0.9);
+      color: rgba(255,255,255,0.95);
       font-style: italic;
       margin-top: 15px;
       padding: 15px;
-      background: rgba(96, 165, 250, 0.1);
+      background: rgba(96, 165, 250, 0.15);
       border-radius: 8px;
-      border: 2px solid rgba(96, 165, 250, 0.3);
+      border: 2px solid rgba(96, 165, 250, 0.4);
       font-weight: 500;
     }
     
@@ -449,7 +449,7 @@
     
     .consulting-badge {
       position: absolute;
-      bottom: -20px;
+      bottom: -25px;
       right: 15px;
       background: rgba(96, 165, 250, 0.2);
       color: #60a5fa;
@@ -463,7 +463,7 @@
     
     .chart-source {
       position: absolute;
-      bottom: -30px;
+      bottom: -35px;
       right: 15px;
       color: rgba(255,255,255,0.6);
       font-size: 9px;
@@ -698,6 +698,12 @@
       #specificDayControls {
         grid-column: 1;
         margin-top: 10px;
+        max-width: 200px;
+      }
+      
+      #specificDayControls input {
+        width: 100%;
+        max-width: 200px;
       }
       
       .day-results {
@@ -726,11 +732,28 @@
       }
       
       .consulting-badge {
-        bottom: -20px;
+        bottom: -25px;
+      }
+      
+      .chart-source {
+        bottom: -35px;
+        left: 15px;
+        right: auto;
       }
       
       .search-title {
         font-size: 1.2rem;
+      }
+      
+      .sample-badge {
+        font-size: 0.7rem;
+        padding: 4px 12px;
+        margin-bottom: 10px;
+      }
+      
+      .facility-header {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+        padding: 30px 0;
       }
     }
   </style>
@@ -837,10 +860,13 @@
           </select>
         </div>
         <div class="search-control" id="specificDayControls" style="display: none;">
-          <label for="specificDay">Date (<span id="randomDayBtn" style="color: #60a5fa; cursor: pointer; font-style: italic;">select random</span>)</label>
+          <label for="specificDay">Date</label>
           <input type="date" id="specificDay" style="width: 100%;">
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
+      </div>
+      <div style="text-align: center; margin-top: 15px;">
+        <button id="randomDateBtn" style="background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Select Random Date</button>
       </div>
     </div>
 
@@ -879,6 +905,9 @@
       </div>
       <a href="https://www.320insight.com/words/pbj-seagate" target="_blank" class="read-more-link">
         Read more about Seagate Nursing Home on The 320
+      </a>
+      <a href="mailto:eric@320insight.com" class="read-more-link" style="margin-top: 10px; display: block;">
+        Contact Eric for custom data visualizations and reports
       </a>
     </div>
 
@@ -947,10 +976,22 @@
           searchTitle.textContent = 'Search by Date Range or Day';
         }
         
+        // Change badge text for mobile
+        const sampleBadge = document.querySelector('.sample-badge');
+        if (sampleBadge) {
+          sampleBadge.textContent = 'Sample Facility Dashboard';
+        }
+        
         // Set mobile defaults
         const trendsGroupBy = document.getElementById('trendsGroupBy');
         if (trendsGroupBy) {
           trendsGroupBy.value = 'quarter';
+        }
+        
+        // Set default date for specific day search
+        const specificDayInput = document.getElementById('specificDay');
+        if (specificDayInput) {
+          specificDayInput.value = '2023-10-01'; // October 1, 2023
         }
         
         // Hide non-HPRD metrics on mobile by default
@@ -974,8 +1015,8 @@
         createTrendsChart();
       });
       
-      // Set up random day button
-      document.getElementById('randomDayBtn').addEventListener('click', function() {
+      // Set up random date button
+      document.getElementById('randomDateBtn').addEventListener('click', function() {
         if (facilityData.length === 0) {
           alert('Please wait for data to load first');
           return;

@@ -11,7 +11,7 @@ app = Flask(__name__)
 def index():
     return send_file('index.html', mimetype='text/html')
 
-@app.route('/about.html')
+@app.route('/about')
 def about():
     return send_file('about.html', mimetype='text/html')
 
@@ -33,3 +33,4 @@ def static_files(filename):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
+

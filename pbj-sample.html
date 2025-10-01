@@ -189,21 +189,36 @@
     }
     
     .sample-note {
-      font-size: 0.9rem;
-      color: rgba(255,255,255,0.95);
-      font-style: italic;
-      margin-top: 10px;
+      font-size: 0.95rem;
+      color: #1e293b;
+      font-weight: 500;
+      margin-top: 15px;
       margin-bottom: 0;
-      padding: 20px;
-      background: rgba(59, 130, 246, 0.15); /* Changed to blue theme */
-      border-radius: 12px;
-      border: 2px solid rgba(59, 130, 246, 0.3); /* Changed to blue theme */
-      font-weight: 600;
-      text-align: center;
-      max-width: 600px;
+      padding: 16px 24px;
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border-radius: 8px;
+      border-left: 4px solid #3b82f6;
+      text-align: left;
+      max-width: 700px;
       margin-left: auto;
       margin-right: auto;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); /* Changed to blue theme */
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+    
+    .sample-note::before {
+      content: "💡";
+      position: absolute;
+      left: -8px;
+      top: -8px;
+      background: #3b82f6;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
     }
     
     .search-section {

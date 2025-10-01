@@ -449,7 +449,7 @@
     
     .consulting-badge {
       position: absolute;
-      bottom: -25px;
+      bottom: -30px;
       right: 15px;
       background: rgba(96, 165, 250, 0.2);
       color: #60a5fa;
@@ -464,10 +464,20 @@
     .chart-source {
       position: absolute;
       bottom: -35px;
-      right: 15px;
+      right: 120px;
       color: rgba(255,255,255,0.6);
       font-size: 9px;
       font-style: italic;
+    }
+    
+    .random-date-container {
+      display: none;
+    }
+    
+    @media (max-width: 768px) {
+      .random-date-container {
+        display: block;
+      }
     }
     
     .chart-title {
@@ -590,6 +600,8 @@
     
     .consulting-services-box .example-image {
       max-width: 280px;
+      height: 200px;
+      object-fit: cover;
       border-radius: 8px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.3);
       transition: transform 0.3s ease;
@@ -741,6 +753,22 @@
         right: auto;
       }
       
+      .comparison-card h4 {
+        font-size: 0.9rem;
+      }
+      
+      .comparison-card h4:before {
+        content: "";
+      }
+      
+      .comparison-card h4:after {
+        content: "";
+      }
+      
+      .metric-value:after {
+        content: "";
+      }
+      
       .search-title {
         font-size: 1.2rem;
       }
@@ -754,6 +782,8 @@
       .facility-header {
         background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
         padding: 30px 0;
+        margin: 0 -10px;
+        border-radius: 0;
       }
     }
   </style>
@@ -865,7 +895,7 @@
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
       </div>
-      <div style="text-align: center; margin-top: 15px;">
+      <div style="text-align: center; margin-top: 15px;" class="random-date-container">
         <button id="randomDateBtn" style="background: rgba(96, 165, 250, 0.2); color: #60a5fa; border: 1px solid rgba(96, 165, 250, 0.3); padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">Select Random Date</button>
       </div>
     </div>
@@ -906,7 +936,7 @@
       <a href="https://www.320insight.com/words/pbj-seagate" target="_blank" class="read-more-link">
         Read more about Seagate Nursing Home on The 320
       </a>
-      <a href="mailto:eric@320insight.com" class="read-more-link" style="margin-top: 10px; display: block;">
+      <a href="mailto:eric@320insight.com" class="read-more-link" style="margin-top: 10px; display: inline-block; max-width: 300px; text-align: center;">
         Contact Eric for custom data visualizations and reports
       </a>
     </div>
@@ -1699,7 +1729,7 @@
             </a>
           </div>
           
-          <div class="comparison-grid" style="grid-template-columns: repeat(4, 1fr);">
+          <div class="comparison-grid" style="grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr);">
             <div class="comparison-card">
               <h4>📊 Day Performance</h4>
               <div class="metric-row">

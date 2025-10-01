@@ -223,6 +223,10 @@
       align-items: end;
     }
     
+    .desktop-random-date {
+      display: block;
+    }
+    
     #specificDayControls {
       grid-column: 2;
       align-self: start;
@@ -816,6 +820,10 @@
         margin-bottom: 0; /* Remove bottom margin on mobile */
         padding: 15px; /* Reduce padding on mobile */
       }
+      
+      .desktop-random-date {
+        display: none; /* Hide on mobile */
+      }
     }
   </style>
 </head>
@@ -859,7 +867,6 @@
             <option value="year">By Year</option>
             <option value="specificDay">Specific Day</option>
           </select>
-          <div style="margin-top: 5px; font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">select random date</div>
         </div>
         <div class="search-control" id="dateRangeControls">
           <label for="startDate">Start Date</label>
@@ -926,6 +933,9 @@
           <input type="date" id="specificDay" style="width: 100%;">
         </div>
         <button class="search-button" id="searchButton">Search Staffing Data</button>
+      </div>
+      <div class="desktop-random-date" style="text-align: left; margin-top: 10px; display: none;">
+        <span style="font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">select random date</span>
       </div>
     </div>
 
@@ -1066,6 +1076,15 @@
         const chartContainer = document.querySelector('.chart-container');
         if (chartContainer) {
           chartContainer.setAttribute('data-mobile-hprd-only', 'true');
+        }
+      }
+      
+      // Desktop-specific setup
+      if (window.innerWidth > 768) {
+        // Show desktop random date button
+        const desktopRandomDate = document.querySelector('.desktop-random-date');
+        if (desktopRandomDate) {
+          desktopRandomDate.style.display = 'block';
         }
       }
       

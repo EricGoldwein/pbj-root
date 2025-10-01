@@ -195,15 +195,15 @@
       margin-top: 10px;
       margin-bottom: 0;
       padding: 20px;
-      background: rgba(16, 185, 129, 0.2);
+      background: rgba(59, 130, 246, 0.15); /* Changed to blue theme */
       border-radius: 12px;
-      border: 2px solid rgba(16, 185, 129, 0.4);
+      border: 2px solid rgba(59, 130, 246, 0.3); /* Changed to blue theme */
       font-weight: 600;
       text-align: center;
       max-width: 600px;
       margin-left: auto;
       margin-right: auto;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15); /* Changed to blue theme */
     }
     
     .search-section {
@@ -806,9 +806,14 @@
       
       .facility-header {
         background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
-        padding: 30px 0;
+        padding: 30px 0 20px 0; /* Reduced bottom padding */
         margin: 0 -10px;
         border-radius: 0;
+      }
+      
+      .sample-note {
+        margin-bottom: 0; /* Remove bottom margin on mobile */
+        padding: 15px; /* Reduce padding on mobile */
       }
     }
   </style>
@@ -839,7 +844,7 @@
       <div class="sample-badge">Sample Dashboard: Daily Staffing Search and Analysis</div>
       <h1>Seagate Rehabilitation and Nursing Center</h1>
       <p>Facility ID: 335513 | Brooklyn, NY</p>
-      <p class="sample-note">This is a sample dashboard. We provide detailed PBJ analytics and other key metrics for every nursing home in the United States.</p>
+      <p class="sample-note">320 Co provide detailed PBJ analytics and other key metrics for every nursing home in the United States.</p>
     </div>
 
     <div class="search-section">

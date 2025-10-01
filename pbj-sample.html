@@ -861,6 +861,7 @@
         <div class="search-control" id="endDateControls">
           <label for="endDate">End Date</label>
           <input type="date" id="endDate">
+          <div style="margin-top: 5px; font-size: 0.8rem; color: #60a5fa; font-style: italic; cursor: pointer;" id="desktopRandomDateBtn">select random date</div>
         </div>
         <div class="search-control" id="quarterControls" style="display: none;">
           <label for="quarter">Quarter(s)</label>
@@ -1079,7 +1080,7 @@
         createTrendsChart();
       });
       
-      // Set up random date button
+      // Set up random date button (mobile)
       document.getElementById('randomDateBtn').addEventListener('click', function() {
         if (facilityData.length === 0) {
           alert('Please wait for data to load first');
@@ -1102,6 +1103,30 @@
         setTimeout(() => {
           searchData();
         }, 100);
+      });
+      
+      // Set up desktop random date button
+      document.getElementById('desktopRandomDateBtn').addEventListener('click', function() {
+        if (facilityData.length === 0) {
+          alert('Please wait for data to load first');
+          return;
+        }
+        
+        // Get all available dates from the data
+        const allDates = facilityData.map(row => row.WorkDate).sort();
+        const randomIndex = Math.floor(Math.random() * allDates.length);
+        const randomDate = allDates[randomIndex];
+        
+        // Set the random date in the date range inputs
+        document.getElementById('startDate').value = randomDate;
+        document.getElementById('endDate').value = randomDate;
+        
+        // Set search type to date range
+        document.getElementById('searchType').value = 'dateRange';
+        handleSearchTypeChange();
+        
+        // Trigger search
+        searchData();
       });
       
     });
@@ -1679,7 +1704,9 @@
           const bQuarter = b.period.split(' ')[0];
           
           if (aYear !== bYear) return aYear - bYear;
-          return aQuarter.localeCompare(bQuarter);
+          // Sort quarters by number: Q1, Q2, Q3, Q4
+          const quarterOrder = { 'Q1': 1, 'Q2': 2, 'Q3': 3, 'Q4': 4 };
+          return quarterOrder[aQuarter] - quarterOrder[bQuarter];
         } else if (groupBy === 'month') {
           // Sort months chronologically: Jan 2017, Feb 2017, Mar 2017, etc.
           const aDate = new Date(a.period);

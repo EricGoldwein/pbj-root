@@ -1526,7 +1526,7 @@
       window.trendsChart = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: displayLabels,
+          labels: labels, // Use original labels for tooltips
           datasets: [
             {
               label: 'Total HPRD',
@@ -1582,7 +1582,10 @@
             x: {
               ticks: {
                 color: 'rgba(255,255,255,0.8)',
-                maxTicksLimit: isMobile ? 6 : 12
+                maxTicksLimit: isMobile ? 6 : 12,
+                callback: function(value, index) {
+                  return displayLabels[index] || '';
+                }
               },
               grid: {
                 color: 'rgba(255,255,255,0.1)'

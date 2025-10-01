@@ -449,7 +449,7 @@
     
     .consulting-badge {
       position: absolute;
-      bottom: -15px;
+      bottom: -20px;
       right: 15px;
       background: rgba(96, 165, 250, 0.2);
       color: #60a5fa;
@@ -694,6 +694,44 @@
         margin: 20px auto 0;
         display: block;
       }
+      
+      #specificDayControls {
+        grid-column: 1;
+        margin-top: 10px;
+      }
+      
+      .day-results {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      
+      .day-result {
+        padding: 15px;
+        margin-bottom: 10px;
+      }
+      
+      .day-result h4 {
+        font-size: 1rem;
+        margin-bottom: 10px;
+      }
+      
+      .day-result .metrics {
+        grid-template-columns: 1fr;
+        gap: 8px;
+      }
+      
+      .day-result .metric {
+        padding: 8px;
+        font-size: 0.9rem;
+      }
+      
+      .consulting-badge {
+        bottom: -20px;
+      }
+      
+      .search-title {
+        font-size: 1.2rem;
+      }
     }
   </style>
 </head>
@@ -727,7 +765,7 @@
     </div>
 
     <div class="search-section">
-      <h2 style="color: #60a5fa; margin-bottom: 20px;">Search Staffing Data by Date Range or Day</h2>
+      <h2 style="color: #60a5fa; margin-bottom: 20px;" class="search-title">Search Staffing Data by Date Range or Day</h2>
       <div class="search-controls">
         <div class="search-control">
           <label for="searchType">Search Type</label>
@@ -899,6 +937,27 @@
             navToggle.classList.remove('active');
           });
         });
+      }
+      
+      // Mobile-specific setup
+      if (window.innerWidth <= 768) {
+        // Change title for mobile
+        const searchTitle = document.querySelector('.search-title');
+        if (searchTitle) {
+          searchTitle.textContent = 'Search by Date Range or Day';
+        }
+        
+        // Set mobile defaults
+        const trendsGroupBy = document.getElementById('trendsGroupBy');
+        if (trendsGroupBy) {
+          trendsGroupBy.value = 'quarter';
+        }
+        
+        // Hide non-HPRD metrics on mobile by default
+        const chartContainer = document.querySelector('.chart-container');
+        if (chartContainer) {
+          chartContainer.setAttribute('data-mobile-hprd-only', 'true');
+        }
       }
       
       // Load facility data
@@ -1585,10 +1644,13 @@
       // Use the exact working URL format with date filter and correct PROVNUM case
       const cmsUrl = `https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing/data/${quarterUrl}?query=%7B%22filters%22%3A%7B%22list%22%3A%5B%7B%22conditions%22%3A%5B%7B%22column%22%3A%7B%22value%22%3A%22${provnumCol}%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${provnum}%22%5D%7D%2C%7B%22column%22%3A%7B%22value%22%3A%22WorkDate%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${cmsDate}%22%5D%7D%5D%7D%5D%2C%22rootConjunction%22%3A%7B%22value%22%3A%22AND%22%7D%7D%2C%22keywords%22%3A%22%22%2C%22offset%22%3A0%2C%22limit%22%3A10%2C%22sort%22%3A%7B%22sortBy%22%3Anull%2C%22sortOrder%22%3Anull%7D%2C%22columns%22%3A%5B%5D%7D`;
       
+      const isMobile = window.innerWidth <= 768;
+      const calendarEmoji = isMobile ? '' : '📅 ';
+      
       resultsSection.innerHTML = `
         <div class="specific-day-analysis">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <h3 style="color: #60a5fa; margin: 0;">📅 ${dayName} Analysis</h3>
+            <h3 style="color: #60a5fa; margin: 0;">${calendarEmoji}${dayName} Analysis</h3>
             <a href="${cmsUrl}" target="_blank" 
                style="background: #60a5fa; color: white; padding: 8px 16px; border-radius: 6px; 
                       text-decoration: none; font-weight: 600; display: inline-block;">

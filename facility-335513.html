@@ -1,0 +1,1733 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Seagate Rehabilitation and Nursing Center | PBJ Nursing Home Staffing Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Staffing data and analysis for Seagate Rehabilitation and Nursing Center (335513) in Brooklyn, NY.">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="">
+  <meta property="og:title" content="Seagate Rehabilitation and Nursing Center | PBJ Nursing Home Staffing Dashboard">
+  <meta property="og:description" content="Staffing data and analysis for Seagate Rehabilitation and Nursing Center (335513) in Brooklyn, NY.">
+  <meta property="og:image" content="og/og-image-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:title" content="Seagate Rehabilitation and Nursing Center | PBJ Nursing Home Staffing Dashboard">
+  <meta property="twitter:description" content="Staffing data and analysis for Seagate Rehabilitation and Nursing Center (335513) in Brooklyn, NY.">
+  <meta property="twitter:image" content="og/og-image-1200x630.png">
+  
+  <link rel="icon" type="image/png" href="pbj_favicon.png">
+  
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e293b;
+      color: white;
+      line-height: 1.6;
+      margin: 0;
+      padding: 0;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    
+    /* Navigation Styles */
+    .navbar {
+      background: #0f172a;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-bottom: 2px solid #1e40af;
+    }
+    
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    
+    .nav-menu {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+      padding: 8px 0;
+    }
+    
+    .nav-link:hover,
+    .nav-link.active {
+      color: #b91c1c;
+    }
+    
+    .nav-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      gap: 4px;
+    }
+    
+    .nav-toggle span {
+      width: 25px;
+      height: 3px;
+      background: white;
+      transition: all 0.3s ease;
+    }
+    
+    @media (max-width: 768px) {
+      .nav-menu {
+        position: fixed;
+        top: 60px;
+        left: -100%;
+        width: 100%;
+        height: calc(100vh - 60px);
+        background: #0f172a;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        padding: 0;
+        gap: 0;
+        transition: left 0.3s ease;
+        border-top: 1px solid rgba(255,255,255,0.1);
+      }
+      
+      .nav-menu.active {
+        left: 0;
+      }
+      
+      .nav-link {
+        padding: 18px 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        text-align: left;
+        font-size: 1rem;
+        color: rgba(255,255,255,0.9);
+        background: transparent;
+        transition: all 0.2s ease;
+      }
+      
+      .nav-link:hover,
+      .nav-link.active {
+        background: rgba(185, 28, 28, 0.1);
+        color: #b91c1c;
+        border-left: 3px solid #b91c1c;
+      }
+      
+      .nav-toggle {
+        display: flex;
+      }
+      
+      .nav-toggle.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+      }
+      
+      .nav-toggle.active span:nth-child(2) {
+        opacity: 0;
+      }
+      
+      .nav-toggle.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px);
+      }
+    }
+    
+    .facility-header {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+      padding: 40px 0;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .facility-header h1 {
+      font-size: 2.5rem;
+      margin-bottom: 10px;
+      font-weight: 800;
+    }
+    
+    .facility-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      margin-bottom: 15px;
+    }
+    
+    .sample-badge {
+      display: inline-block;
+      background: #60a5fa;
+      color: white;
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .sample-note {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.9);
+      font-style: italic;
+      margin-top: 15px;
+      padding: 15px;
+      background: rgba(96, 165, 250, 0.1);
+      border-radius: 8px;
+      border: 2px solid rgba(96, 165, 250, 0.3);
+      font-weight: 500;
+    }
+    
+    .search-section {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 20px;
+      border: 2px solid #1e40af;
+      margin-bottom: 30px;
+    }
+    
+    .search-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr auto;
+      gap: 15px;
+      margin-bottom: 25px;
+      align-items: end;
+    }
+    
+    #specificDayControls {
+      grid-column: 2;
+      align-self: start;
+    }
+    
+    #specificDayControls input {
+      margin-bottom: 0;
+    }
+    
+    .search-controls .search-button {
+      grid-column: auto;
+      margin: 0;
+      padding: 12px 24px;
+      white-space: nowrap;
+    }
+    
+    @media (max-width: 768px) {
+      .search-controls {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .search-controls .search-button {
+        grid-column: 1;
+        width: 100%;
+      }
+    }
+    
+    .search-control {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    
+    .search-control label {
+      color: #60a5fa;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    
+    .search-control input,
+    .search-control select {
+      padding: 12px;
+      border: 1px solid #374151;
+      border-radius: 8px;
+      background: #374151;
+      color: white;
+      font-size: 1rem;
+    }
+    
+    .search-control input:focus,
+    .search-control select:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+    }
+    
+    .search-control select[multiple] {
+      height: 120px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #374151;
+      background: #374151;
+      color: white;
+      font-size: 0.9rem;
+      overflow-y: auto;
+    }
+    
+    .search-control select[multiple]:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+    }
+    
+    .search-control select[multiple] option {
+      padding: 6px 8px;
+      margin: 1px 0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .search-control select[multiple] option:hover {
+      background: rgba(96, 165, 250, 0.3);
+    }
+    
+    .search-control select[multiple] option:checked {
+      background: #60a5fa;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .search-control select[multiple] option:checked:hover {
+      background: #3b82f6;
+    }
+    
+    .search-button {
+      background: #60a5fa;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      grid-column: 1 / -1;
+      justify-self: center;
+      max-width: 200px;
+      margin: 0 auto;
+    }
+    
+    .search-button:hover {
+      background: #3b82f6;
+    }
+    
+    .search-button:disabled {
+      background: #6b7280;
+      cursor: not-allowed;
+    }
+    
+    .results-section {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 20px;
+      border: 2px solid #1e40af;
+      margin-bottom: 30px;
+      display: none;
+    }
+    
+    .results-section.show {
+      display: block;
+    }
+    
+    .day-results {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .day-card {
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .day-card h3 {
+      color: #60a5fa;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+    }
+    
+    .metric-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .metric-row:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+    
+    .metric-label {
+      color: rgba(255,255,255,0.8);
+      font-size: 0.9rem;
+    }
+    
+    .metric-value {
+      color: white;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .chart-section {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 20px;
+      border: 2px solid #1e40af;
+      margin-bottom: 30px;
+    }
+    
+    .featured-chart {
+      background: linear-gradient(135deg, #1e293b 0%, #1e40af 100%);
+      border: 3px solid #60a5fa;
+      box-shadow: 0 10px 30px rgba(96, 165, 250, 0.2);
+    }
+    
+    .featured-chart .chart-title {
+      font-size: 1.5rem;
+      color: #60a5fa;
+      text-align: center;
+      margin-bottom: 25px;
+    }
+    
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    
+    .chart-controls label {
+      color: #60a5fa;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+    
+    .chart-controls select {
+      padding: 8px 12px;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      background: #1e293b;
+      color: white;
+      font-size: 0.9rem;
+    }
+    
+    .chart-container {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 20px;
+      margin: 20px 0;
+      position: relative;
+    }
+    
+    .consulting-badge {
+      position: absolute;
+      bottom: -15px;
+      right: 15px;
+      background: rgba(96, 165, 250, 0.2);
+      color: #60a5fa;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 500;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      backdrop-filter: blur(10px);
+    }
+    
+    .chart-source {
+      position: absolute;
+      bottom: -30px;
+      right: 15px;
+      color: rgba(255,255,255,0.6);
+      font-size: 9px;
+      font-style: italic;
+    }
+    
+    .chart-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #60a5fa;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 50px 0;
+      color: #64748b;
+      font-size: 1.2rem;
+    }
+    
+    .error {
+      text-align: center;
+      padding: 30px;
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      border-radius: 12px;
+      border: 1px solid #ef4444;
+    }
+    
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .comparison-card {
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .comparison-card h4 {
+      color: #60a5fa;
+      font-size: 1.1rem;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    
+    .metric-value.positive {
+      color: #10b981;
+    }
+    
+    .metric-value.negative {
+      color: #ef4444;
+    }
+    
+    .summary-card {
+      background: rgba(255,255,255,0.05);
+      padding: 20px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+    }
+    
+    .summary-card h3 {
+      color: #60a5fa;
+      margin-bottom: 15px;
+    }
+    
+    .summary-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 15px;
+    }
+    
+    .summary-metric {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .summary-label {
+      color: rgba(255,255,255,0.7);
+      font-size: 0.9rem;
+    }
+    
+    .summary-value {
+      color: #60a5fa;
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+    
+    .consulting-services-box {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+      padding: 30px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      text-align: center;
+      color: white;
+    }
+    
+    .consulting-services-box h3 {
+      color: white;
+      font-size: 1.5rem;
+      margin-bottom: 15px;
+      font-weight: 700;
+    }
+    
+    .consulting-services-box p {
+      color: rgba(255,255,255,0.95);
+      font-size: 1.1rem;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    
+    .consulting-services-box .examples {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    
+    .consulting-services-box .example-image {
+      max-width: 200px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transition: transform 0.3s ease;
+    }
+    
+    .consulting-services-box .example-image:hover {
+      transform: scale(1.05);
+    }
+    
+    @media (max-width: 768px) {
+      .consulting-services-box .examples {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .consulting-services-box .example-image {
+        max-width: 150px;
+      }
+    }
+    
+    .methodology-section {
+      background: #1e293b;
+      padding: 30px;
+      border-radius: 20px;
+      border: 2px solid #1e40af;
+      margin-bottom: 30px;
+    }
+    
+    .methodology-content h3 {
+      color: #60a5fa;
+      font-size: 1.2rem;
+      margin: 20px 0 10px 0;
+    }
+    
+    .methodology-content p {
+      color: rgba(255,255,255,0.9);
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+    
+    .methodology-content ul {
+      color: rgba(255,255,255,0.9);
+      margin-left: 20px;
+      margin-bottom: 15px;
+    }
+    
+    .methodology-content li {
+      margin-bottom: 8px;
+    }
+    
+    .methodology-content code {
+      background: rgba(96, 165, 250, 0.1);
+      color: #60a5fa;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 40px 0;
+      background: #0f172a;
+      color: white;
+      margin-top: 60px;
+    }
+    
+    .footer p {
+      font-size: 1rem;
+      opacity: 0.9;
+      color: #e2e8f0;
+    }
+    
+    @media (max-width: 768px) {
+      .container { padding: 0 10px; }
+      .facility-header h1 { font-size: 2rem; }
+      .search-section, .results-section, .chart-section { padding: 20px; }
+      .search-controls { grid-template-columns: 1fr; }
+      .day-results { grid-template-columns: 1fr; }
+      .search-button {
+        width: 100%;
+        max-width: none;
+        margin: 20px auto 0;
+        display: block;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand" style="color: inherit;">
+        <img src="pbj_favicon.png" alt="PBJ" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+        <span>PBJ</span>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="index.html" class="nav-link">Home</a>
+        <a href="https://pbjdashboard.com/app" class="nav-link">Dashboard</a>
+        <a href="about.html" class="nav-link">About</a>
+        <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
+      </div>
+      <div class="nav-toggle" id="navToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container">
+    <div class="facility-header">
+      <div class="sample-badge">Sample Dashboard: Daily Staffing Search and Analysis</div>
+      <h1>Seagate Rehabilitation and Nursing Center</h1>
+      <p>Facility ID: 335513 | Brooklyn, NY</p>
+      <p class="sample-note">This is a sample dashboard. We provide detailed PBJ analytics and other key metrics for every nursing home in the United States.</p>
+    </div>
+
+    <div class="search-section">
+      <h2 style="color: #60a5fa; margin-bottom: 20px;">Search Staffing Data by Date Range or Day</h2>
+      <div class="search-controls">
+        <div class="search-control">
+          <label for="searchType">Search Type</label>
+          <select id="searchType">
+            <option value="dateRange">Date Range</option>
+            <option value="quarter">By Quarter</option>
+            <option value="year">By Year</option>
+            <option value="specificDay">Specific Day</option>
+          </select>
+        </div>
+        <div class="search-control" id="dateRangeControls">
+          <label for="startDate">Start Date</label>
+          <input type="date" id="startDate">
+        </div>
+        <div class="search-control" id="endDateControls">
+          <label for="endDate">End Date</label>
+          <input type="date" id="endDate">
+        </div>
+        <div class="search-control" id="quarterControls" style="display: none;">
+          <label for="quarter">Quarter(s)</label>
+          <select id="quarter" multiple size="4">
+            <option value="2017Q1">Q1 2017</option>
+            <option value="2017Q2">Q2 2017</option>
+            <option value="2017Q3">Q3 2017</option>
+            <option value="2017Q4">Q4 2017</option>
+            <option value="2018Q1">Q1 2018</option>
+            <option value="2018Q2">Q2 2018</option>
+            <option value="2018Q3">Q3 2018</option>
+            <option value="2018Q4">Q4 2018</option>
+            <option value="2019Q1">Q1 2019</option>
+            <option value="2019Q2">Q2 2019</option>
+            <option value="2019Q3">Q3 2019</option>
+            <option value="2019Q4">Q4 2019</option>
+            <option value="2020Q1">Q1 2020</option>
+            <option value="2020Q2">Q2 2020</option>
+            <option value="2020Q3">Q3 2020</option>
+            <option value="2020Q4">Q4 2020</option>
+            <option value="2021Q1">Q1 2021</option>
+            <option value="2021Q2">Q2 2021</option>
+            <option value="2021Q3">Q3 2021</option>
+            <option value="2021Q4">Q4 2021</option>
+            <option value="2022Q1">Q1 2022</option>
+            <option value="2022Q2">Q2 2022</option>
+            <option value="2022Q3">Q3 2022</option>
+            <option value="2022Q4">Q4 2022</option>
+            <option value="2023Q1">Q1 2023</option>
+            <option value="2023Q2">Q2 2023</option>
+            <option value="2023Q3">Q3 2023</option>
+            <option value="2023Q4">Q4 2023</option>
+            <option value="2024Q1">Q1 2024</option>
+            <option value="2024Q2">Q2 2024</option>
+            <option value="2024Q3">Q3 2024</option>
+            <option value="2024Q4">Q4 2024</option>
+            <option value="2025Q1">Q1 2025</option>
+          </select>
+        </div>
+        <div class="search-control" id="yearControls" style="display: none;">
+          <label for="year">Year(s)</label>
+          <select id="year" multiple size="4">
+            <option value="2017">2017</option>
+            <option value="2018">2018</option>
+            <option value="2019">2019</option>
+            <option value="2020">2020</option>
+            <option value="2021">2021</option>
+            <option value="2022">2022</option>
+            <option value="2023">2023</option>
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+          </select>
+        </div>
+        <div class="search-control" id="specificDayControls" style="display: none;">
+          <label for="specificDay">Date (<span id="randomDayBtn" style="color: #60a5fa; cursor: pointer; font-style: italic;">select random</span>)</label>
+          <input type="date" id="specificDay" style="width: 100%;">
+        </div>
+        <button class="search-button" id="searchButton">Search Staffing Data</button>
+      </div>
+    </div>
+
+    <div class="results-section" id="resultsSection">
+      <h2 style="color: #60a5fa; margin-bottom: 20px;">Search Results</h2>
+      <div class="loading" id="loadingIndicator">Loading data...</div>
+      <div class="day-results" id="dayResults"></div>
+    </div>
+
+    <div class="chart-section featured-chart">
+      <h2 class="chart-title">📈 Staffing Trends Analysis</h2>
+      <div class="chart-controls">
+        <label for="trendsGroupBy">Group By:</label>
+        <select id="trendsGroupBy">
+          <option value="day">Daily</option>
+          <option value="quarter">Quarterly</option>
+          <option value="month">Monthly</option>
+          <option value="year">Yearly</option>
+        </select>
+      </div>
+      <div class="chart-container">
+        <canvas id="trendsChart" width="800" height="500"></canvas>
+      </div>
+    </div>
+
+    <div class="consulting-services-box">
+      <h3>📊 Custom PBJ Analytics & Visualizations</h3>
+      <p>320 Consulting builds custom charts and visualizations from PBJ staffing data and other sources, combining historical trend analysis with clear graphics that strengthen your data-driven case.</p>
+      <div class="examples">
+        <img src="seagate_hprd_3.5.png" alt="HPRD Analysis Example" class="example-image">
+        <img src="seagate_ser_pbj.png" alt="PBJ Staffing Example" class="example-image">
+      </div>
+    </div>
+
+    <div class="methodology-section">
+      <h2 style="color: #60a5fa; margin-bottom: 20px;">📊 Methodology</h2>
+      <div class="methodology-content">
+        <h3>Total Nurse HPRD Calculation</h3>
+        <p><strong>Total Nurse HPRD</strong> includes all nursing staff positions:</p>
+        <ul>
+          <li><strong>RN (Registered Nurse):</strong> Direct care, administrative duties, DON hours, and other RN activities</li>
+          <li><strong>LPN (Licensed Practical Nurse):</strong> Direct care, administrative duties, and other LPN activities</li>
+          <li><strong>CNA (Certified Nursing Assistant):</strong> Direct care, medication aide (if certified), and other CNA activities</li>
+        </ul>
+        
+        <h3>Formula</h3>
+        <p><code>Total Nurse HPRD = (RN Hours + LPN Hours + CNA Hours) ÷ Census</code></p>
+        
+        <h3>Data Source</h3>
+        <p>CMS Payroll-Based Journal (PBJ) data provides daily staffing hours and resident census for all Medicare/Medicaid certified nursing homes.</p>
+        
+        <h3>Contract Staff</h3>
+        <p>Contract percentage shows the proportion of hours worked by agency/temporary staff versus facility employees.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <p>Source: CMS Payroll-Based Journal Data</p>
+    <p><a href="about.html" style="color: #60a5fa; text-decoration: none;">About the PBJ Dashboard</a></p>
+    <p><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.7); text-decoration: none; font-style: italic;">320 Consulting: Turning Spreadsheets into Stories</a></p>
+  </div>
+
+  <script>
+    // Global variables
+    let facilityData = [];
+    let filteredData = [];
+    let trendsChart = null;
+
+    // Mobile Navigation Toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      const navToggle = document.getElementById('navToggle');
+      const navMenu = document.getElementById('navMenu');
+      
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+          navMenu.classList.toggle('active');
+          navToggle.classList.toggle('active');
+        });
+        
+        // Close mobile menu when a nav link is clicked
+        const navLinks = navMenu.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+          link.addEventListener('click', function() {
+            navMenu.classList.remove('active');
+            navToggle.classList.remove('active');
+          });
+        });
+      }
+      
+      // Load facility data
+      loadFacilityData();
+      
+      // Set up search button
+      document.getElementById('searchButton').addEventListener('click', searchData);
+      
+      // Set up search type change handler
+      document.getElementById('searchType').addEventListener('change', handleSearchTypeChange);
+      
+      // Set up trends group by handler
+      document.getElementById('trendsGroupBy').addEventListener('change', function() {
+        createTrendsChart();
+      });
+      
+      // Set up random day button
+      document.getElementById('randomDayBtn').addEventListener('click', function() {
+        if (facilityData.length === 0) {
+          alert('Please wait for data to load first');
+          return;
+        }
+        
+        // Get all available dates from the data
+        const allDates = facilityData.map(row => row.WorkDate).sort();
+        const randomIndex = Math.floor(Math.random() * allDates.length);
+        const randomDate = allDates[randomIndex];
+        
+        // Set the random date in the input
+        document.getElementById('specificDay').value = randomDate;
+        
+        // Trigger search automatically
+        searchData();
+      });
+      
+    });
+
+    async function loadFacilityData() {
+      try {
+        console.log('Loading facility data...');
+        const response = await fetch('facility_335513_complete_data.csv');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const csvText = await response.text();
+        console.log('CSV text length:', csvText.length);
+        console.log('First 200 chars:', csvText.substring(0, 200));
+        
+        facilityData = parseCSV(csvText);
+        console.log(`Loaded ${facilityData.length} records`);
+        
+        if (facilityData.length === 0) {
+          showError('No data found in CSV file');
+          return;
+        }
+        
+        // Set default date range to full data range
+        const allDates = facilityData.map(row => new Date(row.WorkDate)).sort((a, b) => a - b);
+        const earliestDate = allDates[0];
+        const latestDate = allDates[allDates.length - 1];
+        
+        document.getElementById('startDate').value = earliestDate.toISOString().split('T')[0];
+        document.getElementById('endDate').value = latestDate.toISOString().split('T')[0];
+        
+        // Set default to current quarter
+        const currentQuarter = getCurrentQuarter();
+        document.getElementById('quarter').value = currentQuarter;
+        
+        console.log('Data loaded successfully!');
+        
+        // Debug: Check what days of week we have in the data
+        const dayCounts = {};
+        facilityData.slice(0, 10).forEach(row => {
+          const [year, month, day] = row.WorkDate.split('-');
+          const workDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          const dayName = workDate.toLocaleDateString('en-US', { weekday: 'long' });
+          dayCounts[dayName] = (dayCounts[dayName] || 0) + 1;
+        });
+        console.log('Sample days in data:', dayCounts);
+        
+        // Create initial chart with full data
+        window.filteredData = facilityData;
+        createTrendsChart();
+        
+      } catch (error) {
+        console.error('Error loading facility data:', error);
+        showError(`Failed to load facility data: ${error.message}`);
+      }
+    }
+
+    function parseCSV(csvText) {
+      const lines = csvText.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim());
+      const data = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',');
+          const row = {};
+          headers.forEach((header, index) => {
+            let value = values[index] || '';
+            // Clean up the value
+            value = value.trim();
+            // Convert date format from YYYYMMDD to YYYY-MM-DD
+            if (header === 'WorkDate' && value && value.length === 8) {
+              const year = value.substring(0, 4);
+              const month = value.substring(4, 6);
+              const day = value.substring(6, 8);
+              value = `${year}-${month}-${day}`;
+            }
+            row[header] = value;
+          });
+          data.push(row);
+        }
+      }
+      
+      console.log(`Parsed ${data.length} records`);
+      console.log('Sample record:', data[0]);
+      return data;
+    }
+
+    function getCurrentQuarter() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1; // 0-based to 1-based
+      
+      if (month <= 3) return `${year}Q1`;
+      if (month <= 6) return `${year}Q2`;
+      if (month <= 9) return `${year}Q3`;
+      return `${year}Q4`;
+    }
+
+    function handleSearchTypeChange() {
+      const searchType = document.getElementById('searchType').value;
+      
+      // Hide all controls
+      document.getElementById('dateRangeControls').style.display = 'none';
+      document.getElementById('endDateControls').style.display = 'none';
+      document.getElementById('quarterControls').style.display = 'none';
+      document.getElementById('yearControls').style.display = 'none';
+      document.getElementById('specificDayControls').style.display = 'none';
+      
+      // Show relevant controls
+      if (searchType === 'dateRange') {
+        document.getElementById('dateRangeControls').style.display = 'block';
+        document.getElementById('endDateControls').style.display = 'block';
+      } else if (searchType === 'quarter') {
+        document.getElementById('quarterControls').style.display = 'block';
+      } else if (searchType === 'year') {
+        document.getElementById('yearControls').style.display = 'block';
+      } else if (searchType === 'specificDay') {
+        document.getElementById('specificDayControls').style.display = 'block';
+      }
+    }
+
+    function searchData() {
+      const searchType = document.getElementById('searchType').value;
+      
+      console.log('Searching with type:', searchType);
+      console.log('Total facility data:', facilityData.length);
+      
+      if (facilityData.length === 0) {
+        showError('No facility data loaded. Please refresh the page.');
+        return;
+      }
+      
+      // Show loading
+      const resultsSectionEl = document.getElementById('resultsSection');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      const dayResults = document.getElementById('dayResults');
+      
+      if (resultsSectionEl) {
+        resultsSectionEl.classList.add('show');
+      }
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'block';
+      }
+      if (dayResults) {
+        dayResults.innerHTML = '';
+      }
+      
+      let filteredData = [];
+      
+      if (searchType === 'dateRange') {
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        if (!startDate || !endDate) {
+          alert('Please select both start and end dates');
+          return;
+        }
+        
+        filteredData = facilityData.filter(row => {
+          // Parse date more carefully to avoid timezone issues
+          const [year, month, day] = row.WorkDate.split('-');
+          const workDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          const start = new Date(startDate);
+          const end = new Date(endDate);
+          
+          if (workDate < start || workDate > end) return false;
+          
+          return true;
+        });
+        
+      } else if (searchType === 'quarter') {
+        const quarterSelect = document.getElementById('quarter');
+        const selectedQuarters = Array.from(quarterSelect.selectedOptions).map(option => option.value);
+        if (selectedQuarters.length === 0) {
+          alert('Please select at least one quarter');
+          return;
+        }
+        
+        filteredData = facilityData.filter(row => {
+          if (!selectedQuarters.includes(row.CY_Qtr)) return false;
+          
+          return true;
+        });
+        
+      } else if (searchType === 'year') {
+        const yearSelect = document.getElementById('year');
+        const selectedYears = Array.from(yearSelect.selectedOptions).map(option => option.value);
+        if (selectedYears.length === 0) {
+          alert('Please select at least one year');
+          return;
+        }
+        
+        filteredData = facilityData.filter(row => {
+          const [yearStr, month, day] = row.WorkDate.split('-');
+          const workDate = new Date(parseInt(yearStr), parseInt(month) - 1, parseInt(day));
+          const rowYear = workDate.getFullYear().toString();
+          if (!selectedYears.includes(rowYear)) return false;
+          
+          return true;
+        });
+        
+      } else if (searchType === 'specificDay') {
+        const specificDay = document.getElementById('specificDay').value;
+        if (!specificDay) {
+          alert('Please select a specific day');
+          return;
+        }
+        
+        filteredData = facilityData.filter(row => row.WorkDate === specificDay);
+        
+        if (filteredData.length > 0) {
+          showSpecificDayAnalysis(filteredData[0], specificDay);
+          return;
+        }
+      }
+      
+      console.log(`Found ${filteredData.length} matching records`);
+      console.log('Sample filtered records:', filteredData.slice(0, 3));
+      
+      // Store for chart
+      window.filteredData = filteredData;
+      
+      // Display results only for date range and specific day searches
+      const resultsSection = document.getElementById('resultsSection');
+      if (resultsSection) {
+        if (searchType === 'dateRange' || searchType === 'specificDay') {
+          resultsSection.style.display = 'block';
+          displayResults();
+        } else {
+          // Hide results section for quarter/year searches
+          resultsSection.style.display = 'none';
+        }
+      }
+      
+      createTrendsChart();
+    }
+
+    function displayResults() {
+      const dayResults = document.getElementById('dayResults');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      loadingIndicator.style.display = 'none';
+      
+      if (filteredData.length === 0) {
+        // Only show error for date range searches, not for quarter/year searches
+        if (searchType === 'dateRange') {
+          dayResults.innerHTML = '<div class="error">No data found for the selected criteria.</div>';
+        } else {
+          dayResults.innerHTML = '<div class="summary-card"><h3>📊 Search Summary</h3><div class="summary-metrics"><div class="summary-metric"><span class="summary-label">Total Records:</span><span class="summary-value">0</span></div></div></div>';
+        }
+        return;
+      }
+      
+      // Just show a summary instead of individual days
+      const totalDays = filteredData.length;
+      const avgHprd = calculateAverageHprd(filteredData);
+      const avgCensus = calculateAverageCensus(filteredData);
+      
+      dayResults.innerHTML = `
+        <div class="summary-card">
+          <h3>📊 Search Summary</h3>
+          <div class="summary-metrics">
+            <div class="summary-metric">
+              <span class="summary-label">Total Days:</span>
+              <span class="summary-value">${totalDays}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="summary-label">Average HPRD:</span>
+              <span class="summary-value">${avgHprd}</span>
+            </div>
+            <div class="summary-metric">
+              <span class="summary-label">Average Census:</span>
+              <span class="summary-value">${avgCensus}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+    
+    function calculateAverageHprd(data) {
+      let totalHprd = 0;
+      let validDays = 0;
+      
+      data.forEach(row => {
+        const census = parseFloat(row.MDScensus || 0) || 0;
+        const rnHours = parseFloat(row.Hrs_RN || 0) || 0;
+        const lpnHours = parseFloat(row.Hrs_LPN || 0) || 0;
+        const cnaHours = parseFloat(row.Hrs_CNA || 0) || 0;
+        const totalHours = rnHours + lpnHours + cnaHours;
+        const hprd = census > 0 ? totalHours / census : 0;
+        
+        if (hprd > 0) {
+          totalHprd += hprd;
+          validDays++;
+        }
+      });
+      
+      return validDays > 0 ? (totalHprd / validDays).toFixed(2) : '0.00';
+    }
+    
+    function calculateAverageCensus(data) {
+      let totalCensus = 0;
+      let validDays = 0;
+      
+      data.forEach(row => {
+        const census = parseFloat(row.MDScensus || 0) || 0;
+        if (census > 0) {
+          totalCensus += census;
+          validDays++;
+        }
+      });
+      
+      return validDays > 0 ? Math.round(totalCensus / validDays) : 0;
+    }
+
+    function createTrendsChart() {
+      const ctx = document.getElementById('trendsChart').getContext('2d');
+      
+      // Destroy existing chart
+      if (window.trendsChart && typeof window.trendsChart.destroy === 'function') {
+        window.trendsChart.destroy();
+      }
+      
+      // Use the global filteredData or facilityData
+      const dataToUse = window.filteredData || facilityData || [];
+      const searchType = document.getElementById('searchType').value;
+      
+      // Smart granularity based on search type and data range
+      let groupBy = document.getElementById('trendsGroupBy').value;
+      
+      if (searchType === 'year') {
+        const yearSelect = document.getElementById('year');
+        const selectedYears = Array.from(yearSelect.selectedOptions).map(option => option.value);
+        if (selectedYears.length === 1) {
+          groupBy = 'month'; // Single year: show by month
+        } else {
+          groupBy = 'quarter'; // Multiple years: show by quarter
+        }
+      } else if (searchType === 'quarter') {
+        const quarterSelect = document.getElementById('quarter');
+        const selectedQuarters = Array.from(quarterSelect.selectedOptions).map(option => option.value);
+        if (selectedQuarters.length === 1) {
+          groupBy = 'day'; // Single quarter: show by day
+        } else {
+          groupBy = 'quarter'; // Multiple quarters: show by quarter
+        }
+      }
+      
+      // Group data based on selection
+      const groupedData = groupDataByPeriod(dataToUse, groupBy);
+      
+      // Create labels and datasets
+      const labels = groupedData.map(d => d.period);
+      const maxLabels = 12;
+      
+      // Better logic for x-axis labels
+      let displayLabels;
+      if (labels.length <= maxLabels) {
+        displayLabels = labels;
+      } else {
+        const step = Math.ceil(labels.length / maxLabels);
+        displayLabels = labels.map((label, index) => {
+          if (index % step === 0 || index === labels.length - 1) {
+            return label;
+          }
+          return '';
+        });
+      }
+      
+      window.trendsChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: displayLabels,
+          datasets: [
+            {
+              label: 'Total HPRD',
+              data: groupedData.map(d => d.avgHprd),
+              borderColor: '#60a5fa',
+              backgroundColor: 'rgba(96, 165, 250, 0.1)',
+              borderWidth: 4,
+              fill: true,
+              tension: 0.4
+            },
+            {
+              label: 'RN HPRD',
+              data: groupedData.map(d => d.avgRnHprd),
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.1)',
+              borderWidth: 3,
+              fill: false,
+              tension: 0.4
+            },
+            {
+              label: 'LPN HPRD',
+              data: groupedData.map(d => d.avgLpnHprd),
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              borderWidth: 3,
+              fill: false,
+              tension: 0.4
+            },
+            {
+              label: 'CNA HPRD',
+              data: groupedData.map(d => d.avgCnaHprd),
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              borderWidth: 3,
+              fill: false,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              labels: {
+                color: 'white',
+                font: {
+                  size: 14
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              ticks: {
+                color: 'rgba(255,255,255,0.8)',
+                maxTicksLimit: 12
+              },
+              grid: {
+                color: 'rgba(255,255,255,0.1)'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Hours Per Resident Day',
+                color: 'rgba(255,255,255,0.8)',
+                font: {
+                  size: 12,
+                  weight: 'bold'
+                }
+              },
+              ticks: {
+                color: 'rgba(255,255,255,0.8)'
+              },
+              grid: {
+                color: 'rgba(255,255,255,0.1)'
+              }
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              color: 'rgba(255,255,255,0.8)',
+              font: {
+                size: 11
+              }
+            }
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            borderColor: '#60a5fa',
+            borderWidth: 1
+          }
+        }
+      });
+      
+      // Add 320 Consulting badge and source text after chart is created
+      setTimeout(() => {
+        const chartContainer = document.querySelector('.chart-container');
+        if (chartContainer && !chartContainer.querySelector('.consulting-badge')) {
+          const badge = document.createElement('div');
+          badge.className = 'consulting-badge';
+          badge.innerHTML = '320 Consulting';
+          chartContainer.appendChild(badge);
+          
+          const source = document.createElement('div');
+          source.className = 'chart-source';
+          source.innerHTML = 'Source: CMS Payroll-Based Journal Data';
+          chartContainer.appendChild(source);
+        }
+      }, 100);
+    }
+
+    function groupDataByPeriod(data, groupBy) {
+      const groups = {};
+      
+      data.forEach(row => {
+        // Parse date more carefully to avoid timezone issues
+        const dateStr = row.WorkDate;
+        const [year, month, day] = dateStr.split('-');
+        const workDate = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        
+        let periodKey;
+        let periodLabel;
+        
+        if (groupBy === 'day') {
+          periodKey = row.WorkDate;
+          periodLabel = workDate.getFullYear().toString();
+        } else if (groupBy === 'quarter') {
+          periodKey = row.CY_Qtr;
+          // Convert 2018Q2 to Q2 2018 format
+          const year = row.CY_Qtr.substring(0, 4);
+          const quarter = row.CY_Qtr.substring(4);
+          periodLabel = `${quarter} ${year}`;
+        } else if (groupBy === 'month') {
+          periodKey = `${workDate.getFullYear()}-${String(workDate.getMonth() + 1).padStart(2, '0')}`;
+          periodLabel = workDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
+        } else if (groupBy === 'year') {
+          periodKey = workDate.getFullYear().toString();
+          periodLabel = workDate.getFullYear().toString();
+        }
+        
+        if (!groups[periodKey]) {
+          groups[periodKey] = {
+            period: periodLabel,
+            data: []
+          };
+        }
+        
+        groups[periodKey].data.push(row);
+      });
+      
+      // Calculate averages for each group
+      return Object.values(groups).map(group => {
+        const groupData = group.data;
+        let totalHprd = 0, totalRnHprd = 0, totalLpnHprd = 0, totalCnaHprd = 0;
+        let validDays = 0;
+        
+        groupData.forEach(row => {
+          const census = parseFloat(row.MDScensus || 0) || 0;
+          const rnHours = parseFloat(row.Hrs_RN || 0) || 0;
+          const lpnHours = parseFloat(row.Hrs_LPN || 0) || 0;
+          const cnaHours = parseFloat(row.Hrs_CNA || 0) || 0;
+          const totalHours = rnHours + lpnHours + cnaHours;
+          const hprd = census > 0 ? totalHours / census : 0;
+          
+          if (hprd > 0) {
+            totalHprd += hprd;
+            totalRnHprd += (census > 0 ? rnHours / census : 0);
+            totalLpnHprd += (census > 0 ? lpnHours / census : 0);
+            totalCnaHprd += (census > 0 ? cnaHours / census : 0);
+            validDays++;
+          }
+        });
+        
+        return {
+          period: group.period,
+          avgHprd: validDays > 0 ? (totalHprd / validDays).toFixed(2) : 0,
+          avgRnHprd: validDays > 0 ? (totalRnHprd / validDays).toFixed(2) : 0,
+          avgLpnHprd: validDays > 0 ? (totalLpnHprd / validDays).toFixed(2) : 0,
+          avgCnaHprd: validDays > 0 ? (totalCnaHprd / validDays).toFixed(2) : 0
+        };
+      }).sort((a, b) => {
+        // Sort by period for proper chronological order
+        if (groupBy === 'day') {
+          return new Date(a.period) - new Date(b.period);
+        } else if (groupBy === 'quarter') {
+          return a.period.localeCompare(b.period);
+        } else if (groupBy === 'month') {
+          return a.period.localeCompare(b.period);
+        } else if (groupBy === 'year') {
+          return a.period.localeCompare(b.period);
+        }
+        return 0;
+      });
+    }
+
+
+
+    function showSpecificDayAnalysis(dayData, specificDay) {
+      const resultsSection = document.getElementById('resultsSection');
+      const loadingIndicator = document.getElementById('loadingIndicator');
+      
+      if (loadingIndicator) {
+        loadingIndicator.style.display = 'none';
+      }
+      
+      // Get quarter and year data for comparison
+      const quarter = dayData.CY_Qtr;
+      const year = new Date(specificDay).getFullYear().toString();
+      
+      // Convert quarter format from 2023Q2 to Q2 2023
+      const quarterYear = quarter.substring(0, 4);
+      const quarterNum = quarter.substring(4);
+      const quarterFormatted = `${quarterNum} ${quarterYear}`;
+      
+      // Get quarter data
+      const quarterData = facilityData.filter(row => row.CY_Qtr === quarter);
+      const quarterStats = calculateStats(quarterData);
+      
+      // Get year data
+      const yearData = facilityData.filter(row => {
+        const workDate = new Date(row.WorkDate);
+        return workDate.getFullYear().toString() === year;
+      });
+      const yearStats = calculateStats(yearData);
+      
+      // Get day of week data (same day of week for the year)
+      const dayOfWeek = new Date(specificDay).getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const dayOfWeekData = facilityData.filter(row => {
+        const workDate = new Date(row.WorkDate);
+        return workDate.getFullYear().toString() === year && workDate.getDay() === dayOfWeek;
+      });
+      const dayOfWeekStats = calculateStats(dayOfWeekData);
+      
+      // Calculate day stats
+      const dayStats = calculateDayStats(dayData);
+      
+      const dayName = new Date(specificDay).toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      // Format date for display (MM/DD/YYYY)
+      const displayDate = new Date(specificDay).toLocaleDateString('en-US');
+      
+      // Generate proper CMS URL with specific date filter
+      const provnum = "335513";
+      const cmsQuarterYear = quarter.substring(0, 4);
+      const cmsQuarterNum = quarter.substring(4).replace('Q', '');
+      const quarterUrl = `q${cmsQuarterNum}-${cmsQuarterYear}`;
+      
+      // Determine PROVNUM case based on quarter (same logic as dynamic dashboard)
+      const earlyQuarters = [
+        "2017Q1", "2017Q2", "2017Q3", "2017Q4",
+        "2018Q4", 
+        "2019Q1", "2019Q2", "2019Q3", "2019Q4",
+        "2020Q2", "2020Q3"
+      ];
+      const provnumCol = earlyQuarters.includes(quarter) ? "provnum" : "PROVNUM";
+      
+      // Convert date to YYYYMMDD format for CMS
+      const dateObj = new Date(specificDay);
+      const cmsDate = dateObj.getFullYear().toString() + 
+                     String(dateObj.getMonth() + 1).padStart(2, '0') + 
+                     String(dateObj.getDate()).padStart(2, '0');
+      
+      // Use the exact working URL format with date filter and correct PROVNUM case
+      const cmsUrl = `https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing/data/${quarterUrl}?query=%7B%22filters%22%3A%7B%22list%22%3A%5B%7B%22conditions%22%3A%5B%7B%22column%22%3A%7B%22value%22%3A%22${provnumCol}%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${provnum}%22%5D%7D%2C%7B%22column%22%3A%7B%22value%22%3A%22WorkDate%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${cmsDate}%22%5D%7D%5D%7D%5D%2C%22rootConjunction%22%3A%7B%22value%22%3A%22AND%22%7D%7D%2C%22keywords%22%3A%22%22%2C%22offset%22%3A0%2C%22limit%22%3A10%2C%22sort%22%3A%7B%22sortBy%22%3Anull%2C%22sortOrder%22%3Anull%7D%2C%22columns%22%3A%5B%5D%7D`;
+      
+      resultsSection.innerHTML = `
+        <div class="specific-day-analysis">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <h3 style="color: #60a5fa; margin: 0;">📅 ${dayName} Analysis</h3>
+            <a href="${cmsUrl}" target="_blank" 
+               style="background: #60a5fa; color: white; padding: 8px 16px; border-radius: 6px; 
+                      text-decoration: none; font-weight: 600; display: inline-block;">
+              Source: CMS PBJ, ${displayDate}
+            </a>
+          </div>
+          
+          <div class="comparison-grid" style="grid-template-columns: repeat(4, 1fr);">
+            <div class="comparison-card">
+              <h4>📊 Day Performance</h4>
+              <div class="metric-row">
+                <span class="metric-label">Census:</span>
+                <span class="metric-value">${dayStats.census}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Total HPRD:</span>
+                <span class="metric-value">${dayStats.hprd}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">RN HPRD:</span>
+                <span class="metric-value">${dayStats.rnHprd}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">LPN HPRD:</span>
+                <span class="metric-value">${dayStats.lpnHprd}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">CNA HPRD:</span>
+                <span class="metric-value">${dayStats.cnaHprd}</span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Contract %:</span>
+                <span class="metric-value">${dayStats.contractPercentage}</span>
+              </div>
+            </div>
+            
+            <div class="comparison-card">
+              <h4>📅 vs ${dayName.split(',')[0]} ${year} Average</h4>
+              <div class="metric-row">
+                <span class="metric-label">HPRD:</span>
+                <span class="metric-value ${dayStats.hprd > dayOfWeekStats.avgHprd ? 'positive' : 'negative'}">
+                  ${dayStats.hprd} vs ${dayOfWeekStats.avgHprd}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Census:</span>
+                <span class="metric-value ${dayStats.census > dayOfWeekStats.avgCensus ? 'positive' : 'negative'}">
+                  ${dayStats.census} vs ${dayOfWeekStats.avgCensus}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Contract %:</span>
+                <span class="metric-value ${dayStats.contractPercentage > dayOfWeekStats.avgContract ? 'positive' : 'negative'}">
+                  ${dayStats.contractPercentage}% vs ${dayOfWeekStats.avgContract}%
+                </span>
+              </div>
+            </div>
+            
+            <div class="comparison-card">
+              <h4>📊 vs ${year} Average</h4>
+              <div class="metric-row">
+                <span class="metric-label">HPRD:</span>
+                <span class="metric-value ${dayStats.hprd > yearStats.avgHprd ? 'positive' : 'negative'}">
+                  ${dayStats.hprd} vs ${yearStats.avgHprd}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Census:</span>
+                <span class="metric-value ${dayStats.census > yearStats.avgCensus ? 'positive' : 'negative'}">
+                  ${dayStats.census} vs ${yearStats.avgCensus}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Contract %:</span>
+                <span class="metric-value ${dayStats.contractPercentage > yearStats.avgContract ? 'positive' : 'negative'}">
+                  ${dayStats.contractPercentage}% vs ${yearStats.avgContract}%
+                </span>
+              </div>
+            </div>
+            
+            <div class="comparison-card">
+              <h4>📈 vs ${quarterFormatted} Average</h4>
+              <div class="metric-row">
+                <span class="metric-label">HPRD:</span>
+                <span class="metric-value ${dayStats.hprd > quarterStats.avgHprd ? 'positive' : 'negative'}">
+                  ${dayStats.hprd} vs ${quarterStats.avgHprd}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Census:</span>
+                <span class="metric-value ${dayStats.census > quarterStats.avgCensus ? 'positive' : 'negative'}">
+                  ${dayStats.census} vs ${quarterStats.avgCensus}
+                </span>
+              </div>
+              <div class="metric-row">
+                <span class="metric-label">Contract %:</span>
+                <span class="metric-value ${dayStats.contractPercentage > quarterStats.avgContract ? 'positive' : 'negative'}">
+                  ${dayStats.contractPercentage}% vs ${quarterStats.avgContract}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function calculateStats(data) {
+      if (data.length === 0) return { avgHprd: 0, avgCensus: 0, avgContract: 0 };
+      
+      let totalHprd = 0, totalCensus = 0, totalContract = 0;
+      
+      data.forEach(row => {
+        const census = parseFloat(row.MDScensus || 0) || 0;
+        const rnHours = parseFloat(row.Hrs_RN || 0) || 0;
+        const lpnHours = parseFloat(row.Hrs_LPN || 0) || 0;
+        const cnaHours = parseFloat(row.Hrs_CNA || 0) || 0;
+        const totalHours = rnHours + lpnHours + cnaHours;
+        const hprd = census > 0 ? totalHours / census : 0;
+        
+        const rnContract = parseFloat(row.Hrs_RN_ctr || 0) || 0;
+        const lpnContract = parseFloat(row.Hrs_LPN_ctr || 0) || 0;
+        const cnaContract = parseFloat(row.Hrs_CNA_ctr || 0) || 0;
+        const totalContractHours = rnContract + lpnContract + cnaContract;
+        const contractPercentage = totalHours > 0 ? (totalContractHours / totalHours * 100) : 0;
+        
+        totalHprd += hprd;
+        totalCensus += census;
+        totalContract += contractPercentage;
+      });
+      
+      return {
+        avgHprd: (totalHprd / data.length).toFixed(2),
+        avgCensus: Math.round(totalCensus / data.length),
+        avgContract: (totalContract / data.length).toFixed(1)
+      };
+    }
+
+    function calculateDayStats(dayData) {
+      const census = parseFloat(dayData.MDScensus || 0) || 0;
+      const rnHours = parseFloat(dayData.Hrs_RN || 0) || 0;
+      const lpnHours = parseFloat(dayData.Hrs_LPN || 0) || 0;
+      const cnaHours = parseFloat(dayData.Hrs_CNA || 0) || 0;
+      const totalHours = rnHours + lpnHours + cnaHours;
+      const hprd = census > 0 ? totalHours / census : 0;
+      
+      const rnContract = parseFloat(dayData.Hrs_RN_ctr || 0) || 0;
+      const lpnContract = parseFloat(dayData.Hrs_LPN_ctr || 0) || 0;
+      const cnaContract = parseFloat(dayData.Hrs_CNA_ctr || 0) || 0;
+      const totalContractHours = rnContract + lpnContract + cnaContract;
+      const contractPercentage = totalHours > 0 ? (totalContractHours / totalHours * 100) : 0;
+      
+      return {
+        census: Math.round(census),
+        hprd: hprd.toFixed(2),
+        rnHprd: (census > 0 ? rnHours / census : 0).toFixed(2),
+        lpnHprd: (census > 0 ? lpnHours / census : 0).toFixed(2),
+        cnaHprd: (census > 0 ? cnaHours / census : 0).toFixed(2),
+        contractPercentage: contractPercentage.toFixed(1)
+      };
+    }
+
+    function showError(message) {
+      const resultsSection = document.getElementById('resultsSection');
+      resultsSection.classList.add('show');
+      resultsSection.innerHTML = `<div class="error">${message}</div>`;
+    }
+  </script>
+</body>
+</html>

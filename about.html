@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>About | PBJ Nursing Home Staffing Dashboard by 320 Consulting</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pbjdashboard.com/app/About">
+  <meta property="og:title" content="About | PBJ Nursing Home Staffing Dashboard by 320 Consulting">
+  <meta property="og:description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
+  <meta property="og:image" content="https://pbjdashboard.com/og/og-image-1200x630.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:title" content="About | PBJ Nursing Home Staffing Dashboard by 320 Consulting">
+  <meta property="twitter:description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
+  <meta property="twitter:image" content="https://pbjdashboard.com/og/og-image-1200x630.png">
+  
+  <link rel="icon" type="image/png" href="pbj_favicon.png">
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%);
+      color: #1e293b;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    
+    /* Navigation */
+    .navbar {
+      background: #0f172a;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-bottom: 2px solid #1e40af;
+    }
+    
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      color: white;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    
+    .nav-menu {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+    }
+    
+    .nav-link {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+      padding: 8px 0;
+    }
+    
+    .nav-link:hover,
+    .nav-link.active {
+      color: #b91c1c;
+    }
+    
+    .nav-toggle {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      gap: 4px;
+    }
+    
+    .nav-toggle span {
+      width: 25px;
+      height: 3px;
+      background: white;
+      transition: all 0.3s ease;
+    }
+    
+    /* Content */
+    .content {
+      padding: 60px 20px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .content-box {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 16px;
+      padding: 40px;
+      margin-bottom: 30px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .content-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .content-box:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    
+    .content-box:hover::before {
+      opacity: 1;
+    }
+    
+    .content-box h1 {
+      font-size: 2.4rem;
+      color: #1e40af;
+      margin-bottom: 0.8rem;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+    }
+    
+    .content-box h2 {
+      font-size: 1.6rem;
+      color: #1e40af;
+      margin-top: 1.8rem;
+      margin-bottom: 1rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    
+    .content-box h3 {
+      font-size: 1.4rem;
+      color: #3b82f6;
+      margin-top: 1.5rem;
+      margin-bottom: 0.8rem;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+    
+    .content-box p {
+      color: #374151;
+      font-size: 1.1rem;
+      line-height: 1.8;
+      margin-bottom: 1.2rem;
+      text-align: justify;
+    }
+    
+    .content-box ul {
+      color: #374151;
+      font-size: 1.08rem;
+      line-height: 1.6;
+      margin-left: 1.5rem;
+      margin-bottom: 1.2rem;
+    }
+    
+    .content-box ul li {
+      margin-bottom: 0.6rem;
+    }
+    
+    
+    .content-box strong {
+      color: #1e40af;
+      font-weight: 600;
+    }
+    
+    .content-box em {
+      color: #6b7280;
+      font-style: italic;
+    }
+    
+    /* Table styling */
+    .content-box table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid #e2e8f0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    
+    .content-box th,
+    .content-box td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    
+    .content-box th {
+      background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+      color: white;
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .content-box td {
+      color: #1e293b;
+      font-size: 0.95rem;
+      background: white;
+      font-weight: 500;
+    }
+    
+    .content-box tr:hover td {
+      background: #f8fafc;
+    }
+    
+    .content-box tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .content-box a {
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      position: relative;
+      padding: 0.2rem 0;
+    }
+    
+    .content-box a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #1e40af, #3b82f6);
+      transition: width 0.3s ease;
+    }
+    
+    .content-box a:hover {
+      color: #3b82f6;
+      transform: translateY(-1px);
+    }
+    
+    .content-box a:hover::after {
+      width: 100%;
+    }
+    
+    .content-box a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+    
+    /* Phoebe J section styling */
+    .phoebe-section {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid #e2e8f0;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .phoebe-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa);
+    }
+    
+    .phoebe-text h2 {
+      font-size: 1.5rem;
+      color: #1e40af;
+      margin-bottom: 1rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    
+    .phoebe-content {
+      display: flex;
+      align-items: center;
+      gap: 3rem;
+    }
+    
+    .phoebe-header-mobile {
+      display: none;
+    }
+    
+    .phoebe-image {
+      flex-shrink: 0;
+    }
+    
+    .phoebe-avatar-link {
+      display: block;
+      text-decoration: none;
+      transition: transform 0.3s ease;
+    }
+    
+    .phoebe-avatar-link:hover {
+      transform: scale(1.05);
+    }
+    
+    .phoebe-img {
+      width: 180px;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 50%;
+      border: 4px solid #e2e8f0;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      display: block;
+    }
+    
+    .phoebe-avatar-link:hover .phoebe-img {
+      border-color: #3b82f6;
+      box-shadow: 0 12px 40px rgba(59, 130, 246, 0.2);
+    }
+    
+    .phoebe-text {
+      flex: 1;
+    }
+    
+    .phoebe-text p {
+      margin-bottom: 1.5rem;
+      font-size: 1.1rem;
+      line-height: 1.7;
+      color: #374151;
+    }
+    
+    .phoebe-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white !important;
+      padding: 0.75rem 2rem;
+      border-radius: 12px;
+      text-decoration: none !important;
+      font-weight: 700;
+      font-size: 1.1rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 16px rgba(30, 64, 175, 0.25);
+      min-width: 160px;
+      justify-content: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+      border: none;
+    }
+    
+    .phoebe-link:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(30, 64, 175, 0.35);
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+    }
+    
+    .phoebe-link::after {
+      content: '→';
+      font-size: 1.1rem;
+      transition: transform 0.3s ease;
+    }
+    
+    .phoebe-link:hover::after {
+      transform: translateX(4px);
+    }
+    
+    /* Special styling for the About 320 Consulting section */
+    .content-box:last-of-type {
+      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+      border: 2px solid #cbd5e1;
+    }
+    
+    .content-box:last-of-type h2 {
+      color: #1e40af;
+      font-size: 1.8rem;
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .content-box:last-of-type p {
+      font-size: 1.1rem;
+      line-height: 1.8;
+      text-align: justify;
+    }
+    
+    /* Quick Tour section styling */
+    .content-box ol {
+      color: #374151;
+      font-size: 1.08rem;
+      line-height: 1.6;
+      margin-left: 1.5rem;
+      margin-bottom: 1.2rem;
+      counter-reset: step-counter;
+      list-style: none;
+    }
+    
+    .content-box ol li {
+      counter-increment: step-counter;
+      margin-bottom: 0.8rem;
+      position: relative;
+      padding-left: 2rem;
+    }
+    
+    .content-box ol li::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 0;
+      top: 0;
+      background: linear-gradient(135deg, #1e40af, #3b82f6);
+      color: white;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    
+    
+    
+    .note-box {
+      background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+      border-left: 4px solid #1e40af;
+      padding: 2rem;
+      margin: 2rem 0;
+      border-radius: 12px;
+      font-size: 1rem;
+      color: #374151;
+      box-shadow: 0 4px 16px rgba(30, 64, 175, 0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .note-box::before {
+      content: '💡';
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      font-size: 1.5rem;
+      opacity: 0.3;
+    }
+    
+    .note-box strong {
+      color: #1e40af;
+      font-weight: 700;
+    }
+    
+    .subtitle {
+      color: #6b7280;
+      font-size: 1.15rem;
+      margin-bottom: 2rem;
+      font-style: italic;
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 50px 20px;
+      color: #6b7280;
+      font-size: 0.95rem;
+      background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
+      margin-top: 50px;
+      border-radius: 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    
+    .footer p {
+      margin-bottom: 0.5rem;
+      line-height: 1.4;
+    }
+    
+    .footer a {
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      padding: 0.2rem 0.4rem;
+      border-radius: 6px;
+      display: inline-block;
+    }
+    
+    .footer a:hover {
+      color: #3b82f6;
+      background: rgba(59, 130, 246, 0.1);
+      transform: translateY(-1px);
+    }
+    
+    .footer a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+    
+    /* Mobile */
+    @media (max-width: 768px) {
+      .nav-menu {
+        position: fixed;
+        top: 60px;
+        left: -100%;
+        width: 100%;
+        height: calc(100vh - 60px);
+        background: #0f172a;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: stretch;
+        padding: 0;
+        gap: 0;
+        transition: left 0.3s ease;
+        border-top: 1px solid rgba(255,255,255,0.1);
+      }
+      
+      .nav-menu.active {
+        left: 0;
+      }
+      
+      .nav-link {
+        padding: 18px 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        text-align: left;
+        font-size: 1rem;
+      }
+      
+      .nav-link:hover {
+        background: rgba(185, 28, 28, 0.1);
+        border-left: 3px solid #b91c1c;
+      }
+      
+      .nav-toggle {
+        display: flex;
+      }
+      
+      .content-box {
+        padding: 20px;
+        margin-bottom: 15px;
+      }
+      
+      .content-box:last-of-type {
+        padding: 20px;
+        margin-bottom: 15px;
+      }
+      
+      .content-box h1 {
+        font-size: 2rem;
+        line-height: 1.1;
+      }
+      
+      .content-box h2 {
+        font-size: 1.4rem;
+        margin-top: 1.5rem;
+      }
+      
+      .content-box h3 {
+        font-size: 1.2rem;
+        margin-top: 1.2rem;
+      }
+      
+      .content-box p {
+        font-size: 1rem;
+        line-height: 1.6;
+      }
+      
+      .content-box ul, .content-box ol {
+        margin-left: 1rem;
+      }
+      
+      .content-box ul li, .content-box ol li {
+        margin-bottom: 0.5rem;
+      }
+      
+      .note-box {
+        padding: 1.5rem;
+        margin: 1.5rem 0;
+      }
+      
+      .footer {
+        padding: 20px 15px;
+        margin-top: 20px;
+      }
+      
+      .footer p {
+        margin-bottom: 0.5rem;
+      }
+      
+      .phoebe-content {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      
+      .phoebe-header-mobile {
+        display: none;
+      }
+      
+      .phoebe-text {
+        text-align: center;
+        width: 100%;
+      }
+      
+      .phoebe-text h2 {
+        font-size: 1.4rem;
+        margin-bottom: 0.2rem;
+        text-align: center;
+      }
+      
+      .phoebe-image {
+        order: -1;
+        margin-bottom: -1.2rem;
+      }
+      
+      .phoebe-img {
+        width: 120px !important;
+        height: 120px !important;
+      }
+      
+      .phoebe-text p {
+        text-align: left;
+        margin-bottom: 0.5rem;
+      }
+      
+      .phoebe-text h2 {
+        font-size: 1.3rem;
+        margin-bottom: 0.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="https://pbjdashboard.com/" class="nav-brand" style="text-decoration: none;">
+        <img src="pbj_favicon.png" alt="PBJ" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+        <span>PBJ Dashboard</span>
+      </a>
+      <div class="nav-menu" id="navMenu">
+        <a href="https://pbjdashboard.com/" class="nav-link">Home</a>
+        <a href="https://pbjdashboard.com/app" class="nav-link">Dashboard</a>
+        <a href="https://pbjdashboard.com/about.html" class="nav-link active">About</a>
+        <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
+      </div>
+      <div class="nav-toggle" id="navToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+  </nav>
+
+  <div class="content">
+    <div class="content-box">
+      <h1>PBJ Nursing Home Staffing Dashboard</h1>
+      <p class="subtitle">by 320 Consulting</p>
+      
+      <h3>Why this matters</h3>
+      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. This dashboard stitches together <strong>nine years of federal CMS staffing files—billions of data points from payroll-based journal (PBJ) submissions—into interactive visualizations</strong>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside the 15,000 nursing homes across the U.S.</p>
+      
+      <h3>Who it helps</h3>
+      <ul>
+        <li><strong>Attorneys</strong> – identify staffing patterns and trends that may support negligence cases, regulatory violations, or quality of care claims. Access historical data to demonstrate chronic understaffing, seasonal variations, or ownership-related staffing deficiencies.</li>
+        <li><strong>Journalists</strong> – plug numbers and data visualizations into a nursing home investigation or ownership-focused report without wrangling raw CSVs.</li>
+        <li><strong>Advocates & families</strong> – see how a nursing home stacks up over time for residents and loved ones.</li>
+        <li><strong>Providers</strong> – use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
+      </ul>
+      
+      <p><em><a href="https://pbjdashboard.com/app/Premium">Premium</a> – custom reports with daily, position-level analysis and data visualizations tied to citations and inspections.</em></p>
+      
+      <h3>What you can explore</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>View</th>
+            <th>Data you get</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>National / State</strong></td>
+            <td>Nurse staffing hours per resident day (HPRD), contract staff %, census — every quarter since 2017</td>
+          </tr>
+          <tr>
+            <td><strong>Facility</strong></td>
+            <td>A nursing home's quarterly staffing, contract, and census data; ratings and risk indicators</td>
+          </tr>
+          <tr>
+            <td><strong>Ownership Group</strong></td>
+            <td>Essential data on any chain and its facilities (e.g., <strong>Genesis</strong> → 215 facilities in 19 states, 2.3-star average)</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <h3>Under the hood</h3>
+      <ul>
+        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> – 33 quarters of daily data, aggregated for clarity</li>
+        <li><strong>CMS Provider Info</strong> – 5-star ratings, enforcement data, and other key indicators (July 2025 & June 2025)</li>
+        <li><strong>CMS Affiliated Entity</strong> – Selected quality and performance metrics for groups of nursing homes sharing common owners, officers, or entities (July 2025)</li>
+        <li><strong>CMS Citations (Premium)</strong> - Citation data and inspection reports, categorized by date, type, severity, and more.</li>
+      </ul>
+      
+      <h3>Try Phoebe J</h3>
+      <p>Check out <a href="https://www.320insight.com/phoebe" target="_blank">Phoebe J, the PBJ nursing home staffing data assistant (in training!)</a> for quick PBJ data searches by state or nursing home.</p>
+      
+      <h3>Digging deeper?</h3>
+      <p>Daily staffing data and analysis, role-specific hours (Nurse and Non-Nurse), weekend vs. weekday splits, and citation-linked timelines live in the premium layer.<br>
+      Email <strong>eric@320insight.com</strong> for requests. Journalists: If you're working on a story, I'm happy to share data or walk you through it.</p>
+      
+      <p><em>Built by 320 Consulting. Feedback welcome (tell me what's broken!).</em></p>
+    </div>
+    
+    <div class="content-box">
+      <h2>Methodology</h2>
+      <p>This Nursing Home Staffing Dashboard uses <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank">CMS Payroll-Based Journal (PBJ) data</a> from 2017 to 2025, covering all nursing positions, including contract staff. CMS first published PBJ data in 2017. It also uses <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank">Provider Information</a> (July 2025, June 2025), <a href="https://data.cms.gov/quality-of-care/nursing-home-affiliated-entity-performance-measures/data" target="_blank">Affiliated Entity</a> (July 2025), and <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank">MACPAC State Staffing Standards</a> (2022) datasets.</p>
+      
+      <h3>Staffing Categories</h3>
+      <p>Total nurse staff includes:</p>
+      <ul>
+        <li>Registered Nurse (RN)</li>
+        <li>RN Director of Nursing (DON)</li>
+        <li>RN Admin</li>
+        <li>Licensed Practical Nurse (LPN)</li>
+        <li>LPN Admin</li>
+        <li>Certified Nursing Assistant (CNA)</li>
+        <li>Nurse Aide in Training</li>
+        <li>Medication Aide/Technician</li>
+      </ul>
+      
+      <h3>Metrics Explained</h3>
+      <p><strong>Total Nurse Hours Per Resident Day (HPRD):</strong> Total nurse staff hours per resident per day.*</p>
+      <p><strong>Direct Care (excl. Admin, DON):</strong> Hours per resident day for direct care staff only (RN, LPN, CNA, NAtrn, MedAide), excluding administrative and supervisory roles.</p>
+      <p><strong>Contract Staff Percentage:</strong> Percentage of nurse staff hours provided by contract staff.</p>
+      <p><strong>Census:</strong> Average number of residents in facility or state during the reporting period.</p>
+      <p><strong>Ownership Change:</strong> Indicates facility ownership changed in the last 12 months.</p>
+      
+      <div class="note-box">
+        <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 ÷ 100).<br><br>
+        A 2001 federal study identified 4.1 HPRD as the level linked to better outcomes for most residents. Facilities with higher-acuity residents—such as those with complex medical needs or limited mobility—generally require more staffing. Staffing levels can also vary significantly by day and shift.<br><br>
+        Some states have their own standards (e.g., New Jersey, California, and New York each set a 3.5 HPRD minimum), though enforcement and definitions vary. Note: A federal 3.48 HPRD minimum was recently overturned by a court in 2025.
+      </div>
+      
+      <h3>Transparency Note</h3>
+      <p>The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a fly sneaks into the jelly. 🪰 🥪</p>
+      <p>That could mean:</p>
+      <ul>
+        <li>A facility reported bad data to CMS (more common than you'd think).</li>
+        <li>Or I made a coding error (it happens).</li>
+      </ul>
+      <p>Either way, I want to be the first to know. If you spot something that looks off, please let me know so I can squash the bug and set things right.</p>
+    </div>
+    
+    <div class="content-box phoebe-section">
+      <div class="phoebe-content">
+        <div class="phoebe-image">
+          <a href="https://www.320insight.com/phoebe" target="_blank" class="phoebe-avatar-link">
+            <img src="../PBJapp/phoebe.png" alt="Phoebe J" class="phoebe-img">
+          </a>
+        </div>
+        <div class="phoebe-text">
+          <h2>Phoebe J, the PBJ nursing home data assistant</h2>
+          <p>Phoebe slices through nursing home payroll-based journal (PBJ) staffing data and serves it up in plain language, whether you want the scoop on staffing levels in your state or your facility.</p>
+          <a href="https://www.320insight.com/phoebe" target="_blank" class="phoebe-link">Try Phoebe J</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="content-box">
+      <h2>About 320 Consulting</h2>
+      <p><strong><a href="https://www.320insight.com/" target="_blank">320 Consulting</a></strong> is led by Eric Goldwein, MPH, a data consultant with expertise in nursing home staffing. His work on nursing home data has been published in the <em>Journal of the American Geriatrics Society</em>, and he has presented at national conferences hosted by the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and the NYS Long Term Care Ombudsman Program. He previously served as policy director at the Long Term Care Community Coalition.</p>
+    </div>
+  </div>
+  
+  <div class="footer">
+    <p>By <a href="https://www.320insight.com/" target="_blank">320 Consulting LLC</a></p>
+    <p>
+      <a href="https://pbjdashboard.com/">Home</a> | 
+      <a href="https://pbjdashboard.com/app">Dashboard</a> | 
+      <a href="https://pbjdashboard.com/app/Premium">Premium</a> | 
+      <a href="https://www.320insight.com/phoebe" target="_blank">Phoebe J</a>
+    </p>
+  </div>
+
+  <script>
+    // Mobile Navigation Toggle
+    document.addEventListener('DOMContentLoaded', function() {
+      const navToggle = document.getElementById('navToggle');
+      const navMenu = document.getElementById('navMenu');
+      
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+          navMenu.classList.toggle('active');
+          navToggle.classList.toggle('active');
+        });
+      }
+    });
+  </script>
+</body>
+</html>
+

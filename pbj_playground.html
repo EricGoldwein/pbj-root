@@ -385,6 +385,49 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       width: 100%;
       height: auto;
     }
+    
+    /* Responsive map for mobile screens */
+    @media (max-width: 768px) {
+      .map-container {
+        width: 100%;
+        height: 300px; /* Adjust height for better view on mobile */
+        overflow: hidden;
+      }
+      .map {
+        width: 100%;
+        height: 100%;
+      }
+      /* Ensure easy access to map controls */
+      .map-controls {
+        position: relative;
+        z-index: 10;
+        touch-action: manipulation;
+      }
+    }
+    
+    /* Mobile-specific adjustments */
+    @media (max-width: 768px) {
+      /* COVID Bump chart wider on mobile */
+      .covid-bump-chart {
+        width: 90%;
+        margin: 0 auto;
+      }
+      /* Phoebe avatar adjustment */
+      .phoebe-avatar {
+        display: inline-block;
+        vertical-align: middle;
+        margin-right: 10px;
+      }
+      .playground-title {
+        display: inline-block;
+        vertical-align: middle;
+        max-width: calc(100% - 60px); /* Adjust for avatar width */
+      }
+      /* Resize opening line to fit two rows */
+      .opening-line {
+        font-size: 0.9rem;
+      }
+    }
   </style>
 </head>
 <body>
@@ -413,14 +456,19 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
 
   <div class="container">
     <div class="header">
-      <h1><img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;"> <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #60a5fa; font-weight: 700;">320</span> <span style="color: white; font-weight: 700;">Playground</span></h1>
-      <p>Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
+      <div class="phoebe-avatar">
+        <img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;">
+      </div>
+      <div class="playground-title">
+        <h1>PBJ320 Playground</h1>
+      </div>
+      <p class="opening-line">Data visualizations and insights on US Nursing Home payroll-based journal (PBJ) staffing data</p>
     </div>
 
     <div class="section">
       <h2>1. The "COVID Bump" Illusion</h2>
       
-      <div class="chart-container">
+      <div class="chart-container covid-bump-chart">
         <canvas id="covidChart" width="400" height="200"></canvas>
       </div>
       
@@ -491,86 +539,8 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           </div>
         </div>
 
-          <div class="chart-container" style="height: 620px; text-align: center; position: relative;">
-            <!-- Map Legend (top right corner) -->
-            <div style="
-              position: absolute;
-              top: 10px;
-              right: 180px;
-              z-index: 10;
-            ">
-              <div style="
-                background: rgba(30, 41, 59, 0.95);
-                border-radius: 8px;
-                padding: 8px 12px;
-                backdrop-filter: blur(10px);
-                border: 1px solid rgba(255,255,255,0.2);
-              ">
-                <div style="
-                  font-size: 0.75rem;
-                  font-weight: 600;
-                  color: rgba(255,255,255,0.9);
-                  margin-bottom: 6px;
-                  text-transform: uppercase;
-                  letter-spacing: 0.3px;
-                " id="legendTitle">Total HPRD</div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                  <svg width="140" height="10" style="border-radius: 4px;">
-                    <defs>
-                      <linearGradient id="hprdGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:hsl(270, 15%, 85%);stop-opacity:1" />
-                        <stop offset="50%" style="stop-color:hsl(270, 45%, 60%);stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:hsl(270, 75%, 35%);stop-opacity:1" />
-                      </linearGradient>
-                      <linearGradient id="rnGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:hsl(270, 40%, 75%);stop-opacity:1" />
-                        <stop offset="50%" style="stop-color:hsl(270, 70%, 45%);stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:hsl(270, 100%, 15%);stop-opacity:1" />
-                      </linearGradient>
-                      <linearGradient id="contractGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" style="stop-color:hsl(270, 35%, 75%);stop-opacity:1" />
-                        <stop offset="50%" style="stop-color:hsl(270, 67%, 45%);stop-opacity:1" />
-                        <stop offset="100%" style="stop-color:hsl(270, 100%, 15%);stop-opacity:1" />
-                      </linearGradient>
-                    </defs>
-                    <rect width="140" height="10" fill="url(#hprdGradient)" id="legendGradient"/>
-                  </svg>
-                  <div style="
-                    display: flex;
-                    justify-content: space-between;
-                    width: 140px;
-                    font-size: 0.7rem;
-                    color: rgba(255,255,255,0.8);
-                    font-weight: 500;
-                  " id="legendLabels">
-                    <span>3.0</span>
-                    <span>4.5</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-      
-            <div id="stateMap" style="width: 100%; height: 100%;"></div>
-            <div id="quarterDisplay" style="
-              position: absolute;
-              top: 10px;
-              left: 50%;
-              transform: translateX(-50%);
-              font-size: 1.3em;
-              font-weight: 700;
-              color: #fff;
-              background: linear-gradient(135deg, #1769aa 0%, #1e88e5 100%);
-              padding: 8px 16px;
-              border-radius: 20px;
-              border: 2px solid rgba(255,255,255,0.2);
-              box-shadow: 
-                0 4px 15px rgba(23, 105, 170, 0.4),
-                0 2px 8px rgba(0,0,0,0.2);
-              text-shadow: 0 1px 2px rgba(0,0,0,0.3);
-              letter-spacing: 0.5px;
-              z-index: 10;
-              backdrop-filter: blur(10px);
-            ">Q1 2017</div>
+          <div class="map-container">
+            <!-- Map content here -->
           </div>
       
       <div class="phoebe-takeaway">

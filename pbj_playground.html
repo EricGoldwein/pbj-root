@@ -449,6 +449,22 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     .playground-title h1 {
       color: white;
     }
+    
+    /* Revert layout for Phoebe icon and title */
+    .header-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .phoebe-avatar {
+      width: 50px;
+      height: auto;
+    }
+    .playground-title h1 {
+      color: white;
+      margin: 0;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -477,7 +493,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
 
   <div class="container">
     <div class="header">
-      <div class="phoebe-container">
+      <div class="header-container">
         <img class="phoebe-avatar" src="phoebe.png" alt="Phoebe Avatar">
         <h1 class="playground-title">PBJ320 Playground</h1>
       </div>

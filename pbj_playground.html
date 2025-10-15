@@ -428,6 +428,22 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
         font-size: 0.9rem;
       }
     }
+    
+    /* Mobile-specific adjustments for Phoebe avatar */
+    @media (max-width: 768px) {
+      .phoebe-container {
+        display: flex;
+        flex-direction: column;
+        align-items: start;
+      }
+      .phoebe-avatar {
+        height: auto;
+        max-width: 100%;
+      }
+      .playground-title {
+        display: block;
+      }
+    }
   </style>
 </head>
 <body>
@@ -456,11 +472,9 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
 
   <div class="container">
     <div class="header">
-      <div class="phoebe-avatar">
-        <img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;">
-      </div>
-      <div class="playground-title">
-        <h1>PBJ320 Playground</h1>
+      <div class="phoebe-container">
+        <img class="phoebe-avatar" src="phoebe.png" alt="Phoebe Avatar">
+        <h1 class="playground-title">PBJ320 Playground</h1>
       </div>
       <p class="opening-line">Data visualizations and insights on US Nursing Home payroll-based journal (PBJ) staffing data</p>
     </div>

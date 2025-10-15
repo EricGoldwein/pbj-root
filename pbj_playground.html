@@ -465,6 +465,19 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       margin: 0;
       white-space: nowrap;
     }
+    
+    /* Mobile adjustments for staffing breakdown map legend */
+    @media (max-width: 768px) {
+      .staffing-map-container {
+        width: 100%;
+        padding: 0;
+      }
+      .staffing-map-legend {
+        width: 90%;
+        margin: 10px auto;
+        text-align: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -493,11 +506,13 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
 
   <div class="container">
     <div class="header">
-      <div class="header-container">
-        <img class="phoebe-avatar" src="phoebe.png" alt="Phoebe Avatar">
-        <h1 class="playground-title">PBJ320 Playground</h1>
-      </div>
-      <p class="opening-line">Data visualizations and insights on US Nursing Home payroll-based journal (PBJ) staffing data</p>
+      <h1>
+        <img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;">
+        <span style="color: white; font-weight: 700;">PBJ</span>
+        <span style="color: #60a5fa; font-weight: 700;">320</span>
+        <span style="color: white; font-weight: 700;">Playground</span>
+      </h1>
+      <p>Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
     </div>
 
     <div class="section">
@@ -574,8 +589,11 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           </div>
         </div>
 
-          <div class="map-container">
+          <div class="staffing-map-container">
             <!-- Map content here -->
+            <div class="staffing-map-legend">
+              <!-- Legend content here -->
+            </div>
           </div>
       
       <div class="phoebe-takeaway">
@@ -625,17 +643,15 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     </div>
 
     <div class="section">
-      <h2>4. Contract Staffing (<span id="contractSectionQuarter">Q1 2025</span>)</h2>
+      <h2>4. Contract Staffing</h2>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Contract Staffing Distribution</h4>
           <div class="chart-container">
             <canvas id="contractChart" width="400" height="200"></canvas>
           </div>
         </div>
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Mean and Median Over Time</h4>
           <div class="chart-container">
             <canvas id="contractTrendChart" width="400" height="200"></canvas>
           </div>
@@ -654,11 +670,11 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     </div>
 
     <div class="section">
-      <h2>5. Staffing Ratio by Position (<span id="pieChartQuarter">Q1 2025</span>)</h2>
+      <h2>5. Staffing by Position</h2>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">National Breakdown</h4>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Breakdown (Q1 2025)</h4>
           <div class="chart-container" style="max-width: 400px; margin: 0 auto;">
             <canvas id="staffTypeChart" width="300" height="200"></canvas>
           </div>
@@ -1130,7 +1146,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           plugins: {
             title: {
               display: true,
-              text: 'COVID Bump Illusion: HPRD vs Census Trends',
+              text: 'Staffing Ratio and Census Over Time',
               color: '#ffffff'
             },
             legend: {
@@ -1413,7 +1429,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           plugins: {
             title: {
               display: true,
-              text: 'Contract Staff % Distribution',
+              text: 'Contract Staff % Distribution (Q1 2025)',
               color: '#ffffff'
             },
             legend: {

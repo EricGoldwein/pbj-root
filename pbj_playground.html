@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>PBJ Playground
+  <title>PBJ Beta
 Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/png" href="phoebe.png">
@@ -10,7 +10,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbjdashboard.com/pbj_playground_dynamic.html">
-  <meta property="og:title" content="📊 PBJ Playground - Nursing Home Data Explorer">
+  <meta property="og:title" content="📊 PBJ Beta - Nursing Home Data Explorer">
   <meta property="og:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
   <meta property="og:image" content="https://pbjdashboard.com/phoebe.png">
   <meta property="og:image:width" content="1200">
@@ -20,7 +20,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:url" content="https://pbjdashboard.com/pbj_playground_dynamic.html">
-  <meta property="twitter:title" content="📊 PBJ Playground - Nursing Home Data Explorer">
+  <meta property="twitter:title" content="📊 PBJ Beta - Nursing Home Data Explorer">
   <meta property="twitter:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
   <meta property="twitter:image" content="https://pbjdashboard.com/phoebe.png">
   
@@ -386,117 +386,9 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       height: auto;
     }
     
-    /* Responsive map for mobile screens */
-    @media (max-width: 768px) {
-      .map-container {
-        width: 100%;
-        height: 300px; /* Adjust height for better view on mobile */
-        overflow: hidden;
-      }
-      .map {
-        width: 100%;
-        height: 100%;
-      }
-      /* Ensure easy access to map controls */
-      .map-controls {
-        position: relative;
-        z-index: 10;
-        touch-action: manipulation;
-      }
-    }
-    
-    /* Mobile-specific adjustments */
-    @media (max-width: 768px) {
-      /* COVID Bump chart wider on mobile */
-      .covid-bump-chart {
-        width: 90%;
-        margin: 0 auto;
-      }
-      /* Phoebe avatar adjustment */
-      .phoebe-avatar {
-        display: inline-block;
-        vertical-align: middle;
-        margin-right: 10px;
-      }
-      .playground-title {
-        display: inline-block;
-        vertical-align: middle;
-        max-width: calc(100% - 60px); /* Adjust for avatar width */
-      }
-      /* Resize opening line to fit two rows */
-      .opening-line {
-        font-size: 0.9rem;
-      }
-    }
-    
-    /* Mobile-specific adjustments for Phoebe avatar */
-    @media (max-width: 768px) {
-      .phoebe-container {
-        display: flex;
-        flex-direction: column;
-        align-items: start;
-      }
-      .phoebe-avatar {
-        height: auto;
-        max-width: 100%;
-      }
-      .playground-title {
-        display: block;
-      }
-    }
-    
-    /* Revert font color for PBJ320 Playground */
-    .playground-title h1 {
-      color: white;
-    }
-    
-    /* Revert layout for Phoebe icon and title */
-    .header-container {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .phoebe-avatar {
-      width: 50px;
-      height: auto;
-    }
-    .playground-title h1 {
-      color: white;
-      margin: 0;
-      white-space: nowrap;
-    }
-    
-    /* Mobile adjustments for staffing breakdown map legend */
-    @media (max-width: 768px) {
-      .staffing-map-container {
-        width: 100%;
-        padding: 0;
-      }
-      .staffing-map-legend {
-        width: 90%;
-        margin: 10px auto;
-        text-align: center;
-      }
-    }
-    
-    /* Resolve scrolling and centering issues */
-    .staffing-map-container {
-      overflow: hidden;
-      max-height: none;
-    }
-    @media (min-width: 768px) {
-      .staffing-map {
-        margin: auto;
-        display: block;
-        max-width: 100%;
-      }
-    }
-
-    /* Ensure map visibility */
-    .time-lapse-map {
-      display: block;
-      width: 100%;
-      height: 400px; /* Set appropriate dimensions */
+    /* Reduce font size of the introductory text */
+    .intro-text {
+      font-size: 0.9em; /* Adjust as necessary */
     }
   </style>
 </head>
@@ -514,7 +406,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
         <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
         <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
         <a href="https://pbj320.vercel.app/" class="nav-link" target="_blank">PBJ Converter</a>
-        <a href="pbj_playground.html" class="nav-link active">Playground</a>
+        <a href="pbj_playground.html" class="nav-link active">Beta</a>
       </div>
       <div class="nav-toggle" id="navToggle">
         <span></span>
@@ -526,17 +418,14 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
 
   <div class="container">
     <div class="header">
-      <h1>
-        <img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;">
-        <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #60a5fa; font-weight: 700;">320</span><span style="color: white; font-weight: 700;">Playground</span>
-      </h1>
-      <p>Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
+      <h1><img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;"> <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #60a5fa; font-weight: 700;">320</span> <span style="color: white; font-weight: 700;">Beta</span></h1>
+      <p class="intro-text">Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
     </div>
 
     <div class="section">
-      <h2>1. COVID Staffing</h2>
+      <h2>1. The COVID Staffing "Spike"</h2>
       
-      <div class="chart-container covid-bump-chart">
+      <div class="chart-container">
         <canvas id="covidChart" width="400" height="200"></canvas>
       </div>
       
@@ -545,7 +434,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text">
-            Staffing ratios appeared to rise in 2020—but mainly because residents died or left. Absolute staffing hours actually fell. The apparent increase in staffing ratios during 2020-2021 was largely due to decreased resident census (deaths and discharges) rather than increased staffing hours, with some facilities not reporting data for Q1 2020 during early COVID-19.
+            Staffing ratios appeared to rise in 2020—but mainly because resident census fell faster than total staffing hours. The apparent increase in staffing ratios during 2020-2021 was largely due to decreased resident census (deaths and discharges) rather than increased staffing hours, with some facilities not reporting data for Q1 2020 during early COVID-19.
           </div>
         </div>
           </div>
@@ -607,11 +496,86 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           </div>
         </div>
 
-          <div class="staffing-map-container">
-            <!-- Map content here -->
-            <div class="staffing-map-legend">
-              <!-- Legend content here -->
+          <div class="chart-container" style="height: 620px; text-align: center; position: relative;">
+            <!-- Map Legend (top right corner) -->
+            <div style="
+              position: absolute;
+              top: 10px;
+              right: 180px;
+              z-index: 10;
+            ">
+              <div style="
+                background: rgba(30, 41, 59, 0.95);
+                border-radius: 8px;
+                padding: 8px 12px;
+                backdrop-filter: blur(10px);
+                border: 1px solid rgba(255,255,255,0.2);
+              ">
+                <div style="
+                  font-size: 0.75rem;
+                  font-weight: 600;
+                  color: rgba(255,255,255,0.9);
+                  margin-bottom: 6px;
+                  text-transform: uppercase;
+                  letter-spacing: 0.3px;
+                " id="legendTitle">Total HPRD</div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+                  <svg width="140" height="10" style="border-radius: 4px;">
+                    <defs>
+                      <linearGradient id="hprdGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:hsl(270, 15%, 85%);stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:hsl(270, 45%, 60%);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:hsl(270, 75%, 35%);stop-opacity:1" />
+                      </linearGradient>
+                      <linearGradient id="rnGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:hsl(270, 40%, 75%);stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:hsl(270, 70%, 45%);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:hsl(270, 100%, 15%);stop-opacity:1" />
+                      </linearGradient>
+                      <linearGradient id="contractGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style="stop-color:hsl(270, 35%, 75%);stop-opacity:1" />
+                        <stop offset="50%" style="stop-color:hsl(270, 67%, 45%);stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:hsl(270, 100%, 15%);stop-opacity:1" />
+                      </linearGradient>
+                    </defs>
+                    <rect width="140" height="10" fill="url(#hprdGradient)" id="legendGradient"/>
+                  </svg>
+                  <div style="
+                    display: flex;
+                    justify-content: space-between;
+                    width: 140px;
+                    font-size: 0.7rem;
+                    color: rgba(255,255,255,0.8);
+                    font-weight: 500;
+                  " id="legendLabels">
+                    <span>3.0</span>
+                    <span>4.5</span>
+                  </div>
+                </div>
+              </div>
             </div>
+      
+            <div id="stateMap" style="width: 100%; height: 100%;"></div>
+            <div id="quarterDisplay" style="
+              position: absolute;
+              top: 10px;
+              left: 50%;
+              transform: translateX(-50%);
+              font-size: 1.3em;
+              font-weight: 700;
+              color: #fff;
+              background: linear-gradient(135deg, #1769aa 0%, #1e88e5 100%);
+              padding: 8px 16px;
+              border-radius: 20px;
+              border: 2px solid rgba(255,255,255,0.2);
+              box-shadow: 
+                0 4px 15px rgba(23, 105, 170, 0.4),
+                0 2px 8px rgba(0,0,0,0.2);
+              text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+              letter-spacing: 0.5px;
+              z-index: 10;
+              backdrop-filter: blur(10px);
+            ">Q1 2017</div>
           </div>
       
       <div class="phoebe-takeaway">
@@ -626,7 +590,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     </div>
 
     <div class="section">
-      <h2>3. The "Average" Nursing Home</h2>
+      <h2>3. "Average" Staffing</h2>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
@@ -665,11 +629,13 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Contract Staffing Distribution (Q1 2025)</h4>
           <div class="chart-container">
             <canvas id="contractChart" width="400" height="200"></canvas>
           </div>
         </div>
         <div>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Mean and Median Over Time</h4>
           <div class="chart-container">
             <canvas id="contractTrendChart" width="400" height="200"></canvas>
           </div>
@@ -688,7 +654,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     </div>
 
     <div class="section">
-      <h2>5. Staffing by Position</h2>
+      <h2>5. Staffing Ratio by Position</h2>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
@@ -801,7 +767,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
     </div>
 
     <div class="section">
-      <h2>6. Total vs Direct Care: What Counts as "Nursing"?</h2>
+      <h2>6. Total vs Direct Care</h2>
       
       <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
         <div style="flex: 1; min-width: 300px;">
@@ -823,7 +789,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text">
-            Total Nurse HPRD includes administrators and DONs; Direct Care excludes them. The difference shows how much nursing time is administrative. In <span id="directCareQuarter">Q1 2025</span>, <span id="totalNurseAdminPercent">Loading...</span>% of total nursing staff time was administrative/DON, and <span id="rnAdminPercent">Loading...</span>% of RN time was administrative/DON.
+            Total Nurse HPRD (the CMS metric) includes administrators and DONs; Direct Care excludes them. The difference shows how much nursing time is administrative. In <span id="directCareQuarter">Q1 2025</span>, <span id="totalNurseAdminPercent">Loading...</span>% of total nursing staff time was administrative/DON, and <span id="rnAdminPercent">Loading...</span>% of RN time was administrative/DON.
           </div>
         </div>
       </div>
@@ -1164,7 +1130,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           plugins: {
             title: {
               display: true,
-              text: 'Staffing Ratio and Census Over Time',
+              text: 'Staffing Hours per Resident Day (HPRD) vs Census',
               color: '#ffffff'
             },
             legend: {
@@ -1447,7 +1413,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
           plugins: {
             title: {
               display: true,
-              text: 'Contract Staff % Distribution (Q1 2025)',
+              text: 'Contract Staff % Distribution',
               color: '#ffffff'
             },
             legend: {

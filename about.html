@@ -809,6 +809,7 @@
       .content-box {
         padding: 20px;
         margin-bottom: 15px;
+        overflow: visible;
       }
       
       .content-box header {
@@ -817,6 +818,19 @@
         margin-top: -20px;
         padding: 1.25rem 1.5rem 1.25rem 1.5rem;
         border-radius: 12px 12px 0 0;
+        width: calc(100% + 40px);
+        box-sizing: border-box;
+      }
+      
+      .content-box header .featured-in {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
+      }
+      
+      .content-box header .featured-in a {
+        word-break: break-all;
       }
       
       .content-box:last-of-type {

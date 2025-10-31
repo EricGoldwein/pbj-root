@@ -100,14 +100,14 @@
     /* Content */
     .content {
       padding: 60px 20px;
-      max-width: 900px;
+      max-width: 1100px;
       margin: 0 auto;
     }
     
     .content-box {
       background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
       border-radius: 16px;
-      padding: 40px;
+      padding: 50px 60px;
       margin-bottom: 30px;
       border: 1px solid rgba(148, 163, 184, 0.3);
       box-shadow: 0 10px 40px rgba(0,0,0,0.15);
@@ -137,13 +137,17 @@
       opacity: 1;
     }
     
-    .content-box h1 {
-      font-size: 2.4rem;
+    .content-box header h1 {
+      font-size: 2.5rem;
       color: #1e40af;
-      margin-bottom: 0.8rem;
+      margin-bottom: 0.5rem;
+      margin-top: 0;
       font-weight: 700;
       line-height: 1.2;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.025em;
+      font-style: normal;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
     }
     
     .content-box h2 {
@@ -158,10 +162,14 @@
     .content-box h3 {
       font-size: 1.4rem;
       color: #3b82f6;
-      margin-top: 1.5rem;
-      margin-bottom: 0.8rem;
+      margin-top: 1.75rem;
+      margin-bottom: 0.75rem;
       font-weight: 600;
       line-height: 1.3;
+    }
+    
+    .content-box h3:first-of-type {
+      margin-top: 0;
     }
     
     .content-box p {
@@ -170,6 +178,11 @@
       line-height: 1.8;
       margin-bottom: 1.2rem;
       text-align: justify;
+    }
+    
+    .content-box header p {
+      text-align: left;
+      margin-bottom: 0;
     }
     
     .content-box ul {
@@ -182,6 +195,18 @@
     
     .content-box ul li {
       margin-bottom: 0.6rem;
+    }
+    
+    /* Condensed spacing for Methodology section lists */
+    .content-box h3 + p + ul,
+    .content-box h3 + ul {
+      margin-top: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .content-box h3 + p + ul li,
+    .content-box h3 + ul li {
+      margin-bottom: 0.4rem;
     }
     
     
@@ -460,11 +485,204 @@
       font-weight: 700;
     }
     
-    .subtitle {
-      color: #6b7280;
-      font-size: 1.15rem;
+    .content-box header {
       margin-bottom: 2rem;
+      padding: 1.75rem 1.75rem 1.5rem 1.75rem;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+      background: rgba(219, 234, 254, 0.4);
+      border-radius: 12px 12px 0 0;
+      position: relative;
+      margin-left: -60px;
+      margin-right: -60px;
+      margin-top: -50px;
+      width: calc(100% + 120px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    }
+    
+    .content-box header .subtitle {
+      color: #475569;
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      margin-top: 0;
+      font-style: normal;
+      font-weight: 500;
+      line-height: 1.5;
+      letter-spacing: 0.015em;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .content-box header .featured-in {
+      background: transparent;
+      border: none;
+      padding: 0;
+      margin: 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: #64748b;
       font-style: italic;
+      text-align: left;
+      margin-top: 0.875rem;
+      letter-spacing: 0.02em;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .featured-in strong {
+      font-weight: 500;
+    }
+    
+    .featured-in em {
+      font-style: italic;
+    }
+    
+    .featured-in a {
+      color: #64748b;
+      text-decoration: none;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      font-style: italic;
+      position: relative;
+    }
+    
+    .featured-in a:hover {
+      color: #2563eb;
+      text-decoration: none;
+    }
+    
+    .featured-in a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 1px;
+      background: #2563eb;
+      transition: width 0.2s ease;
+    }
+    
+    .featured-in a:hover::after {
+      width: 100%;
+    }
+    
+    .featured-in a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+    
+    .premium-section {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: #374151;
+    }
+    
+    .premium-section strong {
+      color: #1e40af;
+      font-weight: 600;
+    }
+    
+    .premium-section a {
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    
+    .premium-section a:hover {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+    
+    .premium-section a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+    
+    .columbia-feature-prominent {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      padding: 0.75rem 1.25rem;
+      margin: 1.5rem 0;
+      border-radius: 8px;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(30, 64, 175, 0.08);
+    }
+    
+    .columbia-text {
+      margin: 0;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      color: #1e293b;
+      word-spacing: 0.05em;
+      letter-spacing: 0.01em;
+    }
+    
+    .columbia-text strong {
+      font-weight: 600;
+    }
+    
+    .columbia-feature-prominent a {
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 600;
+      transition: color 0.2s ease;
+    }
+    
+    .columbia-feature-prominent a:hover {
+      color: #2563eb;
+      text-decoration: underline;
+    }
+    
+    .columbia-feature-prominent a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+    
+    .columbia-feature-prominent em {
+      font-style: italic;
+      color: #475569;
+      font-size: 0.95em;
+    }
+    
+    .columbia-feature {
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      padding: 0.875rem 1.25rem;
+      margin: 2rem 0;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: #374151;
+    }
+    
+    .columbia-feature a {
+      color: #1e40af;
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    
+    .columbia-feature a:hover {
+      color: #3b82f6;
+      text-decoration: underline;
+    }
+    
+    .columbia-feature a:focus {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+    
+    .columbia-feature em {
+      font-style: italic;
+      color: #475569;
     }
     
     .footer {
@@ -550,6 +768,14 @@
       .content-box {
         padding: 20px;
         margin-bottom: 15px;
+      }
+      
+      .content-box header {
+        margin-left: -20px;
+        margin-right: -20px;
+        margin-top: -20px;
+        padding: 1.25rem 1.5rem 1.25rem 1.5rem;
+        border-radius: 12px 12px 0 0;
       }
       
       .content-box:last-of-type {
@@ -668,11 +894,14 @@
 
   <div class="content">
     <div class="content-box">
-      <h1>PBJ Nursing Home Staffing Dashboard</h1>
-      <p class="subtitle">by 320 Consulting</p>
+      <header>
+        <h1>PBJ Nursing Home Staffing Dashboard</h1>
+        <p class="subtitle">A Free 320 Public Data Resource</p>
+        <p class="featured-in">Featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank">Aging in America</a></p>
+      </header>
       
-      <h3>Why this matters</h3>
-      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. This dashboard stitches together <strong>nine years of federal CMS staffing files—billions of data points from payroll-based journal (PBJ) submissions—into interactive visualizations</strong>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside the 15,000 nursing homes across the U.S.</p>
+      <h3>About the PBJ Dashboard</h3>
+      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. The <strong><a href="https://pbjdashboard.com/">PBJ Dashboard</a></strong> stitches together <strong>nine years of federal CMS staffing files—billions of data points from payroll-based journal (PBJ) submissions—into interactive visualizations</strong>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside the 15,000 nursing homes across the United States.</p>
       
       <h3>Who it helps</h3>
       <ul>
@@ -682,7 +911,9 @@
         <li><strong>Providers</strong> – use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
       </ul>
       
-      <p><em><a href="https://pbjdashboard.com/Premium">Premium</a> – custom reports with daily, position-level analysis and data visualizations tied to citations and inspections.</em></p>
+      <div class="columbia-feature-prominent">
+        <p class="columbia-text">Read about the PBJ Dashboard in <strong><a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank">Columbia University Public Health</a></strong>, <em>"Alumni Make Data Shine with Public&nbsp;Health&nbsp;Dashboards"</em></p>
+      </div>
       
       <h3>What you can explore</h3>
       <table>
@@ -703,7 +934,7 @@
           </tr>
           <tr>
             <td><strong>Ownership Group</strong></td>
-            <td>Essential data on any chain and its facilities (e.g., <strong>Genesis</strong> → 215 facilities in 19 states, 2.3-star average)</td>
+            <td>Essential data on any chain and its facilities (e.g., <strong><a href="https://pbjdashboard.com/?entity=237">Genesis</a></strong> → 215 facilities in 19 states, 2.3-star average)</td>
           </tr>
         </tbody>
       </table>
@@ -718,35 +949,26 @@
       
       
       <h3>Digging deeper?</h3>
-      <p>Daily staffing data and analysis, role-specific hours (Nurse and Non-Nurse), weekend vs. weekday splits, and citation-linked timelines live in the premium layer.<br>
-      Email <strong>eric@320insight.com</strong> for requests. Journalists: If you're working on a story, I'm happy to share data or walk you through it.</p>
-      
-      <p><em>Built by 320 Consulting. Feedback welcome (tell me what's broken!).</em></p>
+      <p><strong><a href="https://pbjdashboard.com/Premium">Premium</a></strong> – 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="https://pbj-sample-concordia.vercel.app/" target="_blank">Check out a sample dashboard</a>.</p>
+            
+      <div class="premium-section">
+        <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. Email <strong>eric [at] 320insight [dot] com</strong> for requests.
+      </div>
     </div>
     
     <div class="content-box">
       <h2>Methodology</h2>
-      <p>This Nursing Home Staffing Dashboard uses <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank">CMS Payroll-Based Journal (PBJ) data</a> from 2017-2025, covering all nursing positions, including contract staff. CMS first published PBJ data in 2017. It also uses <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank">Provider Information</a> (September 2025, July 2025), <a href="https://data.cms.gov/quality-of-care/nursing-home-affiliated-entity-performance-measures/data" target="_blank">Affiliated Entity</a> (June 2025), and <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank">MACPAC State Staffing Standards</a> (2022) datasets.</p>
+      <p>This Nursing Home Staffing Dashboard uses <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank">CMS Payroll-Based Journal (PBJ) data</a> from 2017-2025, covering all nursing positions, including contract staff. CMS first published PBJ data in 2017. It also uses <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank">Provider Information</a>, <a href="https://data.cms.gov/quality-of-care/nursing-home-affiliated-entity-performance-measures/data" target="_blank">Affiliated Entity</a>, and <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank">MACPAC State Staffing Standards</a> (2022) datasets.</p>
       
       <h3>Staffing Categories</h3>
-      <p>Total nurse staff includes:</p>
-      <ul>
-        <li>Registered Nurse (RN)</li>
-        <li>RN Director of Nursing (DON)</li>
-        <li>RN Admin</li>
-        <li>Licensed Practical Nurse (LPN)</li>
-        <li>LPN Admin</li>
-        <li>Certified Nursing Assistant (CNA)</li>
-        <li>Nurse Aide in Training</li>
-        <li>Medication Aide/Technician</li>
-      </ul>
+      <p style="margin-bottom: 0.25rem;"><strong>Total nurse staff includes:</strong> Registered Nurse (RN), RN Director of Nursing (DON), RN Admin, Licensed Practical Nurse (LPN), LPN Admin, Certified Nursing Assistant (CNA), Nurse Aide in Training, Medication Aide/Technician.</p>
       
       <h3>Metrics Explained</h3>
-      <p><strong>Total Nurse Hours Per Resident Day (HPRD):</strong> Total nurse staff hours per resident per day.*</p>
-      <p><strong>Direct Care (excl. Admin, DON):</strong> Hours per resident day for direct care staff only (RN, LPN, CNA, NAtrn, MedAide), excluding administrative and supervisory roles.</p>
-      <p><strong>Contract Staff Percentage:</strong> Percentage of nurse staff hours provided by contract staff.</p>
-      <p><strong>Census:</strong> Average number of residents in facility or state during the reporting period.</p>
-      <p><strong>Ownership Change:</strong> Indicates facility ownership changed in the last 12 months.</p>
+      <p style="margin-bottom: 0.75rem;"><strong>Total Nurse Hours Per Resident Day (HPRD)*:</strong> Total nurse staff hours per resident per day.</p>
+      <p style="margin-bottom: 0.75rem;"><strong>Direct Care (excl. Admin, DON):</strong> Hours per resident day for direct care staff only (RN, LPN, CNA, NAtrn, MedAide), excluding administrative and supervisory roles.</p>
+      <p style="margin-bottom: 0.75rem;"><strong>Contract Staff Percentage:</strong> Percentage of nurse staff hours provided by contract staff.</p>
+      <p style="margin-bottom: 0.75rem;"><strong>Census:</strong> Average number of residents in facility or state during the reporting period.</p>
+      <p style="margin-bottom: 0.75rem;"><strong>Ownership Change:</strong> Indicates facility ownership changed in the last 12 months.</p>
       
       <div class="note-box">
         <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 ÷ 100).<br><br>
@@ -755,7 +977,7 @@
       </div>
       
       <h3>Transparency Note</h3>
-      <p>The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a fly sneaks into the jelly. 🪰 🥪</p>
+      <p>The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. 🪰 🥪</p>
       <p>That could mean:</p>
       <ul>
         <li>A facility reported bad data to CMS (more common than you'd think).</li>
@@ -781,7 +1003,8 @@
     
     <div class="content-box">
       <h2>About 320 Consulting</h2>
-      <p><strong><a href="https://www.320insight.com/" target="_blank">320 Consulting</a></strong> is led by Eric Goldwein, MPH, a data consultant with expertise in nursing home staffing. His work on nursing home data has been published in the <em>Journal of the American Geriatrics Society</em>, and he has presented at national conferences hosted by the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and the NYS Long Term Care Ombudsman Program. He previously served as policy director at the Long Term Care Community Coalition.</p>
+      <p>320 Consulting is led by Eric Goldwein, MPH, a data consultant with expertise in nursing home staffing. His work on nursing home data has been published in Columbia Public Health, the <em>Journal of the American Geriatrics Society</em>, Positive Aging, and Aging in America News. He has presented at national conferences hosted by the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and the NYS Long Term Care Ombudsman Program. He previously served as policy director at the Long Term Care Community Coalition.</p>
+      
     </div>
   </div>
   

@@ -766,6 +766,10 @@
     
     /* Mobile */
     @media (max-width: 768px) {
+      .content {
+        padding: 60px 15px;
+      }
+      
       .nav-brand {
         color: white !important;
       }
@@ -816,21 +820,32 @@
         margin-left: -20px;
         margin-right: -20px;
         margin-top: -20px;
-        padding: 1.25rem 1.5rem 1.25rem 1.5rem;
+        padding: 1.25rem 1rem 1.25rem 1rem;
         border-radius: 12px 12px 0 0;
         width: calc(100% + 40px);
+        max-width: calc(100vw - 30px);
         box-sizing: border-box;
+        overflow: visible;
+      }
+      
+      .content-box header h1 {
+        font-size: 1.75rem;
+        line-height: 1.2;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
+      }
+      
+      .content-box header .subtitle {
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        max-width: 100%;
       }
       
       .content-box header .featured-in {
         word-wrap: break-word;
         overflow-wrap: break-word;
-        word-break: break-word;
-        hyphens: auto;
-      }
-      
-      .content-box header .featured-in a {
-        word-break: break-all;
+        max-width: 100%;
       }
       
       .content-box:last-of-type {

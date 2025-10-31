@@ -581,6 +581,48 @@
       color: #374151;
     }
     
+    .columbia-link {
+      text-decoration: none;
+      display: block;
+      color: inherit;
+      outline: none;
+      margin: 1rem 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    .columbia-link:focus,
+    .columbia-link:focus-visible,
+    .columbia-link:active {
+      outline: none;
+      box-shadow: none;
+    }
+    
+    .columbia-link:hover {
+      text-decoration: none;
+      color: inherit;
+    }
+    
+    .columbia-link .premium-section {
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+      color: #1e293b;
+      margin: 0 !important;
+    }
+    
+    .columbia-link:hover .premium-section {
+      background: rgba(59, 130, 246, 0.12);
+      border-color: rgba(59, 130, 246, 0.25);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+      color: #1e293b;
+    }
+    
+    .columbia-link:focus .premium-section {
+      outline: 2px solid rgba(59, 130, 246, 0.3);
+      outline-offset: 2px;
+    }
+    
     .premium-section strong {
       color: #1e40af;
       font-weight: 600;
@@ -605,22 +647,21 @@
     }
     
     .columbia-feature-prominent {
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.2);
-      padding: 0.75rem 1.25rem;
+      background: rgba(59, 130, 246, 0.08);
+      border: 1px solid rgba(59, 130, 246, 0.15);
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
       margin: 1.5rem 0;
-      border-radius: 8px;
-      position: relative;
-      box-shadow: 0 2px 6px rgba(30, 64, 175, 0.08);
+      font-size: 0.875rem;
+      line-height: 1.6;
+      color: #374151;
     }
     
     .columbia-text {
       margin: 0;
-      font-size: 0.95rem;
-      line-height: 1.5;
-      color: #1e293b;
-      word-spacing: 0.05em;
-      letter-spacing: 0.01em;
+      font-size: inherit;
+      line-height: inherit;
+      color: inherit;
     }
     
     .columbia-text strong {
@@ -911,9 +952,9 @@
         <li><strong>Providers</strong> – use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
       </ul>
       
-      <div class="columbia-feature-prominent">
-        <p class="columbia-text">Read about the PBJ Dashboard in <strong><a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank">Columbia University Public Health</a></strong>, <em>"Alumni Make Data Shine with Public&nbsp;Health&nbsp;Dashboards"</em></p>
-      </div>
+      <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" class="columbia-link">
+        <div class="premium-section" style="font-size: 0.95rem;">📰 Read about the PBJ Dashboard in Columbia Public Health, "Alumni Make Data Shine with Public Health Dashboards".</div>
+      </a>
       
       <h3>What you can explore</h3>
       <table>

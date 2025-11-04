@@ -721,9 +721,9 @@
       let lastScrollTop = 0;
       let scrollTimeout;
       
-      // Add minimal bottom padding to prevent scroll jump
+      // Add bottom padding to prevent scroll jump (enough to prevent bounce but not too much)
       const style = document.createElement('style');
-      style.textContent = '@media (max-width: 768px) { body { padding-bottom: 50px !important; } }';
+      style.textContent = '@media (max-width: 768px) { body { padding-bottom: 100px !important; } }';
       document.head.appendChild(style);
       
       window.addEventListener('scroll', function() {
@@ -760,9 +760,11 @@
               document.documentElement.offsetHeight
             ) - window.innerHeight;
             
-            // Use scrollTo with instant behavior
-            window.scrollTo(0, maxScroll);
-          }, 50);
+            // Prevent scroll to top - force to bottom
+            if (window.scrollY < maxScroll - 100 || window.scrollY === 0) {
+              window.scrollTo(0, maxScroll);
+            }
+          }, 10);
         }
       }, { passive: true });
       
@@ -785,11 +787,14 @@
                   document.documentElement.offsetHeight
                 ) - window.innerHeight;
                 
-                window.scrollTo({
-                  top: maxScroll,
-                  left: 0,
-                  behavior: 'auto'
-                });
+                // Prevent scroll to top - force to bottom
+                if (window.scrollY < maxScroll - 100 || window.scrollY === 0) {
+                  window.scrollTo({
+                    top: maxScroll,
+                    left: 0,
+                    behavior: 'auto'
+                  });
+                }
               });
             }
             

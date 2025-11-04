@@ -721,9 +721,9 @@
       let lastScrollTop = 0;
       let scrollTimeout;
       
-      // Add bottom padding to prevent scroll jump
+      // Add minimal bottom padding to prevent scroll jump
       const style = document.createElement('style');
-      style.textContent = '@media (max-width: 768px) { body { padding-bottom: 200px !important; } }';
+      style.textContent = '@media (max-width: 768px) { body { padding-bottom: 50px !important; } }';
       document.head.appendChild(style);
       
       window.addEventListener('scroll', function() {

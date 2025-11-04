@@ -712,55 +712,91 @@
       history.scrollRestoration = 'manual';
     }
     
-    // Fix for Chrome iOS address bar causing scroll jumps
-    let lastViewportHeight = window.innerHeight;
-    let savedScrollPosition = 0;
+    // Fix for Chrome iOS address bar causing scroll jumps when scrolling to bottom
     let isChrome = /CriOS/.test(navigator.userAgent) || (/Chrome/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent));
     
-    function handleViewportResize() {
-      if (window.innerWidth <= 768 && isChrome) {
-        const currentHeight = window.innerHeight;
-        const heightDiff = Math.abs(currentHeight - lastViewportHeight);
-        
-        // If viewport height changed significantly (address bar show/hide), restore scroll
-        if (heightDiff > 50 && savedScrollPosition > 0) {
-          // Address bar likely changed - restore scroll position
-          window.scrollTo(0, savedScrollPosition);
-        }
-        
-        lastViewportHeight = currentHeight;
-      }
-    }
-    
-    // Save scroll position before viewport changes
-    let scrollTimeout;
-    window.addEventListener('scroll', function() {
-      if (window.innerWidth <= 768 && isChrome) {
-        savedScrollPosition = window.scrollY;
+    if (window.innerWidth <= 768 && isChrome) {
+      let isUserScrolling = false;
+      let wasAtBottom = false;
+      let lastScrollTop = 0;
+      let scrollTimeout;
+      
+      // Add bottom padding to prevent scroll jump
+      const style = document.createElement('style');
+      style.textContent = '@media (max-width: 768px) { body { padding-bottom: 200px !important; } }';
+      document.head.appendChild(style);
+      
+      window.addEventListener('scroll', function() {
+        isUserScrolling = true;
         clearTimeout(scrollTimeout);
         
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const windowHeight = window.innerHeight;
+        const documentHeight = document.documentElement.scrollHeight;
+        const distanceFromBottom = documentHeight - (scrollTop + windowHeight);
+        
+        // Check if user is at or very near bottom (within 100px)
+        wasAtBottom = distanceFromBottom <= 100;
+        
         scrollTimeout = setTimeout(function() {
-          // Update viewport height after scroll settles
-          lastViewportHeight = window.innerHeight;
-        }, 100);
-      }
-    }, { passive: true });
-    
-    // Handle viewport resize (address bar show/hide)
-    window.addEventListener('resize', handleViewportResize, { passive: true });
-    
-    // Use Visual Viewport API if available (better for Chrome address bar)
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', function() {
-        if (window.innerWidth <= 768 && isChrome && savedScrollPosition > 0) {
-          // Small delay to let address bar animation finish
-          setTimeout(function() {
-            if (Math.abs(window.scrollY - savedScrollPosition) > 50) {
-              window.scrollTo(0, savedScrollPosition);
-            }
+          isUserScrolling = false;
+        }, 150);
+        
+        lastScrollTop = scrollTop;
+      }, { passive: true });
+      
+      // When viewport resizes (address bar shows/hides), maintain bottom position
+      let resizeTimeout;
+      window.addEventListener('resize', function() {
+        if (wasAtBottom && !isUserScrolling) {
+          clearTimeout(resizeTimeout);
+          resizeTimeout = setTimeout(function() {
+            // Force scroll to absolute bottom
+            const maxScroll = Math.max(
+              document.body.scrollHeight,
+              document.body.offsetHeight,
+              document.documentElement.clientHeight,
+              document.documentElement.scrollHeight,
+              document.documentElement.offsetHeight
+            ) - window.innerHeight;
+            
+            // Use scrollTo with instant behavior
+            window.scrollTo(0, maxScroll);
           }, 50);
         }
-      });
+      }, { passive: true });
+      
+      // Use Visual Viewport API for more accurate tracking
+      if (window.visualViewport) {
+        let lastViewportHeight = window.visualViewport.height;
+        
+        window.visualViewport.addEventListener('resize', function() {
+          if (wasAtBottom && !isUserScrolling) {
+            const heightDiff = Math.abs(window.visualViewport.height - lastViewportHeight);
+            
+            // If viewport height changed significantly (address bar)
+            if (heightDiff > 50) {
+              requestAnimationFrame(function() {
+                const maxScroll = Math.max(
+                  document.body.scrollHeight,
+                  document.body.offsetHeight,
+                  document.documentElement.clientHeight,
+                  document.documentElement.scrollHeight,
+                  document.documentElement.offsetHeight
+                ) - window.innerHeight;
+                
+                window.scrollTo({
+                  top: maxScroll,
+                  left: 0,
+                  behavior: 'auto'
+                });
+              });
+            }
+            
+            lastViewportHeight = window.visualViewport.height;
+          }
+        });
+      }
     }
     
     // Mobile Navigation Toggle

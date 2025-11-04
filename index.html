@@ -712,35 +712,56 @@
       history.scrollRestoration = 'manual';
     }
     
-    // Prevent scroll jump when reaching footer on mobile
-    let isScrolling = false;
-    let scrollTimeout;
+    // Fix for Chrome iOS address bar causing scroll jumps
+    let lastViewportHeight = window.innerHeight;
+    let savedScrollPosition = 0;
+    let isChrome = /CriOS/.test(navigator.userAgent) || (/Chrome/.test(navigator.userAgent) && /Mobile/.test(navigator.userAgent));
     
+    function handleViewportResize() {
+      if (window.innerWidth <= 768 && isChrome) {
+        const currentHeight = window.innerHeight;
+        const heightDiff = Math.abs(currentHeight - lastViewportHeight);
+        
+        // If viewport height changed significantly (address bar show/hide), restore scroll
+        if (heightDiff > 50 && savedScrollPosition > 0) {
+          // Address bar likely changed - restore scroll position
+          window.scrollTo(0, savedScrollPosition);
+        }
+        
+        lastViewportHeight = currentHeight;
+      }
+    }
+    
+    // Save scroll position before viewport changes
+    let scrollTimeout;
     window.addEventListener('scroll', function() {
-      if (window.innerWidth <= 768) {
+      if (window.innerWidth <= 768 && isChrome) {
+        savedScrollPosition = window.scrollY;
         clearTimeout(scrollTimeout);
-        isScrolling = true;
         
         scrollTimeout = setTimeout(function() {
-          isScrolling = false;
-        }, 150);
-        
-        // Prevent scroll restoration when near footer
-        const footer = document.querySelector('.footer');
-        if (footer) {
-          const footerTop = footer.getBoundingClientRect().top;
-          const windowHeight = window.innerHeight;
-          
-          // If footer is in view, maintain scroll position
-          if (footerTop < windowHeight && footerTop > -footer.offsetHeight) {
-            // Don't allow scroll restoration
-            if ('scrollRestoration' in history) {
-              history.scrollRestoration = 'manual';
-            }
-          }
-        }
+          // Update viewport height after scroll settles
+          lastViewportHeight = window.innerHeight;
+        }, 100);
       }
     }, { passive: true });
+    
+    // Handle viewport resize (address bar show/hide)
+    window.addEventListener('resize', handleViewportResize, { passive: true });
+    
+    // Use Visual Viewport API if available (better for Chrome address bar)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', function() {
+        if (window.innerWidth <= 768 && isChrome && savedScrollPosition > 0) {
+          // Small delay to let address bar animation finish
+          setTimeout(function() {
+            if (Math.abs(window.scrollY - savedScrollPosition) > 50) {
+              window.scrollTo(0, savedScrollPosition);
+            }
+          }, 50);
+        }
+      });
+    }
     
     // Mobile Navigation Toggle
     document.addEventListener('DOMContentLoaded', function() {

@@ -293,9 +293,91 @@
     }
     
     .content-box a:focus {
+      outline: none;
+    }
+    
+    .content-box a:focus-visible {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
       border-radius: 2px;
+    }
+    
+    /* Seagate case study section styling */
+    .seagate-case-study {
+      background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+      border: 2px solid #fdba74;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .seagate-case-study::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 5px;
+      background: linear-gradient(90deg, #ea580c, #f97316, #fb923c);
+    }
+    
+    .seagate-case-study h2 {
+      color: #9a3412;
+      font-size: 1.8rem;
+      margin-top: 0;
+      margin-bottom: 1.5rem;
+      font-weight: 700;
+    }
+    
+    .seagate-case-study strong {
+      color: #1e293b;
+      font-weight: 600;
+    }
+    
+    .seagate-case-study strong a {
+      color: #1e40af;
+    }
+    
+    .seagate-case-study strong a:hover {
+      color: #3b82f6;
+    }
+    
+    .seagate-image-container {
+      margin: 2rem 0;
+      text-align: center;
+    }
+    
+    .seagate-image {
+      max-width: 100%;
+      height: auto;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+      border: 2px solid #fca5a5;
+    }
+    
+    .seagate-image-container a {
+      display: inline-block;
+    }
+    
+    .seagate-image-container a:hover .seagate-image {
+      transform: scale(1.02);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+    }
+    
+    .image-caption {
+      margin-top: 1rem;
+      font-size: 0.95rem;
+      color: #9a3412;
+      font-style: italic;
+      text-align: center;
+    }
+    
+    .seagate-case-study ul {
+      margin-top: 1rem;
+    }
+    
+    .seagate-case-study ul li {
+      margin-bottom: 0.8rem;
     }
     
     /* Phoebe J section styling */
@@ -732,40 +814,51 @@
     
     .footer {
       text-align: center;
-      padding: 50px 20px;
+      padding: 40px 20px;
       color: #6b7280;
-      font-size: 0.95rem;
-      background: linear-gradient(135deg, rgba(255,255,255,0.9) 0%, rgba(248,250,252,0.9) 100%);
-      margin-top: 50px;
-      border-radius: 16px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-      border: 1px solid rgba(148, 163, 184, 0.2);
+      font-size: 0.9rem;
+      background: #f8fafc;
+      margin-top: 60px;
+      border-top: 1px solid #e2e8f0;
+      width: 100%;
     }
     
     .footer p {
-      margin-bottom: 0.5rem;
-      line-height: 1.4;
+      margin-bottom: 0.75rem;
+      line-height: 1.6;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+    }
+    
+    .footer p:last-child {
+      margin-bottom: 0;
     }
     
     .footer a {
       color: #1e40af;
       text-decoration: none;
-      font-weight: 600;
-      transition: all 0.3s ease;
-      padding: 0.2rem 0.4rem;
-      border-radius: 6px;
-      display: inline-block;
+      font-weight: 500;
+      transition: all 0.2s ease;
     }
     
     .footer a:hover {
       color: #3b82f6;
-      background: rgba(59, 130, 246, 0.1);
-      transform: translateY(-1px);
+      text-decoration: underline;
     }
     
     .footer a:focus {
       outline: 2px solid #3b82f6;
       outline-offset: 2px;
+      border-radius: 2px;
+    }
+    
+    .footer .footer-divider {
+      border-top: 1px solid #e2e8f0;
+      margin: 1.5rem auto 0;
+      padding-top: 1.5rem;
+      max-width: 600px;
     }
     
     /* Mobile */
@@ -889,18 +982,42 @@
         margin-bottom: 0.5rem;
       }
       
+      .seagate-case-study {
+        padding: 20px;
+      }
+      
+      .seagate-case-study h2 {
+        font-size: 1.4rem;
+      }
+      
+      .seagate-image {
+        width: 100%;
+        height: auto;
+      }
+      
+      .seagate-case-study {
+        border: 1px solid #fdba74;
+      }
+      
       .note-box {
         padding: 1.5rem;
         margin: 1.5rem 0;
       }
       
       .footer {
-        padding: 20px 15px;
-        margin-top: 20px;
+        padding: 30px 15px;
+        margin-top: 40px;
       }
       
       .footer p {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.75rem;
+        line-height: 1.5;
+        font-size: 0.85rem;
+      }
+      
+      .footer .footer-divider {
+        margin: 1.25rem auto 0;
+        padding-top: 1.25rem;
       }
       
       .phoebe-content {
@@ -958,9 +1075,9 @@
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link active">About</a>
         <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
         <a href="https://pbj320.vercel.app/" class="nav-link" target="_blank">PBJ Converter</a>
-        <a href="pbj_playground.html" class="nav-link">Insights</a>
       </div>
       <div class="nav-toggle" id="navToggle">
         <span></span>
@@ -1026,6 +1143,24 @@
       </ul>
       
       
+    </div>
+    
+    <div class="content-box seagate-case-study">
+      <h2>How PBJ Data Reveals Chronic Understaffing: The Seagate Case</h2>
+      <p>In September, a Brooklyn nursing home made national headlines after the violent death of an 89-year-old Holocaust survivor. Federal records point to a deeper problem: <strong>Seagate Rehabilitation and Nursing Center</strong> has been marked by <strong>chronic understaffing—one of thousands of U.S. nursing homes with similar conditions</strong>. In the 1,187 days since New York implemented a 3.50 HPRD minimum, Seagate has fallen below the threshold every single day, according to CMS Payroll-Based Journal (PBJ) data.</p>
+      
+      <div class="seagate-image-container">
+        <a href="https://pbj320.com/pbj-sample" target="_blank">
+          <img src="seagate_staffing_pbj.png" alt="Seagate Rehabilitation and Nursing Center staffing data showing chronic understaffing below New York's 3.50 HPRD minimum" class="seagate-image">
+        </a>
+        <p class="image-caption">Seagate has not once met New York's 3.50 HPRD staffing minimum since the law went into effect April 1, 2022, according to PBJ records.</p>
+      </div>
+      
+      <p><strong>PBJ data enables this analysis by providing daily staffing records, historical context, regulatory compliance tracking, and pattern recognition</strong>—revealing systemic issues that affect resident care across thousands of facilities. <a href="https://www.320insight.com/words/pbj-seagate" target="_blank">Read the full analysis</a> or <a href="https://pbj320.com/pbj-sample" target="_blank">explore Seagate's staffing data</a>.</p>
+    </div>
+    
+    <div class="content-box">
+      
       <h3>Digging deeper?</h3>
       <p><strong><a href="https://pbjdashboard.com/Premium">Premium</a></strong> – 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="https://pbj-sample-concordia.vercel.app/" target="_blank">Check out a sample dashboard</a>.</p>
             
@@ -1081,20 +1216,16 @@
     
     <div class="content-box">
       <h2>About 320 Consulting</h2>
-      <p>320 Consulting is led by Eric Goldwein, MPH, a data consultant with expertise in nursing home staffing. His work on nursing home data has been featured in Columbia Public Health, the <em>Journal of the American Geriatrics Society</em>, Positive Aging, and Aging in America News. He has presented at national conferences hosted by the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and the NYS Long Term Care Ombudsman Program. He previously served as policy director at the Long Term Care Community Coalition.</p>
+      <p><strong><a href="https://www.320insight.com/" target="_blank">320 Consulting</a></strong> is led by <strong><a href="https://www.linkedin.com/in/eric-goldwein" target="_blank">Eric Goldwein</a></strong>, MPH, a data consultant with expertise in nursing home staffing. His work on nursing home data has been featured in Columbia Public Health, the <em>Journal of the American Geriatrics Society</em>, Positive Aging, and Aging in America News. He has presented at national conferences hosted by the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and the NYS Long Term Care Ombudsman Program. He previously served as policy director at the Long Term Care Community Coalition.</p>
       
     </div>
   </div>
   
   <div class="footer">
-    <p>By <a href="https://www.320insight.com/" target="_blank">320 Consulting LLC</a></p>
-    <p>
-      <a href="/">Home</a> | 
-      <a href="https://pbjdashboard.com/">Dashboard</a> | 
-      <a href="https://pbjdashboard.com/Premium">Premium</a> | 
-      <a href="https://www.320insight.com/phoebe" target="_blank">Phoebe J</a>|
-      <a href="pbj_playground.html" class="nav-link">Insights</a>
-    </p>
+    <p style="color: #94a3b8; margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #94a3b8; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #94a3b8; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #94a3b8; text-decoration: none;">Aging in America News</a>.</p>
+    <div class="footer-divider">
+      <p style="margin: 0; color: #6b7280; font-style: italic; font-size: 0.9rem;"><a href="https://www.320insight.com" style="color: #6b7280; text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
+    </div>
   </div>
 
   <script>

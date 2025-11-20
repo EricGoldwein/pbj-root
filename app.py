@@ -46,6 +46,11 @@ def index():
 def about():
     return send_file('about.html', mimetype='text/html')
 
+@app.route('/insights')
+@app.route('/insights/')
+def insights():
+    return send_file('pbj_playground.html', mimetype='text/html')
+
 @app.route('/pbj-sample')
 def pbj_sample():
     """Handle both /pbj-sample and /pbj-sample.html"""

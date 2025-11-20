@@ -49,7 +49,7 @@ def about():
 @app.route('/insights')
 @app.route('/insights/')
 def insights():
-    return send_file('pbj_playground.html', mimetype='text/html')
+    return send_file('insights.html', mimetype='text/html')
 
 @app.route('/pbj-sample')
 def pbj_sample():
@@ -59,7 +59,7 @@ def pbj_sample():
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined
-    if filename in ['insights', 'about', 'pbj-sample']:
+    if filename in ['insights', 'insights.html', 'about', 'pbj-sample']:
         from flask import abort
         abort(404)
     

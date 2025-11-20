@@ -58,6 +58,11 @@ def pbj_sample():
 
 @app.route('/<path:filename>')
 def static_files(filename):
+    # Don't handle routes that are already defined
+    if filename in ['insights', 'about', 'pbj-sample']:
+        from flask import abort
+        abort(404)
+    
     # Handle images with proper headers
     if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
         return send_from_directory('.', filename, mimetype='image/png')

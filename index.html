@@ -938,7 +938,7 @@
           'Q1 2022', 'Q2 2022', 'Q3 2022', 'Q4 2022',
           'Q1 2023', 'Q2 2023', 'Q3 2023', 'Q4 2023',
           'Q1 2024', 'Q2 2024', 'Q3 2024', 'Q4 2024',
-          'Q1 2025'
+          'Q1 2025', 'Q2 2025'
         ];
         
         function drawChart(selectedState = 'USA') {
@@ -1097,7 +1097,7 @@
         'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
       };
       
-      // Real HPRD data from state_lite_metrics (Q1 2025 - most recent quarter)
+      // Real HPRD data from state_lite_metrics (Q2 2025 - most recent quarter)
       const stateData = {
         'Alabama': { hprd: 3.848, name: 'Alabama' },
         'Alaska': { hprd: 6.157, name: 'Alaska' },
@@ -1175,8 +1175,8 @@
         .attr('style', 'margin-top: 50px;');
       
       // Re-add the legend after clearing with dynamic quarter
-      // Get the most recent quarter (Q1 2025 is hardcoded in the data comment)
-      const currentQuarter = 'Q1 2025'; // This should match the data source
+      // Get the most recent quarter (Q2 2025 is hardcoded in the data comment)
+      const currentQuarter = 'Q2 2025'; // This should match the data source
       
       d3.select('#stateMap')
         .append('div')

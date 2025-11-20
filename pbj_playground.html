@@ -629,7 +629,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Contract Staffing Distribution (Q1 2025)</h4>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Contract Staffing Distribution (<span id="contractSectionQuarter">Q1 2025</span>)</h4>
           <div class="chart-container">
             <canvas id="contractChart" width="400" height="200"></canvas>
           </div>
@@ -658,7 +658,7 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Breakdown (Q1 2025)</h4>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Breakdown (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
           <div class="chart-container" style="max-width: 400px; margin: 0 auto;">
             <canvas id="staffTypeChart" width="300" height="200"></canvas>
           </div>
@@ -1024,6 +1024,16 @@ Nursing Home Data Explorer • Interactive Maps & Staffing Insights</title>
         const match = pbjData.latestQuarter.match(/(\d{4})Q(\d)/);
         if (match) {
           contractSectionQuarterEl.textContent = `Q${match[2]} ${match[1]}`;
+        }
+      }
+      
+      // Update US Breakdown quarter (format as "Q1 2025")
+      const usBreakdownQuarterEl = document.getElementById('usBreakdownQuarter');
+      if (usBreakdownQuarterEl) {
+        // Convert "2025Q1" to "Q1 2025"
+        const match = pbjData.latestQuarter.match(/(\d{4})Q(\d)/);
+        if (match) {
+          usBreakdownQuarterEl.textContent = `Q${match[2]} ${match[1]}`;
         }
       }
       

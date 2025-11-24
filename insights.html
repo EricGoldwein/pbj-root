@@ -626,6 +626,8 @@ Insights • PBJ Nursing Home Staffing Data</title>
       flex-direction: column;
       gap: 8px;
       margin-top: 10px;
+      margin-bottom: 0;
+      padding-bottom: 0;
       align-items: center;
     }
     
@@ -668,9 +670,45 @@ Insights • PBJ Nursing Home Staffing Data</title>
     /* Make pie chart smaller on mobile */
     @media (max-width: 768px) {
       #staffTypeChart {
-        max-width: 180px;
-        max-height: 180px;
-        height: 180px !important;
+        max-width: 160px !important;
+        max-height: 160px !important;
+        height: 160px !important;
+        width: 160px !important;
+        margin: 0 auto;
+        display: block;
+      }
+      
+      #staffTypeChartContainer {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        padding: 10px 0 !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 0 !important;
+        min-height: 0 !important;
+        height: auto !important;
+      }
+      
+      .staff-type-legend {
+        margin-top: 6px !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        padding-bottom: 0 !important;
+        gap: 5px !important;
+      }
+      
+      .staff-type-legend .legend-row {
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        padding-bottom: 0 !important;
+      }
+      
+      .staff-type-legend .legend-item {
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        padding-bottom: 0 !important;
       }
     }
     
@@ -680,6 +718,20 @@ Insights • PBJ Nursing Home Staffing Data</title>
         max-width: 280px;
         max-height: 275px;
         height: 275px !important;
+        margin: 0 auto;
+        display: block;
+      }
+      
+      .chart-container[style*="max-width: 400px"] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      
+      .chart-container[style*="max-width: 400px"] h4 {
+        width: 100%;
+        text-align: center;
       }
     }
   </style>
@@ -835,13 +887,17 @@ Insights • PBJ Nursing Home Staffing Data</title>
                   <div id="stateMapLegendLabels" style="
                     display: flex;
                     justify-content: space-between;
-                    width: 140px;
+                    width: 250px;
                     font-size: 0.7rem;
-                    color: rgba(255,255,255,0.8);
+                    color: rgba(255, 255, 255, 0.8);
                     font-weight: 500;
-                    margin: 0;
-                    padding: 0;
+                    margin: 1px auto 0px;
+                    padding: 4px;
                     line-height: 1;
+                    min-width: 250px;
+                    max-width: 250px;
+                    align-items: center;
+                    box-sizing: border-box;
                   ">
                     <span>3.0</span>
                     <span>4.5</span>
@@ -946,8 +1002,15 @@ Insights • PBJ Nursing Home Staffing Data</title>
           </div>
         </div>
       </div>
-    </div>:
-          <div class="chart-container" style="max-width: 400px; margin: 0 auto; min-height: 220px;">
+    </div>
+
+    <div class="section">
+      <h2>5. Staffing Ratio by Position</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
+        <div>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Staffing by Position (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
+          <div class="chart-container" style="max-width: 400px; margin: 0 auto; min-height: 220px;" id="staffTypeChartContainer">
             <canvas id="staffTypeChart" width="300" height="200"></canvas>
             <!-- Custom Legend -->
             <div id="staffTypeLegend" class="staff-type-legend">
@@ -1070,10 +1133,17 @@ Insights • PBJ Nursing Home Staffing Data</title>
                   <div id="staffBreakdownLegendLabelsContainer" style="
                     display: flex;
                     justify-content: space-between;
-                    width: 120px;
-                    font-size: 0.65rem;
-                    color: rgba(255,255,255,0.8);
+                    width: 250px;
+                    font-size: 0.7rem;
+                    color: rgba(255, 255, 255, 0.8);
                     font-weight: 500;
+                    margin: 1px auto 0px;
+                    padding: 4px;
+                    line-height: 1;
+                    min-width: 250px;
+                    max-width: 250px;
+                    align-items: center;
+                    box-sizing: border-box;
                   ">
                     <span>40%</span>
                     <span>65%</span>
@@ -1086,6 +1156,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
           </div>
         </div>
       </div>
+    </div>
       
       <div class="phoebe-takeaway">
         <a href="https://www.320insight.com/phoebe" target="_blank"><img src="phoebe.png" alt="Phoebe J" class="phoebe-avatar"></a>

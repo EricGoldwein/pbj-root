@@ -374,6 +374,235 @@ Insights • PBJ Nursing Home Staffing Data</title>
       .section div[style*="display: flex"] > div {
         margin-bottom: 1.5rem;
       }
+      
+      /* Make map containers responsive on mobile */
+      #stateMapContainer {
+        height: 370px !important;
+        min-height: 360px;
+        max-height: 70vh;
+        padding-bottom: 45px !important; /* Match yellow map spacing */
+        padding-top: 0 !important;
+      }
+      
+      #nurseAideMapContainer {
+        height: 350px !important;
+        min-height: 300px;
+        max-height: 60vh;
+        padding-bottom: 45px !important; /* Reduced space for legend below */
+      }
+      
+      /* Ensure map SVGs are responsive */
+      #stateMap svg,
+      #nurseAideMap svg {
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+      }
+      
+      /* Move legends below maps on mobile - match yellow map positioning */
+      #stateMapLegend {
+        position: absolute !important;
+        top: auto !important;
+        bottom: 10px !important;
+        right: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100% - 40px);
+        max-width: 300px;
+      }
+      
+      #staffBreakdownLegend {
+        position: absolute !important;
+        top: auto !important;
+        bottom: 10px !important;
+        right: auto !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        width: calc(100% - 40px);
+        max-width: 280px;
+      }
+      
+      /* Reduce padding below legend content - apply to both maps */
+      #stateMapLegend > div {
+        padding: 6px 10px 2px 10px !important;
+      }
+      
+      #stateMapLegendContent {
+        gap: 1px !important;
+        margin-bottom: 0 !important;
+        align-items: center !important;
+      }
+      
+      /* Center the gradient bar and align labels with it */
+      #stateMapLegendGradient {
+        margin: 0 auto !important;
+        display: block !important;
+      }
+      
+      #stateMapLegendLabels {
+        margin-top: 1px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+      
+      #staffBreakdownLegend > div {
+        padding: 6px 10px 2px 10px !important;
+      }
+      
+      #staffBreakdownLegendContent {
+        gap: 1px !important;
+        margin-bottom: 0 !important;
+        align-items: center !important;
+      }
+      
+      /* Center the gradient bar and align labels with it on yellow map */
+      #staffBreakdownLegendGradient {
+        margin: 0 auto !important;
+        display: block !important;
+      }
+      
+      #staffBreakdownLegendLabelsContainer {
+        margin-top: 1px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+      }
+      
+      /* Fix max number position - ensure it's at the right edge */
+      #staffBreakdownLegendLabelsContainer span:last-child {
+        text-align: right !important;
+        margin-left: 0 !important;
+      }
+      
+      #stateMapLegendLabels span:last-child {
+        text-align: right !important;
+        margin-left: 0 !important;
+      }
+      
+      /* Make legend gradients wider on mobile */
+      #stateMapLegendGradient {
+        width: 250px !important;
+      }
+      
+      #stateMapLegendLabels {
+        width: 250px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+      }
+      
+      #stateMapLegendLabels span {
+        display: inline-block !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+      
+      #stateMapLegendLabels span:first-child {
+        text-align: left !important;
+      }
+      
+      #stateMapLegendLabels span:last-child {
+        text-align: right !important;
+      }
+      
+      #staffBreakdownLegendGradient {
+        width: 220px !important;
+      }
+      
+      #staffBreakdownLegendLabelsContainer {
+        width: 220px !important;
+        display: flex !important;
+        justify-content: space-between !important;
+      }
+      
+      #staffBreakdownLegendLabelsContainer span {
+        display: inline-block !important;
+        white-space: nowrap !important;
+      }
+      
+      /* Make buttons more compact on mobile */
+      #animateButton,
+      #showLatestButton {
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+        min-width: auto !important;
+        vertical-align: baseline !important;
+        line-height: 1.4 !important;
+        display: inline-block !important;
+        height: 32px !important;
+        box-sizing: border-box !important;
+        transform: none !important;
+        transition: none !important;
+      }
+      
+      /* Disable hover transform on mobile to prevent button movement */
+      #animateButton:hover,
+      #showLatestButton:hover {
+        transform: none !important;
+      }
+      
+      /* Ensure buttons are exactly aligned */
+      .section > div > div[style*="display: flex"] {
+        align-items: baseline !important;
+      }
+      
+      /* Make quarter display more compact on mobile - closer to map */
+      #quarterDisplay {
+        font-size: 1rem !important;
+        padding: 6px 12px !important;
+        top: 5px !important;
+      }
+      
+      /* Make button container more compact */
+      .section > div > div[style*="display: flex"] {
+        gap: 0.5rem !important;
+      }
+      
+      /* Ensure legend labels have proper spacing - force them apart */
+      #stateMapLegendLabels {
+        min-width: 250px !important;
+      }
+      
+      #stateMapLegendLabels span {
+        flex: 0 0 auto !important;
+        min-width: auto !important;
+      }
+      
+      #stateMapLegendLabels span:first-child {
+        text-align: left;
+      }
+      
+      #stateMapLegendLabels span:last-child {
+        text-align: right;
+      }
+      
+      #staffBreakdownLegendLabelsContainer {
+        min-width: 220px !important;
+      }
+      
+      #staffBreakdownLegendLabelsContainer span {
+        flex: 0 0 auto !important;
+        min-width: auto !important;
+      }
+      
+      #staffBreakdownLegendLabelsContainer span:first-child {
+        text-align: left;
+      }
+      
+      #staffBreakdownLegendLabelsContainer span:last-child {
+        text-align: right;
+      }
+      
+      /* Update button text on mobile using JavaScript will handle this */
+      .animate-button::after {
+        content: '';
+      }
+      
+      .latest-button::after {
+        content: '';
+      }
     }
     
     /* Make charts responsive within the container */
@@ -389,6 +618,60 @@ Insights • PBJ Nursing Home Staffing Data</title>
     /* Reduce font size of the introductory text */
     .intro-text {
       font-size: 0.9em; /* Adjust as necessary */
+    }
+    
+    /* Custom legend styling for staff type chart */
+    .staff-type-legend {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+      align-items: center;
+    }
+    
+    .staff-type-legend .legend-row {
+      display: flex;
+      gap: 15px;
+      flex-wrap: wrap;
+    }
+    
+    .staff-type-legend .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    
+    .staff-type-legend .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      border: 1px solid #ffffff;
+      flex-shrink: 0;
+    }
+    
+    .staff-type-legend .legend-text {
+      color: #ffffff;
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    
+    .staff-type-legend .legend-item:hover {
+      opacity: 0.8;
+    }
+    
+    .staff-type-legend .legend-item.hidden {
+      opacity: 0.5;
+    }
+    
+    /* Make pie chart smaller on desktop */
+    @media (min-width: 769px) {
+      #staffTypeChart {
+        max-width: 280px;
+        max-height: 275px;
+        height: 275px !important;
+      }
     }
   </style>
 </head>
@@ -419,7 +702,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
   <div class="container">
     <div class="header">
       <h1><img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;"> <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #60a5fa; font-weight: 700;">320</span> <span style="color: white; font-weight: 700;">Insights</span></h1>
-      <p class="intro-text">Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
+      <p class="intro-text">Patterns and perspectives from 9 years of US nursing home payroll-based journal (PBJ) staffing data</p>
     </div>
 
     <div class="section">
@@ -441,7 +724,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
         </div>
 
     <div class="section">
-      <h2>2. State Staffing Evolution: A Time-Lapse View</h2>
+      <h2>2. State Staffing Evolution</h2>
       <div class="insight">
       </div>
       
@@ -461,7 +744,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
               <option value="Contract_Percentage" style="background: #1e293b; color: white;">Contract Staff %</option>
             </select>
             
-            <button id="animateButton" style="
+            <button id="animateButton" class="animate-button" style="
               background: linear-gradient(135deg, #1769aa 0%, #1e88e5 100%);
               color: white;
               border: none;
@@ -478,7 +761,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
             </button>
             
             
-            <button id="showLatestButton" style="
+            <button id="showLatestButton" class="latest-button" style="
               background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
               color: white;
               border: none;
@@ -496,9 +779,9 @@ Insights • PBJ Nursing Home Staffing Data</title>
           </div>
         </div>
 
-          <div class="chart-container" style="height: 620px; text-align: center; position: relative;">
+          <div class="chart-container" id="stateMapContainer" style="height: 620px; text-align: center; position: relative; padding-top: 0;">
             <!-- Map Legend (top right corner) -->
-            <div style="
+            <div id="stateMapLegend" style="
               position: absolute;
               top: 10px;
               right: 180px;
@@ -519,8 +802,8 @@ Insights • PBJ Nursing Home Staffing Data</title>
                   text-transform: uppercase;
                   letter-spacing: 0.3px;
                 " id="legendTitle">Total HPRD</div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-                  <svg width="140" height="10" style="border-radius: 4px;">
+                <div id="stateMapLegendContent" style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                  <svg id="stateMapLegendGradient" width="140" height="10" style="border-radius: 4px;">
                     <defs>
                       <linearGradient id="hprdGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:hsl(270, 15%, 85%);stop-opacity:1" />
@@ -540,14 +823,17 @@ Insights • PBJ Nursing Home Staffing Data</title>
                     </defs>
                     <rect width="140" height="10" fill="url(#hprdGradient)" id="legendGradient"/>
                   </svg>
-                  <div style="
+                  <div id="stateMapLegendLabels" style="
                     display: flex;
                     justify-content: space-between;
                     width: 140px;
                     font-size: 0.7rem;
                     color: rgba(255,255,255,0.8);
                     font-weight: 500;
-                  " id="legendLabels">
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1;
+                  ">
                     <span>3.0</span>
                     <span>4.5</span>
                   </div>
@@ -590,7 +876,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
     </div>
 
     <div class="section">
-      <h2>3. "Average" Staffing</h2>
+      <h2>3. What Does "Mean" Mean?</h2>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
@@ -629,7 +915,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Contract Staffing Distribution (<span id="contractSectionQuarter">Q1 2025</span>)</h4>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Distribution (<span id="contractSectionQuarter">Q1 2025</span>)</h4>
           <div class="chart-container">
             <canvas id="contractChart" width="400" height="200"></canvas>
           </div>
@@ -658,15 +944,59 @@ Insights • PBJ Nursing Home Staffing Data</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Breakdown (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
-          <div class="chart-container" style="max-width: 400px; margin: 0 auto;">
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
+          <div class="chart-container" style="max-width: 400px; margin: 0 auto; min-height: 220px;">
             <canvas id="staffTypeChart" width="300" height="200"></canvas>
+            <!-- Custom Legend -->
+            <div id="staffTypeLegend" class="staff-type-legend">
+              <!-- Row 1: RN, RN Admin, RN DON -->
+              <div class="legend-row">
+                <div class="legend-item" data-index="0">
+                  <span class="legend-color" style="background-color: #1e3a8a !important;"></span>
+                  <span class="legend-text">RN</span>
+                </div>
+                <div class="legend-item" data-index="1">
+                  <span class="legend-color" style="background-color: #3b82f6 !important;"></span>
+                  <span class="legend-text">RN Admin</span>
+                </div>
+                <div class="legend-item" data-index="2">
+                  <span class="legend-color" style="background-color: #60a5fa !important;"></span>
+                  <span class="legend-text">RN DON</span>
+                </div>
+              </div>
+              <!-- Row 2: LPN, LPN Admin -->
+              <div class="legend-row">
+                <div class="legend-item" data-index="3">
+                  <span class="legend-color" style="background-color: #dc2626 !important;"></span>
+                  <span class="legend-text">LPN</span>
+                </div>
+                <div class="legend-item" data-index="4">
+                  <span class="legend-color" style="background-color: #ef4444 !important;"></span>
+                  <span class="legend-text">LPN Admin</span>
+                </div>
+              </div>
+              <!-- Row 3: CNA, Med Aide Tech, NAtr -->
+              <div class="legend-row">
+                <div class="legend-item" data-index="5">
+                  <span class="legend-color" style="background-color: #eab308 !important;"></span>
+                  <span class="legend-text">CNA</span>
+                </div>
+                <div class="legend-item" data-index="6">
+                  <span class="legend-color" style="background-color: #facc15 !important;"></span>
+                  <span class="legend-text">Med Aide Tech</span>
+                </div>
+                <div class="legend-item" data-index="7">
+                  <span class="legend-color" style="background-color: #fde047 !important;"></span>
+                  <span class="legend-text">NAtr</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div>
           <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">Staffing Breakdown by State</h4>
           
-          <div class="chart-container" style="height: 400px; text-align: center; position: relative;">
+          <div class="chart-container" id="nurseAideMapContainer" style="height: 400px; text-align: center; position: relative;">
             <!-- Metric Toggle (inside map container) -->
             <div style="
               position: absolute;
@@ -693,7 +1023,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
             </div>
             
             <!-- Legend for Staff Breakdown Map (top right corner) -->
-            <div style="
+            <div id="staffBreakdownLegend" style="
               position: absolute;
               top: 10px;
               right: 10px;
@@ -714,8 +1044,8 @@ Insights • PBJ Nursing Home Staffing Data</title>
                   text-transform: uppercase;
                   letter-spacing: 0.3px;
                 " id="staffBreakdownLegendTitle">Nurse Aide %</div>
-                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
-                  <svg width="120" height="8" style="border-radius: 4px;">
+                <div id="staffBreakdownLegendContent" style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <svg id="staffBreakdownLegendGradient" width="120" height="8" style="border-radius: 4px;">
                     <defs>
                       <linearGradient id="aideGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" style="stop-color:hsl(45, 80%, 75%);stop-opacity:1" />
@@ -735,14 +1065,14 @@ Insights • PBJ Nursing Home Staffing Data</title>
                     </defs>
                     <rect width="120" height="8" fill="url(#aideGradient)" id="staffBreakdownGradient"/>
                   </svg>
-                  <div style="
+                  <div id="staffBreakdownLegendLabelsContainer" style="
                     display: flex;
                     justify-content: space-between;
                     width: 120px;
                     font-size: 0.65rem;
                     color: rgba(255,255,255,0.8);
                     font-weight: 500;
-                  " id="staffBreakdownLegendLabels">
+                  ">
                     <span>40%</span>
                     <span>65%</span>
                   </div>
@@ -1569,7 +1899,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
       const lpnHPRD = totalHPRD * 0.22; // LPN typically ~22% of total  
       const assistantHPRD = totalHPRD * 0.62; // Assistants typically ~62% of total
       
-      new Chart(staffTypeCtx, {
+      const staffTypeChart = new Chart(staffTypeCtx, {
         type: 'pie',
         data: {
           labels: ['RN', 'RN Admin', 'RN DON', 'LPN', 'LPN Admin', 'CNA', 'MedAide Tech', 'NAtr'],
@@ -1601,19 +1931,18 @@ Insights • PBJ Nursing Home Staffing Data</title>
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          aspectRatio: 1.1,
           plugins: {
             title: {
               display: true,
               text: 'Nursing Staff Distribution by Position',
-              color: '#ffffff'
+              color: '#ffffff',
+              font: {
+                size: 14
+              }
             },
             legend: {
-              position: 'bottom',
-              labels: {
-                color: '#ffffff',
-                padding: 15,
-                usePointStyle: true
-              }
+              display: false // Hide default legend, using custom HTML legend instead
             },
             tooltip: {
               callbacks: {
@@ -1627,6 +1956,39 @@ Insights • PBJ Nursing Home Staffing Data</title>
             }
           }
         }
+      });
+      
+      // Make custom legend interactive
+      const legendItems = document.querySelectorAll('#staffTypeLegend .legend-item');
+      legendItems.forEach((item, index) => {
+        item.addEventListener('click', function() {
+          const meta = staffTypeChart.getDatasetMeta(0);
+          const clickedIndex = parseInt(item.getAttribute('data-index'));
+          
+          // Toggle visibility
+          meta.data[clickedIndex].hidden = !meta.data[clickedIndex].hidden;
+          staffTypeChart.update();
+          
+          // Update legend item opacity
+          if (meta.data[clickedIndex].hidden) {
+            item.style.opacity = '0.5';
+          } else {
+            item.style.opacity = '1';
+          }
+        });
+        
+        // Add hover effect
+        item.addEventListener('mouseenter', function() {
+          if (item.style.opacity !== '0.5') {
+            item.style.opacity = '0.8';
+          }
+        });
+        
+        item.addEventListener('mouseleave', function() {
+          if (item.style.opacity !== '0.5') {
+            item.style.opacity = '1';
+          }
+        });
       });
       
       // Calculate and update nurse aide percentage
@@ -1925,7 +2287,20 @@ Insights • PBJ Nursing Home Staffing Data</title>
       // Convert "2017Q1" to "Q1 2017"
       const year = quarterString.substring(0, 4);
       const quarter = quarterString.substring(4);
-      return `${quarter} ${year}`;
+      return `${quarter} ${year}`; // Always include space
+    }
+    
+    function getButtonText(buttonType, isAnimating) {
+      const isMobile = window.innerWidth <= 768;
+      if (buttonType === 'animate') {
+        if (isMobile) {
+          return isAnimating ? 'Stop' : 'Evolution';
+        }
+        return isAnimating ? 'Stop Animation' : 'See Changes Over Time';
+      } else if (buttonType === 'latest') {
+        return isMobile ? 'Latest' : 'Jump to Latest';
+      }
+      return '';
     }
 
     function updateLegendTitle() {
@@ -1965,6 +2340,12 @@ Insights • PBJ Nursing Home Staffing Data</title>
       // Set up animation button
       document.getElementById('animateButton').addEventListener('click', toggleAnimation);
       
+      // Set initial button text based on screen size
+      const animateButton = document.getElementById('animateButton');
+      const latestButton = document.getElementById('showLatestButton');
+      animateButton.textContent = getButtonText('animate', false);
+      latestButton.textContent = getButtonText('latest', false);
+      
       // Set up show latest button
       document.getElementById('showLatestButton').addEventListener('click', function() {
         // Stop any ongoing animation
@@ -1972,7 +2353,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
           clearInterval(animationInterval);
           isAnimating = false;
           const button = document.getElementById('animateButton');
-          button.textContent = 'See Changes Over Time';
+          button.textContent = getButtonText('animate', false);
           button.style.background = 'linear-gradient(135deg, #1769aa 0%, #1e88e5 100%)';
           shouldRestartAnimation = true;
         }
@@ -1982,8 +2363,25 @@ Insights • PBJ Nursing Home Staffing Data</title>
         updateMap();
       });
       
+      // Update button text on resize
+      window.addEventListener('resize', function() {
+        animateButton.textContent = getButtonText('animate', isAnimating);
+        latestButton.textContent = getButtonText('latest', false);
+      });
+      
       // Set up metric selector
       document.getElementById('metricSelect').addEventListener('change', function() {
+        // Stop any ongoing animation when changing metric
+        if (isAnimating) {
+          clearInterval(animationInterval);
+          isAnimating = false;
+        }
+        // Always reset animation state when changing metric
+        shouldRestartAnimation = true;
+        const button = document.getElementById('animateButton');
+        button.textContent = getButtonText('animate', false);
+        button.style.background = 'linear-gradient(135deg, #1769aa 0%, #1e88e5 100%)';
+        
         selectedMetric = this.value;
         // Reset to most recent quarter when changing metric
         currentQuarterIndex = getMostRecentQuarterIndex();
@@ -1993,8 +2391,14 @@ Insights • PBJ Nursing Home Staffing Data</title>
     }
 
     function createStateMap() {
-      const width = 1000;
-      const height = 600; // Increased height to prevent bleeding
+      // Detect mobile and use responsive dimensions
+      const isMobile = window.innerWidth <= 768;
+      const container = d3.select('#stateMap').node();
+      const containerWidth = container ? container.offsetWidth : (isMobile ? Math.min(window.innerWidth - 40, 1000) : 1000);
+      const containerHeight = container ? container.offsetHeight : (isMobile ? Math.min(window.innerHeight * 0.5, 500) : 600);
+      
+      const width = containerWidth;
+      const height = containerHeight;
       
       // Color scale is handled by getColorForValue() function
       
@@ -2004,7 +2408,8 @@ Insights • PBJ Nursing Home Staffing Data</title>
         .append('svg')
         .attr('width', width)
         .attr('height', height)
-        .attr('viewBox', '0 0 1000 600');
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
       
       // Define striped pattern for lightest states
       const defs = svg.append('defs');
@@ -2043,9 +2448,12 @@ Insights • PBJ Nursing Home Staffing Data</title>
       d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(function(us) {
         const states = topojson.feature(us, us.objects.states);
         
-        // Create projection
+        // Create projection - reduce top space to bring map closer to quarter display
+        const padding = isMobile ? 20 : 0;
+        const topPadding = isMobile ? 15 : 0;
         const projection = d3.geoAlbersUsa()
-          .fitSize([width, height], states);
+          .fitSize([width - padding, height - padding - topPadding], states)
+          .translate([width / 2, (height - padding - topPadding) / 2 + topPadding]);
         
         const path = d3.geoPath().projection(projection);
         
@@ -2120,8 +2528,14 @@ Insights • PBJ Nursing Home Staffing Data</title>
     let currentStaffMetric = 'nurse_aide';
     
     function createNurseAideMap() {
-      const width = 500;
-      const height = 400;
+      // Detect mobile and use responsive dimensions
+      const isMobile = window.innerWidth <= 768;
+      const container = d3.select('#nurseAideMap').node();
+      const containerWidth = container ? container.offsetWidth : (isMobile ? Math.min(window.innerWidth - 40, 500) : 500);
+      const containerHeight = container ? container.offsetHeight : (isMobile ? Math.min(window.innerHeight * 0.4, 400) : 400);
+      
+      const width = containerWidth;
+      const height = containerHeight;
       
       // Create SVG
       const svg = d3.select('#nurseAideMap')
@@ -2129,7 +2543,8 @@ Insights • PBJ Nursing Home Staffing Data</title>
         .append('svg')
         .attr('width', width)
         .attr('height', height)
-        .attr('viewBox', '0 0 500 400');
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
       
       // Create tooltip
       const tooltip = d3.select('body').append('div')
@@ -2187,9 +2602,10 @@ Insights • PBJ Nursing Home Staffing Data</title>
       d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(function(us) {
         const states = topojson.feature(us, us.objects.states);
         
-        // Create projection
+        // Create projection with padding for mobile to ensure whole map is visible
+        const padding = isMobile ? 15 : 0;
         const projection = d3.geoAlbersUsa()
-          .fitSize([width, height], states);
+          .fitSize([width - padding, height - padding], states);
         
         const path = d3.geoPath().projection(projection);
         
@@ -2294,30 +2710,63 @@ Insights • PBJ Nursing Home Staffing Data</title>
       
       // Update legend
       const legendTitle = document.getElementById('staffBreakdownLegendTitle');
-      const legendLabels = document.getElementById('staffBreakdownLegendLabels');
+      const legendLabels = document.getElementById('staffBreakdownLegendLabelsContainer');
       const legendGradient = document.getElementById('staffBreakdownGradient');
+      const legendGradientSvg = document.getElementById('staffBreakdownLegendGradient');
+      const isMobile = window.innerWidth <= 768;
       
       const ranges = window.staffBreakdownRanges || {};
       
-      if (currentStaffMetric === 'nurse_aide') {
-        const min = ranges.nurse_aide?.min || 40;
-        const max = ranges.nurse_aide?.max || 65;
-        legendTitle.textContent = 'Nurse Aide %';
-        legendLabels.innerHTML = `<span>${min.toFixed(0)}%</span><span>${max.toFixed(0)}%</span>`;
-        legendGradient.setAttribute('fill', 'url(#aideGradient)');
-      } else if (currentStaffMetric === 'total_rn') {
-        const min = ranges.total_rn?.min || 8;
-        const max = ranges.total_rn?.max || 25;
-        legendTitle.textContent = 'Total RN %';
-        legendLabels.innerHTML = `<span>${min.toFixed(0)}%</span><span>${max.toFixed(0)}%</span>`;
-        legendGradient.setAttribute('fill', 'url(#totalRnGradient)');
-      } else if (currentStaffMetric === 'direct_care') {
-        const min = ranges.direct_care?.min || 84;
-        const max = ranges.direct_care?.max || 95;
-        legendTitle.textContent = 'Direct Care %';
-        legendLabels.innerHTML = `<span>${min.toFixed(0)}%</span><span>${max.toFixed(0)}%</span>`;
-        legendGradient.setAttribute('fill', 'url(#directCareGradient)');
+      // Set gradient width based on screen size
+      const gradientWidth = isMobile ? 220 : 120;
+      if (legendGradientSvg) {
+        legendGradientSvg.setAttribute('width', gradientWidth);
+        legendGradientSvg.style.width = gradientWidth + 'px';
+        legendGradientSvg.style.display = 'block';
+        if (isMobile) {
+          legendGradientSvg.style.margin = '0 auto';
+        }
+        const rect = legendGradientSvg.querySelector('rect');
+        if (rect) {
+          rect.setAttribute('width', gradientWidth);
+        }
       }
+      if (legendLabels) {
+        legendLabels.style.width = gradientWidth + 'px';
+        legendLabels.style.minWidth = gradientWidth + 'px';
+        legendLabels.style.maxWidth = gradientWidth + 'px';
+        legendLabels.style.display = 'flex';
+        legendLabels.style.justifyContent = 'space-between';
+        legendLabels.style.alignItems = 'center';
+        legendLabels.style.marginTop = isMobile ? '1px' : '';
+        legendLabels.style.marginBottom = '0';
+        legendLabels.style.paddingBottom = '0';
+        legendLabels.style.boxSizing = 'border-box';
+        if (isMobile) {
+          legendLabels.style.marginLeft = 'auto';
+          legendLabels.style.marginRight = 'auto';
+        }
+      }
+      
+        if (currentStaffMetric === 'nurse_aide') {
+          const min = ranges.nurse_aide?.min || 40;
+          const max = ranges.nurse_aide?.max || 65;
+          legendTitle.textContent = 'Nurse Aide %';
+          legendLabels.innerHTML = `<span style="flex: 0 0 auto;">${min.toFixed(0)}%</span><span style="flex: 0 0 auto; text-align: right;">${max.toFixed(0)}%</span>`;
+          legendGradient.setAttribute('fill', 'url(#aideGradient)');
+        } else if (currentStaffMetric === 'total_rn') {
+          const min = ranges.total_rn?.min || 8;
+          const max = ranges.total_rn?.max || 25;
+          legendTitle.textContent = 'Total RN %';
+          legendLabels.innerHTML = `<span style="flex: 0 0 auto;">${min.toFixed(0)}%</span><span style="flex: 0 0 auto; text-align: right;">${max.toFixed(0)}%</span>`;
+          legendGradient.setAttribute('fill', 'url(#totalRnGradient)');
+        } else if (currentStaffMetric === 'direct_care') {
+          const min = ranges.direct_care?.min || 84;
+          const max = ranges.direct_care?.max || 95;
+          legendTitle.textContent = 'Direct Care %';
+          legendLabels.innerHTML = `<span style="flex: 0 0 auto;">${min.toFixed(0)}%</span><span style="flex: 0 0 auto; text-align: right;">${max.toFixed(0)}%</span>`;
+          legendGradient.setAttribute('fill', 'url(#directCareGradient)');
+        }
       
       // Helper function
       function getStaffBreakdownColor(percentage, metric) {
@@ -2453,27 +2902,59 @@ Insights • PBJ Nursing Home Staffing Data</title>
       document.getElementById('quarterDisplay').textContent = formatQuarter(quarters[currentQuarterIndex]);
       
       // Update legend labels and gradient
-      const legendLabels = document.getElementById('legendLabels');
+      const legendLabels = document.getElementById('stateMapLegendLabels');
       const legendGradient = document.getElementById('legendGradient');
+      const legendGradientSvg = document.getElementById('stateMapLegendGradient');
+      const isMobile = window.innerWidth <= 768;
       
       if (legendLabels && legendGradient) {
+        // Set gradient width based on screen size
+        const gradientWidth = isMobile ? 250 : 140;
+        if (legendGradientSvg) {
+          legendGradientSvg.setAttribute('width', gradientWidth);
+          legendGradientSvg.style.width = gradientWidth + 'px';
+          legendGradientSvg.style.display = 'block';
+          if (isMobile) {
+            legendGradientSvg.style.margin = '0 auto';
+          }
+          const rect = legendGradientSvg.querySelector('rect');
+          if (rect) {
+            rect.setAttribute('width', gradientWidth);
+          }
+        }
+        if (legendLabels) {
+          // Ensure labels container matches gradient width exactly and is centered
+          legendLabels.style.width = gradientWidth + 'px';
+          legendLabels.style.minWidth = gradientWidth + 'px';
+          legendLabels.style.maxWidth = gradientWidth + 'px';
+          legendLabels.style.display = 'flex';
+          legendLabels.style.justifyContent = 'space-between';
+          legendLabels.style.alignItems = 'center';
+          legendLabels.style.marginTop = isMobile ? '1px' : '';
+          legendLabels.style.marginBottom = '0';
+          legendLabels.style.paddingBottom = '0';
+          legendLabels.style.boxSizing = 'border-box';
+          if (isMobile) {
+            legendLabels.style.marginLeft = 'auto';
+            legendLabels.style.marginRight = 'auto';
+          }
+        }
+        
+        // Also update legend content spacing on mobile
+        const legendContent = document.getElementById('stateMapLegendContent');
+        if (legendContent && isMobile) {
+          legendContent.style.gap = '1px';
+          legendContent.style.marginBottom = '0';
+        }
+        
         if (selectedMetric === 'Total_Nurse_HPRD') {
-          legendLabels.innerHTML = `
-            <span>3.0</span>
-            <span>4.5</span>
-          `;
+          legendLabels.innerHTML = '<span>3.0</span><span>4.5</span>';
           legendGradient.setAttribute('fill', 'url(#hprdGradient)');
         } else if (selectedMetric === 'Total_RN_HPRD') {
-          legendLabels.innerHTML = `
-            <span>0.2</span>
-            <span>1.3</span>
-          `;
+          legendLabels.innerHTML = '<span>0.2</span><span>1.3</span>';
           legendGradient.setAttribute('fill', 'url(#rnGradient)');
          } else if (selectedMetric === 'Contract_Percentage') {
-           legendLabels.innerHTML = `
-             <span>0%</span>
-             <span>30%</span>
-           `;
+           legendLabels.innerHTML = '<span>0%</span><span>30%</span>';
            legendGradient.setAttribute('fill', 'url(#contractGradient)');
          }
       }
@@ -2524,20 +3005,23 @@ Insights • PBJ Nursing Home Staffing Data</title>
         clearInterval(animationInterval);
         isAnimating = false;
         shouldRestartAnimation = false; // Next time, continue from current position
-        button.textContent = 'See Changes Over Time';
+        button.textContent = getButtonText('animate', false);
         button.style.background = 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)';
       } else {
         // Start animation
         if (shouldRestartAnimation) {
           // Start from Q1 2017 (oldest quarter)
           currentQuarterIndex = 0;
+          updateMap(); // Update map before starting animation
         }
         // If shouldRestartAnimation is false, continue from current position
-        updateMap();
+        if (!shouldRestartAnimation) {
+          updateMap(); // Only update if not restarting
+        }
         
         isAnimating = true;
         shouldRestartAnimation = true; // Reset for next cycle
-        button.textContent = 'Stop Animation';
+        button.textContent = getButtonText('animate', true);
         button.style.background = 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)';
         
         animationInterval = setInterval(() => {
@@ -2550,7 +3034,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
             clearInterval(animationInterval);
             isAnimating = false;
             shouldRestartAnimation = true; // Next time, restart from beginning
-            button.textContent = 'See Changes Over Time';
+            button.textContent = getButtonText('animate', false);
             button.style.background = 'linear-gradient(135deg, #1769aa 0%, #1e88e5 100%)';
           }
         }, 250); // 250ms = comfortable animation speed
@@ -2560,8 +3044,43 @@ Insights • PBJ Nursing Home Staffing Data</title>
     // Load data when page loads
     loadData();
     
+    // Handle window resize to recreate maps for responsive behavior
+    let resizeTimeout;
+    window.addEventListener('resize', function() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(function() {
+        // Only recreate maps if they've been initialized
+        if (stateMap && window.stateData) {
+          createStateMap();
+          // Update map to refresh legend widths
+          updateMap();
+        }
+        if (staffBreakdownMap && window.nurseAidePercentageByState) {
+          createNurseAideMap();
+          // Update map to refresh legend widths
+          updateStaffBreakdownMap();
+        }
+      }, 250); // Debounce resize events
+    });
+    
     // Mobile Navigation Toggle
+    // Update intro text for mobile
+    function updateIntroText() {
+      const introText = document.querySelector('.intro-text');
+      if (introText) {
+        if (window.innerWidth <= 768) {
+          introText.textContent = 'Patterns and perspectives from nine years of nursing home payroll-based journal staffing data';
+        } else {
+          introText.textContent = 'Patterns and perspectives from 9 years of US nursing home payroll-based journal (PBJ) staffing data';
+        }
+      }
+    }
+    
+    // Update on load and resize
+    window.addEventListener('resize', updateIntroText);
+    
     document.addEventListener('DOMContentLoaded', function() {
+      updateIntroText();
       const navToggle = document.getElementById('navToggle');
       const navMenu = document.getElementById('navMenu');
       

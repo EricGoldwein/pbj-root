@@ -665,6 +665,15 @@ Insights • PBJ Nursing Home Staffing Data</title>
       opacity: 0.5;
     }
     
+    /* Make pie chart smaller on mobile */
+    @media (max-width: 768px) {
+      #staffTypeChart {
+        max-width: 200px;
+        max-height: 200px;
+        height: 200px !important;
+      }
+    }
+    
     /* Make pie chart smaller on desktop */
     @media (min-width: 769px) {
       #staffTypeChart {
@@ -944,7 +953,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
       
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0;">
         <div>
-          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
+          <h4 style="color: #ff7f0e; margin-bottom: 1rem; text-align: center;">US Staffing by Position (<span id="usBreakdownQuarter">Q1 2025</span>)</h4>
           <div class="chart-container" style="max-width: 400px; margin: 0 auto; min-height: 220px;">
             <canvas id="staffTypeChart" width="300" height="200"></canvas>
             <!-- Custom Legend -->
@@ -1934,7 +1943,7 @@ Insights • PBJ Nursing Home Staffing Data</title>
           aspectRatio: 1.1,
           plugins: {
             title: {
-              display: true,
+              display: window.innerWidth > 768, // Hide on mobile
               text: 'Nursing Staff Distribution by Position',
               color: '#ffffff',
               font: {
@@ -1989,6 +1998,14 @@ Insights • PBJ Nursing Home Staffing Data</title>
             item.style.opacity = '1';
           }
         });
+      });
+      
+      // Update chart title visibility on resize
+      window.addEventListener('resize', function() {
+        if (staffTypeChart) {
+          staffTypeChart.options.plugins.title.display = window.innerWidth > 768;
+          staffTypeChart.update();
+        }
       });
       
       // Calculate and update nurse aide percentage

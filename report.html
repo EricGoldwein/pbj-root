@@ -382,7 +382,16 @@
       font-weight: 500;
       color: rgba(255,255,255,0.9);
       white-space: nowrap;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      align-items: center;
     }
+    
+    .metric-selector > div:last-child label:first-of-type {
+      padding-bottom: 2px;
+    }
+    
     
     .metric-selector select {
       padding: 8px 12px;
@@ -676,12 +685,6 @@
       border-left: 2px solid rgba(255,255,255,0.3);
     }
     
-    th[rowspan="2"]:last-child {
-      width: 100px;
-      min-width: 100px;
-      max-width: 100px;
-    }
-    
     /* Ensure cells match header widths */
     td.sticky-col {
       width: 45px;
@@ -821,35 +824,7 @@
       background: rgba(255,255,255,0.1);
     }
     
-    th.sortable::after {
-      content: '';
-    }
-    
-    th.sort-asc::after {
-      content: ' ↑';
-      opacity: 0.7;
-      font-size: 0.7rem;
-      margin-left: 4px;
-    }
-    
-    th.sort-desc::after {
-      content: ' ↓';
-      opacity: 0.7;
-      font-size: 0.7rem;
-      margin-left: 4px;
-    }
-    
-    /* No sort arrow for rank column */
-    th[data-sort="rank"].sort-asc::after,
-    th[data-sort="rank"].sort-desc::after {
-      content: '';
-    }
-    
-    /* No sort arrow for rank column */
-    th[data-sort="rank"].sort-asc::after,
-    th[data-sort="rank"].sort-desc::after {
-      content: '';
-    }
+    /* Sort arrows removed - not necessary */
     
     th.multi-row {
       padding: 8px 6px;
@@ -947,12 +922,6 @@
       width: 75px;
       min-width: 75px;
       max-width: 75px;
-    }
-    
-    td:last-child {
-      width: 100px;
-      min-width: 100px;
-      max-width: 100px;
     }
     
     td {
@@ -1373,6 +1342,21 @@
       font-weight: 400;
     }
     
+    /* Mobile tooltip - much smaller */
+    @media (max-width: 768px) {
+      .tooltip {
+        padding: 8px 10px !important;
+        font-size: 0.7rem !important;
+        border-radius: 6px;
+        max-width: 180px;
+      }
+      
+      .tooltip strong {
+        font-size: 0.75rem !important;
+        margin-bottom: 4px;
+      }
+    }
+    
     /* Mobile */
     @media (max-width: 768px) {
       .container {
@@ -1518,18 +1502,13 @@
       }
       
       /* Hide Median toggle on mobile */
-      .metric-selector > div:nth-child(2) {
+      .metric-selector > div:nth-child(3) {
         display: none !important;
       }
       
-      /* Exclude Admin/DON toggle - takes remaining space, moved left */
-      .metric-selector > div:last-child {
-        flex: 0 0 38%;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        min-width: 0;
-        margin-left: 2%;
+      /* Hide Exclude Admin/DON toggle on mobile */
+      .metric-selector > div:nth-child(2) {
+        display: none !important;
       }
       
       .metric-selector > div:last-child label:first-child {
@@ -1587,37 +1566,56 @@
       }
       
       .map-container {
+        position: relative !important;
         width: 100%;
         overflow: hidden;
-        padding-bottom: 60px !important;
-        min-height: 370px;
+        padding-bottom: 45px !important;
+        min-height: auto;
+      }
+      
+      #stateMap {
+        position: relative !important;
       }
       
       .map-legend {
-        position: absolute;
-        bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+        position: absolute !important;
+        bottom: 10px !important;
+        top: auto !important;
+        left: 50% !important;
+        right: auto !important;
+        transform: translateX(-50%) !important;
         width: calc(100% - 40px);
         max-width: 280px;
-        padding: 8px 10px;
+        padding: 6px 10px 2px 10px !important;
         font-size: 0.75rem;
-        margin-top: 0;
+        margin: 0 !important;
         display: flex;
         flex-direction: column;
         align-items: center;
         box-sizing: border-box;
+        height: auto;
+        min-height: auto;
+        max-height: none;
+        gap: 0;
+      }
+      
+      .map-legend > div {
+        padding: 6px 10px 2px 10px !important;
+      }
+      
+      .map-legend-content {
+        gap: 1px !important;
+        margin-bottom: 0 !important;
+        align-items: center !important;
       }
       
       .map-legend .legend-gradient {
         width: 180px !important;
         max-width: 180px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        margin-top: 0 !important;
-        margin-bottom: 4px !important;
+        height: 12px !important;
+        margin: 0 auto !important;
         box-sizing: border-box;
-        display: block;
+        display: block !important;
         position: relative;
         left: auto !important;
         right: auto !important;
@@ -1627,8 +1625,14 @@
       .map-legend .legend-labels {
         width: calc(100% - 20px) !important;
         max-width: 180px !important;
-        margin: 0 auto !important;
+        margin-top: 1px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
         box-sizing: border-box;
+        display: flex !important;
+        justify-content: space-between !important;
       }
       
       .us-summary-box {
@@ -1650,36 +1654,17 @@
         border: 1px solid rgba(255,255,255,0.2);
       }
       
-      /* Hide desktop US summary on mobile */
+      /* Mobile US summary - 4 columns */
       .us-summary-box .metric-row {
         display: flex;
         flex-direction: column;
         align-items: center;
         gap: 2px;
-      }
-      
-      .us-summary-box .metric-label {
-        font-size: 0.65rem;
-        color: rgba(255,255,255,0.6);
-        text-align: center;
-      }
-      
-      .us-summary-box .metric-value {
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: #60a5fa;
-      }
-      
-      .us-summary-box h3 {
-        display: none;
-      }
-      
-      .us-summary-box .metric-row {
-        flex-direction: column;
         margin-bottom: 0;
-        margin-right: 8px;
+        margin-right: 4px;
         text-align: center;
         flex: 1 1 auto;
+        min-width: 0;
       }
       
       .us-summary-box .metric-row:last-child {
@@ -1687,43 +1672,55 @@
       }
       
       .us-summary-box .metric-label {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
+        color: rgba(255,255,255,0.6);
+        text-align: center;
         margin-bottom: 2px;
+        line-height: 1.2;
       }
       
       .us-summary-box .metric-value {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 600;
+        color: #60a5fa;
+        line-height: 1.2;
+      }
+      
+      .us-summary-box h3 {
+        display: none;
       }
       
       .legend-title {
-        margin-bottom: 6px;
-        font-size: 0.8rem;
+        margin: 0 0 3px 0;
+        font-size: 0.75rem;
         text-align: center;
         width: 100%;
+        line-height: 1.2;
+        padding: 0;
       }
       
       .legend-gradient {
         width: 100%;
         max-width: 180px;
-        height: 18px;
-        margin: 0 auto 4px auto;
-        display: block;
+        height: 12px;
+        margin: 0 auto !important;
+        display: block !important;
         box-sizing: border-box;
       }
       
       .legend-labels {
-        font-size: 0.7rem;
-        margin-top: 2px;
-        margin-bottom: 0;
+        font-size: 0.65rem;
+        margin-top: 1px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
         width: 100%;
         max-width: 180px;
-        margin-left: auto;
-        margin-right: auto;
-        display: flex;
-        justify-content: space-between;
-        padding-bottom: 0;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        display: flex !important;
+        justify-content: space-between !important;
         box-sizing: border-box;
+        line-height: 1;
       }
       
       .legend-labels span {
@@ -1743,7 +1740,58 @@
         gap: 8px;
         margin-top: 12px;
       }
+    }
+    
+    /* Aggressive mobile legend spacing fix for screens <= 600px */
+    @media (max-width: 600px) {
+      .map-legend {
+        padding: 6px 10px 2px 10px !important;
+        margin-bottom: 0 !important;
+      }
       
+      .map-legend > div {
+        padding: 6px 10px 2px 10px !important;
+      }
+      
+      .map-legend-content {
+        gap: 1px !important;
+        margin-bottom: 0 !important;
+      }
+      
+      .map-legend .legend-gradient,
+      .legend-gradient {
+        height: 12px !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        display: block !important;
+      }
+      
+      .map-legend .legend-labels,
+      .legend-labels {
+        margin-top: 1px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
+        line-height: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+      }
+      
+      .legend-labels span {
+        margin: 0 !important;
+        padding: 0 !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+      
+      .legend-container {
+        padding-bottom: 0 !important;
+        margin-bottom: 0 !important;
+      }
+    }
+    
+    @media (max-width: 768px) {
       .metric-card {
         padding: 10px 8px;
       }
@@ -1836,15 +1884,32 @@
         padding: 6px 3px;
       }
       
+      /* Fix comparison pair columns - make them narrower on mobile */
+      th.comparison-pair {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        font-size: 0.6rem;
+        padding: 6px 2px;
+      }
+      
+      td.comparison-pair {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
+        font-size: 0.65rem;
+        padding: 6px 2px;
+      }
+      
       /* Fix nurse aide data cells */
       td.comparison-pair:nth-of-type(7),
       td.comparison-pair:nth-of-type(8) {
-        min-width: 65px;
-        max-width: 65px;
+        min-width: 42px !important;
+        max-width: 42px !important;
         word-wrap: break-word;
         white-space: normal;
         font-size: 0.65rem;
-        padding: 6px 3px;
+        padding: 6px 2px;
       }
       
       /* Make table header sticky on mobile */
@@ -1990,11 +2055,17 @@
       }
       
       .view-toggle {
-        flex: 1 1 auto;
-        min-width: 140px;
+        flex: 0 1 auto;
+        min-width: auto;
+        max-width: 50%;
         justify-content: space-between;
         padding: 6px 8px;
         min-height: 36px; /* Touch target */
+      }
+      
+      .view-toggle label {
+        font-size: 0.8rem;
+        white-space: nowrap;
       }
       
       .info-icon,
@@ -2002,8 +2073,16 @@
         display: none !important;
       }
       
-      .view-toggle label {
+      .view-toggle label:first-of-type {
         font-size: 0.75rem;
+      }
+      
+      .view-toggle label .desktop-label {
+        display: none;
+      }
+      
+      .view-toggle label .mobile-label {
+        display: inline;
       }
       
       .toggle-switch {
@@ -2023,8 +2102,766 @@
       .toggle-switch input:checked + .toggle-slider:before {
         transform: translateX(24px);
       }
+    }
+    
+    /* ============================================
+       FULLY REBUILT TABLE - DOM-BASED ARCHITECTURE
+       ============================================ */
+    
+    /* CSS Custom Properties - VISUALLY REDESIGNED */
+    :root {
+      --table-bg-primary: rgba(255, 255, 255, 0.02);
+      --table-bg-secondary: rgba(255, 255, 255, 0.05);
+      --table-bg-hover: rgba(99, 102, 241, 0.15);
+      --table-header-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+      --table-border: rgba(255, 255, 255, 0.05);
+      --table-text: rgba(255, 255, 255, 0.95);
+      --table-text-muted: rgba(255, 255, 255, 0.5);
+      --link-color: #818cf8;
+      --link-hover: #a5b4fc;
+      --sff-link: #f59e0b;
+      --sff-link-hover: #fbbf24;
+      --section-reported: linear-gradient(135deg, rgba(59, 130, 246, 0.4) 0%, rgba(37, 99, 235, 0.5) 100%);
+      --section-casemix: linear-gradient(135deg, rgba(107, 114, 128, 0.4) 0%, rgba(75, 85, 99, 0.5) 100%);
+      --frozen-shadow: 4px 0 12px rgba(0, 0, 0, 0.3);
+      --rank-bg: rgba(99, 102, 241, 0.2);
+    }
+    
+    /* Table Container */
+    .table-container {
+      overflow-x: auto;
+      overflow-y: visible;
+      margin-top: 16px;
+      -webkit-overflow-scrolling: touch;
+      position: relative;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Table Base */
+    #stateTable {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: transparent;
+      font-size: 0.9rem;
+      table-layout: fixed;
+    }
+    
+    /* Table Header */
+    #stateTable thead {
+      background: var(--table-header-bg);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    /* First header row (category row) - sticky at top */
+    #stateTable thead tr:first-child th {
+      position: sticky;
+      top: 0;
+      z-index: 12;
+    }
+    
+    /* Second header row (column labels) - sticky below first row */
+    /* Calculate top based on first row height: padding (16px * 2) + border (3px) + content (~25px) */
+    #stateTable thead tr:nth-child(2) th {
+      position: sticky;
+      top: calc(32px + 3px + 25px); /* ~60px on desktop */
+      z-index: 11;
+      border-bottom: none !important;
+    }
+    
+    #stateTable th {
+      padding: 16px 14px;
+      text-align: left;
+      font-weight: 700;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: rgba(255, 255, 255, 0.98);
+      border-bottom: none;
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    
+    /* Add border-bottom only to first header row, not second row */
+    #stateTable thead tr:first-child th {
+      border-bottom: 3px solid rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Second header row should have no bottom border to prevent bleeding into values */
+    #stateTable thead tr:nth-child(2) th {
+      border-bottom: none;
+      padding-bottom: 12px;
+    }
+    
+    #stateTable th:hover {
+      background: rgba(99, 102, 241, 0.2);
+      transform: translateY(-1px);
+    }
+    
+    /* Section Headers */
+    .section-header {
+      text-align: center !important;
+      font-size: 0.7rem;
+      padding: 14px 8px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    #stateTable th.section-header {
+      text-align: center !important;
+    }
+    
+    .section-reported {
+      background: var(--section-reported);
+      border-left: 3px solid rgba(59, 130, 246, 0.8);
+      border-right: 3px solid rgba(59, 130, 246, 0.8);
+      box-shadow: inset 0 2px 4px rgba(59, 130, 246, 0.2);
+    }
+    
+    .section-casemix {
+      background: var(--section-casemix);
+      box-shadow: inset 0 2px 4px rgba(107, 114, 128, 0.2);
+    }
+    
+    /* Frozen Column: Rank */
+    .col-rank {
+      width: 65px;
+      min-width: 65px;
+      max-width: 65px;
+      text-align: center;
+      position: sticky;
+      left: 0;
+      z-index: 12;
+      background: var(--rank-bg);
+      box-shadow: var(--frozen-shadow);
+      padding: 16px 8px;
+      font-weight: 700;
+      font-size: 0.85rem;
+      color: rgba(196, 181, 253, 0.95);
+    }
+    
+    #stateTable thead th.col-rank {
+      background: var(--table-header-bg);
+      z-index: 13;
+      color: rgba(196, 181, 253, 1);
+      padding: 16px 8px !important;
+      vertical-align: bottom !important;
+      line-height: normal !important;
+      border-right: none !important;
+      margin-right: 0 !important;
+    }
+    
+    /* Frozen Column: State */
+    .col-state {
+      width: 120px;
+      min-width: 120px;
+      max-width: 120px;
+      position: sticky;
+      left: 65px;
+      z-index: 11;
+      background: rgba(30, 27, 75, 0.4);
+      box-shadow: var(--frozen-shadow);
+      padding: 16px 10px;
+      white-space: normal;
+      line-height: 1.4;
+      word-wrap: break-word;
+      font-weight: 600;
+      margin-left: 0;
+    }
+    
+    #stateTable thead th.col-state {
+      background: var(--table-header-bg);
+      z-index: 13;
+      position: sticky;
+      left: 65px;
+      padding: 16px 10px;
+      box-shadow: var(--frozen-shadow);
+      border-left: none !important;
+      margin-left: 0 !important;
+    }
+    
+    /* Regular Columns */
+    .col-facilities {
+      width: 165px !important;
+      min-width: 165px !important;
+      max-width: 165px !important;
+      text-align: center !important;
+      padding: 16px 8px 16px 12px;
+      font-weight: 600;
+      background: rgba(30, 41, 59, 0.3) !important;
+    }
+    
+    #stateTable th.col-facilities {
+      width: 165px !important;
+      min-width: 165px !important;
+      max-width: 165px !important;
+      text-align: center !important;
+      background: rgba(30, 41, 59, 0.4) !important;
+    }
+    
+    #stateTable tbody td.col-facilities {
+      background: rgba(30, 41, 59, 0.2) !important;
+    }
+    
+    .col-residents {
+      width: 120px !important;
+      min-width: 120px !important;
+      max-width: 120px !important;
+      text-align: center !important;
+      padding: 16px 8px !important;
+      white-space: normal;
+      word-wrap: break-word;
+      line-height: 1.3;
+      font-weight: 600;
+      border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
+      background: rgba(30, 41, 59, 0.3) !important;
+    }
+    
+    #stateTable th.col-residents {
+      padding: 16px 8px !important;
+      border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
+      background: rgba(30, 41, 59, 0.4) !important;
+    }
+    
+    #stateTable tbody td.col-residents {
+      border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
+      background: rgba(30, 41, 59, 0.2) !important;
+    }
+    
+    .col-sff {
+      width: 125px;
+      min-width: 125px;
+      text-align: center;
+      padding: 16px 12px;
+    }
+    
+    /* Desktop HPRD column styles - only apply on desktop */
+    @media (min-width: 769px) {
+      .col-hprd {
+        width: 85px !important;
+        min-width: 85px !important;
+        max-width: 85px !important;
+        text-align: center;
+        padding: 16px 10px !important;
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
       
-      /* Modal improvements */
+      #stateTable th.col-hprd {
+        text-align: center !important;
+        width: 85px !important;
+        min-width: 85px !important;
+        max-width: 85px !important;
+        padding: 16px 10px !important;
+      }
+    }
+    
+    /* Make Total columns narrower - desktop only */
+    @media (min-width: 769px) {
+      #stateTable th[data-sort="totalHPRD"],
+      #stateTable th[data-sort="caseMixTotal"] {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+        text-align: center !important;
+      }
+    }
+    
+    /* Center all HPRD columns (Total, RN, Nurse Aide) */
+    #stateTable th[data-sort="totalHPRD"],
+    #stateTable th[data-sort="rnHPRD"],
+    #stateTable th[data-sort="nurseAideHPRD"],
+    #stateTable th[data-sort="caseMixTotal"],
+    #stateTable th[data-sort="caseMixRN"],
+    #stateTable th[data-sort="caseMixNA"] {
+      text-align: center !important;
+    }
+    
+    /* Add divider between Reported HPRD and Case-Mix sections */
+    #stateTable th[data-sort="nurseAideHPRD"] {
+      border-right: 2px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    
+    /* Center all HPRD data cells */
+    #stateTable tbody tr > td:nth-child(6),
+    #stateTable tbody tr > td:nth-child(7),
+    #stateTable tbody tr > td:nth-child(8),
+    #stateTable tbody tr > td:nth-child(9),
+    #stateTable tbody tr > td:nth-child(10),
+    #stateTable tbody tr > td:nth-child(11) {
+      text-align: center !important;
+    }
+    
+    /* Add divider between Reported HPRD and Case-Mix sections in body cells */
+    /* 8th column is Nurse Aide (Reported) - add border-right */
+    #stateTable tbody tr > td:nth-child(8) {
+      border-right: 2px solid rgba(255, 255, 255, 0.15) !important;
+    }
+    
+    /* Make Total column data cells narrower - desktop only */
+    @media (min-width: 769px) {
+      #stateTable tbody tr > td:nth-child(6),
+      #stateTable tbody tr > td:nth-child(9) {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+    }
+    
+    #stateTable th.col-residents {
+      width: 120px !important;
+      min-width: 120px !important;
+      max-width: 120px !important;
+      text-align: center !important;
+    }
+    
+    /* Table Body */
+    #stateTable tbody tr {
+      border-bottom: 1px solid var(--table-border);
+      transition: all 0.2s ease;
+    }
+    
+    #stateTable tbody tr:nth-child(even) {
+      background: var(--table-bg-secondary);
+    }
+    
+    #stateTable tbody tr:nth-child(odd) {
+      background: var(--table-bg-primary);
+    }
+    
+    #stateTable tbody tr:hover {
+      background: var(--table-bg-hover);
+      transform: scale(1.001);
+      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.2);
+    }
+    
+    /* Desktop td padding - don't apply on mobile */
+    @media (min-width: 769px) {
+      #stateTable td {
+        padding: 16px 12px;
+        color: var(--table-text);
+        font-size: 0.9rem;
+        vertical-align: middle;
+      }
+    }
+    
+    /* Mobile td padding - minimal */
+    @media (max-width: 768px) {
+      #stateTable td {
+        padding: 8px 2px;
+        color: var(--table-text);
+        font-size: 0.8rem;
+        vertical-align: middle;
+      }
+    }
+    
+    /* Frozen columns in body */
+    #stateTable tbody td.col-rank {
+      position: sticky;
+      left: 0;
+      z-index: 9;
+      background: var(--rank-bg);
+      padding: 16px 8px;
+      box-shadow: var(--frozen-shadow);
+    }
+    
+    #stateTable tbody tr:hover td.col-rank {
+      background: rgba(99, 102, 241, 0.3);
+    }
+    
+    #stateTable tbody td.col-state {
+      position: sticky;
+      left: 65px;
+      z-index: 9;
+      background: rgba(30, 27, 75, 0.4);
+      padding: 16px 10px;
+      box-shadow: var(--frozen-shadow);
+      white-space: normal;
+      word-wrap: break-word;
+      line-height: 1.4;
+    }
+    
+    #stateTable tbody tr:hover td.col-state {
+      background: rgba(30, 27, 75, 0.6);
+    }
+    
+    #stateTable tbody td.col-state a {
+      display: inline-block;
+      max-width: 100%;
+      word-wrap: break-word;
+      line-height: 1.3;
+    }
+    
+    /* Links */
+    #stateTable a {
+      color: var(--link-color);
+      text-decoration: none;
+      transition: color 0.2s ease;
+    }
+    
+    #stateTable a:hover {
+      color: var(--link-hover);
+      text-decoration: underline;
+    }
+    
+    .link-sff {
+      color: var(--sff-link);
+      font-weight: 600;
+    }
+    
+    .link-sff:hover {
+      color: var(--sff-link-hover);
+    }
+    
+    .text-muted {
+      color: var(--table-text-muted);
+    }
+    
+    /* Value Cells */
+    .reported-value {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+    }
+    
+    .casemix-value {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    /* Mobile SFF Button */
+    .mobile-sff-wrapper {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+    }
+    
+    .btn-sff-mobile {
+      padding: 4px 8px;
+      font-size: 0.7rem;
+      background: rgba(251, 191, 36, 0.25);
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      display: inline-block;
+      width: auto;
+      min-width: auto;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    
+    .btn-sff-mobile:hover:not(:disabled) {
+      background: rgba(251, 191, 36, 0.35);
+      border-color: rgba(251, 191, 36, 0.7);
+    }
+    
+    .btn-sff-mobile:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+    
+    /* Info Icon */
+    .info-icon {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      line-height: 14px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin-left: 4px;
+      cursor: help;
+      text-align: center;
+    }
+    
+    .info-tooltip {
+      display: none;
+      position: absolute;
+      background: rgba(15, 23, 42, 0.95);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      z-index: 1000;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+    
+    .info-header:hover .info-tooltip {
+      display: block;
+    }
+    
+    /* Mobile Responsive */
+    @media (max-width: 768px) {
+      .table-container {
+        margin: 0;
+        padding: 0;
+        max-height: 70vh;
+        overflow-y: auto;
+      }
+      
+      #stateTable {
+        font-size: 0.8rem;
+        table-layout: fixed !important;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      
+      #stateTable thead {
+        margin: 0;
+        padding: 0;
+      }
+      
+      #stateTable thead tr {
+        margin: 0;
+        padding: 0;
+      }
+      
+      /* Fix sticky header rows on mobile - both rows need proper top offsets */
+      #stateTable thead tr:first-child th {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 12 !important;
+      }
+      
+      /* Second row sticky below first row - adjust top based on first row height on mobile */
+      /* Mobile: smaller padding and font, so height is less */
+      #stateTable thead tr:nth-child(2) th {
+        position: sticky !important;
+        top: calc(24px + 3px + 20px) !important; /* ~47px on mobile - adjust if needed */
+        z-index: 11 !important;
+      }
+      
+      /* Hide residents column on mobile */
+      .col-residents {
+        display: none !important;
+      }
+      
+      #stateTable th.col-residents {
+        display: none !important;
+      }
+      
+      #stateTable tbody td.col-residents {
+        display: none !important;
+      }
+      
+      /* Hide Nurse Aide columns on mobile */
+      #stateTable th[data-sort="nurseAideHPRD"],
+      #stateTable th[data-sort="caseMixNA"] {
+        display: none !important;
+      }
+      
+      #stateTable tbody tr > td:nth-child(8),
+      #stateTable tbody tr > td:nth-child(11) {
+        display: none !important;
+      }
+      
+      .desktop-sff-header,
+      .desktop-sff-cell {
+        display: none !important;
+      }
+      
+      /* Hide Case-Mix HPRD explanation on mobile */
+      .case-mix-explanation {
+        display: none !important;
+      }
+      
+      /* Fix spacing between rank and state - remove any gaps */
+      /* Remove ALL borders, shadows, and spacing between rank and state */
+      /* Freeze Rank and State columns on mobile */
+      .col-rank,
+      #stateTable thead th.col-rank,
+      #stateTable tbody td.col-rank {
+        margin: 0 !important;
+        border: none !important;
+        border-right: none !important;
+        width: 50px !important;
+        min-width: 50px !important;
+        max-width: 50px !important;
+        text-align: left !important;
+        box-shadow: none !important;
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 10 !important;
+        padding: 8px 4px !important;
+        outline: none !important;
+      }
+      
+      #stateTable thead th.col-rank {
+        z-index: 12 !important;
+      }
+      
+      .col-state,
+      #stateTable thead th.col-state,
+      #stateTable tbody td.col-state {
+        margin: 0 !important;
+        border: none !important;
+        border-left: none !important;
+        text-align: left !important;
+        box-shadow: none !important;
+        position: sticky !important;
+        left: 50px !important;
+        z-index: 9 !important;
+        padding: 8px 4px 8px 6px !important;
+        outline: none !important;
+        width: 85px !important;
+        min-width: 85px !important;
+        max-width: 85px !important;
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.2 !important;
+      }
+      
+      #stateTable thead th.col-state {
+        z-index: 11 !important;
+      }
+      
+      #stateTable tbody td.col-state a {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        display: inline !important;
+        line-height: 1.2 !important;
+      }
+      
+      /* Ensure no visual gap - make state start exactly where rank ends */
+      #stateTable {
+        border-spacing: 0 !important;
+      }
+      
+      /* Remove any potential background differences */
+      #stateTable td.col-rank,
+      #stateTable th.col-rank {
+        background: transparent !important;
+      }
+      
+      #stateTable td.col-state,
+      #stateTable th.col-state {
+        background: transparent !important;
+      }
+      
+      /* Make facilities narrower on mobile */
+      .col-facilities {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+      }
+      
+      #stateTable th.col-facilities {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+      }
+      
+      #stateTable tbody td.col-facilities {
+        width: 120px !important;
+        min-width: 120px !important;
+        max-width: 120px !important;
+      }
+      
+      /* Ensure District of Columbia wraps to two rows on mobile */
+      #stateTable tbody td.col-state {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.3 !important;
+      }
+      
+      #stateTable tbody td.col-state a {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        display: inline !important;
+      }
+      
+      /* Fix second header row border bleeding issue on mobile */
+      #stateTable thead tr:nth-child(2) th {
+        border-bottom: none !important;
+        padding-bottom: 8px !important;
+        margin-bottom: 0 !important;
+      }
+      
+      /* Make Total and RN columns as narrow as possible on mobile to fit more on screen */
+      /* Total columns (6th and 9th) */
+      #stateTable thead th[data-sort="totalHPRD"],
+      #stateTable thead th[data-sort="caseMixTotal"],
+      #stateTable tbody tr > td:nth-child(6),
+      #stateTable tbody tr > td:nth-child(9) {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        padding: 4px 1px !important;
+        font-size: 0.65rem !important;
+      }
+      
+      /* RN columns (7th and 10th) */
+      #stateTable thead th[data-sort="rnHPRD"],
+      #stateTable thead th[data-sort="caseMixRN"],
+      #stateTable tbody tr > td:nth-child(7),
+      #stateTable tbody tr > td:nth-child(10) {
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+        padding: 4px 1px !important;
+        font-size: 0.65rem !important;
+      }
+      
+      /* Make HPRD header row even more compact - prevent text bleeding */
+      #stateTable thead tr:nth-child(2) th.col-hprd,
+      #stateTable thead tr:nth-child(2) th[data-sort="totalHPRD"],
+      #stateTable thead tr:nth-child(2) th[data-sort="rnHPRD"],
+      #stateTable thead tr:nth-child(2) th[data-sort="caseMixTotal"],
+      #stateTable thead tr:nth-child(2) th[data-sort="caseMixRN"] {
+        padding: 6px 1px 4px 1px !important;
+        font-size: 0.55rem !important;
+        line-height: 1.0 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        border-bottom: none !important;
+        vertical-align: bottom !important;
+      }
+      
+      /* Section headers - make narrower */
+      #stateTable thead tr:first-child th.section-header {
+        padding: 6px 2px !important;
+        font-size: 0.6rem !important;
+      }
+      
+      /* Ensure proper spacing between header rows on mobile */
+      #stateTable thead tr:first-child th {
+        padding-bottom: 8px !important;
+      }
+      
+      /* Ensure District of Columbia wraps to two rows on mobile */
+      #stateTable tbody td.col-state {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        line-height: 1.3 !important;
+      }
+      
+      #stateTable tbody td.col-state a {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        display: inline !important;
+      }
+    }
+    
+    /* ============================================
+       END NEW CLEAN TABLE CSS
+       ============================================ */
+    
+    /* Modal improvements - Mobile */
+    @media (max-width: 768px) {
       .modal {
         max-width: 95vw;
         max-height: 90vh;
@@ -2033,12 +2870,14 @@
       }
       
       .modal-header {
-        padding: 16px;
-        min-height: 56px;
+        padding: 16px 16px 12px 16px;
+        min-height: auto;
       }
       
       .modal-header h3 {
         font-size: 1.1rem;
+        line-height: 1.3;
+        padding-top: 4px;
       }
       
       .modal-close {
@@ -2183,8 +3022,9 @@
           <select id="metricSelect">
             <option value="Total_Nurse_HPRD">Total Nurse HPRD</option>
             <option value="Total_RN_HPRD">RN HPRD</option>
-            <option value="Total_CaseMix_Ratio">Total Nurse Case-Mix Ratio</option>
-            <option value="RN_CaseMix_Ratio">RN Case-Mix Ratio</option>
+            <option value="Nurse_Assistant_HPRD" class="mobile-only">Nurse Aide HPRD</option>
+            <option value="avg_daily_census" class="mobile-only">Census</option>
+            <option value="Contract_Percentage" class="mobile-only">Contract Staff %</option>
           </select>
         </div>
         <div>
@@ -2221,14 +3061,13 @@
         </div>
       </div>
       <p style="color: rgba(255,255,255,0.7); margin-bottom: 12px; font-size: 0.9rem; margin-top: 0;">
-        <span id="tableDescription">States ranked by Total Nurse HPRD. Click column headers to sort. Click "View" to see SFF & Candidates.</span>
       </p>
-      <div style="background: rgba(23, 105, 170, 0.15); border-left: 4px solid #60a5fa; padding: 12px 16px; margin-bottom: 16px; border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.9);">
+      <div class="case-mix-explanation" style="background: rgba(23, 105, 170, 0.15); border-left: 4px solid #60a5fa; padding: 12px 16px; margin-bottom: 16px; border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.9);">
         <strong style="color: #60a5fa;">Case-Mix HPRD:</strong> CMS identifies an expected staffing level for each facility based on resident acuity. <strong style="color: #f87171;">Red</strong> indicates the <span id="caseMixEntityText">state's</span> reported staffing is below the case-mix of its nursing homes.
       </div>
       <div class="table-controls">
         <div class="view-toggle" style="order: 1;">
-          <label for="excludeAdminToggleTable">Exclude Admin / DON:</label>
+          <label for="excludeAdminToggleTable"><span class="mobile-label">Excl. Admin / DON:</span><span class="desktop-label">Exclude Admin / DON:</span></label>
           <label class="toggle-switch">
             <input type="checkbox" id="excludeAdminToggleTable">
             <span class="toggle-slider"></span>
@@ -2242,34 +3081,66 @@
           </label>
         </div>
       </div>
-      <div class="table-container">
-        <table id="stateTable">
+      <!-- OLD TABLE STRUCTURE - PRESERVED FOR REFERENCE (contains critical logic) -->
+      <!--
+      <div class="table-container old-table-container" style="display: none;">
+        <table id="stateTableOld" class="old-table">
           <thead>
             <tr>
               <th rowspan="2" class="sticky-col sortable" data-sort="rank">Rank</th>
               <th rowspan="2" class="sticky-col-2 sortable" data-sort="state">State</th>
               <th rowspan="2" class="sortable" data-sort="facilities"><span class="desktop-text">Facilities</span><span class="mobile-text">Facilities</span></th>
-              <th rowspan="2" class="sortable info-header" data-sort="residents">
+              <th rowspan="2" class="sortable" data-sort="residents">
                 Residents
-                <span class="info-icon" title="Total residents across all facilities in the state"></span>
-                <span class="info-tooltip">Total residents across all facilities in the state</span>
               </th>
               <th rowspan="2" style="min-width: 90px; white-space: normal;" class="desktop-sff-header">SFFs &<br>Candidates</th>
-              <th colspan="6" class="comparison-section" style="text-align: center; vertical-align: middle; background: linear-gradient(135deg, #334155 0%, #475569 100%); color: white; border-left: 2px solid rgba(255,255,255,0.2);">
-                Reported vs Case-Mix Comparison
+              <th colspan="3" class="comparison-section" style="text-align: center; vertical-align: middle; background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: white; border-left: 2px solid rgba(255,255,255,0.2); border-right: 2px solid rgba(255,255,255,0.2);">
+                Reported HPRD
+              </th>
+              <th colspan="3" class="comparison-section" style="text-align: center; vertical-align: middle; background: linear-gradient(135deg, #475569 0%, #64748b 100%); color: white;">
+                Case-Mix HPRD
               </th>
             </tr>
             <tr>
-              <th class="sortable comparison-pair" data-sort="totalHPRD" style="border-right: 2px solid rgba(255,255,255,0.2);">Reported<br>Total</th>
-              <th class="sortable case-mix-header comparison-pair" data-sort="caseMixTotal">Case-Mix<br>Total</th>
-              <th class="sortable comparison-pair" data-sort="rnHPRD" style="border-right: 2px solid rgba(255,255,255,0.2);">Reported<br>RN</th>
-              <th class="sortable case-mix-header comparison-pair" data-sort="caseMixRN">Case-Mix<br>RN</th>
+              <th class="sortable comparison-pair" data-sort="totalHPRD" style="border-right: 1px solid rgba(255,255,255,0.1);">Reported<br>Total</th>
+              <th class="sortable comparison-pair" data-sort="rnHPRD" style="border-right: 1px solid rgba(255,255,255,0.1);">Reported<br>RN</th>
               <th class="sortable comparison-pair" data-sort="nurseAideHPRD" style="border-right: 2px solid rgba(255,255,255,0.2);">Reported<br>Nurse Aide</th>
+              <th class="sortable case-mix-header comparison-pair" data-sort="caseMixTotal" style="border-right: 1px solid rgba(255,255,255,0.1);">Case-Mix<br>Total</th>
+              <th class="sortable case-mix-header comparison-pair" data-sort="caseMixRN" style="border-right: 1px solid rgba(255,255,255,0.1);">Case-Mix<br>RN</th>
               <th class="sortable case-mix-header comparison-pair" data-sort="caseMixNA">Case-Mix<br>Nurse Aide</th>
             </tr>
           </thead>
+          <tbody id="stateTableBodyOld"></tbody>
+        </table>
+      </div>
+      -->
+      
+      <!-- REBUILT TABLE STRUCTURE -->
+      <div class="table-container">
+        <table id="stateTable">
+          <thead>
+            <tr>
+              <th rowspan="2" class="col-rank sortable" data-sort="rank">Rank</th>
+              <th rowspan="2" class="col-state sortable" data-sort="state">State</th>
+              <th rowspan="2" class="col-facilities sortable" data-sort="facilities">Facilities</th>
+              <th rowspan="2" class="col-residents sortable" data-sort="residents">
+                Residents
+              </th>
+              <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br>Candidates</th>
+              <th colspan="3" class="section-header section-reported">Reported HPRD</th>
+              <th colspan="3" class="section-header section-casemix">Case-Mix HPRD</th>
+            </tr>
+            <tr>
+              <th class="col-hprd sortable" data-sort="totalHPRD">Total</th>
+              <th class="col-hprd sortable" data-sort="rnHPRD">RN</th>
+              <th class="col-hprd sortable" data-sort="nurseAideHPRD">Nurse<br>Aide</th>
+              <th class="col-hprd sortable" data-sort="caseMixTotal">Total</th>
+              <th class="col-hprd sortable" data-sort="caseMixRN">RN</th>
+              <th class="col-hprd sortable" data-sort="caseMixNA">Nurse<br>Aide</th>
+            </tr>
+          </thead>
           <tbody id="stateTableBody">
-            <tr><td colspan="11" class="loading">Loading data...</td></tr>
+            <tr><td colspan="10" class="loading">Loading data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -2330,7 +3201,7 @@
       <strong>Case-Mix HPRD:</strong> CMS identifies an expected staffing level for each facility based on resident acuity. Applies to states, CMS Regions, and national data.
     </div>
     <div class="term-item">
-      <strong>Reported vs Case-Mix:</strong> <span style="color: #34d399;">Green</span> indicates reported staffing meets case-mix requirements; <span style="color: #f87171;">red</span> indicates it doesn't. Applies to states, CMS Regions, and national data.
+      <strong>Reported vs Case-Mix:</strong> <span style="color: #34d399;"><span style="color: #f87171;">Red</span> indicates the reported staffing is below case-mix. Applies to states, CMS Regions, and national data.
     </div>
     <div class="term-item">
       <strong>Median:</strong> Shows the median value across all facilities (50% of facilities are above, 50% are below). Each facility counts equally regardless of size. Applies to states, CMS Regions, and national data.
@@ -2382,11 +3253,13 @@
     let stateData = {};
     let nationalData = null;
     let currentMetric = 'Total_Nurse_HPRD';
-    let mapDisplayMode = 'statewide'; // 'statewide' or 'median' - default to statewide ratio
-    let excludeAdminDON = false;
+    let mapDisplayMode = 'hprd'; // 'hprd' (show HPRD values), 'statewide' (show ratios), or 'median' (show median HPRD)
+    let excludeAdminDON = false; // For map controls
     let svg, tooltip, statePaths;
     let sffData = {}; // Store SFF and SFF Candidate facilities by state
-    let showMedians = false;
+    let showMedians = false; // For map controls
+    let tableShowMedians = false; // For table controls - independent from map
+    let tableExcludeAdminDON = false; // For table controls - independent from map
     let stateMedians = {};
     let stateRankings = {}; // Store state rankings by Total_Nurse_HPRD
     let currentSort = { column: 'rank', direction: 'asc' };
@@ -2587,41 +3460,41 @@
             matchingQuarter = Array.from(allQuartersInProvider)[0] || mostRecentQuarter;
             console.log(`Using pre-filtered _latest.csv file - all data is for quarter: ${matchingQuarter || 'unknown'}`);
           } else {
-            // Find the most recent quarter that MATCHES the state/national quarter
-            // Convert mostRecentQuarter (e.g., "2025Q2") to provider format (e.g., "Q2 2025")
-            const quarterMatch = mostRecentQuarter.match(/(\d{4})Q(\d)/);
+          // Find the most recent quarter that MATCHES the state/national quarter
+          // Convert mostRecentQuarter (e.g., "2025Q2") to provider format (e.g., "Q2 2025")
+          const quarterMatch = mostRecentQuarter.match(/(\d{4})Q(\d)/);
+          
+          if (quarterMatch) {
+            // Convert "2025Q2" to "Q2 2025" format (provider data format)
+            const providerFormat = `Q${quarterMatch[2]} ${quarterMatch[1]}`;
             
-            if (quarterMatch) {
-              // Convert "2025Q2" to "Q2 2025" format (provider data format)
-              const providerFormat = `Q${quarterMatch[2]} ${quarterMatch[1]}`;
-              
-              // Try exact match with converted format
-              if (allQuartersInProvider.has(providerFormat)) {
-                matchingQuarter = providerFormat;
-              } else {
-                // Try to find by parsing and comparing year/quarter
-                for (const providerQuarter of allQuartersInProvider) {
-                  // Try "Q2 2025" format
-                  const providerMatch = providerQuarter.match(/Q(\d)\s+(\d{4})/);
-                  if (providerMatch && providerMatch[2] === quarterMatch[1] && providerMatch[1] === quarterMatch[2]) {
-                    matchingQuarter = providerQuarter;
-                    break;
-                  }
-                  // Try "2025Q2" format (in case provider has both)
-                  const providerMatch2 = providerQuarter.match(/(\d{4})Q(\d)/);
-                  if (providerMatch2 && providerMatch2[1] === quarterMatch[1] && providerMatch2[2] === quarterMatch[2]) {
-                    matchingQuarter = providerQuarter;
-                    break;
-                  }
+            // Try exact match with converted format
+            if (allQuartersInProvider.has(providerFormat)) {
+              matchingQuarter = providerFormat;
+            } else {
+              // Try to find by parsing and comparing year/quarter
+              for (const providerQuarter of allQuartersInProvider) {
+                // Try "Q2 2025" format
+                const providerMatch = providerQuarter.match(/Q(\d)\s+(\d{4})/);
+                if (providerMatch && providerMatch[2] === quarterMatch[1] && providerMatch[1] === quarterMatch[2]) {
+                  matchingQuarter = providerQuarter;
+                  break;
+                }
+                // Try "2025Q2" format (in case provider has both)
+                const providerMatch2 = providerQuarter.match(/(\d{4})Q(\d)/);
+                if (providerMatch2 && providerMatch2[1] === quarterMatch[1] && providerMatch2[2] === quarterMatch[2]) {
+                  matchingQuarter = providerQuarter;
+                  break;
                 }
               }
             }
-            
+          }
+          
             // If no exact match, do not use any provider data (will show N/A)
-            if (!matchingQuarter) {
-              console.warn(`⚠ WARNING: Provider data missing for quarter ${mostRecentQuarter}`);
-              console.warn(`State/National quarter: ${mostRecentQuarter}`);
-              console.warn(`Available provider quarters:`, Array.from(allQuartersInProvider).sort().reverse().slice(0, 10));
+          if (!matchingQuarter) {
+            console.warn(`⚠ WARNING: Provider data missing for quarter ${mostRecentQuarter}`);
+            console.warn(`State/National quarter: ${mostRecentQuarter}`);
+            console.warn(`Available provider quarters:`, Array.from(allQuartersInProvider).sort().reverse().slice(0, 10));
               console.warn(`⚠ No exact quarter match found. Facility-level data will show N/A.`);
               matchingQuarter = null;
             }
@@ -2651,9 +3524,9 @@
           }) : []; // Empty array if no matching quarter
           
           if (matchingQuarter) {
-            console.log(`✓ State/National quarter: ${mostRecentQuarter}`);
-            console.log(`✓ Provider quarter matched: ${mostRecentQuarterInProvider}`);
-            console.log(`✓ Using provider info data for quarter: ${mostRecentQuarterInProvider} (${recentData.length} facilities)`);
+          console.log(`✓ State/National quarter: ${mostRecentQuarter}`);
+          console.log(`✓ Provider quarter matched: ${mostRecentQuarterInProvider}`);
+          console.log(`✓ Using provider info data for quarter: ${mostRecentQuarterInProvider} (${recentData.length} facilities)`);
           } else {
             console.log(`✓ State/National quarter: ${mostRecentQuarter}`);
             console.log(`⚠ No matching provider quarter found - facility-level data will show N/A`);
@@ -2893,7 +3766,45 @@
           if (twitterDesc) twitterDesc.setAttribute('content', fullDescription);
           
           // Update title on window resize
+          // Update colspan on resize
+          function updateColspanForMobile() {
+            if (window.innerWidth <= 768) {
+              const reportedHeader = document.querySelector('#stateTable th.section-reported');
+              const casemixHeader = document.querySelector('#stateTable th.section-casemix');
+              if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
+              if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
+              
+              // Force inline styles on headers for mobile to prevent expansion
+              const totalHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"]');
+              totalHPRDHeaders.forEach(th => {
+                th.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
+              });
+              
+              const rnHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
+              rnHPRDHeaders.forEach(th => {
+                th.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
+              });
+            } else {
+              const reportedHeader = document.querySelector('#stateTable th.section-reported');
+              const casemixHeader = document.querySelector('#stateTable th.section-casemix');
+              if (reportedHeader) reportedHeader.setAttribute('colspan', '3');
+              if (casemixHeader) casemixHeader.setAttribute('colspan', '3');
+              
+              // Clear inline styles on desktop
+              const hprdHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"], #stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
+              hprdHeaders.forEach(th => {
+                th.style.cssText = '';
+              });
+            }
+          }
+          
+          // Set header styles on initial load
+          setTimeout(() => {
+            updateColspanForMobile();
+          }, 100);
+          
           window.addEventListener('resize', function() {
+            updateColspanForMobile();
             const pageTitleEl = document.getElementById('pageTitle');
             if (pageTitleEl) {
               const isMobile = window.innerWidth <= 768;
@@ -2908,7 +3819,8 @@
           // Update table title
           const tableTitleEl = document.getElementById('stateDataTitle');
           if (tableTitleEl) {
-            tableTitleEl.textContent = `US Nursing Home PBJ Staffing Data (${quarterYear})`;
+            const isMobile = window.innerWidth <= 768;
+            tableTitleEl.textContent = isMobile ? `Nursing Home Staffing Data (${quarterYear})` : `US Nursing Home PBJ Staffing Data (${quarterYear})`;
           }
           
           // Aggregate region data
@@ -2925,7 +3837,7 @@
       } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('usSummary').innerHTML = '<div class="loading">Error loading data. Please refresh the page.</div>';
-        document.getElementById('stateTableBody').innerHTML = '<tr><td colspan="11" class="loading">Error loading data.</td></tr>';
+        document.getElementById('stateTableBody').innerHTML = '<tr><td colspan="10" class="loading">Error loading data.</td></tr>';
       }
     }
     
@@ -2934,15 +3846,80 @@
       const medianToggle = document.getElementById('medianToggle');
       if (medianToggle) {
         medianToggle.addEventListener('change', function(e) {
-          showMedians = e.target.checked;
+          tableShowMedians = e.target.checked; // Table-specific variable
+          // Recalculate rankings when median toggle changes
+          calculateStateRankings();
           updateStateDataTitle();
+          // Re-sort if currently sorting by rank or affected columns
+          if (currentSort.column === 'rank' || currentSort.column === 'totalHPRD' || currentSort.column === 'rnHPRD') {
+            const sortedStates = sortStates(currentSort.column, currentSort.direction);
+            sortedStatesList = sortedStates;
+          }
           renderStateTable();
+          // Do NOT update map or summary - table toggles are independent
         });
+        
+        // Update title when view changes
+        const stateViewTab = document.getElementById('stateViewTab');
+        const regionViewTab = document.getElementById('regionViewTab');
+        if (stateViewTab) {
+          stateViewTab.addEventListener('click', function() {
+            setTimeout(updateStateDataTitle, 100);
+          });
+        }
+        if (regionViewTab) {
+          regionViewTab.addEventListener('click', function() {
+            setTimeout(updateStateDataTitle, 100);
+          });
+        }
       }
       
       // Set up metric selector
       const metricSelect = document.getElementById('metricSelect');
       if (metricSelect) {
+        // Function to add/remove mobile-only options
+        function updateMobileOptions() {
+          const isMobile = window.innerWidth <= 768;
+          const mobileOptions = [
+            { value: 'Nurse_Assistant_HPRD', text: 'Nurse Aide HPRD' },
+            { value: 'avg_daily_census', text: 'Census' },
+            { value: 'Contract_Percentage', text: 'Contract Staff %' }
+          ];
+          
+          if (isMobile) {
+            // Add mobile-only options if they don't exist
+            mobileOptions.forEach(opt => {
+              const exists = Array.from(metricSelect.options).some(o => o.value === opt.value);
+              if (!exists) {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.text;
+                option.className = 'mobile-only';
+                metricSelect.appendChild(option);
+              }
+            });
+          } else {
+            // Remove mobile-only options on desktop
+            const mobileOnlyOptions = Array.from(metricSelect.options).filter(o => 
+              mobileOptions.some(mo => mo.value === o.value)
+            );
+            mobileOnlyOptions.forEach(opt => {
+              // Only remove if it's currently selected, otherwise just remove it
+              if (opt.value === metricSelect.value) {
+                // Switch to first option if mobile option is selected
+                metricSelect.value = 'Total_Nurse_HPRD';
+                currentMetric = 'Total_Nurse_HPRD';
+                updateMap();
+              }
+              opt.remove();
+            });
+          }
+        }
+        
+        // Update options on load and resize
+        updateMobileOptions();
+        window.addEventListener('resize', updateMobileOptions);
+        
         metricSelect.addEventListener('change', function(e) {
           currentMetric = e.target.value;
           updateMap();
@@ -2953,8 +3930,10 @@
       const medianToggleMap = document.getElementById('medianToggleMap');
       if (medianToggleMap) {
         medianToggleMap.addEventListener('change', function(e) {
-          mapDisplayMode = e.target.checked ? 'median' : 'statewide';
+          mapDisplayMode = e.target.checked ? 'median' : 'hprd';
+          showMedians = e.target.checked; // Update showMedians for summary box
           updateMap();
+          renderUSSummary(); // Update summary box when median toggle changes
         });
       }
       
@@ -2979,20 +3958,14 @@
       const excludeAdminToggleTable = document.getElementById('excludeAdminToggleTable');
       if (excludeAdminToggleTable) {
         excludeAdminToggleTable.addEventListener('change', function(e) {
-          excludeAdminDON = e.target.checked;
-          // Sync the map toggle if it exists
-          if (excludeAdminToggle) {
-            excludeAdminToggle.checked = e.target.checked;
-          }
-          updateMap();
-          renderStateTable();
-          // Don't update US summary from table toggle - only from map toggle
-          // Re-sort if currently sorting by affected columns
-          if (currentSort.column === 'totalHPRD' || currentSort.column === 'rnHPRD') {
+          tableExcludeAdminDON = e.target.checked; // Table-specific variable
+          // Recalculate rankings when exclude admin/DON toggle changes
+          calculateStateRankings();
+          // Do NOT sync with map toggle or update map - table toggles are independent
+          // Always re-sort to reflect new values (similar to median toggle)
             const sortedStates = sortStates(currentSort.column, currentSort.direction);
             sortedStatesList = sortedStates;
             renderStateTable();
-          }
         });
       }
     }
@@ -3001,7 +3974,20 @@
     function updateStateDataTitle() {
       const titleEl = document.getElementById('stateDataTitle');
       if (titleEl) {
-        titleEl.textContent = showMedians ? 'State Data (Medians)' : 'State Data';
+        // Get the quarter year from the page title or use default
+        const pageTitle = document.title;
+        const quarterMatch = pageTitle.match(/\(([^)]+)\)/);
+        const quarterYear = quarterMatch ? quarterMatch[1] : 'Q2 2025';
+        
+        // Title should NOT change based on view type - always show "US Nursing Home PBJ Staffing Data"
+        const medianText = showMedians ? ' (Medians)' : '';
+        
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          titleEl.textContent = `Nursing Home Staffing Data (${quarterYear})${medianText}`;
+        } else {
+          titleEl.textContent = `US Nursing Home PBJ Staffing Data (${quarterYear})${medianText}`;
+        }
       }
     }
 
@@ -3133,6 +4119,11 @@
       regionData = {};
       
       // Group states by region
+      // NOTE: Region calculations aggregate state-level values weighted by resident days.
+      // This is mathematically equivalent to aggregating facilities directly because:
+      // - State values are already calculated from facility-level data weighted by resident days
+      // - Aggregating states weighted by resident days = aggregating all facilities weighted by resident days
+      // Puerto Rico is included in region calculations (not filtered here)
       Object.keys(stateData).forEach(stateName => {
         const state = stateData[stateName];
         const stateAbbr = state.state;
@@ -3257,14 +4248,10 @@
         stateHeader.textContent = view === 'state' ? 'State' : 'CMS Region';
       }
       
-      // Update table description
+      // Update table description - removed per user request
       const tableDesc = document.getElementById('tableDescription');
       if (tableDesc) {
-        if (view === 'state') {
-          tableDesc.textContent = 'States ranked by Total Nurse HPRD. Click column headers to sort. Click "View" to see SFF & Candidates.';
-        } else {
-          tableDesc.textContent = 'CMS Regions ranked by Total Nurse HPRD. Click column headers to sort.';
-        }
+        tableDesc.textContent = '';
       }
       
       // Update case-mix description text
@@ -3272,6 +4259,9 @@
       if (caseMixEntityText) {
         caseMixEntityText.textContent = view === 'state' ? "state's" : "CMS Region's";
       }
+      
+      // Update title
+      updateStateDataTitle();
       
       // Re-render table
       renderStateTable();
@@ -3282,9 +4272,24 @@
     
     function calculateStateRankings() {
       // Sort states by Total_Nurse_HPRD (descending)
+      // Use medians if table median toggle is on, exclude admin/DON if that toggle is on
       const sortedStates = Object.keys(stateData)
-        .map(name => ({ name, ...stateData[name] }))
-        .sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
+        .map(name => {
+          const state = stateData[name];
+          let value;
+          if (tableExcludeAdminDON) {
+            // When exclude admin/DON is enabled, use direct care values
+            value = calculateDirectCareExclAdmin(name);
+          } else if (tableShowMedians && stateMedians[name]) {
+            // Use median value when median toggle is on
+            value = stateMedians[name].Total_Nurse_HPRD || 0;
+          } else {
+            // Use regular value
+            value = state.Total_Nurse_HPRD || 0;
+          }
+          return { name, value, ...state };
+        })
+        .sort((a, b) => b.value - a.value);
       
       // Assign rankings
       sortedStates.forEach((state, index) => {
@@ -3336,15 +4341,6 @@
             return stateMedian.Nurse_Care_HPRD || 0;
           case 'Total_RN_HPRD':
             return stateMedian.RN_HPRD || 0;
-          case 'Total_CaseMix_Ratio':
-            // For median mode with ratio, calculate ratio using median values
-            const medianTotal = stateMedian.Total_Nurse_HPRD || 0;
-            const medianCaseMix = stateMedian.caseMixTotalHPRD || 0;
-            return medianCaseMix > 0 ? medianTotal / medianCaseMix : 0;
-          case 'RN_CaseMix_Ratio':
-            const medianRN = stateMedian.RN_HPRD || 0;
-            const medianRNCaseMix = stateMedian.caseMixRNHPRD || 0;
-            return medianRNCaseMix > 0 ? medianRN / medianRNCaseMix : 0;
           default:
             return 0;
         }
@@ -3363,14 +4359,15 @@
         case 'Total_RN_HPRD':
           // Apply excludeAdminDON toggle if enabled
           return excludeAdminDON ? calculateRNCareExclAdmin(stateName) : (state.RN_HPRD || 0);
-        case 'Total_CaseMix_Ratio':
-          const totalReported = excludeAdminDON ? calculateDirectCareExclAdmin(stateName) : state.Total_Nurse_HPRD || 0;
-          const totalCaseMix = state.caseMixTotalHPRD || 0;
-          return totalCaseMix > 0 ? totalReported / totalCaseMix : 0;
-        case 'RN_CaseMix_Ratio':
-          const rnReported = excludeAdminDON ? calculateRNCareExclAdmin(stateName) : state.RN_HPRD || 0;
-          const rnCaseMix = state.caseMixRNHPRD || 0;
-          return rnCaseMix > 0 ? rnReported / rnCaseMix : 0;
+        case 'Nurse_Assistant_HPRD':
+          return state.Nurse_Assistant_HPRD || 0;
+        case 'avg_daily_census':
+          // Calculate average daily census from total_resident_days and avg_days_reported
+          const residentDays = state.total_resident_days || 0;
+          const daysReported = state.avg_days_reported || 0;
+          return daysReported > 0 ? residentDays / daysReported : 0;
+        case 'Contract_Percentage':
+          return state.Contract_Percentage || 0;
         default:
           return state[metric] || 0;
       }
@@ -3387,14 +4384,14 @@
       
       if (allFacilities.length === 0) {
         // Fallback to median of state averages if no facility data
-        const stateValues = Object.values(stateData);
+      const stateValues = Object.values(stateData);
         return {
-          Total_Nurse_HPRD: calculateMedian(stateValues.map(s => s.Total_Nurse_HPRD)),
-          RN_HPRD: calculateMedian(stateValues.map(s => s.RN_HPRD)),
-          Nurse_Care_HPRD: calculateMedian(stateValues.map(s => s.Nurse_Care_HPRD)),
+        Total_Nurse_HPRD: calculateMedian(stateValues.map(s => s.Total_Nurse_HPRD)),
+        RN_HPRD: calculateMedian(stateValues.map(s => s.RN_HPRD)),
+        Nurse_Care_HPRD: calculateMedian(stateValues.map(s => s.Nurse_Care_HPRD)),
           RN_Care_HPRD: calculateMedian(stateValues.map(s => s.RN_Care_HPRD)),
-          Contract_Percentage: calculateMedian(stateValues.map(s => s.Contract_Percentage))
-        };
+        Contract_Percentage: calculateMedian(stateValues.map(s => s.Contract_Percentage))
+      };
       }
       
       // Calculate medians from facility-level data
@@ -3444,21 +4441,81 @@
       // Check if mobile (window width <= 768px)
       const isMobile = window.innerWidth <= 768;
       
-      // Create small sleek box for map - fewer metrics on mobile
+      // Create small sleek box for map - 4 columns on mobile
       let html = '';
       if (isMobile) {
-        // Mobile: always use standard values (NOT responsive to excludeAdminDON toggle)
-        const totalHPRD = nationalData.Total_Nurse_HPRD || 0;
-        const rnHPRD = nationalData.RN_HPRD || 0;
+        // Mobile: show 4 columns - nursing homes, residents, total HPRD, RN HPRD
+        const medians = calculateUSAMedians();
+        
+        // Calculate total facilities and residents
+        const totalFacilities = nationalData.facility_count || 0;
+        let totalResidents = 0;
+        stateValues.forEach(state => {
+          const residents = state.avg_days_reported > 0 ? (state.total_resident_days / state.avg_days_reported) : 0;
+          totalResidents += residents || 0;
+        });
+        
+        // Format residents (e.g., 1.23m)
+        const residentsInMillions = totalResidents / 1000000;
+        const residentsFormatted = residentsInMillions >= 1 
+          ? `${residentsInMillions.toFixed(2)}m` 
+          : `${Math.round(totalResidents).toLocaleString()}`;
+        
+        let totalHPRD, rnHPRD, totalHPRDMedian, rnHPRDMedian;
+        if (excludeAdminDON) {
+          // Calculate national average excluding admin/DON (weighted by resident days)
+          let totalDirectCareHours = 0;
+          let totalRNCareHours = 0;
+          let totalResidentDays = 0;
+          
+          Object.keys(stateData).forEach(stateName => {
+            const state = stateData[stateName];
+            const directCare = state.Nurse_Care_HPRD || 0;
+            const rnCare = state.RN_Care_HPRD || 0;
+            const residentDays = state.total_resident_days || 0;
+            
+            if (residentDays > 0) {
+              totalDirectCareHours += directCare * residentDays;
+              totalRNCareHours += rnCare * residentDays;
+              totalResidentDays += residentDays;
+            }
+          });
+          
+          totalHPRD = totalResidentDays > 0 ? totalDirectCareHours / totalResidentDays : 0;
+          rnHPRD = totalResidentDays > 0 ? totalRNCareHours / totalResidentDays : 0;
+          
+          // Calculate medians excluding admin/DON
+          const directCareValues = Object.keys(stateData).map(stateName => calculateDirectCareExclAdmin(stateName)).filter(v => v > 0);
+          const rnCareValues = Object.keys(stateData).map(stateName => calculateRNCareExclAdmin(stateName)).filter(v => v > 0);
+          totalHPRDMedian = directCareValues.length > 0 ? calculateMedian(directCareValues) : 0;
+          rnHPRDMedian = rnCareValues.length > 0 ? calculateMedian(rnCareValues) : 0;
+        } else {
+          totalHPRD = nationalData.Total_Nurse_HPRD || 0;
+          rnHPRD = nationalData.RN_HPRD || 0;
+          totalHPRDMedian = medians.Total_Nurse_HPRD;
+          rnHPRDMedian = medians.RN_HPRD;
+        }
+        
+        // Use median if toggle is on
+        const totalHPRDDisplay = showMedians ? totalHPRDMedian : totalHPRD;
+        const rnHPRDDisplay = showMedians ? rnHPRDMedian : rnHPRD;
         
         html = `
           <div class="metric-row">
+            <span class="metric-label">Nursing Homes</span>
+            <span class="metric-value">${totalFacilities.toLocaleString()}</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">Residents</span>
+            <span class="metric-value">${residentsFormatted}</span>
+          </div>
+          <div class="metric-row">
             <span class="metric-label">Total HPRD</span>
-            <span class="metric-value">${totalHPRD.toFixed(2)}</span>
+            <span class="metric-value">${totalHPRDDisplay.toFixed(2)}</span>
             </div>
           <div class="metric-row">
             <span class="metric-label">RN HPRD</span>
-            <span class="metric-value">${rnHPRD.toFixed(2)}</span>
+            <span class="metric-value">${rnHPRDDisplay.toFixed(2)}</span>
           </div>
       `;
       } else {
@@ -3527,11 +4584,11 @@
           </div>
           <div class="metric-row">
             <span class="metric-label">Total Nurse HPRD</span>
-            <span class="metric-value">${totalHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span></span>
+            <span class="metric-value">${showMedians ? totalHPRDMedian.toFixed(2) : totalHPRD.toFixed(2)}${showMedians ? '' : ` <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`}</span>
           </div>
           <div class="metric-row">
             <span class="metric-label">RN HPRD</span>
-            <span class="metric-value">${rnHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span></span>
+            <span class="metric-value">${showMedians ? rnHPRDMedian.toFixed(2) : rnHPRD.toFixed(2)}${showMedians ? '' : ` <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`}</span>
           </div>
         `;
       }
@@ -3584,13 +4641,13 @@
           return aTotal - bTotal;
         },
         'totalHPRD': (a, b) => {
-        const aVal = excludeAdminDON && currentTableView === 'state' ? calculateDirectCareExclAdmin(a.name) : (a.Total_Nurse_HPRD || 0);
-        const bVal = excludeAdminDON && currentTableView === 'state' ? calculateDirectCareExclAdmin(b.name) : (b.Total_Nurse_HPRD || 0);
+        const aVal = tableExcludeAdminDON && currentTableView === 'state' ? calculateDirectCareExclAdmin(a.name) : (a.Total_Nurse_HPRD || 0);
+        const bVal = tableExcludeAdminDON && currentTableView === 'state' ? calculateDirectCareExclAdmin(b.name) : (b.Total_Nurse_HPRD || 0);
           return aVal - bVal;
         },
         'rnHPRD': (a, b) => {
-        const aVal = excludeAdminDON && currentTableView === 'state' ? calculateRNCareExclAdmin(a.name) : (a.RN_HPRD || 0);
-        const bVal = excludeAdminDON && currentTableView === 'state' ? calculateRNCareExclAdmin(b.name) : (b.RN_HPRD || 0);
+        const aVal = tableExcludeAdminDON && currentTableView === 'state' ? calculateRNCareExclAdmin(a.name) : (a.RN_HPRD || 0);
+        const bVal = tableExcludeAdminDON && currentTableView === 'state' ? calculateRNCareExclAdmin(b.name) : (b.RN_HPRD || 0);
           return aVal - bVal;
         },
       'nurseAideHPRD': (a, b) => (a.Nurse_Assistant_HPRD || 0) - (b.Nurse_Assistant_HPRD || 0),
@@ -3608,8 +4665,121 @@
       return direction === 'desc' ? sorted.reverse() : sorted;
     }
     
+    // Helper function to create a table cell
+    function createTableCell(content, className = '', style = '') {
+      const td = document.createElement('td');
+      if (className) td.className = className;
+      
+      // Force mobile widths for HPRD columns immediately via inline styles
+      if (window.innerWidth <= 768 && className.includes('col-hprd')) {
+        // Check if it's a Total column (caseMixTotal or first reported-value)
+        const isTotal = className.includes('casemix-value') && className.includes('Total') || 
+                       (className.includes('reported-value') && !className.includes('RN') && !className.includes('Nurse'));
+        // Check if it's RN column
+        const isRN = className.includes('RN') || className.includes('rn');
+        
+        // Determine width based on column type
+        if (isTotal || (!isRN && className.includes('casemix-value'))) {
+          // Total columns: 22px
+          const mobileStyle = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ';
+          td.style.cssText = mobileStyle + (style || '');
+        } else if (isRN) {
+          // RN columns: 24px
+          const mobileStyle = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ';
+          td.style.cssText = mobileStyle + (style || '');
+        } else {
+          if (style) td.style.cssText = style;
+        }
+      } else {
+        if (style) td.style.cssText = style;
+      }
+      
+      if (content instanceof Node) {
+        td.appendChild(content);
+      } else if (typeof content === 'string' && content.includes('<')) {
+        // Contains HTML tags, use innerHTML
+        td.innerHTML = content;
+      } else if (typeof content === 'string') {
+        // Plain text, use textContent
+        td.textContent = content;
+      } else {
+        td.textContent = content != null ? String(content) : '';
+      }
+      
+      return td;
+    }
+    
+    // Helper function to abbreviate state names for mobile
+    function abbreviateStateNameForMobile(stateName) {
+      if (window.innerWidth <= 768) {
+        if (stateName === 'Massachusetts') {
+          return 'Mass.';
+        }
+      }
+      return stateName;
+    }
+    
+    // Helper function to create a link element
+    function createLink(href, text, className = '', onclick = null) {
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = text;
+      if (className) a.className = className;
+      if (onclick) {
+        a.onclick = onclick;
+        a.href = '#';
+      }
+      a.target = '_blank';
+      return a;
+    }
+    
+    // Helper function to create a button element
+    function createButton(text, onclick, disabled = false, className = '') {
+      const button = document.createElement('button');
+      button.textContent = text;
+      button.className = className || 'btn-sff-mobile';
+      button.disabled = disabled;
+      if (onclick) button.onclick = onclick;
+      return button;
+    }
+    
     function renderStateTable() {
       const tbody = document.getElementById('stateTableBody');
+      if (!tbody) return;
+      
+      // Clear existing rows first
+      tbody.innerHTML = '';
+      
+      // Update colspan for section headers on mobile (span 2 columns instead of 3)
+      // Do this AFTER clearing to avoid reflow issues
+      if (window.innerWidth <= 768) {
+        const reportedHeader = document.querySelector('#stateTable th.section-reported');
+        const casemixHeader = document.querySelector('#stateTable th.section-casemix');
+        if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
+        if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
+        
+        // Force inline styles on headers for mobile to prevent expansion
+        const totalHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"]');
+        totalHPRDHeaders.forEach(th => {
+          th.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
+        });
+        
+        const rnHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
+        rnHPRDHeaders.forEach(th => {
+          th.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
+        });
+      } else {
+        const reportedHeader = document.querySelector('#stateTable th.section-reported');
+        const casemixHeader = document.querySelector('#stateTable th.section-casemix');
+        if (reportedHeader) reportedHeader.setAttribute('colspan', '3');
+        if (casemixHeader) casemixHeader.setAttribute('colspan', '3');
+        
+        // Clear inline styles on desktop
+        const hprdHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"], #stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
+        hprdHeaders.forEach(th => {
+          th.style.cssText = '';
+        });
+      }
       
       // Get data based on current view
       let dataToRender;
@@ -3628,10 +4798,12 @@
       } else {
       // Sort states based on current sort
         dataToRender = sortStates(currentSort.column, currentSort.direction);
+        // Exclude Puerto Rico from state table (but keep it in region calculations)
+        dataToRender = dataToRender.filter(state => state.name !== 'Puerto Rico');
         sortedStatesList = dataToRender;
       }
 
-      const rows = dataToRender.map((state, index) => {
+      dataToRender.forEach((state, index) => {
         // Use original rank (by Total_Nurse_HPRD) if sorting by rank, otherwise show position
         const rank = currentSort.column === 'rank' ? (currentTableView === 'region' ? index + 1 : (stateRankings[state.name] || index + 1)) : index + 1;
         const stateAbbr = state.state;
@@ -3666,8 +4838,8 @@
         let reportedTotal, reportedRN, reportedNA;
         
         if (currentTableView === 'region') {
-          // For regions, apply excludeAdminDON and median toggles
-        if (excludeAdminDON) {
+          // For regions, apply table excludeAdminDON and median toggles
+        if (tableExcludeAdminDON) {
             // Calculate region direct care HPRD (excluding admin/DON) - weighted by resident days
             // Use state-level values which are accurate (calculated from raw PBJ data)
             // We do NOT estimate at facility level because that would create synthetic data
@@ -3694,7 +4866,7 @@
             reportedTotal = totalResidentDays > 0 ? totalDirectCareHours / totalResidentDays : 0;
             reportedRN = totalResidentDays > 0 ? totalRNCareHours / totalResidentDays : 0;
             reportedNA = state.Nurse_Assistant_HPRD || 0;
-          } else if (showMedians) {
+          } else if (tableShowMedians) {
             // Calculate region medians from all facilities in the region (facility-level)
             // Now we can calculate facility-level medians for direct care using facility_quarterly_metrics.csv
             const regionFacilities = [];
@@ -3735,17 +4907,17 @@
               // Direct care medians are only used when excludeAdminDON is on
             } else {
               // Fallback to state medians if no facility data
-              const regionStateMedians = state.states
-                .map(stateName => stateMedians[stateName])
-                .filter(m => m);
-              if (regionStateMedians.length > 0) {
-                reportedTotal = calculateMedian(regionStateMedians.map(m => m.Total_Nurse_HPRD || 0));
-                reportedRN = calculateMedian(regionStateMedians.map(m => m.RN_HPRD || 0));
-                reportedNA = calculateMedian(regionStateMedians.map(m => m.Nurse_Assistant_HPRD || 0));
-              } else {
-                reportedTotal = state.Total_Nurse_HPRD || 0;
-                reportedRN = state.RN_HPRD || 0;
-                reportedNA = state.Nurse_Assistant_HPRD || 0;
+            const regionStateMedians = state.states
+              .map(stateName => stateMedians[stateName])
+              .filter(m => m);
+            if (regionStateMedians.length > 0) {
+              reportedTotal = calculateMedian(regionStateMedians.map(m => m.Total_Nurse_HPRD || 0));
+              reportedRN = calculateMedian(regionStateMedians.map(m => m.RN_HPRD || 0));
+              reportedNA = calculateMedian(regionStateMedians.map(m => m.Nurse_Assistant_HPRD || 0));
+            } else {
+              reportedTotal = state.Total_Nurse_HPRD || 0;
+              reportedRN = state.RN_HPRD || 0;
+              reportedNA = state.Nurse_Assistant_HPRD || 0;
               }
             }
           } else {
@@ -3754,15 +4926,15 @@
             reportedRN = state.RN_HPRD || 0;
             reportedNA = state.Nurse_Assistant_HPRD || 0;
           }
-        } else if (excludeAdminDON) {
-          // When excludeAdminDON is enabled, use state-level values (accurate)
+        } else if (tableExcludeAdminDON) {
+          // When table excludeAdminDON is enabled, use state-level values (accurate)
           // We do NOT estimate at facility level because that would create synthetic data
           // State-level values are calculated from raw PBJ data and are accurate
           reportedTotal = calculateDirectCareExclAdmin(state.name);
           reportedRN = calculateRNCareExclAdmin(state.name);
           reportedNA = state.Nurse_Assistant_HPRD || 0;
-        } else if (showMedians) {
-          // When medians are enabled and excludeAdminDON is off, use medians
+        } else if (tableShowMedians) {
+          // When table medians are enabled and excludeAdminDON is off, use medians
           reportedTotal = stateMedians[state.name]?.Total_Nurse_HPRD || 0;
           reportedRN = stateMedians[state.name]?.RN_HPRD || 0;
           reportedNA = stateMedians[state.name]?.Nurse_Assistant_HPRD || 0;
@@ -3784,67 +4956,149 @@
         const caseMixRNColor = getCaseMixColor(reportedRN, caseMixRN);
         const caseMixNAColor = getCaseMixColor(reportedNA, caseMixNA);
         
-        const isEven = index % 2 === 0;
-        const rowBg = isEven ? 'rgba(30, 41, 59, 0.3)' : 'rgba(30, 41, 59, 0.5)';
-        
         // Use the same values for display
         const reportedTotalValue = reportedTotal;
         const reportedRNValue = reportedRN;
         const reportedNAValue = reportedNA;
         
-        return `
-          <tr style="background: ${rowBg};">
-            <td class="rank sticky-col">${rank}</td>
-            <td class="state-name sticky-col-2">${currentTableView === 'region' ? displayName : `<a href="${stateLink}" target="_blank">${state.name}</a>`}</td>
-            <td class="number mobile-facilities-cell">
-              <div style="line-height: 1.2;">${state.facility_count.toLocaleString()}</div>
-              <div style="margin-top: 4px;">
-                ${currentTableView === 'region' ? 
-                  `<button class="sff-button mobile-sff-button" onclick="openRegionSFFModal('${state.name}', '${state.regionNumber || ''}')" ${!hasSFF ? 'disabled' : ''}>
-                    View High-Risk
-                  </button>` :
-                  `<button class="sff-button mobile-sff-button" onclick="openSFFModal('${state.name}', '${stateAbbr}')" ${!hasSFF ? 'disabled' : ''}>
-                    View High-Risk
-                  </button>`
-                }
-              </div>
-            </td>
-            <td class="number">${Math.round((state.avg_days_reported > 0 ? (state.total_resident_days / state.avg_days_reported) : 0) || 0).toLocaleString()}</td>
-            <td style="text-align: center;" class="desktop-sff-cell">
-              ${hasSFF ? 
-                (currentTableView === 'region' ? 
-                  `<a href="#" onclick="openRegionSFFModal('${state.name}', '${state.regionNumber || ''}'); return false;" class="sff-link">${totalCount}</a>` :
-                  `<a href="#" onclick="openSFFModal('${state.name}', '${stateAbbr}'); return false;" class="sff-link">${totalCount}</a>`
-                ) : 
-                '<span style="color: rgba(255,255,255,0.3);">-</span>'
-              }
-            </td>
-            <!-- Comparison Section: Reported Total | Case-Mix Total -->
-            <td class="number comparison-pair" style="border-right: 2px solid rgba(255,255,255,0.2); ${caseMixTotalColor ? `color: ${caseMixTotalColor};` : ''} font-weight: 600;">
-              ${currentTableView === 'region' ? reportedTotalValue.toFixed(2) : formatValue(reportedTotalValue, (showMedians && !excludeAdminDON), (stateMedians[state.name]?.Total_Nurse_HPRD || 0))}
-            </td>
-            <td class="number case-mix-header comparison-pair">
-              ${currentTableView === 'region' ? (caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-') : (showMedians && !excludeAdminDON && stateMedians[state.name]?.caseMixTotalHPRD ? stateMedians[state.name].caseMixTotalHPRD.toFixed(2) : (caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-'))}
-            </td>
-            <!-- Comparison Section: Reported RN | Case-Mix RN -->
-            <td class="number comparison-pair" style="border-right: 2px solid rgba(255,255,255,0.2); ${caseMixRNColor ? `color: ${caseMixRNColor};` : ''} font-weight: 600;">
-              ${currentTableView === 'region' ? reportedRNValue.toFixed(2) : formatValue(reportedRNValue, (showMedians && !excludeAdminDON), (stateMedians[state.name]?.RN_HPRD || 0))}
-            </td>
-            <td class="number case-mix-header comparison-pair">
-              ${currentTableView === 'region' ? (caseMixRN > 0 ? caseMixRN.toFixed(2) : '-') : (showMedians && stateMedians[state.name]?.caseMixRNHPRD ? stateMedians[state.name].caseMixRNHPRD.toFixed(2) : (caseMixRN > 0 ? caseMixRN.toFixed(2) : '-'))}
-            </td>
-            <!-- Comparison Section: Reported Nurse Aide | Case-Mix Nurse Aide -->
-            <td class="number comparison-pair" style="border-right: 2px solid rgba(255,255,255,0.2); ${caseMixNAColor ? `color: ${caseMixNAColor};` : ''} font-weight: 600;">
-              ${currentTableView === 'region' ? reportedNAValue.toFixed(2) : formatValue(reportedNAValue, showMedians, (stateMedians[state.name]?.Nurse_Assistant_HPRD || 0))}
-            </td>
-            <td class="number case-mix-header comparison-pair">
-              ${currentTableView === 'region' ? (caseMixNA > 0 ? caseMixNA.toFixed(2) : '-') : (showMedians && stateMedians[state.name]?.caseMixNurseAideHPRD ? stateMedians[state.name].caseMixNurseAideHPRD.toFixed(2) : (caseMixNA > 0 ? caseMixNA.toFixed(2) : '-'))}
-            </td>
-          </tr>
-        `;
-      }).join('');
-
-      tbody.innerHTML = rows;
+        // Create table row
+        const tr = document.createElement('tr');
+        
+        // Rank cell
+        tr.appendChild(createTableCell(rank, 'col-rank'));
+        
+        // State cell
+        const stateCell = document.createElement('td');
+        stateCell.className = 'col-state';
+        if (currentTableView === 'region') {
+          // Region name - may have HTML for two-line display
+          if (displayName.includes('<br/>')) {
+            stateCell.innerHTML = displayName;
+          } else {
+            stateCell.textContent = displayName;
+          }
+        } else {
+          // State name with link - abbreviate for mobile
+          const displayStateName = abbreviateStateNameForMobile(state.name);
+          const stateLinkEl = createLink(stateLink, displayStateName, '');
+          stateCell.appendChild(stateLinkEl);
+        }
+        tr.appendChild(stateCell);
+        
+        // Facilities cell
+        const facilitiesCell = document.createElement('td');
+        facilitiesCell.className = 'col-facilities';
+        const facilityCountDiv = document.createElement('div');
+        facilityCountDiv.className = 'facility-count';
+        facilityCountDiv.textContent = state.facility_count.toLocaleString();
+        facilitiesCell.appendChild(facilityCountDiv);
+        
+        // Mobile SFF button wrapper
+        const mobileSffWrapper = document.createElement('div');
+        mobileSffWrapper.className = 'mobile-sff-wrapper';
+        let sffButton;
+        if (currentTableView === 'region') {
+          sffButton = createButton('View High-Risk', () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
+        } else {
+          sffButton = createButton('View High-Risk', () => openSFFModal(state.name, stateAbbr), !hasSFF);
+        }
+        mobileSffWrapper.appendChild(sffButton);
+        facilitiesCell.appendChild(mobileSffWrapper);
+        tr.appendChild(facilitiesCell);
+        
+        // Residents cell
+        const residentsValue = Math.round((state.avg_days_reported > 0 ? (state.total_resident_days / state.avg_days_reported) : 0) || 0);
+        tr.appendChild(createTableCell(residentsValue.toLocaleString(), 'col-residents'));
+        
+        // SFF cell (desktop)
+        const sffCell = document.createElement('td');
+        sffCell.className = 'col-sff desktop-sff-cell';
+        if (hasSFF) {
+          let sffLink;
+          if (currentTableView === 'region') {
+            sffLink = createLink('#', totalCount.toString(), 'link-sff', () => {
+              openRegionSFFModal(state.name, state.regionNumber || '');
+              return false;
+            });
+          } else {
+            sffLink = createLink('#', totalCount.toString(), 'link-sff', () => {
+              openSFFModal(state.name, stateAbbr);
+              return false;
+            });
+          }
+          sffCell.appendChild(sffLink);
+        } else {
+          const mutedSpan = document.createElement('span');
+          mutedSpan.className = 'text-muted';
+          mutedSpan.textContent = '-';
+          sffCell.appendChild(mutedSpan);
+        }
+        tr.appendChild(sffCell);
+        
+        // Reported HPRD cells
+        let reportedTotalText, reportedRNText, reportedNAText;
+        if (currentTableView === 'region') {
+          reportedTotalText = reportedTotalValue.toFixed(2);
+          reportedRNText = reportedRNValue.toFixed(2);
+          reportedNAText = reportedNAValue.toFixed(2);
+        } else {
+          reportedTotalText = formatValue(reportedTotalValue, (tableShowMedians && !tableExcludeAdminDON), (stateMedians[state.name]?.Total_Nurse_HPRD || 0));
+          reportedRNText = formatValue(reportedRNValue, (tableShowMedians && !tableExcludeAdminDON), (stateMedians[state.name]?.RN_HPRD || 0));
+          reportedNAText = formatValue(reportedNAValue, tableShowMedians, (stateMedians[state.name]?.Nurse_Assistant_HPRD || 0));
+        }
+        
+        // Reported HPRD cells - track column position for mobile width setting
+        const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value', caseMixTotalColor ? `color: ${caseMixTotalColor};` : '');
+        if (window.innerWidth <= 768) {
+          reportedTotalCell.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ' + (caseMixTotalColor ? `color: ${caseMixTotalColor};` : '');
+        }
+        tr.appendChild(reportedTotalCell);
+        
+        const reportedRNCell = createTableCell(reportedRNText, 'col-hprd reported-value', caseMixRNColor ? `color: ${caseMixRNColor};` : '');
+        if (window.innerWidth <= 768) {
+          reportedRNCell.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ' + (caseMixRNColor ? `color: ${caseMixRNColor};` : '');
+        }
+        tr.appendChild(reportedRNCell);
+        
+        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value', caseMixNAColor ? `color: ${caseMixNAColor};` : '');
+        tr.appendChild(reportedNACell);
+        
+        // Case-Mix HPRD cells
+        let caseMixTotalText, caseMixRNText, caseMixNAText;
+        if (currentTableView === 'region') {
+          caseMixTotalText = caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-';
+          caseMixRNText = caseMixRN > 0 ? caseMixRN.toFixed(2) : '-';
+          caseMixNAText = caseMixNA > 0 ? caseMixNA.toFixed(2) : '-';
+        } else {
+          caseMixTotalText = (tableShowMedians && !tableExcludeAdminDON && stateMedians[state.name]?.caseMixTotalHPRD) 
+            ? stateMedians[state.name].caseMixTotalHPRD.toFixed(2) 
+            : (caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-');
+          caseMixRNText = (tableShowMedians && stateMedians[state.name]?.caseMixRNHPRD) 
+            ? stateMedians[state.name].caseMixRNHPRD.toFixed(2) 
+            : (caseMixRN > 0 ? caseMixRN.toFixed(2) : '-');
+          caseMixNAText = (tableShowMedians && stateMedians[state.name]?.caseMixNurseAideHPRD) 
+            ? stateMedians[state.name].caseMixNurseAideHPRD.toFixed(2) 
+            : (caseMixNA > 0 ? caseMixNA.toFixed(2) : '-');
+        }
+        
+        const caseMixTotalCell = createTableCell(caseMixTotalText, 'col-hprd casemix-value');
+        if (window.innerWidth <= 768) {
+          caseMixTotalCell.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important;';
+        }
+        tr.appendChild(caseMixTotalCell);
+        
+        const caseMixRNCell = createTableCell(caseMixRNText, 'col-hprd casemix-value');
+        if (window.innerWidth <= 768) {
+          caseMixRNCell.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important;';
+        }
+        tr.appendChild(caseMixRNCell);
+        
+        const caseMixNACell = createTableCell(caseMixNAText, 'col-hprd casemix-value');
+        tr.appendChild(caseMixNACell);
+        
+        // Append row to tbody
+        tbody.appendChild(tr);
+      });
       
       // Update sort indicators
       document.querySelectorAll('th.sortable').forEach(th => {
@@ -3899,7 +5153,7 @@
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
         const ratio = f.case_mix_total_hprd > 0 ? (f.total_nurse_hprd / f.case_mix_total_hprd * 100).toFixed(0) : '0';
         // Use raw values directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${f.total_nurse_hprd.toFixed(2)}; Case Mix: ${f.case_mix_total_hprd.toFixed(2)} (Ratio: ${ratio}%)</div>`;
+        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${f.total_nurse_hprd.toFixed(2)} | Case-Mix: ${f.case_mix_total_hprd.toFixed(2)} (${ratio}%)</div>`;
       } else if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined) {
         // Use raw value directly - no rounding before display, just format to 2 decimals
         staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${f.total_nurse_hprd.toFixed(2)}</div>`;
@@ -3937,7 +5191,7 @@
           ${multipleCriteriaNote}
           ${staffingText}
           <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500;">View PBJ Dashboard</a>
+            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">View PBJ Dashboard</a>
             <a href="${cmsLink}" target="_blank" style="font-size: 0.75rem; font-style: italic; color: rgba(255,255,255,0.7); text-decoration: underline;">View facility on CMS Care Compare</a>
           </div>
         </li>
@@ -3952,7 +5206,7 @@
       const modalStateName = document.getElementById('modalStateName');
       const modalBody = document.getElementById('modalBody');
       
-      modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block;">High-risk facilities include Special Focus Facilities (SFFs), SFF Candidates, facilities with abuse icons, and facilities with 1-star overall or staffing ratings.</span>`;
+      modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
       
       const sff = state.sff || [];
       const candidates = state.sffCandidates || [];
@@ -4152,14 +5406,78 @@
         let values;
         let isShowingRatio = false;
         
-        if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
+        if (mapDisplayMode === 'statewide') {
           // Calculate ratios for HPRD metrics when in statewide mode
           isShowingRatio = true;
           values = Object.keys(stateData)
-            .filter(stateName => stateName !== 'Alaska') // Exclude Alaska from color scale calculation (outlier)
+            .filter(stateName => {
+              // Always exclude Alaska
+              if (stateName === 'Alaska') return false;
+              // Exclude PR for RN HPRD and case-mix metrics
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_RN_HPRD') return false;
+              // For other metrics, exclude PR as outlier
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+              return true;
+            })
             .map(stateName => {
-              const state = stateData[stateName];
-              if (!state) return 0;
+            const state = stateData[stateName];
+            if (!state) return 0;
+            const reported = getMetricValue(stateName, currentMetric);
+            let caseMix = 0;
+            if (currentMetric === 'Total_Nurse_HPRD') {
+              caseMix = state.caseMixTotalHPRD || 0;
+            } else if (currentMetric === 'Total_RN_HPRD') {
+              caseMix = state.caseMixRNHPRD || 0;
+            }
+            return caseMix > 0 ? reported / caseMix : 0;
+            })
+            .filter(v => !isNaN(v) && v > 0);
+        } else if (mapDisplayMode === 'hprd') {
+          // Show actual HPRD values (default when median not toggled)
+          values = Object.keys(stateData)
+            .filter(stateName => {
+              // Always exclude Alaska
+              if (stateName === 'Alaska') return false;
+              // Exclude PR for RN HPRD and case-mix metrics
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_RN_HPRD') return false;
+              // For other metrics, exclude PR as outlier
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+              return true;
+            })
+            .map(stateName => getMetricValue(stateName, currentMetric))
+            .filter(v => !isNaN(v) && v > 0);
+          isShowingRatio = false;
+        } else {
+          // Median mode: show median HPRD values
+          values = Object.keys(stateData)
+            .filter(stateName => {
+              if (stateName === 'Alaska') return false;
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_RN_HPRD') return false;
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+              return true;
+            })
+            .map(stateName => getMetricValue(stateName, currentMetric))
+            .filter(v => !isNaN(v) && v > 0);
+          isShowingRatio = false;
+        }
+        
+        // Calculate base values for consistent color scale (exclude PR and Alaska)
+        // Base values should match what's being displayed (ratios in statewide mode, actual values otherwise)
+        let baseValuesForScale = Object.keys(stateData)
+          .filter(stateName => {
+            // Always exclude Alaska
+            if (stateName === 'Alaska') return false;
+            // Exclude PR for RN HPRD and case-mix metrics
+            if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+            // For other metrics, exclude PR as outlier
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+            return true;
+          })
+          .map(stateName => {
+            const state = stateData[stateName];
+            if (!state) return 0;
+            // If showing ratios in statewide mode, calculate ratios for base values too
+            if (mapDisplayMode === 'statewide') {
               const reported = getMetricValue(stateName, currentMetric);
               let caseMix = 0;
               if (currentMetric === 'Total_Nurse_HPRD') {
@@ -4168,19 +5486,30 @@
                 caseMix = state.caseMixRNHPRD || 0;
               }
               return caseMix > 0 ? reported / caseMix : 0;
-            })
-            .filter(v => !isNaN(v) && v > 0);
-        } else {
-          // Default: show actual HPRD values
-          values = Object.keys(stateData)
-            .filter(stateName => stateName !== 'Alaska') // Exclude Alaska from color scale calculation (outlier)
-            .map(stateName => getMetricValue(stateName, currentMetric))
-            .filter(v => !isNaN(v) && v > 0);
-          isShowingRatio = (currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio');
-        }
+            } else if (mapDisplayMode === 'hprd') {
+              // Use actual HPRD values
+              switch(currentMetric) {
+                case 'Total_Nurse_HPRD':
+                  return state.Total_Nurse_HPRD || 0;
+                case 'Total_RN_HPRD':
+                  return state.RN_HPRD || 0;
+                default:
+                  return 0;
+              }
+            } else {
+              // Median mode: use getMetricValue which returns median values
+              return getMetricValue(stateName, currentMetric);
+            }
+          }).filter(v => !isNaN(v) && v > 0);
         
-        const minValue = values.length > 0 ? Math.min(...values) : 0;
-        const maxValue = values.length > 0 ? Math.max(...values) : 0;
+        // Use wider range for consistent color scale
+        const baseMinForScale = baseValuesForScale.length > 0 ? Math.min(...baseValuesForScale) : 0;
+        const baseMaxForScale = baseValuesForScale.length > 0 ? Math.max(...baseValuesForScale) : 0;
+        const currentMinForScale = values.length > 0 ? Math.min(...values) : 0;
+        const currentMaxForScale = values.length > 0 ? Math.max(...values) : 0;
+        
+        const minValue = Math.min(baseMinForScale, currentMinForScale);
+        const maxValue = Math.max(baseMaxForScale, currentMaxForScale);
 
         // Color scale - based on metric type, not ratio vs median
         // Same metric keeps same color scheme whether ratio or median
@@ -4209,8 +5538,12 @@
           .attr('data-state', d => d.properties.name)
           .style('fill', function(d) {
             const stateName = d.properties.name;
+            // Exclude Puerto Rico from RN HPRD and case-mix metrics
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_RN_HPRD') {
+              return '#e2e8f0'; // Gray out Puerto Rico for these metrics
+            }
             let value;
-            if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
+            if (mapDisplayMode === 'statewide') {
               // Calculate ratio for HPRD metrics in statewide mode
               const state = stateData[stateName];
               if (!state) return '#e2e8f0';
@@ -4223,6 +5556,7 @@
               }
               value = caseMix > 0 ? reported / caseMix : 0;
             } else {
+              // hprd or median mode: use getMetricValue directly
               value = getMetricValue(stateName, currentMetric);
             }
             if (value > 0 && !isNaN(value)) {
@@ -4237,63 +5571,43 @@
             const stateName = d.properties.name;
             const data = stateData[stateName];
             if (data) {
-              const metricLabels = {
-                'Total_Nurse_HPRD': 'Total Nurse HPRD',
-                'Total_RN_HPRD': 'RN HPRD',
-                'Total_CaseMix_Ratio': 'Total Nurse Case-Mix Ratio',
-                'RN_CaseMix_Ratio': 'RN Case-Mix Ratio'
-              };
-              
               // Use getMetricValue to respect excludeAdminDON toggle
               const value = getMetricValue(stateName, currentMetric);
               let formattedValue = value.toFixed(2);
               
               // Get state rank
               const rank = stateRankings[stateName] || 'N/A';
-              const totalStates = Object.keys(stateRankings).length;
               
               // Get case-mix data - use appropriate case-mix based on metric
               let caseMixValue = 0;
-              let caseMixLabel = '';
-              if (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_CaseMix_Ratio') {
+              if (currentMetric === 'Total_Nurse_HPRD') {
                 caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
                   ? (stateMedians[stateName]?.caseMixTotalHPRD || data.caseMixTotalHPRD || 0)
                   : (data.caseMixTotalHPRD || 0);
-                caseMixLabel = 'Case-Mix Total HPRD';
-              } else if (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio') {
+              } else if (currentMetric === 'Total_RN_HPRD') {
                 caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
                   ? (stateMedians[stateName]?.caseMixRNHPRD || data.caseMixRNHPRD || 0)
                   : (data.caseMixRNHPRD || 0);
-                caseMixLabel = 'Case-Mix RN HPRD';
               }
               const caseMixDisplay = caseMixValue > 0 ? caseMixValue.toFixed(2) : 'N/A';
               
-              // Calculate ratio if showing case-mix ratio or statewide mode
-              let ratioText = '';
-              const isRatioMetric = currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio';
-              if ((mapDisplayMode === 'statewide' || isRatioMetric) && currentMetric !== 'Contract_Percentage') {
-                // Use getMetricValue to respect excludeAdminDON toggle
-                const reported = getMetricValue(stateName, currentMetric);
-                let caseMix = 0;
-                if (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_CaseMix_Ratio') {
-                  caseMix = mapDisplayMode === 'median' && !excludeAdminDON
-                    ? (stateMedians[stateName]?.caseMixTotalHPRD || data.caseMixTotalHPRD || 0)
-                    : (data.caseMixTotalHPRD || 0);
-                } else if (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio') {
-                  caseMix = mapDisplayMode === 'median' && !excludeAdminDON
-                    ? (stateMedians[stateName]?.caseMixRNHPRD || data.caseMixRNHPRD || 0)
-                    : (data.caseMixRNHPRD || 0);
-                }
-                if (caseMix > 0) {
-                  const ratio = reported / caseMix;
-                  ratioText = `<br/>Case-Mix Ratio: ${ratio.toFixed(2)} (${ratio >= 1 ? 'Meets' : 'Below'})`;
-                }
+              // Get facilities and residents count
+              const facilities = data.facility_count || 0;
+              const residents = Math.round((data.avg_days_reported > 0 ? (data.total_resident_days / data.avg_days_reported) : 0) || 0);
+              
+              // Build tooltip content based on metric
+              let metricLabel = '';
+              if (currentMetric === 'Total_Nurse_HPRD') {
+                metricLabel = 'Total Nurse HPRD';
+              } else if (currentMetric === 'Total_RN_HPRD') {
+                metricLabel = 'RN HPRD';
               }
               
-              // Update label to show if admin/DON is excluded
-              let displayLabel = mapDisplayMode === 'median' && !excludeAdminDON ? `${metricLabels[currentMetric]} (Median)` : metricLabels[currentMetric];
-              if (excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
-                displayLabel += ' (excl. Admin/DON)';
+              // Add mode suffix if needed
+              if (mapDisplayMode === 'median' && !excludeAdminDON) {
+                metricLabel += ' (Median)';
+              } else if (excludeAdminDON) {
+                metricLabel += ' (excl. Admin/DON)';
               }
               
               tooltip.transition()
@@ -4301,9 +5615,9 @@
                 .style('opacity', 0.95);
               tooltip.html(`
                 <strong>${stateName}</strong><br/>
-                <span style="font-size: 0.9rem; color: #e2e8f0; font-weight: 600;">Rank: ${rank} of ${totalStates}</span><br/>
-                ${displayLabel}: ${formattedValue}${ratioText || ''}<br/>
-                ${mapDisplayMode !== 'statewide' && !isRatioMetric && caseMixLabel ? `${caseMixLabel}: ${caseMixDisplay}<br/>` : ''}
+                ${metricLabel}: ${formattedValue} (Rank: ${rank})<br/>
+                Case-Mix: ${caseMixDisplay}<br/>
+                ${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)<br/>
                 <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
               `)
                 .style('left', (event.pageX + 10) + 'px')
@@ -4315,6 +5629,70 @@
               .duration(500)
               .style('opacity', 0);
           })
+          .on('touchstart', function(event, d) {
+            // On mobile, show tooltip on touch
+            event.preventDefault();
+            event.stopPropagation();
+            const stateName = d.properties.name;
+            const stateAbbr = stateAbbreviations[stateName];
+            if (!stateAbbr) return;
+            
+            const data = stateData[stateName];
+            if (!data) return;
+            
+            // Use same logic as mouseover
+            // Use getMetricValue to respect excludeAdminDON toggle
+            const value = getMetricValue(stateName, currentMetric);
+            let formattedValue = value.toFixed(2);
+            
+            // Get state rank
+            const rank = stateRankings[stateName] || 'N/A';
+            
+            // Get case-mix data - use appropriate case-mix based on metric
+            let caseMixValue = 0;
+            if (currentMetric === 'Total_Nurse_HPRD') {
+              caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
+                ? (stateMedians[stateName]?.caseMixTotalHPRD || data.caseMixTotalHPRD || 0)
+                : (data.caseMixTotalHPRD || 0);
+            } else if (currentMetric === 'Total_RN_HPRD') {
+              caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
+                ? (stateMedians[stateName]?.caseMixRNHPRD || data.caseMixRNHPRD || 0)
+                : (data.caseMixRNHPRD || 0);
+            }
+            const caseMixDisplay = caseMixValue > 0 ? caseMixValue.toFixed(2) : 'N/A';
+            
+            // Get facilities and residents count
+            const facilities = data.facility_count || 0;
+            const residents = Math.round((data.avg_days_reported > 0 ? (data.total_resident_days / data.avg_days_reported) : 0) || 0);
+            
+            // Build tooltip content based on metric
+            let metricLabel = '';
+            if (currentMetric === 'Total_Nurse_HPRD') {
+              metricLabel = 'Total Nurse HPRD';
+            } else if (currentMetric === 'Total_RN_HPRD') {
+              metricLabel = 'RN HPRD';
+            }
+            
+            // Add mode suffix if needed
+            if (mapDisplayMode === 'median' && !excludeAdminDON) {
+              metricLabel += ' (Median)';
+            } else if (excludeAdminDON) {
+              metricLabel += ' (excl. Admin/DON)';
+            }
+            
+            tooltip.transition()
+              .duration(200)
+              .style('opacity', 0.95);
+            tooltip.html(`
+              <div style="font-size: 0.7rem; line-height: 1.3;">
+                <strong style="font-size: 0.75rem;">${stateName}</strong><br/>
+                ${metricLabel}: ${formattedValue}<br/>
+                <a href="https://pbjdashboard.com/?state=${stateAbbr}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem;">View PBJ Dashboard</a>
+              </div>
+            `)
+              .style('left', (event.touches[0].pageX + 10) + 'px')
+              .style('top', (event.touches[0].pageY - 28) + 'px');
+          })
           .on('click', function(event, d) {
             const stateName = d.properties.name;
             const stateAbbr = stateAbbreviations[stateName];
@@ -4323,41 +5701,50 @@
             }
           });
 
-        // Update legend - use consistent scale based on base values (not medians) for consistency
-        // Calculate both base and current values to maintain consistent scale
-        let baseValues = Object.keys(stateData).map(stateName => {
-          const state = stateData[stateName];
-          if (!state) return 0;
-          switch(currentMetric) {
-            case 'Total_Nurse_HPRD':
-              return state.Total_Nurse_HPRD || 0;
-            case 'Total_RN_HPRD':
-              return state.RN_HPRD || 0;
-            case 'Total_CaseMix_Ratio':
-              const total = state.Total_Nurse_HPRD || 0;
-              const caseMix = state.caseMixTotalHPRD || 0;
-              return caseMix > 0 ? total / caseMix : 0;
-            case 'RN_CaseMix_Ratio':
-              const rn = state.RN_HPRD || 0;
-              const rnCaseMix = state.caseMixRNHPRD || 0;
-              return rnCaseMix > 0 ? rn / rnCaseMix : 0;
-            default:
-              return 0;
-          }
-        }).filter(v => !isNaN(v) && v > 0);
+        // Update legend - use same calculation as map colors
+        // When in statewide mode, show ratios; when in hprd or median mode, show HPRD values
+        let legendValues;
+        if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
+          // Calculate ratios for legend (same as map colors)
+          legendValues = Object.keys(stateData)
+            .filter(stateName => {
+              if (stateName === 'Alaska') return false;
+              if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+              return true;
+            })
+            .map(stateName => {
+              const state = stateData[stateName];
+              if (!state) return 0;
+              const reported = getMetricValue(stateName, currentMetric);
+              let caseMix = 0;
+              if (currentMetric === 'Total_Nurse_HPRD') {
+                caseMix = state.caseMixTotalHPRD || 0;
+              } else if (currentMetric === 'Total_RN_HPRD') {
+                caseMix = state.caseMixRNHPRD || 0;
+              }
+              return caseMix > 0 ? reported / caseMix : 0;
+            })
+            .filter(v => !isNaN(v) && v > 0);
+        } else {
+          // For hprd mode, median mode, or ratio metrics, use getMetricValue directly
+          legendValues = Object.keys(stateData)
+            .filter(stateName => {
+              if (stateName === 'Alaska') return false;
+              if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+              if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+              return true;
+            })
+            .map(stateName => getMetricValue(stateName, currentMetric))
+            .filter(v => !isNaN(v) && v > 0);
+        }
         
-        let currentValues = Object.keys(stateData).map(stateName => getMetricValue(stateName, currentMetric)).filter(v => !isNaN(v) && v > 0);
+        // Calculate min/max from legend values
+        const legendMin = legendValues.length > 0 ? Math.min(...legendValues) : 0;
+        const legendMax = legendValues.length > 0 ? Math.max(...legendValues) : 0;
         
-        // Use the wider range for consistent scale (combine base and current ranges)
-        const baseMin = baseValues.length > 0 ? Math.min(...baseValues) : 0;
-        const baseMax = baseValues.length > 0 ? Math.max(...baseValues) : 0;
-        const currentMin = currentValues.length > 0 ? Math.min(...currentValues) : 0;
-        const currentMax = currentValues.length > 0 ? Math.max(...currentValues) : 0;
-        
-        const legendMin = Math.min(baseMin, currentMin);
-        const legendMax = Math.max(baseMax, currentMax);
-        
-        const legendIsRatio = (currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio');
+        const legendIsRatio = (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') ||
+                              (currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio');
         updateLegend(legendMin, legendMax, legendIsRatio, currentMetric);
       });
     }
@@ -4371,6 +5758,9 @@
       const metricLabels = {
         'Total_Nurse_HPRD': 'Total Nurse HPRD',
         'Total_RN_HPRD': 'RN HPRD',
+        'Nurse_Assistant_HPRD': 'Nurse Aide HPRD',
+        'avg_daily_census': 'Census',
+        'Contract_Percentage': 'Contract Staff %',
         'Total_CaseMix_Ratio': 'Total Nurse Case-Mix Ratio',
         'RN_CaseMix_Ratio': 'RN Case-Mix Ratio'
       };
@@ -4394,9 +5784,13 @@
       const labelsDiv = legend.append('div')
         .attr('class', 'legend-labels');
       const formatValue = (val) => {
-        return displayMetric === 'Contract_Percentage' 
-          ? val.toFixed(1) + '%' 
-          : val.toFixed(2);
+        if (displayMetric === 'Contract_Percentage') {
+          return val.toFixed(1) + '%';
+        } else if (displayMetric === 'avg_daily_census') {
+          return Math.round(val).toLocaleString();
+        } else {
+          return val.toFixed(2);
+        }
       };
 
       // Update legend - reversed scale: yellow (left) is lower, purple (right) is higher
@@ -4421,23 +5815,39 @@
       let mapValues;
       if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
         mapValues = Object.keys(stateData)
-          .filter(stateName => stateName !== 'Alaska') // Exclude Alaska from color scale calculation (outlier)
+          .filter(stateName => {
+            // Always exclude Alaska
+            if (stateName === 'Alaska') return false;
+            // Exclude PR for RN HPRD and case-mix metrics
+            if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+            // For other metrics, exclude PR as outlier
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+            return true;
+          })
           .map(stateName => {
-            const state = stateData[stateName];
-            if (!state) return 0;
-            const reported = getMetricValue(stateName, currentMetric);
-            let caseMix = 0;
-            if (currentMetric === 'Total_Nurse_HPRD') {
-              caseMix = state.caseMixTotalHPRD || 0;
-            } else if (currentMetric === 'Total_RN_HPRD') {
-              caseMix = state.caseMixRNHPRD || 0;
-            }
-            return caseMix > 0 ? reported / caseMix : 0;
+          const state = stateData[stateName];
+          if (!state) return 0;
+          const reported = getMetricValue(stateName, currentMetric);
+          let caseMix = 0;
+          if (currentMetric === 'Total_Nurse_HPRD') {
+            caseMix = state.caseMixTotalHPRD || 0;
+          } else if (currentMetric === 'Total_RN_HPRD') {
+            caseMix = state.caseMixRNHPRD || 0;
+          }
+          return caseMix > 0 ? reported / caseMix : 0;
           })
           .filter(v => !isNaN(v) && v > 0);
       } else {
         mapValues = Object.keys(stateData)
-          .filter(stateName => stateName !== 'Alaska') // Exclude Alaska from color scale calculation (outlier)
+          .filter(stateName => {
+            // Always exclude Alaska
+            if (stateName === 'Alaska') return false;
+            // Exclude PR for RN HPRD and case-mix metrics
+            if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+            // For other metrics, exclude PR as outlier
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+            return true;
+          })
           .map(stateName => getMetricValue(stateName, currentMetric))
           .filter(v => !isNaN(v) && v > 0);
       }
@@ -4459,8 +5869,12 @@
       statePaths.style('fill', null);
       statePaths.style('fill', function(d) {
         const stateName = d.properties.name;
+        // Exclude Puerto Rico from RN HPRD and case-mix metrics
+        if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) {
+          return '#e2e8f0'; // Gray out Puerto Rico for these metrics
+        }
         let value;
-        if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
+        if (mapDisplayMode === 'statewide') {
           // Calculate ratio for HPRD metrics in statewide mode
           const state = stateData[stateName];
           if (!state) return '#e2e8f0';
@@ -4490,6 +5904,9 @@
           const metricLabels = {
             'Total_Nurse_HPRD': 'Total Nurse HPRD',
             'Total_RN_HPRD': 'RN HPRD',
+            'Nurse_Assistant_HPRD': 'Nurse Aide HPRD',
+            'avg_daily_census': 'Census',
+            'Contract_Percentage': 'Contract Staff %',
             'Total_CaseMix_Ratio': 'Total Nurse Case-Mix Ratio',
             'RN_CaseMix_Ratio': 'RN Case-Mix Ratio'
           };
@@ -4574,14 +5991,27 @@
             
             tooltipContent = `
               <strong>${stateName}</strong><br/>
-              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: ${ratio >= 1 ? '#34d399' : '#f87171'};">(Rank: ${rank} of ${totalStates})</span><br/>
+              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
               ${caseMixLabel}: ${caseMixValue > 0 ? caseMixValue.toFixed(2) : 'N/A'}<br/>
               <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
             `;
           } else {
             // When showing reported value, primary is the reported value
             primaryLabel = metricLabels[currentMetric] || currentMetric;
-            primaryValue = value.toFixed(2);
+            
+            // Format value based on metric type
+            if (currentMetric === 'avg_daily_census') {
+              primaryValue = Math.round(value).toLocaleString();
+              primaryLabel = 'Census';
+            } else if (currentMetric === 'Contract_Percentage') {
+              primaryValue = value.toFixed(1) + '%';
+              primaryLabel = 'Contract Staff';
+            } else if (currentMetric === 'Nurse_Assistant_HPRD') {
+              primaryValue = value.toFixed(2);
+              primaryLabel = 'Nurse Aide';
+            } else {
+              primaryValue = value.toFixed(2);
+            }
             
             // Always show case-mix if available (for HPRD metrics)
             let caseMixLine = '';
@@ -4592,7 +6022,7 @@
             
             tooltipContent = `
               <strong>${stateName}</strong><br/>
-              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: #e2e8f0;">(Rank: ${rank} of ${totalStates})</span><br/>
+              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
               ${caseMixLine}
               <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
             `;
@@ -4607,41 +6037,50 @@
         }
       });
 
-      // Update legend - use consistent scale based on base values (not medians) for consistency
-      // Calculate both base and current values to maintain consistent scale
-      let baseValues = Object.keys(stateData).map(stateName => {
-        const state = stateData[stateName];
-        if (!state) return 0;
-        switch(currentMetric) {
-          case 'Total_Nurse_HPRD':
-            return state.Total_Nurse_HPRD || 0;
-          case 'Total_RN_HPRD':
-            return state.RN_HPRD || 0;
-          case 'Total_CaseMix_Ratio':
-            const total = state.Total_Nurse_HPRD || 0;
-            const caseMix = state.caseMixTotalHPRD || 0;
-            return caseMix > 0 ? total / caseMix : 0;
-          case 'RN_CaseMix_Ratio':
-            const rn = state.RN_HPRD || 0;
-            const rnCaseMix = state.caseMixRNHPRD || 0;
-            return rnCaseMix > 0 ? rn / rnCaseMix : 0;
-          default:
-            return 0;
-        }
-      }).filter(v => !isNaN(v) && v > 0);
+      // Update legend - use same calculation as map colors
+      // When in statewide mode, show ratios; when in median mode, show HPRD values
+      let legendValues;
+      if (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') {
+        // Calculate ratios for legend (same as map colors)
+        legendValues = Object.keys(stateData)
+          .filter(stateName => {
+            if (stateName === 'Alaska') return false;
+            if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+            return true;
+          })
+          .map(stateName => {
+            const state = stateData[stateName];
+            if (!state) return 0;
+            const reported = getMetricValue(stateName, currentMetric);
+            let caseMix = 0;
+            if (currentMetric === 'Total_Nurse_HPRD') {
+              caseMix = state.caseMixTotalHPRD || 0;
+            } else if (currentMetric === 'Total_RN_HPRD') {
+              caseMix = state.caseMixRNHPRD || 0;
+            }
+            return caseMix > 0 ? reported / caseMix : 0;
+          })
+          .filter(v => !isNaN(v) && v > 0);
+      } else {
+        // For median mode or ratio metrics, use getMetricValue directly
+        legendValues = Object.keys(stateData)
+          .filter(stateName => {
+            if (stateName === 'Alaska') return false;
+            if (stateName === 'Puerto Rico' && (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio' || currentMetric === 'Total_CaseMix_Ratio')) return false;
+            if (stateName === 'Puerto Rico' && currentMetric === 'Total_Nurse_HPRD') return false;
+            return true;
+          })
+          .map(stateName => getMetricValue(stateName, currentMetric))
+          .filter(v => !isNaN(v) && v > 0);
+      }
       
-      let currentValues = Object.keys(stateData).map(stateName => getMetricValue(stateName, currentMetric)).filter(v => !isNaN(v) && v > 0);
+      // Calculate min/max from legend values
+      const legendMin = legendValues.length > 0 ? Math.min(...legendValues) : 0;
+      const legendMax = legendValues.length > 0 ? Math.max(...legendValues) : 0;
       
-      // Use the wider range for consistent scale (combine base and current ranges)
-      const baseMin = baseValues.length > 0 ? Math.min(...baseValues) : 0;
-      const baseMax = baseValues.length > 0 ? Math.max(...baseValues) : 0;
-      const currentMin = currentValues.length > 0 ? Math.min(...currentValues) : 0;
-      const currentMax = currentValues.length > 0 ? Math.max(...currentValues) : 0;
-      
-      const legendMin = Math.min(baseMin, currentMin);
-      const legendMax = Math.max(baseMax, currentMax);
-      
-      const legendIsRatio = (currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio');
+      const legendIsRatio = (mapDisplayMode === 'statewide' && currentMetric !== 'Total_CaseMix_Ratio' && currentMetric !== 'RN_CaseMix_Ratio') ||
+                            (currentMetric === 'Total_CaseMix_Ratio' || currentMetric === 'RN_CaseMix_Ratio');
       updateLegend(legendMin, legendMax, legendIsRatio, currentMetric);
     }
 
@@ -4659,7 +6098,7 @@
       const modalStateName = document.getElementById('modalStateName');
       const modalBody = document.getElementById('modalBody');
       
-      modalStateName.innerHTML = `${regionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block;">High-risk facilities include Special Focus Facilities (SFFs), SFF Candidates, facilities with abuse icons, and facilities with 1-star overall or staffing ratings.</span>`;
+      modalStateName.innerHTML = `${regionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
       
       const sff = region.sff || [];
       const candidates = region.sffCandidates || [];

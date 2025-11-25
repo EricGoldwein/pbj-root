@@ -2,21 +2,21 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>PBJ320 Nursing Home Staffing Report: Q2 2025</title>
+  <title>PBJ320 Nursing Home Staffing Report</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Comprehensive Q2 2025 nursing home staffing analysis by state with ratios, medians, and interactive map.">
+  <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj-320.onrender.com/report">
-  <meta property="og:title" content="PBJ320 Nursing Home Staffing Report: Q2 2025">
-  <meta property="og:description" content="Comprehensive Q2 2025 nursing home staffing analysis by state with ratios, medians, and interactive map.">
+  <meta property="og:title" content="PBJ320 Nursing Home Staffing Report">
+  <meta property="og:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   <meta property="og:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="PBJ320 Nursing Home Staffing Report: Q2 2025">
-  <meta property="twitter:description" content="Comprehensive Q2 2025 nursing home staffing analysis by state with ratios, medians, and interactive map.">
+  <meta property="twitter:title" content="PBJ320 Nursing Home Staffing Report">
+  <meta property="twitter:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   <meta property="twitter:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
   <link rel="icon" type="image/png" href="pbj_favicon.png">
@@ -2155,9 +2155,9 @@
         <a href="/about" class="nav-link">About</a>
         <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
         <a href="/insights" class="nav-link">Insights</a>
+        <a href="/report" class="nav-link active">Report</a>
         <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
         <a href="https://pbj320.vercel.app/" class="nav-link" target="_blank">PBJ Converter</a>
-        <a href="/report" class="nav-link active">Report</a>
       </div>
       <div class="nav-toggle" id="navToggle">
         <span></span>
@@ -2871,11 +2871,26 @@
           }
           
           // Update document title and meta tags (use desktop version)
-          document.title = `US Nursing Home Payroll-Based Journal Staffing Report (${quarterYear})`;
-          const metaTitle = document.querySelector('meta[property="og:title"]');
-          if (metaTitle) metaTitle.setAttribute('content', `US Nursing Home Payroll-Based Journal Staffing Report (${quarterYear})`);
+          const fullTitle = `PBJ320 Nursing Home Staffing Report: ${quarterYear}`;
+          const fullDescription = `Comprehensive ${quarterYear} nursing home staffing analysis by state with ratios, medians, and interactive map.`;
+          
+          document.title = fullTitle;
+          
+          // Update meta description
+          const metaDesc = document.querySelector('meta[name="description"]');
+          if (metaDesc) metaDesc.setAttribute('content', fullDescription);
+          
+          // Update Open Graph tags
+          const ogTitle = document.querySelector('meta[property="og:title"]');
+          if (ogTitle) ogTitle.setAttribute('content', fullTitle);
+          const ogDesc = document.querySelector('meta[property="og:description"]');
+          if (ogDesc) ogDesc.setAttribute('content', fullDescription);
+          
+          // Update Twitter tags
           const twitterTitle = document.querySelector('meta[property="twitter:title"]');
-          if (twitterTitle) twitterTitle.setAttribute('content', `US Nursing Home Payroll-Based Journal Staffing Report (${quarterYear})`);
+          if (twitterTitle) twitterTitle.setAttribute('content', fullTitle);
+          const twitterDesc = document.querySelector('meta[property="twitter:description"]');
+          if (twitterDesc) twitterDesc.setAttribute('content', fullDescription);
           
           // Update title on window resize
           window.addEventListener('resize', function() {

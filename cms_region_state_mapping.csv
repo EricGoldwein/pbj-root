@@ -1,0 +1,60 @@
+State_Code,State_Name,CMS_Region_Number,CMS_Region_Name,CMS_Region_Full
+CT,Connecticut,1,Boston,Region 1 - Boston
+MA,Massachusetts,1,Boston,Region 1 - Boston
+ME,Maine,1,Boston,Region 1 - Boston
+NH,New Hampshire,1,Boston,Region 1 - Boston
+RI,Rhode Island,1,Boston,Region 1 - Boston
+VT,Vermont,1,Boston,Region 1 - Boston
+NJ,New Jersey,2,New York,Region 2 - New York
+NY,New York,2,New York,Region 2 - New York
+PR,Puerto Rico,2,New York,Region 2 - New York
+VI,Virgin Islands,2,New York,Region 2 - New York
+DC,District of Columbia,3,Philadelphia,Region 3 - Philadelphia
+DE,Delaware,3,Philadelphia,Region 3 - Philadelphia
+MD,Maryland,3,Philadelphia,Region 3 - Philadelphia
+PA,Pennsylvania,3,Philadelphia,Region 3 - Philadelphia
+VA,Virginia,3,Philadelphia,Region 3 - Philadelphia
+WV,West Virginia,3,Philadelphia,Region 3 - Philadelphia
+AL,Alabama,4,Atlanta,Region 4 - Atlanta
+FL,Florida,4,Atlanta,Region 4 - Atlanta
+GA,Georgia,4,Atlanta,Region 4 - Atlanta
+KY,Kentucky,4,Atlanta,Region 4 - Atlanta
+MS,Mississippi,4,Atlanta,Region 4 - Atlanta
+NC,North Carolina,4,Atlanta,Region 4 - Atlanta
+SC,South Carolina,4,Atlanta,Region 4 - Atlanta
+TN,Tennessee,4,Atlanta,Region 4 - Atlanta
+IL,Illinois,5,Chicago,Region 5 - Chicago
+IN,Indiana,5,Chicago,Region 5 - Chicago
+MI,Michigan,5,Chicago,Region 5 - Chicago
+MN,Minnesota,5,Chicago,Region 5 - Chicago
+OH,Ohio,5,Chicago,Region 5 - Chicago
+WI,Wisconsin,5,Chicago,Region 5 - Chicago
+AR,Arkansas,6,Dallas,Region 6 - Dallas
+LA,Louisiana,6,Dallas,Region 6 - Dallas
+NM,New Mexico,6,Dallas,Region 6 - Dallas
+OK,Oklahoma,6,Dallas,Region 6 - Dallas
+TX,Texas,6,Dallas,Region 6 - Dallas
+IA,Iowa,7,Kansas City,Region 7 - Kansas City
+KS,Kansas,7,Kansas City,Region 7 - Kansas City
+MO,Missouri,7,Kansas City,Region 7 - Kansas City
+NE,Nebraska,7,Kansas City,Region 7 - Kansas City
+CO,Colorado,8,Denver,Region 8 - Denver
+MT,Montana,8,Denver,Region 8 - Denver
+ND,North Dakota,8,Denver,Region 8 - Denver
+SD,South Dakota,8,Denver,Region 8 - Denver
+UT,Utah,8,Denver,Region 8 - Denver
+WY,Wyoming,8,Denver,Region 8 - Denver
+AS,American Samoa,9,San Francisco,Region 9 - San Francisco
+AZ,Arizona,9,San Francisco,Region 9 - San Francisco
+CA,California,9,San Francisco,Region 9 - San Francisco
+FM,Federated States of Micronesia,9,San Francisco,Region 9 - San Francisco
+GU,Guam,9,San Francisco,Region 9 - San Francisco
+HI,Hawaii,9,San Francisco,Region 9 - San Francisco
+MH,Marshall Islands,9,San Francisco,Region 9 - San Francisco
+MP,Northern Mariana Islands,9,San Francisco,Region 9 - San Francisco
+NV,Nevada,9,San Francisco,Region 9 - San Francisco
+PW,Republic of Palau,9,San Francisco,Region 9 - San Francisco
+AK,Alaska,10,Seattle,Region 10 - Seattle
+ID,Idaho,10,Seattle,Region 10 - Seattle
+OR,Oregon,10,Seattle,Region 10 - Seattle
+WA,Washington,10,Seattle,Region 10 - Seattle

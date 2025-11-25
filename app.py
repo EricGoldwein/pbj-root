@@ -8,18 +8,7 @@ import os
 import sys
 
 # Import date utilities from local utils package
-# Optionally try to import from PBJapp project if available (for override)
-sys.path.insert(0, r'C:\Users\egold\PycharmProjects\PBJapp')
-
-try:
-    # Try external project first (if you want to override with updated values)
-    from utils.date_utils import get_latest_data_periods
-except ImportError:
-    # Fallback to local utils package
-    # Remove external path to avoid conflicts
-    if r'C:\Users\egold\PycharmProjects\PBJapp' in sys.path:
-        sys.path.remove(r'C:\Users\egold\PycharmProjects\PBJapp')
-    from utils.date_utils import get_latest_data_periods
+from utils.date_utils import get_latest_data_periods
 
 app = Flask(__name__)
 
@@ -56,10 +45,15 @@ def pbj_sample():
     """Handle both /pbj-sample and /pbj-sample.html"""
     return send_file('pbj-sample.html', mimetype='text/html')
 
+@app.route('/report')
+@app.route('/report/')
+def report():
+    return send_file('report.html', mimetype='text/html')
+
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined
-    if filename in ['insights', 'insights.html', 'about', 'pbj-sample']:
+    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html']:
         from flask import abort
         abort(404)
     

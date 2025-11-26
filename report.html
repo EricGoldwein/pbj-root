@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>PBJ320 Nursing Home Staffing Report</title>
+  <title>US Nursing Home Staffing Rankings - Q2 2025</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj-320.onrender.com/report">
-  <meta property="og:title" content="PBJ320 Nursing Home Staffing Report">
+  <meta property="og:title" content="US Nursing Home Staffing Rankings - Q2 2025">
   <meta property="og:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   <meta property="og:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="PBJ320 Nursing Home Staffing Report">
+  <meta property="twitter:title" content="US Nursing Home Staffing Rankings - Q2 2025">
   <meta property="twitter:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   <meta property="twitter:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
@@ -2150,28 +2150,63 @@
       table-layout: fixed;
     }
     
-    /* Table Header */
-    #stateTable thead {
-      background: var(--table-header-bg);
-      position: sticky;
-      top: 0;
-      z-index: 10;
+    /* Prevent width expansion on mobile - apply immediately to prevent flash */
+    @media (max-width: 600px) {
+      /* Remove overflow and layout-breaking properties from container */
+      .table-container {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        overflow: visible !important; /* Remove overflow to allow sticky to work */
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        position: static !important; /* Remove position: relative */
+        display: block !important; /* Ensure not flex or grid */
+        transform: none !important; /* Remove any transforms */
+      }
+      
+      /* Make the table itself the scroll container */
+      #stateTable {
+        display: block !important; /* Change from table to block for scrolling */
+        overflow-x: auto !important; /* Horizontal scrolling on table */
+        overflow-y: visible !important;
+        -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
+        table-layout: fixed !important;
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+      
+      /* Prevent any parent from forcing width expansion */
+      .table-container * {
+        box-sizing: border-box !important;
+      }
     }
     
-    /* First header row (category row) - sticky at top */
-    #stateTable thead tr:first-child th {
-      position: sticky;
-      top: 0;
-      z-index: 12;
-    }
-    
-    /* Second header row (column labels) - sticky below first row */
-    /* Calculate top based on first row height: padding (16px * 2) + border (3px) + content (~25px) */
-    #stateTable thead tr:nth-child(2) th {
-      position: sticky;
-      top: calc(32px + 3px + 25px); /* ~60px on desktop */
-      z-index: 11;
-      border-bottom: none !important;
+    /* Table Header - Desktop sticky */
+    @media (min-width: 601px) {
+      #stateTable thead {
+        background: var(--table-header-bg);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+      
+      /* First header row (category row) - sticky at top */
+      #stateTable thead tr:first-child th {
+        position: sticky;
+        top: 0;
+        z-index: 12;
+      }
+      
+      /* Second header row (column labels) - sticky below first row */
+      /* Calculate top based on first row height: padding (16px * 2) + border (3px) + content (~25px) */
+      #stateTable thead tr:nth-child(2) th {
+        position: sticky;
+        top: calc(32px + 3px + 25px); /* ~60px on desktop */
+        z-index: 11;
+        border-bottom: none !important;
+      }
     }
     
     #stateTable th {
@@ -2232,83 +2267,86 @@
     }
     
     /* Frozen Column: Rank */
-    .col-rank {
-      width: 65px;
-      min-width: 65px;
-      max-width: 65px;
-      text-align: center;
-      position: sticky;
-      left: 0;
-      z-index: 12;
-      background: var(--rank-bg);
-      box-shadow: var(--frozen-shadow);
-      padding: 16px 8px;
-      font-weight: 700;
-      font-size: 0.85rem;
-      color: rgba(196, 181, 253, 0.95);
-    }
-    
-    #stateTable thead th.col-rank {
-      background: var(--table-header-bg);
-      z-index: 13;
-      color: rgba(196, 181, 253, 1);
-      padding: 16px 8px !important;
-      vertical-align: bottom !important;
-      line-height: normal !important;
-      border-right: none !important;
-      margin-right: 0 !important;
-    }
-    
-    /* Frozen Column: State */
-    .col-state {
-      width: 120px;
-      min-width: 120px;
-      max-width: 120px;
-      position: sticky;
-      left: 65px;
-      z-index: 11;
-      background: rgba(30, 27, 75, 0.4);
-      box-shadow: var(--frozen-shadow);
-      padding: 16px 10px;
-      white-space: normal;
-      line-height: 1.4;
-      word-wrap: break-word;
-      font-weight: 600;
-      margin-left: 0;
-    }
-    
-    #stateTable thead th.col-state {
-      background: var(--table-header-bg);
-      z-index: 13;
-      position: sticky;
-      left: 65px;
-      padding: 16px 10px;
-      box-shadow: var(--frozen-shadow);
-      border-left: none !important;
-      margin-left: 0 !important;
-    }
-    
-    /* Regular Columns */
-    .col-facilities {
-      width: 165px !important;
-      min-width: 165px !important;
-      max-width: 165px !important;
-      text-align: center !important;
-      padding: 16px 8px 16px 12px;
-      font-weight: 600;
-      background: rgba(30, 41, 59, 0.3) !important;
-    }
-    
-    #stateTable th.col-facilities {
-      width: 165px !important;
-      min-width: 165px !important;
-      max-width: 165px !important;
-      text-align: center !important;
-      background: rgba(30, 41, 59, 0.4) !important;
-    }
-    
-    #stateTable tbody td.col-facilities {
-      background: rgba(30, 41, 59, 0.2) !important;
+    /* Desktop column widths - wrapped in media query */
+    @media (min-width: 601px) {
+      .col-rank {
+        width: 65px;
+        min-width: 65px;
+        max-width: 65px;
+        text-align: center;
+        position: sticky;
+        left: 0;
+        z-index: 12;
+        background: var(--rank-bg);
+        box-shadow: var(--frozen-shadow);
+        padding: 16px 8px;
+        font-weight: 700;
+        font-size: 0.85rem;
+        color: rgba(196, 181, 253, 0.95);
+      }
+      
+      #stateTable thead th.col-rank {
+        background: var(--table-header-bg);
+        z-index: 13;
+        color: rgba(196, 181, 253, 1);
+        padding: 16px 8px !important;
+        vertical-align: bottom !important;
+        line-height: normal !important;
+        border-right: none !important;
+        margin-right: 0 !important;
+      }
+      
+      /* Frozen Column: State */
+      .col-state {
+        width: 120px;
+        min-width: 120px;
+        max-width: 120px;
+        position: sticky;
+        left: 65px;
+        z-index: 11;
+        background: rgba(30, 27, 75, 0.4);
+        box-shadow: var(--frozen-shadow);
+        padding: 16px 10px;
+        white-space: normal;
+        line-height: 1.4;
+        word-wrap: break-word;
+        font-weight: 600;
+        margin-left: 0;
+      }
+      
+      #stateTable thead th.col-state {
+        background: var(--table-header-bg);
+        z-index: 13;
+        position: sticky;
+        left: 65px;
+        padding: 16px 10px;
+        box-shadow: var(--frozen-shadow);
+        border-left: none !important;
+        margin-left: 0 !important;
+      }
+      
+      /* Regular Columns */
+      .col-facilities {
+        width: 165px !important;
+        min-width: 165px !important;
+        max-width: 165px !important;
+        text-align: center !important;
+        padding: 16px 8px 16px 12px;
+        font-weight: 600;
+        background: rgba(30, 41, 59, 0.3) !important;
+      }
+      
+      #stateTable th.col-facilities {
+        width: 165px !important;
+        min-width: 165px !important;
+        max-width: 165px !important;
+        text-align: center !important;
+        background: rgba(30, 41, 59, 0.4) !important;
+      }
+      
+      #stateTable tbody td.col-facilities {
+        background: rgba(30, 41, 59, 0.2) !important;
+      }
     }
     
     .col-residents {
@@ -2657,19 +2695,22 @@
         display: none !important;
       }
       
-      /* Hide Nurse Aide columns on mobile */
+      /* Hide Nurse Aide columns on mobile - Headers */
       #stateTable th[data-sort="nurseAideHPRD"],
       #stateTable th[data-sort="caseMixNA"] {
         display: none !important;
       }
       
-      #stateTable tbody tr > td:nth-child(8),
-      #stateTable tbody tr > td:nth-child(11) {
+      /* Hide Nurse Aide body cells using specific class */
+      #stateTable tbody td.nurse-aide-mobile-hide {
         display: none !important;
       }
       
-      .desktop-sff-header,
-      .desktop-sff-cell {
+      /* Hide SFF column on mobile */
+      #stateTable th.col-sff,
+      #stateTable th.desktop-sff-header,
+      #stateTable td.col-sff,
+      #stateTable td.desktop-sff-cell {
         display: none !important;
       }
       
@@ -2716,9 +2757,9 @@
         z-index: 9 !important;
         padding: 8px 4px 8px 6px !important;
         outline: none !important;
-        width: 85px !important;
-        min-width: 85px !important;
-        max-width: 85px !important;
+        width: 70px !important;
+        min-width: 70px !important;
+        max-width: 70px !important;
         white-space: normal !important;
         word-wrap: break-word !important;
         line-height: 1.2 !important;
@@ -2753,21 +2794,21 @@
       
       /* Make facilities narrower on mobile */
       .col-facilities {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
       }
       
       #stateTable th.col-facilities {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
       }
       
       #stateTable tbody td.col-facilities {
-        width: 120px !important;
-        min-width: 120px !important;
-        max-width: 120px !important;
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
       }
       
       /* Ensure District of Columbia wraps to two rows on mobile */
@@ -2857,8 +2898,359 @@
     }
     
     /* ============================================
+       MOBILE HEADER SPACING FIX (max-width: 600px)
+       ============================================ */
+    @media (max-width: 600px) {
+      /* Global safety rule */
+      #stateTable {
+        table-layout: fixed !important;
+      }
+      
+      /* Zone A — first three columns (RANK, STATE, FACILITIES) - shrink but not too much */
+      #stateTable thead th.col-rank,
+      #stateTable thead th.col-state,
+      #stateTable thead th.col-facilities,
+      #stateTable thead tr:first-child th:nth-child(1),
+      #stateTable thead tr:first-child th:nth-child(2),
+      #stateTable thead tr:first-child th:nth-child(3) {
+        min-width: 50px !important;
+        max-width: 70px !important;
+        padding: 4px 4px !important;
+        white-space: normal !important;
+      }
+      
+      /* State column narrower on mobile */
+      #stateTable thead th.col-state,
+      #stateTable tbody td.col-state {
+        width: 70px !important;
+        min-width: 70px !important;
+        max-width: 70px !important;
+      }
+      
+      /* Facilities column narrower on mobile */
+      #stateTable thead th.col-facilities,
+      #stateTable tbody td.col-facilities {
+        width: 100px !important;
+        min-width: 100px !important;
+        max-width: 100px !important;
+      }
+      
+      /* Zone B — group titles (REPORTED HPRD, CASE-MIX HPRD) - wrap freely */
+      #stateTable thead th.section-header,
+      #stateTable thead th.section-reported,
+      #stateTable thead th.section-casemix,
+      #stateTable thead th[colspan] {
+        padding: 2px 2px !important;
+        font-size: 11px !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+        min-width: 50px !important;
+        max-width: 90px !important;
+      }
+      
+      /* Zone C — subheaders TOTAL / RN (narrow but not crushed) */
+      #stateTable thead tr:nth-child(2) th {
+        padding: 2px 4px !important;
+        font-size: 10px !important;
+        min-width: 45px !important;
+        max-width: 60px !important;
+        white-space: normal !important;
+        vertical-align: middle !important;
+        top: 22px !important;
+      }
+      
+      /* If header cells contain DIVs */
+      #stateTable thead th * {
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+      
+      /* Tighten header cells for the first three columns */
+      #stateTable thead th.rank,
+      #stateTable thead th.state,
+      #stateTable thead th.facilities {
+        font-size: 10px !important;
+        padding: 2px 2px !important;
+        min-width: 45px !important;
+        max-width: 70px !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+      }
+      
+      /* Tighten data cells for those same columns */
+      #stateTable tbody td.rank,
+      #stateTable tbody td.state,
+      #stateTable tbody td.facilities {
+        font-size: 11px !important;
+        padding: 4px 2px !important;
+        min-width: 40px !important;
+        max-width: 70px !important;
+        white-space: normal !important;
+      }
+    }
+    
+    /* ============================================
        END NEW CLEAN TABLE CSS
        ============================================ */
+    
+    /* ============================================
+       MOBILE STICKY HEADER + STICKY COLUMNS
+       ============================================ */
+    @media (max-width: 600px) {
+      /* Freeze left columns - Rank */
+      #stateTable .col-rank {
+        position: sticky !important;
+        left: 0 !important;
+        z-index: 60 !important;
+        background: #0d1525 !important;
+      }
+      
+      /* Freeze left columns - State */
+      #stateTable .col-state {
+        position: sticky !important;
+        left: 40px !important;  /* final width of rank column */
+        z-index: 59 !important;
+        background: #0d1525 !important;
+      }
+      
+      /* Freeze BOTH header rows - All first row headers (using rowspan to identify) */
+      #stateTable thead th[rowspan="2"] {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 70 !important;
+        background: #0d1525 !important;
+      }
+      
+      /* Freeze BOTH header rows - Category headers (colspan headers in first row) */
+      #stateTable thead .col-group {
+        position: sticky !important;
+        top: 0 !important;
+        z-index: 70 !important;
+        background: #0d1525 !important;
+      }
+      
+      /* Freeze BOTH header rows - All second row headers (subheaders) */
+      #stateTable thead .col-sub {
+        position: sticky !important;
+        top: 26px !important; /* height of first header row */
+        z-index: 69 !important;
+        background: #0d1525 !important;
+      }
+      
+      /* Intersection: Rank and State in first row (sticky both ways) */
+      #stateTable thead th[rowspan="2"].col-rank {
+        z-index: 75 !important;
+      }
+      
+      #stateTable thead th[rowspan="2"].col-state {
+        z-index: 74 !important;
+      }
+      
+      /* Intersection: Rank and State in second row (they span both rows, so same z-index) */
+      /* Note: Rank and State have rowspan="2", so they appear in both rows but are one cell */
+      
+      /* Prevent bleed-through */
+      #stateTable thead th,
+      #stateTable tbody td {
+        background: #0d1525 !important;
+      }
+      
+      /* Specifically ensure rank and state body cells have matching background */
+      #stateTable tbody td.col-rank,
+      #stateTable tbody td.col-state {
+        background: #0d1525 !important;
+      }
+      
+      /* Tighten first three columns - Headers */
+      #stateTable thead th.col-rank {
+        font-size: 8px !important; /* Smaller text */
+        padding: 2px 1px !important; /* Reduced padding for rank */
+        min-width: 30px !important;
+        max-width: 40px !important;
+        white-space: normal !important;
+      }
+      
+      #stateTable thead th.col-state,
+      #stateTable thead th.col-facilities {
+        font-size: 8px !important; /* Smaller text */
+        padding: 2px 2px !important;
+        min-width: 35px !important;
+        max-width: 55px !important;
+        white-space: normal !important;
+      }
+      
+      /* Remove underline/border from facilities header */
+      #stateTable thead th.col-facilities {
+        border-bottom: none !important;
+        box-shadow: none !important;
+      }
+      
+      /* Tighten first three columns - Body cells */
+      #stateTable tbody td.col-rank {
+        font-size: 9px !important; /* Smaller text */
+        padding: 3px 1px !important; /* Reduced padding for rank */
+        min-width: 30px !important;
+        max-width: 40px !important;
+        background: #0d1525 !important;
+        text-align: center !important; /* Center rank values */
+      }
+      
+      #stateTable tbody td.col-state {
+        font-size: 9px !important; /* Smaller text */
+        padding: 3px 2px !important;
+        min-width: 35px !important;
+        max-width: 65px !important;
+        background: #0d1525 !important;
+      }
+      
+      #stateTable tbody td.col-facilities {
+        font-size: 9px !important; /* Smaller text */
+        padding: 3px 2px !important;
+        min-width: 35px !important;
+        max-width: 65px !important;
+        background-color: inherit !important; /* Follow row background */
+        text-align: center !important; /* Center facilities body values */
+        border-right: 2px solid rgba(255, 255, 255, 0.2) !important; /* Vertical divider */
+      }
+      
+      /* Add vertical divider to facilities header */
+      #stateTable thead th.col-facilities {
+        border-right: 2px solid rgba(255, 255, 255, 0.2) !important; /* Vertical divider */
+      }
+      
+      /* Remove blue border from Reported HPRD header on mobile */
+      #stateTable thead th.section-reported {
+        border-left: none !important;
+        border-right: none !important;
+      }
+      
+      /* Add vertical divider between Reported HPRD and Case-Mix HPRD */
+      /* Border on the right of the Reported HPRD category header */
+      #stateTable thead th.section-reported {
+        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      /* Border on the right of the last Reported HPRD column (RN column) in subheader row */
+      #stateTable thead th[data-sort="rnHPRD"] {
+        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      /* Add border to body cells - Reported RN is the 7th td (after Rank, State, Facilities, Residents, SFF, Reported Total) */
+      #stateTable tbody tr td:nth-child(7) {
+        border-right: 1px solid rgba(255, 255, 255, 0.15) !important;
+      }
+      
+      /* Make horizontal header borders extend full width on mobile */
+      /* Override individual cell borders and use a full-width border on the row */
+      #stateTable thead tr:first-child {
+        border-bottom: 3px solid rgba(99, 102, 241, 0.4) !important;
+        position: relative;
+      }
+      
+      #stateTable thead tr:first-child th {
+        border-bottom: none !important; /* Remove individual cell borders */
+      }
+      
+      /* Alternating row shading */
+      #stateTable tbody tr:nth-child(even) {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+      }
+      
+      #stateTable tbody tr:nth-child(odd) {
+        background-color: transparent !important;
+      }
+      
+      /* Add horizontal lines between rows using cell borders */
+      #stateTable tbody tr td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        background-color: inherit !important;
+      }
+      
+      /* Remove border from last row */
+      #stateTable tbody tr:last-child td {
+        border-bottom: none !important;
+      }
+      
+      /* Override for sticky columns to match row shading exactly */
+      /* Odd rows should match the transparent/background of other cells in the row */
+      #stateTable tbody tr:nth-child(odd) td.col-rank,
+      #stateTable tbody tr:nth-child(odd) td.col-state {
+        background: transparent !important; /* Match the transparent background of odd rows */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      }
+      
+      /* Even rows should match the light background of other cells in the row */
+      #stateTable tbody tr:nth-child(even) td.col-rank,
+      #stateTable tbody tr:nth-child(even) td.col-state {
+        background: rgba(255, 255, 255, 0.02) !important; /* Match the light background of even rows */
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+      }
+      
+      #stateTable tbody tr:last-child td.col-rank,
+      #stateTable tbody tr:last-child td.col-state {
+        border-bottom: none !important;
+      }
+      
+      /* Facilities column should follow alternating row shading */
+      #stateTable tbody tr td.col-facilities {
+        background-color: inherit !important;
+      }
+      
+      #stateTable tbody tr:nth-child(even) td.col-facilities {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+      }
+      
+      #stateTable tbody tr:nth-child(odd) td.col-facilities {
+        background-color: transparent !important;
+      }
+      
+      /* Table must be scroll container with vertical scrolling enabled */
+      #stateTable {
+        display: block !important;
+        overflow-x: auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-height: 80vh !important; /* Allow vertical scrolling */
+        height: auto !important;
+      }
+      
+      /* Remove overflow from parent wrappers */
+      .table-container {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+        padding-right: 0 !important;
+        margin-right: 0 !important;
+      }
+      
+      .table-wrapper,
+      .scroll-container,
+      .outer-wrapper {
+        overflow: visible !important;
+        overflow-x: visible !important;
+        overflow-y: visible !important;
+      }
+      
+      /* When table is display: block, maintain table structure */
+      #stateTable thead {
+        display: table-header-group !important;
+      }
+      
+      #stateTable tbody {
+        display: table-row-group !important;
+      }
+      
+      #stateTable thead tr,
+      #stateTable tbody tr {
+        display: table-row !important;
+      }
+      
+      #stateTable thead th,
+      #stateTable tbody td {
+        display: table-cell !important;
+        white-space: normal !important;
+      }
+    }
     
     /* Modal improvements - Mobile */
     @media (max-width: 768px) {
@@ -3120,23 +3512,23 @@
         <table id="stateTable">
           <thead>
             <tr>
-              <th rowspan="2" class="col-rank sortable" data-sort="rank">Rank</th>
-              <th rowspan="2" class="col-state sortable" data-sort="state">State</th>
-              <th rowspan="2" class="col-facilities sortable" data-sort="facilities">Facilities</th>
+              <th rowspan="2" class="col-rank rank sortable" data-sort="rank">Rank</th>
+              <th rowspan="2" class="col-state state sortable" data-sort="state">State</th>
+              <th rowspan="2" class="col-facilities facilities sortable" data-sort="facilities">Facilities</th>
               <th rowspan="2" class="col-residents sortable" data-sort="residents">
                 Residents
               </th>
               <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br>Candidates</th>
-              <th colspan="3" class="section-header section-reported">Reported HPRD</th>
-              <th colspan="3" class="section-header section-casemix">Case-Mix HPRD</th>
+              <th colspan="3" class="section-header section-reported col-group">Reported HPRD</th>
+              <th colspan="3" class="section-header section-casemix col-group">Case-Mix HPRD</th>
             </tr>
             <tr>
-              <th class="col-hprd sortable" data-sort="totalHPRD">Total</th>
-              <th class="col-hprd sortable" data-sort="rnHPRD">RN</th>
-              <th class="col-hprd sortable" data-sort="nurseAideHPRD">Nurse<br>Aide</th>
-              <th class="col-hprd sortable" data-sort="caseMixTotal">Total</th>
-              <th class="col-hprd sortable" data-sort="caseMixRN">RN</th>
-              <th class="col-hprd sortable" data-sort="caseMixNA">Nurse<br>Aide</th>
+              <th class="col-hprd col-sub sortable" data-sort="totalHPRD">Total</th>
+              <th class="col-hprd col-sub sortable" data-sort="rnHPRD">RN</th>
+              <th class="col-hprd col-sub sortable" data-sort="nurseAideHPRD">Nurse<br>Aide</th>
+              <th class="col-hprd col-sub sortable" data-sort="caseMixTotal">Total</th>
+              <th class="col-hprd col-sub sortable" data-sort="caseMixRN">RN</th>
+              <th class="col-hprd col-sub sortable" data-sort="caseMixNA">Nurse<br>Aide</th>
             </tr>
           </thead>
           <tbody id="stateTableBody">
@@ -3743,8 +4135,8 @@
             }
           }
           
-          // Update document title and meta tags (use desktop version)
-          const fullTitle = `PBJ320 Nursing Home Staffing Report: ${quarterYear}`;
+          // Update document title and meta tags
+          const fullTitle = `US Nursing Home Staffing Rankings - ${quarterYear}`;
           const fullDescription = `Comprehensive ${quarterYear} nursing home staffing analysis by state with ratios, medians, and interactive map.`;
           
           document.title = fullTitle;
@@ -3773,17 +4165,6 @@
               const casemixHeader = document.querySelector('#stateTable th.section-casemix');
               if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
               if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
-              
-              // Force inline styles on headers for mobile to prevent expansion
-              const totalHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"]');
-              totalHPRDHeaders.forEach(th => {
-                th.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
-              });
-              
-              const rnHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
-              rnHPRDHeaders.forEach(th => {
-                th.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
-              });
             } else {
               const reportedHeader = document.querySelector('#stateTable th.section-reported');
               const casemixHeader = document.querySelector('#stateTable th.section-casemix');
@@ -4670,29 +5051,8 @@
       const td = document.createElement('td');
       if (className) td.className = className;
       
-      // Force mobile widths for HPRD columns immediately via inline styles
-      if (window.innerWidth <= 768 && className.includes('col-hprd')) {
-        // Check if it's a Total column (caseMixTotal or first reported-value)
-        const isTotal = className.includes('casemix-value') && className.includes('Total') || 
-                       (className.includes('reported-value') && !className.includes('RN') && !className.includes('Nurse'));
-        // Check if it's RN column
-        const isRN = className.includes('RN') || className.includes('rn');
-        
-        // Determine width based on column type
-        if (isTotal || (!isRN && className.includes('casemix-value'))) {
-          // Total columns: 22px
-          const mobileStyle = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ';
-          td.style.cssText = mobileStyle + (style || '');
-        } else if (isRN) {
-          // RN columns: 24px
-          const mobileStyle = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ';
-          td.style.cssText = mobileStyle + (style || '');
-        } else {
-          if (style) td.style.cssText = style;
-        }
-      } else {
-        if (style) td.style.cssText = style;
-      }
+      // CSS handles all width constraints - no inline styles needed
+      if (style) td.style.cssText = style;
       
       if (content instanceof Node) {
         td.appendChild(content);
@@ -4751,34 +5111,18 @@
       tbody.innerHTML = '';
       
       // Update colspan for section headers on mobile (span 2 columns instead of 3)
-      // Do this AFTER clearing to avoid reflow issues
-      if (window.innerWidth <= 768) {
+      // CSS now handles all width constraints - no inline styles needed
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
         const reportedHeader = document.querySelector('#stateTable th.section-reported');
         const casemixHeader = document.querySelector('#stateTable th.section-casemix');
         if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
         if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
-        
-        // Force inline styles on headers for mobile to prevent expansion
-        const totalHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"]');
-        totalHPRDHeaders.forEach(th => {
-          th.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
-        });
-        
-        const rnHPRDHeaders = document.querySelectorAll('#stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
-        rnHPRDHeaders.forEach(th => {
-          th.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; font-size: 0.6rem !important;';
-        });
       } else {
         const reportedHeader = document.querySelector('#stateTable th.section-reported');
         const casemixHeader = document.querySelector('#stateTable th.section-casemix');
         if (reportedHeader) reportedHeader.setAttribute('colspan', '3');
         if (casemixHeader) casemixHeader.setAttribute('colspan', '3');
-        
-        // Clear inline styles on desktop
-        const hprdHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"], #stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
-        hprdHeaders.forEach(th => {
-          th.style.cssText = '';
-        });
       }
       
       // Get data based on current view
@@ -4965,11 +5309,11 @@
         const tr = document.createElement('tr');
         
         // Rank cell
-        tr.appendChild(createTableCell(rank, 'col-rank'));
+        tr.appendChild(createTableCell(rank, 'col-rank rank'));
         
         // State cell
         const stateCell = document.createElement('td');
-        stateCell.className = 'col-state';
+        stateCell.className = 'col-state state';
         if (currentTableView === 'region') {
           // Region name - may have HTML for two-line display
           if (displayName.includes('<br/>')) {
@@ -4987,7 +5331,7 @@
         
         // Facilities cell
         const facilitiesCell = document.createElement('td');
-        facilitiesCell.className = 'col-facilities';
+        facilitiesCell.className = 'col-facilities facilities';
         const facilityCountDiv = document.createElement('div');
         facilityCountDiv.className = 'facility-count';
         facilityCountDiv.textContent = state.facility_count.toLocaleString();
@@ -4998,9 +5342,11 @@
         mobileSffWrapper.className = 'mobile-sff-wrapper';
         let sffButton;
         if (currentTableView === 'region') {
-          sffButton = createButton('View High-Risk', () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
+          const buttonText = window.innerWidth <= 600 ? 'Risk List' : 'View High-Risk';
+          sffButton = createButton(buttonText, () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
         } else {
-          sffButton = createButton('View High-Risk', () => openSFFModal(state.name, stateAbbr), !hasSFF);
+          const buttonText = window.innerWidth <= 600 ? 'Risk List' : 'View High-Risk';
+          sffButton = createButton(buttonText, () => openSFFModal(state.name, stateAbbr), !hasSFF);
         }
         mobileSffWrapper.appendChild(sffButton);
         facilitiesCell.appendChild(mobileSffWrapper);
@@ -5047,20 +5393,14 @@
           reportedNAText = formatValue(reportedNAValue, tableShowMedians, (stateMedians[state.name]?.Nurse_Assistant_HPRD || 0));
         }
         
-        // Reported HPRD cells - track column position for mobile width setting
+        // Reported HPRD cells - CSS handles widths
         const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value', caseMixTotalColor ? `color: ${caseMixTotalColor};` : '');
-        if (window.innerWidth <= 768) {
-          reportedTotalCell.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ' + (caseMixTotalColor ? `color: ${caseMixTotalColor};` : '');
-        }
         tr.appendChild(reportedTotalCell);
         
         const reportedRNCell = createTableCell(reportedRNText, 'col-hprd reported-value', caseMixRNColor ? `color: ${caseMixRNColor};` : '');
-        if (window.innerWidth <= 768) {
-          reportedRNCell.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important; ' + (caseMixRNColor ? `color: ${caseMixRNColor};` : '');
-        }
         tr.appendChild(reportedRNCell);
         
-        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value', caseMixNAColor ? `color: ${caseMixNAColor};` : '');
+        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value nurse-aide-mobile-hide', caseMixNAColor ? `color: ${caseMixNAColor};` : '');
         tr.appendChild(reportedNACell);
         
         // Case-Mix HPRD cells
@@ -5082,18 +5422,12 @@
         }
         
         const caseMixTotalCell = createTableCell(caseMixTotalText, 'col-hprd casemix-value');
-        if (window.innerWidth <= 768) {
-          caseMixTotalCell.style.cssText = 'width: 22px !important; min-width: 22px !important; max-width: 22px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important;';
-        }
         tr.appendChild(caseMixTotalCell);
         
         const caseMixRNCell = createTableCell(caseMixRNText, 'col-hprd casemix-value');
-        if (window.innerWidth <= 768) {
-          caseMixRNCell.style.cssText = 'width: 24px !important; min-width: 24px !important; max-width: 24px !important; padding: 8px 0px !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; box-sizing: border-box !important; text-align: center !important;';
-        }
         tr.appendChild(caseMixRNCell);
         
-        const caseMixNACell = createTableCell(caseMixNAText, 'col-hprd casemix-value');
+        const caseMixNACell = createTableCell(caseMixNAText, 'col-hprd casemix-value nurse-aide-mobile-hide');
         tr.appendChild(caseMixNACell);
         
         // Append row to tbody

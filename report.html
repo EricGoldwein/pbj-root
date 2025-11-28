@@ -849,7 +849,7 @@
       padding: 12px 8px;
     }
     
-    /* Show facilities column on mobile as "NHs" */
+    /* Show facilities column on desktop as "Facilities" */
     th[data-sort="facilities"] .desktop-text {
       display: inline;
     }
@@ -890,6 +890,53 @@
     .mobile-facilities-cell {
       text-align: center;
       vertical-align: middle;
+    }
+    
+    /* Hide desktop Risk List button on mobile (it has its own column on mobile) */
+    @media (max-width: 600px) {
+      .desktop-risk-list-button {
+        display: none !important;
+      }
+      
+      .desktop-red-indicator {
+        display: none !important;
+      }
+    }
+    
+    /* Show desktop Risk List button on desktop */
+    @media (min-width: 601px) {
+      .desktop-risk-list-button {
+        display: inline-block;
+        margin-top: 4px;
+        background: #dc2626 !important;
+        color: white !important;
+        border: none !important;
+        padding: 4px 10px !important;
+        border-radius: 4px !important;
+        font-size: 0.7rem !important;
+        font-weight: 500 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+        box-shadow: 0 1px 3px rgba(220, 38, 38, 0.3) !important;
+      }
+      
+      .desktop-risk-list-button:hover {
+        background: #b91c1c !important;
+        box-shadow: 0 2px 5px rgba(220, 38, 38, 0.4) !important;
+        transform: translateY(-1px) !important;
+      }
+      
+      .desktop-risk-list-button:active {
+        background: #991b1b !important;
+        transform: translateY(0) !important;
+      }
+      
+      .desktop-risk-list-button:disabled {
+        background: rgba(255,255,255,0.2) !important;
+        color: rgba(255,255,255,0.5) !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+      }
     }
     
     .mobile-sff-button {
@@ -2368,10 +2415,12 @@
     
     #stateTable th.section-header {
       text-align: center !important;
+      vertical-align: top !important;
     }
     
     .section-reported {
       background: var(--section-reported);
+      line-height: 1.3;
       border-left: 3px solid rgba(59, 130, 246, 0.8);
       border-right: 3px solid rgba(59, 130, 246, 0.8);
       box-shadow: inset 0 2px 4px rgba(59, 130, 246, 0.2);
@@ -2851,10 +2900,29 @@
         color: #f87171 !important;
       }
       
-      /* Force bottom alignment for Risk List header */
-      #stateTable thead tr:first-child th.col-risk-list,
-      #stateTable thead tr:first-child th.mobile-risk-list-header {
+      /* Ensure Risk List header aligns to bottom like Facilities - match Facilities styling exactly */
+      #stateTable thead th.col-risk-list,
+      #stateTable thead th.mobile-risk-list-header {
         vertical-align: bottom !important;
+        text-align: center !important;
+        padding-bottom: 8px !important;
+      }
+      
+      /* Override any second row rules that might affect rowspan headers */
+      #stateTable thead tr:nth-child(2) th.col-risk-list,
+      #stateTable thead tr:nth-child(2) th.mobile-risk-list-header {
+        vertical-align: bottom !important;
+      }
+      
+      /* Ensure Risk List header aligns to bottom like Facilities - match Facilities exactly */
+      /* Use same selector pattern as Facilities - no row selector, just class */
+      #stateTable thead th.col-risk-list,
+      #stateTable thead th.mobile-risk-list-header {
+        white-space: normal !important;
+        line-height: 1.1 !important;
+        vertical-align: bottom !important;
+        text-align: center !important;
+        font-size: 0.55rem !important;
         padding-bottom: 8px !important;
       }
       
@@ -2890,7 +2958,7 @@
       }
       
       #stateTable td.mobile-risk-list-cell button {
-        padding: 4px 4px !important;
+        padding: 4px 1px !important;
         font-size: 0.55rem !important;
         min-width: auto !important;
         width: 100% !important;
@@ -3122,11 +3190,30 @@
       /* Facilities column narrower on mobile */
       #stateTable thead th.col-facilities,
       #stateTable tbody td.col-facilities {
-        width: 40px !important;
-        min-width: 40px !important;
-        max-width: 40px !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
         padding: 4px 2px !important;
         font-size: 0.7rem !important;
+      }
+      
+      /* Ensure Facilities header wraps properly on mobile */
+      #stateTable thead th.col-facilities {
+        white-space: normal !important;
+        line-height: 1.1 !important;
+        vertical-align: bottom !important;
+        text-align: center !important;
+        font-size: 0.55rem !important;
+        padding-bottom: 8px !important;
+      }
+      
+      /* Hide desktop text, show mobile text on mobile */
+      #stateTable thead th.col-facilities .desktop-text {
+        display: none !important;
+      }
+      
+      #stateTable thead th.col-facilities .mobile-text {
+        display: inline !important;
       }
       
       /* Rank column narrower on mobile */
@@ -3161,6 +3248,21 @@
         white-space: normal !important;
         vertical-align: middle !important;
         top: 22px !important;
+      }
+      
+      /* Override second row vertical-align for Risk List header (rowspan="2") to match Facilities */
+      /* This must come after the general second row rule to override it */
+      #stateTable thead tr:nth-child(2) th.col-risk-list,
+      #stateTable thead tr:nth-child(2) th.mobile-risk-list-header {
+        vertical-align: bottom !important;
+        padding-bottom: 8px !important;
+      }
+      
+      /* Additional override for first row to ensure bottom alignment */
+      #stateTable thead tr:first-child th.col-risk-list,
+      #stateTable thead tr:first-child th.mobile-risk-list-header {
+        vertical-align: bottom !important;
+        padding-bottom: 8px !important;
       }
       
       /* Ensure Risk List header is bottom-aligned, not affected by subheader rules */
@@ -3512,6 +3614,20 @@
       .sff-section h4 {
         font-size: 1rem;
         margin-bottom: 12px;
+        flex-wrap: nowrap !important;
+        white-space: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      
+      .sff-section h4 .badge {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+      }
+      
+      .sff-section h4 > *:not(.badge) {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
       }
       
       .sff-list li {
@@ -3605,9 +3721,28 @@
       
       #stateTable thead th.col-facilities,
       #stateTable tbody td.col-facilities {
-        width: 35px !important;
-        min-width: 35px !important;
-        max-width: 35px !important;
+        width: 32px !important;
+        min-width: 32px !important;
+        max-width: 32px !important;
+      }
+      
+      /* Ensure Facilities header wraps properly on iPhone */
+      #stateTable thead th.col-facilities {
+        white-space: normal !important;
+        line-height: 1.1 !important;
+        vertical-align: bottom !important;
+        text-align: center !important;
+        font-size: 0.55rem !important;
+        padding-bottom: 8px !important;
+      }
+      
+      /* Hide desktop text, show mobile text on iPhone */
+      #stateTable thead th.col-facilities .desktop-text {
+        display: none !important;
+      }
+      
+      #stateTable thead th.col-facilities .mobile-text {
+        display: inline !important;
       }
       
       #stateTable thead th[data-sort="totalHPRD"],
@@ -3768,7 +3903,7 @@
             <tr>
               <th rowspan="2" class="sticky-col sortable" data-sort="rank">Rank</th>
               <th rowspan="2" class="sticky-col-2 sortable" data-sort="state">State</th>
-              <th rowspan="2" class="sortable" data-sort="facilities"><span class="desktop-text">Facilities</span><span class="mobile-text">Facilities</span></th>
+              <th rowspan="2" class="sortable" data-sort="facilities"><span class="desktop-text">Facilities</span><span class="mobile-text">Nursing<br/>Homes</span></th>
               <th rowspan="2" class="sortable" data-sort="residents">
                 Residents
               </th>
@@ -3801,12 +3936,12 @@
             <tr>
               <th rowspan="2" class="col-rank rank sortable" data-sort="rank">Rank</th>
               <th rowspan="2" class="col-state state sortable" data-sort="state">State</th>
-              <th rowspan="2" class="col-facilities facilities sortable" data-sort="facilities">Facilities</th>
+              <th rowspan="2" class="col-facilities facilities sortable" data-sort="facilities"><span class="desktop-text">Facilities</span><span class="mobile-text">Nursing<br/>Homes</span></th>
               <th rowspan="2" class="col-residents sortable" data-sort="residents">
                 Residents
               </th>
               <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br>Candidates</th>
-              <th colspan="3" class="section-header section-reported col-group">Reported HPRD</th>
+              <th colspan="3" class="section-header section-reported col-group">Reported HPRD<br/><span class="desktop-red-indicator" style="font-size: 0.65rem; color: #f87171; font-weight: normal; line-height: 1.2;">Red indicates below case-mix</span></th>
               <th colspan="3" class="section-header section-casemix col-group">Case-Mix HPRD</th>
               <th rowspan="2" class="col-risk-list mobile-risk-list-header">High-Risk<br/>NHs</th>
             </tr>
@@ -5624,6 +5759,17 @@
         facilityCountDiv.className = 'facility-count';
         facilityCountDiv.textContent = state.facility_count.toLocaleString();
         facilitiesCell.appendChild(facilityCountDiv);
+        
+        // Add Risk List button on desktop (hidden on mobile where it has its own column)
+        let desktopSffButton;
+        if (currentTableView === 'region') {
+          desktopSffButton = createButton('View High-Risk', () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
+        } else {
+          desktopSffButton = createButton('View High-Risk', () => openSFFModal(state.name, stateAbbr), !hasSFF);
+        }
+        desktopSffButton.className = 'desktop-risk-list-button';
+        facilitiesCell.appendChild(desktopSffButton);
+        
         tr.appendChild(facilitiesCell);
         
         // Residents cell
@@ -5872,7 +6018,7 @@
           <div class="sff-section">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
-              Special Focus Facility Candidates (${uniqueCandidates.length})
+              <span style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
@@ -5912,7 +6058,7 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Overall</span>
-              Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})
+              <span style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
@@ -6774,7 +6920,7 @@
           <div class="sff-section">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
-              Special Focus Facility Candidates (${uniqueCandidates.length})
+              <span style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
@@ -6814,7 +6960,7 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Overall</span>
-              Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})
+              <span style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}

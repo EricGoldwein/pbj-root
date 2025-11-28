@@ -1221,6 +1221,14 @@
       background: #ea580c;
     }
     
+    .sff-section h4 .desktop-text {
+      display: inline;
+    }
+    
+    .sff-section h4 .mobile-text {
+      display: none;
+    }
+    
     .sff-list {
       list-style: none;
       padding: 0;
@@ -1466,6 +1474,8 @@
       
       .nav-toggle {
         display: flex;
+        align-items: center;
+        justify-content: center;
         min-width: 44px; /* Touch target */
         min-height: 44px;
       }
@@ -3628,6 +3638,14 @@
       .sff-section h4 > *:not(.badge) {
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+      }
+      
+      .sff-section h4 .desktop-text {
+        display: none !important;
+      }
+      
+      .sff-section h4 .mobile-text {
+        display: inline !important;
       }
       
       .sff-list li {
@@ -5998,7 +6016,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge">SFF</span>
-              Special Focus Facilities (${uniqueSFF.length})
+              <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
+              <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
@@ -6018,7 +6037,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
-              <span style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
+              <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
+              <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
@@ -6038,7 +6058,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
-              Facilities with Abuse Icon (${uniqueAbuse.length})
+              <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
+              <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
@@ -6058,7 +6079,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Overall</span>
-              <span style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
+              <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
+              <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
@@ -6078,7 +6100,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Staffing</span>
-              Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})
+              <span class="desktop-text">Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})</span>
+              <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'oneStarStaffing')).join('')}
@@ -6900,7 +6923,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge">SFF</span>
-              Special Focus Facilities (${uniqueSFF.length})
+              <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
+              <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
@@ -6920,7 +6944,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
-              <span style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
+              <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
+              <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
@@ -6940,7 +6965,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
-              Facilities with Abuse Icon (${uniqueAbuse.length})
+              <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
+              <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
@@ -6960,7 +6986,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Overall</span>
-              <span style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
+              <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
+              <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
@@ -6980,7 +7007,8 @@
           <div class="sff-section">
             <h4>
               <span class="badge" style="background: #f87171;">1★ Staffing</span>
-              Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})
+              <span class="desktop-text">Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})</span>
+              <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'oneStarStaffing')).join('')}

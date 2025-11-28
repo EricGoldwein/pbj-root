@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <title>US Nursing Home Staffing Rankings - Q2 2025</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   
   <!-- Open Graph / Facebook -->
@@ -2285,9 +2285,17 @@
       
       /* Ensure data-section doesn't add extra padding that creates empty space */
       .data-section {
-        padding-left: 12px !important;
-        padding-right: 12px !important;
+        padding-left: 8px !important;
+        padding-right: 8px !important;
         box-sizing: border-box !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      
+      /* Ensure container doesn't add extra padding on mobile */
+      .container {
+        padding-left: 8px !important;
+        padding-right: 8px !important;
       }
     }
     
@@ -3573,18 +3581,81 @@
         height: 280px;
       }
       
-      table {
-        min-width: 750px;
+      /* Remove min-width constraint that forces table to be too wide on iPhone */
+      #stateTable {
+        min-width: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      /* Further reduce column widths for iPhone */
+      #stateTable thead th.col-rank,
+      #stateTable tbody td.col-rank {
+        width: 28px !important;
+        min-width: 28px !important;
+        max-width: 28px !important;
+      }
+      
+      #stateTable thead th.col-state,
+      #stateTable tbody td.col-state {
+        width: 45px !important;
+        min-width: 45px !important;
+        max-width: 45px !important;
+      }
+      
+      #stateTable thead th.col-facilities,
+      #stateTable tbody td.col-facilities {
+        width: 35px !important;
+        min-width: 35px !important;
+        max-width: 35px !important;
+      }
+      
+      #stateTable thead th[data-sort="totalHPRD"],
+      #stateTable thead th[data-sort="caseMixTotal"],
+      #stateTable tbody tr > td:nth-child(6),
+      #stateTable tbody tr > td:nth-child(9) {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+      }
+      
+      #stateTable thead th[data-sort="rnHPRD"],
+      #stateTable thead th[data-sort="caseMixRN"],
+      #stateTable tbody tr > td:nth-child(7),
+      #stateTable tbody tr > td:nth-child(10) {
+        width: 30px !important;
+        min-width: 30px !important;
+        max-width: 30px !important;
+      }
+      
+      #stateTable th.col-risk-list,
+      #stateTable th.mobile-risk-list-header,
+      #stateTable td.col-risk-list,
+      #stateTable td.mobile-risk-list-cell {
+        width: 42px !important;
+        min-width: 42px !important;
+        max-width: 42px !important;
       }
       
       th, td {
-        padding: 8px 3px;
+        padding: 6px 2px;
         font-size: 0.65rem;
       }
       
       th {
         font-size: 0.6rem;
-        padding: 6px 3px;
+        padding: 6px 2px;
+      }
+      
+      /* Reduce container and section padding even more on iPhone */
+      .container {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
+      }
+      
+      .data-section {
+        padding-left: 4px !important;
+        padding-right: 4px !important;
       }
     }
   </style>

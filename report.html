@@ -46,11 +46,11 @@
       top: 0;
       z-index: 1000;
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-bottom: 2px solid #1769aa;
+      border-bottom: 2px solid #1e40af;
     }
     
     .nav-container {
-      max-width: 1400px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 0 20px;
       display: flex;
@@ -1411,7 +1411,9 @@
         padding: 8px 10px !important;
         font-size: 0.7rem !important;
         border-radius: 6px;
-        max-width: 180px;
+        max-width: calc(100vw - 20px) !important;
+        min-width: 140px;
+        width: auto !important;
         line-height: 1 !important;
         background: rgba(15, 23, 42, 0.95) !important;
         color: rgba(255, 255, 255, 0.85) !important;
@@ -1469,7 +1471,17 @@
         border-bottom: 1px solid rgba(255,255,255,0.1);
         text-align: left;
         font-size: 1rem;
+        color: rgba(255,255,255,0.9);
+        background: transparent;
+        transition: all 0.2s ease;
         min-height: 48px; /* Touch target */
+      }
+      
+      .nav-link:hover,
+      .nav-link.active {
+        background: rgba(96, 165, 250, 0.1);
+        color: #60a5fa;
+        border-left: 3px solid #60a5fa;
       }
       
       .nav-toggle {
@@ -1478,6 +1490,18 @@
         justify-content: center;
         min-width: 44px; /* Touch target */
         min-height: 44px;
+      }
+      
+      .nav-toggle.active span:nth-child(1) {
+        transform: rotate(45deg) translate(5px, 5px);
+      }
+      
+      .nav-toggle.active span:nth-child(2) {
+        opacity: 0;
+      }
+      
+      .nav-toggle.active span:nth-child(3) {
+        transform: rotate(-45deg) translate(7px, -6px);
       }
       
       .page-header {
@@ -2296,22 +2320,24 @@
     
     /* Prevent width expansion on mobile - apply immediately to prevent flash */
     @media (max-width: 600px) {
-      /* Remove overflow and layout-breaking properties from container */
+      /* Table container - allow vertical scrolling */
       .table-container {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        overflow: visible !important; /* Remove overflow to allow sticky to work */
-        overflow-x: visible !important;
-        overflow-y: visible !important;
-        position: static !important; /* Remove position: relative */
-        display: block !important; /* Ensure not flex or grid */
-        transform: none !important; /* Remove any transforms */
+        overflow-x: auto !important; /* Horizontal scrolling */
+        overflow-y: auto !important; /* Vertical scrolling */
+        max-height: 75vh !important; /* Limit height to allow scrolling */
+        -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
+        position: relative !important;
+        display: block !important;
+        transform: none !important;
+        padding-bottom: 80px !important; /* Add padding at bottom to ensure last rows are visible */
       }
       
-      /* Make the table itself the scroll container */
+      /* Make the table itself scrollable */
       #stateTable {
-        display: block !important; /* Change from table to block for scrolling */
+        display: table !important; /* Keep as table for proper layout */
         overflow-x: auto !important; /* Horizontal scrolling on table */
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
@@ -2320,19 +2346,8 @@
         min-width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      
-      /* Ensure table container doesn't overflow */
-      .table-container {
-        width: 100% !important;
-        max-width: 100% !important;
-        min-width: 100% !important;
-        box-sizing: border-box !important;
-        padding: 0 !important;
-        margin: 0 !important;
-        overflow: visible !important;
+        margin: 0 0 40px 0 !important; /* Add margin at bottom */
+        padding: 0 0 20px 0 !important; /* Add padding at bottom */
       }
       
       /* Prevent any parent from forcing width expansion */
@@ -2819,9 +2834,16 @@
     @media (max-width: 768px) {
       .table-container {
         margin: 0;
-        padding: 0;
-        max-height: 70vh;
+        padding: 0 0 80px 0;
+        max-height: 75vh;
+        overflow-x: auto;
         overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      #stateTable {
+        margin-bottom: 40px !important;
+        padding-bottom: 20px !important;
       }
       
       #stateTable {
@@ -3040,6 +3062,13 @@
         word-wrap: break-word !important;
         display: inline !important;
         line-height: 1.2 !important;
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
       
       /* Ensure no visual gap - make state start exactly where rank ends */
@@ -3077,17 +3106,34 @@
         max-width: 100px !important;
       }
       
-      /* Ensure District of Columbia wraps to two rows on mobile */
+      /* Ensure state names wrap properly - max 2 rows */
       #stateTable tbody td.col-state {
         white-space: normal !important;
         word-wrap: break-word !important;
-        line-height: 1.3 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.15 !important;
+        max-height: 2.3em !important; /* Limit to 2 lines */
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        border-bottom: none !important;
+        font-size: 0.65rem !important;
       }
       
       #stateTable tbody td.col-state a {
         white-space: normal !important;
         word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
         display: inline !important;
+        line-height: 1.15 !important;
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
       
       /* Fix second header row border bleeding issue on mobile */
@@ -3149,17 +3195,34 @@
         padding-bottom: 8px !important;
       }
       
-      /* Ensure District of Columbia wraps to two rows on mobile */
+      /* Ensure state names wrap properly - max 2 rows */
       #stateTable tbody td.col-state {
         white-space: normal !important;
         word-wrap: break-word !important;
-        line-height: 1.3 !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        line-height: 1.15 !important;
+        max-height: 2.3em !important; /* Limit to 2 lines */
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        border-bottom: none !important;
+        font-size: 0.65rem !important;
       }
       
       #stateTable tbody td.col-state a {
         white-space: normal !important;
         word-wrap: break-word !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
         display: inline !important;
+        line-height: 1.15 !important;
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
     }
     
@@ -3194,7 +3257,28 @@
         min-width: 50px !important;
         max-width: 50px !important;
         padding: 4px 2px !important;
-        font-size: 0.7rem !important;
+        font-size: 0.65rem !important; /* Smaller font */
+      }
+      
+      #stateTable tbody td.col-state {
+        line-height: 1.15 !important;
+        max-height: 2.3em !important; /* Limit to 2 lines */
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        border-bottom: none !important;
+      }
+      
+      /* Remove underline from state column links on mobile */
+      #stateTable tbody td.col-state a {
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
       
       /* Facilities column narrower on mobile */
@@ -3411,11 +3495,28 @@
       }
       
       #stateTable tbody td.col-state {
-        font-size: 9px !important; /* Smaller text */
+        font-size: 0.6rem !important; /* Smaller text - ~9.6px */
         padding: 3px 2px !important;
         min-width: 35px !important;
         max-width: 65px !important;
         background: #0d1525 !important;
+        line-height: 1.15 !important;
+        max-height: 2.3em !important; /* Limit to 2 lines */
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a {
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
       
       #stateTable tbody td.col-facilities {
@@ -3598,14 +3699,16 @@
       }
       
       .modal-header {
-        padding: 16px 16px 12px 16px;
+        padding: 12px 16px 12px 16px;
         min-height: auto;
+        align-items: flex-start;
       }
       
       .modal-header h3 {
         font-size: 1.1rem;
         line-height: 1.3;
-        padding-top: 4px;
+        padding-top: 0;
+        flex: 1;
       }
       
       .modal-close {
@@ -3614,6 +3717,36 @@
         font-size: 1.5rem;
         min-width: 44px; /* Touch target */
         min-height: 44px;
+        margin-top: -4px; /* Move up a bit */
+        align-self: flex-start;
+      }
+      
+      .modal-state-name-mobile {
+        display: block;
+        color: #f87171 !important;
+        font-size: 1.1rem !important;
+        font-weight: 700 !important;
+        line-height: 1.2 !important;
+        margin-bottom: 4px !important;
+      }
+      
+      .modal-subtitle-mobile {
+        display: block;
+        font-size: 0.65rem !important;
+        font-weight: normal !important;
+        color: rgba(255,255,255,0.85) !important;
+        line-height: 1.2 !important;
+        white-space: nowrap !important;
+      }
+      
+      .modal-description-mobile {
+        font-size: 0.6rem !important;
+        font-weight: normal !important;
+        color: rgba(255,255,255,0.7) !important;
+        margin-top: 4px !important;
+        display: block !important;
+        line-height: 1.3 !important;
+        white-space: nowrap !important;
       }
       
       .modal-body {
@@ -3735,6 +3868,36 @@
         width: 45px !important;
         min-width: 45px !important;
         max-width: 45px !important;
+        font-size: 0.6rem !important; /* Even smaller on iPhone */
+      }
+      
+      /* Remove underline from state column links on mobile */
+      #stateTable tbody td.col-state a {
+        text-decoration: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+      }
+      
+      #stateTable tbody td.col-state {
+        line-height: 1.15 !important;
+        max-height: 2.3em !important; /* Limit to 2 lines */
+        overflow: hidden !important;
+        vertical-align: middle !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a {
+        text-decoration: none !important;
+        border-bottom: none !important;
+      }
+      
+      #stateTable tbody td.col-state a:hover {
+        text-decoration: none !important;
+        border-bottom: none !important;
       }
       
       #stateTable thead th.col-facilities,
@@ -4058,6 +4221,16 @@
       if (navToggle && navMenu) {
         navToggle.addEventListener('click', function() {
           navMenu.classList.toggle('active');
+          navToggle.classList.toggle('active');
+        });
+        
+        // Close mobile menu when a nav link is clicked
+        const navLinks = navMenu.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+          link.addEventListener('click', function() {
+            navMenu.classList.remove('active');
+            navToggle.classList.remove('active');
+          });
         });
       }
     });
@@ -5513,9 +5686,14 @@
     // Helper function to abbreviate state names for mobile
     function abbreviateStateNameForMobile(stateName) {
       if (window.innerWidth <= 768) {
-        if (stateName === 'Massachusetts') {
-          return 'Mass.';
-        }
+        const abbreviations = {
+          'Massachusetts': 'Mass.',
+          'Connecticut': 'Conn.',
+          'Pennsylvania': 'Penn.',
+          'Washington': 'Wash.',
+          'Mississippi': 'Miss.'
+        };
+        return abbreviations[stateName] || stateName;
       }
       return stateName;
     }
@@ -5992,13 +6170,27 @@
       const modalStateName = document.getElementById('modalStateName');
       const modalBody = document.getElementById('modalBody');
       
-      modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
-      
       const sff = state.sff || [];
       const candidates = state.sffCandidates || [];
       const abuse = state.abuse || [];
       const oneStarOverall = state.oneStarOverall || [];
       const oneStarStaffing = state.oneStarStaffing || [];
+      
+      // Count all unique high-risk facilities
+      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall, ...oneStarStaffing];
+      const uniqueCCNs = new Set();
+      allFacilities.forEach(f => {
+        if (f.ccn) uniqueCCNs.add(f.ccn);
+      });
+      const totalCount = uniqueCCNs.size;
+      
+      // Set header with mobile-specific format
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
+      } else {
+        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
+      }
       
       // Track which facilities we've already shown to avoid duplicates
       const shownCCNs = new Set();
@@ -6184,12 +6376,13 @@
         document.addEventListener('click', function(event) {
           // Check if click is outside the map and tooltip
           const mapContainer = document.getElementById('stateMap');
-          const tooltipElement = tooltip.node();
-          if (mapContainer && tooltipElement) {
+          // Get tooltip dynamically each time to handle metric changes
+          const tooltipElement = d3.select('.tooltip').node();
+          if (mapContainer) {
             const isClickInMap = mapContainer.contains(event.target);
-            const isClickInTooltip = tooltipElement.contains(event.target);
+            const isClickInTooltip = tooltipElement && tooltipElement.contains(event.target);
             if (!isClickInMap && !isClickInTooltip) {
-              tooltip.transition()
+              d3.select('.tooltip').transition()
                 .duration(200)
                 .style('opacity', 0);
             }
@@ -6453,7 +6646,6 @@
             // Use same logic as mouseover
             // Use getMetricValue to respect excludeAdminDON toggle
             const value = getMetricValue(stateName, currentMetric);
-            let formattedValue = value.toFixed(2);
             
             // Get state rank (recalculate based on current metric and settings)
             const allStates = Object.keys(stateData).map(name => ({
@@ -6468,31 +6660,114 @@
             
             // Build tooltip content based on metric
             let metricLabel = '';
+            let formattedValue = '';
+            
             if (currentMetric === 'Total_Nurse_HPRD') {
               metricLabel = 'Total Nurse HPRD';
+              formattedValue = value.toFixed(2);
             } else if (currentMetric === 'Total_RN_HPRD') {
               metricLabel = 'RN HPRD';
+              formattedValue = value.toFixed(2);
+            } else if (currentMetric === 'Nurse_Assistant_HPRD') {
+              metricLabel = 'Nurse Aide HPRD';
+              formattedValue = value.toFixed(2);
+            } else if (currentMetric === 'avg_daily_census') {
+              metricLabel = 'Census';
+              formattedValue = Math.round(value).toLocaleString();
+            } else if (currentMetric === 'Contract_Percentage') {
+              metricLabel = 'Contract Staff';
+              formattedValue = value.toFixed(1) + '%';
+            } else {
+              metricLabel = currentMetric;
+              formattedValue = value.toFixed(2);
             }
             
             // Add mode suffix if needed
-            if (mapDisplayMode === 'median' && !excludeAdminDON) {
+            if (mapDisplayMode === 'median' && !excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
               metricLabel += ' (Median)';
-            } else if (excludeAdminDON) {
+            } else if (excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
               metricLabel += ' (excl. Admin/DON)';
+            }
+            
+            // Calculate tooltip position to keep it on screen
+            const touchX = event.touches[0].pageX;
+            const touchY = event.touches[0].pageY;
+            const windowWidth = window.innerWidth;
+            const windowHeight = window.innerHeight;
+            const tooltipPadding = 10;
+            
+            // Estimate tooltip dimensions (will be adjusted after rendering)
+            const estimatedWidth = 200;
+            const estimatedHeight = 80;
+            
+            // Calculate left position (prefer right of touch, but adjust if too far right)
+            let leftPos = touchX + tooltipPadding;
+            if (leftPos + estimatedWidth > windowWidth - tooltipPadding) {
+              // Position to the left of touch point
+              leftPos = touchX - estimatedWidth - tooltipPadding;
+              // If still off screen, position at edge
+              if (leftPos < tooltipPadding) {
+                leftPos = tooltipPadding;
+              }
+            }
+            
+            // Calculate top position (prefer above touch, but adjust if too high)
+            let topPos = touchY - estimatedHeight - tooltipPadding;
+            if (topPos < tooltipPadding) {
+              // Position below touch point
+              topPos = touchY + tooltipPadding;
+              // If still off screen, position at edge
+              if (topPos + estimatedHeight > windowHeight - tooltipPadding) {
+                topPos = windowHeight - estimatedHeight - tooltipPadding;
+              }
             }
             
             tooltip.transition()
               .duration(200)
               .style('opacity', 0.95);
             tooltip.html(`
-              <div style="font-size: 0.7rem; line-height: 1; margin: 0; padding: 0;">
+              <div style="font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; white-space: nowrap;">
                 <strong style="font-size: 0.75rem; line-height: 1; margin: 0; padding: 0; display: block; color: #93c5fd;">${stateName}</strong>
-                <span style="line-height: 1; margin: 0; padding: 0; display: block; white-space: nowrap; color: rgba(255, 255, 255, 0.85);">${metricLabel}: ${formattedValue} <span style="font-size: 0.6rem; white-space: nowrap; color: rgba(255, 255, 255, 0.6);">(${rank} of ${totalStates})</span></span>
+                <span style="line-height: 1; margin: 0; padding: 0; display: block; color: rgba(255, 255, 255, 0.85);">${metricLabel}: ${formattedValue} <span style="font-size: 0.6rem; color: rgba(255, 255, 255, 0.6);">(${rank} of ${totalStates})</span></span>
                 <a href="https://pbjdashboard.com/?state=${stateAbbr}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; display: block; margin-top: 2px;">View PBJ Dashboard</a>
               </div>
             `)
-              .style('left', (event.touches[0].pageX + 10) + 'px')
-              .style('top', (event.touches[0].pageY - 28) + 'px');
+              .style('left', leftPos + 'px')
+              .style('top', topPos + 'px')
+              .style('max-width', 'none')
+              .style('width', 'auto');
+            
+            // After tooltip is rendered, adjust position if needed based on actual dimensions
+            setTimeout(function() {
+              const tooltipNode = tooltip.node();
+              if (tooltipNode) {
+                const rect = tooltipNode.getBoundingClientRect();
+                let adjustedLeft = leftPos;
+                let adjustedTop = topPos;
+                
+                // Adjust horizontal position if tooltip goes off screen
+                if (rect.right > windowWidth - tooltipPadding) {
+                  adjustedLeft = windowWidth - rect.width - tooltipPadding;
+                }
+                if (rect.left < tooltipPadding) {
+                  adjustedLeft = tooltipPadding;
+                }
+                
+                // Adjust vertical position if tooltip goes off screen
+                if (rect.bottom > windowHeight - tooltipPadding) {
+                  adjustedTop = windowHeight - rect.height - tooltipPadding;
+                }
+                if (rect.top < tooltipPadding) {
+                  adjustedTop = tooltipPadding;
+                }
+                
+                // Apply adjustments if needed
+                if (adjustedLeft !== leftPos || adjustedTop !== topPos) {
+                  tooltip.style('left', adjustedLeft + 'px')
+                         .style('top', adjustedTop + 'px');
+                }
+              }
+            }, 0);
           })
           .on('click', function(event, d) {
             const stateName = d.properties.name;
@@ -6707,7 +6982,7 @@
             'Total_RN_HPRD': 'RN HPRD',
             'Nurse_Assistant_HPRD': 'Nurse Aide HPRD',
             'avg_daily_census': 'Census',
-            'Contract_Percentage': 'Contract Staff %',
+            'Contract_Percentage': 'Contract Staff',
             'Total_CaseMix_Ratio': 'Total Nurse Case-Mix Ratio',
             'RN_CaseMix_Ratio': 'RN Case-Mix Ratio'
           };
@@ -6899,13 +7174,27 @@
       const modalStateName = document.getElementById('modalStateName');
       const modalBody = document.getElementById('modalBody');
       
-      modalStateName.innerHTML = `${regionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
-      
       const sff = region.sff || [];
       const candidates = region.sffCandidates || [];
       const abuse = region.abuse || [];
       const oneStarOverall = region.oneStarOverall || [];
       const oneStarStaffing = region.oneStarStaffing || [];
+      
+      // Count all unique high-risk facilities
+      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall, ...oneStarStaffing];
+      const uniqueCCNs = new Set();
+      allFacilities.forEach(f => {
+        if (f.ccn) uniqueCCNs.add(f.ccn);
+      });
+      const totalCount = uniqueCCNs.size;
+      
+      // Set header with mobile-specific format
+      const isMobile = window.innerWidth <= 768;
+      if (isMobile) {
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${regionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
+      } else {
+        modalStateName.innerHTML = `${regionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
+      }
       
       // Track which facilities we've already shown to avoid duplicates
       const shownCCNs = new Set();

@@ -4198,7 +4198,7 @@
           <strong>Residents:</strong> Total residents across all facilities in the state.
         </div>
         <div class="term-item">
-          <strong>Contract %:</strong> Percentage of staffing hours provided by contract/temporary staff. Higher percentages may indicate staffing challenges.
+          <strong>Contract %:</strong> Percentage of staffing hours provided by contract/temporary staff.
         </div>
         <div class="term-item">
           <strong>SFFs & Candidates:</strong> Special Focus Facilities (SFFs) are nursing homes with a history of serious quality issues. SFF Candidates are facilities being monitored for potential SFF designation.
@@ -4680,6 +4680,30 @@
             });
           }
           
+          // First, calculate 10th percentile HPRD for each state (for understaffing criteria)
+          const stateHPRDValues = {};
+          recentData.forEach(row => {
+            if (row.ccn && row.state) {
+              const stateAbbr = row.state.trim();
+              const stateName = abbrToName[stateAbbr];
+              const hprd = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day);
+              if (stateName && !isNaN(hprd) && hprd > 0) {
+                if (!stateHPRDValues[stateName]) {
+                  stateHPRDValues[stateName] = [];
+                }
+                stateHPRDValues[stateName].push(hprd);
+              }
+            }
+          });
+          
+          // Calculate 10th percentile threshold for each state
+          const stateBottom10Percentile = {};
+          Object.keys(stateHPRDValues).forEach(stateName => {
+            const values = stateHPRDValues[stateName].sort((a, b) => a - b);
+            const percentileIndex = Math.floor(values.length * 0.1);
+            stateBottom10Percentile[stateName] = values[percentileIndex] || 0;
+          });
+          
           // Filter for all high-risk facilities
           const highRiskFacilities = recentData.filter(row => {
             const sffStatus = (row.sff_status || '').trim();
@@ -4687,12 +4711,21 @@
             const staffingRating = parseInt(row.staffing_rating) || 0;
             const hasAbuse = row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1';
             
+            // Check understaffing criteria
+            const stateAbbr = row.state ? row.state.trim() : '';
+            const stateName = abbrToName[stateAbbr];
+            const totalHPRD = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || 0;
+            const caseMixHPRD = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
+            const isUnderstaffed = staffingRating === 1 || 
+                                   (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
+                                   (stateName && stateBottom10Percentile[stateName] && totalHPRD <= stateBottom10Percentile[stateName]);
+            
             return row.ccn && row.state && (
               sffStatus === 'SFF' || 
               sffStatus === 'SFF Candidate' ||
               hasAbuse ||
               overallRating === 1 ||
-              staffingRating === 1
+              isUnderstaffed
             );
           });
           
@@ -4715,10 +4748,15 @@
                 categories: [] // Track which categories this facility belongs to
               };
               
-              // Determine categories (in priority order: SFF, Candidate, Abuse, 1-star overall, 1-star staffing)
+              // Determine categories (in priority order: SFF, Candidate, Abuse, 1-star overall, understaffing)
               // Add to first matching category, but track all categories for "multiple criteria" note
               const overallRating = parseInt(row.overall_rating) || 0;
               const staffingRating = parseInt(row.staffing_rating) || 0;
+              const totalHPRD = facility.total_nurse_hprd || 0;
+              const caseMixHPRD = facility.case_mix_total_hprd || 0;
+              const isUnderstaffed = staffingRating === 1 || 
+                                     (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
+                                     (stateBottom10Percentile[stateName] && totalHPRD > 0 && totalHPRD <= stateBottom10Percentile[stateName]);
               
               // Track all categories this facility belongs to
               if (row.sff_status && row.sff_status.trim() === 'SFF') {
@@ -4733,8 +4771,8 @@
               if (overallRating === 1) {
                 facility.categories.push('oneStarOverall');
               }
-              if (staffingRating === 1) {
-                facility.categories.push('oneStarStaffing');
+              if (isUnderstaffed) {
+                facility.categories.push('understaffing');
               }
               
               // Add to first matching category only (priority order)
@@ -4746,7 +4784,7 @@
                 stateData[stateName].abuse.push(facility);
               } else if (overallRating === 1) {
                 stateData[stateName].oneStarOverall.push(facility);
-              } else if (staffingRating === 1) {
+              } else if (isUnderstaffed) {
                 stateData[stateName].oneStarStaffing.push(facility);
               }
             }
@@ -6180,7 +6218,7 @@
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
         const ratio = f.case_mix_total_hprd > 0 ? (f.total_nurse_hprd / f.case_mix_total_hprd * 100).toFixed(0) : '0';
         // Use raw values directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${f.total_nurse_hprd.toFixed(2)} | Case-Mix: ${f.case_mix_total_hprd.toFixed(2)} (${ratio}%)</div>`;
+        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${f.total_nurse_hprd.toFixed(2)}, ${ratio}% of Case-Mix (${f.case_mix_total_hprd.toFixed(2)})</div>`;
       } else if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined) {
         // Use raw value directly - no rounding before display, just format to 2 decimals
         staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${f.total_nurse_hprd.toFixed(2)}</div>`;
@@ -6192,14 +6230,16 @@
       let multipleCriteriaNote = '';
       if (showMultipleCriteria && f.categories && f.categories.length > 1) {
         // Show only the OTHER categories (exclude the current one)
-        const otherCategories = f.categories.filter(cat => cat !== currentCategory);
+        // Handle both 'oneStarStaffing' and 'understaffing' as the same category
+        const normalizedCurrentCategory = (currentCategory === 'oneStarStaffing' || currentCategory === 'understaffing') ? ['oneStarStaffing', 'understaffing'] : [currentCategory];
+        const otherCategories = f.categories.filter(cat => !normalizedCurrentCategory.includes(cat));
         if (otherCategories.length > 0) {
           const categoryNames = otherCategories.map(cat => {
             if (cat === 'sff') return 'SFF';
             if (cat === 'candidate') return 'SFF Candidate';
             if (cat === 'abuse') return 'Abuse';
             if (cat === 'oneStarOverall') return '1-Star Overall';
-            if (cat === 'oneStarStaffing') return '1-Star Staffing';
+            if (cat === 'oneStarStaffing' || cat === 'understaffing') return 'Understaffing';
             return cat;
           }).join(', ');
           multipleCriteriaNote = `<div class="ccn" style="margin-top: 2px; font-size: 0.75em; color: #fbbf24; font-style: italic;">Also meets: ${categoryNames}</div>`;
@@ -6250,9 +6290,9 @@
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, understaffing, and 1-star facilities.</span>`;
       } else {
-        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, understaffing, and 1-star facilities.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -6344,7 +6384,7 @@
         `;
       }
       
-      // 1-Star Staffing fifth
+      // Understaffing fifth
       if (oneStarStaffing.length > 0) {
         const uniqueOneStarStaffing = oneStarStaffing.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
@@ -6354,12 +6394,13 @@
         html += `
           <div class="sff-section">
             <h4>
-              <span class="badge" style="background: #f87171;">1★ Staffing</span>
-              <span class="desktop-text">Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})</span>
+              <span class="badge" style="background: #f87171;">Understaffing</span>
+              <span class="desktop-text">Facilities with Understaffing Indicators (${uniqueOneStarStaffing.length})</span>
               <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
             </h4>
+            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'oneStarStaffing')).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
             </ul>
           </div>
         `;
@@ -7260,9 +7301,9 @@
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, understaffing, and 1-star facilities.</span>`;
       } else {
-        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, understaffing, and 1-star facilities.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -7354,7 +7395,7 @@
         `;
       }
       
-      // 1-Star Staffing fifth
+      // Understaffing fifth
       if (oneStarStaffing.length > 0) {
         const uniqueOneStarStaffing = oneStarStaffing.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
@@ -7364,12 +7405,13 @@
         html += `
           <div class="sff-section">
             <h4>
-              <span class="badge" style="background: #f87171;">1★ Staffing</span>
-              <span class="desktop-text">Facilities with 1-Star Staffing Rating (${uniqueOneStarStaffing.length})</span>
+              <span class="badge" style="background: #f87171;">Understaffing</span>
+              <span class="desktop-text">Facilities with Understaffing Indicators (${uniqueOneStarStaffing.length})</span>
               <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
             </h4>
+            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'oneStarStaffing')).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
             </ul>
           </div>
         `;

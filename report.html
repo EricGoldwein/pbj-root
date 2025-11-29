@@ -2346,8 +2346,19 @@
         min-width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        margin: 0 0 70px 0 !important; /* Add margin at bottom */
-        padding: 0 0 50px 0 !important; /* Add padding at bottom */
+        margin: 0 0 50px 0 !important; /* Add margin at bottom */
+        padding: 0 0 30px 0 !important; /* Add padding at bottom */
+      }
+      
+      /* Make state column wider for regions on mobile to prevent city name cutoff */
+      #stateTable tbody td.col-state.region-cell {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+      
+      #stateTable tbody td.col-state.region-cell span {
+        display: block;
       }
       
       /* Prevent any parent from forcing width expansion */
@@ -2842,8 +2853,19 @@
       }
       
       #stateTable {
-        margin-bottom: 70px !important;
-        padding-bottom: 50px !important;
+        margin-bottom: 50px !important;
+        padding-bottom: 30px !important;
+      }
+      
+      /* Make state column wider for regions on mobile to prevent city name cutoff */
+      #stateTable tbody td.col-state.region-cell {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+      
+      #stateTable tbody td.col-state.region-cell span {
+        display: block;
       }
       
       #stateTable {
@@ -3691,11 +3713,19 @@
     
     /* Modal improvements - Mobile */
     @media (max-width: 768px) {
+      .modal-overlay.active {
+        align-items: flex-start !important;
+        padding-top: 20px !important;
+        padding-bottom: 20px !important;
+        overflow-y: auto !important;
+      }
+      
       .modal {
         max-width: 95vw;
-        max-height: 90vh;
-        margin: 10px;
+        max-height: calc(100vh - 40px);
+        margin: 0 auto;
         border-radius: 12px;
+        position: relative !important;
       }
       
       .modal-header {
@@ -5778,7 +5808,7 @@
           // Parse region name like "Region 4 (Atlanta)" into two lines
           const match = state.name.match(/Region (\d+) \((.+)\)/);
           if (match) {
-            displayName = `Region ${match[1]}<br/><span style="font-size: 0.85em; color: rgba(255,255,255,0.7);">${match[2]}</span>`;
+            displayName = `Region ${match[1]}<br/><span style="font-size: 0.85em; color: #93c5fd;">${match[2]}</span>`;
           }
         }
         
@@ -5937,8 +5967,11 @@
           // Region name - may have HTML for two-line display
           if (displayName.includes('<br/>')) {
             stateCell.innerHTML = displayName;
+            // Add class to identify region cells for CSS targeting
+            stateCell.classList.add('region-cell');
           } else {
             stateCell.textContent = displayName;
+            stateCell.classList.add('region-cell');
           }
         } else {
           // State name with link - abbreviate for mobile
@@ -7188,12 +7221,18 @@
       });
       const totalCount = uniqueCCNs.size;
       
+      // Format region name to add "CMS" prefix if not already present
+      let displayRegionName = regionName;
+      if (regionName.startsWith('Region ')) {
+        displayRegionName = regionName.replace('Region ', 'CMS Region ');
+      }
+      
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${regionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, and 1-star facilities.</span>`;
       } else {
-        modalStateName.innerHTML = `${regionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, and 1-star facilities.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates

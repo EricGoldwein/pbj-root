@@ -2332,7 +2332,7 @@
         position: relative !important;
         display: block !important;
         transform: none !important;
-        padding-bottom: 140px !important; /* Add padding at bottom to ensure last rows are visible */
+        padding-bottom: 160px !important; /* Add padding at bottom to ensure last rows are visible */
       }
       
       /* Make the table itself scrollable */
@@ -2346,8 +2346,18 @@
         min-width: 100% !important;
         max-width: 100% !important;
         box-sizing: border-box !important;
-        margin: 0 0 50px 0 !important; /* Add margin at bottom */
-        padding: 0 0 30px 0 !important; /* Add padding at bottom */
+        margin: 0 0 60px 0 !important; /* Add margin at bottom */
+        padding: 0 0 40px 0 !important; /* Add padding at bottom */
+      }
+      
+      /* Reduce padding for region view (fewer rows) */
+      .table-container.region-view {
+        padding-bottom: 100px !important;
+      }
+      
+      .table-container.region-view #stateTable {
+        margin-bottom: 30px !important;
+        padding-bottom: 15px !important;
       }
       
       /* Make state column wider for regions on mobile to prevent city name cutoff */
@@ -2845,7 +2855,7 @@
     @media (max-width: 768px) {
       .table-container {
         margin: 0;
-        padding: 0 0 140px 0;
+        padding: 0 0 160px 0;
         max-height: 75vh;
         overflow-x: auto;
         overflow-y: auto;
@@ -2853,8 +2863,18 @@
       }
       
       #stateTable {
-        margin-bottom: 50px !important;
-        padding-bottom: 30px !important;
+        margin-bottom: 60px !important;
+        padding-bottom: 40px !important;
+      }
+      
+      /* Reduce padding for region view (fewer rows) */
+      .table-container.region-view {
+        padding-bottom: 100px !important;
+      }
+      
+      .table-container.region-view #stateTable {
+        margin-bottom: 30px !important;
+        padding-bottom: 15px !important;
       }
       
       /* Make state column wider for regions on mobile to prevent city name cutoff */
@@ -5287,6 +5307,16 @@
       
       // Update title
       updateStateDataTitle();
+      
+      // Add/remove class to table container based on view
+      const tableContainer = document.querySelector('.table-container');
+      if (tableContainer) {
+        if (view === 'region') {
+          tableContainer.classList.add('region-view');
+        } else {
+          tableContainer.classList.remove('region-view');
+        }
+      }
       
       // Re-render table
       renderStateTable();

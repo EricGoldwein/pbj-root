@@ -649,40 +649,12 @@
       padding-left: 8px;
     }
     
-    th[data-sort="contract"],
-    td.contract-cell {
-      display: none !important;
-    }
-    
-    /* Old contract column styles - hidden */
-    th[data-sort="contract"].old {
-      width: 50px;
-      min-width: 50px;
-      max-width: 50px;
-      text-align: right;
-    }
-    
     /* Comparison section columns - pairs side by side */
     th.comparison-pair {
       width: 55px;
       min-width: 55px;
       max-width: 55px;
       text-align: right;
-    }
-    
-    /* Contract % column */
-    th[data-sort="contract"],
-    td.contract-cell {
-      display: none !important;
-    }
-    
-    /* Old contract column styles - hidden */
-    th[data-sort="contract"].old {
-      width: 75px;
-      min-width: 75px;
-      max-width: 75px;
-      text-align: right;
-      border-left: 2px solid rgba(255,255,255,0.3);
     }
     
     /* Ensure cells match header widths */
@@ -863,8 +835,9 @@
       display: table-cell;
     }
     
+    /* SFF column is hidden on both desktop and mobile */
     .desktop-sff-header {
-      display: table-cell;
+      display: none !important;
     }
     
     /* Hide SFF & Candidates column on desktop */
@@ -877,13 +850,6 @@
         display: none !important;
       }
       
-      /* Hide Risk List column on desktop (button is in facilities column) */
-      #stateTable th.col-risk-list,
-      #stateTable th.mobile-risk-list-header,
-      #stateTable td.col-risk-list,
-      #stateTable td.mobile-risk-list-cell {
-        display: none !important;
-      }
     }
     
     /* Mobile facilities cell styling */
@@ -2333,15 +2299,15 @@
         display: block !important;
         transform: none !important;
         padding-bottom: 160px !important; /* Add padding at bottom to ensure last rows are visible */
-      }
-      
+    }
+    
       /* Make the table itself scrollable */
       #stateTable {
         display: table !important; /* Keep as table for proper layout */
         overflow-x: auto !important; /* Horizontal scrolling on table */
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
-        table-layout: fixed !important;
+        table-layout: auto !important;
         width: 100% !important;
         min-width: 100% !important;
         max-width: 100% !important;
@@ -2501,10 +2467,10 @@
       z-index: 13;
       color: rgba(196, 181, 253, 1);
       padding: 16px 8px !important;
-        vertical-align: bottom !important;
+      vertical-align: bottom !important;
       line-height: normal !important;
-        border-right: none !important;
-        margin-right: 0 !important;
+      border-right: none !important;
+      margin-right: 0 !important;
     }
     
     /* Frozen Column: State */
@@ -2530,17 +2496,18 @@
       z-index: 13;
       position: sticky;
       left: 65px;
-        padding: 16px 10px;
-        box-shadow: var(--frozen-shadow);
-        border-left: none !important;
-        margin-left: 0 !important;
+      padding: 16px 10px;
+      box-shadow: var(--frozen-shadow);
+      border-left: none !important;
+      margin-left: 0 !important;
+      vertical-align: bottom !important;
     }
     
     /* Regular Columns */
     .col-facilities {
-      width: 165px !important;
-      min-width: 165px !important;
-      max-width: 165px !important;
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
       text-align: center !important;
       padding: 16px 8px 16px 12px;
       font-weight: 600;
@@ -2548,12 +2515,19 @@
     }
     
     #stateTable th.col-facilities {
-      width: 165px !important;
-      min-width: 165px !important;
-      max-width: 165px !important;
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
       text-align: center !important;
-        background: rgba(30, 41, 59, 0.4) !important;
-      }
+      background: rgba(30, 41, 59, 0.4) !important;
+      vertical-align: bottom !important;
+    }
+    
+    #stateTable tbody td.col-facilities {
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
+    }
       
       #stateTable tbody td.col-facilities {
         background: rgba(30, 41, 59, 0.2) !important;
@@ -2561,9 +2535,9 @@
     }
     
     .col-residents {
-      width: 120px !important;
-      min-width: 120px !important;
-      max-width: 120px !important;
+      width: 100px !important;
+      min-width: 100px !important;
+      max-width: 100px !important;
       text-align: center !important;
       padding: 16px 8px !important;
       white-space: normal;
@@ -2575,17 +2549,25 @@
     }
     
     #stateTable th.col-residents {
+      width: 100px !important;
+      min-width: 100px !important;
+      max-width: 100px !important;
       padding: 16px 8px !important;
       border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
       background: rgba(30, 41, 59, 0.4) !important;
+      vertical-align: bottom !important;
     }
     
     #stateTable tbody td.col-residents {
+      width: 100px !important;
+      min-width: 100px !important;
+      max-width: 100px !important;
       border-right: 2px solid rgba(255, 255, 255, 0.2) !important;
       background: rgba(30, 41, 59, 0.2) !important;
     }
     
     .col-sff {
+      display: none !important;
       width: 125px;
       min-width: 125px;
       text-align: center;
@@ -2595,42 +2577,36 @@
     /* Desktop HPRD column styles - only apply on desktop */
     @media (min-width: 769px) {
     .col-hprd {
-      width: 85px !important;
-      min-width: 85px !important;
-      max-width: 85px !important;
-        text-align: center;
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
+      text-align: center;
       padding: 16px 10px !important;
       font-weight: 600;
       font-size: 0.95rem;
     }
     
     #stateTable th.col-hprd {
-        text-align: center !important;
-      width: 85px !important;
-      min-width: 85px !important;
-      max-width: 85px !important;
+      text-align: center !important;
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
       padding: 16px 10px !important;
-      }
     }
     
-    /* Make Total columns narrower - desktop only */
-    @media (min-width: 769px) {
-      #stateTable th[data-sort="totalHPRD"],
-      #stateTable th[data-sort="caseMixTotal"] {
-        width: 60px !important;
-        min-width: 60px !important;
-        max-width: 60px !important;
-        text-align: center !important;
-      }
+    #stateTable tbody td.col-hprd {
+      width: 130px !important;
+      min-width: 130px !important;
+      max-width: 130px !important;
+    }
+    
+    /* HPRD columns should all be the same width - no special narrowing for Total */
     }
     
     /* Center all HPRD columns (Total, RN, Nurse Aide) */
     #stateTable th[data-sort="totalHPRD"],
     #stateTable th[data-sort="rnHPRD"],
-    #stateTable th[data-sort="nurseAideHPRD"],
-    #stateTable th[data-sort="caseMixTotal"],
-    #stateTable th[data-sort="caseMixRN"],
-    #stateTable th[data-sort="caseMixNA"] {
+    #stateTable th[data-sort="nurseAideHPRD"] {
       text-align: center !important;
     }
     
@@ -2640,28 +2616,143 @@
     }
     
     /* Center all HPRD data cells */
+    /* Columns: 6=Total HPRD, 7=RN HPRD, 8=Nurse Aide HPRD, 9=Contract %, 10=For-Profit %, 11=High-Risk Facilities, 12=High-Risk NHs (mobile) */
     #stateTable tbody tr > td:nth-child(6),
     #stateTable tbody tr > td:nth-child(7),
     #stateTable tbody tr > td:nth-child(8),
     #stateTable tbody tr > td:nth-child(9),
-    #stateTable tbody tr > td:nth-child(10),
-    #stateTable tbody tr > td:nth-child(11) {
+    #stateTable tbody tr > td:nth-child(10) {
       text-align: center !important;
     }
     
-    /* Add divider between Reported HPRD and Case-Mix sections in body cells */
-    /* 8th column is Nurse Aide (Reported) - add border-right */
+    /* Add divider after Nurse Aide HPRD and before Contract % - match header border */
+    /* 8th column is Nurse Aide HPRD - add border-right */
     #stateTable tbody tr > td:nth-child(8) {
-      border-right: 2px solid rgba(255, 255, 255, 0.15) !important;
+      border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
     }
     
-    /* Make Total column data cells narrower - desktop only */
+    /* Add border to the left of Total HPRD (right of Residents) */
+    #stateTable tbody tr > td:nth-child(6) {
+      border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* HPRD data cells should all be the same width - no special narrowing */
+    
+    /* Style new columns */
+    .col-contract,
+    .col-forprofit,
+    .col-highrisk {
+      text-align: center;
+      padding: 16px 10px;
+      width: 115px !important;
+      min-width: 115px !important;
+      max-width: 115px !important;
+    }
+    
+    #stateTable th.col-contract,
+    #stateTable th.col-forprofit,
+    #stateTable th.col-highrisk {
+      text-align: center !important;
+      vertical-align: bottom !important;
+      width: 115px !important;
+      min-width: 115px !important;
+      max-width: 115px !important;
+    }
+    
+    #stateTable tbody td.col-contract,
+    #stateTable tbody td.col-forprofit,
+    #stateTable tbody td.col-highrisk {
+      width: 115px !important;
+      min-width: 115px !important;
+      max-width: 115px !important;
+    }
+    
+    /* HPRD headers - slightly different color */
+    #stateTable th.hprd-header {
+      background: linear-gradient(135deg, rgba(30, 64, 175, 0.9) 0%, rgba(59, 130, 246, 0.9) 100%) !important;
+    }
+    
+    /* Border between Nurse Aide HPRD and Contract % - match the left border */
+    #stateTable th[data-sort="nurseAideHPRD"] {
+      border-right: 2px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    /* Border to the left of Total HPRD (right of Residents) */
+    #stateTable th[data-sort="totalHPRD"] {
+      border-left: 2px solid rgba(255, 255, 255, 0.3) !important;
+    }
+    
+    #stateTable tbody td.col-contract,
+    #stateTable tbody td.col-forprofit,
+    #stateTable tbody td.col-highrisk {
+      text-align: center !important;
+      vertical-align: middle !important;
+    }
+    
+    /* Mobile font size for Contract, For-Profit and High-Risk headers */
+    @media (max-width: 768px) {
+      #stateTable th.col-contract,
+      #stateTable th.col-forprofit,
+      #stateTable th.col-highrisk {
+        font-size: 0.5rem !important;
+        line-height: 1.1 !important;
+        padding: 12px 6px !important;
+      }
+      
+      /* HPRD header text - readable on mobile */
+      #stateTable th.col-hprd .mobile-text {
+        font-size: 0.55rem;
+        line-height: 1.1;
+        white-space: normal;
+      }
+      
+      #stateTable th.col-hprd {
+        padding: 6px 2px;
+      }
+      
+      
+      
+      /* Show/hide desktop/mobile text for headers */
+      #stateTable th.col-highrisk .desktop-text,
+      #stateTable th.col-hprd .desktop-text,
+      #stateTable th.col-contract .desktop-text,
+      #stateTable th.col-forprofit .desktop-text {
+        display: none !important;
+      }
+      
+      #stateTable th.col-highrisk .mobile-text,
+      #stateTable th.col-hprd .mobile-text,
+      #stateTable th.col-contract .mobile-text,
+      #stateTable th.col-forprofit .mobile-text {
+        display: inline !important;
+      }
+    }
+    
+    /* Desktop: show desktop text, hide mobile text */
     @media (min-width: 769px) {
-      #stateTable tbody tr > td:nth-child(6),
-      #stateTable tbody tr > td:nth-child(9) {
-        width: 60px !important;
-        min-width: 60px !important;
-        max-width: 60px !important;
+      #stateTable th.col-highrisk .desktop-text,
+      #stateTable th.col-hprd .desktop-text,
+      #stateTable th.col-contract .desktop-text,
+      #stateTable th.col-forprofit .desktop-text {
+        display: inline !important;
+      }
+      
+      #stateTable th.col-highrisk .mobile-text,
+      #stateTable th.col-hprd .mobile-text,
+      #stateTable th.col-contract .mobile-text,
+      #stateTable th.col-forprofit .mobile-text {
+        display: none !important;
+      }
+    }
+    
+    /* Desktop: show desktop text, hide mobile text */
+    @media (min-width: 769px) {
+      #stateTable th.col-highrisk .desktop-text {
+        display: inline !important;
+      }
+      
+      #stateTable th.col-highrisk .mobile-text {
+        display: none !important;
       }
     }
     
@@ -2890,10 +2981,22 @@
       
       #stateTable {
         font-size: 0.8rem;
-        table-layout: fixed !important;
-        width: 100%;
+        table-layout: auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
         margin: 0;
         padding: 0;
+      }
+      
+      /* Ensure thead doesn't exceed table width */
+      #stateTable thead {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      
+      #stateTable thead tr {
+        width: 100% !important;
+        max-width: 100% !important;
       }
       
       #stateTable thead {
@@ -2921,108 +3024,101 @@
         z-index: 11 !important;
       }
       
-      /* Hide residents column on mobile */
-      .col-residents {
-        display: none !important;
-      }
-      
-      #stateTable th.col-residents {
-        display: none !important;
-      }
-      
-      #stateTable tbody td.col-residents {
-        display: none !important;
-      }
-      
-      /* Hide Nurse Aide columns on mobile - Headers */
-      #stateTable th[data-sort="nurseAideHPRD"],
-      #stateTable th[data-sort="caseMixNA"] {
-        display: none !important;
-      }
-      
-      /* Hide Nurse Aide body cells using specific class */
-      #stateTable tbody td.nurse-aide-mobile-hide {
-        display: none !important;
-      }
-      
-      /* Hide SFF column on mobile */
+      /* Single clean rule to hide columns on mobile - For-Profit is handled in JS, not CSS */
+      .col-residents,
+      #stateTable th.col-residents,
+      #stateTable td.col-residents,
+      #stateTable th[data-sort="residents"],
+      #stateTable td[data-sort="residents"],
+      .col-sff,
       #stateTable th.col-sff,
       #stateTable th.desktop-sff-header,
       #stateTable td.col-sff,
-      #stateTable td.desktop-sff-cell {
+      #stateTable td.desktop-sff-cell,
+      #stateTable th[data-sort="nurseAideHPRD"],
+      #stateTable th[data-sort="caseMixNA"],
+      #stateTable tbody td.nurse-aide-mobile-hide,
+      #stateTable tbody tr > td:nth-child(8) {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        overflow: hidden !important;
+      }
+      
+      /* Table layout - single clean rule - MUST override base table-layout: fixed */
+      #stateTable {
+        width: 100%;
+        max-width: 100%;
+        table-layout: auto !important;
+      }
+      
+      /* HPRD column widths on mobile - wider for better readability */
+      #stateTable th[data-sort="totalHPRD"],
+      #stateTable th.col-hprd[data-sort="totalHPRD"],
+      #stateTable tbody tr > td:nth-child(6),
+      #stateTable tbody td.col-hprd:nth-of-type(1) {
+        width: 60px !important;
+        min-width: 60px !important;
+        max-width: 60px !important;
+      }
+      
+      #stateTable th[data-sort="rnHPRD"],
+      #stateTable th.col-hprd[data-sort="rnHPRD"],
+      #stateTable tbody tr > td:nth-child(7),
+      #stateTable tbody td.col-hprd:nth-of-type(2) {
+        width: 56px !important;
+        min-width: 56px !important;
+        max-width: 56px !important;
+      }
+      
+      /* Contract % column - flexible width on mobile to fill space */
+      #stateTable th[data-sort="contract"],
+      #stateTable th.col-contract {
+        min-width: 32px !important;
+        padding: 4px 2px !important;
+        font-size: 0.5rem !important;
+        line-height: 1.1 !important;
+        white-space: normal !important;
+      }
+      
+      /* Show mobile text, hide desktop text for Contract % on mobile */
+      #stateTable th.col-contract .desktop-text {
         display: none !important;
       }
       
-      /* Risk List column - show on mobile with title */
-      #stateTable th.col-risk-list,
-      #stateTable th.mobile-risk-list-header {
-        display: table-cell !important;
-        width: 48px !important;
-        min-width: 48px !important;
-        max-width: 48px !important;
-        padding: 4px 2px 8px 2px !important;
-        border: none !important;
-        background: #0d1525 !important;
-        border-left: 2px solid rgba(255, 255, 255, 0.15) !important;
-        text-align: center !important;
-        vertical-align: bottom !important;
-        font-size: 0.55rem !important;
+      #stateTable th.col-contract .mobile-text {
+        display: inline !important;
+      }
+      
+      #stateTable tbody tr > td:nth-child(9),
+      #stateTable td.col-contract {
+        min-width: 32px !important;
+        padding: 4px 2px !important;
+        font-size: 0.6rem !important;
+      }
+      
+      /* For-Profit % column - expand to fill remaining space on mobile */
+      #stateTable th[data-sort="forProfit"],
+      #stateTable th.col-forprofit {
+        min-width: 32px !important;
+        padding: 4px 2px !important;
+        font-size: 0.5rem !important;
         line-height: 1.1 !important;
         white-space: normal !important;
-        word-wrap: break-word !important;
-        overflow-wrap: break-word !important;
-        color: #f87171 !important;
       }
       
-      /* Ensure Risk List header aligns to bottom like Facilities - match Facilities styling exactly */
-      #stateTable thead th.col-risk-list,
-      #stateTable thead th.mobile-risk-list-header {
-        vertical-align: bottom !important;
-        text-align: center !important;
-        padding-bottom: 8px !important;
-      }
-      
-      /* Override any second row rules that might affect rowspan headers */
-      #stateTable thead tr:nth-child(2) th.col-risk-list,
-      #stateTable thead tr:nth-child(2) th.mobile-risk-list-header {
-        vertical-align: bottom !important;
-      }
-      
-      /* Ensure Risk List header aligns to bottom like Facilities - match Facilities exactly */
-      /* Use same selector pattern as Facilities - no row selector, just class */
-      #stateTable thead th.col-risk-list,
-      #stateTable thead th.mobile-risk-list-header {
-        white-space: normal !important;
-        line-height: 1.1 !important;
-        vertical-align: bottom !important;
-        text-align: center !important;
-        font-size: 0.55rem !important;
-        padding-bottom: 8px !important;
-      }
-      
-      /* Override header row background for Risk List column - use normal background */
-      #stateTable thead tr:first-child th.col-risk-list,
-      #stateTable thead tr:first-child th.mobile-risk-list-header,
-      #stateTable thead tr:nth-child(2) th.col-risk-list,
-      #stateTable thead tr:nth-child(2) th.mobile-risk-list-header {
-        background: #0d1525 !important;
-      }
-      
-      #stateTable td.col-risk-list,
-      #stateTable td.mobile-risk-list-cell {
-        display: table-cell !important;
-        width: 48px !important;
-        min-width: 48px !important;
-        max-width: 48px !important;
-        padding: 4px 1px !important;
-        text-align: center !important;
-        vertical-align: middle !important;
-      }
-      
-      /* Ensure table fills container width */
-      #stateTable {
-        width: 100% !important;
-        table-layout: fixed !important;
+      #stateTable tbody tr > td:nth-child(10),
+      #stateTable td.col-forprofit {
+        min-width: 32px !important;
+        padding: 4px 2px !important;
+        font-size: 0.6rem !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
       }
       
       /* Make sure table container has no extra padding/margin causing empty space */
@@ -3185,37 +3281,13 @@
         margin-bottom: 0 !important;
       }
       
-      /* Make Total and RN columns as narrow as possible on mobile to fit more on screen */
-      /* Total columns (6th and 9th) */
-      #stateTable thead th[data-sort="totalHPRD"],
-      #stateTable thead th[data-sort="caseMixTotal"],
-      #stateTable tbody tr > td:nth-child(6),
-      #stateTable tbody tr > td:nth-child(9) {
-        width: 33px !important;
-        min-width: 33px !important;
-        max-width: 33px !important;
-        padding: 4px 1px !important;
-        font-size: 0.6rem !important;
-      }
-      
-      /* RN columns (7th and 10th) */
-      #stateTable thead th[data-sort="rnHPRD"],
-      #stateTable thead th[data-sort="caseMixRN"],
-      #stateTable tbody tr > td:nth-child(7),
-      #stateTable tbody tr > td:nth-child(10) {
-        width: 33px !important;
-        min-width: 33px !important;
-        max-width: 33px !important;
-        padding: 4px 1px !important;
-        font-size: 0.6rem !important;
-      }
       
       /* Make HPRD header row even more compact - prevent text bleeding */
       #stateTable thead tr:nth-child(2) th.col-hprd,
       #stateTable thead tr:nth-child(2) th[data-sort="totalHPRD"],
       #stateTable thead tr:nth-child(2) th[data-sort="rnHPRD"],
-      #stateTable thead tr:nth-child(2) th[data-sort="caseMixTotal"],
-      #stateTable thead tr:nth-child(2) th[data-sort="caseMixRN"] {
+      #stateTable thead tr:nth-child(2) th[data-sort="totalHPRD"],
+      #stateTable thead tr:nth-child(2) th[data-sort="rnHPRD"] {
         padding: 6px 1px 4px 1px !important;
         font-size: 0.55rem !important;
         line-height: 1.0 !important;
@@ -3274,7 +3346,7 @@
     @media (max-width: 600px) {
       /* Global safety rule */
       #stateTable {
-        table-layout: fixed !important;
+        table-layout: auto !important;
         width: 100% !important;
         max-width: 100% !important;
       }
@@ -3976,28 +4048,10 @@
         display: inline !important;
       }
       
-      #stateTable thead th[data-sort="totalHPRD"],
-      #stateTable thead th[data-sort="caseMixTotal"],
-      #stateTable tbody tr > td:nth-child(6),
-      #stateTable tbody tr > td:nth-child(9) {
-        width: 30px !important;
-        min-width: 30px !important;
-        max-width: 30px !important;
-      }
       
-      #stateTable thead th[data-sort="rnHPRD"],
-      #stateTable thead th[data-sort="caseMixRN"],
-      #stateTable tbody tr > td:nth-child(7),
-      #stateTable tbody tr > td:nth-child(10) {
-        width: 30px !important;
-        min-width: 30px !important;
-        max-width: 30px !important;
-      }
-      
-      #stateTable th.col-risk-list,
-      #stateTable th.mobile-risk-list-header,
-      #stateTable td.col-risk-list,
-      #stateTable td.mobile-risk-list-cell {
+      /* Nurse Aide HPRD column (8th) - wider on mobile */
+      #stateTable thead th[data-sort="nurseAideHPRD"],
+      #stateTable tbody tr > td:nth-child(8) {
         width: 42px !important;
         min-width: 42px !important;
         max-width: 42px !important;
@@ -4011,6 +4065,16 @@
       th {
         font-size: 0.6rem;
         padding: 6px 2px;
+      }
+      
+      /* Contract % body text smaller on mobile */
+      #stateTable tbody td.col-contract {
+        font-size: 0.6rem !important;
+      }
+      
+      /* Contract % body text smaller on mobile */
+      #stateTable tbody td.col-contract {
+        font-size: 0.6rem !important;
       }
       
       /* Reduce container and section padding even more on iPhone */
@@ -4107,21 +4171,11 @@
       </div>
       <p style="color: rgba(255,255,255,0.7); margin-bottom: 12px; font-size: 0.9rem; margin-top: 0;">
       </p>
-      <div class="case-mix-explanation" style="background: rgba(23, 105, 170, 0.15); border-left: 4px solid #60a5fa; padding: 12px 16px; margin-bottom: 16px; border-radius: 6px; font-size: 0.85rem; color: rgba(255,255,255,0.9);">
-        <strong style="color: #60a5fa;">Case-Mix HPRD:</strong> CMS identifies an expected staffing level for each facility based on resident acuity. <strong style="color: #f87171;">Red</strong> indicates the <span id="caseMixEntityText">state's</span> reported staffing is below the case-mix of its nursing homes.
-      </div>
       <div class="table-controls">
         <div class="view-toggle" style="order: 1;">
           <label for="excludeAdminToggleTable"><span class="mobile-label">Excl. Admin / DON:</span><span class="desktop-label">Exclude Admin / DON:</span></label>
           <label class="toggle-switch">
             <input type="checkbox" id="excludeAdminToggleTable">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div class="view-toggle" style="order: 2;">
-          <label for="medianToggle">Median:</label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="medianToggle">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -4171,22 +4225,16 @@
               <th rowspan="2" class="col-residents sortable" data-sort="residents">
                 Residents
               </th>
-              <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br>Candidates</th>
-              <th colspan="3" class="section-header section-reported col-group">Reported HPRD<br/><span class="desktop-red-indicator" style="font-size: 0.65rem; color: #f87171; font-weight: normal; line-height: 1.2;">Red indicates below case-mix</span></th>
-              <th colspan="3" class="section-header section-casemix col-group">Case-Mix HPRD</th>
-              <th rowspan="2" class="col-risk-list mobile-risk-list-header">High-Risk<br/>NHs</th>
-            </tr>
-            <tr>
-              <th class="col-hprd col-sub sortable" data-sort="totalHPRD">Total</th>
-              <th class="col-hprd col-sub sortable" data-sort="rnHPRD">RN</th>
-              <th class="col-hprd col-sub sortable" data-sort="nurseAideHPRD">Nurse<br>Aide</th>
-              <th class="col-hprd col-sub sortable" data-sort="caseMixTotal">Total</th>
-              <th class="col-hprd col-sub sortable" data-sort="caseMixRN">RN</th>
-              <th class="col-hprd col-sub sortable" data-sort="caseMixNA">Nurse<br>Aide</th>
+              <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br/>Candidates</th>
+              <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="totalHPRD"><span class="desktop-text">Total<br/>HPRD</span><span class="mobile-text">Total HPRD</span></th>
+              <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="rnHPRD"><span class="desktop-text">RN<br/>HPRD</span><span class="mobile-text">RN<br/>HPRD</span></th>
+              <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="nurseAideHPRD"><span class="desktop-text">Nurse Aide<br/>HPRD</span><span class="mobile-text">NA</span></th>
+              <th rowspan="2" class="col-contract sortable" data-sort="contract"><span class="desktop-text">% Contract</span><span class="mobile-text">% Ctr</span></th>
+              <th rowspan="2" class="col-forprofit sortable" data-sort="forProfit">For Profit</th>
             </tr>
           </thead>
           <tbody id="stateTableBody">
-            <tr><td colspan="10" class="loading">Loading data...</td></tr>
+            <tr><td colspan="9" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -4202,12 +4250,6 @@
         </div>
         <div class="term-item">
           <strong>SFFs & Candidates:</strong> Special Focus Facilities (SFFs) are nursing homes with a history of serious quality issues. SFF Candidates are facilities being monitored for potential SFF designation.
-        </div>
-        <div class="term-item">
-          <strong>Case-Mix HPRD:</strong> CMS identifies an expected staffing level for each facility based on resident acuity.
-        </div>
-        <div class="term-item">
-          <strong>Reported vs Case-Mix:</strong> <span style="color: #f87171;">Red</span> indicates the state or CMS Region reported staffing is below its case-mix.
         </div>
         <div class="term-item">
           <strong>Median:</strong> Shows the median value across all facilities (50% of facilities are above, 50% are below). Each facility counts equally regardless of size. Applies to states, CMS Regions, and national data.
@@ -4244,12 +4286,6 @@
       <strong>SFFs & Candidates:</strong> Special Focus Facilities (SFFs) are nursing homes with a history of serious quality issues. SFF Candidates are facilities being monitored for potential SFF designation. Applies to states, CMS Regions, and national data.
     </div>
     <div class="term-item">
-      <strong>Case-Mix HPRD:</strong> CMS identifies an expected staffing level for each facility based on resident acuity. Applies to states, CMS Regions, and national data.
-    </div>
-    <div class="term-item">
-      <strong>Reported vs Case-Mix:</strong> <span style="color: #f87171;">Red</span> indicates the state or CMS Region reported staffing is below case-mix.
-    </div>
-    <div class="term-item">
       <strong>Median:</strong> Shows the median value across all facilities (50% of facilities are above, 50% are below). Each facility counts equally regardless of size. Applies to states, CMS Regions, and national data.
     </div>
     <div class="term-item">
@@ -4263,8 +4299,56 @@
   </div>
 
   <script>
+    // Fix loading row colspan immediately on page load (before data loads)
+    // This ensures the loading row has the correct width from the start
+    (function() {
+      function fixLoadingColspan() {
+        const loadingRow = document.getElementById('loadingRow');
+        const table = document.getElementById('stateTable');
+        if (loadingRow && table) {
+          const headerRow = table.querySelector('thead tr');
+          if (headerRow) {
+            // Count visible header columns (excluding display:none)
+            const visibleHeaders = Array.from(headerRow.querySelectorAll('th')).filter(th => {
+              const style = window.getComputedStyle(th);
+              return style.display !== 'none' && style.visibility !== 'hidden';
+            });
+            loadingRow.setAttribute('colspan', visibleHeaders.length.toString());
+          }
+        }
+      }
+      
+      // Try immediately if DOM is ready, otherwise wait for DOMContentLoaded
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          // Wait a tick for CSS to apply
+          setTimeout(fixLoadingColspan, 0);
+        });
+      } else {
+        // Wait a tick for CSS to apply
+        setTimeout(fixLoadingColspan, 0);
+      }
+    })();
+    
     // Mobile Navigation Toggle
     document.addEventListener('DOMContentLoaded', function() {
+      // Ensure loading row colspan is correct
+      const loadingRow = document.getElementById('loadingRow');
+      if (loadingRow) {
+        // Count actual visible columns
+        const table = document.getElementById('stateTable');
+        if (table) {
+          const headerRow = table.querySelector('thead tr');
+          if (headerRow) {
+            const visibleHeaders = Array.from(headerRow.querySelectorAll('th')).filter(th => {
+              const style = window.getComputedStyle(th);
+              return style.display !== 'none';
+            });
+            loadingRow.setAttribute('colspan', visibleHeaders.length.toString());
+          }
+        }
+      }
+      
       const navToggle = document.getElementById('navToggle');
       const navMenu = document.getElementById('navMenu');
       
@@ -4322,6 +4406,7 @@
     let sortedStatesList = [];
     let providerDataByState = {}; // Store provider-level data for admin/DON calculations
     let facilityQuarterlyData = {}; // Store facility-level direct care data from facility_quarterly_metrics.csv, keyed by CCN and quarter
+    let regionQuarterlyData = {}; // Store region-level data from cms_region_quarterly_metrics.csv, keyed by region full name
 
     // CSV line parser - defined early so it can be used
     function parseCSVLine(line) {
@@ -4351,12 +4436,13 @@
     // Load data
     async function loadData() {
       try {
-        const [stateResponse, nationalResponse, providerResponse, regionResponse, facilityQuarterlyResponse] = await Promise.all([
+        const [stateResponse, nationalResponse, providerResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
           fetch('state_quarterly_metrics.csv'),
           fetch('national_quarterly_metrics.csv'),
           fetch('provider_info_combined_latest.csv'),
           fetch('cms_region_state_mapping.csv'),
-          fetch('facility_quarterly_metrics_latest.csv')
+          fetch('facility_quarterly_metrics_latest.csv'),
+          fetch('cms_region_quarterly_metrics.csv')
         ]);
 
         if (!stateResponse.ok || !nationalResponse.ok) {
@@ -4393,6 +4479,37 @@
               };
             }
           });
+        }
+        
+        // Load region quarterly metrics (for pre-calculated medians)
+        if (regionQuarterlyResponse.ok) {
+          const regionQuarterlyText = await regionQuarterlyResponse.text();
+          const regionQuarterlyRows = parseCSV(regionQuarterlyText);
+          regionQuarterlyRows.forEach(row => {
+            const regionFull = row.REGION?.trim();
+            if (regionFull) {
+              regionQuarterlyData[regionFull] = {
+                REGION: regionFull,
+                REGION_NUMBER: parseInt(row.REGION_NUMBER) || 0,
+                REGION_NAME: row.REGION_NAME?.trim() || '',
+                CY_Qtr: row.CY_Qtr?.trim() || '',
+                Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
+                RN_HPRD: parseFloat(row.RN_HPRD) || 0,
+                Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
+                RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
+                Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
+                Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
+                // Pre-calculated medians - handle missing columns gracefully
+                Total_Nurse_HPRD_Median: (row.Total_Nurse_HPRD_Median !== undefined && row.Total_Nurse_HPRD_Median !== '') ? parseFloat(row.Total_Nurse_HPRD_Median) : null,
+                RN_HPRD_Median: (row.RN_HPRD_Median !== undefined && row.RN_HPRD_Median !== '') ? parseFloat(row.RN_HPRD_Median) : null,
+                Nurse_Care_HPRD_Median: (row.Nurse_Care_HPRD_Median !== undefined && row.Nurse_Care_HPRD_Median !== '') ? parseFloat(row.Nurse_Care_HPRD_Median) : null,
+                RN_Care_HPRD_Median: (row.RN_Care_HPRD_Median !== undefined && row.RN_Care_HPRD_Median !== '') ? parseFloat(row.RN_Care_HPRD_Median) : null,
+                Nurse_Assistant_HPRD_Median: (row.Nurse_Assistant_HPRD_Median !== undefined && row.Nurse_Assistant_HPRD_Median !== '') ? parseFloat(row.Nurse_Assistant_HPRD_Median) : null,
+                Contract_Percentage_Median: (row.Contract_Percentage_Median !== undefined && row.Contract_Percentage_Median !== '') ? parseFloat(row.Contract_Percentage_Median) : null
+              };
+            }
+          });
+          console.log(`✓ Loaded ${Object.keys(regionQuarterlyData).length} regions with quarterly data`);
         }
 
         // Parse CSV
@@ -4467,7 +4584,14 @@
               oneStarStaffing: [],
               caseMixTotalHPRD: 0,
               caseMixRNHPRD: 0,
-              caseMixNurseAideHPRD: 0
+              caseMixNurseAideHPRD: 0,
+              // Pre-calculated medians from CSV - handle missing columns gracefully
+              Total_Nurse_HPRD_Median: (row.Total_Nurse_HPRD_Median !== undefined && row.Total_Nurse_HPRD_Median !== '') ? parseFloat(row.Total_Nurse_HPRD_Median) : null,
+              RN_HPRD_Median: (row.RN_HPRD_Median !== undefined && row.RN_HPRD_Median !== '') ? parseFloat(row.RN_HPRD_Median) : null,
+              Nurse_Care_HPRD_Median: (row.Nurse_Care_HPRD_Median !== undefined && row.Nurse_Care_HPRD_Median !== '') ? parseFloat(row.Nurse_Care_HPRD_Median) : null,
+              RN_Care_HPRD_Median: (row.RN_Care_HPRD_Median !== undefined && row.RN_Care_HPRD_Median !== '') ? parseFloat(row.RN_Care_HPRD_Median) : null,
+              Nurse_Assistant_HPRD_Median: (row.Nurse_Assistant_HPRD_Median !== undefined && row.Nurse_Assistant_HPRD_Median !== '') ? parseFloat(row.Nurse_Assistant_HPRD_Median) : null,
+              Contract_Percentage_Median: (row.Contract_Percentage_Median !== undefined && row.Contract_Percentage_Median !== '') ? parseFloat(row.Contract_Percentage_Median) : null
             };
           }
         });
@@ -4645,6 +4769,32 @@
               providerDataByState[stateName] = [];
             }
             providerDataByState[stateName].push(row);
+          });
+          
+          // Calculate for-profit percentage for each state
+          Object.keys(stateData).forEach(stateName => {
+            const state = stateData[stateName];
+            const stateFacilities = providerDataByState[stateName] || [];
+            const totalFacilities = state.facility_count || 0;
+            
+            if (stateFacilities.length === 0 || totalFacilities === 0) {
+              stateData[stateName].forProfitPercent = null;
+              return;
+            }
+            
+            // Count for-profit facilities from provider data
+            // For-profit types typically include: "For profit - Corporation", "For profit - Partnership", 
+            // "For profit - Individual", "For profit - Limited Liability company", etc.
+            const forProfitCount = stateFacilities.filter(row => {
+              const ownershipType = (row.ownership_type || '').toLowerCase().trim();
+              return ownershipType.includes('for profit') || ownershipType.includes('for-profit');
+            }).length;
+            
+            // Use state.facility_count as denominator to match what's displayed in the table
+            // Note: providerDataByState may have a different count due to data inconsistencies
+            // (e.g., facilities in provider data but not in state aggregates, or vice versa)
+            const forProfitPercent = (forProfitCount / totalFacilities) * 100;
+            stateData[stateName].forProfitPercent = forProfitPercent;
           });
           
           // Debug: log Alaska case-mix calculation
@@ -4860,34 +5010,7 @@
           if (twitterDesc) twitterDesc.setAttribute('content', fullDescription);
           
           // Update title on window resize
-          // Update colspan on resize
-          function updateColspanForMobile() {
-            if (window.innerWidth <= 768) {
-              const reportedHeader = document.querySelector('#stateTable th.section-reported');
-              const casemixHeader = document.querySelector('#stateTable th.section-casemix');
-              if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
-              if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
-            } else {
-              const reportedHeader = document.querySelector('#stateTable th.section-reported');
-              const casemixHeader = document.querySelector('#stateTable th.section-casemix');
-              if (reportedHeader) reportedHeader.setAttribute('colspan', '3');
-              if (casemixHeader) casemixHeader.setAttribute('colspan', '3');
-              
-              // Clear inline styles on desktop
-              const hprdHeaders = document.querySelectorAll('#stateTable th[data-sort="totalHPRD"], #stateTable th[data-sort="caseMixTotal"], #stateTable th[data-sort="rnHPRD"], #stateTable th[data-sort="caseMixRN"]');
-              hprdHeaders.forEach(th => {
-                th.style.cssText = '';
-              });
-            }
-          }
-          
-          // Set header styles on initial load
-          setTimeout(() => {
-            updateColspanForMobile();
-          }, 100);
-          
           window.addEventListener('resize', function() {
-            updateColspanForMobile();
             const pageTitleEl = document.getElementById('pageTitle');
             if (pageTitleEl) {
               const isMobile = window.innerWidth <= 768;
@@ -4920,41 +5043,26 @@
       } catch (error) {
         console.error('Error loading data:', error);
         document.getElementById('usSummary').innerHTML = '<div class="loading">Error loading data. Please refresh the page.</div>';
-        document.getElementById('stateTableBody').innerHTML = '<tr><td colspan="10" class="loading">Error loading data.</td></tr>';
+        const isMobileError = window.innerWidth <= 600;
+        const errorColspan = isMobileError ? '12' : '11';
+        document.getElementById('stateTableBody').innerHTML = `<tr><td colspan="${errorColspan}" class="loading">Error loading data.</td></tr>`;
       }
     }
     
     function setupEventHandlers() {
-      // Set up median toggle
-      const medianToggle = document.getElementById('medianToggle');
-      if (medianToggle) {
-        medianToggle.addEventListener('change', function(e) {
-          tableShowMedians = e.target.checked; // Table-specific variable
-          // Recalculate rankings when median toggle changes
-          calculateStateRankings();
-          updateStateDataTitle();
-          // Re-sort if currently sorting by rank or affected columns
-          if (currentSort.column === 'rank' || currentSort.column === 'totalHPRD' || currentSort.column === 'rnHPRD') {
-            const sortedStates = sortStates(currentSort.column, currentSort.direction);
-            sortedStatesList = sortedStates;
-          }
-          renderStateTable();
-          // Do NOT update map or summary - table toggles are independent
+      // Median toggle removed from table - table always uses regular values
+      // Update title when view changes
+      const stateViewTab = document.getElementById('stateViewTab');
+      const regionViewTab = document.getElementById('regionViewTab');
+      if (stateViewTab) {
+        stateViewTab.addEventListener('click', function() {
+          setTimeout(updateStateDataTitle, 100);
         });
-        
-        // Update title when view changes
-        const stateViewTab = document.getElementById('stateViewTab');
-        const regionViewTab = document.getElementById('regionViewTab');
-        if (stateViewTab) {
-          stateViewTab.addEventListener('click', function() {
-            setTimeout(updateStateDataTitle, 100);
-          });
-        }
-        if (regionViewTab) {
-          regionViewTab.addEventListener('click', function() {
-            setTimeout(updateStateDataTitle, 100);
-          });
-        }
+      }
+      if (regionViewTab) {
+        regionViewTab.addEventListener('click', function() {
+          setTimeout(updateStateDataTitle, 100);
+        });
       }
       
       // Set up metric selector
@@ -5053,6 +5161,22 @@
       }
     }
     
+    // Update Total HPRD header text based on excludeAdminDON toggle
+    function updateTotalHPRDHeader() {
+      const totalHPRDHeader = document.querySelector('#stateTable th[data-sort="totalHPRD"]');
+      if (totalHPRDHeader) {
+        const desktopText = totalHPRDHeader.querySelector('.desktop-text');
+        const mobileText = totalHPRDHeader.querySelector('.mobile-text');
+        if (tableExcludeAdminDON) {
+          if (desktopText) desktopText.innerHTML = 'Direct<br/>HPRD';
+          if (mobileText) mobileText.textContent = 'Direct HPRD';
+        } else {
+          if (desktopText) desktopText.innerHTML = 'Total<br/>HPRD';
+          if (mobileText) mobileText.textContent = 'Total HPRD';
+        }
+      }
+    }
+    
     // Update title based on median toggle
     function updateStateDataTitle() {
       const titleEl = document.getElementById('stateDataTitle');
@@ -5120,77 +5244,56 @@
     }
     
     function calculateStateMedians() {
-      // Calculate medians for each state from facility-level data
+      // Use pre-calculated medians from CSV (calculated from facility-level data)
       // This gives us the median of all facilities within each state
       stateMedians = {};
       
-      // Initialize medians object with state names
+      // Use pre-calculated medians from state_quarterly_metrics.csv
+      let medianColumnsFound = false;
       Object.keys(stateData).forEach(stateName => {
-        stateMedians[stateName] = {};
+        const state = stateData[stateName];
+        // Check if median columns exist in the data (check if property exists, not just if it has a value)
+        if (!medianColumnsFound && state.hasOwnProperty('Contract_Percentage_Median')) {
+          medianColumnsFound = true;
+        }
+        
+        // Check if median columns exist and have valid values (handle both null and undefined)
+        const hasMedian = (val) => val !== null && val !== undefined && !isNaN(val);
+        
+        stateMedians[stateName] = {
+          Total_Nurse_HPRD: hasMedian(state.Total_Nurse_HPRD_Median) ? state.Total_Nurse_HPRD_Median : (state.Total_Nurse_HPRD || 0),
+          RN_HPRD: hasMedian(state.RN_HPRD_Median) ? state.RN_HPRD_Median : (state.RN_HPRD || 0),
+          Nurse_Care_HPRD: hasMedian(state.Nurse_Care_HPRD_Median) ? state.Nurse_Care_HPRD_Median : (state.Nurse_Care_HPRD || 0),
+          RN_Care_HPRD: hasMedian(state.RN_Care_HPRD_Median) ? state.RN_Care_HPRD_Median : (state.RN_Care_HPRD || 0),
+          Nurse_Assistant_HPRD: hasMedian(state.Nurse_Assistant_HPRD_Median) ? state.Nurse_Assistant_HPRD_Median : (state.Nurse_Assistant_HPRD || 0),
+          Contract_Percentage: hasMedian(state.Contract_Percentage_Median) ? state.Contract_Percentage_Median : (state.Contract_Percentage || 0),
+          // Case-mix still needs to be calculated from provider data (not in CSV)
+          caseMixTotalHPRD: 0,
+          caseMixRNHPRD: 0,
+          caseMixNurseAideHPRD: 0
+        };
       });
       
-      // Calculate medians from provider data for each state
-      // Simple unweighted medians - each facility counts equally (50% above, 50% below)
+      if (!medianColumnsFound) {
+        console.warn('⚠️ Median columns not found in state_quarterly_metrics.csv. Please run add_medians_to_state_quarterly.py to add them.');
+      } else {
+        console.log('✓ Loaded pre-calculated medians from state_quarterly_metrics.csv');
+        // Debug: log a sample state's medians
+        const sampleState = Object.keys(stateMedians)[0];
+        if (sampleState) {
+          console.log(`Sample medians for ${sampleState}:`, stateMedians[sampleState]);
+        }
+      }
+      
+      // Calculate case-mix medians from provider data (not available in CSV)
       Object.keys(providerDataByState).forEach(stateName => {
         const facilities = providerDataByState[stateName];
         if (!facilities || facilities.length === 0) return;
         
-        const state = stateData[stateName];
-        if (!state) return;
-        
-        // Calculate medians by facility (unweighted - each facility counts equally)
-        // This is the simple median: 50% of facilities are above, 50% are below
-        // Now we can calculate facility-level medians for direct care using facility_quarterly_metrics.csv
-        
-        // Get facility-level direct care values from facility_quarterly_metrics.csv
-        const directCareValues = [];
-        const rnCareValues = [];
-        const contractValues = [];
-        
-        facilities.forEach(facility => {
-          const ccn = parseInt(facility.ccn) || 0;
-          if (ccn > 0 && facilityQuarterlyData[ccn]) {
-            const facilityData = facilityQuarterlyData[ccn];
-            if (facilityData.Nurse_Care_HPRD > 0) {
-              directCareValues.push(facilityData.Nurse_Care_HPRD);
-            }
-            if (facilityData.RN_Care_HPRD > 0) {
-              rnCareValues.push(facilityData.RN_Care_HPRD);
-            }
-            if (facilityData.Contract_Percentage >= 0) {
-              contractValues.push(facilityData.Contract_Percentage);
-            }
-          }
-        });
-        
-        stateMedians[stateName] = {
-          Total_Nurse_HPRD: calculateFacilityMedian(facilities, 'reported_total_nurse_hrs_per_resident_per_day'),
-          RN_HPRD: calculateFacilityMedian(facilities, 'reported_rn_hrs_per_resident_per_day'),
-          Nurse_Care_HPRD: directCareValues.length > 0 ? calculateMedian(directCareValues) : (state.Nurse_Care_HPRD || 0), // Facility-level median if available, else state-level
-          RN_Care_HPRD: rnCareValues.length > 0 ? calculateMedian(rnCareValues) : (state.RN_Care_HPRD || 0), // Facility-level median if available, else state-level
-          Nurse_Assistant_HPRD: calculateFacilityMedian(facilities, 'reported_na_hrs_per_resident_per_day'),
-          Contract_Percentage: contractValues.length > 0 ? calculateMedian(contractValues) : (state.Contract_Percentage || 0), // Facility-level median if available, else state-level
-          caseMixTotalHPRD: calculateFacilityMedian(facilities, 'case_mix_total_nurse_hrs_per_resident_per_day'),
-          caseMixRNHPRD: calculateFacilityMedian(facilities, 'case_mix_rn_hrs_per_resident_per_day'),
-          caseMixNurseAideHPRD: calculateFacilityMedian(facilities, 'case_mix_na_hrs_per_resident_per_day')
-        };
-      });
-      
-      // For states without provider data, use state-level values as fallback
-      Object.keys(stateData).forEach(stateName => {
-        if (!stateMedians[stateName] || Object.keys(stateMedians[stateName]).length === 0) {
-          const state = stateData[stateName];
-          stateMedians[stateName] = {
-            Total_Nurse_HPRD: state.Total_Nurse_HPRD || 0,
-            RN_HPRD: state.RN_HPRD || 0,
-            Nurse_Care_HPRD: state.Nurse_Care_HPRD || 0,
-            RN_Care_HPRD: state.RN_Care_HPRD || 0,
-            Nurse_Assistant_HPRD: state.Nurse_Assistant_HPRD || 0,
-            Contract_Percentage: state.Contract_Percentage || 0,
-            caseMixTotalHPRD: state.caseMixTotalHPRD || 0,
-            caseMixRNHPRD: state.caseMixRNHPRD || 0,
-            caseMixNurseAideHPRD: state.caseMixNurseAideHPRD || 0
-          };
+        if (stateMedians[stateName]) {
+          stateMedians[stateName].caseMixTotalHPRD = calculateFacilityMedian(facilities, 'case_mix_total_nurse_hrs_per_resident_per_day');
+          stateMedians[stateName].caseMixRNHPRD = calculateFacilityMedian(facilities, 'case_mix_rn_hrs_per_resident_per_day');
+          stateMedians[stateName].caseMixNurseAideHPRD = calculateFacilityMedian(facilities, 'case_mix_na_hrs_per_resident_per_day');
         }
       });
     }
@@ -5276,9 +5379,25 @@
         if (state.oneStarStaffing) region.oneStarStaffing.push(...state.oneStarStaffing);
       });
       
-      // Calculate weighted averages for regions
+      // Calculate weighted averages for regions and for-profit percentage
       Object.keys(regionData).forEach(regionKey => {
         const region = regionData[regionKey];
+        
+        // Calculate for-profit percentage for region
+        // Aggregate facility counts from states in the region
+        let totalFacilities = 0;
+        let forProfitFacilities = 0;
+        region.states.forEach(stateName => {
+          const state = stateData[stateName];
+          if (state && state.facility_count) {
+            totalFacilities += state.facility_count;
+            // Calculate for-profit count from state's for-profit percentage
+            if (state.forProfitPercent !== null && state.forProfitPercent !== undefined) {
+              forProfitFacilities += Math.round((state.forProfitPercent / 100) * state.facility_count);
+            }
+          }
+        });
+        region.forProfitPercent = totalFacilities > 0 ? (forProfitFacilities / totalFacilities) * 100 : null;
         const totalResidentDays = region.total_resident_days;
         
         if (totalResidentDays > 0) {
@@ -5291,20 +5410,27 @@
           region.caseMixRNHPRD = region.caseMixRNHPRD / totalResidentDays;
           region.caseMixNurseAideHPRD = region.caseMixNurseAideHPRD / totalResidentDays;
           
-          // Calculate contract percentage (weighted average)
-          let totalContractHours = 0;
-          let totalHours = 0;
-          region.states.forEach(stateName => {
-            const state = stateData[stateName];
-            const residentDays = state.total_resident_days || 0;
-            const contractPct = state.Contract_Percentage || 0;
-            const totalHPRD = state.Total_Nurse_HPRD || 0;
-            if (residentDays > 0) {
-              totalContractHours += (contractPct / 100) * totalHPRD * residentDays;
-              totalHours += totalHPRD * residentDays;
-            }
-          });
-          region.Contract_Percentage = totalHours > 0 ? (totalContractHours / totalHours) * 100 : 0;
+          // Use contract percentage from cms_region_quarterly_metrics.csv (calculated from facility-level data)
+          // This is the most accurate as it's calculated from total facility contract hours / total facility hours
+          const regionQuarterly = regionQuarterlyData[regionKey];
+          if (regionQuarterly && regionQuarterly.Contract_Percentage !== undefined && regionQuarterly.Contract_Percentage !== null) {
+            region.Contract_Percentage = regionQuarterly.Contract_Percentage;
+          } else {
+            // Fallback: calculate from state-level aggregation if region data not available
+            let totalContractHours = 0;
+            let totalHours = 0;
+            region.states.forEach(stateName => {
+              const state = stateData[stateName];
+              const residentDays = state.total_resident_days || 0;
+              const contractPct = state.Contract_Percentage || 0;
+              const totalHPRD = state.Total_Nurse_HPRD || 0;
+              if (residentDays > 0) {
+                totalContractHours += (contractPct / 100) * totalHPRD * residentDays;
+                totalHours += totalHPRD * residentDays;
+              }
+            });
+            region.Contract_Percentage = totalHours > 0 ? (totalContractHours / totalHours) * 100 : 0;
+          }
         }
       });
     }
@@ -5460,6 +5586,10 @@
           const daysReported = state.avg_days_reported || 0;
           return daysReported > 0 ? residentDays / daysReported : 0;
         case 'Contract_Percentage':
+          // Use median if median toggle is on
+          if (mapDisplayMode === 'median' && stateMedians[stateName] && stateMedians[stateName].Contract_Percentage !== undefined) {
+            return stateMedians[stateName].Contract_Percentage;
+          }
           return state.Contract_Percentage || 0;
         default:
           return state[metric] || 0;
@@ -5671,17 +5801,30 @@
           rnHPRDMedian = medians.RN_HPRD;
         }
         
+        // When excludeAdminDON is false: always show average with median in parentheses (regardless of showMedians)
+        // When excludeAdminDON is true: show only the value (median if showMedians is true, average if false), and show median in parentheses if showMedians is false
+        let totalHPRDDisplay, rnHPRDDisplay;
+        if (excludeAdminDON) {
+          // When excludeAdminDON is enabled, show only the selected value
+          totalHPRDDisplay = showMedians ? totalHPRDMedian.toFixed(2) : `${totalHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`;
+          rnHPRDDisplay = showMedians ? rnHPRDMedian.toFixed(2) : `${rnHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`;
+        } else {
+          // When excludeAdminDON is false, always show average with median in parentheses (regardless of showMedians)
+          totalHPRDDisplay = `${totalHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`;
+          rnHPRDDisplay = `${rnHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`;
+        }
+        
         html = `
           <div class="metric-row" style="margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.2);">
             <span class="metric-label" style="font-size: 0.75rem;">${totalFacilities.toLocaleString()} facilities (${residentsFormatted} residents)</span>
           </div>
           <div class="metric-row">
             <span class="metric-label">Total Nurse HPRD</span>
-            <span class="metric-value">${showMedians ? totalHPRDMedian.toFixed(2) : totalHPRD.toFixed(2)}${showMedians ? '' : ` <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`}</span>
+            <span class="metric-value">${totalHPRDDisplay}</span>
           </div>
           <div class="metric-row">
             <span class="metric-label">RN HPRD</span>
-            <span class="metric-value">${showMedians ? rnHPRDMedian.toFixed(2) : rnHPRD.toFixed(2)}${showMedians ? '' : ` <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`}</span>
+            <span class="metric-value">${rnHPRDDisplay}</span>
           </div>
         `;
       }
@@ -5694,7 +5837,9 @@
     }
 
     function formatValue(value, isMedian, median, decimals = 2, isPercent = false) {
-      const displayValue = showMedians && isMedian ? median : value;
+      // For table, use tableShowMedians; for map, use showMedians
+      // This function is used in table rendering, so use tableShowMedians
+      const displayValue = tableShowMedians && isMedian ? median : value;
       const formatted = displayValue.toFixed(decimals);
       return isPercent ? formatted + '%' : formatted;
     }
@@ -5744,9 +5889,29 @@
           return aVal - bVal;
         },
       'nurseAideHPRD': (a, b) => (a.Nurse_Assistant_HPRD || 0) - (b.Nurse_Assistant_HPRD || 0),
+      'contract': (a, b) => (a.Contract_Percentage || 0) - (b.Contract_Percentage || 0),
       'caseMixTotal': (a, b) => (a.caseMixTotalHPRD || 0) - (b.caseMixTotalHPRD || 0),
-        'caseMixRN': (a, b) => (a.caseMixRNHPRD || 0) - (b.caseMixRNHPRD || 0),
-        'caseMixNA': (a, b) => (a.caseMixNurseAideHPRD || 0) - (b.caseMixNurseAideHPRD || 0)
+      'forProfit': (a, b) => {
+        const aVal = a.forProfitPercent !== null && a.forProfitPercent !== undefined ? a.forProfitPercent : -1;
+        const bVal = b.forProfitPercent !== null && b.forProfitPercent !== undefined ? b.forProfitPercent : -1;
+        return aVal - bVal;
+      },
+      'highRisk': (a, b) => {
+        // Calculate unique high-risk count for sorting
+        const getHighRiskCount = (state) => {
+          const allHighRisk = [
+            ...(state.sff || []),
+            ...(state.sffCandidates || []),
+            ...(state.abuse || []),
+            ...(state.oneStarOverall || []),
+            ...(state.oneStarStaffing || [])
+          ];
+          const uniqueCCNs = new Set();
+          allHighRisk.forEach(f => { if (f.ccn) uniqueCCNs.add(f.ccn); });
+          return uniqueCCNs.size;
+        };
+        return getHighRiskCount(a) - getHighRiskCount(b);
+      }
       };
     
     function sortStates(sortColumn, direction) {
@@ -5756,6 +5921,11 @@
       const sorted = [...states].sort(sortFunc);
       
       return direction === 'desc' ? sorted.reverse() : sorted;
+    }
+    
+    // Helper function to check if we're on mobile
+    function isMobile() {
+      return window.innerWidth <= 600;
     }
     
     // Helper function to create a table cell
@@ -5824,23 +5994,30 @@
       const tbody = document.getElementById('stateTableBody');
       if (!tbody) return;
       
+      // Update Total HPRD header text based on excludeAdminDON toggle
+      updateTotalHPRDHeader();
+      
+      // Update loading row colspan based on visible columns
+      const loadingRow = document.getElementById('loadingRow');
+      if (loadingRow) {
+        const table = document.getElementById('stateTable');
+        if (table) {
+          const headerRow = table.querySelector('thead tr');
+          if (headerRow) {
+            const visibleHeaders = Array.from(headerRow.querySelectorAll('th')).filter(th => {
+              const style = window.getComputedStyle(th);
+              return style.display !== 'none' && style.visibility !== 'hidden';
+            });
+            loadingRow.setAttribute('colspan', visibleHeaders.length.toString());
+          }
+        }
+      }
+      
       // Clear existing rows first
       tbody.innerHTML = '';
       
       // Update colspan for section headers on mobile (span 2 columns instead of 3)
-      // CSS now handles all width constraints - no inline styles needed
-      const isMobile = window.innerWidth <= 768;
-      if (isMobile) {
-        const reportedHeader = document.querySelector('#stateTable th.section-reported');
-        const casemixHeader = document.querySelector('#stateTable th.section-casemix');
-        if (reportedHeader) reportedHeader.setAttribute('colspan', '2');
-        if (casemixHeader) casemixHeader.setAttribute('colspan', '2');
-      } else {
-        const reportedHeader = document.querySelector('#stateTable th.section-reported');
-        const casemixHeader = document.querySelector('#stateTable th.section-casemix');
-        if (reportedHeader) reportedHeader.setAttribute('colspan', '3');
-        if (casemixHeader) casemixHeader.setAttribute('colspan', '3');
-      }
+      // No colspan updates needed - all columns are individual now
       
       // Get data based on current view
       let dataToRender;
@@ -5880,12 +6057,19 @@
           }
         }
         
-        const sffCount = (state.sff || []).length;
-        const candidateCount = (state.sffCandidates || []).length;
-        const abuseCount = (state.abuse || []).length;
-        const oneStarOverallCount = (state.oneStarOverall || []).length;
-        const oneStarStaffingCount = (state.oneStarStaffing || []).length;
-        const totalCount = sffCount + candidateCount + abuseCount + oneStarOverallCount + oneStarStaffingCount;
+        // Calculate unique high-risk facilities count (avoid duplicates across categories)
+        const allHighRiskFacilities = [
+          ...(state.sff || []),
+          ...(state.sffCandidates || []),
+          ...(state.abuse || []),
+          ...(state.oneStarOverall || []),
+          ...(state.oneStarStaffing || [])
+        ];
+        const uniqueCCNs = new Set();
+        allHighRiskFacilities.forEach(f => {
+          if (f.ccn) uniqueCCNs.add(f.ccn);
+        });
+        const totalCount = uniqueCCNs.size;
         const hasSFF = totalCount > 0;
         
         // Case-mix values - always show individual state values, not medians
@@ -5927,60 +6111,6 @@
             reportedTotal = totalResidentDays > 0 ? totalDirectCareHours / totalResidentDays : 0;
             reportedRN = totalResidentDays > 0 ? totalRNCareHours / totalResidentDays : 0;
             reportedNA = state.Nurse_Assistant_HPRD || 0;
-          } else if (tableShowMedians) {
-            // Calculate region medians from all facilities in the region (facility-level)
-            // Now we can calculate facility-level medians for direct care using facility_quarterly_metrics.csv
-            const regionFacilities = [];
-            const directCareValues = [];
-            const rnCareValues = [];
-            
-            state.states.forEach(stateName => {
-              const facilities = providerDataByState[stateName] || [];
-              facilities.forEach(f => {
-                regionFacilities.push({
-                  total_nurse_hprd: parseFloat(f.reported_total_nurse_hrs_per_resident_per_day) || 0,
-                  rn_hprd: parseFloat(f.reported_rn_hrs_per_resident_per_day) || 0,
-                  nurse_assistant_hprd: parseFloat(f.reported_na_hrs_per_resident_per_day) || 0
-                });
-                
-                // Get facility-level direct care data from facility_quarterly_metrics.csv
-                const ccn = parseInt(f.ccn) || 0;
-                if (ccn > 0 && facilityQuarterlyData[ccn]) {
-                  const facilityData = facilityQuarterlyData[ccn];
-                  if (facilityData.Nurse_Care_HPRD > 0) {
-                    directCareValues.push(facilityData.Nurse_Care_HPRD);
-                  }
-                  if (facilityData.RN_Care_HPRD > 0) {
-                    rnCareValues.push(facilityData.RN_Care_HPRD);
-                  }
-                }
-              });
-            });
-            
-            if (regionFacilities.length > 0) {
-              // Calculate facility-level medians for metrics we have actual facility data for
-              reportedTotal = calculateFacilityMedian(regionFacilities, 'total_nurse_hprd');
-              reportedRN = calculateFacilityMedian(regionFacilities, 'rn_hprd');
-              reportedNA = calculateFacilityMedian(regionFacilities, 'nurse_assistant_hprd');
-              
-              // For direct care, use facility-level medians if available, else fallback to state medians
-              // Note: When excludeAdminDON is off and showMedians is on, we show total reported (not direct care)
-              // Direct care medians are only used when excludeAdminDON is on
-            } else {
-              // Fallback to state medians if no facility data
-            const regionStateMedians = state.states
-              .map(stateName => stateMedians[stateName])
-              .filter(m => m);
-            if (regionStateMedians.length > 0) {
-              reportedTotal = calculateMedian(regionStateMedians.map(m => m.Total_Nurse_HPRD || 0));
-              reportedRN = calculateMedian(regionStateMedians.map(m => m.RN_HPRD || 0));
-              reportedNA = calculateMedian(regionStateMedians.map(m => m.Nurse_Assistant_HPRD || 0));
-            } else {
-              reportedTotal = state.Total_Nurse_HPRD || 0;
-              reportedRN = state.RN_HPRD || 0;
-              reportedNA = state.Nurse_Assistant_HPRD || 0;
-              }
-            }
           } else {
             // Regions use aggregated values directly
             reportedTotal = state.Total_Nurse_HPRD || 0;
@@ -5994,11 +6124,6 @@
           reportedTotal = calculateDirectCareExclAdmin(state.name);
           reportedRN = calculateRNCareExclAdmin(state.name);
           reportedNA = state.Nurse_Assistant_HPRD || 0;
-        } else if (tableShowMedians) {
-          // When table medians are enabled and excludeAdminDON is off, use medians
-          reportedTotal = stateMedians[state.name]?.Total_Nurse_HPRD || 0;
-          reportedRN = stateMedians[state.name]?.RN_HPRD || 0;
-          reportedNA = stateMedians[state.name]?.Nurse_Assistant_HPRD || 0;
         } else {
           // Normal mode: use state-level values
           reportedTotal = state.Total_Nurse_HPRD || 0;
@@ -6006,21 +6131,11 @@
           reportedNA = state.Nurse_Assistant_HPRD || 0;
         }
         
-        // Compare reported to case-mix: if ratio >= 1, normal font (no special color); if < 1, red
-        const getCaseMixColor = (reported, caseMix) => {
-          if (!caseMix || caseMix <= 0) return 'rgba(255,255,255,0.5)';
-          const ratio = reported / caseMix;
-          return ratio >= 1 ? '' : '#f87171';
-        };
-        
-        const caseMixTotalColor = getCaseMixColor(reportedTotal, caseMixTotal);
-        const caseMixRNColor = getCaseMixColor(reportedRN, caseMixRN);
-        const caseMixNAColor = getCaseMixColor(reportedNA, caseMixNA);
-        
-        // Use the same values for display
+        // Use the same values for display (these already have medians if tableShowMedians is true)
         const reportedTotalValue = reportedTotal;
         const reportedRNValue = reportedRN;
         const reportedNAValue = reportedNA;
+        
         
         // Create table row
         const tr = document.createElement('tr');
@@ -6052,20 +6167,36 @@
         // Facilities cell
         const facilitiesCell = document.createElement('td');
         facilitiesCell.className = 'col-facilities facilities';
+        facilitiesCell.style.textAlign = 'center';
+        
         const facilityCountDiv = document.createElement('div');
         facilityCountDiv.className = 'facility-count';
         facilityCountDiv.textContent = state.facility_count.toLocaleString();
         facilitiesCell.appendChild(facilityCountDiv);
         
-        // Add Risk List button on desktop (hidden on mobile where it has its own column)
-        let desktopSffButton;
+        // Add "View Risk List" button if there are high-risk facilities
+        if (hasSFF) {
+          let riskListButton;
+          const isDesktop = window.innerWidth > 768;
+          const buttonText = isDesktop ? 'View Risk List' : 'Risk List';
         if (currentTableView === 'region') {
-          desktopSffButton = createButton('View High-Risk', () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
+            riskListButton = createButton(buttonText, () => openRegionSFFModal(state.name, state.regionNumber || ''), false);
         } else {
-          desktopSffButton = createButton('View High-Risk', () => openSFFModal(state.name, stateAbbr), !hasSFF);
+            riskListButton = createButton(buttonText, () => openSFFModal(state.name, stateAbbr), false);
         }
-        desktopSffButton.className = 'desktop-risk-list-button';
-        facilitiesCell.appendChild(desktopSffButton);
+          riskListButton.style.padding = isDesktop ? '4px 6px' : '3px 4px';
+          riskListButton.style.fontSize = isDesktop ? '0.7rem' : '0.55rem';
+          riskListButton.style.marginTop = '4px';
+          riskListButton.style.marginLeft = 'auto';
+          riskListButton.style.marginRight = 'auto';
+          riskListButton.style.display = 'block';
+          riskListButton.style.maxWidth = '100%';
+          riskListButton.style.boxSizing = 'border-box';
+          riskListButton.style.whiteSpace = 'nowrap';
+          riskListButton.style.overflow = 'hidden';
+          riskListButton.style.textOverflow = 'ellipsis';
+          facilitiesCell.appendChild(riskListButton);
+        }
         
         tr.appendChild(facilitiesCell);
         
@@ -6098,68 +6229,34 @@
         }
         tr.appendChild(sffCell);
         
-        // Reported HPRD cells
+        // Reported HPRD cells - use the values we already calculated (they already have medians if toggle is on)
         let reportedTotalText, reportedRNText, reportedNAText;
-        if (currentTableView === 'region') {
-          reportedTotalText = reportedTotalValue.toFixed(2);
-          reportedRNText = reportedRNValue.toFixed(2);
-          reportedNAText = reportedNAValue.toFixed(2);
-        } else {
-          reportedTotalText = formatValue(reportedTotalValue, (tableShowMedians && !tableExcludeAdminDON), (stateMedians[state.name]?.Total_Nurse_HPRD || 0));
-          reportedRNText = formatValue(reportedRNValue, (tableShowMedians && !tableExcludeAdminDON), (stateMedians[state.name]?.RN_HPRD || 0));
-          reportedNAText = formatValue(reportedNAValue, tableShowMedians, (stateMedians[state.name]?.Nurse_Assistant_HPRD || 0));
-        }
+        // Values are already set correctly above based on tableShowMedians toggle
+        reportedTotalText = reportedTotalValue.toFixed(2);
+        reportedRNText = reportedRNValue.toFixed(2);
+        reportedNAText = reportedNAValue.toFixed(2);
         
         // Reported HPRD cells - CSS handles widths
-        const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value', caseMixTotalColor ? `color: ${caseMixTotalColor};` : '');
+        const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value');
         tr.appendChild(reportedTotalCell);
         
-        const reportedRNCell = createTableCell(reportedRNText, 'col-hprd reported-value', caseMixRNColor ? `color: ${caseMixRNColor};` : '');
+        const reportedRNCell = createTableCell(reportedRNText, 'col-hprd reported-value');
         tr.appendChild(reportedRNCell);
         
-        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value nurse-aide-mobile-hide', caseMixNAColor ? `color: ${caseMixNAColor};` : '');
+        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value nurse-aide-mobile-hide');
         tr.appendChild(reportedNACell);
         
-        // Case-Mix HPRD cells
-        let caseMixTotalText, caseMixRNText, caseMixNAText;
-        if (currentTableView === 'region') {
-          caseMixTotalText = caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-';
-          caseMixRNText = caseMixRN > 0 ? caseMixRN.toFixed(2) : '-';
-          caseMixNAText = caseMixNA > 0 ? caseMixNA.toFixed(2) : '-';
-        } else {
-          caseMixTotalText = (tableShowMedians && !tableExcludeAdminDON && stateMedians[state.name]?.caseMixTotalHPRD) 
-            ? stateMedians[state.name].caseMixTotalHPRD.toFixed(2) 
-            : (caseMixTotal > 0 ? caseMixTotal.toFixed(2) : '-');
-          caseMixRNText = (tableShowMedians && stateMedians[state.name]?.caseMixRNHPRD) 
-            ? stateMedians[state.name].caseMixRNHPRD.toFixed(2) 
-            : (caseMixRN > 0 ? caseMixRN.toFixed(2) : '-');
-          caseMixNAText = (tableShowMedians && stateMedians[state.name]?.caseMixNurseAideHPRD) 
-            ? stateMedians[state.name].caseMixNurseAideHPRD.toFixed(2) 
-            : (caseMixNA > 0 ? caseMixNA.toFixed(2) : '-');
-        }
+        // Contract % cell - always use regular value (median toggle removed from table)
+        const contractPercent = state.Contract_Percentage !== undefined ? state.Contract_Percentage : null;
+        const contractText = contractPercent !== null ? `${contractPercent.toFixed(1)}%` : '-';
+        const contractCell = createTableCell(contractText, 'col-contract');
+        tr.appendChild(contractCell);
         
-        const caseMixTotalCell = createTableCell(caseMixTotalText, 'col-hprd casemix-value');
-        tr.appendChild(caseMixTotalCell);
-        
-        const caseMixRNCell = createTableCell(caseMixRNText, 'col-hprd casemix-value');
-        tr.appendChild(caseMixRNCell);
-        
-        const caseMixNACell = createTableCell(caseMixNAText, 'col-hprd casemix-value nurse-aide-mobile-hide');
-        tr.appendChild(caseMixNACell);
-        
-        // Risk List button cell (mobile only, at the end)
-        const riskListCell = document.createElement('td');
-        riskListCell.className = 'col-risk-list mobile-risk-list-cell';
-        let sffButton;
-        if (currentTableView === 'region') {
-          const buttonText = window.innerWidth <= 600 ? 'Risk List' : 'View High-Risk';
-          sffButton = createButton(buttonText, () => openRegionSFFModal(state.name, state.regionNumber || ''), !hasSFF);
-        } else {
-          const buttonText = window.innerWidth <= 600 ? 'Risk List' : 'View High-Risk';
-          sffButton = createButton(buttonText, () => openSFFModal(state.name, stateAbbr), !hasSFF);
-        }
-        riskListCell.appendChild(sffButton);
-        tr.appendChild(riskListCell);
+        // For-Profit % cell
+        const forProfitPercent = state.forProfitPercent !== undefined ? state.forProfitPercent : null;
+        const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : '-';
+        const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
+        tr.appendChild(forProfitCell);
         
         // Append row to tbody
         tbody.appendChild(tr);
@@ -6259,7 +6356,7 @@
           ${staffingText}
           <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
             <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">View PBJ Dashboard</a>
-            <a href="${cmsLink}" target="_blank" style="font-size: 0.75rem; font-style: italic; color: rgba(255,255,255,0.7); text-decoration: underline;">View facility on CMS Care Compare</a>
+            <a href="${cmsLink}" target="_blank" style="font-size: 0.75rem; font-style: italic; color: rgba(255,255,255,0.7); text-decoration: underline;">View on CMS Care Compare</a>
           </div>
         </li>
       `;
@@ -6685,19 +6782,6 @@
               // Get state rank
               const rank = stateRankings[stateName] || 'N/A';
               
-              // Get case-mix data - use appropriate case-mix based on metric
-              let caseMixValue = 0;
-              if (currentMetric === 'Total_Nurse_HPRD') {
-                caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
-                  ? (stateMedians[stateName]?.caseMixTotalHPRD || data.caseMixTotalHPRD || 0)
-                  : (data.caseMixTotalHPRD || 0);
-              } else if (currentMetric === 'Total_RN_HPRD') {
-                caseMixValue = mapDisplayMode === 'median' && !excludeAdminDON
-                  ? (stateMedians[stateName]?.caseMixRNHPRD || data.caseMixRNHPRD || 0)
-                  : (data.caseMixRNHPRD || 0);
-              }
-              const caseMixDisplay = caseMixValue > 0 ? caseMixValue.toFixed(2) : 'N/A';
-              
               // Get facilities and residents count
               const facilities = data.facility_count || 0;
               const residents = Math.round((data.avg_days_reported > 0 ? (data.total_resident_days / data.avg_days_reported) : 0) || 0);
@@ -6717,14 +6801,15 @@
                 metricLabel += ' (excl. Admin/DON)';
               }
               
+              // Case-mix removed from desktop hover tooltips
               tooltip.transition()
                 .duration(200)
                 .style('opacity', 0.95);
+              
               tooltip.html(`
                 <strong>${stateName}</strong><br/>
                 ${metricLabel}: ${formattedValue} (Rank: ${rank})<br/>
-                Case-Mix: ${caseMixDisplay}<br/>
-                ${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)<br/>
+                <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
                 <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
               `)
                 .style('left', (event.pageX + 10) + 'px')
@@ -7163,16 +7248,21 @@
             modeSuffix = ' (excl. Admin/DON)';
           }
           
+          // Get facilities and residents count
+          const facilities = data.facility_count || 0;
+          const residents = Math.round((data.avg_days_reported > 0 ? (data.total_resident_days / data.avg_days_reported) : 0) || 0);
+          
           if (showingRatio) {
             // When showing ratio, primary is the ratio
             const ratio = value;
             primaryLabel = isRatioMetric ? metricLabels[currentMetric] : `${metricLabels[currentMetric]}`;
             primaryValue = ratio.toFixed(2);
             
+            // Case-mix removed from desktop hover tooltips
             tooltipContent = `
               <strong>${stateName}</strong><br/>
               ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
-              ${caseMixLabel}: ${caseMixValue > 0 ? caseMixValue.toFixed(2) : 'N/A'}<br/>
+              <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
               <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
             `;
           } else {
@@ -7193,17 +7283,11 @@
               primaryValue = value.toFixed(2);
             }
             
-            // Always show case-mix if available (for HPRD metrics)
-            let caseMixLine = '';
-            if ((currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD') && caseMixValue > 0) {
-              const ratio = reportedValue / caseMixValue;
-              caseMixLine = `${caseMixLabel}: ${caseMixValue.toFixed(2)} (Ratio: ${ratio.toFixed(2)} ${ratio >= 1 ? 'Meets' : 'Below'})<br/>`;
-            }
-            
+            // Case-mix removed from desktop hover tooltips
             tooltipContent = `
               <strong>${stateName}</strong><br/>
               ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
-              ${caseMixLine}
+              <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
               <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
             `;
           }
@@ -7435,4 +7519,3 @@
   </script>
 </body>
 </html>
-

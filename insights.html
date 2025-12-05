@@ -166,10 +166,14 @@
       margin-bottom: 1.5rem;
       height: 400px;
       position: relative;
+      width: 100%;
+      max-width: 100%;
+      overflow: hidden;
     }
     
     .chart-container canvas {
       max-height: 100%;
+      max-width: 100%;
     }
     
     .stats-grid {
@@ -212,19 +216,22 @@
     
     .footer {
       text-align: center;
-      margin-top: 3rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid #333;
-      color: #7a869a;
-      font-size: 0.9em;
+      padding: 40px 20px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.9rem;
+      background: #1a2433;
+      margin-top: 60px;
+      border-top: 1px solid rgba(255,255,255,0.1);
     }
     
     .footer a {
-      color: #1E88E5;
+      color: #60a5fa;
       text-decoration: none;
+      font-weight: 500;
     }
     
     .footer a:hover {
+      color: #93c5fd;
       text-decoration: underline;
     }
     
@@ -1156,7 +1163,6 @@
           </div>
         </div>
       </div>
-    </div>
       
       <div class="phoebe-takeaway">
         <a href="https://www.320insight.com/phoebe" target="_blank"><img src="phoebe.png" alt="Phoebe J" class="phoebe-avatar"></a>
@@ -1172,16 +1178,16 @@
     <div class="section">
       <h2>6. Total vs Direct Care</h2>
       
-      <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-        <div style="flex: 1; min-width: 300px;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin: 2rem 0; max-width: 100%;">
+        <div style="max-width: 100%;">
           <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Total Nurse vs Direct Care</h4>
-          <div class="chart-container">
+          <div class="chart-container" style="max-width: 100%;">
             <canvas id="careTypeChart" width="400" height="200"></canvas>
           </div>
         </div>
-        <div style="flex: 1; min-width: 300px;">
+        <div style="max-width: 100%;">
           <h4 style="color: #ff7f0e; margin-bottom: 1rem;">RN Staffing: Total vs Direct Care</h4>
-          <div class="chart-container">
+          <div class="chart-container" style="max-width: 100%;">
             <canvas id="rnTypeChart" width="400" height="200"></canvas>
           </div>
         </div>
@@ -1197,11 +1203,12 @@
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="footer">
-      <p>Data visualizations and insights on US nursing home payroll-based journal (PBJ) staffing data</p>
-      <p>Data: <span id="footerDateRange">Q1 2017 - Q1 2025</span></p>
-      <p>By <a href="https://www.320insight.com/" target="_blank">320 Consulting</a></p>
+  <div class="footer">
+    <p style="color: rgba(255,255,255,0.7); margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #60a5fa; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #60a5fa; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #60a5fa; text-decoration: none;">Aging in America News</a>.</p>
+    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
+      <p style="margin: 0; color: rgba(255,255,255,0.6); font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.6); text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
     </div>
   </div>
 
@@ -1450,18 +1457,6 @@
         }
       }
       
-      // Update footer date range (format as "Q1 2017 - Q1 2025")
-      const footerDateEl = document.getElementById('footerDateRange');
-      if (footerDateEl && pbjData.quarterly_trends && pbjData.quarterly_trends.quarters) {
-        // Convert "2017Q1" to "Q1 2017"
-        const firstMatch = pbjData.quarterly_trends.quarters[0].match(/(\d{4})Q(\d)/);
-        const lastMatch = pbjData.latestQuarter.match(/(\d{4})Q(\d)/);
-        if (firstMatch && lastMatch) {
-          const firstQuarter = `Q${firstMatch[2]} ${firstMatch[1]}`;
-          const lastQuarter = `Q${lastMatch[2]} ${lastMatch[1]}`;
-          footerDateEl.textContent = `${firstQuarter} - ${lastQuarter}`;
-        }
-      }
       
       // Chart.js configuration
       Chart.defaults.color = '#ffffff';

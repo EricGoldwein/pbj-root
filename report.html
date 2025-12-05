@@ -2,22 +2,111 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>US Nursing Home Staffing Rankings - Q2 2025</title>
+  <title>State and Regional Staffing Rankings for Q2 2025</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj-320.onrender.com/report">
-  <meta property="og:title" content="US Nursing Home Staffing Rankings - Q2 2025">
-  <meta property="og:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
+  <meta property="og:title" content="State and Regional Staffing Rankings for Q2 2025" id="og-title">
+  <meta property="og:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="og-description">
   <meta property="og:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="US Nursing Home Staffing Rankings - Q2 2025">
-  <meta property="twitter:description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.">
+  <meta property="twitter:title" content="State and Regional Staffing Rankings for Q2 2025" id="twitter-title">
+  <meta property="twitter:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="twitter-description">
   <meta property="twitter:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
+  
+  <!-- Script to update OG tags with dynamic quarter -->
+  <script>
+    (function() {
+      // Simple CSV parser that handles quoted fields
+      function parseCSVLine(line) {
+        const result = [];
+        let current = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+          } else {
+            current += char;
+          }
+        }
+        result.push(current.trim());
+        return result;
+      }
+      
+      // Fetch the most recent quarter from CSV and update meta tags
+      fetch('state_quarterly_metrics.csv')
+        .then(response => response.text())
+        .then(text => {
+          const lines = text.split('\n').filter(line => line.trim());
+          if (lines.length < 2) return;
+          
+          // Parse CSV to find most recent quarter
+          const headers = parseCSVLine(lines[0]);
+          const quarterIndex = headers.findIndex(h => h === 'CY_Qtr');
+          if (quarterIndex === -1) return;
+          
+          const quarters = new Set();
+          for (let i = 1; i < lines.length; i++) {
+            const values = parseCSVLine(lines[i]);
+            const quarter = values[quarterIndex]?.trim();
+            if (quarter && quarter.match(/^\d{4}Q\d$/)) {
+              quarters.add(quarter);
+            }
+          }
+          
+          if (quarters.size === 0) return;
+          
+          // Get most recent quarter
+          const mostRecentQuarter = Array.from(quarters).sort().reverse()[0] || '2025Q2';
+          
+          // Format: "2025Q2" -> "Q2 2025"
+          const match = mostRecentQuarter.match(/(\d{4})Q(\d)/);
+          if (!match) return;
+          
+          const quarterYear = `Q${match[2]} ${match[1]}`;
+          const title = `State and Regional Staffing Rankings for ${quarterYear}`;
+          
+          // Update page title
+          document.title = title;
+          
+          // Update OG title
+          const ogTitle = document.getElementById('og-title');
+          if (ogTitle) {
+            ogTitle.setAttribute('content', title);
+          }
+          
+          // Update Twitter title
+          const twitterTitle = document.getElementById('twitter-title');
+          if (twitterTitle) {
+            twitterTitle.setAttribute('content', title);
+          }
+          
+          // Update OG description
+          const ogDescription = document.getElementById('og-description');
+          if (ogDescription) {
+            ogDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+          }
+          
+          // Update Twitter description
+          const twitterDescription = document.getElementById('twitter-description');
+          if (twitterDescription) {
+            twitterDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+          }
+        })
+        .catch(err => {
+          console.warn('Could not update OG tags with dynamic quarter:', err);
+        });
+    })();
+  </script>
   
   <link rel="icon" type="image/png" href="pbj_favicon.png">
   
@@ -2178,18 +2267,20 @@
       }
       
       .table-controls .view-toggle:last-child {
-        flex: 0 1 40%;
-        max-width: 40%;
+        flex: 0 1 55%;
+        max-width: 55%;
         min-width: 0; /* Allow shrinking */
       }
       
-      /* Make labels smaller to fit */
+      /* Make labels smaller to fit but allow wrapping */
       .table-controls .view-toggle label:first-of-type {
         font-size: 0.7rem !important; /* Smaller font */
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        line-height: 1.2;
+        overflow: visible;
+        text-overflow: clip;
         margin-right: 0 !important; /* Remove any margin */
+        word-break: break-word;
       }
       
       /* Reduce gap between label and toggle switch */
@@ -4294,8 +4385,10 @@
   </div>
 
   <div class="footer">
-    <p>The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes.</p>
-    <p style="margin-top: 10px;"><a href="/about">Learn more about the PBJ Dashboard</a></p>
+    <p style="color: rgba(255,255,255,0.7); margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #60a5fa; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #60a5fa; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #60a5fa; text-decoration: none;">Aging in America News</a>.</p>
+    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
+      <p style="margin: 0; color: rgba(255,255,255,0.6); font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.6); text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
+    </div>
   </div>
 
   <script>

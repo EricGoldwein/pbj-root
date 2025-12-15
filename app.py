@@ -3,7 +3,7 @@
 Simple Flask app to serve static files with proper headers for Facebook scraper
 Now with dynamic date support
 """
-from flask import Flask, send_from_directory, send_file, render_template_string
+from flask import Flask, send_from_directory, send_file, render_template_string, jsonify
 import os
 import sys
 
@@ -26,6 +26,11 @@ def get_dynamic_dates():
             'affiliated_entity_latest': 'July 2025',
             'current_year': 2025
         }
+
+@app.route('/api/dates')
+def api_dates():
+    """API endpoint to get dynamic date information"""
+    return jsonify(get_dynamic_dates())
 
 @app.route('/')
 def index():
@@ -50,10 +55,14 @@ def pbj_sample():
 def report():
     return send_file('report.html', mimetype='text/html')
 
+@app.route('/sitemap.xml')
+def sitemap():
+    return send_file('sitemap.xml', mimetype='application/xml')
+
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined
-    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html']:
+    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml']:
         from flask import abort
         abort(404)
     

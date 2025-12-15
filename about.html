@@ -22,6 +22,27 @@
   <meta property="twitter:description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
   <meta property="twitter:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "AboutPage",
+    "name": "About PBJ Nursing Home Staffing Dashboard",
+    "url": "https://pbj320.com/about",
+    "description": "Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.",
+    "mainEntity": {
+      "@type": "WebSite",
+      "name": "PBJ Nursing Home Staffing Dashboard",
+      "url": "https://pbj320.com/"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "320 Consulting",
+      "url": "https://www.320insight.com"
+    }
+  }
+  </script>
+  
   <link rel="icon" type="image/png" href="pbj_favicon.png">
   
   <style>
@@ -1127,7 +1148,7 @@
       
       <h3>Under the hood</h3>
       <ul>
-        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> – 33 quarters of daily data, aggregated for clarity</li>
+        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> – <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity</li>
         <li><strong>CMS Provider Info</strong> – 5-star ratings, enforcement data, and other key indicators</li>
         <li><strong>CMS Affiliated Entity</strong> – Selected quality and performance metrics for groups of nursing homes sharing common owners, officers, or entities (July 2025)</li>
         <li><strong>CMS Citations (Premium)</strong> - Citation data and inspection reports, categorized by date, type, severity, and more.</li>
@@ -1229,6 +1250,20 @@
           navToggle.classList.toggle('active');
         });
       }
+      
+      // Load dynamic quarter count
+      fetch('/api/dates')
+        .then(response => response.json())
+        .then(data => {
+          const quarterCountElement = document.getElementById('quarter-count');
+          if (quarterCountElement && data.quarter_count) {
+            quarterCountElement.textContent = data.quarter_count;
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching quarter count:', error);
+          // Keep the default value (33) if fetch fails
+        });
     });
   </script>
 </body>

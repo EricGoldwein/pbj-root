@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data.">
   <link rel="canonical" href="https://pbj320.com/">
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
@@ -25,6 +26,107 @@
   <meta name="twitter:title" content="PBJ Nursing Home Staffing Dashboard by 320 Consulting">
   <meta name="twitter:description" content="Explore staffing trends across 15,000+ US nursing homes with CMS payroll-based journal data.">
   <meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+  
+  <!-- Structured Data (JSON-LD) -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "PBJ Nursing Home Staffing Dashboard",
+    "url": "https://pbj320.com/",
+    "description": "Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "320 Consulting",
+      "url": "https://www.320insight.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://pbj320.com/pbj_favicon.png"
+      }
+    },
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://pbjdashboard.com/?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "CMS Payroll-Based Journal (PBJ) Nursing Home Staffing Data",
+    "description": "Longitudinal staffing data for 15,000+ U.S. nursing homes from CMS Payroll-Based Journal reporting system. Includes hours per resident day (HPRD) metrics by state, facility, and quarter from 2017 to present.",
+    "url": "https://pbj320.com/",
+    "keywords": "nursing home staffing, PBJ data, CMS data, healthcare staffing, hours per resident day, HPRD, nursing home quality",
+    "license": "https://www.cms.gov/data-research/statistics-trends-and-reports/open-data",
+    "creator": {
+      "@type": "Organization",
+      "name": "Centers for Medicare & Medicaid Services",
+      "url": "https://www.cms.gov"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "320 Consulting",
+      "url": "https://www.320insight.com"
+    },
+    "temporalCoverage": "2017-01-01/2025-06-30",
+    "spatialCoverage": {
+      "@type": "Place",
+      "name": "United States"
+    },
+    "distribution": [
+      {
+        "@type": "DataDownload",
+        "name": "PBJ Dashboard",
+        "url": "https://pbjdashboard.com/",
+        "encodingFormat": "application/json"
+      }
+    ],
+    "measurementTechnique": "Payroll-Based Journal reporting",
+    "variableMeasured": [
+      {
+        "@type": "PropertyValue",
+        "name": "Total Hours Per Resident Day (HPRD)",
+        "description": "Total nursing hours per resident day across all staff types"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "RN Hours Per Resident Day",
+        "description": "Registered nurse hours per resident day"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "LPN Hours Per Resident Day",
+        "description": "Licensed practical nurse hours per resident day"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "CNA Hours Per Resident Day",
+        "description": "Certified nursing assistant hours per resident day"
+      }
+    ],
+    "numberOfItems": 15000,
+    "includedInDataCatalog": {
+      "@type": "DataCatalog",
+      "name": "CMS Data",
+      "url": "https://data.cms.gov/provider-data/dataset/4pq5-n9py"
+    }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "name": "320 Consulting",
+    "url": "https://www.320insight.com",
+    "logo": "https://pbj320.com/pbj_favicon.png",
+    "description": "Turning Spreadsheets into Stories - Data visualization and analytics consulting",
+    "sameAs": [
+      "https://www.320insight.com"
+    ]
+  }
+  </script>
   
   <link rel="icon" type="image/png" href="pbj_favicon.png">
   
@@ -655,19 +757,50 @@
     </div>
   </nav>
 
-  <div class="container">
-    <div class="map-section">
+  <main class="container">
+    <article class="map-section">
       <div class="map-container">
-        <div class="map-header">
+        <header class="map-header">
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
           <p class="map-subtitle">50 Million Days. 15,000 Nursing Homes.<br class="mobile-break"> One PBJ Dashboard.</p>
           <a href="https://pbjdashboard.com/" class="cta-primary">
             <img src="pbj_favicon.png" alt="PBJ" class="cta-favicon">
             Launch PBJ Dashboard
           </a>
-        </div>
+        </header>
         
-        <div class="state-map" id="stateMap">
+        <!-- Noscript fallback with key statistics for crawlers -->
+        <noscript>
+          <section style="background: rgba(255,255,255,0.1); padding: 30px; border-radius: 12px; margin: 20px 0; color: white;">
+            <h2 style="color: #60a5fa; margin-bottom: 20px;">Nursing Home Staffing Data Overview</h2>
+            <p style="margin-bottom: 15px; line-height: 1.8;">The PBJ Dashboard provides comprehensive staffing data for over <strong>15,000 U.S. nursing homes</strong> using CMS Payroll-Based Journal data from 2017 to present.</p>
+            
+            <h3 style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Key Statistics (Q2 2025)</h3>
+            <ul style="line-height: 2; margin-left: 20px;">
+              <li><strong>National Average HPRD:</strong> 3.781 hours per resident day</li>
+              <li><strong>Highest State:</strong> Oregon (5.019 HPRD)</li>
+              <li><strong>Lowest State:</strong> Texas (3.343 HPRD)</li>
+              <li><strong>Data Coverage:</strong> 50 states + DC, 15,000+ facilities</li>
+              <li><strong>Time Period:</strong> Q1 2017 through Q2 2025 (34 quarters)</li>
+            </ul>
+            
+            <h3 style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Top 5 States by Staffing (Q2 2025)</h3>
+            <ol style="line-height: 2; margin-left: 20px;">
+              <li>Oregon: 5.019 HPRD</li>
+              <li>Alaska: 6.016 HPRD</li>
+              <li>North Dakota: 4.656 HPRD</li>
+              <li>Hawaii: 4.452 HPRD</li>
+              <li>Maine: 4.338 HPRD</li>
+            </ol>
+            
+            <p style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+              <strong>Note:</strong> JavaScript is required for interactive maps and charts. 
+              <a href="https://pbjdashboard.com/" style="color: #60a5fa; text-decoration: underline;">Visit the full dashboard</a> for interactive exploration of state and facility-level data.
+            </p>
+          </section>
+        </noscript>
+        
+        <section class="state-map" id="stateMap" aria-label="Interactive US map showing nursing home staffing by state">
           <div class="loading">Loading state data...</div>
           
           <div class="map-legend">
@@ -680,36 +813,36 @@
               </div>
             </div>
           </div>
-        </div>
+        </section>
         
-        <div class="mobile-chart" id="mobileChart">
+        <section class="mobile-chart" id="mobileChart" aria-label="Nursing home staffing trends chart">
           <div class="chart-header">
             <h3>Nursing Home Staffing Trends</h3>
-            <select id="stateSelect" class="state-select">
+            <select id="stateSelect" class="state-select" aria-label="Select state to view staffing trends">
               <option value="">Select State</option>
             </select>
           </div>
           <div class="chart-container">
-            <canvas id="staffingChart" width="360" height="250"></canvas>
+            <canvas id="staffingChart" width="360" height="250" aria-label="Staffing trends line chart"></canvas>
           </div>
           <div class="chart-footer" id="chartFooter" style="display: none;">
             <div class="explore-link" id="exploreLink"></div>
           </div>
           <div class="chart-source">Source: CMS Payroll-Based Journal Data • 320 Consulting</div>
-        </div>
+        </section>
         
       </div>
+    </article>
+
+
+  </main>
+
+  <footer class="footer">
+    <p style="color: rgba(255,255,255,0.7); margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #60a5fa; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #60a5fa; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #60a5fa; text-decoration: none;">Aging in America News</a>.</p>
+    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
+      <p style="margin: 0; color: rgba(255,255,255,0.6); font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.6); text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
     </div>
-
-
-  </div>
-
-  <div class="footer">
-    <p style="color: #94a3b8; margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #94a3b8; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #94a3b8; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #94a3b8; text-decoration: none;">Aging in America News</a>.</p>
-    <div style="border-top: 1px solid rgba(255,255,255,0.15); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
-      <p style="margin: 0; color: #6b7280; font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: #6b7280; text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
-    </div>
-  </div>
+  </footer>
 
   <script>
     // Prevent scroll restoration on mobile

@@ -1,5 +1,33 @@
 /*
   X-Frame-Options: DENY
   X-Content-Type-Options: nosniff
+  X-XSS-Protection: 1; mode=block
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
   Content-Type: text/html; charset=utf-8
   Cache-Control: public, max-age=3600
+
+/*.xml
+  Content-Type: application/xml; charset=utf-8
+  Cache-Control: public, max-age=86400
+
+/*.json
+  Content-Type: application/json; charset=utf-8
+  Cache-Control: public, max-age=3600
+
+/*.png
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.jpg
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.jpeg
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.css
+  Content-Type: text/css; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.js
+  Content-Type: application/javascript; charset=utf-8
+  Cache-Control: public, max-age=31536000, immutable

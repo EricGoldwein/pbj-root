@@ -7,6 +7,24 @@
   <meta name="description" content="Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data.">
   <link rel="canonical" href="https://pbj320.com/">
   <link rel="sitemap" type="application/xml" href="/sitemap.xml">
+  
+  <!-- Performance: DNS prefetch for external resources -->
+  <link rel="dns-prefetch" href="https://d3js.org">
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://d3js.org" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  
+  <!-- Mobile and PWA meta tags -->
+  <meta name="theme-color" content="#1e40af">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="PBJ320">
+  <link rel="apple-touch-icon" href="pbj_favicon.png">
+  <meta name="format-detection" content="telephone=no">
+  
+  <!-- Author and additional meta -->
+  <meta name="author" content="320 Consulting">
+  <meta name="referrer" content="no-referrer-when-downgrade">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
@@ -18,7 +36,10 @@
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PBJ Nursing Home Staffing Dashboard - Interactive map showing US nursing home staffing data">
   <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
+  <meta property="og:locale" content="en_US">
+  <meta property="article:author" content="320 Consulting">
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
@@ -737,7 +758,7 @@
     <div class="nav-container">
       <div class="nav-brand" style="color: inherit;">
         <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center;">
-          <img src="pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+          <img src="pbj_favicon.png" alt="PBJ320" loading="lazy" style="height: 32px; vertical-align: middle; margin-right: 8px;">
           <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
         </a>
       </div>
@@ -761,10 +782,10 @@
     <article class="map-section">
       <div class="map-container">
         <header class="map-header">
-          <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
+          <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
           <p class="map-subtitle">50 Million Days. 15,000 Nursing Homes.<br class="mobile-break"> One PBJ Dashboard.</p>
           <a href="https://pbjdashboard.com/" class="cta-primary">
-            <img src="pbj_favicon.png" alt="PBJ" class="cta-favicon">
+            <img src="pbj_favicon.png" alt="PBJ" loading="eager" class="cta-favicon">
             Launch PBJ Dashboard
           </a>
         </header>

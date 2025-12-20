@@ -9,7 +9,6 @@ const Index: React.FC = () => {
   const navigate = useNavigate();
   const [selectedState, setSelectedState] = useState<string>('');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Update SEO on mount
@@ -50,11 +49,6 @@ const Index: React.FC = () => {
     { num: 10, name: 'Seattle' },
   ];
 
-  const filteredStates = states.filter(state =>
-    state.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    state.code.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const handleStateSelect = (stateCode: string) => {
     if (stateCode) {
       navigate(`/${stateCode.toLowerCase()}`);
@@ -93,10 +87,32 @@ const Index: React.FC = () => {
                 Dashboard
               </a>
               <a 
-                href="https://pbj320.com/report" 
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                href="https://pbj320.com/insights" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
               >
-                Sign Up
+                Insights
+              </a>
+              <a 
+                href="https://pbj320.com/report" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Report
+              </a>
+              <a 
+                href="https://www.320insight.com/phoebe" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Phoebe J
+              </a>
+              <a 
+                href="https://pbj320.vercel.app/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                PBJ Converter
               </a>
             </div>
             {/* Mobile Menu Button */}
@@ -132,86 +148,98 @@ const Index: React.FC = () => {
                 Dashboard
               </a>
               <a 
-                href="https://pbj320.com/report" 
-                className="block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-center font-semibold transition-colors"
+                href="https://pbj320.com/insights" 
+                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                Sign Up
+                Insights
+              </a>
+              <a 
+                href="https://pbj320.com/report" 
+                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Report
+              </a>
+              <a 
+                href="https://www.320insight.com/phoebe" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Phoebe J
+              </a>
+              <a 
+                href="https://pbj320.vercel.app/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                PBJ Converter
               </a>
             </div>
           )}
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5">
-        {/* Hero Section - Compact */}
-        <div className="text-center mb-3 md:mb-4">
-          <div className="flex justify-center items-center gap-2 md:gap-3 mb-2">
-            <WrappedImage
-              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
-              alt="PBJ Wrapped"
-              className="h-8 md:h-10 w-auto"
-            />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
+        {/* Hero Section - Enhanced */}
+        <div className="text-center mb-4 md:mb-5">
+          <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-300 rounded-lg blur-sm opacity-50"></div>
+              <div className="relative bg-gray-900/80 p-2 md:p-2.5 rounded-lg border-2 border-blue-400/60 shadow-xl">
+                <WrappedImage
+                  src={getAssetPath('/images/phoebe-wrapped-wide.png')}
+                  alt="PBJ Wrapped"
+                  className="h-8 md:h-10 w-auto"
+                />
+              </div>
+            </div>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
-              PBJ Wrapped — Q2 2025
+              Q2 2025
             </h1>
           </div>
         </div>
 
         {/* Interactive Map Section */}
         <div className="mb-4 md:mb-5">
-          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 shadow-2xl">
-            <div className="flex items-center justify-between mb-2 md:mb-3 flex-wrap gap-2">
-              <h2 className="text-lg md:text-xl font-bold text-blue-300">
-                Select a State
-              </h2>
-              <button
-                onClick={() => navigate('/usa')}
-                className="hidden md:flex items-center gap-1.5 md:gap-2 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-1.5 md:py-2 px-3 md:px-4 rounded-lg text-xs md:text-sm transition-all duration-200 shadow-md hover:shadow-lg"
-              >
-                <span className="text-base md:text-lg">🇺🇸</span>
-                <span>USA Overview</span>
-              </button>
-            </div>
+          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 shadow-2xl relative">
+            {/* USA Badge - positioned in top right */}
+            <button
+              onClick={() => navigate('/usa')}
+              className="absolute top-3 right-3 md:top-4 md:right-4 z-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-1.5 px-3 md:py-2 md:px-4 rounded-lg text-xs md:text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
+            >
+              USA Wrapped
+            </button>
             <USMap className="w-full" />
-            <p className="text-center text-gray-400 text-xs mt-2">
-              Hover over a state to see its name, then click to view its Q2 2025 staffing data
-            </p>
           </div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Quick Actions - State and Region in same row */}
         <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
-
           {/* State Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
             <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">
               Select a State
             </label>
-            <div className="space-y-2">
-              <input
-                type="text"
-                placeholder="Search states..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-3 py-1.5 text-sm bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <select
-                value={selectedState}
-                onChange={(e) => {
-                  setSelectedState(e.target.value);
-                  handleStateSelect(e.target.value);
-                }}
-                className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
-              >
-                <option value="">Choose a state...</option>
-                {filteredStates.map((state) => (
-                  <option key={state.code} value={state.code}>
-                    {state.name} ({state.code})
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedState}
+              onChange={(e) => {
+                setSelectedState(e.target.value);
+                handleStateSelect(e.target.value);
+              }}
+              className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
+            >
+              <option value="">Choose a state...</option>
+              {states.map((state) => (
+                <option key={state.code} value={state.code}>
+                  {state.name} ({state.code})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Region Dropdown */}
@@ -239,42 +267,12 @@ const Index: React.FC = () => {
           </div>
         </div>
 
-        {/* Regions Grid */}
-        <div className="mb-4 md:mb-5">
-          <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-blue-300">
-            CMS Regions
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
-            {regions.map((region) => (
-              <button
-                key={region.num}
-                onClick={() => navigate(`/region${region.num}`)}
-                className="group bg-gray-700/50 hover:bg-blue-600/80 text-white font-semibold py-3 md:py-4 px-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-xl border border-gray-600/50 hover:border-blue-400"
-              >
-                <div className="text-base md:text-lg mb-0.5">Region {region.num}</div>
-                <div className="text-xs md:text-sm text-gray-300 group-hover:text-white">{region.name}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Mobile Floating Action Button */}
-        <div className="md:hidden fixed bottom-6 right-6 z-40">
-          <button
-            onClick={() => navigate('/usa')}
-            className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center gap-2"
-          >
-            <span className="text-lg">🇺🇸</span>
-            <span className="text-sm">USA</span>
-          </button>
-        </div>
-
         {/* Footer */}
-        <footer className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-700/50 text-center pb-20 md:pb-0">
-          <p className="text-gray-300 text-sm md:text-base mb-3 md:mb-4" style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' }}>
+        <footer className="mt-6 md:mt-8 pt-6 md:pt-8 text-center" style={{ background: '#0f172a', padding: '40px 20px', marginTop: '60px' }}>
+          <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 auto', fontStyle: 'italic', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
             The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Aging in America News</a>.
           </p>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '1.5rem', paddingTop: '1.5rem', maxWidth: '800px', marginLeft: 'auto', marginRight: 'auto' }}>
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '1.5rem auto 0', paddingTop: '1.5rem', maxWidth: '800px' }}>
             <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>
               <a href="https://www.320insight.com" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>320 Consulting — Turning Spreadsheets into Stories</a>
             </p>

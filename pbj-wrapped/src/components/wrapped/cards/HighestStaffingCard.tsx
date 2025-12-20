@@ -68,6 +68,17 @@ export const HighestStaffingCard: React.FC<HighestStaffingCardProps> = ({ data }
             </div>
           </div>
         )}
+        
+        {data.scope === 'state' && data.stateMinimum && (
+          <div className="mt-3 pt-3 border-t border-gray-700">
+            <div className="flex items-center gap-2 text-xs">
+              <div className="w-8 h-0.5 bg-blue-400"></div>
+              <span className="text-blue-300">
+                State minimum: {data.stateMinimum.minHPRD.toFixed(2)} HPRD
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </WrappedCard>
   );

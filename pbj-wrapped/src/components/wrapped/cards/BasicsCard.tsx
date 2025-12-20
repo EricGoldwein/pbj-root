@@ -142,6 +142,28 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
             <span className="text-white font-bold text-lg md:text-xl">{formatNumber(animatedTotalHPRD, 2)}</span>
           </div>
+          {data.scope === 'state' && data.compliance && (
+            <div className="pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-400 space-y-1">
+                <div>
+                  <span className="text-red-300 font-semibold">
+                    {data.compliance.facilitiesBelowTotalMinimum}
+                  </span>
+                  {' '}facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) 
+                  below state minimum
+                </div>
+                {data.compliance.facilitiesBelowDirectCareMinimum !== undefined && (
+                  <div>
+                    <span className="text-red-300 font-semibold">
+                      {data.compliance.facilitiesBelowDirectCareMinimum}
+                    </span>
+                    {' '}facilities ({data.compliance.facilitiesBelowDirectCareMinimumPercent}%) 
+                    below direct care minimum
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
           <div className="flex justify-between items-center">
             <span className="text-gray-400 text-sm">Direct care HPRD</span>
             {showRankings && (

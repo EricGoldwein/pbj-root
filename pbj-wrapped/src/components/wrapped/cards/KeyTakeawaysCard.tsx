@@ -80,10 +80,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const rnRank = data.rankings.rnHPRDRank;
       const totalRank = data.rankings.totalHPRDRank;
       const trend = data.trends.totalHPRDChange;
-      const rnIsLow = isLowRank(rnRank, 51);
-      const totalIsLow = isLowRank(totalRank, 51);
-      const rnIsHigh = isHighRank(rnRank);
-      const totalIsHigh = isHighRank(totalRank);
       
       return (
         <>

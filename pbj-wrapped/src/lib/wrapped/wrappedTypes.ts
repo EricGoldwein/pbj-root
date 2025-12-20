@@ -128,6 +128,14 @@ export interface PBJWrappedData {
     totalHPRD: number;
     stateMinimum?: StateMinimum;
   }>;
+  
+  // Compliance metrics (for state scope only)
+  compliance?: {
+    facilitiesBelowTotalMinimum: number;
+    facilitiesBelowTotalMinimumPercent: number;
+    facilitiesBelowDirectCareMinimum?: number; // If state has direct care minimum
+    facilitiesBelowDirectCareMinimumPercent?: number;
+  };
 }
 
 // CSV row types

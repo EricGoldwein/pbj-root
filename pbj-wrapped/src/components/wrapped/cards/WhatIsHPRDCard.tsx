@@ -1,7 +1,12 @@
 import React from 'react';
 import { WrappedCard } from '../WrappedCard';
+import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 
-export const WhatIsHPRDCard: React.FC = () => {
+interface WhatIsHPRDCardProps {
+  data?: PBJWrappedData;
+}
+
+export const WhatIsHPRDCard: React.FC<WhatIsHPRDCardProps> = ({ data }) => {
   return (
     <WrappedCard title="What is HPRD?" hideBadge>
       <div className="space-y-3 text-left">
@@ -21,7 +26,7 @@ export const WhatIsHPRDCard: React.FC = () => {
           <div className="flex items-start gap-2">
             <span className="text-blue-400 font-bold text-xs mt-0.5">•</span>
             <div className="text-gray-300 text-xs flex-1">
-              <strong className="text-white">Direct Care HPRD:</strong> Hands-on care (RNs, LPNs, aides)
+              <strong className="text-white">Direct Care HPRD:</strong> Hands-on care (RNs, LPNs, CNAs). Excludes Admin/DON staff.
             </div>
           </div>
           <div className="flex items-start gap-2">
@@ -31,6 +36,17 @@ export const WhatIsHPRDCard: React.FC = () => {
             </div>
           </div>
         </div>
+        
+        {data?.scope === 'state' && data?.stateMinimum && (
+          <div className="pt-2 border-t border-gray-700">
+            <p className="text-gray-300 text-xs leading-relaxed">
+              <strong className="text-blue-300">State Minimum:</strong> {data.stateMinimum.minHPRD.toFixed(2)} HPRD
+              {data.stateMinimum.isRange && data.stateMinimum.maxHPRD && (
+                <span className="text-gray-400"> (range: {data.stateMinimum.minHPRD.toFixed(2)}-{data.stateMinimum.maxHPRD.toFixed(2)})</span>
+              )}
+            </p>
+          </div>
+        )}
         
         <div className="pt-2 border-t border-gray-700">
           <p className="text-gray-400 text-xs leading-relaxed">

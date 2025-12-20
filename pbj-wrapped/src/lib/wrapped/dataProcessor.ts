@@ -499,6 +499,7 @@ function processUSAData(
     if (stateQ1) {
       const change = stateQ2.Total_Nurse_HPRD - stateQ1.Total_Nurse_HPRD;
       const directCareChange = stateQ2.Nurse_Care_HPRD - stateQ1.Nurse_Care_HPRD;
+      const rnHPRDChange = stateQ2.RN_HPRD - stateQ1.RN_HPRD;
       
       stateMovers.push({
         state: stateQ2.STATE,
@@ -509,6 +510,9 @@ function processUSAData(
         directCareChange,
         q1DirectCare: stateQ1.Nurse_Care_HPRD,
         q2DirectCare: stateQ2.Nurse_Care_HPRD,
+        rnHPRDChange,
+        q1RNHPRD: stateQ1.RN_HPRD,
+        q2RNHPRD: stateQ2.RN_HPRD,
         link: `/${stateQ2.STATE.toLowerCase()}`,
       });
     }
@@ -522,6 +526,7 @@ function processUSAData(
     if (regionQ1) {
       const change = regionQ2.Total_Nurse_HPRD - regionQ1.Total_Nurse_HPRD;
       const directCareChange = regionQ2.Nurse_Care_HPRD - regionQ1.Nurse_Care_HPRD;
+      const rnHPRDChange = regionQ2.RN_HPRD - regionQ1.RN_HPRD;
       
       regionMovers.push({
         state: regionQ2.REGION_NAME || `Region ${regionQ2.REGION_NUMBER}`,
@@ -531,6 +536,9 @@ function processUSAData(
         directCareChange,
         q1DirectCare: regionQ1.Nurse_Care_HPRD,
         q2DirectCare: regionQ2.Nurse_Care_HPRD,
+        rnHPRDChange,
+        q1RNHPRD: regionQ1.RN_HPRD,
+        q2RNHPRD: regionQ2.RN_HPRD,
         link: `https://pbjdashboard.com/?region=${regionQ2.REGION_NUMBER}`,
       });
     }
@@ -553,6 +561,14 @@ function processUSAData(
 
   const declinersByDirectCare = [...allMovers]
     .sort((a, b) => (a.directCareChange || 0) - (b.directCareChange || 0))
+    .slice(0, 5);
+
+  const risersByRNHPRD = [...allMovers]
+    .sort((a, b) => (b.rnHPRDChange || 0) - (a.rnHPRDChange || 0))
+    .slice(0, 5);
+
+  const declinersByRNHPRD = [...allMovers]
+    .sort((a, b) => (a.rnHPRDChange || 0) - (b.rnHPRDChange || 0))
     .slice(0, 5);
 
   // Ownership breakdown for USA - use all provider info Q2
@@ -596,8 +612,10 @@ function processUSAData(
     movers: {
       risersByHPRD,
       risersByDirectCare,
+      risersByRNHPRD,
       declinersByHPRD,
       declinersByDirectCare,
+      declinersByRNHPRD,
     },
   };
 }
@@ -810,6 +828,7 @@ function processStateData(
     if (f1) {
       const change = f2.Total_Nurse_HPRD - f1.Total_Nurse_HPRD;
       const directCareChange = f2.Nurse_Care_HPRD - f1.Nurse_Care_HPRD;
+      const rnHPRDChange = f2.Total_RN_HPRD - f1.Total_RN_HPRD;
       const info = providerInfoLookupQ2.get(f2.PROVNUM);
       
       movers.push({
@@ -825,6 +844,9 @@ function processStateData(
         directCareChange,
         q1DirectCare: f1.Nurse_Care_HPRD,
         q2DirectCare: f2.Nurse_Care_HPRD,
+        rnHPRDChange,
+        q1RNHPRD: f1.Total_RN_HPRD,
+        q2RNHPRD: f2.Total_RN_HPRD,
       } as any);
     }
   }
@@ -843,6 +865,14 @@ function processStateData(
 
   const declinersByDirectCare = [...movers]
     .sort((a, b) => (a as any).directCareChange - (b as any).directCareChange)
+    .slice(0, 5);
+
+  const risersByRNHPRD = [...movers]
+    .sort((a, b) => ((b as any).rnHPRDChange || 0) - ((a as any).rnHPRDChange || 0))
+    .slice(0, 5);
+
+  const declinersByRNHPRD = [...movers]
+    .sort((a, b) => ((a as any).rnHPRDChange || 0) - ((b as any).rnHPRDChange || 0))
     .slice(0, 5);
 
   // Ownership breakdown - use all provider info for the state
@@ -911,8 +941,10 @@ function processStateData(
     movers: {
       risersByHPRD,
       risersByDirectCare,
+      risersByRNHPRD,
       declinersByHPRD,
       declinersByDirectCare,
+      declinersByRNHPRD,
     },
     ownership,
   };
@@ -932,7 +964,8 @@ function processRegionData(
   allRegionsQ2: RegionQuarterlyRow[],
   regionStateMapping: Map<number, Set<string>>,
   stateDataQ2: StateQuarterlyRow[],
-  stateDataQ1: StateQuarterlyRow[]
+  stateDataQ1: StateQuarterlyRow[],
+  stateStandards?: Map<string, StateStandardRow>
 ): PBJWrappedData {
   if (!regionQ2) {
     throw new Error(`Region ${regionNumber} Q2 data not available`);
@@ -1060,7 +1093,9 @@ function processRegionData(
   }).map(p => p.PROVNUM));
   const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
 
-  const newSFFFacilities: Facility[] = newSFF.map(p => {
+  // Shuffle new SFF facilities for random order (not alphabetical)
+  const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+  const newSFFFacilities: Facility[] = shuffledNewSFF.map(p => {
     const facility = regionFacilitiesQ2.find(f => f.PROVNUM === p.PROVNUM);
     return {
       provnum: p.PROVNUM,
@@ -1104,6 +1139,7 @@ function processRegionData(
       const sq1 = stateQ1 as StateQuarterlyRow;
       const change = sq2.Total_Nurse_HPRD - sq1.Total_Nurse_HPRD;
       const directCareChange = sq2.Nurse_Care_HPRD - sq1.Nurse_Care_HPRD;
+      const rnHPRDChange = sq2.RN_HPRD - sq1.RN_HPRD;
       
       stateMovers.push({
         state: sq2.STATE,
@@ -1113,6 +1149,9 @@ function processRegionData(
         directCareChange,
         q1DirectCare: sq1.Nurse_Care_HPRD,
         q2DirectCare: sq2.Nurse_Care_HPRD,
+        rnHPRDChange,
+        q1RNHPRD: sq1.RN_HPRD,
+        q2RNHPRD: sq2.RN_HPRD,
         link: createStateLink(sq2.STATE),
       });
     }
@@ -1134,10 +1173,64 @@ function processRegionData(
     .sort((a, b) => (a.directCareChange || 0) - (b.directCareChange || 0))
     .slice(0, 5);
 
+  const risersByRNHPRD = [...stateMovers]
+    .sort((a, b) => (b.rnHPRDChange || 0) - (a.rnHPRDChange || 0))
+    .slice(0, 5);
+
+  const declinersByRNHPRD = [...stateMovers]
+    .sort((a, b) => (a.rnHPRDChange || 0) - (b.rnHPRDChange || 0))
+    .slice(0, 5);
+
   // Ownership breakdown - use all provider info for the region with ownership_type
-  calculateOwnershipBreakdown(
+  const ownership = calculateOwnershipBreakdown(
     regionProviderInfoQ2.filter(p => p.ownership_type && p.ownership_type.trim().length > 0)
   );
+
+  // Build region states info with state minimums
+  const getStateFullName = (abbr: string): string => {
+    const stateNames: Record<string, string> = {
+      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+      'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+      'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+      'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+      'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+      'DC': 'District of Columbia', 'PR': 'Puerto Rico'
+    };
+    return stateNames[abbr.toUpperCase()] || abbr;
+  };
+
+  const regionStatesInfo = Array.from(regionStates).map(stateCode => {
+    const stateQ2 = stateDataQ2.find(s => s.STATE.toUpperCase() === stateCode.toUpperCase());
+    let stateMinimum: StateMinimum | undefined;
+    
+    if (stateStandards) {
+      const lookupKey = stateCode.toLowerCase();
+      const standard = stateStandards.get(lookupKey);
+      if (standard && standard.Min_Staffing >= 1.0) {
+        const isRange = standard.Value_Type === 'range' && standard.Max_Staffing > standard.Min_Staffing;
+        stateMinimum = {
+          minHPRD: standard.Min_Staffing,
+          maxHPRD: isRange ? standard.Max_Staffing : undefined,
+          isRange,
+          displayText: isRange 
+            ? `${standard.Min_Staffing.toFixed(2)}-${standard.Max_Staffing.toFixed(2)} minimum`
+            : `${standard.Min_Staffing.toFixed(2)} minimum`,
+        };
+      }
+    }
+    
+    return {
+      state: stateCode,
+      stateName: getStateFullName(stateCode),
+      totalHPRD: stateQ2?.Total_Nurse_HPRD || 0,
+      stateMinimum,
+    };
+  });
 
   return {
     scope: 'region',
@@ -1165,9 +1258,13 @@ function processRegionData(
     movers: {
       risersByHPRD,
       risersByDirectCare,
+      risersByRNHPRD,
       declinersByHPRD,
       declinersByDirectCare,
+      declinersByRNHPRD,
     },
+    ownership,
+    regionStates: regionStatesInfo,
   };
 }
 
@@ -1244,7 +1341,8 @@ export function processWrappedData(
       data.regionData.q2,
       data.regionStateMapping,
       data.stateData.q2,
-      data.stateData.q1
+      data.stateData.q1,
+      data.stateStandards
     );
   } else {
     throw new Error(`Unknown scope: ${scope}`);

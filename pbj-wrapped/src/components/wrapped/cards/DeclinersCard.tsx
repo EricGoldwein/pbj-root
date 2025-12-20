@@ -13,12 +13,12 @@ export const DeclinersCard: React.FC<DeclinersCardProps> = ({ data }) => {
     return `${sign}${change.toFixed(2)}`;
   };
 
-  const renderItem = (item: typeof data.movers.declinersByHPRD[0], isDirectCare: boolean = false) => {
+  const renderItem = (item: typeof data.movers.declinersByHPRD[0], isRNHPRD: boolean = false) => {
     // Check if it's a StateChange (has 'state' but no 'provnum', or has 'stateName')
     const isState = ('state' in item && !('provnum' in item)) || 'stateName' in item;
-    const change = isDirectCare ? (item as any).directCareChange : item.change;
-    const q1Value = isDirectCare ? (item as any).q1DirectCare : item.q1Value;
-    const q2Value = isDirectCare ? (item as any).q2DirectCare : item.q2Value;
+    const change = isRNHPRD ? (item as any).rnHPRDChange : item.change;
+    const q1Value = isRNHPRD ? (item as any).q1RNHPRD : item.q1Value;
+    const q2Value = isRNHPRD ? (item as any).q2RNHPRD : item.q2Value;
     
     if (isState) {
       const stateItem = item as any;
@@ -33,7 +33,7 @@ export const DeclinersCard: React.FC<DeclinersCardProps> = ({ data }) => {
       };
       
       return (
-        <div key={stateItem.state} className="py-2 md:py-1.5 border-b border-gray-700 last:border-0">
+        <div key={stateItem.state} className="py-1.5 border-b border-gray-700 last:border-0">
           <div className="flex justify-between items-start">
             {isInternalLink ? (
               <a
@@ -111,9 +111,9 @@ export const DeclinersCard: React.FC<DeclinersCardProps> = ({ data }) => {
         </div>
         
         <div>
-          <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">By direct care HPRD</h4>
+          <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">By RN HPRD</h4>
           <div className="space-y-0.5">
-            {data.movers.declinersByDirectCare.slice(0, 3).map(f => renderItem(f, true))}
+            {data.movers.declinersByRNHPRD?.slice(0, 3).map(f => renderItem(f, true)) || []}
           </div>
         </div>
       </div>

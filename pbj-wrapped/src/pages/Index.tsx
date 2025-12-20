@@ -143,53 +143,50 @@ const Index: React.FC = () => {
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-        {/* Hero Section */}
-        <div className="text-center mb-4 md:mb-6">
-          <div className="flex justify-center mb-3 md:mb-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 md:py-5">
+        {/* Hero Section - Compact */}
+        <div className="text-center mb-3 md:mb-4">
+          <div className="flex justify-center items-center gap-2 md:gap-3 mb-2">
             <WrappedImage
               src={getAssetPath('/images/phoebe-wrapped-wide.png')}
               alt="PBJ Wrapped"
-              className="max-w-[200px] md:max-w-[280px] h-auto"
+              className="h-8 md:h-10 w-auto"
             />
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
+              PBJ Wrapped — Q2 2025
+            </h1>
           </div>
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-2 md:mb-3 bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
-            PBJ Wrapped — Q2 2025
-          </h1>
-          <p className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-2">
-            Explore nursing home staffing data across the United States
-          </p>
         </div>
 
         {/* Interactive Map Section */}
-        <div className="mb-4 md:mb-6">
-          <h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-3 text-blue-300 text-center">
-            Click a State to Explore
-          </h2>
+        <div className="mb-4 md:mb-5">
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 shadow-2xl">
+            <div className="flex items-center justify-between mb-2 md:mb-3 flex-wrap gap-2">
+              <h2 className="text-lg md:text-xl font-bold text-blue-300">
+                Select a State
+              </h2>
+              <button
+                onClick={() => navigate('/usa')}
+                className="hidden md:flex items-center gap-1.5 md:gap-2 bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-1.5 md:py-2 px-3 md:px-4 rounded-lg text-xs md:text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+              >
+                <span className="text-base md:text-lg">🇺🇸</span>
+                <span>USA Overview</span>
+              </button>
+            </div>
             <USMap className="w-full" />
-            <p className="text-center text-gray-400 text-xs md:text-sm mt-2 md:mt-3">
+            <p className="text-center text-gray-400 text-xs mt-2">
               Hover over a state to see its name, then click to view its Q2 2025 staffing data
             </p>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="grid md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
-          {/* USA Card */}
-          <button
-            onClick={() => navigate('/usa')}
-            className="group bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-4 md:py-5 px-4 rounded-xl text-base md:text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
-          >
-            <div className="text-3xl md:text-4xl mb-2">🇺🇸</div>
-            <div className="text-lg md:text-xl mb-1">United States</div>
-            <div className="text-xs md:text-sm font-normal text-blue-100">National Overview</div>
-          </button>
+        <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
 
           {/* State Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
             <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">
-              Or Select a State
+              Select a State
             </label>
             <div className="space-y-2">
               <input
@@ -220,7 +217,7 @@ const Index: React.FC = () => {
           {/* Region Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
             <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">
-              Or Select a CMS Region
+              Select a CMS Region
             </label>
             <select
               value={selectedRegion}
@@ -243,8 +240,8 @@ const Index: React.FC = () => {
         </div>
 
         {/* Regions Grid */}
-        <div className="mb-4 md:mb-6">
-          <h2 className="text-xl md:text-2xl font-bold mb-2 md:mb-3 text-blue-300">
+        <div className="mb-4 md:mb-5">
+          <h2 className="text-lg md:text-xl font-bold mb-2 md:mb-3 text-blue-300">
             CMS Regions
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3">
@@ -261,8 +258,19 @@ const Index: React.FC = () => {
           </div>
         </div>
 
+        {/* Mobile Floating Action Button */}
+        <div className="md:hidden fixed bottom-6 right-6 z-40">
+          <button
+            onClick={() => navigate('/usa')}
+            className="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-3 px-4 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 flex items-center gap-2"
+          >
+            <span className="text-lg">🇺🇸</span>
+            <span className="text-sm">USA</span>
+          </button>
+        </div>
+
         {/* Footer */}
-        <footer className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-700/50 text-center">
+        <footer className="mt-6 md:mt-8 pt-6 md:pt-8 border-t border-gray-700/50 text-center pb-20 md:pb-0">
           <p className="text-gray-300 text-sm md:text-base mb-3 md:mb-4" style={{ color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', lineHeight: '1.6', maxWidth: '800px', margin: '0 auto' }}>
             The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Aging in America News</a>.
           </p>

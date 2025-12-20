@@ -36,11 +36,11 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ onReplay }) => {
       </div>
       <div className="space-y-2.5">
         <button
-          onClick={onReplay}
+          onClick={handleStateSelect}
           className="w-full py-2.5 md:py-3 px-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 active:from-blue-700 active:to-blue-800 text-white font-semibold rounded-lg transition-all duration-200 text-sm shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] touch-manipulation"
           style={{ minHeight: '44px' }}
         >
-          ↻ Replay
+          Choose Another State or Region
         </button>
         
         <button
@@ -52,11 +52,11 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ onReplay }) => {
         </button>
         
         <button
-          onClick={handleStateSelect}
+          onClick={onReplay}
           className="w-full py-2.5 md:py-3 px-4 bg-gray-700/80 hover:bg-gray-600 active:bg-gray-500 text-white font-semibold rounded-lg transition-all duration-200 text-sm shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] touch-manipulation border border-gray-600/50 hover:border-gray-500"
           style={{ minHeight: '44px' }}
         >
-          Choose Another State or Region
+          ↻ Replay
         </button>
         
         <button

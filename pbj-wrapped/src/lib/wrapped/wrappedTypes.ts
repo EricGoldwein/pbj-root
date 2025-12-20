@@ -20,6 +20,9 @@ export interface FacilityChange extends Facility {
   directCareChange?: number; // Q2 - Q1 for direct care
   q1DirectCare?: number;
   q2DirectCare?: number;
+  rnHPRDChange?: number; // Q2 - Q1 for RN HPRD
+  q1RNHPRD?: number;
+  q2RNHPRD?: number;
 }
 
 export interface StateChange {
@@ -31,6 +34,9 @@ export interface StateChange {
   directCareChange?: number;
   q1DirectCare?: number;
   q2DirectCare?: number;
+  rnHPRDChange?: number; // Q2 - Q1 for RN HPRD
+  q1RNHPRD?: number;
+  q2RNHPRD?: number;
   link: string; // pbjdashboard.com link
 }
 
@@ -106,12 +112,22 @@ export interface PBJWrappedData {
   movers: {
     risersByHPRD: (FacilityChange | StateChange)[];
     risersByDirectCare: (FacilityChange | StateChange)[];
+    risersByRNHPRD?: (FacilityChange | StateChange)[];
     declinersByHPRD: (FacilityChange | StateChange)[];
     declinersByDirectCare: (FacilityChange | StateChange)[];
+    declinersByRNHPRD?: (FacilityChange | StateChange)[];
   };
   
   // Ownership breakdown (for state and region only)
   ownership?: OwnershipBreakdown;
+  
+  // Region states info (for region scope only)
+  regionStates?: Array<{
+    state: string;
+    stateName: string;
+    totalHPRD: number;
+    stateMinimum?: StateMinimum;
+  }>;
 }
 
 // CSV row types

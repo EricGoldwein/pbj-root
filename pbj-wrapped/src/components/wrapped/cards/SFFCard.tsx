@@ -40,12 +40,12 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
         </div>
         
         <div className="flex justify-between items-center py-1 border-b border-gray-600">
-          <span className="text-gray-300 text-sm">Current SFFs</span>
+          <span className="text-gray-300 text-sm">Special Focus Facilities</span>
           <span className="text-white font-bold text-lg">{data.sff.currentSFFs}</span>
         </div>
         
         <div className="flex justify-between items-center py-1 border-b border-gray-600">
-          <span className="text-gray-300 text-sm">SFF candidates</span>
+          <span className="text-gray-300 text-sm">SFF Candidates</span>
           <span className="text-white font-bold text-lg">{data.sff.candidates}</span>
         </div>
         

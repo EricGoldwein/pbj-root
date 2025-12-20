@@ -37,33 +37,19 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
   };
 
   return (
-    <WrappedCard title="Staffing Extremes — CMS Regions">
+    <WrappedCard title="CMS Region Staffing Rankings">
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top Total HPRD</h4>
-            <div className="space-y-0.5">
-              {data.extremes.topRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
-            </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom Total HPRD</h4>
+            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom 3 Regions</h4>
             <div className="space-y-0.5">
               {data.extremes.bottomRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
             </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-700">
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top Direct Care</h4>
+            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top 3 Regions</h4>
             <div className="space-y-0.5">
-              {data.extremes.topRegionsByDirectCare?.slice(0, 3).map(f => renderRegion(f)) || []}
-            </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom Direct Care</h4>
-            <div className="space-y-0.5">
-              {data.extremes.bottomRegionsByDirectCare?.slice(0, 3).map(f => renderRegion(f)) || []}
+              {data.extremes.topRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
             </div>
           </div>
         </div>

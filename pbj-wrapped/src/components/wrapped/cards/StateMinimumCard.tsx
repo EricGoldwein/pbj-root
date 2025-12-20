@@ -19,7 +19,7 @@ export const StateMinimumCard: React.FC<StateMinimumCardProps> = ({ data }) => {
   };
 
   return (
-    <WrappedCard title="State Minimum Staffing Requirement">
+    <WrappedCard title="State Minimum">
       <div className="space-y-3 text-center">
         <div className="bg-blue-500/10 border-2 border-blue-500/50 rounded-lg p-4 md:p-5">
           <div className="text-xs md:text-sm text-gray-400 uppercase tracking-wide mb-2">

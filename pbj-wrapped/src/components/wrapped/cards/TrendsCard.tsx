@@ -25,7 +25,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
                   data.trends.contractPercentChange === 0;
 
   return (
-    <WrappedCard title="Quarter-over-Quarter Trends">
+    <WrappedCard title="Trends">
       <p className="text-gray-300 mb-3 text-sm">
         Changes from Q1 2025 to Q2 2025
       </p>
@@ -33,7 +33,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
       {allZero && (
         <div className="mb-3 p-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
           <p className="text-yellow-300 text-xs leading-relaxed">
-            <strong>Note:</strong> Q1 2025 data may not be available. If all trends show 0.00, check that <code className="text-yellow-200">state_q1.json</code> contains Q1 data for this state.
+            <strong>Note:</strong> Q1 2025 data may not be available. If all trends show 0.00, check that {data.scope === 'region' ? '<code className="text-yellow-200">region_q1.json</code> contains Q1 data for this region' : '<code className="text-yellow-200">state_q1.json</code> contains Q1 data for this state'}.
           </p>
         </div>
       )}

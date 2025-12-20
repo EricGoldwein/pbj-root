@@ -79,33 +79,19 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
   };
 
   return (
-    <WrappedCard title="Staffing Extremes — States">
+    <WrappedCard title="State Staffing Rankings">
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top Total HPRD</h4>
+            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom 5 States</h4>
             <div className="space-y-0.5">
-              {data.extremes.topStatesByHPRD?.slice(0, 3).map(f => renderState(f)) || []}
+              {data.extremes.bottomStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
             </div>
           </div>
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom Total HPRD</h4>
+            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top 5 States</h4>
             <div className="space-y-0.5">
-              {data.extremes.bottomStatesByHPRD?.slice(0, 3).map(f => renderState(f)) || []}
-            </div>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-700">
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top Direct Care</h4>
-            <div className="space-y-0.5">
-              {data.extremes.topStatesByDirectCare?.slice(0, 3).map(f => renderState(f)) || []}
-            </div>
-          </div>
-          <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom Direct Care</h4>
-            <div className="space-y-0.5">
-              {data.extremes.bottomStatesByDirectCare?.slice(0, 3).map(f => renderState(f)) || []}
+              {data.extremes.topStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
             </div>
           </div>
         </div>

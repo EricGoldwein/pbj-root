@@ -462,6 +462,64 @@ async function runPreprocessing() {
     writeFileSync(join(OUTPUT_DIR, 'region_state_mapping.json'), JSON.stringify(regionStateMapping));
     console.log(`  Mapped ${Object.keys(regionStateMapping).length} regions`);
 
+    // Process state standards (macpac data)
+    console.log('\nProcessing state standards...');
+    const stateStandardsFilePath = join(DATA_DIR, 'macpac_state_standards_clean.csv');
+    let stateStandardsMap = {};
+    if (existsSync(stateStandardsFilePath)) {
+      const stateStandardsRows = parseCSV(stateStandardsFilePath);
+      console.log(`  Loaded ${stateStandardsRows.length} state standard rows`);
+      
+      // State name to abbreviation mapping
+      const STATE_NAME_TO_ABBR = {
+        'alabama': 'al', 'alaska': 'ak', 'arizona': 'az', 'arkansas': 'ar',
+        'california': 'ca', 'colorado': 'co', 'connecticut': 'ct', 'delaware': 'de',
+        'florida': 'fl', 'georgia': 'ga', 'hawaii': 'hi', 'idaho': 'id',
+        'illinois': 'il', 'indiana': 'in', 'iowa': 'ia', 'kansas': 'ks',
+        'kentucky': 'ky', 'louisiana': 'la', 'maine': 'me', 'maryland': 'md',
+        'massachusetts': 'ma', 'michigan': 'mi', 'minnesota': 'mn', 'mississippi': 'ms',
+        'missouri': 'mo', 'montana': 'mt', 'nebraska': 'ne', 'nevada': 'nv',
+        'new hampshire': 'nh', 'new jersey': 'nj', 'new mexico': 'nm', 'new york': 'ny',
+        'north carolina': 'nc', 'north dakota': 'nd', 'ohio': 'oh', 'oklahoma': 'ok',
+        'oregon': 'or', 'pennsylvania': 'pa', 'rhode island': 'ri', 'south carolina': 'sc',
+        'south dakota': 'sd', 'tennessee': 'tn', 'texas': 'tx', 'utah': 'ut',
+        'vermont': 'vt', 'virginia': 'va', 'washington': 'wa', 'west virginia': 'wv',
+        'wisconsin': 'wi', 'wyoming': 'wy', 'district of columbia': 'dc', 'washington dc': 'dc', 'dc': 'dc',
+      };
+      
+      function stateNameToAbbr(stateName) {
+        const normalized = (stateName || '').trim().toLowerCase();
+        return STATE_NAME_TO_ABBR[normalized] || null;
+      }
+      
+      for (const row of stateStandardsRows) {
+        const minStaffing = parseNumeric(row.Min_Staffing);
+        // Only include states with requirements >= 1.00
+        if (minStaffing >= 1.0) {
+          const stateName = row.State?.trim();
+          if (stateName) {
+            const stateCode = stateNameToAbbr(stateName);
+            if (stateCode) {
+              const key = stateCode.toLowerCase();
+              stateStandardsMap[key] = {
+                State: stateName,
+                Total_Estimated_Staffing_Requirements: row.Total_Estimated_Staffing_Requirements || '',
+                Min_Staffing: minStaffing,
+                Max_Staffing: parseNumeric(row.Max_Staffing) || minStaffing,
+                Value_Type: row.Value_Type || 'single',
+                Is_Federal_Minimum: row.Is_Federal_Minimum || 'False',
+                Display_Text: row.Display_Text || '',
+              };
+            }
+          }
+        }
+      }
+      writeFileSync(join(OUTPUT_DIR, 'state_standards.json'), JSON.stringify(stateStandardsMap));
+      console.log(`  Processed ${Object.keys(stateStandardsMap).length} state standards`);
+    } else {
+      console.log(`  ⚠️ State standards file not found at ${stateStandardsFilePath}`);
+    }
+
     // Create state-specific facility/provider files for faster loading
     console.log('\nCreating state-specific data files for faster loading...');
     const stateCodes = new Set();

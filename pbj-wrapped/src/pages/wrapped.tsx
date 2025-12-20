@@ -26,6 +26,7 @@ import { USAOwnershipCard } from '../components/wrapped/cards/USAOwnershipCard';
 import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard';
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
 import { StateMinimumCard } from '../components/wrapped/cards/StateMinimumCard';
+import { RegionStatesCard } from '../components/wrapped/cards/RegionStatesCard';
 import { getAssetPath } from '../utils/assets';
 
 // Helper to get data path with base URL
@@ -44,6 +45,8 @@ const Wrapped: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [wrappedData, setWrappedData] = useState<PBJWrappedData | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Debug: log the params
@@ -75,6 +78,17 @@ const Wrapped: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
+        setLoadingProgress(0);
+
+        // Simulate progress during loading - starts slow, accelerates
+        progressIntervalRef.current = setInterval(() => {
+          setLoadingProgress(prev => {
+            if (prev >= 85) return prev; // Don't go above 85% until done
+            // Accelerate progress: slower at start, faster as it goes
+            const increment = prev < 30 ? Math.random() * 5 : prev < 60 ? Math.random() * 8 : Math.random() * 12;
+            return Math.min(85, prev + increment);
+          });
+        }, 150);
 
         // Try multiple data paths, pass scope for optimization
         let data;
@@ -83,15 +97,24 @@ const Wrapped: React.FC = () => {
         // Use base path for data files
         const baseDataPath = getDataPath();
         try {
+          setLoadingProgress(25);
           data = await loadAllData(baseDataPath, scope, normalizedId);
         } catch {
           // Fallback to absolute path if base path fails
           try {
+            setLoadingProgress(35);
             data = await loadAllData('/data', scope, normalizedId);
           } catch {
+            setLoadingProgress(45);
             data = await loadAllData(baseDataPath, scope, normalizedId);
           }
         }
+
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        setLoadingProgress(90);
 
         // Process data based on scope
         const processed = processWrappedData(
@@ -100,17 +123,35 @@ const Wrapped: React.FC = () => {
           data
         );
 
-        setWrappedData(processed);
-        setLoading(false);
+        setLoadingProgress(100);
+        
+        // Small delay to show 100% before hiding
+        setTimeout(() => {
+          setWrappedData(processed);
+          setLoading(false);
+        }, 200);
       } catch (err) {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
         console.error('Error loading wrapped data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load data');
         setLoading(false);
+        setLoadingProgress(0);
       }
     };
 
     loadData();
-  }, [identifier, navigate]);
+
+    // Cleanup function
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+  }, [identifier, navigate, year]);
 
   // Update SEO when wrappedData is loaded
   useEffect(() => {
@@ -137,9 +178,11 @@ const Wrapped: React.FC = () => {
     const screensArray: React.ReactElement[] = [
       <HeaderCard key="header" name={wrappedData.name} />,
       <WhatIsPBJCard key="what-is-pbj" data={wrappedData} />,
-      <WhatIsHPRDCard key="what-is-hprd" />,
+      <WhatIsHPRDCard key="what-is-hprd" data={wrappedData} />,
       // State minimum staffing requirement (if available)
       ...(wrappedData.scope === 'state' && wrappedData.stateMinimum ? [<StateMinimumCard key="state-minimum" data={wrappedData} />] : []),
+      // Region states overview (early on for regions)
+      ...(wrappedData.scope === 'region' && wrappedData.regionStates ? [<RegionStatesCard key="region-states" data={wrappedData} />] : []),
       // State-specific narrative overview
       ...(wrappedData.scope === 'state' ? [<StateOverviewCard key="state-overview" data={wrappedData} />] : []),
       // USA-specific national scale
@@ -149,16 +192,19 @@ const Wrapped: React.FC = () => {
       // For USA, add ownership slide after basics
       ...(wrappedData.scope === 'usa' && wrappedData.ownership ? [<USAOwnershipCard key="ownership" data={wrappedData} />] : []),
       // For USA, split extremes into two slides
-      // For state/region, split into lowest and highest slides
+      // For state, split into lowest and highest slides
+      // For region, skip facility extremes (focus on state-level trends)
       ...(wrappedData.scope === 'usa' 
         ? [
             <USAStatesExtremesCard key="extremes-states" data={wrappedData} />,
             <USARegionsExtremesCard key="extremes-regions" data={wrappedData} />,
           ]
-        : [
+        : wrappedData.scope === 'state'
+        ? [
             <LowestStaffingCard key="lowest-staffing" data={wrappedData} />,
             <HighestStaffingCard key="highest-staffing" data={wrappedData} />,
           ]
+        : [] // Regions skip facility extremes
       ),
       <SFFCard key="sff" data={wrappedData} />,
       <TrendsCard key="trends" data={wrappedData} />,
@@ -173,9 +219,10 @@ const Wrapped: React.FC = () => {
     ];
 
     const slideDurationsArray = screensArray.map((screen) => {
-      // Make "What is PBJ" slide much longer (15 seconds) so users can read and digest
+      // Make "What is PBJ" slide longer so typing effect can complete
+      // Typing speed is 30ms per char, estimate ~200 chars = 6 seconds typing + 4 seconds for reading
       if (screen.key === 'what-is-pbj') {
-        return 15000;
+        return 10000; // 10 seconds total - typing completes in ~6s, 4s to read
       }
       return 5000; // 5 seconds per slide
     });
@@ -207,11 +254,13 @@ const Wrapped: React.FC = () => {
               <div className="w-6 h-6 md:w-8 md:h-8 bg-blue-500/20 rounded-full animate-pulse"></div>
             </div>
           </div>
-          {/* Progress bar placeholder */}
+          {/* Progress bar */}
           <div className="w-full max-w-xs mx-auto h-1.5 bg-gray-700/50 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+            <div 
+              className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-300 ease-out" 
+              style={{ width: `${Math.min(100, Math.max(0, loadingProgress))}%` }}
+            ></div>
           </div>
-          <p className="text-xs text-gray-500 mt-4">First load may take 30-60 seconds</p>
         </div>
       </div>
     );

@@ -10,7 +10,7 @@ The following CSV files need to be in `pbj-wrapped/public/data/`:
 4. ✅ `facility_lite_metrics.csv` - Already copied
 5. ✅ `cms_region_state_mapping.csv` - Already copied
 6. ⚠️ `provider_info_combined.csv` - **TOO LARGE - Must copy manually**
-7. ⚠️ `macpac_state_standards_clean.csv` - **Must copy manually** (for state minimum staffing requirements)
+7. ✅ `macpac_state_standards_clean.csv` - **Already copied** (for state minimum staffing requirements)
 
 ## Manual Copy Required
 

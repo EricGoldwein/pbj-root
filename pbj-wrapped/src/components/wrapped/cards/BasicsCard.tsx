@@ -3,6 +3,7 @@ import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { useAnimatedNumber } from '../../../hooks/useAnimatedNumber';
 import { OwnershipPieChart } from '../OwnershipPieChart';
+import { StaffingBreakdownPieChart } from '../StaffingBreakdownPieChart';
 
 interface BasicsCardProps {
   data: PBJWrappedData;
@@ -28,6 +29,14 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
 
   // For USA, show a cleaner, more compact layout
   if (data.scope === 'usa') {
+    // Calculate LPN HPRD: Total - RN - Nurse Aide
+    const lpnHPRD = Math.max(0, data.totalHPRD - data.rnHPRD - (data.nurseAideHPRD || 0));
+    const staffingBreakdown = {
+      rn: data.rnHPRD,
+      lpn: lpnHPRD,
+      nurseAide: data.nurseAideHPRD || 0,
+    };
+    
     return (
       <WrappedCard title="The Basics">
         <div className="space-y-4 text-left">
@@ -42,6 +51,43 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
           </div>
           
+          {/* Staffing Breakdown Pie Chart */}
+          <div className="pt-2 pb-3 border-t border-gray-600">
+            <h3 className="text-base font-semibold text-gray-200 mb-3 text-center">Staffing Breakdown</h3>
+            <div className="flex items-start gap-4">
+              <StaffingBreakdownPieChart breakdown={staffingBreakdown} size={100} />
+              <div className="flex-1 space-y-1.5">
+                <div className="flex justify-between items-center py-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-sm bg-blue-400 flex-shrink-0"></div>
+                    <span className="text-gray-300 text-sm">RN</span>
+                  </div>
+                  <span className="text-white font-semibold text-sm">
+                    {formatNumber(data.rnHPRD, 2)} HPRD
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-sm bg-green-400 flex-shrink-0"></div>
+                    <span className="text-gray-300 text-sm">LPN</span>
+                  </div>
+                  <span className="text-white font-semibold text-sm">
+                    {formatNumber(lpnHPRD, 2)} HPRD
+                  </span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-sm bg-orange-400 flex-shrink-0"></div>
+                    <span className="text-gray-300 text-sm">Nurse Aide</span>
+                  </div>
+                  <span className="text-white font-semibold text-sm">
+                    {formatNumber(data.nurseAideHPRD || 0, 2)} HPRD
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
           <div className="space-y-2">
             <div className="py-1.5 border-b border-gray-600">
               <div className="flex justify-between items-center mb-1">
@@ -53,24 +99,6 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 <span className="text-gray-300 font-semibold text-sm">{formatNumber(animatedDirectCareHPRD, 2)}</span>
               </div>
             </div>
-            
-            <div className="py-1.5 border-b border-gray-600">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-gray-300 text-sm">RN HPRD</span>
-                <span className="text-white font-bold text-lg">{formatNumber(animatedRNHPRD, 2)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400 text-xs">RN direct care HPRD</span>
-                <span className="text-gray-300 font-semibold text-sm">{formatNumber(animatedRNDirectCareHPRD, 2)}</span>
-              </div>
-            </div>
-            
-            {data.nurseAideHPRD !== undefined && (
-              <div className="flex justify-between items-center py-1.5 border-b border-gray-600">
-                <span className="text-gray-300 text-sm">Nurse aide HPRD</span>
-                <span className="text-white font-bold text-lg">{formatNumber(data.nurseAideHPRD, 2)}</span>
-              </div>
-            )}
             
             {data.medianHPRD !== undefined && (
               <div className="flex justify-between items-center py-1.5">
@@ -104,6 +132,11 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.totalHPRDRank} ({data.rankings.totalHPRDPercentile}th percentile)
+                </span>
+              )}
+              {data.scope === 'state' && data.stateMinimum && (
+                <span className="text-xs text-blue-400 mt-0.5">
+                  State minimum: {data.stateMinimum.minHPRD.toFixed(2)} HPRD
                 </span>
               )}
             </div>

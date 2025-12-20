@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  base: '/pbj-wrapped/', // Base path for production deployment
   server: {
     port: 5173,
     host: true, // Allow external connections for debugging

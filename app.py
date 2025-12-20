@@ -59,6 +59,36 @@ def report():
 def sitemap():
     return send_file('sitemap.xml', mimetype='application/xml')
 
+# Serve pbj-wrapped app (built React SPA)
+@app.route('/pbj-wrapped')
+@app.route('/pbj-wrapped/')
+def pbj_wrapped_index():
+    """Serve the pbj-wrapped React app index page"""
+    wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
+    if os.path.exists(wrapped_index):
+        return send_file(wrapped_index, mimetype='text/html')
+    else:
+        return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
+
+@app.route('/pbj-wrapped/<path:path>')
+def pbj_wrapped_static(path):
+    """Serve static files and handle SPA routing for pbj-wrapped"""
+    wrapped_dist = os.path.join('pbj-wrapped', 'dist')
+    
+    # Check if it's a static asset (has extension)
+    file_path = os.path.join(wrapped_dist, path)
+    if os.path.isfile(file_path):
+        # Serve the static file
+        return send_from_directory(wrapped_dist, path)
+    else:
+        # For SPA routing, serve index.html for any route
+        # This allows React Router to handle client-side routing
+        wrapped_index = os.path.join(wrapped_dist, 'index.html')
+        if os.path.exists(wrapped_index):
+            return send_file(wrapped_index, mimetype='text/html')
+        else:
+            return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
+
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined

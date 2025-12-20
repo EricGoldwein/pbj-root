@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { WrappedImage } from '../components/wrapped/WrappedImage';
 import { USMap } from '../components/wrapped/USMap';
 import { updateSEO, getWrappedLandingSEO } from '../utils/seo';
+import { getAssetPath } from '../utils/assets';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
@@ -15,7 +16,6 @@ const Index: React.FC = () => {
   useEffect(() => {
     updateSEO(getWrappedLandingSEO('2025'));
   }, []);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const states = [
     { code: 'AL', name: 'Alabama' }, { code: 'AK', name: 'Alaska' }, { code: 'AZ', name: 'Arizona' },
@@ -57,12 +57,12 @@ const Index: React.FC = () => {
 
   const handleStateSelect = (stateCode: string) => {
     if (stateCode) {
-      navigate(`/wrapped/2025/${stateCode.toLowerCase()}`);
+      navigate(`/${stateCode.toLowerCase()}`);
     }
   };
 
   const handleRegionSelect = (regionNum: number) => {
-    navigate(`/wrapped/2025/region${regionNum}`);
+    navigate(`/region${regionNum}`);
   };
 
   return (
@@ -75,7 +75,7 @@ const Index: React.FC = () => {
               href="https://pbj320.com" 
               className="text-white font-bold text-lg md:text-xl hover:text-blue-300 transition-colors flex items-center gap-2"
             >
-              <img src="/pbj_favicon.png" alt="PBJ320" className="h-6 md:h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+              <img src={getAssetPath('/pbj_favicon.png')} alt="PBJ320" className="h-6 md:h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               <span><span className="text-white">PBJ</span><span className="text-blue-400">320</span></span>
             </a>
             {/* Desktop Navigation */}
@@ -148,7 +148,7 @@ const Index: React.FC = () => {
         <div className="text-center mb-4 md:mb-6">
           <div className="flex justify-center mb-3 md:mb-4">
             <WrappedImage
-              src="/images/phoebe-wrapped-wide.png"
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
               alt="PBJ Wrapped"
               className="max-w-[200px] md:max-w-[280px] h-auto"
             />
@@ -158,9 +158,6 @@ const Index: React.FC = () => {
           </h1>
           <p className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto mb-2">
             Explore nursing home staffing data across the United States
-          </p>
-          <p className="text-xs md:text-sm text-gray-400 max-w-xl mx-auto">
-            From <a href="https://pbj320.com" className="text-blue-400 hover:text-blue-300 underline">pbj320.com</a> — the most accurate view of nursing home staffing nationwide
           </p>
         </div>
 
@@ -181,7 +178,7 @@ const Index: React.FC = () => {
         <div className="grid md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6">
           {/* USA Card */}
           <button
-            onClick={() => navigate('/wrapped/2025/usa')}
+            onClick={() => navigate('/usa')}
             className="group bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-bold py-4 md:py-5 px-4 rounded-xl text-base md:text-lg transition-all duration-300 shadow-xl hover:shadow-2xl transform hover:-translate-y-1"
           >
             <div className="text-3xl md:text-4xl mb-2">🇺🇸</div>
@@ -254,7 +251,7 @@ const Index: React.FC = () => {
             {regions.map((region) => (
               <button
                 key={region.num}
-                onClick={() => navigate(`/wrapped/2025/region${region.num}`)}
+                onClick={() => navigate(`/region${region.num}`)}
                 className="group bg-gray-700/50 hover:bg-blue-600/80 text-white font-semibold py-3 md:py-4 px-3 rounded-lg transition-all duration-200 hover:scale-105 hover:shadow-xl border border-gray-600/50 hover:border-blue-400"
               >
                 <div className="text-base md:text-lg mb-0.5">Region {region.num}</div>

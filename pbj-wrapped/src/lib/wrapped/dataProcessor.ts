@@ -242,7 +242,7 @@ function processUSAData(
   nationalQ2: NationalQuarterlyRow | null,
   nationalQ1: NationalQuarterlyRow | null,
   facilityQ2: FacilityLiteRow[],
-  facilityQ1: FacilityLiteRow[],
+  _facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
   providerInfoQ1: ProviderInfoRow[],
   stateDataQ2: StateQuarterlyRow[],
@@ -261,7 +261,6 @@ function processUSAData(
   });
 
   const providerInfoLookupQ2 = createProviderInfoLookup(providerInfoQ2);
-  const providerInfoLookupQ1 = createProviderInfoLookup(providerInfoQ1);
 
   // Section 2: Basics
   const facilityCount = nationalQ2.facility_count;
@@ -322,14 +321,14 @@ function processUSAData(
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Total_Nurse_HPRD,
-    link: `/wrapped/2025/${s.STATE.toLowerCase()}`,
+    link: `/${s.STATE.toLowerCase()}`,
   }));
   const bottomStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(-3).reverse().map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Total_Nurse_HPRD,
-    link: `/wrapped/2025/${s.STATE.toLowerCase()}`,
+    link: `/${s.STATE.toLowerCase()}`,
   }));
 
   // Top/Bottom States by Direct Care HPRD (excluding PR)
@@ -339,14 +338,14 @@ function processUSAData(
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Nurse_Care_HPRD,
-    link: `/wrapped/2025/${s.STATE.toLowerCase()}`,
+    link: `/${s.STATE.toLowerCase()}`,
   }));
   const bottomStatesByDirectCare: Facility[] = sortedStatesByDirectCare.slice(-3).reverse().map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Nurse_Care_HPRD,
-    link: `/wrapped/2025/${s.STATE.toLowerCase()}`,
+    link: `/${s.STATE.toLowerCase()}`,
   }));
 
   // Top/Bottom Regions by Total HPRD
@@ -510,7 +509,7 @@ function processUSAData(
         directCareChange,
         q1DirectCare: stateQ1.Nurse_Care_HPRD,
         q2DirectCare: stateQ2.Nurse_Care_HPRD,
-        link: `/wrapped/2025/${stateQ2.STATE.toLowerCase()}`,
+        link: `/${stateQ2.STATE.toLowerCase()}`,
       });
     }
   }
@@ -638,7 +637,6 @@ function processStateData(
   }
 
   const providerInfoLookupQ2 = createProviderInfoLookup(stateProviderInfoQ2);
-  const providerInfoLookupQ1 = createProviderInfoLookup(stateProviderInfoQ1);
 
   // Section 2: Basics
   const facilityCount = stateQ2.facility_count;
@@ -805,7 +803,6 @@ function processStateData(
 
   // Section 7: Movers
   const facilityMapQ1 = new Map(stateFacilitiesQ1.map(f => [f.PROVNUM, f]));
-  const facilityMapQ2 = new Map(stateFacilitiesQ2.map(f => [f.PROVNUM, f]));
 
   const movers: FacilityChange[] = [];
   for (const f2 of stateFacilitiesQ2) {
@@ -929,7 +926,7 @@ function processRegionData(
   regionQ2: RegionQuarterlyRow | null,
   regionQ1: RegionQuarterlyRow | null,
   facilityQ2: FacilityLiteRow[],
-  facilityQ1: FacilityLiteRow[],
+  _facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
   providerInfoQ1: ProviderInfoRow[],
   allRegionsQ2: RegionQuarterlyRow[],
@@ -946,12 +943,10 @@ function processRegionData(
   
   // Filter facilities and provider info by region states
   const regionFacilitiesQ2 = facilityQ2.filter(f => regionStates.has(f.STATE));
-  const regionFacilitiesQ1 = facilityQ1.filter(f => regionStates.has(f.STATE));
   const regionProviderInfoQ2 = providerInfoQ2.filter(p => regionStates.has(p.STATE));
   const regionProviderInfoQ1 = providerInfoQ1.filter(p => regionStates.has(p.STATE));
 
   const providerInfoLookupQ2 = createProviderInfoLookup(regionProviderInfoQ2);
-  const providerInfoLookupQ1 = createProviderInfoLookup(regionProviderInfoQ1);
 
   // Section 2: Basics
   const facilityCount = regionQ2.facility_count;
@@ -1031,7 +1026,7 @@ function processRegionData(
     a.percentExpected - b.percentExpected
   );
 
-  const lowestByPercentExpected: Facility[] = sortedByPercent.slice(0, 5).map(({ facility, info, percentExpected }) => ({
+  const lowestByPercentExpected: Facility[] = sortedByPercent.slice(0, 5).map(({ facility, percentExpected }) => ({
     provnum: facility.PROVNUM,
     name: toTitleCase(facility.PROVNAME),
     state: facility.STATE,
@@ -1039,7 +1034,7 @@ function processRegionData(
     link: createFacilityLink(facility.PROVNUM),
   }));
 
-  const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, info, percentExpected }) => ({
+  const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, percentExpected }) => ({
     provnum: facility.PROVNUM,
     name: toTitleCase(facility.PROVNAME),
     state: facility.STATE,

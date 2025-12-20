@@ -27,9 +27,16 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Index />} />
       <Route 
-        path="/wrapped/:year/sff" 
+        path="/" 
+        element={
+          <PasswordProtection>
+            <Index />
+          </PasswordProtection>
+        } 
+      />
+      <Route 
+        path="/sff" 
         element={
           <PasswordProtection>
             <SFFWrapped />
@@ -37,7 +44,7 @@ function App() {
         } 
       />
       <Route 
-        path="/wrapped/:year/:identifier" 
+        path="/:identifier" 
         element={
           <PasswordProtection>
             <Wrapped />

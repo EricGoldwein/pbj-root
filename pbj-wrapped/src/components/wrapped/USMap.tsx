@@ -86,11 +86,6 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
         const projection = d3.geoAlbersUsa().fitSize([width - 20, height - 20], states);
         const path = d3.geoPath().projection(projection);
 
-        // Color scale - subtle gradient
-        const colorScale = d3.scaleSequential()
-          .domain([0, 1])
-          .interpolator(d3.interpolateBlues);
-
         // Draw states
         svg.selectAll('.state')
           .data(states.features)
@@ -99,14 +94,14 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
           .attr('class', 'state')
           .attr('d', path)
           .attr('data-state', (d: any) => d.properties.name)
-          .style('fill', (d: any, i: number) => {
+          .style('fill', (_d: any, i: number) => {
             // Subtle color variation
             return `rgba(59, 130, 246, ${0.3 + (i % 3) * 0.1})`;
           })
           .style('stroke', '#ffffff')
           .style('stroke-width', '1.5px')
           .style('cursor', 'pointer')
-          .on('mouseover', function(event: MouseEvent, d: any) {
+          .on('mouseover', function(this: SVGPathElement, _event: MouseEvent, d: any) {
             const stateName = d.properties.name;
             setHoveredState(stateName);
             d3.select(this)
@@ -115,19 +110,19 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
               .style('fill', 'rgba(59, 130, 246, 0.7)')
               .style('stroke-width', '2.5px');
           })
-          .on('mouseout', function(event: MouseEvent, d: any) {
+          .on('mouseout', function(this: SVGPathElement, _event: MouseEvent, _d: any) {
             setHoveredState(null);
             d3.select(this)
               .transition()
               .duration(200)
-              .style('fill', (d: any, i: number) => `rgba(59, 130, 246, ${0.3 + (i % 3) * 0.1})`)
+              .style('fill', (_d: any, i: number) => `rgba(59, 130, 246, ${0.3 + (i % 3) * 0.1})`)
               .style('stroke-width', '1.5px');
           })
-          .on('click', function(event: MouseEvent, d: any) {
+          .on('click', function(_event: MouseEvent, d: any) {
             const stateName = d.properties.name;
             const stateAbbr = STATE_ABBR_MAP[stateName];
             if (stateAbbr) {
-              navigate(`/wrapped/2025/${stateAbbr}`);
+              navigate(`/${stateAbbr}`);
             }
           });
 

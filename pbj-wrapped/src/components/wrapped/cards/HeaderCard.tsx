@@ -3,6 +3,7 @@ import { WrappedCard } from '../WrappedCard';
 import { WrappedImage } from '../WrappedImage';
 import { StateOutline } from '../StateOutline';
 import { useWrappedContext } from '../WrappedContext';
+import { getAssetPath } from '../../../utils/assets';
 
 interface HeaderCardProps {
   name: string;
@@ -32,7 +33,7 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
         {isState && stateCode ? (
           <div className="flex flex-col items-center gap-3 md:gap-4">
             <WrappedImage
-              src="/images/phoebe-wrapped-wide.png"
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
               alt="PBJ Wrapped"
               className="block relative rounded-lg"
               style={{ 
@@ -57,7 +58,7 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
           <>
             <div className="flex justify-center">
               <WrappedImage
-                src="/images/phoebe-wrapped-wide.png"
+                src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"
                 className="block relative rounded-lg"
                 style={{ 

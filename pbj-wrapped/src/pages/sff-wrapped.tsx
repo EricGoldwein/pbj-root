@@ -9,6 +9,7 @@ import { toTitleCase } from '../lib/wrapped/dataProcessor';
 import { WhatIsSFFCard } from '../components/wrapped/cards/WhatIsSFFCard';
 import { WhatIsPBJCard } from '../components/wrapped/cards/WhatIsPBJCard';
 import { updateSEO, getSFFWrappedSEO } from '../utils/seo';
+import { getAssetPath } from '../utils/assets';
 
 interface SFFFacility {
   provnum: string;
@@ -25,7 +26,7 @@ interface SFFFacility {
 }
 
 export default function SFFWrapped() {
-  const { year } = useParams<{ year: string }>();
+  const year = '2025'; // Fixed year for Q2 2025
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -46,7 +47,9 @@ export default function SFFWrapped() {
         setError(null);
 
         // Load all data (we need provider info and facilities)
-        const data: LoadedData = await loadAllData('/data');
+        // Use base path for data files
+        const baseDataPath = `${import.meta.env.BASE_URL}data`.replace(/([^:]\/)\/+/g, '$1');
+        const data: LoadedData = await loadAllData(baseDataPath);
 
         // Filter for Q2 2025 SFFs and candidates
         const providerInfoQ2 = data.providerInfo.q2;
@@ -182,7 +185,7 @@ export default function SFFWrapped() {
         <div className="space-y-3 md:space-y-4">
           <div className="flex justify-center">
             <WrappedImage
-              src="/images/phoebe-wrapped-wide.png"
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
               alt="PBJ Wrapped"
               className="block relative rounded-lg"
               style={{ 
@@ -209,7 +212,52 @@ export default function SFFWrapped() {
       </WrappedCard>,
 
       <WhatIsSFFCard key="what-is-sff" />,
-      <WhatIsPBJCard key="what-is-pbj" />,
+      <WhatIsPBJCard 
+        key="what-is-pbj" 
+        data={{
+          scope: 'usa',
+          identifier: 'sff',
+          name: 'Special Focus Facilities',
+          facilityCount: sffData.sffs.length + sffData.candidates.length,
+          avgDailyResidents: 0,
+          totalHPRD: 0,
+          directCareHPRD: 0,
+          rnHPRD: 0,
+          rnDirectCareHPRD: 0,
+          rankings: {
+            totalHPRDRank: 0,
+            totalHPRDPercentile: 0,
+            directCareHPRDRank: 0,
+            directCareHPRDPercentile: 0,
+            rnHPRDRank: 0,
+            rnHPRDPercentile: 0,
+          },
+          extremes: {
+            lowestByHPRD: [],
+            lowestByPercentExpected: [],
+            highestByHPRD: [],
+            highestByPercentExpected: [],
+          },
+          sff: {
+            currentSFFs: sffData.sffs.length,
+            candidates: sffData.candidates.length,
+            newThisQuarter: [],
+          },
+          trends: {
+            totalHPRDChange: 0,
+            directCareHPRDChange: 0,
+            rnHPRDChange: 0,
+            contractPercentChange: 0,
+          },
+          movers: {
+            risersByHPRD: [],
+            risersByDirectCare: [],
+            declinersByHPRD: [],
+            declinersByDirectCare: [],
+          },
+          ownership: undefined,
+        }}
+      />,
 
       // Overview
       <WrappedCard key="overview" title="Overview">
@@ -322,7 +370,7 @@ export default function SFFWrapped() {
         <div className="space-y-4">
           <div className="flex justify-center mb-4">
             <WrappedImage
-              src="/images/phoebe-wrapped-wide.png"
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
               alt="PBJ Wrapped"
               className="block relative rounded-lg"
               style={{ 
@@ -337,7 +385,7 @@ export default function SFFWrapped() {
           </div>
           <div className="space-y-3">
             <button
-              onClick={() => navigate('/wrapped/2025/usa')}
+              onClick={() => navigate('/usa')}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               View USA Wrapped
@@ -391,50 +439,6 @@ export default function SFFWrapped() {
   if (!sffData) {
     return null;
   }
-
-  // Create a dummy context value for SFF wrapped
-  const dummyContext = {
-    scope: 'usa' as const,
-    identifier: 'sff',
-    name: 'Special Focus Facilities',
-    facilityCount: sffData.sffs.length + sffData.candidates.length,
-    avgDailyResidents: 0,
-    totalHPRD: 0,
-    directCareHPRD: 0,
-    rnHPRD: 0,
-    rnDirectCareHPRD: 0,
-    rankings: {
-      totalHPRDRank: 0,
-      totalHPRDPercentile: 0,
-      directCareHPRDRank: 0,
-      directCareHPRDPercentile: 0,
-      rnHPRDRank: 0,
-      rnHPRDPercentile: 0,
-    },
-    extremes: {
-      lowestByHPRD: [],
-      lowestByPercentExpected: [],
-      highestByHPRD: [],
-      highestByPercentExpected: [],
-    },
-    sff: {
-      currentSFFs: sffData.sffs.length,
-      candidates: sffData.candidates.length,
-      newThisQuarter: [],
-    },
-    trends: {
-      totalHPRDChange: 0,
-      directCareHPRDChange: 0,
-      rnHPRDChange: 0,
-      contractPercentChange: 0,
-    },
-    movers: {
-      risersByHPRD: [],
-      risersByDirectCare: [],
-      declinersByHPRD: [],
-      declinersByDirectCare: [],
-    },
-  };
 
   return (
     <WrappedProvider scope="sff" name="Special Focus Facilities">

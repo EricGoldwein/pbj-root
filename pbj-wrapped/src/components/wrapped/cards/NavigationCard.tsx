@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import { WrappedImage } from '../WrappedImage';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
+import { getAssetPath } from '../../../utils/assets';
 
 interface NavigationCardProps {
   data: PBJWrappedData;
@@ -17,7 +18,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ onReplay }) => {
   };
 
   const handleUSA = () => {
-    navigate('/wrapped/2025/usa');
+    navigate('/usa');
   };
 
   const handleReport = () => {
@@ -28,7 +29,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ onReplay }) => {
     <WrappedCard title="Explore More" hideBadge>
       <div className="mb-3 flex justify-center">
         <WrappedImage 
-          src="/images/phoebe-wrapped-wide.png" 
+          src={getAssetPath('/images/phoebe-wrapped-wide.png')} 
           alt="Phoebe" 
           className="max-w-[140px] md:max-w-[160px] h-auto opacity-85"
         />

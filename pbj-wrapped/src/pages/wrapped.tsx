@@ -10,7 +10,6 @@ import { WrappedProvider } from '../components/wrapped/WrappedContext';
 import { HeaderCard } from '../components/wrapped/cards/HeaderCard';
 import { BasicsCard } from '../components/wrapped/cards/BasicsCard';
 import { RankingsCard } from '../components/wrapped/cards/RankingsCard';
-import { ExtremesCard } from '../components/wrapped/cards/ExtremesCard';
 import { LowestStaffingCard } from '../components/wrapped/cards/LowestStaffingCard';
 import { HighestStaffingCard } from '../components/wrapped/cards/HighestStaffingCard';
 import { USAStatesExtremesCard } from '../components/wrapped/cards/USAStatesExtremesCard';
@@ -27,11 +26,20 @@ import { USAOwnershipCard } from '../components/wrapped/cards/USAOwnershipCard';
 import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard';
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
 import { StateMinimumCard } from '../components/wrapped/cards/StateMinimumCard';
+import { getAssetPath } from '../utils/assets';
+
+// Helper to get data path with base URL
+function getDataPath(path: string = ''): string {
+  const baseUrl = import.meta.env.BASE_URL;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
+}
 
 const Wrapped: React.FC = () => {
-  const { year, identifier } = useParams<{ year?: string; identifier?: string }>();
+  const { identifier } = useParams<{ identifier?: string }>();
   const navigate = useNavigate();
   const navigationRef = useRef<WrappedNavigationRef>(null);
+  const year = '2025'; // Fixed year for Q2 2025
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,26 +47,26 @@ const Wrapped: React.FC = () => {
 
   useEffect(() => {
     // Debug: log the params
-    console.log('Route params:', { year, identifier });
+    console.log('Route params:', { identifier });
     
-    if (!year || !identifier) {
-      setError(`Invalid route parameters. Year: ${year || 'missing'}, Identifier: ${identifier || 'missing'}. Expected format: /wrapped/2025/{usa|state|region}`);
+    if (!identifier) {
+      setError(`Invalid route parameters. Identifier: ${identifier || 'missing'}. Expected format: /{usa|state|region}`);
       setLoading(false);
       return;
     }
 
-    // Parse and validate route parameters
+    // Parse and validate route parameters (year is fixed to 2025)
     const params = parseRouteParams(year, identifier);
     
     if (!params.scope || !params.normalizedIdentifier) {
-      setError(`Invalid route: /wrapped/${year}/${identifier}. Please check the URL and try again.`);
+      setError(`Invalid route: /${identifier}. Please check the URL and try again.`);
       setLoading(false);
       return;
     }
 
     // Redirect if needed (e.g., full state name to abbreviation)
     if (params.scope === 'state' && identifier.toLowerCase() !== params.normalizedIdentifier) {
-      navigate(`/wrapped/${year}/${params.normalizedIdentifier}`, { replace: true });
+      navigate(`/${params.normalizedIdentifier}`, { replace: true });
       return;
     }
 
@@ -71,20 +79,24 @@ const Wrapped: React.FC = () => {
         // Try multiple data paths, pass scope for optimization
         let data;
         const scope = params.scope || 'usa';
+        const normalizedId = params.normalizedIdentifier ?? undefined;
+        // Use base path for data files
+        const baseDataPath = getDataPath();
         try {
-          data = await loadAllData('/data', scope, params.normalizedIdentifier);
+          data = await loadAllData(baseDataPath, scope, normalizedId);
         } catch {
+          // Fallback to absolute path if base path fails
           try {
-            data = await loadAllData('../data', scope, params.normalizedIdentifier);
+            data = await loadAllData('/data', scope, normalizedId);
           } catch {
-            data = await loadAllData('', scope, params.normalizedIdentifier);
+            data = await loadAllData(baseDataPath, scope, normalizedId);
           }
         }
 
         // Process data based on scope
         const processed = processWrappedData(
           scope,
-          params.normalizedIdentifier,
+          normalizedId ?? '',
           data
         );
 
@@ -98,11 +110,11 @@ const Wrapped: React.FC = () => {
     };
 
     loadData();
-  }, [year, identifier, navigate]);
+  }, [identifier, navigate]);
 
   // Update SEO when wrappedData is loaded
   useEffect(() => {
-    if (wrappedData && year && identifier) {
+    if (wrappedData && identifier) {
       const params = parseRouteParams(year, identifier);
       if (params.scope && params.normalizedIdentifier) {
         const seoData = getWrappedSEO(
@@ -114,7 +126,7 @@ const Wrapped: React.FC = () => {
         updateSEO(seoData);
       }
     }
-  }, [wrappedData, year, identifier]);
+  }, [wrappedData, identifier, year]);
 
   // Build screens array
   const { screens, slideDurations } = useMemo(() => {
@@ -160,7 +172,7 @@ const Wrapped: React.FC = () => {
       />,
     ];
 
-    const slideDurationsArray = screensArray.map((screen, index) => {
+    const slideDurationsArray = screensArray.map((screen) => {
       // Make "What is PBJ" slide much longer (15 seconds) so users can read and digest
       if (screen.key === 'what-is-pbj') {
         return 15000;
@@ -180,7 +192,7 @@ const Wrapped: React.FC = () => {
         <div className="text-center max-w-md px-6">
           <div className="mb-6 flex justify-center">
             <img 
-              src="/images/phoebe-wrapped-wide.png" 
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')} 
               alt="PBJ Wrapped" 
               className="max-w-[200px] md:max-w-[250px] h-auto opacity-80"
             />

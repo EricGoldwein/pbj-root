@@ -58,7 +58,7 @@ echo [DEBUG] Line 58: Checking logo
 if not exist "public\images\phoebe-wrapped-wide.png" (
     if exist "..\phoebe-wrapped-wide.png" (
         echo [DEBUG] Line 61: Copying logo from parent
-        copy "..\phoebe-wrapped-wide.png" "public\Aimages\phoebe-wrapped-wide.png" >nul 2>&1
+        copy "..\phoebe-wrapped-wide.png" "public\images\phoebe-wrapped-wide.png" >nul 2>&1
         echo Logo copied
     ) else (
         if exist "phoebe-wrapped-wide.png" (
@@ -183,9 +183,10 @@ echo.
 echo Server: http://localhost:5173
 echo.
 echo URLs to try:
-echo   USA: http://localhost:5173/wrapped/2025/usa
-echo   State: http://localhost:5173/wrapped/2025/al
-echo   Region: http://localhost:5173/wrapped/2025/region1
+echo   Landing: http://localhost:5173/pbj-wrapped/
+echo   USA: http://localhost:5173/pbj-wrapped/usa
+echo   State: http://localhost:5173/pbj-wrapped/al
+echo   Region: http://localhost:5173/pbj-wrapped/region1
 echo.
 echo ========================================
 echo   TROUBLESHOOTING

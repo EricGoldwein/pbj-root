@@ -101,7 +101,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            Nationwide, <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
+            Nationwide, PBJ reports <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
           </p>
           {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
             const value = mostNoticeable.value;
@@ -185,7 +185,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{displayName}</strong> has <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
+            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
           </p>
           {trend !== 0 && (
             <p className="mb-2">

@@ -77,7 +77,10 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
               <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide, empowering families to make informed decisions and enabling regulators to hold facilities accountable.
             </p>
             <div className="mt-3 pt-3 border-t border-gray-700">
-              <p className="text-xs text-gray-400 text-center italic">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if staffing levels are considered aberrant (e.g., overreporting, underreporting, or not reported).
+              </p>
+              <p className="text-xs text-gray-400 text-center italic mt-3">
                 Click or tap anywhere to continue
               </p>
             </div>

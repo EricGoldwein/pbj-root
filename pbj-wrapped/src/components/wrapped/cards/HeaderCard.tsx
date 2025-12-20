@@ -22,6 +22,9 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
       noContainer={true}
     >
       <div className="space-y-4 md:space-y-5 relative z-10">
+        <p className="text-xs text-gray-400 text-center">
+          As reported in PBJ (Q2 2025)
+        </p>
         {isState && stateCode ? (
           <div className="flex flex-col items-center gap-4 md:gap-5">
             <WrappedImage

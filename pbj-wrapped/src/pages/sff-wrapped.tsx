@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { loadAllData, type LoadedData } from '../lib/wrapped/dataLoader';
 import { WrappedScreenWrapper } from '../components/wrapped/WrappedScreenWrapper';
 import { WrappedProvider } from '../components/wrapped/WrappedContext';

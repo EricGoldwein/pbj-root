@@ -17,12 +17,6 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
     return `${sign}${formatted}${isPercent ? '%' : ''}`;
   };
 
-  const getDirectionArrow = (change: number): string => {
-    if (change > 0) return '↑';
-    if (change < 0) return '↓';
-    return '→';
-  };
-
   // Check if all trends are exactly 0.00 (likely means Q1 data is missing)
   // This is a heuristic - if all four metrics are exactly 0.00, Q1 data is probably missing
   const allZero = data.trends.totalHPRDChange === 0 && 

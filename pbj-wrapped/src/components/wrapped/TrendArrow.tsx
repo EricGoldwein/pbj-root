@@ -8,7 +8,6 @@ interface TrendArrowProps {
 export const TrendArrow: React.FC<TrendArrowProps> = ({ change, size = 40 }) => {
   const isPositive = change > 0;
   const isNegative = change < 0;
-  const isNeutral = change === 0;
   
   const color = isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#9ca3af';
   const arrow = isPositive ? '↑' : isNegative ? '↓' : '→';

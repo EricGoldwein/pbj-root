@@ -400,6 +400,9 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         console.warn('⚠️ WARNING: region_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
       }
 
+      // State standards not in JSON, use empty Map (will be loaded from CSV if needed)
+      const stateStandardsMap = new Map<string, StateStandardRow>();
+
       return {
         stateData: { q1: stateQ1Json, q2: stateQ2Json },
         regionData: { q1: regionQ1Json, q2: regionQ2Json },
@@ -407,6 +410,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         facilityData: { q1: facilityQ1, q2: facilityQ2 },
         providerInfo: { q1: providerQ1, q2: providerQ2 },
         regionStateMapping,
+        stateStandards: stateStandardsMap,
       };
     }
 

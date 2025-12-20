@@ -1,5 +1,4 @@
 import React from 'react';
-import { useWrappedContext } from './WrappedContext';
 
 interface WrappedCardProps {
   title?: string;

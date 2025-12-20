@@ -145,7 +145,7 @@ export function isUSA(identifier: string): boolean {
 /**
  * Validate and normalize route parameters
  */
-export function parseRouteParams(year: string, identifier: string): {
+export function parseRouteParams(_year: string, identifier: string): {
   scope: 'usa' | 'state' | 'region' | null;
   normalizedIdentifier: string | null;
   displayName: string | null;

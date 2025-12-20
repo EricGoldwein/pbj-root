@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { shortenProviderName } from '../../../lib/wrapped/dataProcessor';
@@ -9,7 +8,6 @@ interface HighestStaffingCardProps {
 }
 
 export const HighestStaffingCard: React.FC<HighestStaffingCardProps> = ({ data }) => {
-  const navigate = useNavigate();
   
   const formatNumber = (num: number, decimals: number = 1): string => {
     return num.toLocaleString('en-US', {

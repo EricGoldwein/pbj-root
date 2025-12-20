@@ -19,7 +19,6 @@ export const RankingsCard: React.FC<RankingsCardProps> = ({ data }) => {
   }
 
   const comparisonGroup = data.scope === 'state' ? 'U.S. states' : 'CMS regions';
-  const total = data.scope === 'state' ? 50 : 10; // Excluding PR
 
   return (
     <WrappedCard title="Rankings">

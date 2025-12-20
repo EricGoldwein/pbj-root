@@ -1,0 +1,123 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Configuration file for Wrapped Experience Template",
+  "project": {
+    "name": "{{PROJECT_NAME}}",
+    "brandName": "{{BRAND_NAME}}",
+    "shortName": "{{SHORT_NAME}}",
+    "year": "{{YEAR}}",
+    "description": "Year-in-review wrapped experience for {{PROJECT_NAME}}"
+  },
+  "routing": {
+    "basePath": "{{ROUTE_PATH}}",
+    "baseUrl": "{{BASE_URL}}",
+    "devPort": {{DEV_PORT}},
+    "usernameParam": "username"
+  },
+  "data": {
+    "sources": {
+      "ledger": {
+        "path": "/data/{{LEDGER_CSV_FILENAME}}",
+        "fallbackPath": "/src/data/{{LEDGER_CSV_FILENAME}}",
+        "description": "Main user summary data"
+      },
+      "log": {
+        "path": "/data/{{LOG_CSV_FILENAME}}",
+        "fallbackPath": "/src/data/{{LOG_CSV_FILENAME}}",
+        "description": "Transaction/activity history"
+      }
+    },
+    "schema": {
+      "ledger": {
+        "usernameField": "{{USERNAME_FIELD}}",
+        "totalMetricField": "{{TOTAL_METRIC_FIELD}}",
+        "distanceField": "{{DISTANCE_FIELD}}",
+        "rankField": "{{RANK_FIELD}}",
+        "achievementFields": [
+          "{{ACHIEVEMENT_FIELD_1}}",
+          "{{ACHIEVEMENT_FIELD_2}}"
+        ]
+      },
+      "log": {
+        "usernameField": "{{USERNAME_FIELD}}",
+        "dateField": "{{DATE_FIELD}}",
+        "amountField": "{{AMOUNT_FIELD}}",
+        "categoryField": "{{CATEGORY_FIELD}}",
+        "activityLinkField": "{{ACTIVITY_LINK_FIELD}}"
+      }
+    }
+  },
+  "styling": {
+    "theme": {
+      "primaryColor": "{{PRIMARY_COLOR}}",
+      "accentColor": "{{ACCENT_COLOR}}",
+      "backgroundColor": "{{BACKGROUND_COLOR}}",
+      "textColor": "{{TEXT_COLOR}}",
+      "fontFamily": "{{FONT_FAMILY}}"
+    },
+    "branding": {
+      "logo": "{{BRAND_LOGO}}",
+      "badgeText": "{{BRAND_NAME}}",
+      "favicon": "{{FAVICON_PATH}}"
+    }
+  },
+  "audio": {
+    "enabled": true,
+    "file": "{{AUDIO_FILE_PATH}}",
+    "startSlide": 2,
+    "fadeOutDuration": 2000,
+    "loop": true
+  },
+  "slides": {
+    "defaultDuration": 4000,
+    "durations": {
+      "video": 15000,
+      "ad": 8000,
+      "standard": 4000
+    },
+    "cards": [
+      {
+        "type": "TitleCard",
+        "enabled": true,
+        "order": 1,
+        "duration": 4000
+      },
+      {
+        "type": "InitiationCard",
+        "enabled": true,
+        "order": 2,
+        "duration": 4000
+      },
+      {
+        "type": "StatsCard",
+        "enabled": true,
+        "order": 3,
+        "duration": 4000,
+        "config": {
+          "metricType": "total"
+        }
+      },
+      {
+        "type": "AchievementCard",
+        "enabled": true,
+        "order": 4,
+        "duration": 4000,
+        "conditional": true
+      },
+      {
+        "type": "ShareCard",
+        "enabled": true,
+        "order": 99,
+        "duration": 4000
+      }
+    ]
+  },
+  "features": {
+    "autoAdvance": true,
+    "touchNavigation": true,
+    "progressBar": true,
+    "wakeLock": true,
+    "imagePreloading": true
+  }
+}
+

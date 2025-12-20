@@ -66,6 +66,12 @@ def static_files(filename):
         from flask import abort
         abort(404)
     
+    # Exclude directories that shouldn't be served (prevents connection failures)
+    excluded_prefixes = ['node_modules/', '.git/', 'pbj-wrapped/node_modules/', 'pbj-wrapped/.git/']
+    if any(filename.startswith(prefix) for prefix in excluded_prefixes):
+        from flask import abort
+        abort(404)
+    
     # Handle images with proper headers
     if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
         return send_from_directory('.', filename, mimetype='image/png')

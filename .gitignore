@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Large CSV files (converted to JSON in pbj-wrapped/public/data/json/)
+# Exclude large CSVs that have JSON equivalents in pbj-wrapped/public/data/json/
+# These are used for preprocessing but don't need to be in git
+provider_info_combined.csv
+facility_lite_metrics.csv
+facility_quarterly_metrics.csv
+state_quarterly_metrics.csv
+national_quarterly_metrics.csv
+cms_region_quarterly_metrics.csv
+macpac_state_standards_clean.csv
+
+# Exclude old/duplicate versions
+*_old.csv
+*_latest.csv
+*_updated.csv
+NH_ProviderInfo_*.csv
+
+# Node modules
+node_modules/
+pbj-wrapped/node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+test.txt
+*.tmp
+
+# Documentation that might be temporary
+CALCULATION_ANALYSIS.md
+CALCULATION_DOCUMENTATION.md
+FIXES_SUMMARY.md
+

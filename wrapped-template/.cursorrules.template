@@ -1,0 +1,214 @@
+# Cursor AI Rules for Wrapped Experience Template
+
+This file provides instructions for Cursor AI when working with the Wrapped Experience Template.
+
+## Template Usage Guidelines
+
+### When Customizing the Template
+
+1. **Replace Placeholders Systematically**
+   - Use find-and-replace for each placeholder type
+   - Start with project-level placeholders (`{{PROJECT_NAME}}`, `{{BRAND_NAME}}`)
+   - Then data field placeholders (`{{USERNAME_FIELD}}`, `{{METRIC_NAME}}`)
+   - Finally styling and routing placeholders
+
+2. **Maintain Type Safety**
+   - Update TypeScript interfaces when changing data structures
+   - Ensure prop types match actual data
+   - Update type definitions in `wrappedTypes.ts`
+
+3. **Preserve Component Structure**
+   - Keep `WrappedCard` as the base wrapper
+   - Maintain consistent prop patterns
+   - Follow existing card component patterns
+
+4. **Update Related Files Together**
+   - When changing a field name, update:
+     - Type definitions
+     - Data processing logic
+     - Component props
+     - CSV parsing
+     - Configuration files
+
+### Common Replacement Patterns
+
+#### Project Name Replacement
+```
+Find: {{PROJECT_NAME}}
+Replace: YourProjectName
+Case-sensitive: Yes
+```
+
+#### Metric Name Replacement
+```
+Find: {{METRIC_NAME}}
+Replace: Points (or your metric)
+Then find: {{METRIC_NAME_LOWERCASE}}
+Replace: points (lowercase version)
+```
+
+#### Color Replacement
+```
+Find: {{ACCENT_COLOR}}
+Replace: yellow (or your color)
+Note: Update Tailwind classes if using Tailwind
+```
+
+### File Naming Conventions
+
+- Remove `.template` extension when customizing
+- Keep original file structure
+- Maintain directory organization
+
+### Code Patterns to Preserve
+
+1. **Error Handling**
+   - Keep try-catch blocks
+   - Maintain null/undefined checks
+   - Preserve fallback values
+
+2. **Data Processing**
+   - Keep date parsing logic structure
+   - Maintain session grouping patterns
+   - Preserve calculation functions
+
+3. **Component Patterns**
+   - Use `WrappedCard` wrapper
+   - Maintain prop interfaces
+   - Keep responsive design patterns
+
+### Validation Rules
+
+Before considering customization complete:
+
+1. ✅ All `{{PLACEHOLDER}}` instances replaced
+2. ✅ TypeScript compiles without errors
+3. ✅ All imports resolve correctly
+4. ✅ CSV column names match schema
+5. ✅ Component props match data structure
+6. ✅ Styling classes exist (if using Tailwind)
+7. ✅ Routes configured correctly
+8. ✅ Test data loads successfully
+
+### Common Mistakes to Avoid
+
+1. **Don't** replace placeholders in comments/documentation only
+2. **Don't** break TypeScript type definitions
+3. **Don't** remove error handling
+4. **Don't** hardcode values that should be configurable
+5. **Don't** skip updating related files
+
+### When Adding New Features
+
+1. **Follow Existing Patterns**
+   - Use same component structure
+   - Follow naming conventions
+   - Maintain type safety
+
+2. **Update Configuration**
+   - Add to `wrapped.config.json` if applicable
+   - Update schema if data structure changes
+   - Document in customization guide
+
+3. **Test Thoroughly**
+   - Test with sample data
+   - Test edge cases
+   - Verify mobile responsiveness
+
+### Template-Specific Rules
+
+1. **CSV Data**
+   - Always validate CSV structure matches schema
+   - Handle missing/null values gracefully
+   - Support multiple date formats
+
+2. **Card Components**
+   - Each card should be self-contained
+   - Use `WrappedCard` for consistent styling
+   - Support optional props gracefully
+
+3. **Data Processing**
+   - Keep functions pure when possible
+   - Handle edge cases (empty data, etc.)
+   - Provide meaningful error messages
+
+4. **Styling**
+   - Use Tailwind classes (if configured)
+   - Maintain responsive design
+   - Support dark/light themes if applicable
+
+### AI Assistant Instructions
+
+When helping users customize the template:
+
+1. **Identify Placeholders First**
+   - Search for `{{` to find all placeholders
+   - Group by category (project, data, styling, etc.)
+   - Suggest replacement order
+
+2. **Validate Changes**
+   - Check TypeScript types after changes
+   - Verify imports are correct
+   - Ensure no syntax errors
+
+3. **Suggest Best Practices**
+   - Recommend configuration over hardcoding
+   - Suggest maintaining type safety
+   - Encourage testing
+
+4. **Provide Examples**
+   - Show before/after for replacements
+   - Provide code examples for customizations
+   - Reference WINGO example when helpful
+
+### File-Specific Guidelines
+
+#### Configuration Files
+- `wrapped.config.json`: Main configuration, update first
+- `data-schema.json`: Define CSV structure early
+
+#### Type Definitions
+- `wrappedTypes.ts`: Update when data structure changes
+- Keep interfaces in sync with actual data
+
+#### Data Processing
+- `buildWrappedStats.ts`: Core logic, test thoroughly
+- Update field references when CSV changes
+
+#### Components
+- `WrappedCard.tsx`: Base component, rarely needs changes
+- Card components: Customize per use case
+- `wrapped.tsx`: Main page, update card order/configuration
+
+### Testing Checklist
+
+After customization, verify:
+
+- [ ] All placeholders replaced
+- [ ] TypeScript compiles
+- [ ] Data loads from CSV
+- [ ] Cards display correctly
+- [ ] Navigation works (swipe, tap, auto-advance)
+- [ ] Mobile responsive
+- [ ] Audio plays (if enabled)
+- [ ] Progress bar works
+- [ ] Error handling works
+- [ ] Edge cases handled (missing data, etc.)
+
+### Getting Help
+
+If stuck during customization:
+
+1. Check `TEMPLATE_CUSTOMIZATION.md` for detailed instructions
+2. Review `EXAMPLE_CUSTOMIZATION.md` for WINGO example
+3. Check original WINGO implementation for reference
+4. Verify placeholder replacements are complete
+5. Check TypeScript errors for clues
+
+### Version Compatibility
+
+- Template works with React 18+
+- Requires TypeScript 4.5+
+- Uses modern ES6+ features
+- Compatible with Vite/React build tools
+

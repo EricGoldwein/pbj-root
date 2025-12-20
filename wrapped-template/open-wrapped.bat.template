@@ -1,0 +1,38 @@
+@echo off
+cls
+echo ========================================
+echo   {{BRAND_NAME}}
+echo ========================================
+echo.
+
+REM Check if server is running, if not start it
+powershell -NoProfile -Command "try { $null = Invoke-WebRequest -Uri 'http://localhost:{{DEV_PORT}}' -TimeoutSec 1 -UseBasicParsing -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
+
+if errorlevel 1 (
+    echo Server is not running. Starting it now...
+    echo.
+    start "{{PROJECT_NAME}} Dev Server" cmd /k "cd /d %~dp0 && npm run dev"
+    echo Waiting 10 seconds for server to start...
+    timeout /t 10 >nul
+    echo.
+)
+
+echo Enter a username (e.g., {{EXAMPLE_USERNAME_1}}, {{EXAMPLE_USERNAME_2}}):
+set /p username="Username: "
+
+if "%username%"=="" (
+    echo Error: Username cannot be empty!
+    pause
+    exit
+)
+
+echo.
+echo Opening wrapped for: %username%
+echo.
+
+REM Use PowerShell to convert username to URL-friendly format (lowercase, spaces to dashes)
+powershell -NoProfile -Command "$username = '%username%'; $urlFormat = $username.ToLower().Replace(' ', '-').Replace('_', '-'); $urlFormat = $urlFormat -replace '[^a-z0-9-]', '-'; $urlFormat = $urlFormat -replace '-+', '-'; $urlFormat = $urlFormat.Trim('-'); Start-Process \"http://localhost:{{DEV_PORT}}{{ROUTE_PATH}}/$urlFormat\""
+
+echo Browser should open now.
+pause
+

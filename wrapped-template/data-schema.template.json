@@ -1,0 +1,137 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Data schema template for Wrapped Experience CSV files",
+  "ledger": {
+    "description": "Main user summary/ledger data",
+    "requiredFields": [
+      "{{USERNAME_FIELD}}"
+    ],
+    "fields": {
+      "{{USERNAME_FIELD}}": {
+        "type": "string",
+        "description": "Unique identifier for each user",
+        "example": "john_doe"
+      },
+      "{{TOTAL_METRIC_FIELD}}": {
+        "type": "number",
+        "description": "Total primary metric value (e.g., total points, total score)",
+        "example": 150.5
+      },
+      "{{DISTANCE_FIELD}}": {
+        "type": "number",
+        "description": "Total distance covered (in kilometers or other unit)",
+        "example": 25.3,
+        "optional": true
+      },
+      "{{RANK_FIELD}}": {
+        "type": "number",
+        "description": "User's overall rank",
+        "example": 5,
+        "optional": true
+      },
+      "{{BALANCE_FIELD}}": {
+        "type": "number",
+        "description": "Current balance/total",
+        "example": 200.0,
+        "optional": true
+      },
+      "{{ACHIEVEMENT_FIELD_1}}": {
+        "type": "number",
+        "description": "Achievement flag or count (0 = not achieved, >0 = achieved)",
+        "example": 1,
+        "optional": true
+      },
+      "{{ACHIEVEMENT_FIELD_2}}": {
+        "type": "number",
+        "description": "Additional achievement flag",
+        "example": 0,
+        "optional": true
+      },
+      "{{DATE_FIELD}}": {
+        "type": "string",
+        "description": "Date of last activity (format: mm/dd/yy or similar)",
+        "example": "12/25/24",
+        "optional": true
+      }
+    }
+  },
+  "log": {
+    "description": "Transaction/activity log data",
+    "requiredFields": [
+      "{{USERNAME_FIELD}}",
+      "{{DATE_FIELD}}",
+      "{{CATEGORY_FIELD}}"
+    ],
+    "fields": {
+      "{{USERNAME_FIELD}}": {
+        "type": "string",
+        "description": "User who performed the activity",
+        "example": "john_doe"
+      },
+      "{{DATE_FIELD}}": {
+        "type": "string",
+        "description": "Date of activity (format: mm/dd/yy or similar)",
+        "example": "12/25/24"
+      },
+      "{{AMOUNT_FIELD}}": {
+        "type": "number",
+        "description": "Amount/value change (positive or negative)",
+        "example": 5.5
+      },
+      "{{CATEGORY_FIELD}}": {
+        "type": "string",
+        "description": "Category of activity (e.g., Mining, Wager, Achievement)",
+        "example": "Mining",
+        "enum": [
+          "{{CATEGORY_1}}",
+          "{{CATEGORY_2}}",
+          "{{CATEGORY_3}}"
+        ]
+      },
+      "{{ACTIVITY_LINK_FIELD}}": {
+        "type": "string",
+        "description": "Link or identifier for the activity",
+        "example": "https://example.com/activity/123",
+        "optional": true
+      },
+      "{{SOURCE_TYPE_FIELD}}": {
+        "type": "string",
+        "description": "Source or type of the activity",
+        "example": "Session",
+        "optional": true
+      },
+      "{{INITIATION_FIELD}}": {
+        "type": "string",
+        "description": "Whether this is an initiation event (Yes/No)",
+        "example": "Yes",
+        "optional": true,
+        "enum": ["Yes", "No", ""]
+      },
+      "{{NOTES_FIELD}}": {
+        "type": "string",
+        "description": "Additional notes or metadata",
+        "example": "Special event",
+        "optional": true
+      }
+    }
+  },
+  "dateFormats": {
+    "supported": [
+      "mm/dd/yy",
+      "mm/dd/yyyy",
+      "mm-dd-yy",
+      "mm-dd-yyyy"
+    ],
+    "default": "mm/dd/yy"
+  },
+  "sessionGrouping": {
+    "description": "How to group activities into sessions",
+    "method": "byDateAndActivityLink",
+    "options": {
+      "byDate": "Group all activities on the same date",
+      "byDateAndActivityLink": "Group by date and activity link (if present)",
+      "byDateAndCategory": "Group by date and category"
+    }
+  }
+}
+

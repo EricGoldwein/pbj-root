@@ -1,0 +1,45 @@
+# {{BRAND_NAME}} Launcher
+# PowerShell version with better error handling
+
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  {{BRAND_NAME}}" -ForegroundColor Cyan
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "Enter a username to view their Wrapped stats" -ForegroundColor Yellow
+Write-Host "Examples: {{EXAMPLE_USERNAME_1}}, {{EXAMPLE_USERNAME_2}}, etc." -ForegroundColor Gray
+Write-Host ""
+
+$username = Read-Host "Username"
+
+if ([string]::IsNullOrWhiteSpace($username)) {
+    Write-Host ""
+    Write-Host "Error: Username cannot be empty!" -ForegroundColor Red
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+Write-Host ""
+Write-Host "Opening Wrapped for: $username" -ForegroundColor Green
+Write-Host ""
+
+# Convert username to URL-friendly format (lowercase, spaces/special chars to dashes)
+$urlFormat = $username.ToLower()
+$urlFormat = $urlFormat -replace '[\s_]+', '-'  # Replace spaces and underscores with dashes
+$urlFormat = $urlFormat -replace '[^a-z0-9-]', '-'  # Replace other special chars with dashes
+$urlFormat = $urlFormat -replace '-+', '-'  # Replace multiple dashes with single dash
+$urlFormat = $urlFormat.Trim('-')  # Remove leading/trailing dashes
+$url = "http://localhost:{{DEV_PORT}}{{ROUTE_PATH}}/$urlFormat"
+
+try {
+    Start-Process $url
+    Write-Host "Browser should open automatically." -ForegroundColor Green
+} catch {
+    Write-Host "Error opening browser. Please navigate to:" -ForegroundColor Red
+    Write-Host $url -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "If the dev server is not running, start it first with: npm run dev" -ForegroundColor Gray
+Write-Host ""
+Read-Host "Press Enter to exit"
+

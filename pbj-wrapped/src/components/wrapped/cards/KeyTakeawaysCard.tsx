@@ -41,10 +41,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
     });
   };
 
-  // Helper to determine if a rank is noteworthy (low = bottom 10, high = top 10)
-  const isLowRank = (rank: number, total: number) => rank > total - 10;
-  const isHighRank = (rank: number) => rank <= 10;
-
   // Generate conversational takeaways with JSX formatting
   const renderTakeaway = () => {
     if (data.scope === 'usa') {

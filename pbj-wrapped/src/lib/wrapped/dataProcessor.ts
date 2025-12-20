@@ -798,30 +798,6 @@ function processStateData(
     };
   });
 
-  // Calculate compliance metrics (facilities below state minimum)
-  let compliance;
-  if (stateMinimum && facilitiesWithInfoQ2.length > 0) {
-    const minHPRD = stateMinimum.minHPRD;
-    const facilitiesBelowTotal = facilitiesWithInfoQ2.filter(
-      ({ facility }) => facility.Total_Nurse_HPRD < minHPRD
-    ).length;
-    
-    const facilitiesBelowDirectCare = facilitiesWithInfoQ2.filter(
-      ({ facility }) => facility.Nurse_Care_HPRD < minHPRD
-    ).length;
-    
-    compliance = {
-      facilitiesBelowTotalMinimum: facilitiesBelowTotal,
-      facilitiesBelowTotalMinimumPercent: Math.round(
-        (facilitiesBelowTotal / facilitiesWithInfoQ2.length) * 100
-      ),
-      facilitiesBelowDirectCareMinimum: facilitiesBelowDirectCare,
-      facilitiesBelowDirectCareMinimumPercent: Math.round(
-        (facilitiesBelowDirectCare / facilitiesWithInfoQ2.length) * 100
-      ),
-    };
-  }
-
   // Section 6: Trends - only calculate if Q1 exists and has valid data
   console.log(`[State ${stateAbbr}] Q1 data exists: ${!!stateQ1}, Q2 Total HPRD: ${stateQ2.Total_Nurse_HPRD}`);
   if (stateQ1) {
@@ -936,6 +912,31 @@ function processStateData(
     }
   } else {
     console.warn(`[State ${stateAbbr}] stateStandards map is undefined or null`);
+  }
+
+  // Calculate compliance metrics (facilities below state minimum)
+  // Must be after stateMinimum is declared
+  let compliance;
+  if (stateMinimum && facilitiesWithInfoQ2.length > 0) {
+    const minHPRD = stateMinimum.minHPRD;
+    const facilitiesBelowTotal = facilitiesWithInfoQ2.filter(
+      ({ facility }) => facility.Total_Nurse_HPRD < minHPRD
+    ).length;
+    
+    const facilitiesBelowDirectCare = facilitiesWithInfoQ2.filter(
+      ({ facility }) => facility.Nurse_Care_HPRD < minHPRD
+    ).length;
+    
+    compliance = {
+      facilitiesBelowTotalMinimum: facilitiesBelowTotal,
+      facilitiesBelowTotalMinimumPercent: Math.round(
+        (facilitiesBelowTotal / facilitiesWithInfoQ2.length) * 100
+      ),
+      facilitiesBelowDirectCareMinimum: facilitiesBelowDirectCare,
+      facilitiesBelowDirectCareMinimumPercent: Math.round(
+        (facilitiesBelowDirectCare / facilitiesWithInfoQ2.length) * 100
+      ),
+    };
   }
 
   return {

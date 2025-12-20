@@ -28,7 +28,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
           </a>
           <div className="text-right ml-2 flex-shrink-0">
             <div className="text-sm text-white font-semibold">
-              {formatNumber(facility.value, 2)} HPRD
+              {formatNumber(facility.value, 2)}
             </div>
           </div>
         </div>
@@ -41,13 +41,19 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom 3 Regions</h4>
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Bottom 3 Regions</h4>
+              <span className="text-xs text-gray-500">HPRD</span>
+            </div>
             <div className="space-y-0.5">
               {data.extremes.bottomRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
             </div>
           </div>
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top 3 Regions</h4>
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top 3 Regions</h4>
+              <span className="text-xs text-gray-500">HPRD</span>
+            </div>
             <div className="space-y-0.5">
               {data.extremes.topRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
             </div>

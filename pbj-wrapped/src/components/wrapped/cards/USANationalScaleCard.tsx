@@ -42,8 +42,20 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
   const animatedFacilities = useAnimatedNumber(data.facilityCount, 1200, 0);
   const animatedHPRD = useAnimatedNumber(data.totalHPRD, 1200, 2);
 
-  const topState = data.extremes.topStatesByHPRD?.[0];
-  const bottomState = data.extremes.bottomStatesByHPRD?.[0];
+  // Get lowest and highest states - verify which is which
+  const topStateCandidate = data.extremes.topStatesByHPRD?.[0];
+  const bottomStateCandidate = data.extremes.bottomStatesByHPRD?.[0];
+  
+  // Determine which is actually lowest and highest by comparing values
+  const lowestState = topStateCandidate && bottomStateCandidate
+    ? (topStateCandidate.value < bottomStateCandidate.value ? topStateCandidate : bottomStateCandidate)
+    : bottomStateCandidate || topStateCandidate;
+  const highestState = topStateCandidate && bottomStateCandidate
+    ? (topStateCandidate.value > bottomStateCandidate.value ? topStateCandidate : bottomStateCandidate)
+    : topStateCandidate || bottomStateCandidate;
+  
+  const bottomState = lowestState; // Lowest HPRD (e.g., Illinois)
+  const topState = highestState; // Highest HPRD (e.g., Alaska)
   const stateRange = topState && bottomState 
     ? (topState.value - bottomState.value).toFixed(2)
     : null;
@@ -80,18 +92,18 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
             <div className="pt-2 md:pt-3 space-y-1.5 md:space-y-2">
               <div className="text-gray-400 text-sm">State Range</div>
               <div className="flex items-center justify-center gap-3 text-sm">
-                <div className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded">
-                  <div className="text-green-300 font-semibold">{getStateFullName(topState.state)}</div>
-                  <div className="text-white">{topState.value.toFixed(2)}</div>
-                </div>
-                <div className="text-gray-500">to</div>
                 <div className="px-3 py-1.5 bg-orange-500/10 border border-orange-500/30 rounded">
                   <div className="text-orange-300 font-semibold">{getStateFullName(bottomState.state)}</div>
                   <div className="text-white">{bottomState.value.toFixed(2)}</div>
                 </div>
+                <div className="text-gray-500">to</div>
+                <div className="px-3 py-1.5 bg-green-500/10 border border-green-500/30 rounded">
+                  <div className="text-green-300 font-semibold">{getStateFullName(topState.state)}</div>
+                  <div className="text-white">{topState.value.toFixed(2)}</div>
+                </div>
               </div>
               <div className="text-xs text-gray-500 pt-1">
-                A difference of {stateRange} HPRD between highest and lowest states
+                A difference of {stateRange} HPRD between lowest and highest states
               </div>
             </div>
           )}

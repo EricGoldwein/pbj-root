@@ -23,7 +23,20 @@ const STATE_ABBR_TO_NAME: Record<string, string> = {
 };
 
 function getStateFullName(abbr: string): string {
-  return STATE_ABBR_TO_NAME[abbr.toLowerCase()] || abbr.toUpperCase();
+  const lowerAbbr = abbr.toLowerCase();
+  const fullName = STATE_ABBR_TO_NAME[lowerAbbr];
+  if (fullName) {
+    return fullName;
+  }
+  // If it's a full state name, try to title case it
+  const words = abbr.split(' ');
+  return words.map((word, index) => {
+    const lowerWord = word.toLowerCase();
+    if (lowerWord === 'of' && index > 0 && index < words.length - 1) {
+      return 'of';
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ data }) => {
@@ -70,7 +83,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
           )}
           <div className="text-right ml-2 flex-shrink-0">
             <div className="text-sm text-white font-semibold">
-              {formatNumber(facility.value, 2)} HPRD
+              {formatNumber(facility.value, 2)}
             </div>
           </div>
         </div>
@@ -83,13 +96,19 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Bottom 5 States</h4>
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Bottom 5 States</h4>
+              <span className="text-xs text-gray-500">HPRD</span>
+            </div>
             <div className="space-y-0.5">
               {data.extremes.bottomStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
             </div>
           </div>
           <div>
-            <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">Top 5 States</h4>
+            <div className="flex justify-between items-center mb-1">
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top 5 States</h4>
+              <span className="text-xs text-gray-500">HPRD</span>
+            </div>
             <div className="space-y-0.5">
               {data.extremes.topStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
             </div>

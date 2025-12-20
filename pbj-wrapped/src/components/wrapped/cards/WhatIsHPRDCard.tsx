@@ -40,7 +40,7 @@ export const WhatIsHPRDCard: React.FC<WhatIsHPRDCardProps> = ({ data }) => {
         {data?.scope === 'state' && data?.stateMinimum && (
           <div className="pt-2 border-t border-gray-700">
             <p className="text-gray-300 text-xs leading-relaxed">
-              <strong className="text-blue-300">State Minimum:</strong> {data.stateMinimum.minHPRD.toFixed(2)} HPRD
+              <strong className="text-red-300">State Minimum:</strong> {data.stateMinimum.minHPRD.toFixed(2)} HPRD
               {data.stateMinimum.isRange && data.stateMinimum.maxHPRD && (
                 <span className="text-gray-400"> (range: {data.stateMinimum.minHPRD.toFixed(2)}-{data.stateMinimum.maxHPRD.toFixed(2)})</span>
               )}
@@ -50,7 +50,7 @@ export const WhatIsHPRDCard: React.FC<WhatIsHPRDCardProps> = ({ data }) => {
         
         <div className="pt-2 border-t border-gray-700">
           <p className="text-gray-400 text-xs leading-relaxed">
-            <strong className="text-blue-300">Why it matters:</strong> Higher HPRD indicates more staff time per resident, correlating with better care quality.
+            <strong className="text-blue-300">Why it matters:</strong> Higher HPRD indicates more staff time per resident, which correlates with care quality outcomes.
           </p>
         </div>
       </div>

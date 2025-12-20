@@ -8,7 +8,7 @@ interface WhatIsPBJCardProps {
 }
 
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
-  const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system requiring nursing homes to submit daily staffing and census data to CMS.";
+  const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system requiring nursing homes to submit daily staffing data to CMS.";
   
   // Add context based on scope - make it more specific
   let contextText = "";
@@ -34,7 +34,13 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   } else if (data.scope === 'region') {
     contextText = ` This Q2 2025 data shows staffing levels across ${data.facilityCount} nursing homes in ${data.name}, serving ${Math.round(data.avgDailyResidents).toLocaleString()} residents daily.`;
   } else if (data.scope === 'usa') {
-    contextText = ` This Q2 2025 data shows staffing levels across ${data.facilityCount.toLocaleString()} nursing homes nationwide, serving ${Math.round(data.avgDailyResidents).toLocaleString()} residents daily.`;
+    const facilityCount = data.facilityCount.toLocaleString();
+    const residentCount = Math.round(data.avgDailyResidents);
+    // Format residents: if >= 1 million, show as "X.X million", otherwise show full number with commas
+    const residentCountFormatted = residentCount >= 1000000 
+      ? `${(residentCount / 1000000).toFixed(1)} million`
+      : residentCount.toLocaleString();
+    contextText = ` This Q2 2025 data shows staffing levels across ${facilityCount} nursing homes and ${residentCountFormatted} residents in the United States.`;
   }
   
   const answerText = baseText + contextText;
@@ -70,6 +76,11 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
             <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
               <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide, empowering families to make informed decisions and enabling regulators to hold facilities accountable.
             </p>
+            <div className="mt-3 pt-3 border-t border-gray-700">
+              <p className="text-xs text-gray-400 text-center italic">
+                Click or tap anywhere to continue
+              </p>
+            </div>
           </div>
         )}
       </div>

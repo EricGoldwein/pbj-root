@@ -188,9 +188,9 @@ const Index: React.FC = () => {
         {/* Hero Section - Enhanced */}
         <div className="text-center mb-4 md:mb-5">
           <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-300 rounded-lg blur-sm opacity-50"></div>
-              <div className="relative bg-gray-900/80 p-2 md:p-2.5 rounded-lg border-2 border-blue-400/60 shadow-xl">
+            <div className="relative inline-block">
+              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-300 rounded-xl opacity-75 blur"></div>
+              <div className="relative bg-gray-900/90 p-2.5 md:p-3 rounded-xl shadow-2xl">
                 <WrappedImage
                   src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                   alt="PBJ Wrapped"

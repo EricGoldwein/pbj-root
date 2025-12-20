@@ -23,7 +23,29 @@ const STATE_ABBR_TO_NAME: Record<string, string> = {
 };
 
 function getStateFullName(abbr: string): string {
-  return STATE_ABBR_TO_NAME[abbr.toLowerCase()] || abbr.toUpperCase();
+  // If it's already a full state name, return it with proper case
+  const lowerAbbr = abbr.toLowerCase();
+  const fullName = STATE_ABBR_TO_NAME[lowerAbbr];
+  if (fullName) {
+    return fullName;
+  }
+  // If it's a full state name (not an abbreviation), try to find it
+  const foundEntry = Object.entries(STATE_ABBR_TO_NAME).find(([_, name]) => 
+    name.toLowerCase() === lowerAbbr
+  );
+  if (foundEntry) {
+    return foundEntry[1]; // Return the properly cased name
+  }
+  // Fallback: try to title case the input, handling special cases
+  const words = abbr.split(' ');
+  return words.map((word, index) => {
+    const lowerWord = word.toLowerCase();
+    // Handle special cases
+    if (lowerWord === 'of' && index > 0 && index < words.length - 1) {
+      return 'of'; // Keep "of" lowercase in "District of Columbia"
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
 }
 
 export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
@@ -44,24 +66,44 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
   // Generate conversational takeaways with JSX formatting
   const renderTakeaway = () => {
     if (data.scope === 'usa') {
-      const topState = data.extremes.topStatesByHPRD?.[0];
-      const bottomState = data.extremes.bottomStatesByHPRD?.[0];
-      const biggestRiser = data.movers.risersByHPRD?.[0] as any;
-      const biggestDecliner = data.movers.declinersByHPRD?.[0] as any;
+      const trends = data.trends;
+      
+      // Find the most noticeable national trend (largest absolute change)
+      const trendMetrics = [
+        { name: 'total staffing', value: trends.totalHPRDChange, label: 'Total HPRD' },
+        { name: 'direct care', value: trends.directCareHPRDChange, label: 'Direct Care HPRD' },
+        { name: 'RN staffing', value: trends.rnHPRDChange, label: 'RN HPRD' },
+        ...(trends.nurseAideHPRDChange !== undefined 
+          ? [{ name: 'nurse aide', value: trends.nurseAideHPRDChange, label: 'Nurse Aide HPRD' }]
+          : []
+        ),
+        { name: 'contract staffing', value: trends.contractPercentChange, label: 'Contract %', isPercent: true },
+      ];
+      
+      // Sort by absolute value to find most noticeable change
+      const sortedTrends = [...trendMetrics].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+      const mostNoticeable = sortedTrends[0];
+      
+      const facilityCount = formatNumber(data.facilityCount);
+      const residentCount = Math.round(data.avgDailyResidents);
+      const residentCountFormatted = residentCount >= 1000000 
+        ? `${(residentCount / 1000000).toFixed(1)} million`
+        : formatNumber(residentCount, 0);
       
       return (
         <>
           <p className="mb-2">
-            Nationwide, <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes are serving <strong className="text-white">{formatNumber(Math.round(data.avgDailyResidents), 0)}</strong> residents daily with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
+            Nationwide, <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
           </p>
-          {topState && bottomState && (
+          {mostNoticeable && Math.abs(mostNoticeable.value) > 0.01 && (
             <p className="mb-2">
-              The gap between states is striking: <strong className="text-white">{getStateFullName(bottomState.state)}</strong> sits at <strong className="text-white">{formatHPRD(bottomState.value)} HPRD</strong> (lowest), while <strong className="text-white">{getStateFullName(topState.state)}</strong> leads with <strong className="text-white">{formatHPRD(topState.value)} HPRD</strong> (highest).
-            </p>
-          )}
-          {biggestRiser && biggestDecliner && (
-            <p className="mb-2">
-              <strong className="text-white">{getStateFullName(biggestRiser.stateName || biggestRiser.state)}</strong> saw the biggest Q1 to Q2 increase (<strong className="text-white">+{formatHPRD(biggestRiser.change)} HPRD</strong>), while <strong className="text-white">{getStateFullName(biggestDecliner.stateName || biggestDecliner.state)}</strong> declined the most (<strong className="text-white">{formatHPRD(Math.abs(biggestDecliner.change))} HPRD</strong>).
+              From Q1 to Q2 2025, <strong className="text-white">{mostNoticeable.name}</strong> {mostNoticeable.value > 0 ? 'increased' : 'decreased'} by{' '}
+              <strong className={mostNoticeable.value > 0 ? 'text-white' : 'text-white'}>
+                {mostNoticeable.isPercent 
+                  ? `${mostNoticeable.value > 0 ? '+' : ''}${mostNoticeable.value.toFixed(2)}%`
+                  : `${mostNoticeable.value > 0 ? '+' : ''}${formatHPRD(Math.abs(mostNoticeable.value))} HPRD`
+                }
+              </strong>.
             </p>
           )}
           {data.sff.currentSFFs > 0 && (
@@ -73,6 +115,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       );
     } else if (data.scope === 'state') {
       const stateName = data.name;
+      const stateFullName = getStateFullName(stateName);
       const rnRank = data.rankings.rnHPRDRank;
       const totalRank = data.rankings.totalHPRDRank;
       const trend = data.trends.totalHPRDChange;
@@ -80,7 +123,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{stateName}</strong> ranks{' '}
+            <strong className="text-white">{stateFullName}</strong> ranks{' '}
             <strong className="text-white">
               #{rnRank} of 51
             </strong>
@@ -90,6 +133,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
             </strong>
             {' '}for total staffing (<strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>).
           </p>
+          {data.compliance && data.compliance.facilitiesBelowTotalMinimum > 0 && (
+            <p className="mb-2">
+              In Q2 2025, <strong className="text-red-300">{data.compliance.facilitiesBelowTotalMinimum}</strong> of {stateFullName}'s facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) fell below the state minimum of <strong className="text-white">{data.stateMinimum?.minHPRD.toFixed(2)} HPRD</strong>.
+            </p>
+          )}
           {trend !== 0 && (
             <p className="mb-2">
               Staffing {trend > 0 ? (
@@ -114,7 +162,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{data.name}</strong> has <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes serving <strong className="text-white">{formatNumber(Math.round(data.avgDailyResidents), 0)}</strong> residents with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
+            <strong className="text-white">{data.name}</strong> has <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{formatNumber(Math.round(data.avgDailyResidents), 0)}</strong> residents with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
           </p>
           {trend !== 0 && (
             <p className="mb-2">

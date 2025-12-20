@@ -135,7 +135,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 </span>
               )}
               {data.scope === 'state' && data.stateMinimum && (
-                <span className="text-xs text-blue-400 mt-0.5">
+                <span className="text-xs text-red-400 mt-0.5">
                   State minimum: {data.stateMinimum.minHPRD.toFixed(2)} HPRD
                 </span>
               )}
@@ -158,19 +158,21 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                       {data.compliance.facilitiesBelowDirectCareMinimum}
                     </span>
                     {' '}facilities ({data.compliance.facilitiesBelowDirectCareMinimumPercent}%) 
-                    below direct care minimum
+                    below state minimum (using direct care HPRD)
                   </div>
                 )}
               </div>
             </div>
           )}
           <div className="flex justify-between items-center">
-            <span className="text-gray-400 text-sm">Direct care HPRD</span>
-            {showRankings && (
-              <span className="text-xs text-gray-500">
-                Rank #{data.rankings.directCareHPRDRank} ({data.rankings.directCareHPRDPercentile}th percentile)
-              </span>
-            )}
+            <div className="flex flex-col">
+              <span className="text-gray-400 text-sm">Direct care HPRD</span>
+              {showRankings && (
+                <span className="text-xs text-gray-500 mt-0.5">
+                  Rank #{data.rankings.directCareHPRDRank} ({data.rankings.directCareHPRDPercentile}th percentile)
+                </span>
+              )}
+            </div>
             <span className="text-gray-300 font-semibold text-base md:text-lg">{formatNumber(animatedDirectCareHPRD, 2)}</span>
           </div>
         </div>
@@ -203,7 +205,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 <div className="flex justify-between items-center py-1">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-blue-400 flex-shrink-0"></div>
-                    <span className="text-gray-300 text-sm">For-profit</span>
+                    <span className="text-gray-300 text-sm">For-Profit</span>
                   </div>
                   <span className="text-white font-semibold text-sm">
                     {formatNumber(data.ownership.forProfit.count)} ({data.ownership.forProfit.percentage}%)
@@ -212,7 +214,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 <div className="flex justify-between items-center py-1">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-sm bg-green-400 flex-shrink-0"></div>
-                    <span className="text-gray-300 text-sm">Non-profit</span>
+                    <span className="text-gray-300 text-sm">Non-Profit</span>
                   </div>
                   <span className="text-white font-semibold text-sm">
                     {formatNumber(data.ownership.nonProfit.count)} ({data.ownership.nonProfit.percentage}%)

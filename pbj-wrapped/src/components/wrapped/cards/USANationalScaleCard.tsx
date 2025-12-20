@@ -82,7 +82,7 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
 
         <div className="pt-3 md:pt-4 border-t border-gray-600 space-y-3 md:space-y-4">
           <div className="space-y-1.5 md:space-y-2">
-            <div className="text-gray-300 text-xs md:text-sm uppercase tracking-wide">National Average Staffing</div>
+            <div className="text-gray-300 text-xs md:text-sm uppercase tracking-wide">Nationwide Staffing Ratio</div>
             <div className="text-3xl md:text-4xl lg:text-5xl font-bold text-white">
               {formatNumber(animatedHPRD, 2)} HPRD
             </div>

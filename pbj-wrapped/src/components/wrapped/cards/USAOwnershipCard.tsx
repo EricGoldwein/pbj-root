@@ -50,7 +50,7 @@ export const USAOwnershipCard: React.FC<USAOwnershipCardProps> = ({ data }) => {
             <div className="flex justify-between items-center py-1.5 border-b border-gray-600">
               <div className="flex items-center gap-2 md:gap-3">
                 <div className="w-3 h-3 md:w-4 md:h-4 rounded-sm bg-green-400 flex-shrink-0"></div>
-                <span className="text-gray-300 text-sm md:text-base">Non-profit</span>
+                <span className="text-gray-300 text-sm md:text-base">Non-Profit</span>
               </div>
               <div className="text-right">
                 <span className="text-white font-bold text-lg">

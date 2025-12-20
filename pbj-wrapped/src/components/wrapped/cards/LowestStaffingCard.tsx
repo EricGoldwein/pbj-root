@@ -16,7 +16,7 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
     });
   };
 
-  const renderFacility = (facility: typeof data.extremes.lowestByHPRD[0], showPercent: boolean = false) => {
+  const renderFacility = (facility: typeof data.extremes.lowestByHPRD[0], showPercent: boolean = false, hideHPRDLabel: boolean = false) => {
     // For state pages, show only city. For region pages, show state.
     let location: string | null = null;
     if (data.scope === 'state' && facility.city) {
@@ -39,7 +39,10 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
           </a>
           <div className="text-right ml-2 flex-shrink-0">
             <div className="text-sm text-white font-semibold">
-              {showPercent ? `${formatNumber(facility.value, 1)}%` : formatNumber(facility.value, 2)} HPRD
+              {showPercent 
+                ? `${formatNumber(facility.value, 1)}%` 
+                : `${formatNumber(facility.value, 2)}${hideHPRDLabel ? '' : ' HPRD'}`
+              }
             </div>
           </div>
         </div>
@@ -56,7 +59,7 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
         <div>
           <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">By total HPRD</h4>
           <div className="space-y-0.5">
-            {data.extremes.lowestByHPRD.slice(0, 3).map(f => renderFacility(f))}
+            {data.extremes.lowestByHPRD.slice(0, 3).map(f => renderFacility(f, false, true))}
           </div>
         </div>
         

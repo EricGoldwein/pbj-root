@@ -1,7 +1,6 @@
 import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import { WrappedImage } from '../WrappedImage';
-import { StateOutline } from '../StateOutline';
 import { useWrappedContext } from '../WrappedContext';
 import { getAssetPath } from '../../../utils/assets';
 
@@ -22,13 +21,6 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
       hideBadge={true}
       noContainer={true}
     >
-      {/* State SVG border for state pages */}
-      {isState && stateCode && (
-        <div className="absolute inset-0 pointer-events-none opacity-10 z-0">
-          <StateOutline stateCode={stateCode} className="w-full h-full" />
-        </div>
-      )}
-      
       <div className="space-y-4 md:space-y-5 relative z-10">
         {isState && stateCode ? (
           <div className="flex flex-col items-center gap-4 md:gap-5">

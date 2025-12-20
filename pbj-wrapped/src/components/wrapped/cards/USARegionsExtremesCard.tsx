@@ -42,7 +42,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="flex justify-between items-center mb-1">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Bottom 3 Regions</h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Bottom 3</h4>
               <span className="text-xs text-gray-500">HPRD</span>
             </div>
             <div className="space-y-0.5">
@@ -51,7 +51,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top 3 Regions</h4>
+              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">Top 3</h4>
               <span className="text-xs text-gray-500">HPRD</span>
             </div>
             <div className="space-y-0.5">

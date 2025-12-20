@@ -31,7 +31,7 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
   };
 
   return (
-    <WrappedCard title="Special Focus Facilities (SFF)">
+    <WrappedCard title="Special Focus Facilities">
       <div className="space-y-2">
         <div className="bg-orange-500/10 border-l-4 border-orange-400 pl-3 py-1.5 rounded mb-1.5">
           <p className="text-gray-200 text-xs leading-relaxed">

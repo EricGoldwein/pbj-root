@@ -89,6 +89,21 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
       touchEndX.current = null;
     };
 
+    // Handle tap/click on mobile to advance slides
+    const handleScreenClick = (e: React.MouseEvent) => {
+      // Only handle clicks on mobile (screen width <= 768px)
+      // Don't advance if clicking on interactive elements (links, buttons, etc.)
+      const target = e.target as HTMLElement;
+      if (target.closest('a, button, input, select, textarea')) {
+        return;
+      }
+      
+      // Check if mobile
+      if (window.innerWidth <= 768 && currentIndex < screens.length - 1) {
+        setCurrentIndex(currentIndex + 1);
+      }
+    };
+
     // Keyboard navigation
     useEffect(() => {
       const handleKeyPress = (e: KeyboardEvent) => {
@@ -137,12 +152,17 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
           className={`absolute inset-0 flex items-center justify-center z-10 ${
             slideDurations[currentIndex] === Infinity && currentIndex < screens.length - 1
               ? 'cursor-pointer' 
+              : currentIndex < screens.length - 1
+              ? 'md:cursor-default cursor-pointer'
               : ''
           }`}
-          onClick={() => {
+          onClick={(e) => {
             // If this slide is click-to-advance only and not the last slide, advance on click
             if (slideDurations[currentIndex] === Infinity && currentIndex < screens.length - 1) {
               setCurrentIndex(currentIndex + 1);
+            } else {
+              // On mobile, allow tap anywhere to advance (handled in handleScreenClick)
+              handleScreenClick(e);
             }
           }}
           style={{ 

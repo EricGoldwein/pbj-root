@@ -114,21 +114,21 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
 
   return (
     <WrappedCard title="The Basics">
-        <div className="space-y-2.5 md:space-y-3 text-left">
-        <div className="flex justify-between items-center py-2 border-b border-gray-600">
-          <span className="text-gray-300">Number of nursing homes</span>
-          <span className="text-white font-bold text-lg md:text-xl">{formatNumber(animatedFacilityCount)}</span>
+        <div className="space-y-1.5 md:space-y-3 text-left">
+        <div className="flex justify-between items-center py-1 md:py-2 border-b border-gray-600">
+          <span className="text-gray-300 text-sm md:text-base">Number of nursing homes</span>
+          <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedFacilityCount)}</span>
         </div>
         
-        <div className="flex justify-between items-center py-1.5 border-b border-gray-600">
-          <span className="text-gray-300">Average daily residents</span>
-          <span className="text-white font-bold text-lg md:text-xl">{formatNumber(animatedResidents, 1)}</span>
+        <div className="flex justify-between items-center py-1 md:py-1.5 border-b border-gray-600">
+          <span className="text-gray-300 text-sm md:text-base">Average daily residents</span>
+          <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedResidents, 1)}</span>
         </div>
         
-        <div className="py-1.5 border-b border-gray-600">
+        <div className="py-1 md:py-1.5 border-b border-gray-600">
           <div className="flex justify-between items-center mb-1">
             <div className="flex flex-col">
-              <span className="text-gray-300">Total staffing HPRD</span>
+              <span className="text-gray-300 text-sm md:text-base">Total staffing HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.totalHPRDRank} ({data.rankings.totalHPRDPercentile}th percentile)
@@ -140,11 +140,11 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 </span>
               )}
             </div>
-            <span className="text-white font-bold text-lg md:text-xl">{formatNumber(animatedTotalHPRD, 2)}</span>
+            <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedTotalHPRD, 2)}</span>
           </div>
           {data.scope === 'state' && data.compliance && (
-            <div className="pt-2 border-t border-gray-700">
-              <div className="text-xs text-gray-400 space-y-1">
+            <div className="pt-1.5 md:pt-2 border-t border-gray-700">
+              <div className="text-xs text-gray-400 space-y-0.5 md:space-y-1">
                 <div>
                   <span className="text-red-300 font-semibold">
                     {data.compliance.facilitiesBelowTotalMinimum}
@@ -164,41 +164,41 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               </div>
             </div>
           )}
-          <div className="flex justify-between items-center">
+          <div className="flex justify-between items-center mt-1">
             <div className="flex flex-col">
-              <span className="text-gray-400 text-sm">Direct care HPRD</span>
+              <span className="text-gray-400 text-xs md:text-sm">Direct care HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.directCareHPRDRank} ({data.rankings.directCareHPRDPercentile}th percentile)
                 </span>
               )}
             </div>
-            <span className="text-gray-300 font-semibold text-base md:text-lg">{formatNumber(animatedDirectCareHPRD, 2)}</span>
+            <span className="text-gray-300 font-semibold text-sm md:text-lg">{formatNumber(animatedDirectCareHPRD, 2)}</span>
           </div>
         </div>
         
-        <div className="py-1.5 border-b border-gray-600">
+        <div className="py-1 md:py-1.5 border-b border-gray-600">
           <div className="flex justify-between items-center mb-1">
             <div className="flex flex-col">
-              <span className="text-gray-300">RN HPRD</span>
+              <span className="text-gray-300 text-sm md:text-base">RN HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.rnHPRDRank} ({data.rankings.rnHPRDPercentile}th percentile)
                 </span>
               )}
             </div>
-            <span className="text-white font-bold text-lg md:text-xl">{formatNumber(animatedRNHPRD, 2)}</span>
+            <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedRNHPRD, 2)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-400 text-sm">RN direct care HPRD</span>
-            <span className="text-gray-300 font-semibold text-base md:text-lg">{formatNumber(animatedRNDirectCareHPRD, 2)}</span>
+            <span className="text-gray-400 text-xs md:text-sm">RN direct care HPRD</span>
+            <span className="text-gray-300 font-semibold text-sm md:text-lg">{formatNumber(animatedRNDirectCareHPRD, 2)}</span>
           </div>
         </div>
         
         {/* Ownership breakdown for state and region */}
         {data.ownership && (data.scope === 'state' || data.scope === 'region') && (
-          <div className="pt-3 mt-3 border-t border-gray-600">
-            <h3 className="text-base font-semibold text-gray-200 mb-3">Ownership Type</h3>
+          <div className="pt-2 md:pt-3 mt-2 md:mt-3 border-t border-gray-600">
+            <h3 className="text-sm md:text-base font-semibold text-gray-200 mb-2 md:mb-3">Ownership Type</h3>
             <div className="flex items-start gap-4">
               <OwnershipPieChart ownership={data.ownership} size={100} />
               <div className="flex-1 space-y-1.5">

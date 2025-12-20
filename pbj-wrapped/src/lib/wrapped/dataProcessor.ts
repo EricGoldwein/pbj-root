@@ -1012,7 +1012,8 @@ function processRegionData(
 
   // Section 2: Basics
   const facilityCount = regionQ2.facility_count;
-  const avgDailyResidents = regionQ2.avg_daily_census;
+  // avg_daily_census is per facility, so multiply by facility count to get total
+  const avgDailyResidents = regionQ2.avg_daily_census * facilityCount;
   const totalHPRD = regionQ2.Total_Nurse_HPRD;
   const directCareHPRD = regionQ2.Nurse_Care_HPRD;
   const rnHPRD = regionQ2.RN_HPRD;

@@ -40,13 +40,16 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
       },
     }));
 
-    // Auto-advance slides (only if not paused)
+    // Auto-advance slides (only if not paused and duration is not Infinity)
     useEffect(() => {
       if (!isPaused && currentIndex < screens.length - 1) {
         const duration = slideDurations[currentIndex] || 4000;
-        timeoutRef.current = setTimeout(() => {
-          setCurrentIndex(currentIndex + 1);
-        }, duration);
+        // Skip auto-advance if duration is Infinity (click-to-advance only)
+        if (duration !== Infinity && isFinite(duration)) {
+          timeoutRef.current = setTimeout(() => {
+            setCurrentIndex(currentIndex + 1);
+          }, duration);
+        }
       }
 
       return () => {
@@ -131,7 +134,17 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
         {/* Current screen with smooth slide transition */}
         <div 
           key={currentIndex}
-          className="absolute inset-0 flex items-center justify-center z-10"
+          className={`absolute inset-0 flex items-center justify-center z-10 ${
+            slideDurations[currentIndex] === Infinity && currentIndex < screens.length - 1
+              ? 'cursor-pointer' 
+              : ''
+          }`}
+          onClick={() => {
+            // If this slide is click-to-advance only and not the last slide, advance on click
+            if (slideDurations[currentIndex] === Infinity && currentIndex < screens.length - 1) {
+              setCurrentIndex(currentIndex + 1);
+            }
+          }}
           style={{ 
             height: '100%', 
             width: '100%',

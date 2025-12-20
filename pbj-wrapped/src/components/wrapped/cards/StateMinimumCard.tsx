@@ -18,10 +18,26 @@ export const StateMinimumCard: React.FC<StateMinimumCardProps> = ({ data }) => {
     });
   };
 
+  // Get state full name
+  const stateAbbrToName: Record<string, string> = {
+    'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+    'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+    'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+    'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+    'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+    'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+    'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+    'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+    'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+    'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+    'DC': 'District of Columbia'
+  };
+  const stateName = stateAbbrToName[data.name.toUpperCase()] || data.name;
+
   return (
-    <WrappedCard title="State Minimum">
+    <WrappedCard title={`${stateName} State Minimum`}>
       <div className="space-y-3 text-center">
-        <div className="bg-blue-500/10 border-2 border-blue-500/50 rounded-lg p-4 md:p-5">
+        <div className="bg-red-500/10 border-2 border-red-500/50 rounded-lg p-4 md:p-5">
           <div className="text-xs md:text-sm text-gray-400 uppercase tracking-wide mb-2">
             Required Minimum
           </div>
@@ -34,7 +50,7 @@ export const StateMinimumCard: React.FC<StateMinimumCardProps> = ({ data }) => {
           <div className="text-xs md:text-sm text-gray-300">
             {data.stateMinimum.isRange 
               ? `Range: ${formatHPRD(data.stateMinimum.minHPRD)} to ${formatHPRD(data.stateMinimum.maxHPRD!)} hours per resident per day`
-              : `${formatHPRD(data.stateMinimum.minHPRD)} hours per resident per day`
+              : `hours per resident per day`
             }
           </div>
         </div>

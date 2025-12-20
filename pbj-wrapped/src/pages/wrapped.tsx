@@ -219,10 +219,9 @@ const Wrapped: React.FC = () => {
     ];
 
     const slideDurationsArray = screensArray.map((screen) => {
-      // Make "What is PBJ" slide longer so typing effect can complete
-      // Typing speed is 30ms per char, estimate ~200 chars = 6 seconds typing + 4 seconds for reading
+      // Make "What is PBJ" slide click-to-advance (use Infinity to disable auto-advance)
       if (screen.key === 'what-is-pbj') {
-        return 10000; // 10 seconds total - typing completes in ~6s, 4s to read
+        return Infinity; // Click/tap to advance only
       }
       return 5000; // 5 seconds per slide
     });

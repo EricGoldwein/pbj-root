@@ -481,6 +481,9 @@ function processUSAData(
     rnHPRDChange: nationalQ1
       ? nationalQ2.RN_HPRD - nationalQ1.RN_HPRD
       : 0,
+    nurseAideHPRDChange: nationalQ1
+      ? nationalQ2.Nurse_Assistant_HPRD - nationalQ1.Nurse_Assistant_HPRD
+      : 0,
     contractPercentChange: (nationalQ1 && nationalQ1.Contract_Percentage !== undefined && nationalQ2.Contract_Percentage !== undefined)
       ? nationalQ2.Contract_Percentage - nationalQ1.Contract_Percentage
       : 0,

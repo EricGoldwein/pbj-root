@@ -70,19 +70,24 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const nurseAideChange = 'nurseAideHPRDChange' in trends ? trends.nurseAideHPRDChange : undefined;
       
       // Find the most noticeable national trend (largest absolute change)
-      const trendMetrics = [
-        { name: 'total staffing', value: trends.totalHPRDChange, label: 'Total HPRD' },
-        { name: 'direct care', value: trends.directCareHPRDChange, label: 'Direct Care HPRD' },
-        { name: 'RN staffing', value: trends.rnHPRDChange, label: 'RN HPRD' },
-        ...(nurseAideChange !== undefined 
+      // Ensure all values are numbers (not null/undefined)
+      const trendMetrics: Array<{ name: string; value: number; label: string; isPercent?: boolean }> = [
+        { name: 'total staffing', value: typeof trends.totalHPRDChange === 'number' ? trends.totalHPRDChange : 0, label: 'Total HPRD' },
+        { name: 'direct care', value: typeof trends.directCareHPRDChange === 'number' ? trends.directCareHPRDChange : 0, label: 'Direct Care HPRD' },
+        { name: 'RN staffing', value: typeof trends.rnHPRDChange === 'number' ? trends.rnHPRDChange : 0, label: 'RN HPRD' },
+        ...(nurseAideChange !== undefined && typeof nurseAideChange === 'number'
           ? [{ name: 'nurse aide', value: nurseAideChange, label: 'Nurse Aide HPRD' }]
           : []
         ),
-        { name: 'contract staffing', value: trends.contractPercentChange, label: 'Contract %', isPercent: true },
+        { name: 'contract staffing', value: typeof trends.contractPercentChange === 'number' ? trends.contractPercentChange : 0, label: 'Contract %', isPercent: true },
       ];
       
       // Sort by absolute value to find most noticeable change
-      const sortedTrends = [...trendMetrics].sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+      const sortedTrends = [...trendMetrics].sort((a, b) => {
+        const aValue = typeof a.value === 'number' ? a.value : 0;
+        const bValue = typeof b.value === 'number' ? b.value : 0;
+        return Math.abs(bValue) - Math.abs(aValue);
+      });
       const mostNoticeable = sortedTrends[0];
       
       const facilityCount = formatNumber(data.facilityCount);
@@ -91,22 +96,27 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
         ? `${(residentCount / 1000000).toFixed(1)} million`
         : formatNumber(residentCount, 0);
       
+      const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
+      
       return (
         <>
           <p className="mb-2">
-            Nationwide, <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
+            Nationwide, <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
           </p>
-          {mostNoticeable && Math.abs(mostNoticeable.value) > 0.01 && (
-            <p className="mb-2">
-              From Q1 to Q2 2025, <strong className="text-white">{mostNoticeable.name}</strong> {mostNoticeable.value > 0 ? 'increased' : 'decreased'} by{' '}
-              <strong className={mostNoticeable.value > 0 ? 'text-white' : 'text-white'}>
-                {mostNoticeable.isPercent 
-                  ? `${mostNoticeable.value > 0 ? '+' : ''}${mostNoticeable.value.toFixed(2)}%`
-                  : `${mostNoticeable.value > 0 ? '+' : ''}${formatHPRD(Math.abs(mostNoticeable.value))} HPRD`
-                }
-              </strong>.
-            </p>
-          )}
+          {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
+            const value = mostNoticeable.value;
+            return (
+              <p className="mb-2">
+                From Q1 to Q2 2025, <strong className="text-white">{mostNoticeable.name}</strong> {value > 0 ? 'increased' : 'decreased'} by{' '}
+                <strong className={value > 0 ? 'text-white' : 'text-white'}>
+                  {mostNoticeable.isPercent 
+                    ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
+                    : `${value > 0 ? '+' : ''}${formatHPRD(Math.abs(value))} HPRD`
+                  }
+                </strong>.
+              </p>
+            );
+          })()}
           {data.sff.currentSFFs > 0 && (
             <p>
               <strong className="text-white">{data.sff.currentSFFs}</strong> facilities are currently in the Special Focus Facility program, with <strong className="text-white">{data.sff.candidates}</strong> additional candidates requiring enhanced oversight.
@@ -119,7 +129,9 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const stateFullName = getStateFullName(stateName);
       const rnRank = data.rankings.rnHPRDRank;
       const totalRank = data.rankings.totalHPRDRank;
-      const trend = data.trends.totalHPRDChange;
+      const trend = typeof data.trends.totalHPRDChange === 'number' ? data.trends.totalHPRDChange : 0;
+      const rnHPRDValue = typeof data.rnHPRD === 'number' ? data.rnHPRD : 0;
+      const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
       
       return (
         <>
@@ -128,11 +140,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
             <strong className="text-white">
               #{rnRank} of 51
             </strong>
-            {' '}for RN staffing (<strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong>) and{' '}
+            {' '}for RN staffing (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>) and{' '}
             <strong className="text-white">
               #{totalRank}
             </strong>
-            {' '}for total staffing (<strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>).
+            {' '}for total staffing (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>).
           </p>
           {data.compliance && data.compliance.facilitiesBelowTotalMinimum > 0 && (
             <p className="mb-2">
@@ -158,12 +170,22 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
     } else if (data.scope === 'region') {
       const biggestRiser = data.movers.risersByHPRD?.[0] as any;
       const biggestDecliner = data.movers.declinersByHPRD?.[0] as any;
-      const trend = data.trends.totalHPRDChange;
+      const trend = typeof data.trends.totalHPRDChange === 'number' ? data.trends.totalHPRDChange : 0;
+      const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
+      
+      // Extract region number from identifier (e.g., "region1" -> "1")
+      const regionNumber = data.identifier?.replace(/region/i, '') || '';
+      const regionName = data.name; // e.g., "Boston"
+      const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : data.name;
+      
+      // Format resident count properly
+      const residentCount = Math.round(data.avgDailyResidents);
+      const residentCountFormatted = formatNumber(residentCount, 0);
       
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{data.name}</strong> has <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{formatNumber(Math.round(data.avgDailyResidents), 0)}</strong> residents with an average of <strong className="text-white">{formatHPRD(data.totalHPRD)} HPRD</strong>.
+            <strong className="text-white">{displayName}</strong> has <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
           </p>
           {trend !== 0 && (
             <p className="mb-2">
@@ -174,7 +196,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               )}
             </p>
           )}
-          {biggestRiser && biggestDecliner && (
+          {biggestRiser && biggestDecliner && typeof biggestRiser.change === 'number' && typeof biggestDecliner.change === 'number' && (
             <p className="mb-2">
               <strong className="text-white">{getStateFullName(biggestRiser.stateName || biggestRiser.state)}</strong> saw the biggest increase (<strong className="text-white">+{formatHPRD(biggestRiser.change)} HPRD</strong>), while <strong className="text-white">{getStateFullName(biggestDecliner.stateName || biggestDecliner.state)}</strong> declined the most (<strong className="text-white">{formatHPRD(Math.abs(biggestDecliner.change))} HPRD</strong>).
             </p>

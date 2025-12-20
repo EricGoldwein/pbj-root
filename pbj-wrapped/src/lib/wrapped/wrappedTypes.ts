@@ -103,6 +103,7 @@ export interface PBJWrappedData {
     totalHPRDChange: number;
     directCareHPRDChange: number;
     rnHPRDChange: number;
+    nurseAideHPRDChange?: number; // For USA only
     contractPercentChange: number;
   };
   

@@ -67,14 +67,15 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
   const renderTakeaway = () => {
     if (data.scope === 'usa') {
       const trends = data.trends;
+      const nurseAideChange = 'nurseAideHPRDChange' in trends ? trends.nurseAideHPRDChange : undefined;
       
       // Find the most noticeable national trend (largest absolute change)
       const trendMetrics = [
         { name: 'total staffing', value: trends.totalHPRDChange, label: 'Total HPRD' },
         { name: 'direct care', value: trends.directCareHPRDChange, label: 'Direct Care HPRD' },
         { name: 'RN staffing', value: trends.rnHPRDChange, label: 'RN HPRD' },
-        ...(trends.nurseAideHPRDChange !== undefined 
-          ? [{ name: 'nurse aide', value: trends.nurseAideHPRDChange, label: 'Nurse Aide HPRD' }]
+        ...(nurseAideChange !== undefined 
+          ? [{ name: 'nurse aide', value: nurseAideChange, label: 'Nurse Aide HPRD' }]
           : []
         ),
         { name: 'contract staffing', value: trends.contractPercentChange, label: 'Contract %', isPercent: true },

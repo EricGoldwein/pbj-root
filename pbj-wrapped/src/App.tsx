@@ -2,6 +2,7 @@ import { Routes, Route, useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import Index from './pages/Index';
 import Wrapped from './pages/wrapped';
+import WrappedNews from './pages/wrapped-news';
 import SFFWrapped from './pages/sff-wrapped';
 import { PasswordProtection } from './components/PasswordProtection';
 
@@ -40,6 +41,14 @@ function App() {
         element={
           <PasswordProtection>
             <SFFWrapped />
+          </PasswordProtection>
+        } 
+      />
+      <Route 
+        path="/usa-news" 
+        element={
+          <PasswordProtection>
+            <WrappedNews />
           </PasswordProtection>
         } 
       />

@@ -15,7 +15,7 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
 
   return (
     <WrappedCard
-      title="Phoebe J's PBJ Wrapped"
+      title="PBJ Wrapped"
       subtitle={name ? `${name} • 2025` : "2025"}
       className="relative overflow-hidden"
       hideBadge={true}

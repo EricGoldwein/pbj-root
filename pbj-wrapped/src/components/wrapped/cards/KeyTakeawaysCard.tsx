@@ -98,11 +98,21 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       
       const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
       
+      // Check for ownership disparity
+      const hasOwnershipDisparity = data.ownership?.forProfit?.medianHPRD !== undefined && 
+                                   data.ownership?.nonProfit?.medianHPRD !== undefined &&
+                                   data.ownership.forProfit.medianHPRD < data.ownership.nonProfit.medianHPRD - 0.2;
+      
       return (
         <>
           <p className="mb-2">
             Nationwide, PBJ reports <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with a ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)}</strong> staffing hours per resident day.
           </p>
+          {hasOwnershipDisparity && data.ownership && (
+            <p className="mb-2">
+              For-profit facilities average <strong className="text-white">{formatHPRD(data.ownership.forProfit.medianHPRD!)} HPRD</strong>, while non-profits average <strong className="text-white">{formatHPRD(data.ownership.nonProfit.medianHPRD!)} HPRD</strong>. The ownership model directly impacts staffing levels.
+            </p>
+          )}
           {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
             const value = mostNoticeable.value;
             return (

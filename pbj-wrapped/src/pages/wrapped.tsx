@@ -21,7 +21,6 @@ import { DeclinersCard } from '../components/wrapped/cards/DeclinersCard';
 import { KeyTakeawaysCard } from '../components/wrapped/cards/KeyTakeawaysCard';
 import { NavigationCard } from '../components/wrapped/cards/NavigationCard';
 import { WhatIsPBJCard } from '../components/wrapped/cards/WhatIsPBJCard';
-import { WhatIsHPRDCard } from '../components/wrapped/cards/WhatIsHPRDCard';
 import { USAOwnershipCard } from '../components/wrapped/cards/USAOwnershipCard';
 import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard';
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
@@ -178,7 +177,6 @@ const Wrapped: React.FC = () => {
     const screensArray: React.ReactElement[] = [
       <HeaderCard key="header" name={wrappedData.name} />,
       <WhatIsPBJCard key="what-is-pbj" data={wrappedData} />,
-      <WhatIsHPRDCard key="what-is-hprd" data={wrappedData} />,
       // State minimum staffing requirement (if available)
       ...(wrappedData.scope === 'state' && wrappedData.stateMinimum ? [<StateMinimumCard key="state-minimum" data={wrappedData} />] : []),
       // Region states overview (early on for regions)

@@ -102,6 +102,12 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
             Source: CMS Payroll-Based Journal, Q2 2025
           </p>
+          
+          <div className="pt-3 mt-3 border-t border-gray-700">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              <strong className="text-gray-400">HPRD</strong> = Hours Per Resident Per Day. <strong className="text-gray-400">Total HPRD:</strong> All nursing staff. <strong className="text-gray-400">Direct Care HPRD:</strong> Hands-on care (RNs, LPNs, CNAs). <strong className="text-gray-400">RN HPRD:</strong> Registered nurse hours.
+            </p>
+          </div>
         </div>
       </WrappedCard>
       <p className="text-xs text-gray-400 text-center italic mt-4">

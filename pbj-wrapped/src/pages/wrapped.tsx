@@ -23,7 +23,6 @@ import { NavigationCard } from '../components/wrapped/cards/NavigationCard';
 import { WhatIsPBJCard } from '../components/wrapped/cards/WhatIsPBJCard';
 import { WhatIsHPRDCard } from '../components/wrapped/cards/WhatIsHPRDCard';
 import { USAOwnershipCard } from '../components/wrapped/cards/USAOwnershipCard';
-import { USAOwnershipStaffingCard } from '../components/wrapped/cards/USAOwnershipStaffingCard';
 import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard';
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
 import { StateMinimumCard } from '../components/wrapped/cards/StateMinimumCard';
@@ -190,10 +189,9 @@ const Wrapped: React.FC = () => {
       ...(wrappedData.scope === 'usa' ? [<USANationalScaleCard key="national-scale" data={wrappedData} />] : []),
       <BasicsCard key="basics" data={wrappedData} />,
       ...(wrappedData.scope !== 'usa' ? [<RankingsCard key="rankings" data={wrappedData} />] : []),
-      // For USA, add ownership slides after basics (split into two)
+      // For USA, add ownership slide after basics (combined breakdown and staffing)
       ...(wrappedData.scope === 'usa' && wrappedData.ownership ? [
-        <USAOwnershipCard key="ownership" data={wrappedData} />,
-        <USAOwnershipStaffingCard key="ownership-staffing" data={wrappedData} />
+        <USAOwnershipCard key="ownership" data={wrappedData} />
       ] : []),
       // For USA, split extremes into two slides
       // For state, split into lowest and highest slides

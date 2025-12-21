@@ -51,13 +51,14 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   // Show "Why it matters" only after typing is fully complete with a delay
   useEffect(() => {
     if (typedAnswer.length >= answerText.length) {
+      // Longer pause after typing completes for better rhythm
       const timer1 = setTimeout(() => {
         setShowWhyItMatters(true);
-      }, 800); // 800ms delay after typing completes
+      }, 1200); // 1200ms delay after typing completes
       
       const timer2 = setTimeout(() => {
         setShowNote(true);
-      }, 1400); // 1400ms delay (800 + 600) after typing completes
+      }, 2200); // 2200ms delay (1200 + 1000) after typing completes
       
       return () => {
         clearTimeout(timer1);
@@ -82,7 +83,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
         </div>
         
         {showWhyItMatters && (
-          <div className={`pt-3 border-t border-gray-700 transition-opacity duration-500 ${showWhyItMatters ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
             <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
               <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide.
             </p>
@@ -90,7 +91,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
         )}
         
         {showNote && (
-          <div className={`pt-3 border-t border-gray-700 transition-opacity duration-500 ${showNote ? 'opacity-100' : 'opacity-0'}`}>
+          <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
             <p className="text-xs text-gray-400 leading-relaxed">
               <strong className="text-gray-300">Note:</strong> CMS excludes some nursing homes from PBJ if staffing data appears unreliable.
             </p>

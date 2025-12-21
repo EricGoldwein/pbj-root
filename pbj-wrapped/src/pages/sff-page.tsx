@@ -5,6 +5,13 @@ import { toTitleCase } from '../lib/wrapped/dataProcessor';
 import { getAssetPath } from '../utils/assets';
 import type { FacilityLiteRow, ProviderInfoRow } from '../lib/wrapped/wrappedTypes';
 
+// Helper to get data path with base URL
+function getDataPath(path: string = ''): string {
+  const baseUrl = import.meta.env.BASE_URL;
+  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
+}
+
 interface SFFFacility {
   provnum: string;
   name: string;
@@ -36,7 +43,8 @@ export default function SFFPage() {
         setLoading(true);
         setError(null);
 
-        const data = await loadAllData('/data', 'usa', undefined);
+        const baseDataPath = getDataPath();
+        const data = await loadAllData(baseDataPath, 'usa', undefined);
         
         // Get Q1 and Q2 provider info
         const providerInfoQ1 = data.providerInfo.q1 || [];

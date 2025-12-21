@@ -101,7 +101,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            Nationwide, PBJ reports <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with an average of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
+            Nationwide, PBJ reports <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with a ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)}</strong> staffing hours per resident day.
           </p>
           {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
             const value = mostNoticeable.value;
@@ -140,11 +140,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
             <strong className="text-white">
               #{rnRank} of 51
             </strong>
-            {' '}for RN staffing (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>) and{' '}
+            {' '}for RN (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>) and{' '}
             <strong className="text-white">
               #{totalRank}
             </strong>
-            {' '}for total staffing (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>).
+            {' '}for total (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>).
           </p>
           {data.compliance && data.compliance.facilitiesBelowTotalMinimum > 0 && (
             <p className="mb-2">

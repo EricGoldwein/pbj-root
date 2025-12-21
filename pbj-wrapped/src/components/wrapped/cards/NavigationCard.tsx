@@ -96,7 +96,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
             className="w-full py-2.5 md:py-3 px-4 bg-gray-700/50 hover:bg-gray-600/60 border border-gray-600/50 hover:border-gray-500 text-gray-200 font-medium rounded-lg transition-all duration-200 text-sm hover:scale-[1.01] active:scale-[0.99] touch-manipulation"
             style={{ minHeight: '44px' }}
           >
-            View Full Report
+            View PBJ320 Report
           </button>
         </div>
       </div>

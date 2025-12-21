@@ -92,7 +92,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
   };
 
   return (
-    <WrappedCard title="State Staffing Rankings">
+    <WrappedCard title="State Rankings">
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>

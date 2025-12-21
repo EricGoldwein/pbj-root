@@ -37,7 +37,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
   };
 
   return (
-    <WrappedCard title="CMS Region Staffing Rankings">
+    <WrappedCard title="CMS Region Rankings">
       <div className="space-y-3 text-left">
         <div className="grid grid-cols-2 gap-3">
           <div>

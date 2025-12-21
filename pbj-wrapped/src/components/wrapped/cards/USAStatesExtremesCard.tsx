@@ -97,7 +97,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
         <div className="grid grid-cols-2 gap-3">
           <div>
             <div className="flex justify-between items-center mb-1">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Bottom 5 States</h4>
+              <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wide">Bottom 5 States</h4>
               <span className="text-xs text-gray-500">HPRD</span>
             </div>
             <div className="space-y-0.5">
@@ -106,7 +106,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
           </div>
           <div>
             <div className="flex justify-between items-center mb-1">
-              <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Top 5 States</h4>
+              <h4 className="text-xs font-semibold text-green-400 uppercase tracking-wide">Top 5 States</h4>
               <span className="text-xs text-gray-500">HPRD</span>
             </div>
             <div className="space-y-0.5">

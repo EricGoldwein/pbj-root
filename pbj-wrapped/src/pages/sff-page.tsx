@@ -203,133 +203,145 @@ export default function SFFPage() {
       </nav>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-bold mb-2">{pageTitle}</h1>
-          <p className="text-gray-300 text-sm md:text-base">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 md:mb-3">{pageTitle}</h1>
+          <p className="text-gray-300 text-sm md:text-base mb-2">
             Q2 2025 • CMS Payroll-Based Journal
           </p>
-          <p className="text-gray-400 text-xs md:text-sm mt-2">
+          <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
             Special Focus Facilities (SFFs) are nursing homes with a history of serious quality problems. 
             SFF Candidates are facilities being considered for SFF status. 
-            <span className="text-orange-400"> New</span> indicates facilities that became SFFs or candidates in Q2 2025.
+            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in Q2 2025.
           </p>
         </div>
 
         {/* SFFs Section */}
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold mb-4">
-            Special Focus Facilities ({sffData.sffs.length})
+        <div className="mb-8 md:mb-10">
+          <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">
+            Special Focus Facilities ({sffData.sffs.length.toLocaleString()})
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-blue-600/20 border-b border-blue-500/30">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-blue-300">Facility</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-blue-300">Location</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-blue-300">Total HPRD</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-blue-300">Direct Care</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-blue-300">RN HPRD</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-blue-300">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sffData.sffs.map((facility) => (
-                  <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-3">
-                      <a
-                        href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-300 hover:text-blue-200 underline font-medium"
-                      >
-                        {facility.name}
-                      </a>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300 text-sm">
-                      {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
-                      {facility.county && <span className="text-gray-500 text-xs ml-1">({facility.county})</span>}
-                    </td>
-                    <td className="px-4 py-3 text-center text-white font-semibold">{formatNumber(facility.totalHPRD)}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{formatNumber(facility.directCareHPRD)}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{formatNumber(facility.rnHPRD)}</td>
-                    <td className="px-4 py-3 text-center">
-                      {facility.isNewSFF && (
-                        <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded">
-                          New SFF
-                        </span>
-                      )}
-                      {!facility.isNewSFF && facility.wasCandidate && (
-                        <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded">
-                          Was Candidate
-                        </span>
-                      )}
-                      {!facility.isNewSFF && !facility.wasCandidate && (
-                        <span className="text-gray-500 text-xs">Existing</span>
-                      )}
-                    </td>
+          {sffData.sffs.length === 0 ? (
+            <div className="rounded-lg border border-gray-700 bg-[#0f172a]/60 p-8 text-center">
+              <p className="text-gray-400">No Special Focus Facilities found for this scope.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
+              <table className="w-full border-collapse min-w-[640px]">
+                <thead>
+                  <tr className="bg-blue-600/20 border-b border-blue-500/30">
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Facility</th>
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Location</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Total HPRD</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</th>
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sffData.sffs.map((facility) => (
+                    <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
+                      <td className="px-3 md:px-4 py-2 md:py-3">
+                        <a
+                          href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-300 hover:text-blue-200 underline font-medium text-sm md:text-base break-words"
+                        >
+                          {facility.name}
+                        </a>
+                      </td>
+                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-300 text-xs md:text-sm">
+                        {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
+                        {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
+                      </td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
+                      <td className="px-3 md:px-4 py-2 md:py-3 text-center">
+                        {facility.isNewSFF && (
+                          <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
+                            New SFF
+                          </span>
+                        )}
+                        {!facility.isNewSFF && facility.wasCandidate && (
+                          <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded whitespace-nowrap">
+                            Was Candidate
+                          </span>
+                        )}
+                        {!facility.isNewSFF && !facility.wasCandidate && (
+                          <span className="text-gray-500 text-xs">Existing</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {/* Candidates Section */}
         <div>
-          <h2 className="text-2xl font-bold mb-4">
-            SFF Candidates ({sffData.candidates.length})
+          <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">
+            SFF Candidates ({sffData.candidates.length.toLocaleString()})
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-yellow-600/20 border-b border-yellow-500/30">
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-yellow-300">Facility</th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-yellow-300">Location</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-yellow-300">Total HPRD</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-yellow-300">Direct Care</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-yellow-300">RN HPRD</th>
-                  <th className="px-4 py-3 text-center text-sm font-semibold text-yellow-300">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sffData.candidates.map((facility) => (
-                  <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30">
-                    <td className="px-4 py-3">
-                      <a
-                        href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-300 hover:text-blue-200 underline font-medium"
-                      >
-                        {facility.name}
-                      </a>
-                    </td>
-                    <td className="px-4 py-3 text-gray-300 text-sm">
-                      {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
-                      {facility.county && <span className="text-gray-500 text-xs ml-1">({facility.county})</span>}
-                    </td>
-                    <td className="px-4 py-3 text-center text-white font-semibold">{formatNumber(facility.totalHPRD)}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{formatNumber(facility.directCareHPRD)}</td>
-                    <td className="px-4 py-3 text-center text-gray-300">{formatNumber(facility.rnHPRD)}</td>
-                    <td className="px-4 py-3 text-center">
-                      {facility.isNewCandidate && (
-                        <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded">
-                          New Candidate
-                        </span>
-                      )}
-                      {!facility.isNewCandidate && (
-                        <span className="text-gray-500 text-xs">Existing</span>
-                      )}
-                    </td>
+          {sffData.candidates.length === 0 ? (
+            <div className="rounded-lg border border-gray-700 bg-[#0f172a]/60 p-8 text-center">
+              <p className="text-gray-400">No SFF Candidates found for this scope.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
+              <table className="w-full border-collapse min-w-[640px]">
+                <thead>
+                  <tr className="bg-yellow-600/20 border-b border-yellow-500/30">
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Facility</th>
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Location</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Total HPRD</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Direct Care</th>
+                    <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">RN HPRD</th>
+                    <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {sffData.candidates.map((facility) => (
+                    <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
+                      <td className="px-3 md:px-4 py-2 md:py-3">
+                        <a
+                          href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-300 hover:text-blue-200 underline font-medium text-sm md:text-base break-words"
+                        >
+                          {facility.name}
+                        </a>
+                      </td>
+                      <td className="px-3 md:px-4 py-2 md:py-3 text-gray-300 text-xs md:text-sm">
+                        {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
+                        {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
+                      </td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
+                      <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
+                      <td className="px-3 md:px-4 py-2 md:py-3 text-center">
+                        {facility.isNewCandidate && (
+                          <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
+                            New Candidate
+                          </span>
+                        )}
+                        {!facility.isNewCandidate && (
+                          <span className="text-gray-500 text-xs">Existing</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        <div className="mt-8 pt-6 border-t border-gray-700 text-center text-sm text-gray-400">
+        <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700 text-center text-xs md:text-sm text-gray-400">
           <p>Source: CMS Payroll-Based Journal, Q2 2025</p>
         </div>
       </div>

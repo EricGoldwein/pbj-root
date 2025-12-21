@@ -48,7 +48,7 @@ function App() {
       <Route 
         path="/sff/:scope" 
         element={
-          <PasswordProtection>
+          <PasswordProtection password="320">
             <SFFPage />
           </PasswordProtection>
         } 

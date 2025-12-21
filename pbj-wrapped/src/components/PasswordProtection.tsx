@@ -4,11 +4,13 @@ const CORRECT_PASSWORD = '320-7676';
 
 interface PasswordProtectionProps {
   children: React.ReactNode;
+  password?: string; // Optional custom password
 }
 
-export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children }) => {
+export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children, password: customPassword }) => {
+  const correctPassword = customPassword || CORRECT_PASSWORD;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -23,12 +25,12 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
     e.preventDefault();
     setError('');
 
-    if (password === CORRECT_PASSWORD) {
+    if (passwordInput === correctPassword) {
       setIsAuthenticated(true);
       sessionStorage.setItem('pbj_wrapped_authenticated', 'true');
     } else {
       setError('Incorrect password. Please try again.');
-      setPassword('');
+      setPasswordInput('');
     }
   };
 
@@ -49,9 +51,9 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
             <div>
               <input
                 type="password"
-                value={password}
+                value={passwordInput}
                 onChange={(e) => {
-                  setPassword(e.target.value);
+                  setPasswordInput(e.target.value);
                   setError('');
                 }}
                 placeholder="Enter password"

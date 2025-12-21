@@ -56,7 +56,7 @@ export const WrappedCard: React.FC<WrappedCardProps> = ({
               {children}
             </div>
           ) : (
-            <div className="text-center text-base md:text-lg bg-black/70 backdrop-blur-md rounded-3xl p-4 md:p-5 lg:p-6 shadow-2xl border-2 border-blue-500/50 flex-shrink-0 w-full max-w-full overflow-y-auto max-h-[75vh] md:max-h-[80vh] scrollbar-thin scrollbar-thumb-blue-500/50 scrollbar-track-transparent transition-all duration-300 hover:border-blue-400/60 hover:shadow-blue-500/20">
+            <div className="text-center text-base md:text-lg bg-black/70 backdrop-blur-md rounded-3xl p-4 md:p-5 lg:p-6 pb-6 md:pb-8 lg:pb-10 shadow-2xl border-2 border-blue-500/50 flex-shrink-0 w-full max-w-full overflow-y-auto max-h-[75vh] md:max-h-[80vh] scrollbar-thin scrollbar-thumb-blue-500/50 scrollbar-track-transparent transition-all duration-300 hover:border-blue-400/60 hover:shadow-blue-500/20">
               {children}
             </div>
           )}

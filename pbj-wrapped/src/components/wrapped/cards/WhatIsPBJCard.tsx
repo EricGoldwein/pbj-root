@@ -46,16 +46,26 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   const answerText = baseText + contextText;
   const typedAnswer = useTypingEffect(answerText, 30, 300);
   const [showWhyItMatters, setShowWhyItMatters] = useState(false);
+  const [showNote, setShowNote] = useState(false);
   
   // Show "Why it matters" only after typing is fully complete with a delay
   useEffect(() => {
     if (typedAnswer.length >= answerText.length) {
-      const timer = setTimeout(() => {
+      const timer1 = setTimeout(() => {
         setShowWhyItMatters(true);
-      }, 500); // 500ms delay after typing completes
-      return () => clearTimeout(timer);
+      }, 800); // 800ms delay after typing completes
+      
+      const timer2 = setTimeout(() => {
+        setShowNote(true);
+      }, 1400); // 1400ms delay (800 + 600) after typing completes
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
     } else {
       setShowWhyItMatters(false);
+      setShowNote(false);
     }
   }, [typedAnswer.length, answerText.length]);
 
@@ -72,24 +82,28 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
         </div>
         
         {showWhyItMatters && (
-          <div className="pt-3 border-t border-gray-700">
+          <div className={`pt-3 border-t border-gray-700 transition-opacity duration-500 ${showWhyItMatters ? 'opacity-100' : 'opacity-0'}`}>
             <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
               <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide.
             </p>
-            <div className="mt-3 pt-3 border-t border-gray-700">
-              <p className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if their staffing data appears unreliable or inconsistent.
-              </p>
-            </div>
           </div>
         )}
-        <p className="text-xs text-gray-400 text-center italic mt-4">
-          Click or tap anywhere to continue
-        </p>
+        
+        {showNote && (
+          <div className={`pt-3 border-t border-gray-700 transition-opacity duration-500 ${showNote ? 'opacity-100' : 'opacity-0'}`}>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              <strong className="text-gray-300">Note:</strong> CMS excludes some nursing homes from PBJ if staffing data appears unreliable.
+            </p>
+          </div>
+        )}
+        
         <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
           Source: CMS Payroll-Based Journal, Q2 2025
         </p>
       </div>
+      <p className="text-xs text-gray-400 text-center italic mt-4">
+        Click or tap anywhere to continue
+      </p>
     </WrappedCard>
   );
 };

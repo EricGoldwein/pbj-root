@@ -30,9 +30,9 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
     const stateName = stateAbbrToName[data.name.toUpperCase()] || data.name;
     const facilityCount = data.facilityCount.toLocaleString();
     const residentCount = Math.round(data.avgDailyResidents).toLocaleString();
-    contextText = ` This Q2 2025 data shows staffing levels across ${stateName}'s ${facilityCount} nursing homes and ${residentCount} residents.`;
+    contextText = `\n\nThis Q2 2025 data shows staffing levels across ${stateName}'s ${facilityCount} nursing homes and ${residentCount} residents.`;
   } else if (data.scope === 'region') {
-    contextText = ` This Q2 2025 data shows staffing levels across ${data.facilityCount} nursing homes in ${data.name}, serving ${Math.round(data.avgDailyResidents).toLocaleString()} residents daily.`;
+    contextText = `\n\nThis Q2 2025 data shows staffing levels across ${data.facilityCount} nursing homes in ${data.name}, serving ${Math.round(data.avgDailyResidents).toLocaleString()} residents daily.`;
   } else if (data.scope === 'usa') {
     const facilityCount = data.facilityCount.toLocaleString();
     const residentCount = Math.round(data.avgDailyResidents);
@@ -40,7 +40,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
     const residentCountFormatted = residentCount >= 1000000 
       ? `${(residentCount / 1000000).toFixed(1)} million`
       : residentCount.toLocaleString();
-    contextText = ` This Q2 2025 data shows staffing levels across ${facilityCount} nursing homes and ${residentCountFormatted} residents in the United States.`;
+    contextText = `\n\nThis Q2 2025 data shows staffing levels across ${facilityCount} nursing homes and ${residentCountFormatted} residents in the United States.`;
   }
   
   const answerText = baseText + contextText;
@@ -63,7 +63,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
     <WrappedCard title="What is PBJ?" hideBadge>
       <div className="space-y-3 text-left">
         <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-3 md:pl-4 py-2 rounded">
-          <p className="text-gray-200 text-xs md:text-sm leading-relaxed">
+          <p className="text-gray-200 text-xs md:text-sm leading-relaxed whitespace-pre-wrap">
             {typedAnswer}
             {typedAnswer.length < answerText.length && (
               <span className="inline-block w-0.5 h-4 bg-blue-300 ml-1 animate-pulse" />
@@ -78,14 +78,14 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
             </p>
             <div className="mt-3 pt-3 border-t border-gray-700">
               <p className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if staffing levels appear aberrant.
-              </p>
-              <p className="text-xs text-gray-400 text-center italic mt-3">
-                Click or tap anywhere to continue
+                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if their staffing data appears unreliable or inconsistent.
               </p>
             </div>
           </div>
         )}
+        <p className="text-xs text-gray-400 text-center italic mt-4">
+          Click or tap anywhere to continue
+        </p>
         <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
           Source: CMS Payroll-Based Journal, Q2 2025
         </p>

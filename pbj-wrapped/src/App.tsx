@@ -4,6 +4,7 @@ import Index from './pages/Index';
 import Wrapped from './pages/wrapped';
 import WrappedNews from './pages/wrapped-news';
 import SFFWrapped from './pages/sff-wrapped';
+import SFFPage from './pages/sff-page';
 import { PasswordProtection } from './components/PasswordProtection';
 
 // Declare gtag function for TypeScript
@@ -41,6 +42,14 @@ function App() {
         element={
           <PasswordProtection>
             <SFFWrapped />
+          </PasswordProtection>
+        } 
+      />
+      <Route 
+        path="/sff/:scope" 
+        element={
+          <PasswordProtection>
+            <SFFPage />
           </PasswordProtection>
         } 
       />

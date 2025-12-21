@@ -154,9 +154,6 @@ const WrappedNews: React.FC = () => {
             />
           </div>
           <div className="text-2xl md:text-3xl font-bold text-blue-300 mb-3">Loading PBJ Wrapped...</div>
-          <div className="text-base md:text-lg text-gray-400 mb-6">
-            Loading data files...
-          </div>
           <div className="relative">
             <div className="animate-spin rounded-full h-12 w-12 md:h-16 md:w-16 border-4 border-blue-500/30 border-t-blue-500 mx-auto mb-4"></div>
             <div className="absolute inset-0 flex items-center justify-center">

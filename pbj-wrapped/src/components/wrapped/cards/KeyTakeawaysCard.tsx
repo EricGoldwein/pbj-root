@@ -165,6 +165,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               <strong className="text-white">{data.sff.currentSFFs}</strong> Special Focus Facilities.
             </p>
           )}
+          {data.averageOverallRating !== undefined && (
+            <p className="mt-2 text-sm text-gray-300">
+              Average overall rating: <strong className="text-white">{data.averageOverallRating.toFixed(1)}★</strong>
+            </p>
+          )}
         </>
       );
     } else if (data.scope === 'region') {
@@ -186,6 +191,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
         <>
           <p className="mb-2">
             <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
+            {data.averageOverallRating !== undefined && (
+              <span className="block mt-1 text-sm text-gray-300">
+                Average overall rating: <strong className="text-white">{data.averageOverallRating.toFixed(1)}★</strong>
+              </span>
+            )}
           </p>
           {trend !== 0 && (
             <p className="mb-2">

@@ -46,9 +46,16 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
             </div>
           </div>
         </div>
-        {location && (
-          <div className="text-xs text-gray-500 mt-0.5">{location}</div>
-        )}
+        <div className="flex items-center gap-2 mt-0.5">
+          {location && (
+            <div className="text-xs text-gray-500">{location}</div>
+          )}
+          {facility.staffingRating && (
+            <div className="text-xs text-gray-400">
+              Staffing: {facility.staffingRating}★
+            </div>
+          )}
+        </div>
       </div>
     );
   };

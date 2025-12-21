@@ -62,6 +62,9 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   return (
     <WrappedCard title="What is PBJ?" hideBadge>
       <div className="space-y-3 text-left">
+        <p className="text-xs text-gray-400 text-center mb-2">
+          As reported in PBJ (Q2 2025)
+        </p>
         <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-3 md:pl-4 py-2 rounded">
           <p className="text-gray-200 text-xs md:text-sm leading-relaxed">
             {typedAnswer}
@@ -74,11 +77,11 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
         {showWhyItMatters && (
           <div className="pt-3 border-t border-gray-700">
             <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
-              <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide, empowering families to make informed decisions and enabling regulators to hold facilities accountable.
+              <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide.
             </p>
             <div className="mt-3 pt-3 border-t border-gray-700">
               <p className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if staffing levels are considered aberrant (e.g., overreporting, underreporting, or not reported).
+                <strong className="text-gray-300">Note:</strong> Some nursing homes are excluded from PBJ if staffing levels appear aberrant.
               </p>
               <p className="text-xs text-gray-400 text-center italic mt-3">
                 Click or tap anywhere to continue

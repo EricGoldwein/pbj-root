@@ -321,14 +321,14 @@ function processUSAData(
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Total_Nurse_HPRD,
-    link: `/${s.STATE.toLowerCase()}`,
+    link: createStateLink(s.STATE),
   }));
   const bottomStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(-3).reverse().map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Total_Nurse_HPRD,
-    link: `/${s.STATE.toLowerCase()}`,
+    link: createStateLink(s.STATE),
   }));
 
   // Top/Bottom States by Direct Care HPRD (excluding PR)
@@ -338,14 +338,14 @@ function processUSAData(
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Nurse_Care_HPRD,
-    link: `/${s.STATE.toLowerCase()}`,
+    link: createStateLink(s.STATE),
   }));
   const bottomStatesByDirectCare: Facility[] = sortedStatesByDirectCare.slice(-3).reverse().map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Nurse_Care_HPRD,
-    link: `/${s.STATE.toLowerCase()}`,
+    link: createStateLink(s.STATE),
   }));
 
   // Top/Bottom Regions by Total HPRD
@@ -355,14 +355,14 @@ function processUSAData(
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Total_Nurse_HPRD,
-    link: `https://pbjdashboard.com/?region=${r.REGION_NUMBER}`,
+    link: 'https://pbj320.com/report',
   }));
   const bottomRegionsByHPRD: Facility[] = sortedRegionsByHPRD.slice(-3).reverse().map(r => ({
     provnum: `region${r.REGION_NUMBER}`,
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Total_Nurse_HPRD,
-    link: `https://pbjdashboard.com/?region=${r.REGION_NUMBER}`,
+    link: 'https://pbj320.com/report',
   }));
 
   // Top/Bottom Regions by Direct Care HPRD
@@ -372,14 +372,14 @@ function processUSAData(
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Nurse_Care_HPRD,
-    link: `https://pbjdashboard.com/?region=${r.REGION_NUMBER}`,
+    link: 'https://pbj320.com/report',
   }));
   const bottomRegionsByDirectCare: Facility[] = sortedRegionsByDirectCare.slice(-3).reverse().map(r => ({
     provnum: `region${r.REGION_NUMBER}`,
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Nurse_Care_HPRD,
-    link: `https://pbjdashboard.com/?region=${r.REGION_NUMBER}`,
+    link: 'https://pbj320.com/report',
   }));
 
   // Also include facility extremes
@@ -516,7 +516,7 @@ function processUSAData(
         rnHPRDChange,
         q1RNHPRD: stateQ1.RN_HPRD,
         q2RNHPRD: stateQ2.RN_HPRD,
-        link: `/${stateQ2.STATE.toLowerCase()}`,
+        link: createStateLink(stateQ2.STATE),
       });
     }
   }
@@ -542,7 +542,7 @@ function processUSAData(
         rnHPRDChange,
         q1RNHPRD: regionQ1.RN_HPRD,
         q2RNHPRD: regionQ2.RN_HPRD,
-        link: `https://pbjdashboard.com/?region=${regionQ2.REGION_NUMBER}`,
+        link: 'https://pbj320.com/report',
       });
     }
   }
@@ -714,6 +714,8 @@ function processStateData(
     state: facility.STATE,
     value: facility.Total_Nurse_HPRD,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
   const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility, info }) => ({
@@ -723,6 +725,8 @@ function processStateData(
     state: facility.STATE,
     value: facility.Total_Nurse_HPRD,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
   const withPercentExpected = facilitiesWithInfoQ2
@@ -745,6 +749,8 @@ function processStateData(
     state: facility.STATE,
     value: percentExpected,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
   const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, info, percentExpected }) => ({
@@ -754,6 +760,8 @@ function processStateData(
     state: facility.STATE,
     value: percentExpected,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
   // Section 5: SFF - check for various SFF status formats
@@ -821,6 +829,21 @@ function processStateData(
       : 0,
   };
   console.log(`[State ${stateAbbr}] Trends:`, trends);
+
+  // Calculate average overall rating (for state/region only)
+  const ratingsWithValues = stateProviderInfoQ2
+    .map(p => {
+      const rating = p.overall_rating?.trim();
+      if (!rating) return null;
+      const numRating = parseFloat(rating);
+      if (isNaN(numRating) || numRating < 1 || numRating > 5) return null;
+      return numRating;
+    })
+    .filter((r): r is number => r !== null);
+  
+  const averageOverallRating = ratingsWithValues.length > 0
+    ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
+    : undefined;
 
   // Section 7: Movers
   const facilityMapQ1 = new Map(stateFacilitiesQ1.map(f => [f.PROVNUM, f]));
@@ -976,6 +999,7 @@ function processStateData(
       declinersByRNHPRD,
     },
     ownership,
+    averageOverallRating,
   };
 }
 
@@ -1055,20 +1079,24 @@ function processRegionData(
     a.facility.Total_Nurse_HPRD - b.facility.Total_Nurse_HPRD
   );
 
-  const lowestByHPRD: Facility[] = sortedByHPRD.slice(0, 5).map(({ facility }) => ({
+  const lowestByHPRD: Facility[] = sortedByHPRD.slice(0, 5).map(({ facility, info }) => ({
     provnum: facility.PROVNUM,
     name: toTitleCase(facility.PROVNAME),
     state: facility.STATE,
     value: facility.Total_Nurse_HPRD,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
-  const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility }) => ({
+  const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility, info }) => ({
     provnum: facility.PROVNUM,
     name: toTitleCase(facility.PROVNAME),
     state: facility.STATE,
     value: facility.Total_Nurse_HPRD,
     link: createFacilityLink(facility.PROVNUM),
+    overallRating: info?.overall_rating,
+    staffingRating: info?.staffing_rating,
   }));
 
   const withPercentExpected = facilitiesWithInfoQ2
@@ -1262,6 +1290,21 @@ function processRegionData(
     };
   });
 
+  // Calculate average overall rating (for state/region only)
+  const ratingsWithValues = regionProviderInfoQ2
+    .map(p => {
+      const rating = p.overall_rating?.trim();
+      if (!rating) return null;
+      const numRating = parseFloat(rating);
+      if (isNaN(numRating) || numRating < 1 || numRating > 5) return null;
+      return numRating;
+    })
+    .filter((r): r is number => r !== null);
+  
+  const averageOverallRating = ratingsWithValues.length > 0
+    ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
+    : undefined;
+
   return {
     scope: 'region',
     identifier: `region${regionNumber}`,
@@ -1295,6 +1338,7 @@ function processRegionData(
     },
     ownership,
     regionStates: regionStatesInfo,
+    averageOverallRating,
   };
 }
 

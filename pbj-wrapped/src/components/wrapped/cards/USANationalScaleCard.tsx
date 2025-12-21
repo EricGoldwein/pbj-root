@@ -61,11 +61,11 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
     : null;
 
   return (
-    <WrappedCard title="The National Picture" hideBadge>
+    <WrappedCard title="National Overview" hideBadge>
       <div className="space-y-4 md:space-y-5 text-center">
         <div className="space-y-3 md:space-y-4">
           <p className="text-gray-200 text-base md:text-lg lg:text-xl leading-relaxed">
-            In Q2 2025, nursing homes across the United States had
+            In Q2 2025, the United States reported
           </p>
           
           <div className="flex flex-col items-center gap-1.5 md:gap-2 py-3 md:py-4">

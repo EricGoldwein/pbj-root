@@ -77,35 +77,19 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
             </div>
           </div>
           
-          <div className="flex items-center justify-center gap-2 md:gap-3 pt-1">
-            <div className={`px-3 py-1.5 rounded-lg border-2 ${
+          <div className="flex items-center justify-center pt-1">
+            <div className={`px-4 py-2 rounded-lg border-2 ${
               isTopHalf 
                 ? 'bg-green-500/10 border-green-500/50' 
                 : 'bg-orange-500/10 border-orange-500/50'
             }`}>
               <div className="text-xs text-gray-400 mb-0.5">National Rank</div>
-              <div className={`text-xl font-bold ${
+              <div className={`text-2xl font-bold ${
                 isTopHalf ? 'text-green-300' : 'text-orange-300'
               }`}>
                 #{rank}
               </div>
               <div className="text-xs text-gray-500 mt-0.5">of 51 states</div>
-            </div>
-            
-            <div className={`px-3 py-1.5 rounded-lg border-2 ${
-              isTopHalf 
-                ? 'bg-green-500/10 border-green-500/50' 
-                : 'bg-orange-500/10 border-orange-500/50'
-            }`}>
-              <div className="text-xs text-gray-400 mb-0.5">Percentile</div>
-              <div className={`text-xl font-bold ${
-                isTopHalf ? 'text-green-300' : 'text-orange-300'
-              }`}>
-                {percentile}th
-              </div>
-              <div className="text-xs text-gray-500 mt-0.5">
-                {isTopHalf ? 'Above avg' : 'Below avg'}
-              </div>
             </div>
           </div>
         </div>

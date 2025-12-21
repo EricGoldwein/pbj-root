@@ -238,6 +238,7 @@ function parseProviderInfoRow(row: any): ProviderInfoRow {
     ownership_type: (row.ownership_type || '').trim() || undefined,
     sff_status: (row.sff_status || '').trim() || undefined,
     overall_rating: (row.overall_rating || '').trim() || undefined,
+    staffing_rating: (row.staffing_rating || '').trim() || undefined,
     case_mix_total_nurse_hrs_per_resident_per_day: row.case_mix_total_nurse_hrs_per_resident_per_day
       ? parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day)
       : undefined,

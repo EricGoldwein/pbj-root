@@ -11,6 +11,8 @@ export interface Facility {
   state: string;
   value: number; // HPRD or percentage
   link: string; // pbjdashboard.com link
+  overallRating?: string; // CMS overall rating (1-5)
+  staffingRating?: string; // CMS staffing rating (1-5)
 }
 
 export interface FacilityChange extends Facility {
@@ -137,6 +139,9 @@ export interface PBJWrappedData {
     facilitiesBelowDirectCareMinimum?: number; // If state has direct care minimum
     facilitiesBelowDirectCareMinimumPercent?: number;
   };
+  
+  // Average ratings (for state and region only, not USA)
+  averageOverallRating?: number; // Average CMS overall rating (1-5)
 }
 
 // CSV row types
@@ -238,6 +243,7 @@ export interface ProviderInfoRow {
   ownership_type?: string;
   sff_status?: string;
   overall_rating?: string;
+  staffing_rating?: string; // CMS staffing rating (1-5)
   case_mix_total_nurse_hrs_per_resident_per_day?: number;
   case_mix_rn_hrs_per_resident_per_day?: number;
   avg_residents_per_day?: number;

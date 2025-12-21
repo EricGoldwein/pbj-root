@@ -273,10 +273,54 @@ export function toTitleCase(name: string): string {
 export function capitalizeCity(city: string | undefined): string | undefined {
   if (!city) return city;
   
+  // Handle special cases like "Carson City", "New York", etc.
+  const specialCases: Record<string, string> = {
+    'carson city': 'Carson City',
+    'new york': 'New York',
+    'new orleans': 'New Orleans',
+    'san francisco': 'San Francisco',
+    'los angeles': 'Los Angeles',
+    'san diego': 'San Diego',
+    'san antonio': 'San Antonio',
+    'san jose': 'San Jose',
+    'kansas city': 'Kansas City',
+    'oakland': 'Oakland',
+    'minneapolis': 'Minneapolis',
+    'st. paul': 'St. Paul',
+    'st. louis': 'St. Louis',
+    'st petersburg': 'St. Petersburg',
+    'fort worth': 'Fort Worth',
+    'virginia beach': 'Virginia Beach',
+    'colorado springs': 'Colorado Springs',
+    'winston-salem': 'Winston-Salem',
+    'cape coral': 'Cape Coral',
+    'port st. lucie': 'Port St. Lucie',
+  };
+  
+  const lowerCity = city.toLowerCase().trim();
+  if (specialCases[lowerCity]) {
+    return specialCases[lowerCity];
+  }
+  
+  // Standard title case, but preserve special words
   return city
     .toLowerCase()
     .split(/\s+/)
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => {
+      // Handle "St." and "St" variations
+      if (word === 'st' || word === 'st.') {
+        return 'St.';
+      }
+      // Handle "Mc" prefix
+      if (word.startsWith('mc')) {
+        return 'Mc' + word.slice(2).charAt(0).toUpperCase() + word.slice(3);
+      }
+      // Handle "O'" prefix
+      if (word.startsWith("o'")) {
+        return "O'" + word.slice(2).charAt(0).toUpperCase() + word.slice(3);
+      }
+      return word.charAt(0).toUpperCase() + word.slice(1);
+    })
     .join(' ');
 }
 

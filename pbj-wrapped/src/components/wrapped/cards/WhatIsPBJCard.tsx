@@ -50,7 +50,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = () => {
           
           <div className="pt-3 border-t border-gray-700">
             <p className="text-xs text-gray-500 leading-relaxed">
-              <strong className="text-gray-400">HPRD</strong> = Hours Per Resident Per Day
+              <strong className="text-gray-400">HPRD</strong> = Hours Per Resident Per Day. <strong className="text-gray-400">Total Nurse:</strong> All nursing staff. <strong className="text-gray-400">Direct Care:</strong> Hands-on care (RNs, LPNs, CNAs). <strong className="text-gray-400">RN:</strong> Registered Nurse.
             </p>
           </div>
         </div>

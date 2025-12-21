@@ -19,7 +19,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
     const regionNumber = facility.provnum?.replace(/region/i, '') || 
                         facility.state?.replace(/region/i, '').trim() || '';
     const regionName = facility.name; // e.g., "Boston"
-    const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : regionName;
+    const displayName = regionNumber ? `Region ${regionNumber} (${regionName})` : regionName;
     
     return (
       <div key={facility.provnum} className="py-1.5 border-b border-gray-700 last:border-0">

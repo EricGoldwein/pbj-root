@@ -50,6 +50,18 @@ function parseOwnershipType(ownershipType?: string): 'forProfit' | 'nonProfit' |
 }
 
 /**
+ * Calculate median from array of numbers
+ */
+function calculateMedian(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+/**
  * Calculate ownership breakdown from provider info
  */
 function calculateOwnershipBreakdown(providerInfo: ProviderInfoRow[]): OwnershipBreakdown {
@@ -83,6 +95,53 @@ function calculateOwnershipBreakdown(providerInfo: ProviderInfoRow[]): Ownership
     government: {
       count: government,
       percentage: percentage(government),
+    },
+  };
+}
+
+/**
+ * Calculate ownership breakdown with median HPRD from provider info and facilities
+ */
+function calculateOwnershipBreakdownWithStaffing(
+  providerInfo: ProviderInfoRow[],
+  facilities: FacilityLiteRow[]
+): OwnershipBreakdown {
+  const baseBreakdown = calculateOwnershipBreakdown(providerInfo);
+  
+  // Create lookup for facilities by PROVNUM
+  const facilityMap = new Map(facilities.map(f => [f.PROVNUM, f]));
+  
+  // Group facilities by ownership type and collect HPRD values
+  const forProfitHPRDs: number[] = [];
+  const nonProfitHPRDs: number[] = [];
+  const governmentHPRDs: number[] = [];
+  
+  for (const provider of providerInfo) {
+    const facility = facilityMap.get(provider.PROVNUM);
+    if (!facility || facility.Total_Nurse_HPRD <= 0) continue;
+    
+    const type = parseOwnershipType(provider.ownership_type);
+    if (type === 'forProfit') {
+      forProfitHPRDs.push(facility.Total_Nurse_HPRD);
+    } else if (type === 'nonProfit') {
+      nonProfitHPRDs.push(facility.Total_Nurse_HPRD);
+    } else if (type === 'government') {
+      governmentHPRDs.push(facility.Total_Nurse_HPRD);
+    }
+  }
+  
+  return {
+    forProfit: {
+      ...baseBreakdown.forProfit,
+      medianHPRD: forProfitHPRDs.length > 0 ? calculateMedian(forProfitHPRDs) : undefined,
+    },
+    nonProfit: {
+      ...baseBreakdown.nonProfit,
+      medianHPRD: nonProfitHPRDs.length > 0 ? calculateMedian(nonProfitHPRDs) : undefined,
+    },
+    government: {
+      ...baseBreakdown.government,
+      medianHPRD: governmentHPRDs.length > 0 ? calculateMedian(governmentHPRDs) : undefined,
     },
   };
 }
@@ -574,9 +633,9 @@ function processUSAData(
     .sort((a, b) => (a.rnHPRDChange || 0) - (b.rnHPRDChange || 0))
     .slice(0, 5);
 
-  // Ownership breakdown for USA - use all provider info Q2
+  // Ownership breakdown for USA - use all provider info Q2 with median HPRD
   const ownershipData = providerInfoQ2.filter(p => p.ownership_type && p.ownership_type.trim().length > 0);
-  const ownership = calculateOwnershipBreakdown(ownershipData);
+  const ownership = calculateOwnershipBreakdownWithStaffing(ownershipData, facilityQ2);
 
   return {
     scope: 'usa',

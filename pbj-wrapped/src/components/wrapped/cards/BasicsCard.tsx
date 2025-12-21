@@ -134,7 +134,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               <span className="text-gray-300 text-sm md:text-base">Total staff HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
-                  Rank #{data.rankings.totalHPRDRank} ({data.rankings.totalHPRDPercentile}th percentile)
+                  Rank #{data.rankings.totalHPRDRank}
                 </span>
               )}
               {data.scope === 'state' && data.stateMinimum && (
@@ -172,7 +172,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               <span className="text-gray-400 text-xs md:text-sm">Direct care HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
-                  Rank #{data.rankings.directCareHPRDRank} ({data.rankings.directCareHPRDPercentile}th percentile)
+                  Rank #{data.rankings.directCareHPRDRank}
                 </span>
               )}
             </div>
@@ -186,7 +186,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               <span className="text-gray-300 text-sm md:text-base">RN HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
-                  Rank #{data.rankings.rnHPRDRank} ({data.rankings.rnHPRDPercentile}th percentile)
+                  Rank #{data.rankings.rnHPRDRank}
                 </span>
               )}
             </div>

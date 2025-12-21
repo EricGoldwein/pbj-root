@@ -70,16 +70,16 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const nurseAideChange = 'nurseAideHPRDChange' in trends ? trends.nurseAideHPRDChange : undefined;
       
       // Find the most noticeable national trend (largest absolute change)
+      // Exclude contract staff and SFF - prioritize staffing metrics
       // Ensure all values are numbers (not null/undefined)
       const trendMetrics: Array<{ name: string; value: number; label: string; isPercent?: boolean }> = [
         { name: 'total staff', value: typeof trends.totalHPRDChange === 'number' ? trends.totalHPRDChange : 0, label: 'Total HPRD' },
         { name: 'direct care', value: typeof trends.directCareHPRDChange === 'number' ? trends.directCareHPRDChange : 0, label: 'Direct Care HPRD' },
-        { name: 'RN staffing', value: typeof trends.rnHPRDChange === 'number' ? trends.rnHPRDChange : 0, label: 'RN HPRD' },
+        { name: 'RN staff', value: typeof trends.rnHPRDChange === 'number' ? trends.rnHPRDChange : 0, label: 'RN HPRD' },
         ...(nurseAideChange !== undefined && typeof nurseAideChange === 'number'
           ? [{ name: 'nurse aide', value: nurseAideChange, label: 'Nurse Aide HPRD' }]
           : []
         ),
-        { name: 'contract staff', value: typeof trends.contractPercentChange === 'number' ? trends.contractPercentChange : 0, label: 'Contract %', isPercent: true },
       ];
       
       // Sort by absolute value to find most noticeable change
@@ -117,11 +117,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
             </p>
             );
           })()}
-          {data.sff.currentSFFs > 0 && (
-            <p>
-              <strong className="text-white">{data.sff.currentSFFs}</strong> facilities are currently in the Special Focus Facility program, with <strong className="text-white">{data.sff.candidates}</strong> additional candidates requiring enhanced oversight.
-            </p>
-          )}
         </>
       );
     } else if (data.scope === 'state') {
@@ -160,9 +155,9 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               )}
             </p>
           )}
-          {data.sff.currentSFFs > 0 && (
+          {data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent > 0 && data.compliance.facilitiesBelowTotalMinimumPercent >= 10 && (
             <p>
-              <strong className="text-white">{data.sff.currentSFFs}</strong> Special Focus Facilities.
+              <strong className="text-red-300">{data.compliance.facilitiesBelowTotalMinimumPercent}%</strong> of facilities fell below the state minimum staffing requirement.
             </p>
           )}
           {data.averageOverallRating !== undefined && (

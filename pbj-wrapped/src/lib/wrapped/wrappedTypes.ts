@@ -253,14 +253,17 @@ export interface OwnershipBreakdown {
   forProfit: {
     count: number;
     percentage: number;
+    medianHPRD?: number; // Median total HPRD for this ownership type (USA only)
   };
   nonProfit: {
     count: number;
     percentage: number;
+    medianHPRD?: number; // Median total HPRD for this ownership type (USA only)
   };
   government: {
     count: number;
     percentage: number;
+    medianHPRD?: number; // Median total HPRD for this ownership type (USA only)
   };
 }
 

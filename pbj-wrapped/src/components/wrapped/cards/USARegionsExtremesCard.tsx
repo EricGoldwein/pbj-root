@@ -15,6 +15,12 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
   };
 
   const renderRegion = (facility: Facility) => {
+    // Extract region number from provnum (e.g., "region1" -> "1") or state (e.g., "Region 1" -> "1")
+    const regionNumber = facility.provnum?.replace(/region/i, '') || 
+                        facility.state?.replace(/region/i, '').trim() || '';
+    const regionName = facility.name; // e.g., "Boston"
+    const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : regionName;
+    
     return (
       <div key={facility.provnum} className="py-1.5 border-b border-gray-700 last:border-0">
         <div className="flex justify-between items-center">
@@ -24,7 +30,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
             rel="noopener noreferrer"
             className="text-blue-300 hover:text-blue-200 underline font-medium text-sm flex-1"
           >
-            {facility.name}
+            {displayName}
           </a>
           <div className="text-right ml-2 flex-shrink-0">
             <div className="text-sm text-white font-semibold">

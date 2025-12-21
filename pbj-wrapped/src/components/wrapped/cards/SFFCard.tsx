@@ -28,12 +28,11 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
           href={facility.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-300 hover:text-blue-200 underline font-medium block mb-1"
+          className="text-blue-300 hover:text-blue-200 underline font-medium block"
           title={facility.name}
         >
-          {shortenProviderName(facility.name, 35)}
+          {shortenProviderName(facility.name, 35)} ({location})
         </a>
-        <div className="text-sm text-gray-400">{location}</div>
       </div>
     );
   };

@@ -8,7 +8,7 @@ interface WhatIsPBJCardProps {
 }
 
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
-  const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system requiring nursing homes to submit daily staffing data to CMS.";
+  const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system for nursing home staffing data.";
   
   // Add context based on scope - make it more specific
   let contextText = "";
@@ -71,41 +71,43 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   }, [typedAnswer.length, answerText.length]);
 
   return (
-    <WrappedCard title="What is PBJ?" hideBadge>
-      <div className="space-y-3 text-left">
-        <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-3 md:pl-4 py-2 rounded">
-          <p className="text-gray-200 text-xs md:text-sm leading-relaxed whitespace-pre-wrap">
-            {typedAnswer}
-            {typedAnswer.length < answerText.length && (
-              <span className="inline-block w-0.5 h-4 bg-blue-300 ml-1 animate-pulse" />
-            )}
+    <div className="flex flex-col items-center justify-center w-full h-full">
+      <WrappedCard title="What is PBJ?" hideBadge>
+        <div className="space-y-3 text-left">
+          <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-3 md:pl-4 py-2 rounded">
+            <p className="text-gray-200 text-xs md:text-sm leading-relaxed whitespace-pre-wrap">
+              {typedAnswer}
+              {typedAnswer.length < answerText.length && (
+                <span className="inline-block w-0.5 h-4 bg-blue-300 ml-1 animate-pulse" />
+              )}
+            </p>
+          </div>
+          
+          {showWhyItMatters && (
+            <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
+              <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+                <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide.
+              </p>
+            </div>
+          )}
+          
+          {showNote && (
+            <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                <strong className="text-gray-300">Note:</strong> CMS PBJ excludes nursing homes with incomplete or misreported data.
+              </p>
+            </div>
+          )}
+          
+          <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+            Source: CMS Payroll-Based Journal, Q2 2025
           </p>
         </div>
-        
-        {showWhyItMatters && (
-          <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
-            <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
-              <strong className="text-blue-300">Why it matters:</strong> Staffing levels directly impact care quality. PBJ provides the most accurate, transparent view of nursing home staffing nationwide.
-            </p>
-          </div>
-        )}
-        
-        {showNote && (
-          <div className="pt-4 border-t border-gray-700 animate-fade-in-up">
-            <p className="text-xs text-gray-400 leading-relaxed">
-              <strong className="text-gray-300">Note:</strong> CMS excludes some nursing homes from PBJ if staffing data appears unreliable.
-            </p>
-          </div>
-        )}
-        
-        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
-          Source: CMS Payroll-Based Journal, Q2 2025
-        </p>
-      </div>
+      </WrappedCard>
       <p className="text-xs text-gray-400 text-center italic mt-4">
         Click or tap anywhere to continue
       </p>
-    </WrappedCard>
+    </div>
   );
 };
 

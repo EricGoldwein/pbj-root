@@ -39,7 +39,6 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
     
     return (
       <WrappedCard title="The Basics">
-        <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
         <div className="space-y-4 text-left">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="text-center p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/30">
@@ -92,7 +91,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
           <div className="space-y-2">
             <div className="py-1.5 border-b border-gray-600">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-gray-300 text-sm">Total staffing HPRD</span>
+                <span className="text-gray-300 text-sm">Total staff HPRD</span>
                 <span className="text-white font-bold text-lg">{formatNumber(animatedTotalHPRD, 2)}</span>
               </div>
               <div className="flex justify-between items-center">
@@ -109,13 +108,15 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             )}
           </div>
         </div>
+        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+          Source: CMS PBJ Q2 2025
+        </p>
       </WrappedCard>
     );
   }
 
   return (
     <WrappedCard title="The Basics">
-        <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
         <div className="space-y-1.5 md:space-y-3 text-left">
         <div className="flex justify-between items-center py-1 md:py-2 border-b border-gray-600">
           <span className="text-gray-300 text-sm md:text-base">Number of nursing homes</span>
@@ -130,7 +131,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
         <div className="py-1 md:py-1.5 border-b border-gray-600">
           <div className="flex justify-between items-center mb-1">
             <div className="flex flex-col">
-              <span className="text-gray-300 text-sm md:text-base">Total staffing HPRD</span>
+              <span className="text-gray-300 text-sm md:text-base">Total staff HPRD</span>
               {showRankings && (
                 <span className="text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.totalHPRDRank} ({data.rankings.totalHPRDPercentile}th percentile)
@@ -235,6 +236,9 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
           </div>
         )}
+        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+          Source: CMS PBJ Q2 2025
+        </p>
       </div>
     </WrappedCard>
   );

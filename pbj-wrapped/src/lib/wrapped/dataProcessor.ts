@@ -316,14 +316,14 @@ function processUSAData(
 
   // Top/Bottom States by Total HPRD (excluding PR)
   const sortedStatesByHPRD = [...statesQ2ExcludingPR].sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
-  const topStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(0, 3).map(s => ({
+  const topStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(0, 5).map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,
     value: s.Total_Nurse_HPRD,
     link: createStateLink(s.STATE),
   }));
-  const bottomStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(-3).reverse().map(s => ({
+  const bottomStatesByHPRD: Facility[] = sortedStatesByHPRD.slice(-5).reverse().map(s => ({
     provnum: s.STATE,
     name: getStateFullName(s.STATE),
     state: s.STATE,

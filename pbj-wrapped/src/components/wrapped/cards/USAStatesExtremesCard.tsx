@@ -110,7 +110,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
               <span className="text-xs text-gray-500">HPRD</span>
             </div>
             <div className="space-y-0.5">
-              {data.extremes.topStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
+              {(data.extremes.topStatesByHPRD?.slice(0, 5) || []).map(f => renderState(f))}
             </div>
           </div>
         </div>

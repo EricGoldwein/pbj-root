@@ -30,7 +30,7 @@ export const RankingsCard: React.FC<RankingsCardProps> = ({ data }) => {
       <div className="space-y-3 text-left">
         <div className="py-2 border-b border-gray-600">
           <div className="flex justify-between items-center">
-            <span className="text-gray-300 text-sm">Total staffing HPRD</span>
+            <span className="text-gray-300 text-sm">Total staff HPRD</span>
             <div className="text-right">
               <span className="text-white font-bold text-lg">#{data.rankings.totalHPRDRank}</span>
               <span className="text-gray-400 text-sm ml-2">of {totalCount}</span>

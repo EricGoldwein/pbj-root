@@ -50,8 +50,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
   };
 
   return (
-    <WrappedCard title="PBJ320?" hideBadge>
-      <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
+    <WrappedCard title="Explore PBJ320" hideBadge>
       <div className="mb-4 flex justify-center">
         <WrappedImage 
           src={getAssetPath('/images/phoebe-wrapped-wide.png')} 
@@ -100,6 +99,9 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
             View PBJ320 Report
           </button>
         </div>
+        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+          Source: CMS PBJ Q2 2025
+        </p>
       </div>
     </WrappedCard>
   );

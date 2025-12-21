@@ -60,7 +60,9 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
             {data.scope === 'usa' && (
               <div className="pt-1.5 border-t border-gray-600">
                 <a
-                  href="/sff"
+                  href="https://pbj320.com/sff"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs"
                 >
                   View SFF Wrapped →
@@ -73,7 +75,9 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
         {data.sff.newThisQuarter.length === 0 && data.scope === 'usa' && (
           <div className="mt-2 pt-1.5 border-t border-gray-600">
             <a
-              href="/sff"
+              href="https://pbj320.com/sff"
+              target="_blank"
+              rel="noopener noreferrer"
               className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs"
             >
               View SFF Wrapped →

@@ -61,8 +61,7 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
     : null;
 
   return (
-    <WrappedCard title="National Overview" hideBadge>
-      <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
+    <WrappedCard title="US Overview" hideBadge>
       <div className="space-y-4 md:space-y-5 text-center">
         <div className="space-y-3 md:space-y-4">
           <p className="text-gray-200 text-base md:text-lg lg:text-xl leading-relaxed">
@@ -109,6 +108,9 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
             </div>
           )}
         </div>
+        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+          Source: CMS PBJ Q2 2025
+        </p>
       </div>
     </WrappedCard>
   );

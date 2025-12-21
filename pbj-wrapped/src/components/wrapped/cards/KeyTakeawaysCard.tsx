@@ -72,14 +72,14 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       // Find the most noticeable national trend (largest absolute change)
       // Ensure all values are numbers (not null/undefined)
       const trendMetrics: Array<{ name: string; value: number; label: string; isPercent?: boolean }> = [
-        { name: 'total staffing', value: typeof trends.totalHPRDChange === 'number' ? trends.totalHPRDChange : 0, label: 'Total HPRD' },
+        { name: 'total staff', value: typeof trends.totalHPRDChange === 'number' ? trends.totalHPRDChange : 0, label: 'Total HPRD' },
         { name: 'direct care', value: typeof trends.directCareHPRDChange === 'number' ? trends.directCareHPRDChange : 0, label: 'Direct Care HPRD' },
         { name: 'RN staffing', value: typeof trends.rnHPRDChange === 'number' ? trends.rnHPRDChange : 0, label: 'RN HPRD' },
         ...(nurseAideChange !== undefined && typeof nurseAideChange === 'number'
           ? [{ name: 'nurse aide', value: nurseAideChange, label: 'Nurse Aide HPRD' }]
           : []
         ),
-        { name: 'contract staffing', value: typeof trends.contractPercentChange === 'number' ? trends.contractPercentChange : 0, label: 'Contract %', isPercent: true },
+        { name: 'contract staff', value: typeof trends.contractPercentChange === 'number' ? trends.contractPercentChange : 0, label: 'Contract %', isPercent: true },
       ];
       
       // Sort by absolute value to find most noticeable change
@@ -106,15 +106,15 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
           {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
             const value = mostNoticeable.value;
             return (
-              <p className="mb-2">
+            <p className="mb-2">
                 From Q1 to Q2 2025, <strong className="text-white">{mostNoticeable.name}</strong> {value > 0 ? 'increased' : 'decreased'} by{' '}
                 <strong className={value > 0 ? 'text-white' : 'text-white'}>
-                  {mostNoticeable.isPercent 
+                {mostNoticeable.isPercent 
                     ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
                     : `${value > 0 ? '+' : ''}${formatHPRD(Math.abs(value))} HPRD`
-                  }
-                </strong>.
-              </p>
+                }
+              </strong>.
+            </p>
             );
           })()}
           {data.sff.currentSFFs > 0 && (

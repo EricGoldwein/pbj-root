@@ -50,7 +50,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
       <div className="space-y-3 text-left">
         <div className="py-1.5 border-b border-gray-600">
           <div className="flex justify-between items-center">
-            <span className="text-gray-300">Total staffing HPRD</span>
+            <span className="text-gray-300">Total staff HPRD</span>
             <div className="flex items-center gap-3">
               <span className={`font-bold text-lg ${data.trends.totalHPRDChange > 0 ? 'text-green-400' : data.trends.totalHPRDChange < 0 ? 'text-red-400' : 'text-white'}`}>
                 {formatChange(data.trends.totalHPRDChange)}
@@ -86,7 +86,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
         
         <div className="py-1.5">
           <div className="flex justify-between items-center">
-            <span className="text-gray-300">Contract staffing %</span>
+            <span className="text-gray-300">Contract staff %</span>
             <div className="flex items-center gap-3">
               <span className="font-bold text-lg text-white">
                 {formatChange(data.trends.contractPercentChange, true)}

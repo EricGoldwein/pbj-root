@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { shortenProviderName } from '../../../lib/wrapped/dataProcessor';
@@ -8,6 +9,13 @@ interface SFFCardProps {
 }
 
 export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
+  const navigate = useNavigate();
+
+  const handleSFFClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate('/sff');
+  };
+
   const renderFacility = (facility: typeof data.sff.newThisQuarter[0]) => {
     // For state pages, show only city. For region/USA pages, show state.
     const location = data.scope === 'state' && facility.city 
@@ -61,7 +69,8 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
               <div className="pt-1.5 border-t border-gray-600">
                 <a
                   href="/sff"
-                  className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs"
+                  onClick={handleSFFClick}
+                  className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
                 >
                   View SFF Wrapped →
                 </a>
@@ -74,7 +83,8 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
           <div className="mt-2 pt-1.5 border-t border-gray-600">
             <a
               href="/sff"
-              className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs"
+              onClick={handleSFFClick}
+              className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
             >
               View SFF Wrapped →
             </a>

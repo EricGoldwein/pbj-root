@@ -39,3 +39,4 @@ export function useAnimatedNumber(target: number, duration: number = 1000, decim
   return Number(current.toFixed(decimals));
 }
 
+

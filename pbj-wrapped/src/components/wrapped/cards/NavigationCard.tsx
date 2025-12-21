@@ -50,7 +50,8 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
   };
 
   return (
-    <WrappedCard title="Explore More" hideBadge>
+    <WrappedCard title="What's Next?" hideBadge>
+      <p className="text-xs text-gray-400 text-center mb-2">(Q2 2025)</p>
       <div className="mb-4 flex justify-center">
         <WrappedImage 
           src={getAssetPath('/images/phoebe-wrapped-wide.png')} 

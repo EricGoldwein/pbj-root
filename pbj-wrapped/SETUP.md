@@ -54,3 +54,4 @@ The built files will be in the `dist/` directory.
 - State full names (e.g., "pennsylvania") automatically redirect to 2-letter codes (e.g., "pa")
 - The app includes touch navigation, keyboard navigation (arrow keys), and auto-advancing slides
 
+

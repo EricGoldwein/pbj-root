@@ -23,3 +23,4 @@ echo The app will now load much faster.
 echo.
 pause
 
+

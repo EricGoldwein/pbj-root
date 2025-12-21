@@ -63,7 +63,10 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
     <WrappedCard title="What is PBJ?" hideBadge>
       <div className="space-y-3 text-left">
         <p className="text-xs text-gray-400 text-center mb-2">
-          As reported in PBJ (Q2 2025)
+          (Q2 2025)
+        </p>
+        <p className="text-xs text-gray-400 text-center mb-2">
+          As reported in PBJ
         </p>
         <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-3 md:pl-4 py-2 rounded">
           <p className="text-gray-200 text-xs md:text-sm leading-relaxed">

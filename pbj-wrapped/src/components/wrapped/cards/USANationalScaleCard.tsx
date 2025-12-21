@@ -62,7 +62,7 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
 
   return (
     <WrappedCard title="National Overview" hideBadge>
-      <p className="text-xs text-gray-400 text-center mb-2">(Q2 2025)</p>
+      <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
       <div className="space-y-4 md:space-y-5 text-center">
         <div className="space-y-3 md:space-y-4">
           <p className="text-gray-200 text-base md:text-lg lg:text-xl leading-relaxed">

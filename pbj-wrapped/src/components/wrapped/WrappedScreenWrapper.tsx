@@ -1,6 +1,32 @@
 import React, { useState, useEffect, useRef, useImperativeHandle, forwardRef } from 'react';
 import { StateOutline } from './StateOutline';
 
+// Navigation hint component that fades out after 5 seconds
+const NavigationHint: React.FC = () => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isVisible) return null;
+
+  return (
+    <div className={`absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-sm border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-gray-300 transition-opacity duration-1000 ${isVisible ? 'opacity-100' : 'opacity-0'}`}>
+      <div className="flex items-center gap-2">
+        <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+        </svg>
+        <span>Use arrows or swipe to navigate</span>
+      </div>
+    </div>
+  );
+};
+
 export interface WrappedNavigationRef {
   next: () => void;
   previous: () => void;
@@ -104,12 +130,20 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
       }
     };
 
-    // Keyboard navigation
+    // Keyboard navigation (only when not typing in input fields)
     useEffect(() => {
       const handleKeyPress = (e: KeyboardEvent) => {
+        // Ignore if user is typing in an input field
+        const target = e.target as HTMLElement;
+        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable) {
+          return;
+        }
+
         if (e.key === 'ArrowRight' && currentIndex < screens.length - 1) {
+          e.preventDefault();
           setCurrentIndex(currentIndex + 1);
         } else if (e.key === 'ArrowLeft' && currentIndex > 0) {
+          e.preventDefault();
           setCurrentIndex(currentIndex - 1);
         } else if (e.key === ' ' || e.key === 'Space') {
           e.preventDefault();
@@ -274,16 +308,9 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
           </div>
         )}
 
-        {/* Navigation hint (only show on first slide) */}
+        {/* Navigation hint (only show on first slide, fade out after 5 seconds) */}
         {currentIndex === 0 && screens.length > 1 && (
-          <div className="absolute top-4 right-4 z-20 bg-black/60 backdrop-blur-sm border border-blue-500/30 rounded-lg px-3 py-2 text-xs text-gray-300 animate-fade-in">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
-              </svg>
-              <span>Use arrows or swipe to navigate</span>
-            </div>
-          </div>
+          <NavigationHint />
         )}
       </div>
     );

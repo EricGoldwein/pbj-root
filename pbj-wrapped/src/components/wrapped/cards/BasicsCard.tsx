@@ -39,7 +39,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
     
     return (
       <WrappedCard title="The Basics">
-        <p className="text-xs text-gray-400 text-center mb-2">(Q2 2025)</p>
+        <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
         <div className="space-y-4 text-left">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="text-center p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/30">
@@ -115,7 +115,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
 
   return (
     <WrappedCard title="The Basics">
-        <p className="text-xs text-gray-400 text-center mb-2">(Q2 2025)</p>
+        <p className="text-xs text-gray-400 text-center mb-2">Source: CMS PBJ Q2 2025</p>
         <div className="space-y-1.5 md:space-y-3 text-left">
         <div className="flex justify-between items-center py-1 md:py-2 border-b border-gray-600">
           <span className="text-gray-300 text-sm md:text-base">Number of nursing homes</span>

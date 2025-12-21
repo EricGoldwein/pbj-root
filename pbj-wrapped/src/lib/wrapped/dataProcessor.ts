@@ -1024,6 +1024,93 @@ function processStateData(
     };
   }
 
+  // Spotlight Facility Selection (for state scope only)
+  // Criteria: ≥100 residents, bottom 10% HPRD, < case-mix expected, QoQ decline
+  let spotlightFacility;
+  if (facilitiesWithInfoQ2.length > 0) {
+    // Step 1: Filter to facilities with ≥100 average residents
+    const facilitiesWith100PlusResidents = facilitiesWithInfoQ2.filter(({ facility, info }) => {
+      const residents = info?.avg_residents_per_day || facility.Census || 0;
+      return residents >= 100;
+    });
+
+    if (facilitiesWith100PlusResidents.length > 0) {
+      // Step 2: Calculate bottom 10% threshold for total nurse HPRD within state
+      const allHPRDs = facilitiesWith100PlusResidents
+        .map(({ facility }) => facility.Total_Nurse_HPRD)
+        .sort((a, b) => a - b);
+      const bottom10PercentIndex = Math.floor(allHPRDs.length * 0.1);
+      const bottom10PercentThreshold = allHPRDs[bottom10PercentIndex] || 0;
+
+      // Step 3: Filter to bottom 10% HPRD
+      const bottom10Percent = facilitiesWith100PlusResidents.filter(
+        ({ facility }) => facility.Total_Nurse_HPRD <= bottom10PercentThreshold
+      );
+
+      // Step 4: Filter to facilities with reported < case-mix expected
+      const belowExpected = bottom10Percent
+        .map(({ facility, info }) => {
+          const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day;
+          if (!caseMix || caseMix === 0) return null;
+          if (facility.Total_Nurse_HPRD >= caseMix) return null;
+          return { facility, info, caseMix };
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+
+      // Step 5: Filter to facilities with QoQ decline
+      const facilityMapQ1 = new Map(stateFacilitiesQ1.map(f => [f.PROVNUM, f]));
+      const withQoQDecline = belowExpected
+        .map(({ facility, info, caseMix }) => {
+          const f1 = facilityMapQ1.get(facility.PROVNUM);
+          if (!f1) return null;
+          const qoqChange = facility.Total_Nurse_HPRD - f1.Total_Nurse_HPRD;
+          if (qoqChange >= 0) return null; // Must be negative (decline)
+          return { facility, info, caseMix, qoqChange };
+        })
+        .filter((f): f is NonNullable<typeof f> => f !== null);
+
+      // Step 6: Select one facility (arbitrary selection from filtered pool)
+      if (withQoQDecline.length > 0) {
+        const selected = withQoQDecline[0]; // Select first from filtered pool
+        
+        // Determine SFF status
+        const sffStatus = selected.info?.sff_status?.trim().toUpperCase() || '';
+        const isSFF = sffStatus === 'SFF' || sffStatus === 'SPECIAL FOCUS FACILITY' || 
+                     (sffStatus.includes('SFF') && !sffStatus.includes('CANDIDATE'));
+        const isCandidate = sffStatus === 'SFF CANDIDATE' || sffStatus === 'CANDIDATE' ||
+                           (sffStatus.includes('CANDIDATE') && !sffStatus.includes('SFF'));
+        
+        const displaySFFStatus = isSFF ? 'SFF' : isCandidate ? 'SFF CANDIDATE' : undefined;
+        
+        // Calculate CNA HPRD: Total Nurse HPRD - RN HPRD - LPN HPRD (approximate)
+        // Since FacilityLiteRow doesn't have Nurse_Assistant_HPRD, we approximate
+        // by subtracting RN from Total (this is an approximation)
+        const rnHPRD = selected.facility.Total_RN_HPRD || 0;
+        const directCareHPRD = selected.facility.Nurse_Care_HPRD || 0;
+        // CNA HPRD is approximately Direct Care - RN (since LPN is included in Direct Care)
+        // This is an approximation, but better than 0
+        const estimatedCNAHPRD = Math.max(0, directCareHPRD - rnHPRD);
+        
+        spotlightFacility = {
+          provnum: selected.facility.PROVNUM,
+          name: toTitleCase(selected.facility.PROVNAME),
+          city: capitalizeCity(selected.info?.CITY || selected.info?.COUNTY_NAME),
+          state: selected.facility.STATE,
+          totalHPRD: selected.facility.Total_Nurse_HPRD,
+          caseMixExpectedHPRD: selected.caseMix,
+          gapVsExpected: selected.facility.Total_Nurse_HPRD - selected.caseMix, // Negative = below expected
+          qoqChange: selected.qoqChange, // Negative = declined
+          rnHPRD,
+          cnaHPRD: estimatedCNAHPRD,
+          contractPercent: selected.facility.Contract_Percentage || 0,
+          sffStatus: displaySFFStatus,
+          ownershipType: selected.info?.ownership_type,
+          link: createFacilityLink(selected.facility.PROVNUM),
+        };
+      }
+    }
+  }
+
   return {
     scope: 'state',
     identifier: stateAbbr,
@@ -1059,6 +1146,7 @@ function processStateData(
     },
     ownership,
     averageOverallRating,
+    spotlightFacility,
   };
 }
 

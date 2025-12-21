@@ -55,7 +55,8 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
         <WrappedImage 
           src={getAssetPath('/images/phoebe-wrapped-wide.png')} 
           alt="PBJ Wrapped" 
-          className="max-w-[140px] md:max-w-[160px] h-auto opacity-85"
+          className="max-w-[140px] md:max-w-[160px] h-auto opacity-90 drop-shadow-lg"
+          style={{ filter: 'brightness(1.05) contrast(1.05)' }}
         />
       </div>
       <div className="space-y-3">

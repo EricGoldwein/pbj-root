@@ -26,6 +26,7 @@ import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
 import { StateMinimumCard } from '../components/wrapped/cards/StateMinimumCard';
 import { RegionStatesCard } from '../components/wrapped/cards/RegionStatesCard';
+import { StateFacilitySpotlightCard } from '../components/wrapped/cards/StateFacilitySpotlightCard';
 import { getAssetPath } from '../utils/assets';
 
 // Helper to get data path with base URL
@@ -207,6 +208,10 @@ const Wrapped: React.FC = () => {
         : [] // Regions skip facility extremes
       ),
       <SFFCard key="sff" data={wrappedData} />,
+      ...(wrappedData.scope === 'state' && wrappedData.spotlightFacility
+        ? [<StateFacilitySpotlightCard key="spotlight" data={wrappedData} />]
+        : []
+      ),
       <TrendsCard key="trends" data={wrappedData} />,
       <RisersCard key="risers" data={wrappedData} />,
       <DeclinersCard key="decliners" data={wrappedData} />,

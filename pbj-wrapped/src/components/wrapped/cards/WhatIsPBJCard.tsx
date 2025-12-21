@@ -7,22 +7,75 @@ interface WhatIsPBJCardProps {
   data: PBJWrappedData;
 }
 
-export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = () => {
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+  'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+  'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+  'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+  'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+  'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+  'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+  'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+  'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+  'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+  'dc': 'District of Columbia'
+};
+
+function getStateFullName(abbr: string): string {
+  const lowerAbbr = abbr.toLowerCase();
+  return STATE_ABBR_TO_NAME[lowerAbbr] || abbr;
+}
+
+export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system for nursing home staffing data.";
+  
+  const formatNumber = (num: number, decimals: number = 0): string => {
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    });
+  };
+
+  // Build context text based on scope
+  let contextText = "";
+  if (data.scope === 'state') {
+    const stateName = getStateFullName(data.identifier);
+    contextText = `In Q2 2025, ${stateName} reported ${formatNumber(data.facilityCount)} nursing homes and ${formatNumber(Math.round(data.avgDailyResidents))} average daily residents.`;
+  } else if (data.scope === 'region') {
+    contextText = `In Q2 2025, this region reported ${formatNumber(data.facilityCount)} nursing homes and ${formatNumber(Math.round(data.avgDailyResidents))} average daily residents.`;
+  } else if (data.scope === 'usa') {
+    contextText = `In Q2 2025, the United States reported ${formatNumber(data.facilityCount)} nursing homes and ${formatNumber(Math.round(data.avgDailyResidents))} average daily residents.`;
+  }
   
   const answerText = baseText;
   const typedAnswer = useTypingEffect(answerText, 30, 300);
+  const [showContext, setShowContext] = useState(false);
+  const [showWhyItMatters, setShowWhyItMatters] = useState(false);
   const [showNote, setShowNote] = useState(false);
   
-  // Show note after typing completes
+  // Staggered reveals after typing completes
   useEffect(() => {
     if (typedAnswer.length >= answerText.length) {
-      const timer = setTimeout(() => {
-        setShowNote(true);
-      }, 1000);
+      const timer1 = setTimeout(() => {
+        setShowContext(true);
+      }, 800);
       
-      return () => clearTimeout(timer);
+      const timer2 = setTimeout(() => {
+        setShowWhyItMatters(true);
+      }, 1800);
+      
+      const timer3 = setTimeout(() => {
+        setShowNote(true);
+      }, 2800);
+      
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+        clearTimeout(timer3);
+      };
     } else {
+      setShowContext(false);
+      setShowWhyItMatters(false);
       setShowNote(false);
     }
   }, [typedAnswer.length, answerText.length]);
@@ -30,7 +83,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = () => {
   return (
     <div className="flex flex-col items-center justify-center w-full h-full">
       <WrappedCard title="What is PBJ?" hideBadge>
-        <div className="space-y-4 text-center">
+        <div className="space-y-3 text-left">
           <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-4 md:pl-5 py-3 md:py-4 rounded">
             <p className="text-gray-200 text-sm md:text-base leading-relaxed">
               {typedAnswer}
@@ -40,10 +93,26 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = () => {
             </p>
           </div>
           
+          {showContext && contextText && (
+            <div className="pt-2 animate-fade-in-up">
+              <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+                {contextText}
+              </p>
+            </div>
+          )}
+          
+          {showWhyItMatters && (
+            <div className="pt-3 border-t border-gray-700 animate-fade-in-up">
+              <p className="text-xs text-gray-400 leading-relaxed">
+                <strong className="text-gray-300">Why it matters:</strong> PBJ data provides transparency into nursing home staffing levels, helping families, advocates, and regulators identify facilities that may be understaffed.
+              </p>
+            </div>
+          )}
+          
           {showNote && (
             <div className="pt-3 border-t border-gray-700 animate-fade-in-up">
               <p className="text-xs text-gray-400 leading-relaxed">
-                CMS PBJ excludes nursing homes with incomplete or misreported data.
+                <strong className="text-gray-300">Note:</strong> CMS PBJ excludes nursing homes with incomplete or misreported data.
               </p>
             </div>
           )}
@@ -53,6 +122,10 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = () => {
               <strong className="text-gray-400">HPRD</strong> = Hours Per Resident Per Day. <strong className="text-gray-400">Total Nurse:</strong> All nursing staff. <strong className="text-gray-400">Direct Care:</strong> Hands-on care (RNs, LPNs, CNAs). <strong className="text-gray-400">RN:</strong> Registered Nurse.
             </p>
           </div>
+          
+          <p className="text-xs text-gray-500 text-center pt-3 border-t border-gray-700">
+            Source: CMS Payroll-Based Journal, Q2 2025
+          </p>
         </div>
       </WrappedCard>
       <p className="text-xs text-gray-400 text-center italic mt-4">

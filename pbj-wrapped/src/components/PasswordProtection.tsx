@@ -9,17 +9,19 @@ interface PasswordProtectionProps {
 
 export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children, password: customPassword }) => {
   const correctPassword = customPassword || CORRECT_PASSWORD;
+  // Use password-specific sessionStorage key to prevent cross-authentication
+  const storageKey = `pbj_wrapped_authenticated_${correctPassword}`;
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
-    // Check if user is already authenticated (stored in sessionStorage)
-    const authStatus = sessionStorage.getItem('pbj_wrapped_authenticated');
+    // Check if user is already authenticated with the correct password for this route
+    const authStatus = sessionStorage.getItem(storageKey);
     if (authStatus === 'true') {
       setIsAuthenticated(true);
     }
-  }, []);
+  }, [storageKey]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +29,7 @@ export const PasswordProtection: React.FC<PasswordProtectionProps> = ({ children
 
     if (passwordInput === correctPassword) {
       setIsAuthenticated(true);
-      sessionStorage.setItem('pbj_wrapped_authenticated', 'true');
+      sessionStorage.setItem(storageKey, 'true');
     } else {
       setError('Incorrect password. Please try again.');
       setPasswordInput('');

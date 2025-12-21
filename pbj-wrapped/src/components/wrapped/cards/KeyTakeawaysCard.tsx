@@ -228,7 +228,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
   };
 
   return (
-    <WrappedCard title="Phoebe J Takeaway" hideBadge>
+    <WrappedCard hideBadge>
       <div className="space-y-3">
         <div className="flex items-center justify-center gap-2 mb-3">
           <a 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 
@@ -7,15 +8,22 @@ interface SFFCardProps {
 }
 
 export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
-  // Determine the SFF page URL based on scope
-  const getSFFPageUrl = () => {
+  const navigate = useNavigate();
+  
+  // Determine the SFF page path based on scope
+  const getSFFPagePath = () => {
     if (data.scope === 'usa') {
-      return 'https://pbj320.com/sff/usa';
+      return '/sff/usa';
     } else if (data.scope === 'state') {
       const stateCode = data.name.toUpperCase();
-      return `https://pbj320.com/sff/${stateCode.toLowerCase()}`;
+      return `/sff/${stateCode.toLowerCase()}`;
     }
-    return 'https://pbj320.com/sff';
+    return '/sff';
+  };
+
+  const handleSFFClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    navigate(getSFFPagePath());
   };
 
   return (
@@ -38,14 +46,12 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
         </div>
         
         <div className="mt-2 pt-1.5 border-t border-gray-600">
-          <a
-            href={getSFFPageUrl()}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs"
+          <button
+            onClick={handleSFFClick}
+            className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
           >
             View All SFFs & Candidates →
-          </a>
+          </button>
         </div>
       </div>
     </WrappedCard>

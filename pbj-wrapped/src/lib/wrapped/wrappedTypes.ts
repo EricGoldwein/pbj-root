@@ -142,6 +142,24 @@ export interface PBJWrappedData {
   
   // Average ratings (for state and region only, not USA)
   averageOverallRating?: number; // Average CMS overall rating (1-5)
+  
+  // Spotlight facility (for state scope only)
+  spotlightFacility?: {
+    provnum: string;
+    name: string;
+    city?: string;
+    state: string;
+    totalHPRD: number; // Reported total nurse HPRD
+    caseMixExpectedHPRD: number; // Case-mix expected total nurse HPRD
+    gapVsExpected: number; // Negative value = below expected
+    qoqChange: number; // Q2 - Q1 (negative = declined)
+    rnHPRD: number;
+    cnaHPRD: number;
+    contractPercent: number;
+    sffStatus?: string; // 'SFF', 'SFF CANDIDATE', or undefined
+    ownershipType?: string;
+    link: string; // pbjdashboard.com link
+  };
 }
 
 // CSV row types

@@ -646,7 +646,7 @@ function processUSAData(
         rnHPRDChange,
         q1RNHPRD: regionQ1.RN_HPRD,
         q2RNHPRD: regionQ2.RN_HPRD,
-        link: `/wrapped/region${r.REGION_NUMBER}`,
+        link: `/wrapped/region${regionQ2.REGION_NUMBER}`,
       });
     }
   }

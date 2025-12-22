@@ -19,15 +19,6 @@ export const USAOwnershipCard: React.FC<USAOwnershipCardProps> = ({ data }) => {
     });
   };
 
-  const formatHPRD = (num: number | undefined): string => {
-    if (num === undefined) return 'N/A';
-    return formatNumber(num, 2);
-  };
-
-  const hasStaffingData = data.ownership.forProfit.medianHPRD !== undefined ||
-                          data.ownership.nonProfit.medianHPRD !== undefined ||
-                          data.ownership.government.medianHPRD !== undefined;
-
   return (
     <WrappedCard title="Ownership Breakdown">
       <div className="space-y-4">

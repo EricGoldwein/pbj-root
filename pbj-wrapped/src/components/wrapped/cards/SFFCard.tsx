@@ -17,6 +17,9 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
     } else if (data.scope === 'state') {
       const stateCode = data.name.toUpperCase();
       return `/sff/${stateCode.toLowerCase()}`;
+    } else if (data.scope === 'region') {
+      // identifier is like "region1", "region2", etc.
+      return `/sff/${data.identifier}`;
     }
     return '/sff';
   };

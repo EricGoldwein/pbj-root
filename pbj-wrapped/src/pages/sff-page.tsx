@@ -107,15 +107,22 @@ export default function SFFPage() {
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || [];
 
-        // Create map of CCNs from JSON (normalize to string without leading zeros for matching)
+        // Helper function to normalize CCNs for matching
+        const normalizeCCN = (ccn: string): string => {
+          // Remove leading zeros, but keep at least one digit
+          const normalized = ccn.replace(/^0+/, '') || ccn;
+          return normalized.padStart(6, '0'); // Pad to 6 digits for consistent matching
+        };
+
+        // Create map of CCNs from JSON (store in multiple formats for matching)
         const jsonCCNMap = new Map<string, CandidateMonthData>();
         if (candidateJSONData) {
           for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
-            // Normalize CCN: remove leading zeros for matching
-            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
-            jsonCCNMap.set(normalizedCCN, candidateData);
-            // Also store with original format
-            jsonCCNMap.set(ccn, candidateData);
+            // Store in multiple formats for flexible matching
+            const normalizedCCN = normalizeCCN(ccn);
+            jsonCCNMap.set(ccn, candidateData); // Original format
+            jsonCCNMap.set(normalizedCCN, candidateData); // Normalized format
+            jsonCCNMap.set(ccn.replace(/^0+/, '') || ccn, candidateData); // Without leading zeros
           }
         }
 
@@ -132,11 +139,16 @@ export default function SFFPage() {
         // First, process facilities from JSON (primary source)
         if (candidateJSONData) {
           for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
-            // Find provider by CCN (try both normalized and original format)
-            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
+            // Find provider by CCN (try multiple formats)
+            const normalizedJSONCCN = normalizeCCN(ccn);
+            const jsonCCNNoZeros = ccn.replace(/^0+/, '') || ccn;
             const provider = providerInfoQ2.find(p => {
-              const provnum = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
-              return provnum === normalizedCCN || p.PROVNUM === ccn;
+              const normalizedProvnum = normalizeCCN(p.PROVNUM);
+              const provnumNoZeros = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
+              return normalizedProvnum === normalizedJSONCCN || 
+                     p.PROVNUM === ccn || 
+                     provnumNoZeros === jsonCCNNoZeros ||
+                     normalizedProvnum === ccn;
             });
 
             if (provider) {
@@ -247,9 +259,12 @@ export default function SFFPage() {
               ? (totalHPRD / caseMixExpected) * 100 
               : undefined;
 
-            // Check if CCN is in JSON (normalized)
-            const normalizedCCN = provider.PROVNUM.replace(/^0+/, '') || provider.PROVNUM;
-            const candidateMonthData = jsonCCNMap.get(normalizedCCN) || jsonCCNMap.get(provider.PROVNUM);
+            // Check if CCN is in JSON (try multiple formats)
+            const normalizedProvnum = normalizeCCN(provider.PROVNUM);
+            const provnumNoZeros = provider.PROVNUM.replace(/^0+/, '') || provider.PROVNUM;
+            const candidateMonthData = jsonCCNMap.get(provider.PROVNUM) ||
+                                      jsonCCNMap.get(normalizedProvnum) || 
+                                      jsonCCNMap.get(provnumNoZeros);
 
             const sffFacility: SFFFacility = {
               provnum: provider.PROVNUM,
@@ -331,8 +346,8 @@ export default function SFFPage() {
             filteredSFFs = sffs.filter(f => f.state === stateCode);
             filteredCandidates = candidates.filter(f => f.state === stateCode);
           } else if (scope.startsWith('region')) {
-            // Region (e.g., "region1", "region2")
-            const regionNum = parseInt(scope.replace('region', ''));
+            // Region (e.g., "region1", "region-1", "region2")
+            const regionNum = parseInt(scope.replace(/^region-?/, ''));
             if (!isNaN(regionNum) && data.regionStateMapping) {
               const regionStates = data.regionStateMapping.get(regionNum) || new Set<string>();
               filteredSFFs = sffs.filter(f => regionStates.has(f.state));
@@ -562,7 +577,10 @@ export default function SFFPage() {
   const pageTitle = scope === 'usa' 
     ? 'Special Focus Facilities & Candidates — United States'
     : scope && scope.startsWith('region')
-    ? `Special Focus Facilities & Candidates — CMS Region ${scope.replace('region', '')} (${getRegionName(parseInt(scope.replace('region', '')))})`
+    ? (() => {
+        const regionNum = parseInt(scope.replace(/^region-?/, ''));
+        return `Special Focus Facilities & Candidates — CMS Region ${regionNum} (${getRegionName(regionNum)})`;
+      })()
     : scope 
     ? `Special Focus Facilities & Candidates — ${getStateName(scope.toUpperCase())}`
     : 'Special Focus Facilities & Candidates';
@@ -635,15 +653,15 @@ export default function SFFPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{pageTitle}</h1>
             {(scope && scope !== 'usa') && (
-              <a
-                href="/sff/usa"
+              <button
+                onClick={() => navigate('/sff/usa')}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-sm font-medium whitespace-nowrap self-start sm:self-auto"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 View All USA SFFs
-              </a>
+              </button>
             )}
           </div>
           <p className="text-gray-300 text-sm md:text-base mb-2">

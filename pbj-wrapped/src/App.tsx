@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import Index from './pages/Index';
 import Wrapped from './pages/wrapped';
 import WrappedNews from './pages/wrapped-news';
-import SFFWrapped from './pages/sff-wrapped';
 import SFFPage from './pages/sff-page';
+import SFFHomePage from './pages/sff-home';
 import { PasswordProtection } from './components/PasswordProtection';
 
 // Declare gtag function for TypeScript
@@ -39,9 +39,13 @@ function App() {
       />
       <Route 
         path="/sff" 
+        element={<SFFHomePage />}
+      />
+      <Route 
+        path="/sff/usa" 
         element={
-          <PasswordProtection>
-            <SFFWrapped />
+          <PasswordProtection password="320">
+            <SFFPage />
           </PasswordProtection>
         } 
       />

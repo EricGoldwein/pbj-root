@@ -93,31 +93,156 @@ export default function SFFPage() {
         setLoading(true);
         setError(null);
 
-        // Load SFF JSON (primary source with Table A/B/C/D)
+        // Load SFF CSV files (primary source with Table A/B/C/D)
         const baseUrl = import.meta.env.BASE_URL;
-        const jsonPath = `${baseUrl}sff-candidate-months.json`.replace(/([^:]\/)\/+/g, '$1');
-        let candidateJSONData: SFFCandidateJSON | null = null;
-        try {
-          const jsonResponse = await fetch(jsonPath);
-          if (jsonResponse.ok) {
-            const jsonData = await jsonResponse.json();
-            // Validate JSON structure
-            if (jsonData && typeof jsonData === 'object' && 
-                Array.isArray(jsonData.table_a_current_sff) &&
-                Array.isArray(jsonData.table_b_graduated) &&
-                Array.isArray(jsonData.table_c_no_longer_participating) &&
-                Array.isArray(jsonData.table_d_candidates)) {
-              candidateJSONData = jsonData as SFFCandidateJSON;
-              setCandidateJSON(jsonData);
-              console.log(`Loaded SFF data: ${jsonData.summary?.total_count || 0} total facilities`);
-            } else {
-              console.warn('SFF JSON file has unexpected structure');
+        
+        // Helper function to parse CSV
+        const parseCSV = (csvText: string, tableType: 'A' | 'B' | 'C' | 'D'): PDFFacilityData[] => {
+          const lines = csvText.trim().split('\n');
+          if (lines.length < 2) return [];
+          
+          const facilities: PDFFacilityData[] = [];
+          
+          for (let i = 1; i < lines.length; i++) {
+            const line = lines[i];
+            if (!line.trim()) continue;
+            
+            // Parse CSV line (handle quoted fields)
+            const values: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (let j = 0; j < line.length; j++) {
+              const char = line[j];
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                values.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
             }
-          } else {
-            console.warn('Could not load SFF JSON file');
+            values.push(current.trim()); // Add last value
+            
+            if (values.length === 0) continue;
+            
+            const providerNumber = values[0]?.trim() || '';
+            if (!providerNumber) continue;
+            
+            // Map CSV columns to PDFFacilityData structure based on table type
+            // All tables: Provider Number, Facility Name, Address, City, State, Zip, Phone Number
+            // Table A: Most Recent Inspection, Met Survey Criteria, Months as an SFF
+            // Table B: Date of Graduation, Months as an SFF
+            // Table C: Date of Termination, Months as an SFF
+            // Table D: Months as an SFF Candidate
+            
+            let monthsIndex = -1;
+            let inspectionIndex = -1;
+            let metSurveyIndex = -1;
+            
+            if (tableType === 'A') {
+              // Provider Number, Facility Name, Address, City, State, Zip, Phone Number, Most Recent Inspection, Met Survey Criteria, Months as an SFF
+              inspectionIndex = 7;
+              metSurveyIndex = 8;
+              monthsIndex = 9;
+            } else if (tableType === 'B') {
+              // Provider Number, Facility Name, Address, City, State, Zip, Phone Number, Date of Graduation, Months as an SFF
+              inspectionIndex = 7; // Date of Graduation
+              monthsIndex = 8;
+            } else if (tableType === 'C') {
+              // Provider Number, Facility Name, Address, City, State, Zip, Phone Number, Date of Termination, Months as an SFF
+              inspectionIndex = 7; // Date of Termination
+              monthsIndex = 8;
+            } else if (tableType === 'D') {
+              // Provider Number, Facility Name, Address, City, State, Zip, Phone Number, Months as an SFF Candidate
+              monthsIndex = 7;
+            }
+            
+            const facility: PDFFacilityData = {
+              provider_number: providerNumber,
+              facility_name: values[1]?.trim() || null,
+              address: values[2]?.trim() || null,
+              city: values[3]?.trim() || null,
+              state: values[4]?.trim() || null,
+              zip: values[5]?.trim() || null,
+              phone_number: values[6]?.trim() || null,
+              most_recent_inspection: inspectionIndex >= 0 ? (values[inspectionIndex]?.trim() || null) : null,
+              met_survey_criteria: metSurveyIndex >= 0 ? (values[metSurveyIndex]?.trim() || null) : null,
+              months_as_sff: monthsIndex >= 0 ? (() => {
+                const monthsStr = values[monthsIndex]?.trim() || '';
+                const months = parseInt(monthsStr);
+                return !isNaN(months) && months > 0 ? months : null;
+              })() : null
+            };
+            
+            facilities.push(facility);
           }
+          
+          return facilities;
+        };
+        
+        // Load all CSV files
+        let tableA: PDFFacilityData[] = [];
+        let tableB: PDFFacilityData[] = [];
+        let tableC: PDFFacilityData[] = [];
+        let tableD: PDFFacilityData[] = [];
+        
+        try {
+          const [tableAResponse, tableBResponse, tableCResponse, tableDResponse] = await Promise.all([
+            fetch(`${baseUrl}sff_table_a.csv`.replace(/([^:]\/)\/+/g, '$1')),
+            fetch(`${baseUrl}sff_table_b.csv`.replace(/([^:]\/)\/+/g, '$1')),
+            fetch(`${baseUrl}sff_table_c.csv`.replace(/([^:]\/)\/+/g, '$1')),
+            fetch(`${baseUrl}sff_table_d.csv`.replace(/([^:]\/)\/+/g, '$1'))
+          ]);
+          
+          if (tableAResponse.ok) {
+            const text = await tableAResponse.text();
+            tableA = parseCSV(text, 'A');
+            console.log(`Loaded Table A (Current SFF): ${tableA.length} facilities`);
+          }
+          
+          if (tableBResponse.ok) {
+            const text = await tableBResponse.text();
+            tableB = parseCSV(text, 'B');
+            console.log(`Loaded Table B (Graduated): ${tableB.length} facilities`);
+          }
+          
+          if (tableCResponse.ok) {
+            const text = await tableCResponse.text();
+            tableC = parseCSV(text, 'C');
+            console.log(`Loaded Table C (Terminated): ${tableC.length} facilities`);
+          }
+          
+          if (tableDResponse.ok) {
+            const text = await tableDResponse.text();
+            tableD = parseCSV(text, 'D');
+            console.log(`Loaded Table D (Candidates): ${tableD.length} facilities`);
+          }
+          
+          console.log(`Loaded SFF data: ${tableA.length + tableB.length + tableC.length + tableD.length} total facilities`);
         } catch (err) {
-          console.warn('Error loading SFF JSON:', err);
+          console.warn('Error loading SFF CSV files:', err);
+        }
+        
+        // Create candidateJSONData structure for compatibility
+        const candidateJSONData: SFFCandidateJSON | null = {
+          document_date: { month: 12, year: 2025, month_name: 'December' },
+          table_a_current_sff: tableA,
+          table_b_graduated: tableB,
+          table_c_no_longer_participating: tableC,
+          table_d_candidates: tableD,
+          summary: {
+            current_sff_count: tableA.length,
+            graduated_count: tableB.length,
+            no_longer_participating_count: tableC.length,
+            candidates_count: tableD.length,
+            total_count: tableA.length + tableB.length + tableC.length + tableD.length
+          }
+        };
+        
+        if (candidateJSONData) {
+          setCandidateJSON(candidateJSONData);
         }
 
         const baseDataPath = getDataPath();

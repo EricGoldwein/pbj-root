@@ -82,6 +82,10 @@ const Wrapped: React.FC = () => {
 
     // Load and process data
     const loadData = async () => {
+      // Define scope and normalizedId outside try block so they're available in catch
+      const scope = params.scope || 'usa';
+      const normalizedId = params.normalizedIdentifier ?? undefined;
+      
       try {
         setLoading(true);
         setError(null);
@@ -99,8 +103,6 @@ const Wrapped: React.FC = () => {
 
         // Try multiple data paths, pass scope for optimization
         let data;
-        const scope = params.scope || 'usa';
-        const normalizedId = params.normalizedIdentifier ?? undefined;
         // Use base path for data files
         const baseDataPath = getDataPath();
         try {

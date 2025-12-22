@@ -276,7 +276,15 @@ export default function SFFPage() {
               }
 
               const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
+              // Correct HPRD field mapping:
+              // Total_Nurse_HPRD = total nurse HPRD (all nurses)
+              // Nurse_Care_HPRD = direct care nurse HPRD (nurses providing direct care)
+              // Total_RN_HPRD = total RN HPRD (all RNs)
+              // Direct_Care_RN_HPRD = direct care RN HPRD (RNs providing direct care)
               const totalHPRD = facility?.Total_Nurse_HPRD || 0;
+              const directCareHPRD = facility?.Nurse_Care_HPRD || 0;
+              const rnHPRD = facility?.Total_RN_HPRD || 0;
+              
               const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 && totalHPRD > 0
                 ? (totalHPRD / caseMixExpected) * 100 
                 : undefined;
@@ -294,8 +302,8 @@ export default function SFFPage() {
                 county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
                 sffStatus: pdfFacility.status,
                 totalHPRD,
-                directCareHPRD: facility?.Nurse_Care_HPRD || 0,
-                rnHPRD: (facility?.Total_RN_HPRD || facility?.Direct_Care_RN_HPRD || 0),
+                directCareHPRD,
+                rnHPRD,
                 caseMixExpectedHPRD: caseMixExpected,
                 percentOfCaseMix,
                 census: facility?.Census,
@@ -849,7 +857,7 @@ export default function SFFPage() {
 
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-center text-xs text-gray-400 mb-4">
-            <p>Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-september-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})</p>
+            <p>Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})</p>
             {candidateJSON && (
               <p className="mt-1">
                 Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Terminated ({candidateJSON.summary.total_count} total)

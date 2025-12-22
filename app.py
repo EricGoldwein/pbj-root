@@ -60,6 +60,9 @@ def sitemap():
     return send_file('sitemap.xml', mimetype='application/xml')
 
 # Serve data files from pbj-wrapped/dist/data
+# This route MUST come before the catch-all route to work correctly
+@app.route('/data', defaults={'path': ''})
+@app.route('/data/', defaults={'path': ''})
 @app.route('/data/<path:path>')
 def data_files(path):
     """Serve data files from pbj-wrapped/dist/data directory"""

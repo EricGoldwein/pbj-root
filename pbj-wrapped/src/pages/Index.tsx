@@ -191,8 +191,8 @@ const Index: React.FC = () => {
         <div className="text-center mb-4 md:mb-5">
           {/* HeaderContainer: Single flex row with perfect alignment */}
           <div className="flex items-center justify-center gap-3 mb-3">
-            {/* AvatarWrapper: Fixed size, clean rounded square, no background blob */}
-            <div className="relative w-11 h-11 md:w-12 md:h-12 rounded-lg overflow-hidden flex-shrink-0">
+            {/* AvatarWrapper: Reduced size ~10%, nudged down 2px for optical alignment with text baseline */}
+            <div className="relative w-10 h-10 md:w-11 md:h-11 rounded-lg overflow-hidden flex-shrink-0 translate-y-0.5">
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"

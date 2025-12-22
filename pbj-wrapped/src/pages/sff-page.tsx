@@ -355,13 +355,59 @@ export default function SFFPage() {
               console.log(`[Processing] CCN=${ccn}, Name=${pdfFacility.facility_name || 'MISSING'}, Status=${pdfFacility.status}, Months=${pdfFacility.months_as_sff}`);
             }
             
-            // Find provider by CCN - try multiple matching strategies
+            // PRIMARY: Find facility data FIRST using CCN directly (this is the most important data)
             const normalizedCCN = normalizeCCN(ccn);
             const ccnNoZeros = ccn.replace(/^0+/, '') || ccn;
             const ccnWithZeros = ccn.length < 6 ? ccn.padStart(6, '0') : ccn;
             
+            // PRIORITY 1: Search facility data directly using CCN (HPRD, Census are most important)
+            let facility = facilityMap.get(ccn);
+            let facilityMatchMethod = facility ? 'exact_ccn_map' : 'none';
+            
+            if (!facility) {
+              facility = facilityMap.get(normalizedCCN);
+              if (facility) facilityMatchMethod = 'normalized_ccn_map';
+            }
+            if (!facility) {
+              facility = facilityMap.get(ccnNoZeros);
+              if (facility) facilityMatchMethod = 'noZeros_ccn_map';
+            }
+            if (!facility) {
+              facility = facilityMap.get(ccnWithZeros);
+              if (facility) facilityMatchMethod = 'withZeros_ccn_map';
+            }
+            
+            // If not in map, search facilityQ2 array directly
+            if (!facility) {
+              facility = facilityQ2.find((f: FacilityLiteRow) => {
+                // Only match Q2 2025 data
+                if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
+                
+                const fProvNum = f.PROVNUM?.toString().trim() || '';
+                if (!fProvNum) return false;
+                const fNormalized = normalizeCCN(fProvNum);
+                const fNoZeros = fProvNum.replace(/^0+/, '') || fProvNum;
+                const fWithZeros = fProvNum.length < 6 ? fProvNum.padStart(6, '0') : fProvNum;
+                
+                // Try all variations of CCN
+                return fProvNum === ccn ||
+                       fProvNum === normalizedCCN ||
+                       fProvNum === ccnNoZeros ||
+                       fProvNum === ccnWithZeros ||
+                       fNormalized === normalizedCCN ||
+                       fNormalized === ccn ||
+                       fNoZeros === ccnNoZeros ||
+                       fNoZeros === ccn ||
+                       fWithZeros === ccn ||
+                       fWithZeros === normalizedCCN ||
+                       fWithZeros === ccnWithZeros;
+              });
+              if (facility) facilityMatchMethod = 'array_search_ccn';
+            }
+            
+            // PRIORITY 2: Find provider info using CCN (for name, location, case-mix)
             let provider = providerMap.get(ccn);
-            let matchMethod = 'exact';
+            let matchMethod = provider ? 'exact' : 'none';
             
             // Try all variations in map first (fastest)
             if (!provider) {
@@ -398,86 +444,78 @@ export default function SFFPage() {
               });
               if (provider) matchMethod = 'array_search';
             }
+            
+            // If we found facility but not provider, try to find provider using facility's PROVNUM
+            if (facility && !provider) {
+              const facilityProvNum = facility.PROVNUM?.toString().trim() || '';
+              if (facilityProvNum) {
+                provider = providerMap.get(facilityProvNum);
+                if (provider) matchMethod = 'from_facility_provnum';
+                if (!provider) {
+                  provider = providerInfoQ2.find(p => {
+                    const provNum = p.PROVNUM?.toString().trim() || '';
+                    return provNum === facilityProvNum || normalizeCCN(provNum) === normalizeCCN(facilityProvNum);
+                  });
+                  if (provider) matchMethod = 'from_facility_array';
+                }
+              }
+            }
 
-            if (provider) {
-              // Try multiple ways to find facility data
-              // Use the provider's PROVNUM as the primary key, but also try all CCN variations
-              const provNum = provider.PROVNUM?.toString().trim() || '';
-              const provNormalized = normalizeCCN(provNum);
-              const provNoZeros = provNum.replace(/^0+/, '') || provNum;
+            if (facility || provider) {
+              // If we already found facility data (from PRIORITY 1), use it
+              // Otherwise, if we have a provider, try to find facility using provider's PROVNUM
+              if (!facility && provider) {
+                const provNum = provider.PROVNUM?.toString().trim() || '';
+                const provNormalized = normalizeCCN(provNum);
+                const provNoZeros = provNum.replace(/^0+/, '') || provNum;
+                
+                // Try to find facility using provider's PROVNUM
+                facility = facilityMap.get(provNum);
+                if (facility) facilityMatchMethod = 'exact_provnum';
+                
+                if (!facility) {
+                  facility = facilityMap.get(provNormalized);
+                  if (facility) facilityMatchMethod = 'normalized_provnum';
+                }
+                if (!facility) {
+                  facility = facilityMap.get(provNoZeros);
+                  if (facility) facilityMatchMethod = 'noZeros_provnum';
+                }
+                
+                // If still not found, search facilityQ2 array using provider's PROVNUM
+                if (!facility) {
+                  facility = facilityQ2.find((f: FacilityLiteRow) => {
+                    if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
+                    const fProvNum = f.PROVNUM?.toString().trim() || '';
+                    if (!fProvNum) return false;
+                    const fNormalized = normalizeCCN(fProvNum);
+                    const fNoZeros = fProvNum.replace(/^0+/, '') || fProvNum;
+                    
+                    return fProvNum === provNum ||
+                           fProvNum === provNormalized ||
+                           fProvNum === provNoZeros ||
+                           fNormalized === provNormalized ||
+                           fNormalized === provNum ||
+                           fNoZeros === provNoZeros ||
+                           fNoZeros === provNum.replace(/^0+/, '');
+                  });
+                  if (facility) facilityMatchMethod = 'array_search_provnum';
+                }
+              }
+              
+              // Get provider PROVNUM for use in rest of code
+              const provNum = provider?.PROVNUM?.toString().trim() || '';
+              const provNormalized = provider ? normalizeCCN(provNum) : '';
+              const provNoZeros = provider ? (provNum.replace(/^0+/, '') || provNum) : '';
               
               // Debug: Log if provider found but name is missing
-              if (isProblematicFacility || !provider.PROVNAME || !provider.PROVNAME.trim()) {
+              if (provider && (isProblematicFacility || !provider.PROVNAME || !provider.PROVNAME.trim())) {
                 console.log(`[Provider Match] CCN=${ccn}, ProviderNum=${provNum}, PROVNAME=${provider.PROVNAME || 'MISSING'}, PDFName=${pdfFacility.facility_name || 'MISSING'}`);
-              }
-              
-              let facility = facilityMap.get(provNum);
-              let facilityMatchMethod = provNum ? 'exact_provnum' : 'none';
-              
-              if (!facility) {
-                facility = facilityMap.get(provNormalized);
-                if (facility) facilityMatchMethod = 'normalized_provnum';
-              }
-              if (!facility) {
-                facility = facilityMap.get(provNoZeros);
-                if (facility) facilityMatchMethod = 'noZeros_provnum';
-              }
-              // Also try the original CCN variations
-              if (!facility) {
-                facility = facilityMap.get(ccn);
-                if (facility) facilityMatchMethod = 'exact_ccn';
-              }
-              if (!facility) {
-                facility = facilityMap.get(normalizedCCN);
-                if (facility) facilityMatchMethod = 'normalized_ccn';
-              }
-              if (!facility) {
-                facility = facilityMap.get(ccnNoZeros);
-                if (facility) facilityMatchMethod = 'noZeros_ccn';
-              }
-              if (!facility) {
-                facility = facilityMap.get(ccnWithZeros);
-                if (facility) facilityMatchMethod = 'withZeros_ccn';
-              }
-              if (!facility) {
-                // Try finding in array directly with all variations - PRIORITY: Match by Provider Number
-                facility = facilityQ2.find((f: FacilityLiteRow) => {
-                  // Only match Q2 2025 data (facilityQ2 should already be filtered, but check to be safe)
-                  if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
-                  
-                  const fProvNum = f.PROVNUM?.toString().trim() || '';
-                  if (!fProvNum) return false;
-                  const fNormalized = normalizeCCN(fProvNum);
-                  const fNoZeros = fProvNum.replace(/^0+/, '') || fProvNum;
-                  const fWithZeros = fProvNum.length < 6 ? fProvNum.padStart(6, '0') : fProvNum;
-                  
-                  // Comprehensive matching: try all variations of both provider PROVNUM and original CCN
-                  return fProvNum === provNum ||
-                         fProvNum === provNormalized ||
-                         fProvNum === provNoZeros ||
-                         fNormalized === provNormalized ||
-                         fNormalized === provNum ||
-                         fNoZeros === provNoZeros ||
-                         fNoZeros === provNum.replace(/^0+/, '') ||
-                         // Also match against original CCN variations from JSON
-                         fProvNum === ccn ||
-                         fProvNum === normalizedCCN ||
-                         fProvNum === ccnNoZeros ||
-                         fProvNum === ccnWithZeros ||
-                         fNormalized === normalizedCCN ||
-                         fNormalized === ccn ||
-                         fNoZeros === ccnNoZeros ||
-                         fNoZeros === ccn ||
-                         fWithZeros === ccn ||
-                         fWithZeros === normalizedCCN ||
-                         fWithZeros === ccnWithZeros;
-                });
-                if (facility) facilityMatchMethod = 'array_search';
               }
               
               // Debug: Log facility matching for specific facilities
               if (isProblematicFacility || ccn === '265379' || ccn === '675595' || ccn === '195454' || ccn === '175435') {
-                console.log(`[Facility Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, ProviderNum=${provNum}, ProviderMatch=${provider ? `YES (${matchMethod})` : 'NO'}, FacilityMatch=${facility ? `YES (${facilityMatchMethod})` : 'NO'}`);
+                console.log(`[Facility Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, ProviderNum=${provNum || ccn}, ProviderMatch=${provider ? `YES (${matchMethod})` : 'NO'}, FacilityMatch=${facility ? `YES (${facilityMatchMethod})` : 'NO'}`);
                 if (provider) {
                   console.log(`  Provider PROVNUM=${provider.PROVNUM}, PROVNAME=${provider.PROVNAME}`);
                 } else {
@@ -487,23 +525,27 @@ export default function SFFPage() {
                 if (facility) {
                   console.log(`  ✅ Facility FOUND: PROVNUM=${facility.PROVNUM}, Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCare=${facility.Nurse_Care_HPRD}, RN=${facility.Total_RN_HPRD}`);
                 } else {
-                  console.log(`  ❌ Facility NOT found. Tried: provNum=${provNum}, normalized=${provNormalized}, noZeros=${provNoZeros}, ccn=${ccn}, normalizedCCN=${normalizedCCN}, ccnNoZeros=${ccnNoZeros}, ccnWithZeros=${ccnWithZeros}`);
+                  console.log(`  ❌ Facility NOT found. Tried: provNum=${provNum || ccn}, normalized=${provNormalized || normalizedCCN}, noZeros=${provNoZeros || ccnNoZeros}, ccn=${ccn}, normalizedCCN=${normalizedCCN}, ccnNoZeros=${ccnNoZeros}, ccnWithZeros=${ccnWithZeros}`);
                   console.log(`  Sample facilityMap keys:`, Array.from(facilityMap.keys()).slice(0, 10));
                   // Check if it exists in facilityQ2 array
-                  const existsInArray = facilityQ2.find((f: FacilityLiteRow) => f.PROVNUM === ccn || f.PROVNUM === provNum);
+                  const existsInArray = facilityQ2.find((f: FacilityLiteRow) => f.PROVNUM === ccn || (provNum && f.PROVNUM === provNum));
                   console.log(`  Exists in facilityQ2 array: ${existsInArray ? `YES - PROVNUM=${existsInArray.PROVNUM}, Census=${existsInArray.Census}` : 'NO'}`);
                 }
               }
               
               // Log successful match for debugging (always for these specific facilities)
               if (ccn === '265379' || ccn === '675595' || ccn === '195454') {
-                console.log(`Matched facility: CCN=${ccn}, Method=${matchMethod}, Provider=${provider.PROVNAME}, ProviderNum=${provider.PROVNUM}, Facility=${facility ? 'Found' : 'Not Found'}`);
+                if (provider) {
+                  console.log(`Matched facility: CCN=${ccn}, Method=${matchMethod}, Provider=${provider.PROVNAME}, ProviderNum=${provider.PROVNUM}, Facility=${facility ? 'Found' : 'Not Found'}`);
+                } else {
+                  console.log(`Matched facility: CCN=${ccn}, Provider=NOT FOUND, Facility=${facility ? 'Found' : 'Not Found'}`);
+                }
                 if (facility) {
                   console.log(`  Facility data: Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCareHPRD=${facility.Nurse_Care_HPRD}, RNHPRD=${facility.Total_RN_HPRD}`);
-                } else {
+                } else if (provider) {
                   console.log(`  Searching for facility with PROVNUM=${provider.PROVNUM} in facilityQ2...`);
                   const foundFacility = facilityQ2.find((f: FacilityLiteRow) => {
-                    return f.PROVNUM === provider.PROVNUM || 
+                    return f.PROVNUM === provider!.PROVNUM || 
                            f.PROVNUM === ccn ||
                            normalizeCCN(f.PROVNUM) === normalizedCCN;
                   });
@@ -516,8 +558,8 @@ export default function SFFPage() {
               }
               // Include facility even if no facility data - use 0 values
 
-              const q1Status = q1StatusMap.get(provider.PROVNUM) || q1StatusMap.get(normalizedCCN) || '';
-              const status = provider.sff_status?.trim().toUpperCase() || '';
+              const q1Status = provider ? (q1StatusMap.get(provider.PROVNUM) || q1StatusMap.get(normalizedCCN) || '') : '';
+              const status = provider?.sff_status?.trim().toUpperCase() || '';
               const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
               const isCandidate = status === 'SFF CANDIDATE' || status === 'CANDIDATE' || 
                                  (typeof status === 'string' && status.includes('CANDIDATE') && !status.includes('SFF'));
@@ -543,7 +585,7 @@ export default function SFFPage() {
                 previousStatus = q1Status;
               }
 
-              const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
+              const caseMixExpected = provider?.case_mix_total_nurse_hrs_per_resident_per_day;
               // Correct HPRD field mapping:
               // Total_Nurse_HPRD = total nurse HPRD (all nurses)
               // Nurse_Care_HPRD = direct care nurse HPRD (nurses providing direct care)
@@ -579,27 +621,27 @@ export default function SFFPage() {
                 pdfName.toLowerCase().includes('no longer participating')
               );
               
-              const facilityName = provider.PROVNAME && provider.PROVNAME.trim()
+              const facilityName = provider?.PROVNAME && provider.PROVNAME.trim()
                 ? toTitleCase(provider.PROVNAME.trim())
                 : (pdfName && !isTableHeader
                     ? toTitleCase(pdfName)
                     : 'Unknown Facility');
 
               // ALWAYS use provider state/city if available
-              const facilityState = provider.STATE && provider.STATE.trim() 
+              const facilityState = provider?.STATE && provider.STATE.trim() 
                 ? provider.STATE.trim().toUpperCase()
                 : (pdfFacility.state && pdfFacility.state.trim() ? pdfFacility.state.trim().toUpperCase() : 'UN');
               
-              const facilityCity = provider.CITY && provider.CITY.trim()
+              const facilityCity = provider?.CITY && provider.CITY.trim()
                 ? capitalizeCity(provider.CITY.trim())
                 : (pdfFacility.city && pdfFacility.city.trim() ? capitalizeCity(pdfFacility.city.trim()) : undefined);
 
               const sffFacility: SFFFacility = {
-                provnum: provider.PROVNUM || ccn || pdfFacility.provider_number?.toString().trim() || '',
+                provnum: (provider?.PROVNUM || ccn || pdfFacility.provider_number?.toString().trim() || '').replace(/[^0-9]/g, ''),
                 name: facilityName,
                 state: facilityState,
                 city: facilityCity,
-                county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
+                county: provider?.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
                 sffStatus: pdfFacility.status,
                 totalHPRD,
                 directCareHPRD,
@@ -618,7 +660,7 @@ export default function SFFPage() {
               };
 
               allFacilitiesList.push(sffFacility);
-              processedCCNs.add(provider.PROVNUM);
+              if (provider?.PROVNUM) processedCCNs.add(provider.PROVNUM);
               processedCCNs.add(ccn);
               processedCCNs.add(normalizedCCN);
             } else {

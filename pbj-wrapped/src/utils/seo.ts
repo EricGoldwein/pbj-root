@@ -42,11 +42,17 @@ export function updateSEO(data: SEOData) {
   updateMetaTag('og:type', 'website', 'property');
   if (data.ogImage) {
     updateMetaTag('og:image', data.ogImage, 'property');
+    updateMetaTag('og:image:secure_url', data.ogImage, 'property');
+    updateMetaTag('og:image:type', 'image/png', 'property');
+    updateMetaTag('og:image:width', '1200', 'property');
+    updateMetaTag('og:image:height', '630', 'property');
+    updateMetaTag('og:image:alt', data.ogTitle || data.title, 'property');
   }
   if (data.ogUrl) {
     updateMetaTag('og:url', data.ogUrl, 'property');
   }
   updateMetaTag('og:site_name', 'PBJ320', 'property');
+  updateMetaTag('og:locale', 'en_US', 'property');
 
   // Twitter tags
   updateMetaTag('twitter:card', 'summary_large_image', 'name');
@@ -54,6 +60,7 @@ export function updateSEO(data: SEOData) {
   updateMetaTag('twitter:description', data.ogDescription || data.description, 'name');
   if (data.ogImage) {
     updateMetaTag('twitter:image', data.ogImage, 'name');
+    updateMetaTag('twitter:image:alt', data.ogTitle || data.title, 'name');
   }
 
   // Canonical URL
@@ -78,7 +85,7 @@ export function getWrappedSEO(
   year: string = '2025'
 ): SEOData {
   const baseUrl = 'https://pbj320.com';
-  const path = `/wrapped/${year}/${identifier}`;
+  const path = `/wrapped/${identifier}`;
   const fullUrl = `${baseUrl}${path}`;
   
   const keywords = [

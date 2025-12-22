@@ -105,10 +105,16 @@ const WrappedNews: React.FC = () => {
   // Update SEO
   useEffect(() => {
     if (wrappedData) {
+      const baseUrl = 'https://pbj320.com';
       updateSEO({
         title: 'PBJ Wrapped News Cut | Q2 2025 Nursing Home Staffing Data',
         description: 'A media-first snapshot of federal nursing home staffing data. What the numbers actually show.',
         keywords: 'nursing home staffing, PBJ, CMS, healthcare data, nursing home quality',
+        ogTitle: 'PBJ Wrapped News Cut | Q2 2025 Nursing Home Staffing Data',
+        ogDescription: 'A media-first snapshot of federal nursing home staffing data. What the numbers actually show.',
+        ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
+        ogUrl: `${baseUrl}/usa-news`,
+        canonical: `${baseUrl}/usa-news`,
       });
     }
   }, [wrappedData]);

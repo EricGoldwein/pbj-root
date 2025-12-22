@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { loadAllData } from '../lib/wrapped/dataLoader';
 import { toTitleCase, capitalizeCity } from '../lib/wrapped/dataProcessor';
 import { getAssetPath } from '../utils/assets';
+import { updateSEO } from '../utils/seo';
 import type { FacilityLiteRow, ProviderInfoRow } from '../lib/wrapped/wrappedTypes';
 
 // Helper to get data path with base URL
@@ -85,7 +86,68 @@ export default function SFFPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const itemsPerPage = 50;
+
+  // Helper function for state names (needed for SEO)
+  const getStateName = (code: string): string => {
+    const stateMap: Record<string, string> = {
+      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
+      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
+      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
+      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
+      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
+      'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
+      'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
+      'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
+      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
+      'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
+      'DC': 'District of Columbia', 'PR': 'Puerto Rico'
+    };
+    return stateMap[code] || code;
+  };
+
+  const getRegionName = (regionNum: number): string => {
+    const regionNames: Record<number, string> = {
+      1: 'Boston', 2: 'New York', 3: 'Philadelphia', 4: 'Atlanta', 5: 'Chicago',
+      6: 'Dallas', 7: 'Kansas City', 8: 'Denver', 9: 'San Francisco', 10: 'Seattle'
+    };
+    return regionNames[regionNum] || `Region ${regionNum}`;
+  };
+
+  // Update SEO/OG tags based on page scope
+  useEffect(() => {
+    const baseUrl = 'https://pbj320.com';
+    const currentPath = scope === 'usa' ? '/sff/usa' : scope ? `/sff/${scope}` : '/sff';
+    const fullUrl = `${baseUrl}${currentPath}`;
+    
+    let title = 'Special Focus Facilities Program | PBJ320';
+    let description = 'Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting Dec. 2025; CMS PBJ (Q2 2025).';
+    
+    if (scope === 'usa') {
+      title = 'Special Focus Facilities Program — United States | PBJ320';
+      description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+    } else if (scope && scope.startsWith('region')) {
+      const regionNum = parseInt(scope.replace(/^region-?/, ''));
+      title = `Special Focus Facilities Program — CMS Region ${regionNum} | PBJ320`;
+      description = `CMS Region ${regionNum} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
+    } else if (scope) {
+      const stateName = getStateName(scope.toUpperCase());
+      title = `Special Focus Facilities Program — ${stateName} | PBJ320`;
+      description = `${stateName} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
+    }
+    
+    updateSEO({
+      title,
+      description,
+      keywords: 'special focus facilities, SFF, nursing home staffing, CMS PBJ, Q2 2025, nursing home quality, long-term care',
+      ogTitle: title.replace(' | PBJ320', ''),
+      ogDescription: description,
+      ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
+      ogUrl: fullUrl,
+      canonical: fullUrl,
+    });
+  }, [scope]);
 
   useEffect(() => {
     async function loadData() {
@@ -772,31 +834,6 @@ export default function SFFPage() {
     }) + '%';
   };
 
-  const getStateName = (code: string): string => {
-    const stateMap: Record<string, string> = {
-      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-      'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-      'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-      'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-      'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
-      'DC': 'District of Columbia', 'PR': 'Puerto Rico'
-    };
-    return stateMap[code] || code;
-  };
-
-  const getRegionName = (regionNum: number): string => {
-    const regionNames: Record<number, string> = {
-      1: 'Boston', 2: 'New York', 3: 'Philadelphia', 4: 'Atlanta', 5: 'Chicago',
-      6: 'Dallas', 7: 'Kansas City', 8: 'Denver', 9: 'San Francisco', 10: 'Seattle'
-    };
-    return regionNames[regionNum] || `Region ${regionNum}`;
-  };
-
   // Get all states with SFFs for USA page
   const statesWithSFFs = useMemo(() => {
     if (!allFacilities.length || scope !== 'usa') return [];
@@ -903,13 +940,111 @@ export default function SFFPage() {
               <img src={getAssetPath('/pbj_favicon.png')} alt="PBJ320" className="h-6 md:h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
               <span><span className="text-white">PBJ</span><span className="text-blue-400">320</span></span>
             </a>
+            {/* Desktop Navigation */}
             <div className="hidden md:flex items-center gap-4 lg:gap-6">
-              <a href="https://pbj320.com/about" className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors">About</a>
-              <a href="https://pbjdashboard.com/" className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors">Dashboard</a>
-              <a href="https://pbj320.com/insights" className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors">Insights</a>
-              <a href="https://pbj320.com/report" className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors">Report</a>
+              <a 
+                href="https://pbj320.com/about" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                About
+              </a>
+              <a 
+                href="https://pbjdashboard.com/" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Dashboard
+              </a>
+              <a 
+                href="https://pbj320.com/insights" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Insights
+              </a>
+              <a 
+                href="https://pbj320.com/report" 
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Report
+              </a>
+              <a 
+                href="https://www.320insight.com/phoebe" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                Phoebe J
+              </a>
+              <a 
+                href="https://pbj320.vercel.app/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+              >
+                PBJ Converter
+              </a>
             </div>
+            {/* Mobile Menu Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
+              aria-label="Toggle menu"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {mobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </div>
+          {/* Mobile Menu */}
+          {mobileMenuOpen && (
+            <div className="md:hidden border-t border-gray-700 py-4">
+              <div className="flex flex-col space-y-3">
+                <a 
+                  href="https://pbj320.com/about" 
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  About
+                </a>
+                <a 
+                  href="https://pbjdashboard.com/" 
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  Dashboard
+                </a>
+                <a 
+                  href="https://pbj320.com/insights" 
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  Insights
+                </a>
+                <a 
+                  href="https://pbj320.com/report" 
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  Report
+                </a>
+                <a 
+                  href="https://www.320insight.com/phoebe" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  Phoebe J
+                </a>
+                <a 
+                  href="https://pbj320.vercel.app/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
+                >
+                  PBJ Converter
+                </a>
+              </div>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -1063,39 +1198,34 @@ export default function SFFPage() {
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
                       <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
-                        <span className="hidden md:inline">Months as SFF</span>
-                        <span className="md:hidden block leading-tight">
+                        <div className="block leading-tight">
                           <span className="block">Months</span>
                           <span className="block">as SFF</span>
-                        </span>
+                        </div>
                       </SortableHeader>
                       <SortableHeader field="totalHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
-                        <span className="hidden md:inline">Total HPRD</span>
-                        <span className="md:hidden block leading-tight">
+                        <div className="block leading-tight">
                           <span className="block">Total</span>
                           <span className="block">HPRD</span>
-                        </span>
+                        </div>
                       </SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden sm:table-cell">
-                        <span className="hidden md:inline">Direct HPRD</span>
-                        <span className="md:hidden block leading-tight">
+                        <div className="block leading-tight">
                           <span className="block">Direct</span>
                           <span className="block">HPRD</span>
-                        </span>
+                        </div>
                       </SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden md:table-cell">
-                        <span className="hidden lg:inline">RN HPRD</span>
-                        <span className="lg:hidden block leading-tight">
+                        <div className="block leading-tight">
                           <span className="block">RN</span>
                           <span className="block">HPRD</span>
-                        </span>
+                        </div>
                       </SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden lg:table-cell">
-                        <span className="hidden xl:inline">% Case-Mix</span>
-                        <span className="xl:hidden block leading-tight">
-                          <span className="block">%</span>
-                          <span className="block">Case-Mix</span>
-                        </span>
+                        <div className="block leading-tight">
+                          <span className="block">% Case</span>
+                          <span className="block">Mix</span>
+                        </div>
                       </SortableHeader>
                     </tr>
                   </thead>
@@ -1174,10 +1304,12 @@ export default function SFFPage() {
         </div>
 
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
-          <div className="text-center text-xs text-gray-400 mb-4">
-            <p>Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})</p>
+          <div className="text-left text-xs text-gray-500 mb-4">
+            <p className="mb-1">
+              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})
+            </p>
             {candidateJSON && (
-              <p className="mt-1">
+              <p className="text-gray-500">
                 Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Terminated ({candidateJSON.summary.total_count} total)
               </p>
             )}

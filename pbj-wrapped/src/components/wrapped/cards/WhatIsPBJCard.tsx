@@ -34,34 +34,36 @@ const formatNumber = (value: number, decimals = 0) =>
     maximumFractionDigits: decimals,
   });
 
-const buildContextText = (data: PBJWrappedData): string => {
-  const facilities = formatNumber(data.facilityCount);
-  const residents = formatNumber(Math.round(data.avgDailyResidents));
-
-  switch (data.scope) {
-    case 'state':
-      return `In Q2 2025, ${getStateFullName(data.identifier)} reported ${facilities} nursing homes serving ${residents} residents per day.`;
-    case 'region':
-      return `In Q2 2025, this region reported ${facilities} nursing homes serving ${residents} residents per day.`;
-    case 'usa':
-      return `In Q2 2025, the U.S. reported ${facilities} nursing homes serving ${residents} residents per day.`;
-    default:
-      return '';
-  }
-};
-
 /* ----------------------------------
    Component
 ----------------------------------- */
 
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
+  const facilities = formatNumber(data.facilityCount);
+  const residents = formatNumber(Math.round(data.avgDailyResidents));
+
+  // Build the full answer text with context based on scope
+  let contextPart = '';
+  switch (data.scope) {
+    case 'state':
+      contextPart = ` In Q2 2025, ${getStateFullName(data.identifier)} reported ${facilities} nursing homes and ${residents} residents per day.`;
+      break;
+    case 'region':
+      contextPart = ` In Q2 2025, this region reported ${facilities} nursing homes and ${residents} residents per day.`;
+      break;
+    case 'usa':
+      contextPart = ` In Q2 2025, the U.S. reported ${facilities} nursing homes and ${residents} residents per day.`;
+      break;
+    default:
+      break;
+  }
+
   const answerText =
-    'PBJ is federal payroll data that records who actually worked in nursing homes, and when.';
+    'PBJ stands for Payroll-Based Journal, a federal dataset tracking who actually worked in nursing homes, and when.' + contextPart;
 
   const typedAnswer = useTypingEffect(answerText, 30, 300);
-  const contextText = buildContextText(data);
 
-  // 0 = nothing, 1 = context, 2 = why it matters, 3 = note
+  // 0 = nothing, 1 = why it matters
   const [revealStage, setRevealStage] = useState(0);
 
   useEffect(() => {
@@ -70,20 +72,16 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
       return;
     }
 
-    const timers = [
-      setTimeout(() => setRevealStage(1), 800),
-      setTimeout(() => setRevealStage(2), 1800),
-      setTimeout(() => setRevealStage(3), 2800),
-    ];
+    const timer = setTimeout(() => setRevealStage(1), 1000);
 
-    return () => timers.forEach(clearTimeout);
+    return () => clearTimeout(timer);
   }, [typedAnswer.length, answerText.length]);
 
   return (
     <div className="flex flex-col items-center justify-center w-full h-full">
       <WrappedCard title="What is PBJ?" hideBadge>
         <div className="space-y-3 text-left">
-          {/* Main definition */}
+          {/* Main definition with context */}
           <div className="bg-blue-500/10 border-l-4 border-blue-400 pl-4 py-3 rounded">
             <p className="text-gray-200 text-sm md:text-base leading-relaxed">
               {typedAnswer}
@@ -93,26 +91,12 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
             </p>
           </div>
 
-          {/* Context */}
-          {revealStage >= 1 && contextText && (
-            <p className="pt-2 text-gray-300 text-xs md:text-sm animate-fade-in-up">
-              {contextText}
-            </p>
-          )}
-
           {/* Why it matters */}
-          {revealStage >= 2 && (
+          {revealStage >= 1 && (
             <p className="pt-3 text-xs text-gray-400 animate-fade-in-up">
               <strong className="text-gray-300">Why it matters:</strong> PBJ makes staffing measurable,
               comparable, and auditable—revealing chronic understaffing that would otherwise stay hidden.
-            </p>
-          )}
-
-          {/* Note */}
-          {revealStage >= 3 && (
-            <p className="pt-3 text-xs text-gray-400 animate-fade-in-up">
-              <strong className="text-gray-300">Note:</strong> Facilities with missing or invalid PBJ
-              submissions are excluded.
+              Facilities with missing or invalid PBJ submissions are excluded.
             </p>
           )}
 

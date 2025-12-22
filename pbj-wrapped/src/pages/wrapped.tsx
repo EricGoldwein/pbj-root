@@ -143,7 +143,9 @@ const Wrapped: React.FC = () => {
           progressIntervalRef.current = null;
         }
         console.error('Error loading wrapped data:', err);
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        console.error('Error details:', { scope, normalizedId, identifier, errorMessage });
+        setError(errorMessage);
         setLoading(false);
         setLoadingProgress(0);
       }

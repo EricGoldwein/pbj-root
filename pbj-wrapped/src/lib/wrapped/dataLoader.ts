@@ -346,7 +346,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       providerQ1Json,
       providerQ2Json,
       regionMappingJson,
-      stateStandardsJson,
     ] = await Promise.all([
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q1.json`),
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q2.json`),
@@ -359,8 +358,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q1.json`),
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q2.json`),
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
-      loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`),
     ]);
+    
+    // Load state standards separately (optional file - 404s are expected if not present)
+    // Load it silently to avoid console noise
+    const stateStandardsJson = await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null);
     
     // Load SFF data separately to avoid redeclaration
     // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
@@ -369,14 +371,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     // If we got JSON data, use it (much faster!)
     // Check if we have the essential JSON files
     // Note: Empty arrays are still valid JSON, so check for null/undefined, not just truthiness
-    // For USA scope, we need national, facility, and provider data
+    // For USA scope, we need national Q2, facility Q2, and provider Q2 (Q1 is optional for trends)
     // For state/region scope, we need state/region data
     const hasEssentialJsonData = (scope === 'usa' 
-      ? (nationalQ1Json !== null && nationalQ1Json !== undefined &&
-         nationalQ2Json !== null && nationalQ2Json !== undefined &&
-         facilityQ1Json !== null && facilityQ1Json !== undefined &&
+      ? (nationalQ2Json !== null && nationalQ2Json !== undefined &&
          facilityQ2Json !== null && facilityQ2Json !== undefined &&
-         providerQ1Json !== null && providerQ1Json !== undefined &&
          providerQ2Json !== null && providerQ2Json !== undefined)
       : (stateQ1Json !== null && stateQ1Json !== undefined && 
          stateQ2Json !== null && stateQ2Json !== undefined &&
@@ -386,10 +385,15 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
          nationalQ2Json !== null && nationalQ2Json !== undefined));
     
     // Also check if we have facility/provider JSON (needed for all scopes)
-    const hasFacilityProviderJson = facilityQ1Json !== null && facilityQ1Json !== undefined &&
-                                    facilityQ2Json !== null && facilityQ2Json !== undefined &&
-                                    providerQ1Json !== null && providerQ1Json !== undefined &&
-                                    providerQ2Json !== null && providerQ2Json !== undefined;
+    // For USA scope, Q1 data is optional (only needed for trends)
+    // For state/region scope, Q1 data is required for trends
+    const hasFacilityProviderJson = scope === 'usa'
+      ? (facilityQ2Json !== null && facilityQ2Json !== undefined &&
+         providerQ2Json !== null && providerQ2Json !== undefined)
+      : (facilityQ1Json !== null && facilityQ1Json !== undefined &&
+         facilityQ2Json !== null && facilityQ2Json !== undefined &&
+         providerQ1Json !== null && providerQ1Json !== undefined &&
+         providerQ2Json !== null && providerQ2Json !== undefined);
     
     const hasJsonData = hasEssentialJsonData && hasFacilityProviderJson;
     
@@ -525,8 +529,19 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       } else {
         // State standards JSON not found - try CSV fallback (it's optional)
         // CSV file may not exist and that's okay - state pages work without it
+        // Load CSV silently to avoid console 404 errors
         try {
-          const stateStandardsCsv = await loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => null);
+          // Use fetch directly with silent error handling to avoid console noise
+          let stateStandardsCsv: string | null = null;
+          try {
+            const response = await fetch(`${basePath}/macpac_state_standards_clean.csv`);
+            if (response.ok) {
+              stateStandardsCsv = await response.text();
+            }
+            // Silently ignore 404s - file is optional
+          } catch {
+            // Silently ignore fetch errors - file is optional
+          }
           if (stateStandardsCsv) {
             const stateStandardsRows = await parseCSV<any>(stateStandardsCsv);
             // Process state standards: filter for >= 1.00, map state name to state code
@@ -608,7 +623,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() => 
         loadCSV('../cms_region_state_mapping.csv').catch(() => '')
       ),
-      loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => ''),
+      loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => {
+        // Silently fail - state standards CSV is optional
+        return '';
+      }),
     ]);
 
     // Parse all CSVs

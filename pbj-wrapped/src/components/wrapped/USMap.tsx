@@ -122,7 +122,9 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
             const stateName = d.properties.name;
             const stateAbbr = STATE_ABBR_MAP[stateName];
             if (stateAbbr) {
-              navigate(`/wrapped/${stateAbbr}`);
+              // Force absolute path navigation - ensure /wrapped prefix is preserved
+              const targetPath = `/wrapped/${stateAbbr.toLowerCase()}`;
+              navigate(targetPath, { replace: false });
             }
           });
 
@@ -160,7 +162,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
       />
       {hoveredState && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm font-medium pointer-events-none z-10">
-          {hoveredState} — Click to explore
+          {hoveredState} Wrapped
         </div>
       )}
     </div>

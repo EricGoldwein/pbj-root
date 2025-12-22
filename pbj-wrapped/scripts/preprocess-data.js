@@ -20,7 +20,8 @@ const DATA_DIR = existsSync(join(PARENT_DIR, 'state_quarterly_metrics.csv'))
   : join(__dirname, '../public/data');
 
 console.log(`Using DATA_DIR: ${DATA_DIR}`);
-const OUTPUT_DIR = join(__dirname, '../public/data/json');
+// Output to dist/data/json (where the app actually serves from)
+const OUTPUT_DIR = join(__dirname, '../dist/data/json');
 
 // Create output directory
 if (!existsSync(OUTPUT_DIR)) {

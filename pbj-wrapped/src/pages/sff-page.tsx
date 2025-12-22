@@ -467,15 +467,22 @@ export default function SFFPage() {
               }
               
               // Debug: Log facility matching for specific facilities
-              if (isProblematicFacility || ccn === '265379' || ccn === '675595' || ccn === '195454') {
+              if (isProblematicFacility || ccn === '265379' || ccn === '675595' || ccn === '195454' || ccn === '175435') {
                 console.log(`[Facility Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, ProviderNum=${provNum}, ProviderMatch=${provider ? `YES (${matchMethod})` : 'NO'}, FacilityMatch=${facility ? `YES (${facilityMatchMethod})` : 'NO'}`);
                 if (provider) {
                   console.log(`  Provider PROVNUM=${provider.PROVNUM}, PROVNAME=${provider.PROVNAME}`);
+                } else {
+                  console.log(`  Provider NOT found. Tried: ccn=${ccn}, normalized=${normalizedCCN}, noZeros=${ccnNoZeros}, withZeros=${ccnWithZeros}`);
+                  console.log(`  Sample providerMap keys:`, Array.from(providerMap.keys()).slice(0, 10));
                 }
                 if (facility) {
-                  console.log(`  Facility PROVNUM=${facility.PROVNUM}, Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCare=${facility.Nurse_Care_HPRD}, RN=${facility.Total_RN_HPRD}`);
+                  console.log(`  ✅ Facility FOUND: PROVNUM=${facility.PROVNUM}, Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCare=${facility.Nurse_Care_HPRD}, RN=${facility.Total_RN_HPRD}`);
                 } else {
-                  console.log(`  Tried facility lookups: provNum=${provNum}, normalized=${provNormalized}, noZeros=${provNoZeros}, ccn=${ccn}, normalizedCCN=${normalizedCCN}, ccnNoZeros=${ccnNoZeros}, ccnWithZeros=${ccnWithZeros}`);
+                  console.log(`  ❌ Facility NOT found. Tried: provNum=${provNum}, normalized=${provNormalized}, noZeros=${provNoZeros}, ccn=${ccn}, normalizedCCN=${normalizedCCN}, ccnNoZeros=${ccnNoZeros}, ccnWithZeros=${ccnWithZeros}`);
+                  console.log(`  Sample facilityMap keys:`, Array.from(facilityMap.keys()).slice(0, 10));
+                  // Check if it exists in facilityQ2 array
+                  const existsInArray = facilityQ2.find((f: FacilityLiteRow) => f.PROVNUM === ccn || f.PROVNUM === provNum);
+                  console.log(`  Exists in facilityQ2 array: ${existsInArray ? `YES - PROVNUM=${existsInArray.PROVNUM}, Census=${existsInArray.Census}` : 'NO'}`);
                 }
               }
               

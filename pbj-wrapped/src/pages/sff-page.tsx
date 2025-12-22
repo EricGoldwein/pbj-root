@@ -81,7 +81,7 @@ export default function SFFPage() {
   const [allFacilities, setAllFacilities] = useState<SFFFacility[]>([]);
   const [candidateJSON, setCandidateJSON] = useState<SFFCandidateJSON | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [sortField, setSortField] = useState<SortField>('totalHPRD');
+  const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
@@ -748,18 +748,19 @@ export default function SFFPage() {
 
   const totalPages = Math.ceil(sortedFacilities.length / itemsPerPage);
 
-  const formatNumber = (num: number, decimals: number = 2): string => {
-    return num.toLocaleString('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  };
-
   const formatCensus = (num: number | undefined): string => {
-    if (num === undefined || isNaN(num)) return 'N/A';
+    if (num === undefined || isNaN(num) || num === 0) return 'N/A';
     return num.toLocaleString('en-US', {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
+    });
+  };
+  
+  const formatHPRD = (num: number | undefined): string => {
+    if (num === undefined || isNaN(num) || num === 0) return 'N/A';
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     });
   };
 
@@ -840,15 +841,15 @@ export default function SFFPage() {
   }, [allFacilities, regionStateMapping, scope]);
 
   const pageTitle = scope === 'usa' 
-    ? 'Special Focus Facilities Program — United States'
+    ? 'Special Focus Facilities Program'
     : scope && scope.startsWith('region')
     ? (() => {
         const regionNum = parseInt(scope.replace(/^region-?/, ''));
         return `Special Focus Facilities Program — CMS Region ${regionNum} (${getRegionName(regionNum)})`;
       })()
     : scope 
-    ? `Special Focus Facilities & Candidates — ${getStateName(scope.toUpperCase())}`
-    : 'Special Focus Facilities & Candidates';
+    ? `Special Focus Facilities Program — ${getStateName(scope.toUpperCase())}`
+    : 'Special Focus Facilities Program';
 
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode; className?: string }> = ({ field, children, className = '' }) => {
     const isActive = sortField === field;
@@ -930,10 +931,10 @@ export default function SFFPage() {
             )}
           </div>
           <p className="text-gray-300 text-sm md:text-base mb-2">
-            {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'} • CMS Special Focus Facility Program
+            Source: CMS SFF Posting Dec. 2025; CMS PBJ (Q2 2025)
           </p>
           <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
-            Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid from the CMS SFF posting.
+            Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid.
           </p>
         </div>
 
@@ -971,7 +972,7 @@ export default function SFFPage() {
                     value=""
                     onChange={(e) => {
                       if (e.target.value) {
-                        navigate(`/sff/region${e.target.value}`);
+                        navigate(`/sff/region-${e.target.value}`);
                       }
                     }}
                     className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
@@ -1130,11 +1131,11 @@ export default function SFFPage() {
                           <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs">
                             {facility.monthsAsSFF !== undefined ? facility.monthsAsSFF : '—'}
                           </td>
-                          <td className="px-1 md:px-2 py-2 text-center text-white font-semibold text-xs">{formatNumber(facility.totalHPRD)}</td>
-                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden sm:table-cell">{formatNumber(facility.directCareHPRD)}</td>
-                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden md:table-cell">{formatNumber(facility.rnHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-white font-semibold text-xs">{formatHPRD(facility.totalHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden sm:table-cell">{formatHPRD(facility.directCareHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden md:table-cell">{formatHPRD(facility.rnHPRD)}</td>
                           <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden lg:table-cell">
-                            {formatPercent(facility.percentOfCaseMix)}
+                            {facility.percentOfCaseMix === undefined || isNaN(facility.percentOfCaseMix) || facility.percentOfCaseMix === 0 ? 'N/A' : formatPercent(facility.percentOfCaseMix)}
                           </td>
                         </tr>
                       );
@@ -1204,6 +1205,9 @@ export default function SFFPage() {
                 </div>
                 <div>
                   <strong className="text-yellow-300">SFF Candidate List:</strong> These are nursing homes that qualify to be selected as an SFF. The number of nursing homes on the candidate list is based on five candidates for each SFF slot, with a minimum candidate pool of five nursing homes and a maximum of 30 per State.
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have Q2 2025 PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.
                 </div>
               </div>
             )}

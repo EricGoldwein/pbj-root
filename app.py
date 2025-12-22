@@ -101,9 +101,25 @@ def sff_pages(path=None):
     if path:
         file_path = os.path.join(wrapped_dist, path)
         if os.path.isfile(file_path):
-            return send_from_directory(wrapped_dist, path)
+            # Set proper MIME types for different file types
+            if path.endswith('.js'):
+                return send_file(file_path, mimetype='application/javascript')
+            elif path.endswith('.css'):
+                return send_file(file_path, mimetype='text/css')
+            elif path.endswith('.json'):
+                return send_file(file_path, mimetype='application/json')
+            elif path.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg')):
+                return send_file(file_path)
+            else:
+                return send_from_directory(wrapped_dist, path)
+        else:
+            # If it's a static asset request (has extension) but file doesn't exist, return 404
+            # This prevents serving HTML for JS/CSS requests which causes MIME type errors
+            if '.' in path and path.split('.')[-1] in ['js', 'css', 'json', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'woff', 'woff2', 'ttf', 'eot']:
+                from flask import abort
+                abort(404)
     
-    # Otherwise, serve index.html for SPA routing
+    # Otherwise, serve index.html for SPA routing (only for routes without file extensions)
     wrapped_index = os.path.join(wrapped_dist, 'index.html')
     if os.path.exists(wrapped_index):
         return send_file(wrapped_index, mimetype='text/html')

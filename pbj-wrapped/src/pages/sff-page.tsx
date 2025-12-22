@@ -871,6 +871,18 @@ export default function SFFPage() {
     ? `Special Focus Facilities Program — ${getStateName(scope.toUpperCase())}`
     : 'Special Focus Facilities Program';
 
+  // Mobile title (abbreviated)
+  const mobileTitle = scope === 'usa'
+    ? 'Special Focus Facilities Program'
+    : scope && scope.startsWith('region')
+    ? (() => {
+        const regionNum = parseInt(scope.replace(/^region-?/, ''));
+        return `SFF Program: Region ${regionNum}`;
+      })()
+    : scope
+    ? `SFF Program: ${getStateName(scope.toUpperCase())}`
+    : 'Special Focus Facilities Program';
+
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode; className?: string }> = ({ field, children, className = '' }) => {
     const isActive = sortField === field;
     return (
@@ -1047,16 +1059,20 @@ export default function SFFPage() {
           )}
           <div className="relative z-10">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{pageTitle}</h1>
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">
+                <span className="md:hidden">{mobileTitle}</span>
+                <span className="hidden md:inline">{pageTitle}</span>
+              </h1>
             {(scope && scope !== 'usa') && (
               <button
                 onClick={() => navigate('/sff/usa')}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-sm font-medium whitespace-nowrap self-start sm:self-auto"
+                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-xs md:text-sm font-medium whitespace-nowrap self-start sm:self-auto"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                View All USA SFFs
+                <span className="md:hidden">All SFFs</span>
+                <span className="hidden md:inline">View All USA SFFs</span>
               </button>
             )}
           </div>
@@ -1066,39 +1082,71 @@ export default function SFFPage() {
           </div>
         </div>
 
-        {/* State Dropdown - Always show on USA and state pages */}
+        {/* State Dropdown and Filters - Desktop: dropdown on right, Mobile: dropdown and button on same row */}
         {(() => {
           const isUSA = scope === 'usa';
           const isState = scope && scope.length === 2 && !scope.startsWith('region');
           const shouldShow = isUSA || isState;
           
-          // Debug logging
-          if (shouldShow) {
-            console.log('[SFF Page] Rendering dropdown:', { scope, isUSA, isState, allStatesCount: allStates.length });
-          }
-          
           return shouldShow ? (
-            <div className="mb-6 md:mb-8">
-              <div className="max-w-md">
-                <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
-                <select
-                  id="state-select"
-                  value={isState ? scope.toUpperCase() : ''}
-                  onChange={(e) => {
-                    const selectedState = e.target.value;
-                    if (selectedState) {
-                      navigate(`/sff/${selectedState.toLowerCase()}`);
-                    }
-                  }}
-                  className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                >
-                  <option value="">Select a state...</option>
-                  {allStates.map(stateCode => (
-                    <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
-                      {getStateName(stateCode)}
-                    </option>
-                  ))}
-                </select>
+            <div className="mb-4 md:mb-6">
+              {/* Mobile: Dropdown and "All SFFs" button on same row */}
+              <div className="md:hidden flex items-end gap-2 mb-4">
+                <div className="flex-1">
+                  <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
+                  <select
+                    id="state-select"
+                    value={isState ? scope.toUpperCase() : ''}
+                    onChange={(e) => {
+                      const selectedState = e.target.value;
+                      if (selectedState) {
+                        navigate(`/sff/${selectedState.toLowerCase()}`);
+                      }
+                    }}
+                    className="w-full px-3 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-xs"
+                  >
+                    <option value="">Select a state...</option>
+                    {allStates.map(stateCode => (
+                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
+                        {getStateName(stateCode)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {(scope && scope !== 'usa') && (
+                  <button
+                    onClick={() => navigate('/sff/usa')}
+                    className="px-3 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-xs font-medium whitespace-nowrap"
+                  >
+                    All SFFs
+                  </button>
+                )}
+              </div>
+
+              {/* Desktop: Dropdown aligned right with filters */}
+              <div className="hidden md:flex md:items-end md:justify-between md:gap-4">
+                <div className="flex-1"></div>
+                <div className="max-w-xs">
+                  <label htmlFor="state-select-desktop" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
+                  <select
+                    id="state-select-desktop"
+                    value={isState ? scope.toUpperCase() : ''}
+                    onChange={(e) => {
+                      const selectedState = e.target.value;
+                      if (selectedState) {
+                        navigate(`/sff/${selectedState.toLowerCase()}`);
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="">Select a state...</option>
+                    {allStates.map(stateCode => (
+                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
+                        {getStateName(stateCode)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           ) : null;
@@ -1161,14 +1209,14 @@ export default function SFFPage() {
         </div>
 
         {/* Merged Table */}
-        <div className="mb-8 md:mb-10">
+        <div className="mb-4 md:mb-10">
           {sortedFacilities.length === 0 ? (
             <div className="rounded-lg border border-gray-700 bg-[#0f172a]/60 p-8 text-center">
               <p className="text-gray-400">No facilities found for this filter.</p>
             </div>
           ) : (
             <>
-              <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
+              <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg -mx-2 md:mx-0">
                 <table className="w-full border-collapse min-w-[500px] md:min-w-[700px]">
                   <thead>
                     <tr className="bg-blue-600/20 border-b border-blue-500/30">
@@ -1202,7 +1250,7 @@ export default function SFFPage() {
                           <span className="block">HPRD</span>
                         </div>
                       </SortableHeader>
-                      <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden lg:table-cell">
+                      <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
                         <div className="block leading-tight">
                           <span className="block">% Case</span>
                           <span className="block">Mix</span>
@@ -1253,7 +1301,13 @@ export default function SFFPage() {
                           </td>
                           <td className="px-1 md:px-2 py-2 text-center">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[facility.sffStatus]}`}>
-                              {facility.sffStatus}
+                              <span className="md:hidden">
+                                {facility.sffStatus === 'Candidate' ? 'Cand.' : 
+                                 facility.sffStatus === 'Graduate' ? 'Grad.' :
+                                 facility.sffStatus === 'Terminated' ? 'Term.' :
+                                 facility.sffStatus}
+                              </span>
+                              <span className="hidden md:inline">{facility.sffStatus}</span>
                             </span>
                           </td>
                           <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs">{formatCensus(facility.census)}</td>
@@ -1263,7 +1317,7 @@ export default function SFFPage() {
                           <td className="px-1 md:px-2 py-2 text-center text-white font-semibold text-xs">{formatHPRD(facility.totalHPRD)}</td>
                           <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden sm:table-cell">{formatHPRD(facility.directCareHPRD)}</td>
                           <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden md:table-cell">{formatHPRD(facility.rnHPRD)}</td>
-                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden lg:table-cell">
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs">
                             {facility.percentOfCaseMix === undefined || isNaN(facility.percentOfCaseMix) || facility.percentOfCaseMix === 0 ? 'N/A' : formatPercent(facility.percentOfCaseMix)}
                           </td>
                         </tr>
@@ -1345,6 +1399,18 @@ export default function SFFPage() {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="mt-6 md:mt-8 pt-6 md:pt-8 text-center" style={{ background: '#0f172a', padding: '40px 20px', marginTop: '60px' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 auto', fontStyle: 'italic', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
+          The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Aging in America News</a>.
+        </p>
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '1.5rem auto 0', paddingTop: '1.5rem', maxWidth: '800px' }}>
+          <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>
+            <a href="https://www.320insight.com" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>320 Consulting — Turning Spreadsheets into Stories</a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

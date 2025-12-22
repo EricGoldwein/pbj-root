@@ -310,6 +310,9 @@ export default function SFFPage() {
 
         const allFacilitiesList: SFFFacility[] = [];
         const processedCCNs = new Set<string>();
+        let skippedNoCCN = 0;
+        let skippedDuplicates = 0;
+        let totalFromJSON = 0;
 
         // Process all facilities from PDF (all tables)
         if (candidateJSONData && candidateJSONData.table_a_current_sff && candidateJSONData.table_b_graduated && 
@@ -322,15 +325,21 @@ export default function SFFPage() {
             ...(candidateJSONData.table_d_candidates || []).map(f => ({ ...f, status: 'Candidate' as SFFStatus }))
           ];
 
+          totalFromJSON = allPDFFacilities.length;
+          console.log(`[Processing] Total facilities from JSON: ${totalFromJSON}`);
+          
           for (const pdfFacility of allPDFFacilities) {
             const ccn = pdfFacility.provider_number?.toString().trim();
             if (!ccn) {
+              skippedNoCCN++;
               console.warn('PDF facility missing provider_number:', pdfFacility);
               continue;
             }
             
             // Skip if already processed
             if (processedCCNs.has(ccn)) {
+              skippedDuplicates++;
+              console.log(`[Duplicate] Skipping duplicate CCN: ${ccn}, Facility: ${pdfFacility.facility_name}`);
               continue;
             }
             
@@ -779,6 +788,7 @@ export default function SFFPage() {
           }
         }
 
+        console.log(`[Final Count] Processed: ${allFacilitiesList.length}, Skipped (no CCN): ${skippedNoCCN}, Skipped (duplicates): ${skippedDuplicates}, Total from JSON: ${totalFromJSON}`);
         setAllFacilities(filteredFacilities);
       } catch (err) {
         console.error('Error loading SFF data:', err);

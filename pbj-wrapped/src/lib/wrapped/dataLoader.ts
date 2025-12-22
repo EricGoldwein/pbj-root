@@ -61,10 +61,7 @@ function parseCSV<T>(csvText: string): Promise<T[]> {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
-      // Ensure proper handling of quoted fields and commas
-      quotes: true,
-      quoteChar: '"',
-      escapeChar: '"',
+      // PapaParse handles quoted fields automatically by default
       complete: (results) => {
         if (results.errors.length > 0) {
           console.warn('CSV parsing warnings:', results.errors);

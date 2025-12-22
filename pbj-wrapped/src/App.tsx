@@ -5,7 +5,6 @@ import Wrapped from './pages/wrapped';
 import WrappedNews from './pages/wrapped-news';
 import SFFPage from './pages/sff-page';
 import SFFHomePage from './pages/sff-home';
-import { PasswordProtection } from './components/PasswordProtection';
 
 // Declare gtag function for TypeScript
 declare global {

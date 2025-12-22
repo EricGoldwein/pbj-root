@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PasswordProtection } from '../components/PasswordProtection';
 
 function SFFHome() {
   const navigate = useNavigate();
@@ -20,10 +19,6 @@ function SFFHome() {
 }
 
 export default function SFFHomePage() {
-  return (
-    <PasswordProtection password="320">
-      <SFFHome />
-    </PasswordProtection>
-  );
+  return <SFFHome />;
 }
 

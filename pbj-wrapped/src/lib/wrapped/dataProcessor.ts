@@ -16,7 +16,7 @@ import type {
   OwnershipBreakdown,
   StateMinimum,
 } from './wrappedTypes';
-import type { LoadedData, StateStandardRow } from './dataLoader';
+import type { LoadedData, StateStandardRow, SFFData } from './dataLoader';
 import { createProviderInfoLookup } from './dataLoader';
 
 /**
@@ -353,7 +353,7 @@ function processUSAData(
   stateDataQ1: StateQuarterlyRow[],
   regionDataQ2: RegionQuarterlyRow[],
   regionDataQ1: RegionQuarterlyRow[],
-  sffData?: import('./dataLoader').SFFData | null
+  sffData?: SFFData | null
 ): PBJWrappedData {
   if (!nationalQ2) {
     throw new Error('National Q2 data not available');
@@ -610,7 +610,6 @@ function processUSAData(
       };
     });
   }
-  }
 
   // Section 6: Trends - calculate changes from Q1 to Q2
   const trends = {
@@ -778,7 +777,7 @@ function processStateData(
   providerInfoQ1: ProviderInfoRow[],
   allStatesQ2: StateQuarterlyRow[],
   stateStandards?: Map<string, StateStandardRow>,
-  sffData?: import('./dataLoader').SFFData | null
+  sffData?: SFFData | null
 ): PBJWrappedData {
   if (!stateQ2) {
     throw new Error(`State ${stateAbbr} Q2 data not available`);
@@ -1283,7 +1282,7 @@ function processRegionData(
   stateDataQ2: StateQuarterlyRow[],
   stateDataQ1: StateQuarterlyRow[],
   stateStandards?: Map<string, StateStandardRow>,
-  sffData?: import('./dataLoader').SFFData | null
+  sffData?: SFFData | null
 ): PBJWrappedData {
   if (!regionQ2) {
     throw new Error(`Region ${regionNumber} Q2 data not available`);
@@ -1405,7 +1404,7 @@ function processRegionData(
   
   if (sffData && sffData.facilities) {
     // Use data from sff-facilities.json, filtered by region states
-    const regionStates = regionStateMapping.get(regionNumber);
+    // regionStates already declared above at line 1292
     const sffFacilities = sffData.facilities.filter(f => 
       f.category === 'SFF' && regionStates && f.state && regionStates.has(f.state.toUpperCase())
     );
@@ -1483,8 +1482,6 @@ function processRegionData(
       ? regionQ2.Contract_Percentage - regionQ1.Contract_Percentage
       : 0,
   };
-  
-  console.log(`[Region ${regionNumber}] Trends calculated:`, trends);
   
   console.log(`[Region ${regionNumber}] Trends calculated:`, trends);
 

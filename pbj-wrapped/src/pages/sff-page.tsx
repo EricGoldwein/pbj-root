@@ -631,7 +631,20 @@ export default function SFFPage() {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
         <div className="mb-6 md:mb-8">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 md:mb-3">{pageTitle}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{pageTitle}</h1>
+            {(scope && scope !== 'usa') && (
+              <a
+                href="/sff/usa"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-sm font-medium whitespace-nowrap self-start sm:self-auto"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                View All USA SFFs
+              </a>
+            )}
+          </div>
           <p className="text-gray-300 text-sm md:text-base mb-2">
             {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'} • CMS Payroll-Based Journal
           </p>

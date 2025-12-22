@@ -362,6 +362,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     
     // Load state standards only for state scope (not needed for USA/region)
     // This avoids unnecessary 404 console errors for scopes that don't use it
+    // Silently handle 404s - file is optional
     const stateStandardsJson = (scope === 'state')
       ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null)
       : null;
@@ -455,44 +456,56 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       // For state scope, try to load pre-filtered data first
       if (scope === 'state' && identifier) {
         const stateCode = identifier.toUpperCase();
-        const [stateFacilityQ1, stateFacilityQ2, stateProviderQ1, stateProviderQ2] = await Promise.all([
-          loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_${stateCode}_q1.json`),
-          loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_${stateCode}_q2.json`),
-          loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_${stateCode}_q1.json`),
-          loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_${stateCode}_q2.json`),
-        ]);
-        
-        if (stateFacilityQ1 && stateFacilityQ2 && stateProviderQ1 && stateProviderQ2) {
-          console.log(`✅ Using pre-filtered state data for ${stateCode} (${stateFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
-          console.log(`Provider info for ${stateCode} - Q1: ${stateProviderQ1.length}, Q2: ${stateProviderQ2.length}`);
-          if (stateProviderQ2.length > 0) {
-            console.log(`Sample pre-filtered Q2: CCN=${stateProviderQ2[0].PROVNUM}, Ownership=${stateProviderQ2[0].ownership_type}, SFF=${stateProviderQ2[0].sff_status}`);
+        // Ensure identifier is a valid 2-letter state code, not a region
+        if (stateCode.length === 2 && !stateCode.startsWith('REGION')) {
+          const [stateFacilityQ1, stateFacilityQ2, stateProviderQ1, stateProviderQ2] = await Promise.all([
+            loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_${stateCode}_q1.json`),
+            loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_${stateCode}_q2.json`),
+            loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_${stateCode}_q1.json`),
+            loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_${stateCode}_q2.json`),
+          ]);
+          
+          if (stateFacilityQ1 && stateFacilityQ2 && stateProviderQ1 && stateProviderQ2) {
+            console.log(`✅ Using pre-filtered state data for ${stateCode} (${stateFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
+            console.log(`Provider info for ${stateCode} - Q1: ${stateProviderQ1.length}, Q2: ${stateProviderQ2.length}`);
+            if (stateProviderQ2.length > 0) {
+              console.log(`Sample pre-filtered Q2: CCN=${stateProviderQ2[0].PROVNUM}, Ownership=${stateProviderQ2[0].ownership_type}, SFF=${stateProviderQ2[0].sff_status}`);
+            }
+            facilityQ1 = stateFacilityQ1;
+            facilityQ2 = stateFacilityQ2;
+            providerQ1 = stateProviderQ1;
+            providerQ2 = stateProviderQ2;
+            usingFilteredData = true;
           }
-          facilityQ1 = stateFacilityQ1;
-          facilityQ2 = stateFacilityQ2;
-          providerQ1 = stateProviderQ1;
-          providerQ2 = stateProviderQ2;
-          usingFilteredData = true;
         }
       }
 
       // For region scope, try to load pre-filtered data first
+      // Only check if scope is explicitly 'region' and we haven't already loaded filtered data
+      // Double-check that identifier actually looks like a region (starts with "region" or is just a number)
       if (scope === 'region' && identifier && !usingFilteredData) {
-        const regionNum = identifier.replace('region', '');
-        const [regionFacilityQ1, regionFacilityQ2, regionProviderQ1, regionProviderQ2] = await Promise.all([
-          loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_region${regionNum}_q1.json`),
-          loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_region${regionNum}_q2.json`),
-          loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_region${regionNum}_q1.json`),
-          loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_region${regionNum}_q2.json`),
-        ]);
-        
-        if (regionFacilityQ1 && regionFacilityQ2 && regionProviderQ1 && regionProviderQ2) {
-          console.log(`✅ Using pre-filtered region data for region ${regionNum} (${regionFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
-          facilityQ1 = regionFacilityQ1;
-          facilityQ2 = regionFacilityQ2;
-          providerQ1 = regionProviderQ1;
-          providerQ2 = regionProviderQ2;
-          usingFilteredData = true;
+        const identifierLower = identifier.toLowerCase();
+        // Only proceed if identifier is clearly a region (starts with "region" or is just digits)
+        if (identifierLower.startsWith('region') || /^\d+$/.test(identifierLower)) {
+          // Extract region number - handle both "region1" and "1" formats
+          const regionNum = identifierLower.replace(/^region/, '');
+          if (regionNum && /^\d+$/.test(regionNum)) {
+            const [regionFacilityQ1, regionFacilityQ2, regionProviderQ1, regionProviderQ2] = await Promise.all([
+              loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_region${regionNum}_q1.json`),
+              loadJSON<FacilityLiteRow[]>(`${jsonBasePath}/facility_region${regionNum}_q2.json`),
+              loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_region${regionNum}_q1.json`),
+              loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_region${regionNum}_q2.json`),
+            ]);
+            
+            if (regionFacilityQ1 && regionFacilityQ2 && regionProviderQ1 && regionProviderQ2) {
+              console.log(`✅ Using pre-filtered region data for region ${regionNum} (${regionFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
+              facilityQ1 = regionFacilityQ1;
+              facilityQ2 = regionFacilityQ2;
+              providerQ1 = regionProviderQ1;
+              providerQ2 = regionProviderQ2;
+              usingFilteredData = true;
+            }
+          }
         }
       }
 
@@ -517,7 +530,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       if (Array.isArray(stateQ1Json) && stateQ1Json.length === 0) {
         console.warn('⚠️ WARNING: state_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
       }
-      if (Array.isArray(regionQ1Json) && regionQ1Json.length === 0) {
+      // Only warn about empty region Q1 if we're actually using region scope
+      if (scope === 'region' && Array.isArray(regionQ1Json) && regionQ1Json.length === 0) {
         console.warn('⚠️ WARNING: region_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
       }
 

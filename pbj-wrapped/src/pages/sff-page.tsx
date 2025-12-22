@@ -13,6 +13,7 @@ function getDataPath(path: string = ''): string {
 }
 
 interface CandidateMonthData {
+  months_as_sff?: number; // Months as an SFF Candidate
   month: number;
   year: number;
   month_name: string;
@@ -652,8 +653,6 @@ export default function SFFPage() {
             Special Focus Facilities (SFFs) are nursing homes with a history of serious quality problems. 
             SFF Candidates are facilities being considered for SFF status. 
             <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'}.
-            <br /><br />
-            <span className="text-gray-500 italic">Methodology: Status changes are determined by comparing current SFF status (from CMS posting dated December 10, 2025) with previous status from provider information data (Q2 2025).</span>
           </p>
         </div>
 
@@ -727,12 +726,11 @@ export default function SFFPage() {
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Facility</th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Location</th>
                       <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Candidate Month</th>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Months as SFF</th>
                       <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Total HPRD</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">% of Case Mix</SortableHeader>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -756,31 +754,13 @@ export default function SFFPage() {
                           {formatCensus(facility.census)}
                         </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.candidateMonthData ? `${facility.candidateMonthData.month_name} ${facility.candidateMonthData.year}` : '—'}
+                          {facility.candidateMonthData?.months_as_sff !== undefined ? facility.candidateMonthData.months_as_sff : '—'}
                         </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                        <td className="px-3 md:px-4 py-2 md:py-3 text-center">
-                          {facility.isNewSFF && (
-                            <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
-                              New SFF
-                            </span>
-                          )}
-                          {!facility.isNewSFF && facility.wasSFF && (
-                            <span className="text-gray-500 text-xs">Existing</span>
-                          )}
-                          {!facility.isNewSFF && !facility.wasSFF && facility.wasCandidate && (
-                            <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded whitespace-nowrap">
-                              Was Candidate
-                            </span>
-                          )}
-                          {!facility.isNewSFF && !facility.wasSFF && !facility.wasCandidate && (
-                            <span className="text-gray-500 text-xs">—</span>
-                          )}
                         </td>
                       </tr>
                     ))}
@@ -835,11 +815,11 @@ export default function SFFPage() {
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Facility</th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Location</th>
                       <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Census</SortableHeader>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Months as SFF</th>
                       <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Total HPRD</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">% of Case Mix</SortableHeader>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300">Status</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -863,31 +843,13 @@ export default function SFFPage() {
                           {formatCensus(facility.census)}
                         </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.candidateMonthData ? `${facility.candidateMonthData.month_name} ${facility.candidateMonthData.year}` : '—'}
+                          {facility.candidateMonthData?.months_as_sff !== undefined ? facility.candidateMonthData.months_as_sff : '—'}
                         </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                        <td className="px-3 md:px-4 py-2 md:py-3 text-center">
-                          {facility.isNewCandidate && (
-                            <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
-                              New Candidate
-                            </span>
-                          )}
-                          {!facility.isNewCandidate && facility.wasCandidate && (
-                            <span className="text-gray-500 text-xs">Existing</span>
-                          )}
-                          {!facility.isNewCandidate && !facility.wasCandidate && facility.wasSFF && (
-                            <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded whitespace-nowrap">
-                              Was SFF
-                            </span>
-                          )}
-                          {!facility.isNewCandidate && !facility.wasCandidate && !facility.wasSFF && (
-                            <span className="text-gray-500 text-xs">—</span>
-                          )}
                         </td>
                       </tr>
                     ))}

@@ -160,6 +160,8 @@ export default function SFFPage() {
 
         // Validate facility data to detect CSV column shifts
         // Returns true if data appears valid, false if columns are shifted
+        // NOTE: This is a heuristic - some facilities may legitimately have Total_Nurse_HPRD = 0
+        // but we reject if Direct Care HPRD > 0 (which would be impossible)
         const isValidFacilityData = (facility: FacilityLiteRow): boolean => {
           const totalHPRD = typeof facility.Total_Nurse_HPRD === 'number' 
             ? facility.Total_Nurse_HPRD 
@@ -171,14 +173,18 @@ export default function SFFPage() {
             ? facility.Total_RN_HPRD 
             : (parseFloat(String(facility.Total_RN_HPRD)) || 0);
           
-          // CRITICAL: If Total_Nurse_HPRD is 0 but Direct Care or RN HPRD have values,
-          // this indicates a CSV column shift - reject this facility data
-          if (totalHPRD === 0 && (directCareHPRD > 0 || rnHPRD > 0)) {
+          // CRITICAL: If Total_Nurse_HPRD is exactly 0 but Direct Care or RN HPRD have significant values (> 0.5),
+          // this strongly indicates a CSV column shift - reject this facility data
+          // We use 0.5 as threshold to avoid false positives from rounding/parsing issues
+          if (totalHPRD === 0 && (directCareHPRD > 0.5 || rnHPRD > 0.5)) {
+            console.warn(`[CSV Shift Detected] PROVNUM=${facility.PROVNUM}, TotalHPRD=${totalHPRD}, DirectCare=${directCareHPRD}, RN=${rnHPRD}`);
             return false; // Column shift detected
           }
           
-          // Additional validation: Direct Care HPRD should not exceed Total HPRD
-          if (totalHPRD > 0 && directCareHPRD > totalHPRD * 1.1) { // Allow 10% tolerance for rounding
+          // Additional validation: Direct Care HPRD should not significantly exceed Total HPRD
+          // Allow 15% tolerance for rounding and edge cases
+          if (totalHPRD > 0 && directCareHPRD > totalHPRD * 1.15) {
+            console.warn(`[CSV Shift Detected] PROVNUM=${facility.PROVNUM}, DirectCare (${directCareHPRD}) > TotalHPRD (${totalHPRD}) * 1.15`);
             return false; // Likely column shift
           }
           

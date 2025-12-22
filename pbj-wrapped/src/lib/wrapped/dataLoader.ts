@@ -61,7 +61,8 @@ function parseCSV<T>(csvText: string): Promise<T[]> {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
-      // PapaParse handles quoted fields automatically by default
+      // Ensure proper handling of quoted fields with commas
+      // PapaParse handles quoted fields automatically, but we can be more explicit
       complete: (results) => {
         if (results.errors.length > 0) {
           console.warn('CSV parsing warnings:', results.errors);
@@ -72,6 +73,22 @@ function parseCSV<T>(csvText: string): Promise<T[]> {
             });
           }
         }
+        
+        // Log parsing stats for facility CSV to help debug misalignment issues
+        if (results.data.length > 0 && 'PROVNUM' in (results.data[0] as any)) {
+          const problematicCCNs = ['265379', '675595', '195454', '205077', '355031', '305051'];
+          const problematicRows = results.data.filter((row: any) => 
+            problematicCCNs.includes(String(row.PROVNUM || row['PROVNUM'] || '').trim())
+          );
+          if (problematicRows.length > 0) {
+            console.log(`[CSV Parse] Found ${problematicRows.length} problematic facilities in parsed data`);
+            problematicRows.slice(0, 3).forEach((row: any) => {
+              const ccn = String(row.PROVNUM || row['PROVNUM'] || '').trim();
+              console.log(`  CCN=${ccn}: Total_Nurse_HPRD=${row.Total_Nurse_HPRD}, Nurse_Care_HPRD=${row.Nurse_Care_HPRD}`);
+            });
+          }
+        }
+        
         resolve(results.data);
       },
       error: (error: Error) => {
@@ -212,14 +229,33 @@ function parseNationalRow(row: any): NationalQuarterlyRow {
 }
 
 function parseFacilityRow(row: any): FacilityLiteRow {
+  // Parse numeric fields - handle both string and number types
+  // Use more defensive parsing to catch CSV misalignment issues
+  const totalHPRD = parseFloat(String(row.Total_Nurse_HPRD || row['Total_Nurse_HPRD'] || 0)) || 0;
+  const directCareHPRD = parseFloat(String(row.Nurse_Care_HPRD || row['Nurse_Care_HPRD'] || 0)) || 0;
+  const rnHPRD = parseFloat(String(row.Total_RN_HPRD || row['Total_RN_HPRD'] || 0)) || 0;
+  
+  // Log potential misalignment during parsing (only for specific problematic CCNs for debugging)
+  const provNum = String(row.PROVNUM || row['PROVNUM'] || '').trim();
+  if (provNum && ['265379', '675595', '195454', '205077', '355031', '305051'].includes(provNum)) {
+    if (totalHPRD === 0 && (directCareHPRD > 0.5 || rnHPRD > 0.5)) {
+      console.warn(`[Parse Warning] CCN=${provNum} may have shifted columns during CSV parsing:`, {
+        Total_Nurse_HPRD: row.Total_Nurse_HPRD,
+        Nurse_Care_HPRD: row.Nurse_Care_HPRD,
+        Total_RN_HPRD: row.Total_RN_HPRD,
+        parsed: { totalHPRD, directCareHPRD, rnHPRD }
+      });
+    }
+  }
+  
   return {
     ...row,
-    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-    Total_RN_HPRD: parseFloat(row.Total_RN_HPRD) || 0,
-    Direct_Care_RN_HPRD: parseFloat(row.Direct_Care_RN_HPRD) || 0,
-    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-    Census: parseFloat(row.Census) || 0,
+    Total_Nurse_HPRD: totalHPRD,
+    Nurse_Care_HPRD: directCareHPRD,
+    Total_RN_HPRD: rnHPRD,
+    Direct_Care_RN_HPRD: parseFloat(String(row.Direct_Care_RN_HPRD || row['Direct_Care_RN_HPRD'] || 0)) || 0,
+    Contract_Percentage: parseFloat(String(row.Contract_Percentage || row['Contract_Percentage'] || 0)) || 0,
+    Census: parseFloat(String(row.Census || row['Census'] || 0)) || 0,
   };
 }
 

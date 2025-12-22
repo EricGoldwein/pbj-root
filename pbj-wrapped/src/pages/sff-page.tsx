@@ -7,11 +7,10 @@ import { updateSEO } from '../utils/seo';
 import { StateOutline } from '../components/wrapped/StateOutline';
 import type { FacilityLiteRow, ProviderInfoRow } from '../lib/wrapped/wrappedTypes';
 
-// Helper to get data path with base URL
+// Helper to get data path - data is served from /data, not /wrapped/data
 function getDataPath(path: string = ''): string {
-  const baseUrl = import.meta.env.BASE_URL;
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
+  return `/data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
 interface PDFFacilityData {
@@ -1114,7 +1113,40 @@ export default function SFFPage() {
 
         {/* Category Filter Toggles with Desktop State Dropdown */}
         <div className="mb-4 md:mb-6">
-          <div className="flex flex-wrap gap-2 md:gap-3 md:items-end">
+          <div className="flex flex-wrap gap-2 md:gap-3 md:items-center">
+            {/* Desktop: State Dropdown on same row as filters */}
+            {(() => {
+              const isUSA = scope === 'usa';
+              const isState = scope && scope.length === 2 && !scope.startsWith('region');
+              const shouldShow = (isUSA || isState);
+              
+              return shouldShow ? (
+                <div className="hidden md:flex md:items-center md:gap-2">
+                  {isUSA && (
+                    <span className="text-sm font-semibold text-blue-300 whitespace-nowrap">USA SFFs</span>
+                  )}
+                  <select
+                    id="state-select-desktop"
+                    value={isState ? scope.toUpperCase() : ''}
+                    onChange={(e) => {
+                      const selectedState = e.target.value;
+                      if (selectedState) {
+                        navigate(`/sff/${selectedState.toLowerCase()}`);
+                      }
+                    }}
+                    className="px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
+                  >
+                    <option value="">Select a state...</option>
+                    {allStates.map(stateCode => (
+                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
+                        {getStateName(stateCode)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null;
+            })()}
+            
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
                 onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
@@ -1167,39 +1199,6 @@ export default function SFFPage() {
                 Terminated ({allFacilities.filter(f => f.sffStatus === 'Terminated').length})
               </button>
             </div>
-            
-            {/* Desktop: State Dropdown on same row as filters */}
-            {(() => {
-              const isUSA = scope === 'usa';
-              const isState = scope && scope.length === 2 && !scope.startsWith('region');
-              const shouldShow = (isUSA || isState);
-              
-              return shouldShow ? (
-                <div className="hidden md:flex md:items-center md:gap-2">
-                  {isUSA && (
-                    <span className="text-sm font-semibold text-blue-300 whitespace-nowrap">USA SFFs</span>
-                  )}
-                  <select
-                    id="state-select-desktop"
-                    value={isState ? scope.toUpperCase() : ''}
-                    onChange={(e) => {
-                      const selectedState = e.target.value;
-                      if (selectedState) {
-                        navigate(`/sff/${selectedState.toLowerCase()}`);
-                      }
-                    }}
-                    className="px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
-                  >
-                    <option value="">Select a state...</option>
-                    {allStates.map(stateCode => (
-                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
-                        {getStateName(stateCode)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null;
-            })()}
           </div>
         </div>
 

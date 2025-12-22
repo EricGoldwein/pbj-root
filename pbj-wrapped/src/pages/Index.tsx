@@ -190,7 +190,7 @@ const Index: React.FC = () => {
         {/* Hero Section - Enhanced */}
         <div className="text-center mb-4 md:mb-5">
           <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg border-2 border-blue-400/60 overflow-hidden bg-gray-800/50 flex items-center justify-center">
+            <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg border-2 border-blue-400/60 overflow-hidden bg-gray-800/50">
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"

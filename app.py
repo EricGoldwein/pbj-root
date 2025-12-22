@@ -198,12 +198,12 @@ def pbj_wrapped_static(path):
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined
-    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff']:
+    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data']:
         from flask import abort
         abort(404)
     
     # Exclude directories that shouldn't be served (prevents connection failures)
-    excluded_prefixes = ['node_modules/', '.git/', 'pbj-wrapped/node_modules/', 'pbj-wrapped/.git/']
+    excluded_prefixes = ['node_modules/', '.git/', 'pbj-wrapped/node_modules/', 'pbj-wrapped/.git/', 'data/']
     if any(filename.startswith(prefix) for prefix in excluded_prefixes):
         from flask import abort
         abort(404)

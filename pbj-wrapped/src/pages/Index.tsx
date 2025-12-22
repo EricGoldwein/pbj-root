@@ -187,10 +187,12 @@ const Index: React.FC = () => {
       </nav>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
-        {/* Hero Section - Enhanced */}
+        {/* Hero Section - Polished Header */}
         <div className="text-center mb-4 md:mb-5">
-          <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
-            <div className="relative w-12 h-12 md:w-14 md:h-14 rounded-lg border-2 border-blue-400/60 overflow-hidden bg-gray-800/50">
+          {/* HeaderContainer: Single flex row with perfect alignment */}
+          <div className="flex items-center justify-center gap-3 mb-3">
+            {/* AvatarWrapper: Fixed size, clean rounded square, no background blob */}
+            <div className="relative w-11 h-11 md:w-12 md:h-12 rounded-lg overflow-hidden flex-shrink-0">
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"
@@ -201,7 +203,8 @@ const Index: React.FC = () => {
                 }}
               />
             </div>
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
+            {/* TitleText: Optically aligned with avatar centerline */}
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent leading-none">
               PBJ Wrapped 2025
             </h1>
           </div>

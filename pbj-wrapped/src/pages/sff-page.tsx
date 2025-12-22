@@ -85,11 +85,10 @@ export default function SFFPage() {
         try {
           const jsonResponse = await fetch(jsonPath);
           if (jsonResponse.ok) {
-            candidateJSONData = await jsonResponse.json();
-            setCandidateJSON(candidateJSONData);
-            if (candidateJSONData) {
-              console.log(`Loaded ${candidateJSONData.total_count} candidates from JSON`);
-            }
+            const jsonData = await jsonResponse.json() as SFFCandidateJSON;
+            candidateJSONData = jsonData;
+            setCandidateJSON(jsonData);
+            console.log(`Loaded ${jsonData.total_count} candidates from JSON`);
           } else {
             console.warn('Could not load candidate JSON file');
           }

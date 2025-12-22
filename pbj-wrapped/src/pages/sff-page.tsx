@@ -238,8 +238,8 @@ export default function SFFPage() {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
           
-          // Only include Q2 2025 data
-          if (f.CY_Qtr !== '2025Q2') return;
+          // Only include Q2 2025 data (facilityQ2 should already be filtered, but check to be safe)
+          if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return;
           
           // Add all possible variations to the map for maximum matching success
           facilityMap.set(provNum, f);
@@ -433,8 +433,8 @@ export default function SFFPage() {
               if (!facility) {
                 // Try finding in array directly with all variations - PRIORITY: Match by Provider Number
                 facility = facilityQ2.find((f: FacilityLiteRow) => {
-                  // Only match Q2 2025 data
-                  if (f.CY_Qtr !== '2025Q2') return false;
+                  // Only match Q2 2025 data (facilityQ2 should already be filtered, but check to be safe)
+                  if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
                   
                   const fProvNum = f.PROVNUM?.toString().trim() || '';
                   if (!fProvNum) return false;

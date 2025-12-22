@@ -190,16 +190,16 @@ const Index: React.FC = () => {
         {/* Hero Section - Polished Header */}
         <div className="text-center mb-4 md:mb-5">
           {/* HeaderContainer: Single flex row with perfect alignment */}
-          <div className="flex items-center justify-center gap-3 mb-3">
+          <div className="flex items-center justify-center gap-3 mb-3 py-2" style={{ lineHeight: '1.5' }}>
             {/* AvatarWrapper: Reduced size ~10%, nudged down 2px for optical alignment with text baseline */}
-            <div className="relative w-10 h-10 md:w-11 md:h-11 rounded-lg overflow-hidden flex-shrink-0 translate-y-0.5">
+            <div className="relative w-10 h-10 md:w-11 md:h-11 rounded-lg overflow-visible flex-shrink-0" style={{ transform: 'translateY(2px)', opacity: 0.9 }}>
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"
                 className="w-full h-full"
                 style={{
-                  objectFit: 'cover',
-                  objectPosition: 'center',
+                  objectFit: 'contain',
+                  objectPosition: 'center bottom',
                 }}
               />
             </div>

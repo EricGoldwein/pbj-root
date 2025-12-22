@@ -374,10 +374,12 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     // If we got JSON data, use it (much faster!)
     // Check if we have the essential JSON files
     // Note: Empty arrays are still valid JSON, so check for null/undefined, not just truthiness
-    // For USA scope, we ONLY need national Q2 (facility/provider can be empty arrays - old behavior)
-    // For state/region scope, we need state/region data
+    // For USA scope, we need national Q2, facility Q2, and provider Q2 (all required!)
+    // For state/region scope, we need state/region/national data
     const hasEssentialJsonData = (scope === 'usa' 
-      ? (nationalQ2Json !== null && nationalQ2Json !== undefined)
+      ? (nationalQ2Json !== null && nationalQ2Json !== undefined &&
+         facilityQ2Json !== null && facilityQ2Json !== undefined &&
+         providerQ2Json !== null && providerQ2Json !== undefined)
       : (stateQ1Json !== null && stateQ1Json !== undefined && 
          stateQ2Json !== null && stateQ2Json !== undefined &&
          regionQ1Json !== null && regionQ1Json !== undefined &&
@@ -388,8 +390,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     // Also check if we have facility/provider JSON (needed for all scopes)
     // For USA scope, Q1 data is optional (only needed for trends)
     // For state/region scope, Q1 data is required for trends
-    // NOTE: Facility/provider JSON is not required for hasJsonData - we can use empty arrays if missing
-    // This matches the old behavior where hasJsonData only checked state/region/national files
     const hasFacilityProviderJson = scope === 'usa'
       ? (facilityQ2Json !== null && facilityQ2Json !== undefined &&
          providerQ2Json !== null && providerQ2Json !== undefined)
@@ -398,11 +398,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
          providerQ1Json !== null && providerQ1Json !== undefined &&
          providerQ2Json !== null && providerQ2Json !== undefined);
     
-    // For USA scope, only require national Q2 (matches old behavior exactly)
+    // For USA scope, require essential data (national/facility/provider Q2)
     // For state/region scope, require state/region/national data AND facility/provider JSON
-    // Facility/provider JSON is optional for USA - we'll use empty arrays if missing (old behavior)
     const hasJsonData = scope === 'usa'
-      ? hasEssentialJsonData  // Only check national Q2 for USA (old behavior)
+      ? hasEssentialJsonData  // For USA, essential data already includes facility/provider Q2
       : (hasEssentialJsonData && hasFacilityProviderJson);  // Require both for state/region
     
     // Debug logging for USA scope

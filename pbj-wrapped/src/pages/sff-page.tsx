@@ -232,12 +232,16 @@ export default function SFFPage() {
         }
 
         // Create maps for quick lookup - include normalized CCNs for better matching
+        // PRIORITY: Match provider numbers from JSON to facility_lite_metrics (Q2 2025)
         const facilityMap = new Map<string, FacilityLiteRow>();
         facilityQ2.forEach((f: FacilityLiteRow) => {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
           
-          // Add all possible variations to the map
+          // Only include Q2 2025 data
+          if (f.CY_Qtr !== '2025Q2') return;
+          
+          // Add all possible variations to the map for maximum matching success
           facilityMap.set(provNum, f);
           
           // Normalized (6-digit padded)
@@ -261,12 +265,14 @@ export default function SFFPage() {
           }
         });
         
+        console.log(`[Matching] Created facilityMap with ${facilityMap.size} entries from ${facilityQ2.length} Q2 facilities`);
+        
         const providerMap = new Map<string, ProviderInfoRow>();
         providerInfoQ2.forEach((p: ProviderInfoRow) => {
           const provNum = p.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
           
-          // Add all possible variations to the map
+          // Add all possible variations to the map for maximum matching success
           providerMap.set(provNum, p);
           
           // Normalized (6-digit padded)
@@ -289,6 +295,8 @@ export default function SFFPage() {
             }
           }
         });
+        
+        console.log(`[Matching] Created providerMap with ${providerMap.size} entries from ${providerInfoQ2.length} Q2 providers`);
         
         const q1StatusMap = new Map<string, string>();
         providerInfoQ1.forEach((p: ProviderInfoRow) => {
@@ -423,14 +431,18 @@ export default function SFFPage() {
                 if (facility) facilityMatchMethod = 'withZeros_ccn';
               }
               if (!facility) {
-                // Try finding in array directly with all variations
+                // Try finding in array directly with all variations - PRIORITY: Match by Provider Number
                 facility = facilityQ2.find((f: FacilityLiteRow) => {
+                  // Only match Q2 2025 data
+                  if (f.CY_Qtr !== '2025Q2') return false;
+                  
                   const fProvNum = f.PROVNUM?.toString().trim() || '';
                   if (!fProvNum) return false;
                   const fNormalized = normalizeCCN(fProvNum);
                   const fNoZeros = fProvNum.replace(/^0+/, '') || fProvNum;
+                  const fWithZeros = fProvNum.length < 6 ? fProvNum.padStart(6, '0') : fProvNum;
                   
-                  // Match against provider's PROVNUM variations
+                  // Comprehensive matching: try all variations of both provider PROVNUM and original CCN
                   return fProvNum === provNum ||
                          fProvNum === provNormalized ||
                          fProvNum === provNoZeros ||
@@ -438,14 +450,18 @@ export default function SFFPage() {
                          fNormalized === provNum ||
                          fNoZeros === provNoZeros ||
                          fNoZeros === provNum.replace(/^0+/, '') ||
-                         // Also match against original CCN variations
+                         // Also match against original CCN variations from JSON
                          fProvNum === ccn ||
                          fProvNum === normalizedCCN ||
                          fProvNum === ccnNoZeros ||
                          fProvNum === ccnWithZeros ||
                          fNormalized === normalizedCCN ||
                          fNormalized === ccn ||
-                         fNoZeros === ccnNoZeros;
+                         fNoZeros === ccnNoZeros ||
+                         fNoZeros === ccn ||
+                         fWithZeros === ccn ||
+                         fWithZeros === normalizedCCN ||
+                         fWithZeros === ccnWithZeros;
                 });
                 if (facility) facilityMatchMethod = 'array_search';
               }

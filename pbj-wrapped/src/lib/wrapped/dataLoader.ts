@@ -369,7 +369,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     
     // Load SFF data separately to avoid redeclaration
     // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
-    const sffDataJson = await loadJSON<SFFData>('/wrapped/sff-facilities.json');
+    // SFF data is optional - don't fail if it's missing
+    const sffDataJson = await loadJSON<SFFData>('/wrapped/sff-facilities.json').catch(() => {
+      console.warn('[SFF Data] sff-facilities.json not found - SFF features will be disabled');
+      return null;
+    });
 
     // If we got JSON data, use it (much faster!)
     // Check if we have the essential JSON files

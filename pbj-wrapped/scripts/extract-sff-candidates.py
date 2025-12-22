@@ -36,16 +36,148 @@ def extract_text_from_pdf(pdf_path):
             })
     return pages
 
+def parse_table_row(line: str, ccn: str) -> Dict:
+    """Parse a single table row into structured data."""
+    facility = {
+        'provider_number': ccn,
+        'facility_name': None,
+        'address': None,
+        'city': None,
+        'state': None,
+        'zip': None,
+        'phone_number': None,
+        'most_recent_inspection': None,
+        'met_survey_criteria': None,
+        'months_as_sff': None
+    }
+    
+    # Remove the CCN from the line to get the rest
+    line_without_ccn = line.replace(ccn, '', 1).strip()
+    
+    # Extract months (usually the last number 1-100)
+    numbers = re.findall(r'\b\d+\b', line_without_ccn)
+    for num_str in reversed(numbers):
+        num = int(num_str)
+        if 1 <= num <= 100 and num_str != ccn:
+            facility['months_as_sff'] = num
+            # Remove months from line
+            line_without_ccn = re.sub(r'\b' + num_str + r'\b', '', line_without_ccn, count=1)
+            break
+    
+    # Extract date (MM/DD/YYYY)
+    date_match = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', line_without_ccn)
+    if date_match:
+        facility['most_recent_inspection'] = f"{date_match.group(1).zfill(2)}/{date_match.group(2).zfill(2)}/{date_match.group(3)}"
+        # Remove date from line
+        line_without_ccn = re.sub(r'\d{1,2}[/-]\d{1,2}[/-]\d{4}', '', line_without_ccn, count=1)
+    
+    # Extract "Met" or "Not Met"
+    if re.search(r'\bnot\s+met\b', line_without_ccn, re.IGNORECASE):
+        facility['met_survey_criteria'] = 'Not Met'
+        line_without_ccn = re.sub(r'\bnot\s+met\b', '', line_without_ccn, flags=re.IGNORECASE, count=1)
+    elif re.search(r'\bmet\b', line_without_ccn, re.IGNORECASE):
+        facility['met_survey_criteria'] = 'Met'
+        line_without_ccn = re.sub(r'\bmet\b', '', line_without_ccn, flags=re.IGNORECASE, count=1)
+    
+    # Extract phone number (format: XXX-XXX-XXXX or (XXX) XXX-XXXX)
+    phone_match = re.search(r'(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})', line_without_ccn)
+    if phone_match:
+        facility['phone_number'] = phone_match.group(1).strip()
+        # Remove phone from line
+        line_without_ccn = re.sub(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}', '', line_without_ccn, count=1)
+    
+    # Extract ZIP (5 digits, sometimes with -4)
+    zip_match = re.search(r'\b(\d{5}(-\d{4})?)\b', line_without_ccn)
+    if zip_match:
+        facility['zip'] = zip_match.group(1)
+        # Remove ZIP from line
+        line_without_ccn = re.sub(r'\b\d{5}(-\d{4})?\b', '', line_without_ccn, count=1)
+    
+    # Extract state (2-letter abbreviation, must be valid US state)
+    state_candidates = re.findall(r'\b([A-Z]{2})\b', line_without_ccn)
+    for state_candidate in state_candidates:
+        if state_candidate in US_STATES:
+            facility['state'] = state_candidate
+            # Remove state from line
+            line_without_ccn = re.sub(r'\b' + state_candidate + r'\b', '', line_without_ccn, count=1)
+            break
+    
+    # What's left should be: Facility Name, Address, City
+    # Clean up the remaining text
+    remaining = re.sub(r'\s+', ' ', line_without_ccn).strip()
+    
+    # Try to identify city (usually capitalized words before state, but we already removed state)
+    # City is often the last capitalized word/phrase
+    # For now, we'll extract facility name and address from what's left
+    # Facility name is usually at the start, address in the middle
+    
+    # Split remaining text into parts
+    parts = [p.strip() for p in remaining.split() if p.strip()]
+    
+    # Try to find facility name (usually starts with capital letters, may contain words like "Nursing", "Care", "Center")
+    name_parts = []
+    address_parts = []
+    city_parts = []
+    
+    i = 0
+    # Facility name usually comes first and contains words like Nursing, Care, Center, Home, etc.
+    while i < len(parts):
+        part = parts[i]
+        # If we hit something that looks like an address (starts with number), stop collecting name
+        if re.match(r'^\d+', part):
+            break
+        name_parts.append(part)
+        i += 1
+    
+    # Address usually starts with a number
+    while i < len(parts):
+        part = parts[i]
+        if re.match(r'^\d+', part):
+            address_parts.append(part)
+            i += 1
+            # Continue until we hit something that looks like a city (all caps or capitalized words)
+            while i < len(parts):
+                next_part = parts[i]
+                # If it's all caps and short, might be a state (but we already extracted that)
+                # If it's a capitalized word, might be city
+                if re.match(r'^[A-Z][a-z]+', next_part) and len(next_part) > 2:
+                    city_parts.append(next_part)
+                    i += 1
+                elif re.match(r'^[A-Z]{2,}$', next_part) and next_part not in US_STATES:
+                    # Might be part of address or city abbreviation
+                    address_parts.append(next_part)
+                    i += 1
+                else:
+                    break
+            break
+        i += 1
+    
+    # If we have name parts, join them
+    if name_parts:
+        facility['facility_name'] = ' '.join(name_parts)
+    
+    # If we have address parts, join them
+    if address_parts:
+        facility['address'] = ' '.join(address_parts)
+    
+    # If we have city parts, join them
+    if city_parts:
+        facility['city'] = ' '.join(city_parts)
+    
+    return facility
+
 def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: int) -> List[Dict]:
-    """Improved facility extraction that handles multi-line entries."""
+    """Improved facility extraction that properly parses table rows."""
     facilities = []
     ccn_pattern = r'\b\d{6}\b'
     i = start_idx
     
+    # Skip header rows - look for the actual data rows
+    # Headers usually contain "Provider Number", "Facility Name", etc.
     while i < end_idx and i < len(lines):
         line = lines[i].strip()
         
-        # Skip empty lines and headers
+        # Skip empty lines
         if not line or len(line) < 5:
             i += 1
             continue
@@ -55,6 +187,12 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
             next_line_lower = lines[i + 1].lower() if i + 1 < len(lines) else ''
             if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
                 break
+        
+        # Skip header rows
+        line_lower = line.lower()
+        if any(word in line_lower for word in ['provider number', 'facility name', 'address', 'city', 'state', 'zip', 'phone', 'inspection', 'met survey', 'months']):
+            i += 1
+            continue
         
         # Look for CCN in this line
         ccns = re.findall(ccn_pattern, line)
@@ -67,121 +205,39 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
             i += 1
             continue
         
-        # Build facility data from this line and next few lines
-        facility = {
-            'provider_number': ccn,
-            'facility_name': None,
-            'address': None,
-            'city': None,
-            'state': None,
-            'zip': None,
-            'phone_number': None,
-            'most_recent_inspection': None,
-            'met_survey_criteria': None,
-            'months_as_sff': None
-        }
+        # Check if this CCN is actually part of a facility row (not a page number or other number)
+        # Facility rows should have the CCN followed by text (facility name, address, etc.)
+        ccn_pos = line.find(ccn)
+        if ccn_pos == -1:
+            i += 1
+            continue
         
-        # Get context from this line and next 2-3 lines
-        context_lines = [line]
-        for j in range(1, 4):
-            if i + j < len(lines):
-                context_lines.append(lines[i + j].strip())
-        
-        combined_text = ' '.join(context_lines)
-        
-        # Extract months (1-100, typically the last reasonable number)
-        numbers = re.findall(r'\b\d+\b', combined_text)
-        for num_str in reversed(numbers):
-            if num_str == ccn:
-                continue
-            num = int(num_str)
-            if 1 <= num <= 100:
-                facility['months_as_sff'] = num
+        # Get the full row - might span multiple lines
+        full_row = line
+        # Check next few lines to see if this is a multi-line entry
+        j = i + 1
+        while j < min(i + 3, len(lines)) and j < end_idx:
+            next_line = lines[j].strip()
+            # If next line doesn't start with a CCN, it might be continuation
+            if next_line and not re.match(ccn_pattern, next_line):
+                # Check if it looks like continuation (has address parts, city, etc.)
+                if re.search(r'[A-Za-z]', next_line) and len(next_line) > 10:
+                    full_row += ' ' + next_line
+                    j += 1
+                else:
+                    break
+            else:
                 break
         
-        # Extract date (MM/DD/YYYY)
-        date_match = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', combined_text)
-        if date_match:
-            facility['most_recent_inspection'] = f"{date_match.group(1).zfill(2)}/{date_match.group(2).zfill(2)}/{date_match.group(3)}"
+        # Parse the row
+        facility = parse_table_row(full_row, ccn)
         
-        # Extract "Met" or "Not Met"
-        if re.search(r'\bmet\s+survey\s+criteria\b', combined_text, re.IGNORECASE):
-            facility['met_survey_criteria'] = 'Met'
-        elif re.search(r'\bnot\s+met\b', combined_text, re.IGNORECASE):
-            facility['met_survey_criteria'] = 'Not Met'
-        elif re.search(r'\bmet\b', combined_text, re.IGNORECASE) and 'not' not in combined_text.lower():
-            facility['met_survey_criteria'] = 'Met'
+        # Only add if we got a valid facility (has at least CCN and some data)
+        if facility['provider_number']:
+            facilities.append(facility)
         
-        # Extract phone number
-        phone_match = re.search(r'(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})', combined_text)
-        if phone_match:
-            facility['phone_number'] = phone_match.group(1)
-        
-        # Extract ZIP (5 digits, sometimes with -4)
-        zip_match = re.search(r'\b(\d{5}(-\d{4})?)\b', combined_text)
-        if zip_match:
-            facility['zip'] = zip_match.group(1)
-        
-        # Extract state (2-letter abbreviation, must be valid US state)
-        # Look for state pattern before ZIP or after city
-        state_candidates = re.findall(r'\b([A-Z]{2})\b', combined_text)
-        for state_candidate in state_candidates:
-            if state_candidate in US_STATES:
-                facility['state'] = state_candidate
-                break
-        
-        # Extract facility name - text before CCN, but after any previous CCN
-        # Facility name is usually the first substantial text on the line
-        name_part = line.split(ccn)[0].strip()
-        
-        # Clean up name - remove common prefixes/suffixes
-        name_part = re.sub(r'^\d+\s*', '', name_part)  # Remove leading numbers
-        name_part = re.sub(r'\s+', ' ', name_part)  # Normalize whitespace
-        
-        # If name part looks reasonable (has letters, not just numbers/symbols)
-        if name_part and len(name_part) > 3 and re.search(r'[A-Za-z]', name_part):
-            # Limit length and clean
-            facility['facility_name'] = name_part[:150].strip()
-        
-        # If we still don't have a name, try the previous line
-        if not facility['facility_name'] and i > 0:
-            prev_line = lines[i - 1].strip()
-            if prev_line and len(prev_line) > 3 and not re.search(ccn_pattern, prev_line):
-                if re.search(r'[A-Za-z]', prev_line):
-                    facility['facility_name'] = prev_line[:150].strip()
-        
-        # Extract address - usually contains street number and name
-        # Address is typically between name and city/state
-        address_pattern = r'(\d+\s+[A-Za-z0-9\s,.#-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Way|Circle|Cir))'
-        address_match = re.search(address_pattern, combined_text, re.IGNORECASE)
-        if address_match:
-            facility['address'] = address_match.group(1).strip()[:100]
-        else:
-            # Try simpler pattern - number followed by text
-            simple_address = re.search(r'(\d+\s+[A-Za-z0-9\s,.-]{10,50})', combined_text)
-            if simple_address and not facility['facility_name']:
-                addr_text = simple_address.group(1).strip()
-                # Don't use if it looks like a name
-                if not re.search(r'\b(Inc|LLC|Corp|Ltd|Nursing|Care|Center|Home)\b', addr_text, re.IGNORECASE):
-                    facility['address'] = addr_text[:100]
-        
-        # Extract city - usually before state, after address
-        # City names are typically capitalized words
-        if facility['state']:
-            # Look for text before state that could be a city
-            state_pos = combined_text.find(facility['state'])
-            if state_pos > 0:
-                before_state = combined_text[:state_pos]
-                # City is usually the last capitalized word/phrase before state
-                city_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+' + facility['state'], before_state)
-                if city_match:
-                    city_candidate = city_match.group(1).strip()
-                    # Make sure it's not too long and looks like a city name
-                    if len(city_candidate) < 50 and re.match(r'^[A-Z][a-z]+', city_candidate):
-                        facility['city'] = city_candidate
-        
-        facilities.append(facility)
-        i += 1
+        # Move past any continuation lines we consumed
+        i = j if j > i + 1 else i + 1
     
     return facilities
 
@@ -303,8 +359,7 @@ def extract_table_data(pages: List[Dict]) -> Dict:
             'graduated_count': len(table_b_facilities),
             'no_longer_participating_count': len(table_c_facilities),
             'candidates_count': len(table_d_facilities),
-            'total_count': len(table_a_facilities) + len(table_b_facilities) + 
-                          len(table_c_facilities) + len(table_d_facilities)
+            'total_count': len(table_a_facilities) + len(table_b_facilities) + len(table_c_facilities) + len(table_d_facilities)
         }
     }
 

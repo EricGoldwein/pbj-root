@@ -216,18 +216,28 @@ export default function SFFPage() {
 
           for (const pdfFacility of allPDFFacilities) {
             const ccn = pdfFacility.provider_number;
+            // Skip if already processed
+            if (processedCCNs.has(ccn)) {
+              continue;
+            }
+            
             // Find provider by CCN - try multiple matching strategies
             const normalizedCCN = normalizeCCN(ccn);
             let provider = providerMap.get(ccn);
             
-            // Try exact match first
+            // Try normalized match in map
+            if (!provider) {
+              provider = providerMap.get(normalizedCCN);
+            }
+            
+            // Try exact match in array
             if (!provider) {
               provider = providerInfoQ2.find(p => {
                 return p.PROVNUM === ccn;
               });
             }
             
-            // Try normalized match
+            // Try normalized match in array
             if (!provider) {
               provider = providerInfoQ2.find(p => {
                 const normalizedProvnum = normalizeCCN(p.PROVNUM);
@@ -243,12 +253,20 @@ export default function SFFPage() {
                 return provNoZeros === ccnNoZeros;
               });
             }
+            
+            // Try with leading zeros added
+            if (!provider && !ccn.startsWith('0')) {
+              const ccnWithZeros = ccn.padStart(6, '0');
+              provider = providerInfoQ2.find(p => {
+                return p.PROVNUM === ccnWithZeros;
+              });
+            }
 
             if (provider) {
-              const facility = facilityMap.get(provider.PROVNUM);
+              const facility = facilityMap.get(provider.PROVNUM) || facilityMap.get(normalizedCCN);
               // Include facility even if no facility data - use 0 values
 
-              const q1Status = q1StatusMap.get(provider.PROVNUM) || '';
+              const q1Status = q1StatusMap.get(provider.PROVNUM) || q1StatusMap.get(normalizedCCN) || '';
               const status = provider.sff_status?.trim().toUpperCase() || '';
               const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
               const isCandidate = status === 'SFF CANDIDATE' || status === 'CANDIDATE' || 
@@ -289,16 +307,37 @@ export default function SFFPage() {
                 ? (totalHPRD / caseMixExpected) * 100 
                 : undefined;
 
-              // Use provider name if available, otherwise use PDF name, otherwise fallback
-              const facilityName = provider.PROVNAME 
-                ? toTitleCase(provider.PROVNAME)
-                : (pdfFacility.facility_name ? toTitleCase(pdfFacility.facility_name) : 'Unknown Facility');
+              // ALWAYS prioritize provider data for names/locations (it's more reliable than PDF extraction)
+              // Only use PDF name if provider name is missing AND PDF name doesn't look like a table header
+              const pdfName = pdfFacility.facility_name?.trim();
+              const isTableHeader = pdfName && (
+                pdfName.toLowerCase().includes('table') ||
+                pdfName.toLowerCase().includes('sff candidate list') ||
+                pdfName.toLowerCase().includes('current sff facilities') ||
+                pdfName.toLowerCase().includes('graduated') ||
+                pdfName.toLowerCase().includes('no longer participating')
+              );
+              
+              const facilityName = provider.PROVNAME && provider.PROVNAME.trim()
+                ? toTitleCase(provider.PROVNAME.trim())
+                : (pdfName && !isTableHeader
+                    ? toTitleCase(pdfName)
+                    : 'Unknown Facility');
+
+              // ALWAYS use provider state/city if available
+              const facilityState = provider.STATE && provider.STATE.trim() 
+                ? provider.STATE.trim().toUpperCase()
+                : (pdfFacility.state && pdfFacility.state.trim() ? pdfFacility.state.trim().toUpperCase() : 'UN');
+              
+              const facilityCity = provider.CITY && provider.CITY.trim()
+                ? capitalizeCity(provider.CITY.trim())
+                : (pdfFacility.city && pdfFacility.city.trim() ? capitalizeCity(pdfFacility.city.trim()) : undefined);
 
               const sffFacility: SFFFacility = {
                 provnum: provider.PROVNUM,
                 name: facilityName,
-                state: pdfFacility.state || provider.STATE || 'UN',
-                city: provider.CITY ? capitalizeCity(provider.CITY) : (pdfFacility.city ? capitalizeCity(pdfFacility.city) : undefined),
+                state: facilityState,
+                city: facilityCity,
                 county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
                 sffStatus: pdfFacility.status,
                 totalHPRD,
@@ -319,13 +358,25 @@ export default function SFFPage() {
 
               allFacilitiesList.push(sffFacility);
               processedCCNs.add(provider.PROVNUM);
+              processedCCNs.add(ccn);
+              processedCCNs.add(normalizedCCN);
             } else {
               // Facility in PDF but not in provider data - still add it
+              // Clean up PDF name - remove table headers
+              let pdfName = pdfFacility.facility_name?.trim();
+              const isTableHeader = pdfName && (
+                pdfName.toLowerCase().includes('table') ||
+                pdfName.toLowerCase().includes('sff candidate list') ||
+                pdfName.toLowerCase().includes('current sff facilities') ||
+                pdfName.toLowerCase().includes('graduated') ||
+                pdfName.toLowerCase().includes('no longer participating')
+              );
+              
               const sffFacility: SFFFacility = {
                 provnum: ccn,
-                name: pdfFacility.facility_name || 'Unknown Facility',
-                state: pdfFacility.state || 'UN',
-                city: pdfFacility.city ? capitalizeCity(pdfFacility.city) : undefined,
+                name: pdfName && !isTableHeader ? toTitleCase(pdfName) : 'Unknown Facility',
+                state: pdfFacility.state && pdfFacility.state.trim() ? pdfFacility.state.trim().toUpperCase() : 'UN',
+                city: pdfFacility.city && pdfFacility.city.trim() ? capitalizeCity(pdfFacility.city.trim()) : undefined,
                 sffStatus: pdfFacility.status,
                 totalHPRD: 0,
                 directCareHPRD: 0,
@@ -340,6 +391,7 @@ export default function SFFPage() {
               };
               allFacilitiesList.push(sffFacility);
               processedCCNs.add(ccn);
+              processedCCNs.add(normalizedCCN);
             }
           }
         }

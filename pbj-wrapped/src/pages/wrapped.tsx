@@ -198,7 +198,6 @@ const Wrapped: React.FC = () => {
       // USA-specific national scale
       ...(wrappedData.scope === 'usa' ? [<USANationalScaleCard key="national-scale" data={wrappedData} />] : []),
       <BasicsCard key="basics" data={wrappedData} />,
-      ...(wrappedData.scope !== 'usa' ? [<RankingsCard key="rankings" data={wrappedData} />] : []),
       // For USA, add ownership slide after basics (combined breakdown and staffing)
       ...(wrappedData.scope === 'usa' && wrappedData.ownership ? [
         <USAOwnershipCard key="ownership" data={wrappedData} />

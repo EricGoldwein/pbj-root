@@ -331,10 +331,12 @@ function processUSAData(
   const rnDirectCareHPRD = nationalQ2.RN_Care_HPRD;
   const nurseAideHPRD = nationalQ2.Nurse_Assistant_HPRD;
   
-  // Calculate median HPRD from facilities
-  const allHPRDs = facilityQ2.map(f => f.Total_Nurse_HPRD).sort((a, b) => a - b);
-  const medianHPRD = allHPRDs.length > 0 
-    ? allHPRDs[Math.floor(allHPRDs.length / 2)]
+  // Calculate median HPRD from facilities - use more efficient approach
+  // Only sort a copy if we need it, and reuse for other calculations
+  const allHPRDs = facilityQ2.map(f => f.Total_Nurse_HPRD);
+  const sortedHPRDs = [...allHPRDs].sort((a, b) => a - b);
+  const medianHPRD = sortedHPRDs.length > 0 
+    ? sortedHPRDs[Math.floor(sortedHPRDs.length / 2)]
     : 0;
 
   // Section 3: Rankings (USA is always rank 1 of 1, 100th percentile)
@@ -438,13 +440,18 @@ function processUSAData(
     link: `/wrapped/region${r.REGION_NUMBER}`,
   }));
 
-  // Also include facility extremes
-  const facilitiesWithInfoQ2 = facilityQ2.map(f => {
+  // Also include facility extremes - combine mapping and filtering in one pass
+  // Pre-allocate array size for better performance
+  const facilitiesWithInfoQ2: Array<{ facility: FacilityLiteRow; info: ProviderInfoRow }> = [];
+  for (const f of facilityQ2) {
     const info = providerInfoLookupQ2.get(f.PROVNUM);
-    return { facility: f, info };
-  }).filter(f => f.info);
+    if (info) {
+      facilitiesWithInfoQ2.push({ facility: f, info });
+    }
+  }
 
-  const sortedByHPRD = [...facilitiesWithInfoQ2].sort((a, b) => 
+  // Sort once and reuse
+  const sortedByHPRD = facilitiesWithInfoQ2.sort((a, b) => 
     a.facility.Total_Nurse_HPRD - b.facility.Total_Nurse_HPRD
   );
   

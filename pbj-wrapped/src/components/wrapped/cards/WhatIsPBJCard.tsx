@@ -49,7 +49,9 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
       contextPart = ` In Q2 2025, ${getStateFullName(data.identifier)} reported ${facilities} nursing homes and ${residents} residents per day.`;
       break;
     case 'region':
-      contextPart = ` In Q2 2025, this region reported ${facilities} nursing homes and ${residents} residents per day.`;
+      // Extract region number from identifier (e.g., "region1" -> "1")
+      const regionNum = data.identifier.replace(/^region/i, '');
+      contextPart = ` In Q2 2025, Region ${regionNum} reported ${facilities} nursing homes and ${residents} residents per day.`;
       break;
     case 'usa':
       contextPart = ` In Q2 2025, the U.S. reported ${facilities} nursing homes and ${residents} residents per day.`;

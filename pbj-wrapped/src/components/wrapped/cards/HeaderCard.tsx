@@ -11,12 +11,26 @@ interface HeaderCardProps {
 export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
   const context = useWrappedContext();
   const isState = context.scope === 'state';
+  const isRegion = context.scope === 'region';
   const stateCode = isState ? name.toUpperCase() : null;
+  
+  // Format subtitle - for regions, ensure it shows "CMS Region X (City)"
+  let subtitle = name ? `${name} • 2025` : "2025";
+  if (isRegion && context.identifier) {
+    // Extract region number from identifier (e.g., "region1" -> "1")
+    const regionNum = context.identifier.replace(/^region/i, '');
+    // If name is just the city (e.g., "Boston"), format as "CMS Region X (City)"
+    if (name && !name.includes('CMS Region')) {
+      subtitle = `CMS Region ${regionNum} (${name}) • 2025`;
+    } else {
+      subtitle = name ? `${name} • 2025` : `CMS Region ${regionNum} • 2025`;
+    }
+  }
 
   return (
     <WrappedCard
       title="PBJ Wrapped"
-      subtitle={name ? `${name} • 2025` : "2025"}
+      subtitle={subtitle}
       className="relative overflow-hidden"
       hideBadge={true}
       noContainer={true}
@@ -48,20 +62,20 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
           </div>
         ) : (
           <>
-            <div className="flex justify-center">
+            <div className="flex justify-center" style={{ marginTop: '8px' }}>
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"
                 className="block relative rounded-2xl shadow-xl"
                 style={{ 
-                  maxHeight: '280px', 
-                  maxWidth: '100%',
+                  maxHeight: '260px', 
+                  maxWidth: '85%',
                   height: 'auto',
                   width: 'auto',
                   objectFit: 'contain',
                   borderRadius: '1rem',
                 }}
-                maxHeight="280px"
+                maxHeight="260px"
               />
             </div>
             <div className="text-center">

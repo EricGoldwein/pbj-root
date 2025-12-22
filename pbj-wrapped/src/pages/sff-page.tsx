@@ -134,7 +134,7 @@ export default function SFFPage() {
       description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
     } else if (scope && scope.startsWith('region')) {
       const regionNum = parseInt(scope.replace(/^region-?/, ''));
-      title = `Special Focus Facilities Program — CMS Region ${regionNum} | PBJ320`;
+      title = `SFF Program: CMS Region ${regionNum} | PBJ320`;
       description = `CMS Region ${regionNum} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
     } else if (scope) {
       const stateName = getStateName(scope.toUpperCase());
@@ -860,10 +860,10 @@ export default function SFFPage() {
     : scope && scope.startsWith('region')
     ? (() => {
         const regionNum = parseInt(scope.replace(/^region-?/, ''));
-        return `Special Focus Facilities Program — CMS Region ${regionNum} (${getRegionName(regionNum)})`;
+        return `SFF Program: CMS Region ${regionNum} (${getRegionName(regionNum)})`;
       })()
     : scope 
-    ? `Special Focus Facilities Program — ${getStateName(scope.toUpperCase())}`
+    ? `SFF Program: ${getStateName(scope.toUpperCase())}`
     : 'Special Focus Facilities Program';
 
   // Mobile title (abbreviated)

@@ -360,9 +360,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
     ]);
     
-    // Load state standards separately (optional file - 404s are expected if not present)
-    // Load it silently to avoid console noise
-    const stateStandardsJson = await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null);
+    // Load state standards only for state scope (not needed for USA/region)
+    // This avoids unnecessary 404 console errors for scopes that don't use it
+    const stateStandardsJson = (scope === 'state')
+      ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null)
+      : null;
     
     // Load SFF data separately to avoid redeclaration
     // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
@@ -526,10 +528,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
           stateStandardsMap.set(key, value as StateStandardRow);
         }
         console.log(`✅ Loaded ${stateStandardsMap.size} state standards from JSON`);
-      } else {
-        // State standards JSON not found - try CSV fallback (it's optional)
+      } else if (scope === 'state') {
+        // State standards JSON not found - try CSV fallback (only for state scope)
         // CSV file may not exist and that's okay - state pages work without it
-        // Load CSV silently to avoid console 404 errors
+        // Only try to load CSV for state scope to avoid unnecessary 404s for USA/region
         try {
           // Use fetch directly with silent error handling to avoid console noise
           let stateStandardsCsv: string | null = null;

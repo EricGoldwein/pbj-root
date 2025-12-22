@@ -1115,21 +1115,370 @@ function processStateData(
  * Process data for Region scope
  */
 function processRegionData(
-  _regionQ2: RegionQuarterlyRow | null,
-  _regionQ1: RegionQuarterlyRow | null,
-  _facilityQ2: FacilityLiteRow[],
-  _facilityQ1: FacilityLiteRow[],
-  _providerInfoQ2: ProviderInfoRow[],
-  _providerInfoQ1: ProviderInfoRow[],
+  regionQ2: RegionQuarterlyRow | null,
+  regionQ1: RegionQuarterlyRow | null,
+  facilityQ2: FacilityLiteRow[],
+  facilityQ1: FacilityLiteRow[],
+  providerInfoQ2: ProviderInfoRow[],
+  providerInfoQ1: ProviderInfoRow[],
   _stateDataQ2: StateQuarterlyRow[],
   _stateDataQ1: StateQuarterlyRow[],
-  _regionDataQ2: RegionQuarterlyRow[],
+  regionDataQ2: RegionQuarterlyRow[],
   _regionDataQ1: RegionQuarterlyRow[],
-  _regionNumber: number,
-  _sffData?: SFFData | null
+  regionNumber: number,
+  sffData?: SFFData | null
 ): PBJWrappedData {
-  // This is a placeholder - full implementation needed
-  throw new Error('processRegionData not fully implemented');
+  if (!regionQ2) {
+    throw new Error(`Region Q2 data not available for region ${regionNumber}`);
+  }
+
+  const regionName = regionQ2.REGION_NAME || `Region ${regionNumber}`;
+  const providerInfoLookupQ2 = createProviderInfoLookup(providerInfoQ2);
+
+  // Filter facilities by region - need to get state codes for this region
+  // We'll filter facilities by checking if their state is in the region
+  // For now, we'll use the facility data that was pre-filtered by region in dataLoader
+  const regionFacilitiesQ2 = facilityQ2; // Already filtered in dataLoader
+  const regionFacilitiesQ1 = facilityQ1; // Already filtered in dataLoader
+  const regionProviderInfoQ2 = providerInfoQ2; // Already filtered in dataLoader
+  const regionProviderInfoQ1 = providerInfoQ1; // Already filtered in dataLoader
+
+  // Section 2: Basics
+  const facilityCount = regionQ2.facility_count;
+  const avgDailyResidents = regionQ2.avg_days_reported > 0
+    ? regionQ2.total_resident_days / regionQ2.avg_days_reported
+    : regionQ2.avg_daily_census * facilityCount;
+  const totalHPRD = regionQ2.Total_Nurse_HPRD;
+  const directCareHPRD = regionQ2.Nurse_Care_HPRD;
+  const rnHPRD = regionQ2.RN_HPRD;
+  const rnDirectCareHPRD = regionQ2.RN_Care_HPRD;
+
+  // Calculate median HPRD from facilities
+  const allHPRDs = regionFacilitiesQ2.map(f => f.Total_Nurse_HPRD).sort((a, b) => a - b);
+  const medianHPRD = allHPRDs.length > 0 
+    ? allHPRDs[Math.floor(allHPRDs.length / 2)]
+    : 0;
+
+  // Section 3: Rankings - rank this region among all regions
+  const sortedRegionsByHPRD = [...regionDataQ2].sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
+  const regionRankByHPRD = sortedRegionsByHPRD.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
+  const totalHPRDPercentile = regionDataQ2.length > 0
+    ? Math.round(((regionDataQ2.length - regionRankByHPRD + 1) / regionDataQ2.length) * 100)
+    : 0;
+
+  const sortedRegionsByDirectCare = [...regionDataQ2].sort((a, b) => b.Nurse_Care_HPRD - a.Nurse_Care_HPRD);
+  const regionRankByDirectCare = sortedRegionsByDirectCare.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
+  const directCareHPRDPercentile = regionDataQ2.length > 0
+    ? Math.round(((regionDataQ2.length - regionRankByDirectCare + 1) / regionDataQ2.length) * 100)
+    : 0;
+
+  const sortedRegionsByRN = [...regionDataQ2].sort((a, b) => b.RN_HPRD - a.RN_HPRD);
+  const regionRankByRN = sortedRegionsByRN.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
+  const rnHPRDPercentile = regionDataQ2.length > 0
+    ? Math.round(((regionDataQ2.length - regionRankByRN + 1) / regionDataQ2.length) * 100)
+    : 0;
+
+  const rankings = {
+    totalHPRDRank: regionRankByHPRD,
+    totalHPRDPercentile,
+    directCareHPRDRank: regionRankByDirectCare,
+    directCareHPRDPercentile,
+    rnHPRDRank: regionRankByRN,
+    rnHPRDPercentile,
+  };
+
+  // Section 4: Extremes - Top/Bottom Facilities in Region
+  const facilitiesWithInfoQ2 = regionFacilitiesQ2.map(f => {
+    const info = providerInfoLookupQ2.get(f.PROVNUM);
+    return { facility: f, info };
+  }).filter(f => f.info);
+
+  const sortedByHPRD = [...facilitiesWithInfoQ2].sort((a, b) => 
+    a.facility.Total_Nurse_HPRD - b.facility.Total_Nurse_HPRD
+  );
+  
+  const lowestByHPRD: Facility[] = sortedByHPRD.slice(0, 5).map(({ facility }) => ({
+    provnum: facility.PROVNUM,
+    name: toTitleCase(facility.PROVNAME),
+    state: facility.STATE,
+    value: facility.Total_Nurse_HPRD,
+    link: createFacilityLink(facility.PROVNUM),
+  }));
+
+  const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility }) => ({
+    provnum: facility.PROVNUM,
+    name: toTitleCase(facility.PROVNAME),
+    state: facility.STATE,
+    value: facility.Total_Nurse_HPRD,
+    link: createFacilityLink(facility.PROVNUM),
+  }));
+
+  // Lowest/Highest by % of expected (case-mix adjusted)
+  const withPercentExpected = facilitiesWithInfoQ2
+    .map(({ facility, info }) => {
+      const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day;
+      if (!caseMix || caseMix === 0) return null;
+      const percentExpected = (facility.Total_Nurse_HPRD / caseMix) * 100;
+      return { facility, info, percentExpected };
+    })
+    .filter((f): f is NonNullable<typeof f> => f !== null);
+
+  const sortedByPercent = [...withPercentExpected].sort((a, b) => 
+    a.percentExpected - b.percentExpected
+  );
+
+  const lowestByPercentExpected: Facility[] = sortedByPercent.slice(0, 5).map(({ facility, percentExpected }) => ({
+    provnum: facility.PROVNUM,
+    name: toTitleCase(facility.PROVNAME),
+    state: facility.STATE,
+    value: percentExpected,
+    link: createFacilityLink(facility.PROVNUM),
+  }));
+
+  const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, percentExpected }) => ({
+    provnum: facility.PROVNUM,
+    name: toTitleCase(facility.PROVNAME),
+    state: facility.STATE,
+    value: percentExpected,
+    link: createFacilityLink(facility.PROVNUM),
+  }));
+
+  // Section 5: SFF
+  let sffCount = 0;
+  let candidatesCount = 0;
+  let newSFFFacilities: Facility[] = [];
+  
+  if (sffData && sffData.facilities) {
+    // Get state codes for this region - we need to filter SFF by states in region
+    // For now, filter by facilities in regionFacilitiesQ2
+    const regionStateCodes = new Set(regionFacilitiesQ2.map(f => f.STATE));
+    const regionSFFFacilities = sffData.facilities.filter(f => 
+      regionStateCodes.has(f.state || '') && f.category === 'SFF'
+    );
+    const regionCandidateFacilities = sffData.facilities.filter(f => 
+      regionStateCodes.has(f.state || '') && f.category === 'Candidate'
+    );
+    sffCount = regionSFFFacilities.length;
+    candidatesCount = regionCandidateFacilities.length;
+    
+    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+    }).map(p => p.PROVNUM));
+    
+    const newSFF = regionSFFFacilities.filter(f => !sffQ1Set.has(f.provider_number));
+    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
+      const facility = regionFacilitiesQ2.find(fac => fac.PROVNUM === f.provider_number);
+      return {
+        provnum: f.provider_number,
+        name: toTitleCase(f.facility_name || ''),
+        state: f.state || '',
+        value: facility?.Total_Nurse_HPRD || 0,
+        link: createFacilityLink(f.provider_number),
+      };
+    });
+  } else {
+    const sffQ2 = regionProviderInfoQ2.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+    });
+    const candidatesQ2 = regionProviderInfoQ2.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
+    });
+    
+    sffCount = sffQ2.length;
+    candidatesCount = candidatesQ2.length;
+  
+    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+    }).map(p => p.PROVNUM));
+    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
+
+    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
+      const facility = regionFacilitiesQ2.find(f => f.PROVNUM === p.PROVNUM);
+      return {
+        provnum: p.PROVNUM,
+        name: toTitleCase(p.PROVNAME),
+        state: p.STATE,
+        value: facility?.Total_Nurse_HPRD || 0,
+        link: createFacilityLink(p.PROVNUM),
+      };
+    });
+  }
+
+  // Section 6: Trends
+  const trends = {
+    totalHPRDChange: regionQ1 
+      ? regionQ2.Total_Nurse_HPRD - regionQ1.Total_Nurse_HPRD 
+      : 0,
+    directCareHPRDChange: regionQ1
+      ? regionQ2.Nurse_Care_HPRD - regionQ1.Nurse_Care_HPRD
+      : 0,
+    rnHPRDChange: regionQ1
+      ? regionQ2.RN_HPRD - regionQ1.RN_HPRD
+      : 0,
+    contractPercentChange: (regionQ1 && regionQ1.Contract_Percentage !== undefined && regionQ2.Contract_Percentage !== undefined)
+      ? regionQ2.Contract_Percentage - regionQ1.Contract_Percentage
+      : 0,
+  };
+
+  // Section 7: Movers - Facility changes Q1 to Q2
+  const facilityMapQ1 = new Map(regionFacilitiesQ1.map(f => [f.PROVNUM, f]));
+  const facilityMovers: FacilityChange[] = [];
+  
+  for (const facilityQ2Item of regionFacilitiesQ2) {
+    const facilityQ1Item = facilityMapQ1.get(facilityQ2Item.PROVNUM);
+    if (facilityQ1Item) {
+      const change = facilityQ2Item.Total_Nurse_HPRD - facilityQ1Item.Total_Nurse_HPRD;
+      const directCareChange = facilityQ2Item.Nurse_Care_HPRD - facilityQ1Item.Nurse_Care_HPRD;
+      const rnHPRDChange = facilityQ2Item.Total_RN_HPRD - facilityQ1Item.Total_RN_HPRD;
+      
+      facilityMovers.push({
+        provnum: facilityQ2Item.PROVNUM,
+        name: toTitleCase(facilityQ2Item.PROVNAME),
+        state: facilityQ2Item.STATE,
+        value: facilityQ2Item.Total_Nurse_HPRD,
+        change,
+        q1Value: facilityQ1Item.Total_Nurse_HPRD,
+        q2Value: facilityQ2Item.Total_Nurse_HPRD,
+        directCareChange,
+        q1DirectCare: facilityQ1Item.Nurse_Care_HPRD,
+        q2DirectCare: facilityQ2Item.Nurse_Care_HPRD,
+        rnHPRDChange,
+        q1RNHPRD: facilityQ1Item.Total_RN_HPRD,
+        q2RNHPRD: facilityQ2Item.Total_RN_HPRD,
+        link: createFacilityLink(facilityQ2Item.PROVNUM),
+      });
+    }
+  }
+
+  const risersByHPRD = [...facilityMovers]
+    .sort((a, b) => b.change - a.change)
+    .slice(0, 5);
+  
+  const declinersByHPRD = [...facilityMovers]
+    .sort((a, b) => a.change - b.change)
+    .slice(0, 5);
+
+  const risersByDirectCare = [...facilityMovers]
+    .sort((a, b) => (b.directCareChange || 0) - (a.directCareChange || 0))
+    .slice(0, 5);
+
+  const declinersByDirectCare = [...facilityMovers]
+    .sort((a, b) => (a.directCareChange || 0) - (b.directCareChange || 0))
+    .slice(0, 5);
+
+  const risersByRNHPRD = [...facilityMovers]
+    .sort((a, b) => (b.rnHPRDChange || 0) - (a.rnHPRDChange || 0))
+    .slice(0, 5);
+
+  const declinersByRNHPRD = [...facilityMovers]
+    .sort((a, b) => (a.rnHPRDChange || 0) - (b.rnHPRDChange || 0))
+    .slice(0, 5);
+
+  // Ownership breakdown
+  const ownership = calculateOwnershipBreakdownWithStaffing(regionProviderInfoQ2, regionFacilitiesQ2);
+
+  // Average ratings
+  const ratings = regionProviderInfoQ2
+    .map(p => {
+      const rating = p.overall_rating ? parseFloat(p.overall_rating) : null;
+      return rating !== null && !isNaN(rating) ? rating : null;
+    })
+    .filter((r): r is number => r !== null);
+  const averageOverallRating = ratings.length > 0
+    ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+    : undefined;
+
+  // Spotlight facility - find a facility with interesting characteristics
+  let spotlightFacility;
+  const spotlightCandidates = facilitiesWithInfoQ2
+    .map(({ facility, info }) => {
+      const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day || 0;
+      const facilityQ1 = facilityMapQ1.get(facility.PROVNUM);
+      const qoqChange = facilityQ1 ? facility.Total_Nurse_HPRD - facilityQ1.Total_Nurse_HPRD : 0;
+      const gapVsExpected = caseMix > 0 ? facility.Total_Nurse_HPRD - caseMix : 0;
+      
+      return {
+        facility,
+        info,
+        gapVsExpected,
+        qoqChange,
+      };
+    })
+    .filter(f => f.info && f.facility.Total_Nurse_HPRD > 0)
+    .sort((a, b) => {
+      // Prefer facilities with significant gaps or changes
+      const scoreA = Math.abs(a.gapVsExpected) + Math.abs(a.qoqChange);
+      const scoreB = Math.abs(b.gapVsExpected) + Math.abs(b.qoqChange);
+      return scoreB - scoreA;
+    });
+
+  if (spotlightCandidates.length > 0) {
+    const candidate = spotlightCandidates[0];
+    const facilityQ1Item = facilityMapQ1.get(candidate.facility.PROVNUM);
+    spotlightFacility = {
+      provnum: candidate.facility.PROVNUM,
+      name: toTitleCase(candidate.facility.PROVNAME),
+      city: capitalizeCity(candidate.info?.CITY),
+      state: candidate.facility.STATE,
+      totalHPRD: candidate.facility.Total_Nurse_HPRD,
+      caseMixExpectedHPRD: candidate.info?.case_mix_total_nurse_hrs_per_resident_per_day || 0,
+      gapVsExpected: candidate.gapVsExpected,
+      qoqChange: facilityQ1Item ? candidate.facility.Total_Nurse_HPRD - facilityQ1Item.Total_Nurse_HPRD : candidate.qoqChange,
+      rnHPRD: candidate.facility.Total_RN_HPRD,
+      cnaHPRD: candidate.facility.Total_Nurse_HPRD - candidate.facility.Total_RN_HPRD,
+      contractPercent: candidate.facility.Contract_Percentage,
+      sffStatus: candidate.info?.sff_status,
+      ownershipType: candidate.info?.ownership_type,
+      link: createFacilityLink(candidate.facility.PROVNUM),
+    };
+  }
+
+  return {
+    scope: 'region',
+    identifier: `region${regionNumber}`,
+    name: regionName,
+    facilityCount,
+    avgDailyResidents,
+    totalHPRD,
+    directCareHPRD,
+    rnHPRD,
+    rnDirectCareHPRD,
+    medianHPRD,
+    rankings,
+    ownership,
+    extremes: {
+      lowestByHPRD,
+      lowestByPercentExpected,
+      highestByHPRD,
+      highestByPercentExpected,
+    },
+    sff: {
+      currentSFFs: sffCount,
+      candidates: candidatesCount,
+      newThisQuarter: newSFFFacilities,
+    },
+    trends,
+    movers: {
+      risersByHPRD,
+      risersByDirectCare,
+      risersByRNHPRD,
+      declinersByHPRD,
+      declinersByDirectCare,
+      declinersByRNHPRD,
+    },
+    averageOverallRating,
+    spotlightFacility,
+  };
 }
 
 /**
@@ -1158,6 +1507,24 @@ export function processWrappedData(
     const stateCode = identifier.toUpperCase();
     const stateQ2 = data.stateData.q2?.find(s => s.STATE === stateCode) || null;
     const stateQ1 = data.stateData.q1?.find(s => s.STATE === stateCode) || null;
+    
+    // Calculate stateMinimum from stateStandards if available
+    let stateMinimum: StateMinimum | undefined;
+    if (data.stateStandards) {
+      const stateStandard = data.stateStandards.get(stateCode.toLowerCase());
+      if (stateStandard) {
+        const minHPRD = stateStandard.Min_Staffing;
+        const maxHPRD = stateStandard.Max_Staffing;
+        const isRange = maxHPRD !== undefined && maxHPRD > minHPRD;
+        stateMinimum = {
+          minHPRD,
+          maxHPRD: isRange ? maxHPRD : undefined,
+          isRange,
+          displayText: stateStandard.Display_Text || (isRange ? `${minHPRD.toFixed(2)}-${maxHPRD!.toFixed(2)} HPRD` : `${minHPRD.toFixed(2)} HPRD`),
+        };
+      }
+    }
+    
     return processStateData(
       stateQ2,
       stateQ1,
@@ -1170,7 +1537,7 @@ export function processWrappedData(
       data.regionData.q2 || [],
       data.regionData.q1 || [],
       stateCode,
-      undefined, // stateMinimum - would need to be calculated from stateStandards
+      stateMinimum,
       data.sffData
     );
   } else if (scope === 'region') {

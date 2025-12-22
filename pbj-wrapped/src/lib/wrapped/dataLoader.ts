@@ -331,7 +331,6 @@ function parseProviderInfoRow(row: any): ProviderInfoRow {
  * Load data files optimized by scope (only loads what's needed)
  */
 export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 'state' | 'region', identifier?: string): Promise<LoadedData> {
-  const baseUrl = import.meta.env.BASE_URL || '';
   try {
     // Try to load pre-processed JSON files first (much faster)
     const jsonBasePath = `${basePath}/json`;
@@ -360,21 +359,54 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q1.json`),
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q2.json`),
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
-      loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null),
+      loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`),
     ]);
     
     // Load SFF data separately to avoid redeclaration
-    const sffDataJson = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
+    // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
+    const sffDataJson = await loadJSON<SFFData>('/wrapped/sff-facilities.json');
 
     // If we got JSON data, use it (much faster!)
     // Check if we have the essential JSON files
     // Note: Empty arrays are still valid JSON, so check for null/undefined, not just truthiness
-    const hasJsonData = stateQ1Json !== null && stateQ1Json !== undefined && 
-                        stateQ2Json !== null && stateQ2Json !== undefined &&
-                        regionQ1Json !== null && regionQ1Json !== undefined &&
-                        regionQ2Json !== null && regionQ2Json !== undefined &&
-                        nationalQ1Json !== null && nationalQ1Json !== undefined &&
-                        nationalQ2Json !== null && nationalQ2Json !== undefined;
+    // For USA scope, we need national, facility, and provider data
+    // For state/region scope, we need state/region data
+    const hasEssentialJsonData = (scope === 'usa' 
+      ? (nationalQ1Json !== null && nationalQ1Json !== undefined &&
+         nationalQ2Json !== null && nationalQ2Json !== undefined &&
+         facilityQ1Json !== null && facilityQ1Json !== undefined &&
+         facilityQ2Json !== null && facilityQ2Json !== undefined &&
+         providerQ1Json !== null && providerQ1Json !== undefined &&
+         providerQ2Json !== null && providerQ2Json !== undefined)
+      : (stateQ1Json !== null && stateQ1Json !== undefined && 
+         stateQ2Json !== null && stateQ2Json !== undefined &&
+         regionQ1Json !== null && regionQ1Json !== undefined &&
+         regionQ2Json !== null && regionQ2Json !== undefined &&
+         nationalQ1Json !== null && nationalQ1Json !== undefined &&
+         nationalQ2Json !== null && nationalQ2Json !== undefined));
+    
+    // Also check if we have facility/provider JSON (needed for all scopes)
+    const hasFacilityProviderJson = facilityQ1Json !== null && facilityQ1Json !== undefined &&
+                                    facilityQ2Json !== null && facilityQ2Json !== undefined &&
+                                    providerQ1Json !== null && providerQ1Json !== undefined &&
+                                    providerQ2Json !== null && providerQ2Json !== undefined;
+    
+    const hasJsonData = hasEssentialJsonData && hasFacilityProviderJson;
+    
+    // Debug logging for USA scope
+    if (scope === 'usa') {
+      console.log('[USA Data Check]', {
+        hasEssentialJsonData,
+        hasFacilityProviderJson,
+        hasJsonData,
+        nationalQ1: !!nationalQ1Json,
+        nationalQ2: !!nationalQ2Json,
+        facilityQ1: !!facilityQ1Json,
+        facilityQ2: !!facilityQ2Json,
+        providerQ1: !!providerQ1Json,
+        providerQ2: !!providerQ2Json,
+      });
+    }
     
     // Log Q1 data status with detailed debugging
     console.log('Q1 Data Status:', {
@@ -491,12 +523,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         }
         console.log(`✅ Loaded ${stateStandardsMap.size} state standards from JSON`);
       } else {
-        console.log('⚠️ State standards JSON not found, loading from CSV...');
-        // Try to load from CSV as fallback
+        // State standards JSON not found - try CSV fallback (it's optional)
+        // CSV file may not exist and that's okay - state pages work without it
         try {
-          const stateStandardsCsv = await loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => 
-            loadCSV('../macpac_state_standards_clean.csv').catch(() => '')
-          );
+          const stateStandardsCsv = await loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => null);
           if (stateStandardsCsv) {
             const stateStandardsRows = await parseCSV<any>(stateStandardsCsv);
             // Process state standards: filter for >= 1.00, map state name to state code
@@ -528,14 +558,15 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
             }
             console.log(`✅ Loaded ${stateStandardsMap.size} state standards from CSV. NY present: ${stateStandardsMap.has('ny')}`);
           }
+          // Silently skip if CSV not found - it's optional
         } catch (err) {
-          console.warn('⚠️ Failed to load state standards from CSV:', err);
+          // Silently skip - state standards are optional, no need to log errors
         }
       }
 
       return {
-        stateData: { q1: stateQ1Json, q2: stateQ2Json },
-        regionData: { q1: regionQ1Json, q2: regionQ2Json },
+        stateData: { q1: stateQ1Json || [], q2: stateQ2Json || [] },
+        regionData: { q1: regionQ1Json || [], q2: regionQ2Json || [] },
         nationalData: { q1: nationalQ1Json, q2: nationalQ2Json },
         facilityData: { q1: facilityQ1, q2: facilityQ2 },
         providerInfo: { q1: providerQ1, q2: providerQ2 },
@@ -577,9 +608,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() => 
         loadCSV('../cms_region_state_mapping.csv').catch(() => '')
       ),
-      loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => 
-        loadCSV('../macpac_state_standards_clean.csv').catch(() => '')
-      ),
+      loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => ''),
     ]);
 
     // Parse all CSVs
@@ -680,7 +709,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     }
 
     // Load SFF data from sff-facilities.json (CSV fallback path)
-    const sffDataJsonCsv = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
+    // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
+    const sffDataJsonCsv = await loadJSON<SFFData>('/wrapped/sff-facilities.json');
 
     return {
       stateData: {

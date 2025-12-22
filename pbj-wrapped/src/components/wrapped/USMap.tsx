@@ -122,7 +122,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
             const stateName = d.properties.name;
             const stateAbbr = STATE_ABBR_MAP[stateName];
             if (stateAbbr) {
-              navigate(`/${stateAbbr}`);
+              navigate(`/wrapped/${stateAbbr}`);
             }
           });
 

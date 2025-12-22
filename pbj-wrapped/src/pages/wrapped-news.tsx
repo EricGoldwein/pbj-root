@@ -15,11 +15,10 @@ import { KeyTakeawaysCardNews } from '../components/wrapped/cards/KeyTakeawaysCa
 import { NavigationCardNews } from '../components/wrapped/cards/NavigationCardNews';
 import { getAssetPath } from '../utils/assets';
 
-// Helper to get data path with base URL
+// Helper to get data path - data is served from /data, not /wrapped/data
 function getDataPath(path: string = ''): string {
-  const baseUrl = import.meta.env.BASE_URL;
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
+  return `/data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
 const WrappedNews: React.FC = () => {

@@ -87,7 +87,9 @@ export default function SFFPage() {
           if (jsonResponse.ok) {
             candidateJSONData = await jsonResponse.json();
             setCandidateJSON(candidateJSONData);
-            console.log(`Loaded ${candidateJSONData.total_count} candidates from JSON`);
+            if (candidateJSONData) {
+              console.log(`Loaded ${candidateJSONData.total_count} candidates from JSON`);
+            }
           } else {
             console.warn('Could not load candidate JSON file');
           }
@@ -98,7 +100,9 @@ export default function SFFPage() {
         const baseDataPath = getDataPath();
         const data = await loadAllData(baseDataPath, 'usa', undefined);
         
-        // Get Q1 and Q2 provider info
+        // Get provider info for status comparison
+        // Q1 data used for determining previous status (from provider info file, typically from earlier period)
+        // Q2 data used for current staffing metrics (from Q2 2025 PBJ data)
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || [];
@@ -124,7 +128,6 @@ export default function SFFPage() {
         const sffs: SFFFacility[] = [];
         const candidates: SFFFacility[] = [];
         const dataCCNs = new Set<string>();
-        const jsonCCNs = new Set<string>(candidateJSONData ? Object.keys(candidateJSONData.candidates) : []);
 
         // First, process facilities from JSON (primary source)
         if (candidateJSONData) {
@@ -631,12 +634,14 @@ export default function SFFPage() {
         <div className="mb-6 md:mb-8">
           <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-2 md:mb-3">{pageTitle}</h1>
           <p className="text-gray-300 text-sm md:text-base mb-2">
-            Q2 2025 • CMS Payroll-Based Journal
+            {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'} • CMS Payroll-Based Journal
           </p>
           <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
             Special Focus Facilities (SFFs) are nursing homes with a history of serious quality problems. 
             SFF Candidates are facilities being considered for SFF status. 
-            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'November 2025'}.
+            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'}.
+            <br /><br />
+            <span className="text-gray-500 italic">Methodology: Status changes are determined by comparing current SFF status (from CMS posting dated December 10, 2025) with previous status from provider information data (Q2 2025).</span>
           </p>
         </div>
 
@@ -924,9 +929,11 @@ export default function SFFPage() {
             </div>
           )}
           <div className="text-center text-xs md:text-sm text-gray-400">
-            <p>Source: CMS Payroll-Based Journal, {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'November 2025'}</p>
+            <p>Source: CMS Payroll-Based Journal, {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'}</p>
             {candidateJSON && (
-              <p className="mt-1">SFF list from CMS posting ({candidateJSON.total_count} candidates)</p>
+              <>
+                <p className="mt-1">SFF list from <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-september-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS posting</a> (updated December 10, 2025, {candidateJSON.total_count} candidates)</p>
+              </>
             )}
           </div>
         </div>

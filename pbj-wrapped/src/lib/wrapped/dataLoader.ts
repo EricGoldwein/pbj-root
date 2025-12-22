@@ -61,9 +61,19 @@ function parseCSV<T>(csvText: string): Promise<T[]> {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
+      // Ensure proper handling of quoted fields and commas
+      quotes: true,
+      quoteChar: '"',
+      escapeChar: '"',
       complete: (results) => {
         if (results.errors.length > 0) {
           console.warn('CSV parsing warnings:', results.errors);
+          // Log first few errors in detail for debugging
+          if (results.errors.length > 0 && results.errors.length <= 10) {
+            results.errors.slice(0, 5).forEach((err, idx) => {
+              console.warn(`  CSV Error ${idx + 1}:`, err);
+            });
+          }
         }
         resolve(results.data);
       },

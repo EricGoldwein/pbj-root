@@ -150,126 +150,135 @@ export default function SFFPage() {
         // Debug: Log data counts for troubleshooting
         console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
         
-        // Helper function to normalize CCNs for matching
+        // STRICT CCN normalization: pad to exactly 6 digits, no variations
         const normalizeCCN = (ccn: string): string => {
           if (!ccn) return '';
-          const str = ccn.toString().trim();
-          const normalized = str.replace(/^0+/, '') || str;
-          return normalized.padStart(6, '0');
+          const str = ccn.toString().trim().replace(/[^0-9]/g, ''); // Remove non-digits
+          if (!str) return '';
+          return str.padStart(6, '0');
         };
-        
-        // Helper: Get all CCN variations for matching
-        const getCCNVariations = (ccn: string): string[] => {
-          if (!ccn) return [];
-          const trimmed = ccn.toString().trim();
-          const normalized = normalizeCCN(trimmed);
-          const noZeros = trimmed.replace(/^0+/, '') || trimmed;
-          const withZeros = trimmed.length < 6 ? trimmed.padStart(6, '0') : trimmed;
-          return [trimmed, normalized, noZeros, withZeros].filter((v, i, arr) => arr.indexOf(v) === i);
-        };
-        
-        // Helper: Find facility in map or array using CCN variations
-        const findFacilityByCCN = (ccn: string): FacilityLiteRow | undefined => {
-          const variations = getCCNVariations(ccn);
-          // Try map first (fastest)
-          for (const variant of variations) {
-            const found = facilityMap.get(variant);
-            if (found) return found;
+
+        // Validate facility data to detect CSV column shifts
+        // Returns true if data appears valid, false if columns are shifted
+        const isValidFacilityData = (facility: FacilityLiteRow): boolean => {
+          const totalHPRD = typeof facility.Total_Nurse_HPRD === 'number' 
+            ? facility.Total_Nurse_HPRD 
+            : (parseFloat(String(facility.Total_Nurse_HPRD)) || 0);
+          const directCareHPRD = typeof facility.Nurse_Care_HPRD === 'number' 
+            ? facility.Nurse_Care_HPRD 
+            : (parseFloat(String(facility.Nurse_Care_HPRD)) || 0);
+          const rnHPRD = typeof facility.Total_RN_HPRD === 'number' 
+            ? facility.Total_RN_HPRD 
+            : (parseFloat(String(facility.Total_RN_HPRD)) || 0);
+          
+          // CRITICAL: If Total_Nurse_HPRD is 0 but Direct Care or RN HPRD have values,
+          // this indicates a CSV column shift - reject this facility data
+          if (totalHPRD === 0 && (directCareHPRD > 0 || rnHPRD > 0)) {
+            return false; // Column shift detected
           }
-          // Try array search
-          return facilityQ2.find((f: FacilityLiteRow) => {
+          
+          // Additional validation: Direct Care HPRD should not exceed Total HPRD
+          if (totalHPRD > 0 && directCareHPRD > totalHPRD * 1.1) { // Allow 10% tolerance for rounding
+            return false; // Likely column shift
+          }
+          
+          return true; // Data appears valid
+        };
+
+        // STRICT matching: Only use normalized 6-digit CCN
+        const findFacilityByCCN = (ccn: string): FacilityLiteRow | undefined => {
+          const normalized = normalizeCCN(ccn);
+          if (!normalized) return undefined;
+          
+          // Try map first (fastest)
+          const found = facilityMap.get(normalized);
+          if (found) {
+            // Validate the facility data before returning
+            if (isValidFacilityData(found)) {
+              return found;
+            } else {
+              console.warn(`[CSV Shift Detected] CCN=${ccn} (normalized=${normalized}) has shifted columns - rejecting facility data`);
+              return undefined;
+            }
+          }
+          
+          // If not in map, search array directly (shouldn't happen if map is built correctly)
+          const foundInArray = facilityQ2.find((f: FacilityLiteRow) => {
             if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
             const fProvNum = f.PROVNUM?.toString().trim() || '';
             if (!fProvNum) return false;
-            return variations.some(v => {
-              const fNorm = normalizeCCN(fProvNum);
-              const fNoZ = fProvNum.replace(/^0+/, '') || fProvNum;
-              return fProvNum === v || fNorm === v || fNoZ === v || normalizeCCN(v) === fNorm;
-            });
+            return normalizeCCN(fProvNum) === normalized;
           });
+          
+          if (foundInArray && isValidFacilityData(foundInArray)) {
+            return foundInArray;
+          }
+          
+          return undefined;
         };
         
-        // Helper: Find provider in map or array using CCN variations
+        // STRICT matching: Only use normalized 6-digit CCN
         const findProviderByCCN = (ccn: string): ProviderInfoRow | undefined => {
-          const variations = getCCNVariations(ccn);
+          const normalized = normalizeCCN(ccn);
+          if (!normalized) return undefined;
+          
           // Try map first (fastest)
-          for (const variant of variations) {
-            const found = providerMap.get(variant);
-            if (found) return found;
-          }
-          // Try array search
+          const found = providerMap.get(normalized);
+          if (found) return found;
+          
+          // If not in map, search array directly
           return providerInfoQ2.find(p => {
             const provNum = p.PROVNUM?.toString().trim() || '';
             if (!provNum) return false;
-            return variations.some(v => {
-              const pNorm = normalizeCCN(provNum);
-              const pNoZ = provNum.replace(/^0+/, '') || provNum;
-              return provNum === v || pNorm === v || pNoZ === v || normalizeCCN(v) === pNorm;
-            });
+            return normalizeCCN(provNum) === normalized;
           });
         };
 
-        // Create maps for quick lookup - include normalized CCNs for better matching
-        // PRIORITY: Match provider numbers from JSON to facility_lite_metrics (Q2 2025)
+        // Create maps for quick lookup - STRICT: Only use normalized 6-digit CCN as key
+        // This prevents false matches from CCN variations
         const facilityMap = new Map<string, FacilityLiteRow>();
+        let skippedInvalidFacilities = 0;
         facilityQ2.forEach((f: FacilityLiteRow) => {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
           
-          // Only include Q2 2025 data (facilityQ2 should already be filtered, but check to be safe)
+          // Only include Q2 2025 data
           if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return;
           
-          // Add all possible variations to the map for maximum matching success
-          facilityMap.set(provNum, f);
+          // Validate facility data to detect CSV column shifts
+          if (!isValidFacilityData(f)) {
+            skippedInvalidFacilities++;
+            console.warn(`[CSV Shift] Skipping facility with shifted columns: PROVNUM=${provNum}, Name=${f.PROVNAME || 'Unknown'}`);
+            return; // Skip this facility - it has shifted columns
+          }
           
-          // Normalized (6-digit padded)
+          // STRICT: Only use normalized 6-digit CCN as key
           const normalized = normalizeCCN(provNum);
-          if (normalized && normalized !== provNum) {
-            facilityMap.set(normalized, f);
-          }
-          
-          // Without leading zeros
-          const noZeros = provNum.replace(/^0+/, '') || provNum;
-          if (noZeros && noZeros !== provNum && noZeros !== normalized) {
-            facilityMap.set(noZeros, f);
-          }
-          
-          // With leading zeros (if not already 6 digits)
-          if (provNum.length < 6 && !provNum.startsWith('0')) {
-            const withZeros = provNum.padStart(6, '0');
-            if (withZeros !== provNum && withZeros !== normalized) {
-              facilityMap.set(withZeros, f);
+          if (normalized) {
+            // If key already exists, log a warning (shouldn't happen with strict matching)
+            if (facilityMap.has(normalized)) {
+              console.warn(`[Duplicate CCN] PROVNUM=${provNum} (normalized=${normalized}) already in map - keeping first entry`);
+            } else {
+              facilityMap.set(normalized, f);
             }
           }
         });
         
-        console.log(`[Matching] Created facilityMap with ${facilityMap.size} entries from ${facilityQ2.length} Q2 facilities`);
+        console.log(`[Matching] Created facilityMap with ${facilityMap.size} entries from ${facilityQ2.length} Q2 facilities (skipped ${skippedInvalidFacilities} with shifted columns)`);
         
         const providerMap = new Map<string, ProviderInfoRow>();
         providerInfoQ2.forEach((p: ProviderInfoRow) => {
           const provNum = p.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
           
-          // Add all possible variations to the map for maximum matching success
-          providerMap.set(provNum, p);
-          
-          // Normalized (6-digit padded)
+          // STRICT: Only use normalized 6-digit CCN as key
           const normalized = normalizeCCN(provNum);
-          if (normalized && normalized !== provNum) {
-            providerMap.set(normalized, p);
-          }
-          
-          // Without leading zeros
-          const noZeros = provNum.replace(/^0+/, '') || provNum;
-          if (noZeros && noZeros !== provNum && noZeros !== normalized) {
-            providerMap.set(noZeros, p);
-          }
-          
-          // With leading zeros (if not already 6 digits)
-          if (provNum.length < 6 && !provNum.startsWith('0')) {
-            const withZeros = provNum.padStart(6, '0');
-            if (withZeros !== provNum && withZeros !== normalized) {
-              providerMap.set(withZeros, p);
+          if (normalized) {
+            // If key already exists, log a warning (shouldn't happen with strict matching)
+            if (providerMap.has(normalized)) {
+              console.warn(`[Duplicate CCN] PROVNUM=${provNum} (normalized=${normalized}) already in map - keeping first entry`);
+            } else {
+              providerMap.set(normalized, p);
             }
           }
         });
@@ -279,9 +288,8 @@ export default function SFFPage() {
         const q1StatusMap = new Map<string, string>();
         providerInfoQ1.forEach((p: ProviderInfoRow) => {
           const status = p.sff_status?.trim().toUpperCase() || '';
-          q1StatusMap.set(p.PROVNUM, status);
           const normalized = normalizeCCN(p.PROVNUM);
-          if (normalized !== p.PROVNUM) {
+          if (normalized) {
             q1StatusMap.set(normalized, status);
           }
         });
@@ -334,11 +342,13 @@ export default function SFFPage() {
             }
             
             // PRIORITY 1: Find facility data FIRST using CCN directly (HPRD, Census are most important)
+            // STRICT: Only normalized 6-digit CCN matching
             let facility = findFacilityByCCN(ccn);
             
             // PRIORITY 2: Find provider info using CCN (for name, location, case-mix)
+            // STRICT: Only normalized 6-digit CCN matching
             let provider = findProviderByCCN(ccn);
-            
+
             // If we found facility but not provider, try to find provider using facility's PROVNUM
             if (facility && !provider) {
               const facilityProvNum = facility.PROVNUM?.toString().trim() || '';
@@ -346,7 +356,7 @@ export default function SFFPage() {
                 provider = findProviderByCCN(facilityProvNum);
               }
             }
-            
+
             const normalizedCCN = normalizeCCN(ccn);
 
             if (facility || provider) {
@@ -358,7 +368,13 @@ export default function SFFPage() {
                 }
               }
               
-              const q1Status = provider ? (q1StatusMap.get(provider.PROVNUM) || q1StatusMap.get(normalizedCCN) || '') : '';
+              // Final validation: If we have facility data, ensure it's still valid (double-check)
+              if (facility && !isValidFacilityData(facility)) {
+                console.warn(`[CSV Shift] Facility data for CCN=${ccn} failed validation - using provider data only`);
+                facility = undefined; // Reject shifted facility data
+              }
+              
+              const q1Status = normalizedCCN ? (q1StatusMap.get(normalizedCCN) || '') : '';
               const status = provider?.sff_status?.trim().toUpperCase() || '';
               const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
               const isCandidate = status === 'SFF CANDIDATE' || status === 'CANDIDATE' || 
@@ -400,21 +416,22 @@ export default function SFFPage() {
               
               if (facility) {
                 // Read values directly from facility object
+                // NOTE: Facility data has already been validated by isValidFacilityData() before being added to map
                 totalHPRD = typeof facility.Total_Nurse_HPRD === 'number' ? facility.Total_Nurse_HPRD : (parseFloat(String(facility.Total_Nurse_HPRD)) || 0);
                 directCareHPRD = typeof facility.Nurse_Care_HPRD === 'number' ? facility.Nurse_Care_HPRD : (parseFloat(String(facility.Nurse_Care_HPRD)) || 0);
                 rnHPRD = typeof facility.Total_RN_HPRD === 'number' ? facility.Total_RN_HPRD : (parseFloat(String(facility.Total_RN_HPRD)) || 0);
                 census = typeof facility.Census === 'number' ? facility.Census : (parseFloat(String(facility.Census)) || undefined);
                 
-                // Debug: Log if we have suspicious data (Total HPRD is 0 but Direct Care/RN have values)
+                // Final safety check: If validation somehow failed, log and zero out values
                 if (totalHPRD === 0 && (directCareHPRD > 0 || rnHPRD > 0)) {
-                  console.warn(`[Data Misalignment] CCN=${ccn}, Name=${pdfFacility.facility_name}, Facility PROVNUM=${facility.PROVNUM}`);
-                  console.warn(`  Values: TotalHPRD=${totalHPRD}, DirectCare=${directCareHPRD}, RN=${rnHPRD}, Census=${census}`);
-                  console.warn(`  Raw facility data:`, {
-                    Total_Nurse_HPRD: facility.Total_Nurse_HPRD,
-                    Nurse_Care_HPRD: facility.Nurse_Care_HPRD,
-                    Total_RN_HPRD: facility.Total_RN_HPRD,
-                    Census: facility.Census
-                  });
+                  console.error(`[CRITICAL: Data Misalignment] CCN=${ccn}, Name=${pdfFacility.facility_name}, Facility PROVNUM=${facility.PROVNUM}`);
+                  console.error(`  This facility passed initial validation but shows column shift - zeroing out values`);
+                  console.error(`  Values: TotalHPRD=${totalHPRD}, DirectCare=${directCareHPRD}, RN=${rnHPRD}, Census=${census}`);
+                  // Zero out the misaligned values to prevent displaying wrong data
+                  totalHPRD = 0;
+                  directCareHPRD = 0;
+                  rnHPRD = 0;
+                  census = undefined;
                 }
               }
               
@@ -480,32 +497,28 @@ export default function SFFPage() {
               // This is important for facilities that may have closed or stopped reporting
               console.warn(`[No Provider Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, Status=${pdfFacility.status} - Creating entry from CSV data only`);
               
-              // Try Q1 provider data as fallback
-              const ccnVariations = getCCNVariations(ccn);
-              let provider = providerInfoQ1.find(p => {
+              // Try Q1 provider data as fallback - STRICT matching only
+              const normalized = normalizeCCN(ccn);
+              let provider = normalized ? providerInfoQ1.find(p => {
                 const provNum = p.PROVNUM?.toString().trim() || '';
                 if (!provNum) return false;
-                return ccnVariations.some(v => {
-                  const pNorm = normalizeCCN(provNum);
-                  const pNoZ = provNum.replace(/^0+/, '') || provNum;
-                  return provNum === v || pNorm === v || pNoZ === v || normalizeCCN(v) === pNorm;
-                });
-              });
+                return normalizeCCN(provNum) === normalized;
+              }) : undefined;
               
               // CRITICAL FIX: Try to find facility data from Q2 FIRST (even if no provider found)
               // Facility data exists in facility_lite_metrics.csv even if provider info doesn't exist
               let facility = findFacilityByCCN(ccn);
               
-              // If not found in Q2, try Q1 facility data (if provider found in Q1)
+              // If not found in Q2, try Q1 facility data (if provider found in Q1) - STRICT matching
               if (!facility && provider) {
                 const provNum = provider.PROVNUM?.toString().trim() || '';
                 if (provNum) {
-                  facility = data.facilityData.q1?.find((f: FacilityLiteRow) => {
+                  const normalizedProvNum = normalizeCCN(provNum);
+                  facility = normalizedProvNum ? data.facilityData.q1?.find((f: FacilityLiteRow) => {
                     const fProvNum = f.PROVNUM?.toString().trim() || '';
                     if (!fProvNum) return false;
-                    const fVariations = getCCNVariations(fProvNum);
-                    return fVariations.some(fv => ccnVariations.some(cv => fv === cv || normalizeCCN(fv) === normalizeCCN(cv)));
-                  });
+                    return normalizeCCN(fProvNum) === normalizedProvNum;
+                  }) : undefined;
                 }
               }
               
@@ -562,11 +575,10 @@ export default function SFFPage() {
               if (!provider && (ccn === '265379' || ccn === '675595' || ccn === '195454')) {
                 console.warn(`Facility not found in Q1 or Q2 provider data: CCN=${ccn}, Name=${pdfName}, Status=${pdfFacility.status}, Months=${pdfFacility.months_as_sff}`);
                 
-                // For specific facilities, do a deep search
+                // For specific facilities, do a deep search - STRICT matching
                 if (ccn === '265379' || ccn === '675595' || ccn === '195454') {
-                  const variations = getCCNVariations(ccn);
-                  console.log(`  Deep search for CCN=${ccn}:`);
-                  console.log(`  - Variations: ${variations.join(', ')}`);
+                  const normalized = normalizeCCN(ccn);
+                  console.log(`  Deep search for CCN=${ccn} (normalized=${normalized}):`);
                   
                   // Check providerInfoQ2
                   const q2Match = findProviderByCCN(ccn);
@@ -576,16 +588,12 @@ export default function SFFPage() {
                   const q2FacMatch = findFacilityByCCN(ccn);
                   console.log(`  - Q2 facility match: ${q2FacMatch ? `YES - Census=${q2FacMatch.Census}, HPRD=${q2FacMatch.Total_Nurse_HPRD}` : 'NO'}`);
                   
-                  // Check providerInfoQ1
-                  const q1Match = providerInfoQ1.find(p => {
+                  // Check providerInfoQ1 - STRICT matching
+                  const q1Match = normalized ? providerInfoQ1.find(p => {
                     const provNum = p.PROVNUM?.toString().trim() || '';
                     if (!provNum) return false;
-                    return variations.some(v => {
-                      const pNorm = normalizeCCN(provNum);
-                      const pNoZ = provNum.replace(/^0+/, '') || provNum;
-                      return provNum === v || pNorm === v || pNoZ === v || normalizeCCN(v) === pNorm;
-                    });
-                  });
+                    return normalizeCCN(provNum) === normalized;
+                  }) : undefined;
                   console.log(`  - Q1 provider match: ${q1Match ? `YES - ${q1Match.PROVNAME} (${q1Match.PROVNUM})` : 'NO'}`);
                   
                   // Show sample provider numbers for comparison

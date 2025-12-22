@@ -12,6 +12,23 @@ function getDataPath(path: string = ''): string {
   return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
+interface CandidateMonthData {
+  month: number;
+  year: number;
+  month_name: string;
+  source: string;
+}
+
+interface SFFCandidateJSON {
+  document_date: {
+    month: number;
+    year: number;
+    month_name: string;
+  };
+  candidates: Record<string, CandidateMonthData>;
+  total_count: number;
+}
+
 interface SFFFacility {
   provnum: string;
   name: string;
@@ -30,6 +47,7 @@ interface SFFFacility {
   wasCandidate: boolean;
   wasSFF: boolean;
   previousStatus?: string; // Store the previous status for display
+  candidateMonthData?: CandidateMonthData; // Data from JSON
 }
 
 type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census';
@@ -44,6 +62,11 @@ export default function SFFPage() {
     sffs: SFFFacility[];
     candidates: SFFFacility[];
   } | null>(null);
+  const [candidateJSON, setCandidateJSON] = useState<SFFCandidateJSON | null>(null);
+  const [discrepancies, setDiscrepancies] = useState<{
+    inJSONNotInData: string[];
+    inDataNotInJSON: string[];
+  } | null>(null);
   const [sortField, setSortField] = useState<SortField>('totalHPRD');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); // Default: lowest first
   const [currentPage, setCurrentPage] = useState(1);
@@ -55,6 +78,23 @@ export default function SFFPage() {
         setLoading(true);
         setError(null);
 
+        // Load candidate JSON first (primary source)
+        const baseUrl = import.meta.env.BASE_URL;
+        const jsonPath = `${baseUrl}sff-candidate-months.json`.replace(/([^:]\/)\/+/g, '$1');
+        let candidateJSONData: SFFCandidateJSON | null = null;
+        try {
+          const jsonResponse = await fetch(jsonPath);
+          if (jsonResponse.ok) {
+            candidateJSONData = await jsonResponse.json();
+            setCandidateJSON(candidateJSONData);
+            console.log(`Loaded ${candidateJSONData.total_count} candidates from JSON`);
+          } else {
+            console.warn('Could not load candidate JSON file');
+          }
+        } catch (err) {
+          console.warn('Error loading candidate JSON:', err);
+        }
+
         const baseDataPath = getDataPath();
         const data = await loadAllData(baseDataPath, 'usa', undefined);
         
@@ -62,6 +102,18 @@ export default function SFFPage() {
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || [];
+
+        // Create map of CCNs from JSON (normalize to string without leading zeros for matching)
+        const jsonCCNMap = new Map<string, CandidateMonthData>();
+        if (candidateJSONData) {
+          for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
+            // Normalize CCN: remove leading zeros for matching
+            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
+            jsonCCNMap.set(normalizedCCN, candidateData);
+            // Also store with original format
+            jsonCCNMap.set(ccn, candidateData);
+          }
+        }
 
         // Create maps for quick lookup
         const facilityMap = new Map<string, FacilityLiteRow>(facilityQ2.map((f: FacilityLiteRow) => [f.PROVNUM, f]));
@@ -71,9 +123,93 @@ export default function SFFPage() {
 
         const sffs: SFFFacility[] = [];
         const candidates: SFFFacility[] = [];
+        const dataCCNs = new Set<string>();
+        const jsonCCNs = new Set<string>(candidateJSONData ? Object.keys(candidateJSONData.candidates) : []);
 
+        // First, process facilities from JSON (primary source)
+        if (candidateJSONData) {
+          for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
+            // Find provider by CCN (try both normalized and original format)
+            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
+            const provider = providerInfoQ2.find(p => {
+              const provnum = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
+              return provnum === normalizedCCN || p.PROVNUM === ccn;
+            });
+
+            if (provider) {
+              const facility = facilityMap.get(provider.PROVNUM);
+              if (!facility) continue;
+
+              const q1Status = q1StatusMap.get(provider.PROVNUM) || '';
+              const status = provider.sff_status?.trim().toUpperCase() || '';
+              const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
+              const isCandidate = status === 'SFF CANDIDATE' || status === 'CANDIDATE' || 
+                                 (typeof status === 'string' && status.includes('CANDIDATE') && !status.includes('SFF'));
+
+              // If not explicitly SFF or candidate in data, treat as candidate (from JSON)
+              const effectiveIsCandidate = !isSFF && (isCandidate || true);
+              const effectiveIsSFF = isSFF;
+
+              const wasSFF = q1Status === 'SFF' || q1Status === 'SPECIAL FOCUS FACILITY' || (typeof q1Status === 'string' && q1Status.includes('SFF') && !q1Status.includes('CANDIDATE'));
+              const wasCandidate = q1Status === 'SFF CANDIDATE' || q1Status === 'CANDIDATE' || 
+                                  (typeof q1Status === 'string' && q1Status.includes('CANDIDATE') && !q1Status.includes('SFF'));
+              const isNewSFF = effectiveIsSFF && !wasSFF && !wasCandidate;
+              const isNewCandidate = effectiveIsCandidate && !wasCandidate && !wasSFF;
+              
+              let previousStatus: string | undefined;
+              if (wasSFF) {
+                previousStatus = 'Was SFF';
+              } else if (wasCandidate) {
+                previousStatus = 'Was Candidate';
+              } else if (q1Status === '') {
+                previousStatus = undefined;
+              } else {
+                previousStatus = q1Status;
+              }
+
+              const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
+              const totalHPRD = facility.Total_Nurse_HPRD || 0;
+              const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 
+                ? (totalHPRD / caseMixExpected) * 100 
+                : undefined;
+
+              const sffFacility: SFFFacility = {
+                provnum: provider.PROVNUM,
+                name: toTitleCase(provider.PROVNAME),
+                state: provider.STATE,
+                city: capitalizeCity(provider.CITY),
+                county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
+                sffStatus: provider.sff_status || 'SFF CANDIDATE', // Default to candidate if not in data
+                totalHPRD,
+                directCareHPRD: facility.Nurse_Care_HPRD || 0,
+                rnHPRD: (facility.Total_RN_HPRD || facility.Direct_Care_RN_HPRD || 0),
+                caseMixExpectedHPRD: caseMixExpected,
+                percentOfCaseMix,
+                census: facility.Census,
+                isNewSFF,
+                isNewCandidate,
+                wasCandidate,
+                wasSFF,
+                previousStatus,
+                candidateMonthData: candidateData,
+              };
+
+              if (effectiveIsSFF) {
+                sffs.push(sffFacility);
+              } else {
+                candidates.push(sffFacility);
+              }
+              dataCCNs.add(provider.PROVNUM);
+            }
+          }
+        }
+
+        // Then, add any facilities from data that aren't in JSON
         for (const provider of providerInfoQ2) {
           if (!provider.sff_status) continue;
+          
+          // Skip if already processed from JSON
+          if (dataCCNs.has(provider.PROVNUM)) continue;
           
           const status = provider.sff_status?.trim().toUpperCase() || '';
           const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
@@ -91,16 +227,15 @@ export default function SFFPage() {
             const isNewSFF = isSFF && !wasSFF && !wasCandidate;
             const isNewCandidate = isCandidate && !wasCandidate && !wasSFF;
             
-            // Determine previous status for display
             let previousStatus: string | undefined;
             if (wasSFF) {
               previousStatus = 'Was SFF';
             } else if (wasCandidate) {
               previousStatus = 'Was Candidate';
             } else if (q1Status === '') {
-              previousStatus = undefined; // Was nothing
+              previousStatus = undefined;
             } else {
-              previousStatus = q1Status; // Some other status
+              previousStatus = q1Status;
             }
 
             const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
@@ -108,6 +243,10 @@ export default function SFFPage() {
             const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 
               ? (totalHPRD / caseMixExpected) * 100 
               : undefined;
+
+            // Check if CCN is in JSON (normalized)
+            const normalizedCCN = provider.PROVNUM.replace(/^0+/, '') || provider.PROVNUM;
+            const candidateMonthData = jsonCCNMap.get(normalizedCCN) || jsonCCNMap.get(provider.PROVNUM);
 
             const sffFacility: SFFFacility = {
               provnum: provider.PROVNUM,
@@ -127,6 +266,7 @@ export default function SFFPage() {
               wasCandidate,
               wasSFF,
               previousStatus,
+              candidateMonthData,
             };
 
             if (isSFF) {
@@ -134,7 +274,47 @@ export default function SFFPage() {
             } else {
               candidates.push(sffFacility);
             }
+            dataCCNs.add(provider.PROVNUM);
           }
+        }
+
+        // Find discrepancies
+        const inJSONNotInData: string[] = [];
+        const inDataNotInJSON: string[] = [];
+        
+        if (candidateJSONData) {
+          // CCNs in JSON but not in data
+          for (const ccn of Object.keys(candidateJSONData.candidates)) {
+            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
+            const found = Array.from(dataCCNs).some(dccn => {
+              const normalizedDCCN = dccn.replace(/^0+/, '') || dccn;
+              return normalizedDCCN === normalizedCCN || dccn === ccn;
+            });
+            if (!found) {
+              inJSONNotInData.push(ccn);
+            }
+          }
+          
+          // CCNs in data but not in JSON (for SFFs and candidates)
+          for (const ccn of dataCCNs) {
+            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
+            const found = Object.keys(candidateJSONData.candidates).some(jccn => {
+              const normalizedJCCN = jccn.replace(/^0+/, '') || jccn;
+              return normalizedJCCN === normalizedCCN || jccn === ccn;
+            });
+            if (!found) {
+              inDataNotInJSON.push(ccn);
+            }
+          }
+        }
+        
+        setDiscrepancies({ inJSONNotInData, inDataNotInJSON });
+        
+        if (inJSONNotInData.length > 0) {
+          console.warn(`CCNs in JSON but not in data: ${inJSONNotInData.slice(0, 10).join(', ')}${inJSONNotInData.length > 10 ? '...' : ''} (${inJSONNotInData.length} total)`);
+        }
+        if (inDataNotInJSON.length > 0) {
+          console.warn(`CCNs in data but not in JSON: ${inDataNotInJSON.slice(0, 10).join(', ')}${inDataNotInJSON.length > 10 ? '...' : ''} (${inDataNotInJSON.length} total)`);
         }
 
         // Filter by state or region if scope is provided
@@ -456,7 +636,7 @@ export default function SFFPage() {
           <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
             Special Focus Facilities (SFFs) are nursing homes with a history of serious quality problems. 
             SFF Candidates are facilities being considered for SFF status. 
-            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in Q2 2025.
+            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'November 2025'}.
           </p>
         </div>
 
@@ -530,6 +710,7 @@ export default function SFFPage() {
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Facility</th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Location</th>
                       <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
+                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Candidate Month</th>
                       <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Total HPRD</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</SortableHeader>
@@ -554,14 +735,17 @@ export default function SFFPage() {
                           {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
                           {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
                         </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {formatCensus(facility.census)}
+                        </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {facility.candidateMonthData ? `${facility.candidateMonthData.month_name} ${facility.candidateMonthData.year}` : '—'}
+                        </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.census ? facility.census.toLocaleString() : 'N/A'}
                         </td>
                         <td className="px-3 md:px-4 py-2 md:py-3 text-center">
                           {facility.isNewSFF && (
@@ -661,6 +845,9 @@ export default function SFFPage() {
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatCensus(facility.census)}
                         </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {facility.candidateMonthData ? `${facility.candidateMonthData.month_name} ${facility.candidateMonthData.year}` : '—'}
+                        </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
@@ -720,8 +907,28 @@ export default function SFFPage() {
           )}
         </div>
 
-        <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700 text-center text-xs md:text-sm text-gray-400">
-          <p>Source: CMS Payroll-Based Journal, Q2 2025</p>
+        <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
+          {discrepancies && (discrepancies.inJSONNotInData.length > 0 || discrepancies.inDataNotInJSON.length > 0) && (
+            <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+              <h3 className="text-sm font-semibold text-yellow-300 mb-2">Data Discrepancies:</h3>
+              {discrepancies.inJSONNotInData.length > 0 && (
+                <p className="text-xs text-yellow-200 mb-1">
+                  {discrepancies.inJSONNotInData.length} CCN(s) in JSON but not in data: {discrepancies.inJSONNotInData.slice(0, 5).join(', ')}{discrepancies.inJSONNotInData.length > 5 ? '...' : ''}
+                </p>
+              )}
+              {discrepancies.inDataNotInJSON.length > 0 && (
+                <p className="text-xs text-yellow-200">
+                  {discrepancies.inDataNotInJSON.length} CCN(s) in data but not in JSON: {discrepancies.inDataNotInJSON.slice(0, 5).join(', ')}{discrepancies.inDataNotInJSON.length > 5 ? '...' : ''}
+                </p>
+              )}
+            </div>
+          )}
+          <div className="text-center text-xs md:text-sm text-gray-400">
+            <p>Source: CMS Payroll-Based Journal, {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'November 2025'}</p>
+            {candidateJSON && (
+              <p className="mt-1">SFF list from CMS posting ({candidateJSON.total_count} candidates)</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -58,18 +58,26 @@ function App() {
         } 
       />
       <Route 
-        path="/usa-news" 
+        path="/wrapped/usa" 
         element={
           <PasswordProtection>
-            <WrappedNews />
+            <Wrapped />
           </PasswordProtection>
         } 
       />
       <Route 
-        path="/:identifier" 
+        path="/wrapped/:identifier" 
         element={
           <PasswordProtection>
             <Wrapped />
+          </PasswordProtection>
+        } 
+      />
+      <Route 
+        path="/usa-news" 
+        element={
+          <PasswordProtection>
+            <WrappedNews />
           </PasswordProtection>
         } 
       />

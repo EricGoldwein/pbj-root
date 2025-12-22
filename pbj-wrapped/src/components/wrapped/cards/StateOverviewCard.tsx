@@ -92,6 +92,18 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
               <div className="text-xs text-gray-500 mt-0.5">of 51 states</div>
             </div>
           </div>
+          
+          {data.stateMinimum && (
+            <div className="pt-2 border-t border-gray-600">
+              <div className="text-xs text-gray-400 mb-1">State Minimum</div>
+              <div className="text-lg font-bold text-white">
+                {data.stateMinimum.isRange && data.stateMinimum.maxHPRD
+                  ? `${formatNumber(data.stateMinimum.minHPRD, 2)}-${formatNumber(data.stateMinimum.maxHPRD, 2)}`
+                  : formatNumber(data.stateMinimum.minHPRD, 2)
+                } HPRD
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </WrappedCard>

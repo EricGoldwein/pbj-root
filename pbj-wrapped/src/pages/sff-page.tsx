@@ -1078,7 +1078,7 @@ export default function SFFPage() {
           </div>
         </div>
 
-        {/* State Dropdown and Filters - Desktop: dropdown on right, Mobile: dropdown and button on same row */}
+        {/* State Dropdown and Filters - Desktop: dropdown on same row as filters, Mobile: dropdown and button on same row */}
         {(() => {
           const isUSA = scope === 'usa';
           const isState = scope && scope.length === 2 && !scope.startsWith('region');
@@ -1118,11 +1118,74 @@ export default function SFFPage() {
                   </button>
                 )}
               </div>
+            </div>
+          ) : null;
+        })()}
 
-              {/* Desktop: Dropdown aligned right with filters */}
-              <div className="hidden md:flex md:items-end md:justify-between md:gap-4">
-                <div className="flex-1"></div>
-                <div className="max-w-xs">
+        {/* Category Filter Toggles with Desktop State Dropdown */}
+        <div className="mb-4 md:mb-6">
+          <div className="flex flex-wrap gap-2 md:gap-3 md:items-center md:justify-between">
+            <div className="flex flex-wrap gap-2 md:gap-3">
+              <button
+                onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
+                All ({allFacilities.length})
+              </button>
+              <button
+                onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'sffs-and-candidates'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
+                SFFs & Candidates ({allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate').length})
+              </button>
+              <button
+                onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'sffs-only'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
+                SFFs Only ({allFacilities.filter(f => f.sffStatus === 'SFF').length})
+              </button>
+              <button
+                onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'graduates'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
+                Graduates ({allFacilities.filter(f => f.sffStatus === 'Graduate').length})
+              </button>
+              <button
+                onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'terminated'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
+                Terminated ({allFacilities.filter(f => f.sffStatus === 'Terminated').length})
+              </button>
+            </div>
+            
+            {/* Desktop: State Dropdown on same row as filters, aligned right */}
+            {(() => {
+              const isUSA = scope === 'usa';
+              const isState = scope && scope.length === 2 && !scope.startsWith('region');
+              const shouldShow = (isUSA || isState);
+              
+              return shouldShow ? (
+                <div className="hidden md:block">
                   <label htmlFor="state-select-desktop" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
                   <select
                     id="state-select-desktop"
@@ -1133,7 +1196,7 @@ export default function SFFPage() {
                         navigate(`/sff/${selectedState.toLowerCase()}`);
                       }
                     }}
-                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
                   >
                     <option value="">Select a state...</option>
                     {allStates.map(stateCode => (
@@ -1143,64 +1206,8 @@ export default function SFFPage() {
                     ))}
                   </select>
                 </div>
-              </div>
-            </div>
-          ) : null;
-        })()}
-
-        {/* Category Filter Toggles */}
-        <div className="mb-4 md:mb-6">
-          <div className="flex flex-wrap gap-2 md:gap-3">
-            <button
-              onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
-              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                categoryFilter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-              }`}
-            >
-              All ({allFacilities.length})
-            </button>
-            <button
-              onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
-              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                categoryFilter === 'sffs-and-candidates'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-              }`}
-            >
-              SFFs & Candidates ({allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate').length})
-            </button>
-            <button
-              onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
-              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                categoryFilter === 'sffs-only'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-              }`}
-            >
-              SFFs Only ({allFacilities.filter(f => f.sffStatus === 'SFF').length})
-            </button>
-            <button
-              onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
-              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                categoryFilter === 'graduates'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-              }`}
-            >
-              Graduates ({allFacilities.filter(f => f.sffStatus === 'Graduate').length})
-            </button>
-            <button
-              onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
-              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                categoryFilter === 'terminated'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-              }`}
-            >
-              Terminated ({allFacilities.filter(f => f.sffStatus === 'Terminated').length})
-            </button>
+              ) : null;
+            })()}
           </div>
         </div>
 
@@ -1216,8 +1223,10 @@ export default function SFFPage() {
                 <table className="w-full border-collapse min-w-[500px] md:min-w-[700px]">
                   <thead>
                     <tr className="bg-blue-600/20 border-b border-blue-500/30">
+                      {/* Mobile: State column before Provider */}
+                      <th className="px-1 py-2 text-left text-xs font-semibold text-blue-300 md:hidden max-w-[40px]">State</th>
                       <th className="px-1 md:px-2 py-2 text-left text-xs font-semibold text-blue-300 max-w-[120px] md:max-w-none">Provider</th>
-                      <th className="px-1 md:px-2 py-2 text-left text-xs font-semibold text-blue-300 max-w-[80px] md:max-w-none">
+                      <th className="px-1 md:px-2 py-2 text-left text-xs font-semibold text-blue-300 max-w-[80px] md:max-w-none hidden md:table-cell">
                         {scope && scope !== 'usa' && !scope.startsWith('region') ? 'City' : 'Location'}
                       </th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
@@ -1264,6 +1273,10 @@ export default function SFFPage() {
                       };
                       return (
                         <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
+                          {/* Mobile: State column before Provider */}
+                          <td className="px-1 py-2 text-gray-300 text-xs md:hidden max-w-[40px]">
+                            {facility.state || '—'}
+                          </td>
                           <td className="px-1 md:px-2 py-2 max-w-[120px] md:max-w-none">
                             <a
                               href={`https://pbjdashboard.com/?facility=${encodeURIComponent(facility.provnum || '')}`}
@@ -1281,7 +1294,7 @@ export default function SFFPage() {
                               {facility.name}
                             </a>
                           </td>
-                          <td className="px-1 md:px-2 py-2 text-gray-300 text-xs max-w-[80px] md:max-w-none">
+                          <td className="px-1 md:px-2 py-2 text-gray-300 text-xs max-w-[80px] md:max-w-none hidden md:table-cell">
                             <span className="block leading-tight" style={{ 
                               display: '-webkit-box',
                               WebkitLineClamp: 2,

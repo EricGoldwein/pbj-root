@@ -62,22 +62,54 @@ const STATE_NAME_TO_ABBR: Record<string, string> = {
 // Valid state abbreviations
 const VALID_STATE_ABBR = new Set(Object.values(STATE_NAME_TO_ABBR));
 
-// Valid region identifiers
+// Valid region identifiers - support region1, region-1, region_1
 const VALID_REGIONS = new Set(['region1', 'region2', 'region3', 'region4', 'region5', 'region6', 'region7', 'region8', 'region9', 'region10']);
+const VALID_REGION_VARIANTS = new Set([
+  'region1', 'region-1', 'region_1', 'region2', 'region-2', 'region_2',
+  'region3', 'region-3', 'region_3', 'region4', 'region-4', 'region_4',
+  'region5', 'region-5', 'region_5', 'region6', 'region-6', 'region_6',
+  'region7', 'region-7', 'region_7', 'region8', 'region-8', 'region_8',
+  'region9', 'region-9', 'region_9', 'region10', 'region-10', 'region_10'
+]);
 
 /**
- * Normalize URL identifier to lowercase
+ * Normalize URL identifier to lowercase and handle variations
  */
 export function normalizeIdentifier(identifier: string): string {
-  return identifier.toLowerCase().trim();
+  let normalized = identifier.toLowerCase().trim();
+  
+  // Handle state name variations: new-york, newyork, new_york -> new york
+  normalized = normalized.replace(/[-_]/g, ' ');
+  
+  // Handle region variations: region-1, region_1 -> region1
+  const regionMatch = normalized.match(/^region[-_]?(\d+)$/);
+  if (regionMatch) {
+    normalized = `region${regionMatch[1]}`;
+  }
+  
+  return normalized;
 }
 
 /**
  * Convert state full name to abbreviation
+ * Handles variations: new-york, newyork, new_york, tennessee, tn
  */
 export function stateNameToAbbr(stateName: string): string | null {
   const normalized = normalizeIdentifier(stateName);
-  return STATE_NAME_TO_ABBR[normalized] || null;
+  // First check direct mapping
+  if (STATE_NAME_TO_ABBR[normalized]) {
+    return STATE_NAME_TO_ABBR[normalized];
+  }
+  // Handle variations: new-york, newyork, new_york -> new york
+  const withSpaces = normalized.replace(/[-_]/g, ' ');
+  if (STATE_NAME_TO_ABBR[withSpaces]) {
+    return STATE_NAME_TO_ABBR[withSpaces];
+  }
+  // If it's already a 2-letter code, return it
+  if (VALID_STATE_ABBR.has(normalized)) {
+    return normalized;
+  }
+  return null;
 }
 
 /**
@@ -119,7 +151,7 @@ export function getStateAbbr(identifier: string): string | null {
  */
 export function isValidRegion(identifier: string): boolean {
   const normalized = normalizeIdentifier(identifier);
-  return VALID_REGIONS.has(normalized);
+  return VALID_REGIONS.has(normalized) || VALID_REGION_VARIANTS.has(identifier.toLowerCase().trim());
 }
 
 /**

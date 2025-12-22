@@ -335,7 +335,8 @@ function createFacilityLink(provnum: string): string {
  * Create state link
  */
 function createStateLink(stateCode: string): string {
-  return `https://pbjdashboard.com/?state=${stateCode}`;
+  // Return wrapped page link instead of dashboard link
+  return `/wrapped/${stateCode.toLowerCase()}`;
 }
 
 /**
@@ -458,14 +459,14 @@ function processUSAData(
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Total_Nurse_HPRD,
-    link: 'https://pbj320.com/report',
+    link: `/wrapped/region${r.REGION_NUMBER}`,
   }));
   const bottomRegionsByHPRD: Facility[] = sortedRegionsByHPRD.slice(-3).reverse().map(r => ({
     provnum: `region${r.REGION_NUMBER}`,
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Total_Nurse_HPRD,
-    link: 'https://pbj320.com/report',
+    link: `/wrapped/region${r.REGION_NUMBER}`,
   }));
 
   // Top/Bottom Regions by Direct Care HPRD
@@ -475,14 +476,14 @@ function processUSAData(
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Nurse_Care_HPRD,
-    link: 'https://pbj320.com/report',
+    link: `/wrapped/region${r.REGION_NUMBER}`,
   }));
   const bottomRegionsByDirectCare: Facility[] = sortedRegionsByDirectCare.slice(-3).reverse().map(r => ({
     provnum: `region${r.REGION_NUMBER}`,
     name: r.REGION_NAME || `Region ${r.REGION_NUMBER}`,
     state: `Region ${r.REGION_NUMBER}`,
     value: r.Nurse_Care_HPRD,
-    link: 'https://pbj320.com/report',
+    link: `/wrapped/region${r.REGION_NUMBER}`,
   }));
 
   // Also include facility extremes
@@ -645,7 +646,7 @@ function processUSAData(
         rnHPRDChange,
         q1RNHPRD: regionQ1.RN_HPRD,
         q2RNHPRD: regionQ2.RN_HPRD,
-        link: 'https://pbj320.com/report',
+        link: `/wrapped/region${r.REGION_NUMBER}`,
       });
     }
   }

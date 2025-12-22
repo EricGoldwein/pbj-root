@@ -27,7 +27,7 @@ function getStateFullName(abbr: string): string {
 }
 
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
-  const baseText = "PBJ stands for Payroll-Based Journal—a federal reporting system for nursing home staffing data.";
+  const baseText = "PBJ is federal payroll data that tracks nursing home staffing.";
   
   const formatNumber = (num: number, decimals: number = 0): string => {
     return num.toLocaleString('en-US', {
@@ -102,24 +102,24 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           )}
           
           {showWhyItMatters && (
-            <div className="pt-3 border-t border-gray-700 animate-fade-in-up">
+            <div className="pt-3 animate-fade-in-up">
               <p className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Why it matters:</strong> PBJ data provides transparency into nursing home staffing levels, helping families, advocates, and regulators identify facilities that may be understaffed.
+                <strong className="text-gray-300">Why it matters:</strong> PBJ provides transparency into staffing levels, helping identify facilities that may be understaffed.
               </p>
             </div>
           )}
           
           {showNote && (
-            <div className="pt-3 border-t border-gray-700 animate-fade-in-up">
+            <div className="pt-3 animate-fade-in-up">
               <p className="text-xs text-gray-400 leading-relaxed">
-                <strong className="text-gray-300">Note:</strong> CMS PBJ excludes nursing homes with incomplete or misreported data.
+                <strong className="text-gray-300">Note:</strong> PBJ excludes facilities with incomplete submissions.
               </p>
             </div>
           )}
           
           <div className="pt-3 border-t border-gray-700">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              <strong className="text-gray-400">HPRD</strong> = Hours Per Resident Per Day. <strong className="text-gray-400">Total Nurse:</strong> All nursing staff. <strong className="text-gray-400">Direct Care:</strong> Hands-on care (RNs, LPNs, CNAs). <strong className="text-gray-400">RN:</strong> Registered Nurse.
+            <p className="text-[10px] text-gray-500 leading-relaxed">
+              <span className="text-gray-500">HPRD</span> = Hours Per Resident Per Day. <span className="text-gray-500">Total Nurse:</span> All nursing staff. <span className="text-gray-500">Direct Care:</span> Hands-on care (RNs, LPNs, CNAs). <span className="text-gray-500">RN:</span> Registered Nurse.
             </p>
           </div>
           

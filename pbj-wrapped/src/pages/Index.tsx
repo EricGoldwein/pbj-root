@@ -51,12 +51,12 @@ const Index: React.FC = () => {
 
   const handleStateSelect = (stateCode: string) => {
     if (stateCode) {
-      navigate(`/${stateCode.toLowerCase()}`);
+      navigate(`/wrapped/${stateCode.toLowerCase()}`);
     }
   };
 
   const handleRegionSelect = (regionNum: number) => {
-    navigate(`/region${regionNum}`);
+    navigate(`/wrapped/region${regionNum}`);
   };
 
   return (
@@ -204,7 +204,7 @@ const Index: React.FC = () => {
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 pt-3 md:pt-4 shadow-2xl relative">
             {/* USA Badge - positioned in top right */}
             <button
-              onClick={() => navigate('/usa')}
+              onClick={() => navigate('/wrapped/usa')}
               className="absolute top-3 right-3 md:top-4 md:right-4 z-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-1.5 px-3 md:py-2 md:px-4 rounded-lg text-xs md:text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
             >
               USA Wrapped

@@ -28,8 +28,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
   };
 
   return (
-    <WrappedCard title="Phoebe J's PBJ Spotlight" hideBadge>
+    <WrappedCard title="" hideBadge>
       <div className="space-y-3 text-left">
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3 text-white">
+          Phoebe J's PBJ <span className="text-blue-300">Spotlight</span>
+        </h2>
         <p className="text-xs text-gray-400 text-center mb-3">
           One facility where staffing fell below expectations
         </p>
@@ -37,10 +40,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
         {/* Facility Name & City */}
         <div className="pb-2 border-b border-gray-700">
           <h3 className="text-lg md:text-xl font-bold text-white mb-1">
-            {facility.name}
+            <span className="hidden md:inline">{facility.name}{facility.city ? ` (${facility.city})` : ''}</span>
+            <span className="md:hidden">{facility.name}</span>
           </h3>
           {facility.city && (
-            <p className="text-sm text-gray-300">{facility.city}</p>
+            <p className="text-sm text-gray-300 md:hidden">{facility.city}</p>
           )}
         </div>
 
@@ -75,9 +79,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           </div>
           
           <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
-            <span className="text-gray-300 text-sm">Gap vs expected</span>
+            <span className="text-gray-300 text-sm">% case-mix</span>
             <span className="text-red-400 font-bold text-base">
-              {formatHPRD(facility.gapVsExpected)}
+              {facility.caseMixExpectedHPRD > 0 
+                ? formatPercent((facility.totalHPRD / facility.caseMixExpectedHPRD) * 100, 1) + '%'
+                : 'N/A'}
             </span>
           </div>
           

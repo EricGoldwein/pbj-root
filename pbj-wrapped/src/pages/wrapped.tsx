@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { loadAllData } from '../lib/wrapped/dataLoader';
 import { processWrappedData } from '../lib/wrapped/dataProcessor';
-import { parseRouteParams } from '../lib/wrapped/routing';
+import { parseRouteParams, getRegionNumber } from '../lib/wrapped/routing';
 import type { PBJWrappedData } from '../lib/wrapped/wrappedTypes';
 import { updateSEO, getWrappedSEO } from '../utils/seo';
 import { WrappedScreenWrapper, type WrappedNavigationRef } from '../components/wrapped/WrappedScreenWrapper';
@@ -67,10 +67,18 @@ const Wrapped: React.FC = () => {
       return;
     }
 
-    // Redirect if needed (e.g., full state name to abbreviation)
+    // Redirect if needed (e.g., full state name to abbreviation, or region variations)
     if (params.scope === 'state' && identifier.toLowerCase() !== params.normalizedIdentifier) {
-      navigate(`/${params.normalizedIdentifier}`, { replace: true });
+      navigate(`/wrapped/${params.normalizedIdentifier}`, { replace: true });
       return;
+    }
+    if (params.scope === 'region') {
+      // Normalize region to region1 format (not region-1 or region_1)
+      const regionNum = getRegionNumber(identifier);
+      if (regionNum && identifier.toLowerCase() !== `region${regionNum}`) {
+        navigate(`/wrapped/region${regionNum}`, { replace: true });
+        return;
+      }
     }
 
     // Load and process data

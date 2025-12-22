@@ -185,8 +185,12 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       
       // Extract region number from identifier (e.g., "region1" -> "1")
       const regionNumber = data.identifier?.replace(/region/i, '') || '';
-      const regionName = data.name; // e.g., "Boston"
-      const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : data.name;
+      let regionName = data.name; // e.g., "Boston"
+      // Abbreviate San Francisco to San Fran
+      if (regionName === 'San Francisco') {
+        regionName = 'San Fran';
+      }
+      const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : regionName;
       
       // Format resident count properly
       const residentCount = Math.round(data.avgDailyResidents);

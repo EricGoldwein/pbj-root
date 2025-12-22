@@ -71,7 +71,10 @@ export const USAOwnershipStaffingCard: React.FC<USAOwnershipStaffingCardProps> =
           )}
         </div>
         
-        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+        <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
+          A 2001 federal study recommended 4.1 total HPRD as the amount needed for quality care.
+        </p>
+        <p className="text-xs text-gray-500 text-center mt-2 pt-2 border-t border-gray-700">
           Source: CMS PBJ Q2 2025
         </p>
       </div>

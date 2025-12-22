@@ -717,7 +717,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
 
     // Load SFF data from sff-facilities.json (CSV fallback path)
     // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
-    const sffDataJsonCsv = await loadJSON<SFFData>('/wrapped/sff-facilities.json');
+    // SFF data is optional - don't fail if it's missing
+    const sffDataJsonCsv = await loadJSON<SFFData>('/wrapped/sff-facilities.json').catch(() => {
+      console.warn('[SFF Data] sff-facilities.json not found - SFF features will be disabled');
+      return null;
+    });
 
     return {
       stateData: {

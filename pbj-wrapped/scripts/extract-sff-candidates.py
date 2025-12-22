@@ -272,17 +272,38 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
                     break
         
         # Check next few lines to see if this is a multi-line entry
+        # BUT: be careful not to merge the last row of one page with the first row of next page
         j = i + 1
-        while j < min(i + 3, len(lines)) and j < end_idx:
+        continuation_limit = 2  # Only look ahead 2 lines max to avoid page break confusion
+        while j < min(i + continuation_limit + 1, len(lines)) and j < end_idx:
             next_line = lines[j].strip()
-            # If next line doesn't start with a CCN, it might be continuation
-            if next_line and not re.match(ccn_pattern, next_line):
-                # Don't add if it's a table header
-                next_line_lower = next_line.lower()
-                if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
+            
+            # If next line starts with a CCN, it's a new facility - stop here
+            if next_line and re.match(ccn_pattern, next_line):
+                break
+            
+            # If next line is a table header, stop here (we're at a page break)
+            next_line_lower = next_line.lower()
+            if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
+                break
+            
+            # If next line looks like column headers, stop here (page break with headers)
+            if any(word in next_line_lower for word in ['provider number', 'facility name', 'address', 'city', 'state', 'zip', 'phone', 'inspection', 'met survey', 'months as', 'date of termination']):
+                break
+            
+            # If next line is empty or very short, might be a page break - be cautious
+            if not next_line or len(next_line) < 3:
+                # Only continue if we haven't added much yet (might be mid-entry)
+                if len(full_row) - len(line) < 50:
+                    j += 1
+                    continue
+                else:
                     break
-                # Check if it looks like continuation (has address parts, city, etc.)
-                if re.search(r'[A-Za-z]', next_line) and len(next_line) > 10:
+            
+            # Check if it looks like continuation (has address parts, city, etc.)
+            if re.search(r'[A-Za-z]', next_line) and len(next_line) > 10:
+                # Additional check: if next line starts with a number that looks like a CCN, don't merge
+                if not re.match(r'^\d{6}', next_line):
                     full_row += ' ' + next_line
                     j += 1
                 else:
@@ -302,6 +323,62 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
         i = j if j > i + 1 else i + 1
     
     return facilities
+
+def detect_table_boundaries(pages: List[Dict]) -> Dict[str, tuple]:
+    """Automatically detect table boundaries by finding first occurrence of each table header."""
+    # Find first occurrence of each table
+    table_starts = {
+        'a': None,  # Current SFF
+        'b': None,  # Graduated
+        'c': None,  # No longer participating
+        'd': None   # Candidates
+    }
+    
+    # Patterns to identify each table (more specific)
+    table_patterns = {
+        'a': [r'table\s+a:?\s+.*current\s+sff\s+facilities', r'table\s+a\s*[—\-]\s*current\s+sff'],
+        'b': [r'table\s+b:?\s+.*graduated\s+from\s+the\s+sff', r'table\s+b\s*[—\-]\s*facilities\s+that\s+have\s+graduated'],
+        'c': [r'table\s+c:?\s+.*no\s+longer\s+participating', r'table\s+c\s*[—\-]\s*facilities\s+no\s+longer'],
+        'd': [r'table\s+d:?\s+.*sff\s+candidate\s+list', r'table\s+d\s*[—\-]\s*sff\s+candidate']
+    }
+    
+    for page_num, page in enumerate(pages):
+        page_text = page['text'].lower()
+        for table_type, patterns in table_patterns.items():
+            if table_starts[table_type] is None:  # Only find first occurrence
+                for pattern in patterns:
+                    if re.search(pattern, page_text, re.IGNORECASE):
+                        table_starts[table_type] = page_num  # 0-indexed
+                        break
+    
+    # Determine page ranges: each table continues until the next table starts
+    # If not found, use fallback ranges
+    result = {}
+    
+    if table_starts['a'] is not None:
+        end = table_starts['b'] if table_starts['b'] is not None else (table_starts['c'] if table_starts['c'] is not None else (table_starts['d'] if table_starts['d'] is not None else len(pages)))
+        result['a'] = (table_starts['a'], end)
+    else:
+        result['a'] = (3, 5)  # fallback: pages 4-5
+    
+    if table_starts['b'] is not None:
+        end = table_starts['c'] if table_starts['c'] is not None else (table_starts['d'] if table_starts['d'] is not None else len(pages))
+        result['b'] = (table_starts['b'], end)
+    else:
+        result['b'] = (5, 8)  # fallback: pages 6-8
+    
+    if table_starts['c'] is not None:
+        end = table_starts['d'] if table_starts['d'] is not None else len(pages)
+        result['c'] = (table_starts['c'], end)
+    else:
+        result['c'] = (8, 9)  # fallback: page 9
+    
+    if table_starts['d'] is not None:
+        result['d'] = (table_starts['d'], len(pages))
+    else:
+        result['d'] = (9, len(pages))  # fallback: pages 10-end
+    
+    return result
 
 def extract_table_data(pages: List[Dict]) -> Dict:
     """Extract all table data from PDF pages using page-based boundaries."""
@@ -361,23 +438,25 @@ def extract_table_data(pages: List[Dict]) -> Dict:
                    'July', 'August', 'September', 'October', 'November', 'December']
     month_name = month_names[doc_month] if 1 <= doc_month <= 12 else 'December'
     
-    # Extract from specific pages based on user's information:
-    # Table A: pages 4-5 (index 3-4)
-    # Table B: pages 6-8 (index 5-7)
-    # Table C: page 9 (index 8)
-    # Table D: pages 10-18 (index 9-17)
+    # Use known page ranges as primary (user provided: A: 4-5, B: 6-8, C: 9, D: 10-18)
+    # Detection can be enhanced later for future PDFs
+    # Page indices are 0-based, so page 4 = index 3, page 5 = index 4, etc.
+    table_a_pages = [3, 4]  # pages 4-5 (0-indexed: 3, 4)
+    table_b_pages = [5, 6, 7]  # pages 6-8 (0-indexed: 5, 6, 7)
+    table_c_pages = [8]  # page 9 (0-indexed: 8)
+    table_d_pages = list(range(9, min(18, len(pages))))  # pages 10-18 (0-indexed: 9-17)
     
     print(f"\nExtracting from pages:")
-    print(f"  Table A: pages 4-5")
-    print(f"  Table B: pages 6-8")
-    print(f"  Table C: page 9")
-    print(f"  Table D: pages 10-18")
+    print(f"  Table A: pages {[p+1 for p in table_a_pages]}")
+    print(f"  Table B: pages {[p+1 for p in table_b_pages]}")
+    print(f"  Table C: page {table_c_pages[0]+1 if table_c_pages else 'N/A'}")
+    print(f"  Table D: pages {[p+1 for p in table_d_pages]}")
     
-    # Extract text from specific page ranges
-    table_a_text = '\n'.join([pages[i]['text'] for i in range(3, min(5, len(pages)))])  # pages 4-5
-    table_b_text = '\n'.join([pages[i]['text'] for i in range(5, min(8, len(pages)))])  # pages 6-8
-    table_c_text = pages[8]['text'] if len(pages) > 8 else ''  # page 9
-    table_d_text = '\n'.join([pages[i]['text'] for i in range(9, min(18, len(pages)))])  # pages 10-18
+    # Extract text from page ranges
+    table_a_text = '\n'.join([pages[i]['text'] for i in table_a_pages if i < len(pages)])
+    table_b_text = '\n'.join([pages[i]['text'] for i in table_b_pages if i < len(pages)])
+    table_c_text = '\n'.join([pages[i]['text'] for i in table_c_pages if i < len(pages)])
+    table_d_text = '\n'.join([pages[i]['text'] for i in table_d_pages if i < len(pages)])
     
     # Convert to lines
     table_a_lines = table_a_text.split('\n')

@@ -826,11 +826,41 @@ export default function SFFPage() {
                       <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Location</th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
-                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Months as SFF</SortableHeader>
-                      <SortableHeader field="totalHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Total</SortableHeader>
-                      <SortableHeader field="directCareHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden sm:table-cell">Direct</SortableHeader>
-                      <SortableHeader field="rnHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden md:table-cell">RN</SortableHeader>
-                      <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden lg:table-cell">% Mix</SortableHeader>
+                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
+                        <span className="hidden md:inline">Months as SFF</span>
+                        <span className="md:hidden block leading-tight">
+                          <span className="block">Months</span>
+                          <span className="block">as SFF</span>
+                        </span>
+                      </SortableHeader>
+                      <SortableHeader field="totalHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
+                        <span className="hidden md:inline">Total HPRD</span>
+                        <span className="md:hidden block leading-tight">
+                          <span className="block">Total</span>
+                          <span className="block">HPRD</span>
+                        </span>
+                      </SortableHeader>
+                      <SortableHeader field="directCareHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden sm:table-cell">
+                        <span className="hidden md:inline">Direct HPRD</span>
+                        <span className="md:hidden block leading-tight">
+                          <span className="block">Direct</span>
+                          <span className="block">HPRD</span>
+                        </span>
+                      </SortableHeader>
+                      <SortableHeader field="rnHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden md:table-cell">
+                        <span className="hidden lg:inline">RN HPRD</span>
+                        <span className="lg:hidden block leading-tight">
+                          <span className="block">RN</span>
+                          <span className="block">HPRD</span>
+                        </span>
+                      </SortableHeader>
+                      <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 hidden lg:table-cell">
+                        <span className="hidden xl:inline">% Case-Mix</span>
+                        <span className="xl:hidden block leading-tight">
+                          <span className="block">%</span>
+                          <span className="block">Case-Mix</span>
+                        </span>
+                      </SortableHeader>
                     </tr>
                   </thead>
                   <tbody>

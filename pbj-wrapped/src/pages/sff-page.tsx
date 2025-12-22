@@ -12,12 +12,17 @@ function getDataPath(path: string = ''): string {
   return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
-interface CandidateMonthData {
-  months_as_sff?: number; // Months as an SFF Candidate
-  month: number;
-  year: number;
-  month_name: string;
-  source: string;
+interface PDFFacilityData {
+  provider_number: string;
+  facility_name: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  phone_number: string | null;
+  most_recent_inspection: string | null;
+  met_survey_criteria: string | null;
+  months_as_sff: number | null;
 }
 
 interface SFFCandidateJSON {
@@ -26,9 +31,20 @@ interface SFFCandidateJSON {
     year: number;
     month_name: string;
   };
-  candidates: Record<string, CandidateMonthData>;
-  total_count: number;
+  table_a_current_sff: PDFFacilityData[];
+  table_b_graduated: PDFFacilityData[];
+  table_c_no_longer_participating: PDFFacilityData[];
+  table_d_candidates: PDFFacilityData[];
+  summary: {
+    current_sff_count: number;
+    graduated_count: number;
+    no_longer_participating_count: number;
+    candidates_count: number;
+    total_count: number;
+  };
 }
+
+type SFFStatus = 'SFF' | 'Candidate' | 'Graduate' | 'Terminated';
 
 interface SFFFacility {
   provnum: string;
@@ -36,41 +52,39 @@ interface SFFFacility {
   state: string;
   city?: string;
   county?: string;
-  sffStatus: string;
+  sffStatus: SFFStatus; // New: Categorized status
   totalHPRD: number;
   directCareHPRD: number;
   rnHPRD: number;
   caseMixExpectedHPRD?: number;
   percentOfCaseMix?: number;
   census?: number;
+  monthsAsSFF?: number; // From PDF
+  mostRecentInspection?: string; // From PDF
+  metSurveyCriteria?: string; // From PDF
   isNewSFF: boolean;
   isNewCandidate: boolean;
   wasCandidate: boolean;
   wasSFF: boolean;
-  previousStatus?: string; // Store the previous status for display
-  candidateMonthData?: CandidateMonthData; // Data from JSON
+  previousStatus?: string;
 }
 
-type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census';
+type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census' | 'monthsAsSFF' | 'sffStatus';
 type SortDirection = 'asc' | 'desc';
+type CategoryFilter = 'all' | 'sffs-and-candidates' | 'sffs-only' | 'graduates' | 'terminated';
 
 export default function SFFPage() {
   const { scope } = useParams<{ scope?: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sffData, setSffData] = useState<{
-    sffs: SFFFacility[];
-    candidates: SFFFacility[];
-  } | null>(null);
+  const [allFacilities, setAllFacilities] = useState<SFFFacility[]>([]);
   const [candidateJSON, setCandidateJSON] = useState<SFFCandidateJSON | null>(null);
-  const [discrepancies, setDiscrepancies] = useState<{
-    inJSONNotInData: string[];
-    inDataNotInJSON: string[];
-  } | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [sortField, setSortField] = useState<SortField>('totalHPRD');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('asc'); // Default: lowest first
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
+  const [showMethodology, setShowMethodology] = useState(false);
   const itemsPerPage = 50;
 
   useEffect(() => {
@@ -79,7 +93,7 @@ export default function SFFPage() {
         setLoading(true);
         setError(null);
 
-        // Load candidate JSON first (primary source)
+        // Load SFF JSON (primary source with Table A/B/C/D)
         const baseUrl = import.meta.env.BASE_URL;
         const jsonPath = `${baseUrl}sff-candidate-months.json`.replace(/([^:]\/)\/+/g, '$1');
         let candidateJSONData: SFFCandidateJSON | null = null;
@@ -89,12 +103,12 @@ export default function SFFPage() {
             const jsonData = await jsonResponse.json() as SFFCandidateJSON;
             candidateJSONData = jsonData;
             setCandidateJSON(jsonData);
-            console.log(`Loaded ${jsonData.total_count} candidates from JSON`);
+            console.log(`Loaded SFF data: ${jsonData.summary.total_count} total facilities`);
           } else {
-            console.warn('Could not load candidate JSON file');
+            console.warn('Could not load SFF JSON file');
           }
         } catch (err) {
-          console.warn('Error loading candidate JSON:', err);
+          console.warn('Error loading SFF JSON:', err);
         }
 
         const baseDataPath = getDataPath();
@@ -114,42 +128,66 @@ export default function SFFPage() {
           return normalized.padStart(6, '0'); // Pad to 6 digits for consistent matching
         };
 
-        // Create map of CCNs from JSON (store in multiple formats for matching)
-        const jsonCCNMap = new Map<string, CandidateMonthData>();
+        // Create map of PDF data by CCN (from all tables)
+        const pdfDataMap = new Map<string, { data: PDFFacilityData; status: SFFStatus }>();
         if (candidateJSONData) {
-          for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
-            // Store in multiple formats for flexible matching
-            const normalizedCCN = normalizeCCN(ccn);
-            jsonCCNMap.set(ccn, candidateData); // Original format
-            jsonCCNMap.set(normalizedCCN, candidateData); // Normalized format
-            jsonCCNMap.set(ccn.replace(/^0+/, '') || ccn, candidateData); // Without leading zeros
-          }
+          // Table A: Current SFF
+          candidateJSONData.table_a_current_sff.forEach(f => {
+            const normalized = normalizeCCN(f.provider_number);
+            pdfDataMap.set(normalized, { data: f, status: 'SFF' });
+            pdfDataMap.set(f.provider_number, { data: f, status: 'SFF' });
+          });
+          // Table B: Graduated
+          candidateJSONData.table_b_graduated.forEach(f => {
+            const normalized = normalizeCCN(f.provider_number);
+            pdfDataMap.set(normalized, { data: f, status: 'Graduate' });
+            pdfDataMap.set(f.provider_number, { data: f, status: 'Graduate' });
+          });
+          // Table C: No Longer Participating
+          candidateJSONData.table_c_no_longer_participating.forEach(f => {
+            const normalized = normalizeCCN(f.provider_number);
+            pdfDataMap.set(normalized, { data: f, status: 'Terminated' });
+            pdfDataMap.set(f.provider_number, { data: f, status: 'Terminated' });
+          });
+          // Table D: Candidates
+          candidateJSONData.table_d_candidates.forEach(f => {
+            const normalized = normalizeCCN(f.provider_number);
+            pdfDataMap.set(normalized, { data: f, status: 'Candidate' });
+            pdfDataMap.set(f.provider_number, { data: f, status: 'Candidate' });
+          });
         }
 
         // Create maps for quick lookup
         const facilityMap = new Map<string, FacilityLiteRow>(facilityQ2.map((f: FacilityLiteRow) => [f.PROVNUM, f]));
+        const providerMap = new Map<string, ProviderInfoRow>(providerInfoQ2.map((p: ProviderInfoRow) => [p.PROVNUM, p]));
         const q1StatusMap = new Map<string, string>(
           providerInfoQ1.map((p: ProviderInfoRow) => [p.PROVNUM, p.sff_status?.trim().toUpperCase() || ''])
         );
 
-        const sffs: SFFFacility[] = [];
-        const candidates: SFFFacility[] = [];
-        const dataCCNs = new Set<string>();
+        const allFacilitiesList: SFFFacility[] = [];
+        const processedCCNs = new Set<string>();
 
-        // First, process facilities from JSON (primary source)
+        // Process all facilities from PDF (all tables)
         if (candidateJSONData) {
-          for (const [ccn, candidateData] of Object.entries(candidateJSONData.candidates)) {
-            // Find provider by CCN (try multiple formats)
-            const normalizedJSONCCN = normalizeCCN(ccn);
-            const jsonCCNNoZeros = ccn.replace(/^0+/, '') || ccn;
-            const provider = providerInfoQ2.find(p => {
-              const normalizedProvnum = normalizeCCN(p.PROVNUM);
-              const provnumNoZeros = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
-              return normalizedProvnum === normalizedJSONCCN || 
-                     p.PROVNUM === ccn || 
-                     provnumNoZeros === jsonCCNNoZeros ||
-                     normalizedProvnum === ccn;
-            });
+          // Combine all tables into one list
+          const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus }> = [
+            ...candidateJSONData.table_a_current_sff.map(f => ({ ...f, status: 'SFF' as SFFStatus })),
+            ...candidateJSONData.table_b_graduated.map(f => ({ ...f, status: 'Graduate' as SFFStatus })),
+            ...candidateJSONData.table_c_no_longer_participating.map(f => ({ ...f, status: 'Terminated' as SFFStatus })),
+            ...candidateJSONData.table_d_candidates.map(f => ({ ...f, status: 'Candidate' as SFFStatus }))
+          ];
+
+          for (const pdfFacility of allPDFFacilities) {
+            const ccn = pdfFacility.provider_number;
+            // Find provider by CCN
+            const normalizedCCN = normalizeCCN(ccn);
+            let provider = providerMap.get(ccn);
+            if (!provider) {
+              provider = providerInfoQ2.find(p => {
+                const normalizedProvnum = normalizeCCN(p.PROVNUM);
+                return normalizedProvnum === normalizedCCN || p.PROVNUM === ccn;
+              });
+            }
 
             if (provider) {
               const facility = facilityMap.get(provider.PROVNUM);
@@ -191,172 +229,70 @@ export default function SFFPage() {
               const sffFacility: SFFFacility = {
                 provnum: provider.PROVNUM,
                 name: toTitleCase(provider.PROVNAME),
-                state: provider.STATE,
-                city: capitalizeCity(provider.CITY),
+                state: pdfFacility.state || provider.STATE,
+                city: provider.CITY ? capitalizeCity(provider.CITY) : (pdfFacility.city ? capitalizeCity(pdfFacility.city) : undefined),
                 county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
-                sffStatus: provider.sff_status || 'SFF CANDIDATE', // Default to candidate if not in data
+                sffStatus: pdfFacility.status,
                 totalHPRD,
                 directCareHPRD: facility.Nurse_Care_HPRD || 0,
                 rnHPRD: (facility.Total_RN_HPRD || facility.Direct_Care_RN_HPRD || 0),
                 caseMixExpectedHPRD: caseMixExpected,
                 percentOfCaseMix,
                 census: facility.Census,
+                monthsAsSFF: pdfFacility.months_as_sff ?? undefined,
+                mostRecentInspection: pdfFacility.most_recent_inspection ?? undefined,
+                metSurveyCriteria: pdfFacility.met_survey_criteria ?? undefined,
                 isNewSFF,
                 isNewCandidate,
                 wasCandidate,
                 wasSFF,
-                previousStatus,
-                candidateMonthData: candidateData,
+                previousStatus
               };
 
-              if (effectiveIsSFF) {
-                sffs.push(sffFacility);
-              } else {
-                candidates.push(sffFacility);
-              }
-              dataCCNs.add(provider.PROVNUM);
-            }
-          }
-        }
-
-        // Then, add any facilities from data that aren't in JSON
-        for (const provider of providerInfoQ2) {
-          if (!provider.sff_status) continue;
-          
-          // Skip if already processed from JSON
-          if (dataCCNs.has(provider.PROVNUM)) continue;
-          
-          const status = provider.sff_status?.trim().toUpperCase() || '';
-          const isSFF = status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || (typeof status === 'string' && status.includes('SFF') && !status.includes('CANDIDATE'));
-          const isCandidate = status === 'SFF CANDIDATE' || status === 'CANDIDATE' || 
-                             (typeof status === 'string' && status.includes('CANDIDATE') && !status.includes('SFF'));
-
-          if (isSFF || isCandidate) {
-            const facility = facilityMap.get(provider.PROVNUM);
-            if (!facility) continue;
-
-            const q1Status = q1StatusMap.get(provider.PROVNUM) || '';
-            const wasSFF = q1Status === 'SFF' || q1Status === 'SPECIAL FOCUS FACILITY' || (typeof q1Status === 'string' && q1Status.includes('SFF') && !q1Status.includes('CANDIDATE'));
-            const wasCandidate = q1Status === 'SFF CANDIDATE' || q1Status === 'CANDIDATE' || 
-                                (typeof q1Status === 'string' && q1Status.includes('CANDIDATE') && !q1Status.includes('SFF'));
-            const isNewSFF = isSFF && !wasSFF && !wasCandidate;
-            const isNewCandidate = isCandidate && !wasCandidate && !wasSFF;
-            
-            let previousStatus: string | undefined;
-            if (wasSFF) {
-              previousStatus = 'Was SFF';
-            } else if (wasCandidate) {
-              previousStatus = 'Was Candidate';
-            } else if (q1Status === '') {
-              previousStatus = undefined;
+              allFacilitiesList.push(sffFacility);
+              processedCCNs.add(provider.PROVNUM);
             } else {
-              previousStatus = q1Status;
-            }
-
-            const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
-            const totalHPRD = facility.Total_Nurse_HPRD || 0;
-            const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 
-              ? (totalHPRD / caseMixExpected) * 100 
-              : undefined;
-
-            // Check if CCN is in JSON (try multiple formats)
-            const normalizedProvnum = normalizeCCN(provider.PROVNUM);
-            const provnumNoZeros = provider.PROVNUM.replace(/^0+/, '') || provider.PROVNUM;
-            const candidateMonthData = jsonCCNMap.get(provider.PROVNUM) ||
-                                      jsonCCNMap.get(normalizedProvnum) || 
-                                      jsonCCNMap.get(provnumNoZeros);
-
-            const sffFacility: SFFFacility = {
-              provnum: provider.PROVNUM,
-              name: toTitleCase(provider.PROVNAME),
-              state: provider.STATE,
-              city: capitalizeCity(provider.CITY),
-              county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
-              sffStatus: provider.sff_status,
-              totalHPRD,
-              directCareHPRD: facility.Nurse_Care_HPRD || 0,
-              rnHPRD: (facility.Total_RN_HPRD || facility.Direct_Care_RN_HPRD || 0),
-              caseMixExpectedHPRD: caseMixExpected,
-              percentOfCaseMix,
-              census: facility.Census,
-              isNewSFF,
-              isNewCandidate,
-              wasCandidate,
-              wasSFF,
-              previousStatus,
-              candidateMonthData,
-            };
-
-            if (isSFF) {
-              sffs.push(sffFacility);
-            } else {
-              candidates.push(sffFacility);
-            }
-            dataCCNs.add(provider.PROVNUM);
-          }
-        }
-
-        // Find discrepancies
-        const inJSONNotInData: string[] = [];
-        const inDataNotInJSON: string[] = [];
-        
-        if (candidateJSONData) {
-          // CCNs in JSON but not in data
-          for (const ccn of Object.keys(candidateJSONData.candidates)) {
-            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
-            const found = Array.from(dataCCNs).some(dccn => {
-              const normalizedDCCN = dccn.replace(/^0+/, '') || dccn;
-              return normalizedDCCN === normalizedCCN || dccn === ccn;
-            });
-            if (!found) {
-              inJSONNotInData.push(ccn);
+              // Facility in PDF but not in provider data - still add it
+              const sffFacility: SFFFacility = {
+                provnum: ccn,
+                name: pdfFacility.facility_name || 'Unknown Facility',
+                state: pdfFacility.state || 'UN',
+                city: pdfFacility.city ? capitalizeCity(pdfFacility.city) : undefined,
+                sffStatus: pdfFacility.status,
+                totalHPRD: 0,
+                directCareHPRD: 0,
+                rnHPRD: 0,
+                monthsAsSFF: pdfFacility.months_as_sff ?? undefined,
+                mostRecentInspection: pdfFacility.most_recent_inspection ?? undefined,
+                metSurveyCriteria: pdfFacility.met_survey_criteria ?? undefined,
+                isNewSFF: false,
+                isNewCandidate: false,
+                wasCandidate: false,
+                wasSFF: false
+              };
+              allFacilitiesList.push(sffFacility);
+              processedCCNs.add(ccn);
             }
           }
-          
-          // CCNs in data but not in JSON (for SFFs and candidates)
-          for (const ccn of dataCCNs) {
-            const normalizedCCN = ccn.replace(/^0+/, '') || ccn;
-            const found = Object.keys(candidateJSONData.candidates).some(jccn => {
-              const normalizedJCCN = jccn.replace(/^0+/, '') || jccn;
-              return normalizedJCCN === normalizedCCN || jccn === ccn;
-            });
-            if (!found) {
-              inDataNotInJSON.push(ccn);
-            }
-          }
-        }
-        
-        setDiscrepancies({ inJSONNotInData, inDataNotInJSON });
-        
-        if (inJSONNotInData.length > 0) {
-          console.warn(`CCNs in JSON but not in data: ${inJSONNotInData.slice(0, 10).join(', ')}${inJSONNotInData.length > 10 ? '...' : ''} (${inJSONNotInData.length} total)`);
-        }
-        if (inDataNotInJSON.length > 0) {
-          console.warn(`CCNs in data but not in JSON: ${inDataNotInJSON.slice(0, 10).join(', ')}${inDataNotInJSON.length > 10 ? '...' : ''} (${inDataNotInJSON.length} total)`);
         }
 
         // Filter by state or region if scope is provided
-        let filteredSFFs = sffs;
-        let filteredCandidates = candidates;
+        let filteredFacilities = allFacilitiesList;
         
         if (scope && scope !== 'usa') {
           if (scope.length === 2) {
-            // State code
             const stateCode = scope.toUpperCase();
-            filteredSFFs = sffs.filter(f => f.state === stateCode);
-            filteredCandidates = candidates.filter(f => f.state === stateCode);
+            filteredFacilities = allFacilitiesList.filter(f => f.state === stateCode);
           } else if (scope.startsWith('region')) {
-            // Region (e.g., "region1", "region-1", "region2")
             const regionNum = parseInt(scope.replace(/^region-?/, ''));
             if (!isNaN(regionNum) && data.regionStateMapping) {
               const regionStates = data.regionStateMapping.get(regionNum) || new Set<string>();
-              filteredSFFs = sffs.filter(f => regionStates.has(f.state));
-              filteredCandidates = candidates.filter(f => regionStates.has(f.state));
+              filteredFacilities = allFacilitiesList.filter(f => regionStates.has(f.state));
             }
           }
         }
 
-        setSffData({ sffs: filteredSFFs, candidates: filteredCandidates });
+        setAllFacilities(filteredFacilities);
       } catch (err) {
         console.error('Error loading SFF data:', err);
         setError(err instanceof Error ? err.message : 'Failed to load SFF data');
@@ -378,9 +314,28 @@ export default function SFFPage() {
     setCurrentPage(1);
   };
 
-  const sortedSFFs = useMemo(() => {
-    if (!sffData) return [];
-    const sorted = [...sffData.sffs].sort((a, b) => {
+  // Filter by category
+  const filteredFacilities = useMemo(() => {
+    if (!allFacilities.length) return [];
+    
+    switch (categoryFilter) {
+      case 'sffs-and-candidates':
+        return allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate');
+      case 'sffs-only':
+        return allFacilities.filter(f => f.sffStatus === 'SFF');
+      case 'graduates':
+        return allFacilities.filter(f => f.sffStatus === 'Graduate');
+      case 'terminated':
+        return allFacilities.filter(f => f.sffStatus === 'Terminated');
+      default:
+        return allFacilities;
+    }
+  }, [allFacilities, categoryFilter]);
+
+  // Sort facilities
+  const sortedFacilities = useMemo(() => {
+    if (!filteredFacilities.length) return [];
+    const sorted = [...filteredFacilities].sort((a, b) => {
       let aVal: number | string = 0;
       let bVal: number | string = 0;
       
@@ -413,50 +368,13 @@ export default function SFFPage() {
           aVal = a.census ?? 0;
           bVal = b.census ?? 0;
           break;
-      }
-      
-      if (typeof aVal === 'string' && typeof bVal === 'string') {
-        return sortDirection === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-      }
-      return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
-    });
-    return sorted;
-  }, [sffData, sortField, sortDirection]);
-
-  const sortedCandidates = useMemo(() => {
-    if (!sffData) return [];
-    const sorted = [...sffData.candidates].sort((a, b) => {
-      let aVal: number | string = 0;
-      let bVal: number | string = 0;
-      
-      switch (sortField) {
-        case 'totalHPRD':
-          aVal = a.totalHPRD;
-          bVal = b.totalHPRD;
+        case 'monthsAsSFF':
+          aVal = a.monthsAsSFF ?? 0;
+          bVal = b.monthsAsSFF ?? 0;
           break;
-        case 'directCareHPRD':
-          aVal = a.directCareHPRD;
-          bVal = b.directCareHPRD;
-          break;
-        case 'rnHPRD':
-          aVal = a.rnHPRD;
-          bVal = b.rnHPRD;
-          break;
-        case 'percentOfCaseMix':
-          aVal = a.percentOfCaseMix ?? 0;
-          bVal = b.percentOfCaseMix ?? 0;
-          break;
-        case 'name':
-          aVal = a.name;
-          bVal = b.name;
-          break;
-        case 'state':
-          aVal = a.state;
-          bVal = b.state;
-          break;
-        case 'census':
-          aVal = a.census ?? 0;
-          bVal = b.census ?? 0;
+        case 'sffStatus':
+          aVal = a.sffStatus;
+          bVal = b.sffStatus;
           break;
       }
       
@@ -466,20 +384,14 @@ export default function SFFPage() {
       return sortDirection === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number);
     });
     return sorted;
-  }, [sffData, sortField, sortDirection]);
+  }, [filteredFacilities, sortField, sortDirection]);
 
-  const paginatedSFFs = useMemo(() => {
+  const paginatedFacilities = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
-    return sortedSFFs.slice(start, start + itemsPerPage);
-  }, [sortedSFFs, currentPage]);
+    return sortedFacilities.slice(start, start + itemsPerPage);
+  }, [sortedFacilities, currentPage]);
 
-  const paginatedCandidates = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return sortedCandidates.slice(start, start + itemsPerPage);
-  }, [sortedCandidates, currentPage]);
-
-  const totalPagesSFFs = Math.ceil(sortedSFFs.length / itemsPerPage);
-  const totalPagesCandidates = Math.ceil(sortedCandidates.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedFacilities.length / itemsPerPage);
 
   const formatNumber = (num: number, decimals: number = 2): string => {
     return num.toLocaleString('en-US', {
@@ -531,12 +443,11 @@ export default function SFFPage() {
 
   // Get all states with SFFs for USA page
   const statesWithSFFs = useMemo(() => {
-    if (!sffData || scope !== 'usa') return [];
+    if (!allFacilities.length || scope !== 'usa') return [];
     const stateSet = new Set<string>();
-    sffData.sffs.forEach(f => stateSet.add(f.state));
-    sffData.candidates.forEach(f => stateSet.add(f.state));
+    allFacilities.forEach(f => stateSet.add(f.state));
     return Array.from(stateSet).sort();
-  }, [sffData, scope]);
+  }, [allFacilities, scope]);
 
   // Get all regions with SFFs for USA page
   const [regionStateMapping, setRegionStateMapping] = useState<Map<number, Set<string>> | null>(null);
@@ -559,20 +470,19 @@ export default function SFFPage() {
   }, [scope]);
 
   const regionsWithSFFs = useMemo(() => {
-    if (!sffData || !regionStateMapping || scope !== 'usa') return [];
+    if (!allFacilities.length || !regionStateMapping || scope !== 'usa') return [];
     const regionsWithData: number[] = [];
     for (let i = 1; i <= 10; i++) {
       const regionStates = regionStateMapping.get(i);
       if (regionStates) {
-        const hasSFFs = sffData.sffs.some(f => regionStates.has(f.state)) ||
-                       sffData.candidates.some(f => regionStates.has(f.state));
+        const hasSFFs = allFacilities.some(f => regionStates.has(f.state));
         if (hasSFFs) {
           regionsWithData.push(i);
         }
       }
     }
     return regionsWithData;
-  }, [sffData, regionStateMapping, scope]);
+  }, [allFacilities, regionStateMapping, scope]);
 
   const pageTitle = scope === 'usa' 
     ? 'Special Focus Facilities & Candidates — United States'
@@ -613,12 +523,12 @@ export default function SFFPage() {
     );
   }
 
-  if (error || !sffData) {
+  if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="text-xl mb-2 text-red-400">Error</div>
-          <div className="text-sm text-gray-400">{error || 'Failed to load SFF data'}</div>
+          <div className="text-sm text-gray-400">{error}</div>
         </div>
       </div>
     );
@@ -665,12 +575,10 @@ export default function SFFPage() {
             )}
           </div>
           <p className="text-gray-300 text-sm md:text-base mb-2">
-            {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'} • CMS Payroll-Based Journal
+            {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'} • CMS Special Focus Facility Program
           </p>
           <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
-            Special Focus Facilities (SFFs) are nursing homes with a history of serious quality problems. 
-            SFF Candidates are facilities being considered for SFF status. 
-            <span className="text-orange-400 font-semibold"> New</span> indicates facilities that became SFFs or candidates in {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'}.
+            Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid from the CMS SFF posting.
           </p>
         </div>
 
@@ -726,174 +634,149 @@ export default function SFFPage() {
           </div>
         )}
 
-        {/* SFFs Section */}
-        <div className="mb-8 md:mb-10">
-          <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">
-            Special Focus Facilities ({sffData.sffs.length.toLocaleString()})
-          </h2>
-          {sffData.sffs.length === 0 ? (
-            <div className="rounded-lg border border-gray-700 bg-[#0f172a]/60 p-8 text-center">
-              <p className="text-gray-400">No Special Focus Facilities found for this scope.</p>
-            </div>
-          ) : (
-            <>
-              <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
-                <table className="w-full border-collapse min-w-[800px]">
-                  <thead>
-                    <tr className="bg-blue-600/20 border-b border-blue-500/30">
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Facility</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Location</th>
-                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Months as SFF</th>
-                      <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Total HPRD</SortableHeader>
-                      <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</SortableHeader>
-                      <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</SortableHeader>
-                      <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">% of Case Mix</SortableHeader>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {paginatedSFFs.map((facility) => (
-                      <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
-                        <td className="px-3 md:px-4 py-2 md:py-3">
-                          <a
-                            href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-300 hover:text-blue-200 underline font-medium text-sm md:text-base break-words"
-                          >
-                            {facility.name}
-                          </a>
-                        </td>
-                        <td className="px-3 md:px-4 py-2 md:py-3 text-gray-300 text-xs md:text-sm">
-                          {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
-                          {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {formatCensus(facility.census)}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.candidateMonthData?.months_as_sff !== undefined ? facility.candidateMonthData.months_as_sff : '—'}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              {totalPagesSFFs > 1 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sortedSFFs.length)} of {sortedSFFs.length}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Previous
-                    </button>
-                    <span className="px-4 py-2 text-gray-300">
-                      Page {currentPage} of {totalPagesSFFs}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPagesSFFs, p + 1))}
-                      disabled={currentPage === totalPagesSFFs}
-                      className="px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        {/* Category Filter Toggles */}
+        <div className="mb-4 md:mb-6">
+          <div className="flex flex-wrap gap-2 md:gap-3">
+            <button
+              onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                categoryFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+              }`}
+            >
+              All ({allFacilities.length})
+            </button>
+            <button
+              onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                categoryFilter === 'sffs-and-candidates'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+              }`}
+            >
+              SFFs & Candidates ({allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate').length})
+            </button>
+            <button
+              onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                categoryFilter === 'sffs-only'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+              }`}
+            >
+              SFFs Only ({allFacilities.filter(f => f.sffStatus === 'SFF').length})
+            </button>
+            <button
+              onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                categoryFilter === 'graduates'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+              }`}
+            >
+              Graduates ({allFacilities.filter(f => f.sffStatus === 'Graduate').length})
+            </button>
+            <button
+              onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
+              className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                categoryFilter === 'terminated'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+              }`}
+            >
+              Terminated ({allFacilities.filter(f => f.sffStatus === 'Terminated').length})
+            </button>
+          </div>
         </div>
 
-        {/* Candidates Section */}
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">
-            SFF Candidates ({sffData.candidates.length.toLocaleString()})
-          </h2>
-          {sffData.candidates.length === 0 ? (
+        {/* Merged Table */}
+        <div className="mb-8 md:mb-10">
+          {sortedFacilities.length === 0 ? (
             <div className="rounded-lg border border-gray-700 bg-[#0f172a]/60 p-8 text-center">
-              <p className="text-gray-400">No SFF Candidates found for this scope.</p>
+              <p className="text-gray-400">No facilities found for this filter.</p>
             </div>
           ) : (
             <>
               <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
-                <table className="w-full border-collapse min-w-[800px]">
+                <table className="w-full border-collapse min-w-[700px]">
                   <thead>
-                    <tr className="bg-yellow-600/20 border-b border-yellow-500/30">
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Facility</th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Location</th>
-                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Census</SortableHeader>
-                      <th className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Months as SFF</th>
-                      <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Total HPRD</SortableHeader>
-                      <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Direct Care</SortableHeader>
-                      <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">RN HPRD</SortableHeader>
-                      <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">% of Case Mix</SortableHeader>
+                    <tr className="bg-blue-600/20 border-b border-blue-500/30">
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Facility</th>
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Location</th>
+                      <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
+                      <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
+                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Months</SortableHeader>
+                      <SortableHeader field="totalHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Total</SortableHeader>
+                      <SortableHeader field="directCareHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden sm:table-cell">Direct</SortableHeader>
+                      <SortableHeader field="rnHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden md:table-cell">RN</SortableHeader>
+                      <SortableHeader field="percentOfCaseMix" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden lg:table-cell">% Mix</SortableHeader>
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedCandidates.map((facility) => (
-                      <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
-                        <td className="px-3 md:px-4 py-2 md:py-3">
-                          <a
-                            href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-300 hover:text-blue-200 underline font-medium text-sm md:text-base break-words"
-                          >
-                            {facility.name}
-                          </a>
-                        </td>
-                        <td className="px-3 md:px-4 py-2 md:py-3 text-gray-300 text-xs md:text-sm">
-                          {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
-                          {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {formatCensus(facility.census)}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.candidateMonthData?.months_as_sff !== undefined ? facility.candidateMonthData.months_as_sff : '—'}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                      </tr>
-                    ))}
+                    {paginatedFacilities.map((facility) => {
+                      const statusColors: Record<SFFStatus, string> = {
+                        'SFF': 'bg-red-500/20 text-red-300',
+                        'Candidate': 'bg-yellow-500/20 text-yellow-300',
+                        'Graduate': 'bg-green-500/20 text-green-300',
+                        'Terminated': 'bg-gray-500/20 text-gray-300'
+                      };
+                      return (
+                        <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
+                          <td className="px-2 md:px-3 py-2">
+                            <a
+                              href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-300 hover:text-blue-200 underline font-medium text-xs md:text-sm break-words"
+                            >
+                              {facility.name}
+                            </a>
+                          </td>
+                          <td className="px-2 md:px-3 py-2 text-gray-300 text-xs">
+                            {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
+                          </td>
+                          <td className="px-1 md:px-2 py-2 text-center">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[facility.sffStatus]}`}>
+                              {facility.sffStatus}
+                            </span>
+                          </td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs">{formatCensus(facility.census)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs">
+                            {facility.monthsAsSFF !== undefined ? facility.monthsAsSFF : '—'}
+                          </td>
+                          <td className="px-1 md:px-2 py-2 text-center text-white font-semibold text-xs">{formatNumber(facility.totalHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden sm:table-cell">{formatNumber(facility.directCareHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden md:table-cell">{formatNumber(facility.rnHPRD)}</td>
+                          <td className="px-1 md:px-2 py-2 text-center text-gray-300 text-xs hidden lg:table-cell">
+                            {formatPercent(facility.percentOfCaseMix)}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
-              {totalPagesCandidates > 1 && (
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="text-sm text-gray-400">
-                    Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, sortedCandidates.length)} of {sortedCandidates.length}
+              {totalPages > 1 && (
+                <div className="mt-3 flex flex-col sm:flex-row items-center justify-between gap-2">
+                  <div className="text-xs text-gray-400">
+                    {(currentPage - 1) * itemsPerPage + 1}-{Math.min(currentPage * itemsPerPage, sortedFacilities.length)} of {sortedFacilities.length}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/50 rounded text-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs"
                     >
-                      Previous
+                      Prev
                     </button>
-                    <span className="px-4 py-2 text-gray-300">
-                      Page {currentPage} of {totalPagesCandidates}
+                    <span className="px-3 py-1 text-gray-300 text-xs">
+                      {currentPage}/{totalPages}
                     </span>
                     <button
-                      onClick={() => setCurrentPage(p => Math.min(totalPagesCandidates, p + 1))}
-                      disabled={currentPage === totalPagesCandidates}
-                      className="px-4 py-2 bg-yellow-600/20 hover:bg-yellow-600/30 border border-yellow-500/50 rounded text-yellow-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-xs"
                     >
                       Next
                     </button>
@@ -905,27 +788,39 @@ export default function SFFPage() {
         </div>
 
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
-          {discrepancies && (discrepancies.inJSONNotInData.length > 0 || discrepancies.inDataNotInJSON.length > 0) && (
-            <div className="mb-4 p-4 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
-              <h3 className="text-sm font-semibold text-yellow-300 mb-2">Data Discrepancies:</h3>
-              {discrepancies.inJSONNotInData.length > 0 && (
-                <p className="text-xs text-yellow-200 mb-1">
-                  {discrepancies.inJSONNotInData.length} CCN(s) in JSON but not in data: {discrepancies.inJSONNotInData.slice(0, 5).join(', ')}{discrepancies.inJSONNotInData.length > 5 ? '...' : ''}
-                </p>
-              )}
-              {discrepancies.inDataNotInJSON.length > 0 && (
-                <p className="text-xs text-yellow-200">
-                  {discrepancies.inDataNotInJSON.length} CCN(s) in data but not in JSON: {discrepancies.inDataNotInJSON.slice(0, 5).join(', ')}{discrepancies.inDataNotInJSON.length > 5 ? '...' : ''}
-                </p>
-              )}
-            </div>
-          )}
-          <div className="text-center text-xs md:text-sm text-gray-400">
-            <p>Source: CMS Payroll-Based Journal, {candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'}</p>
+          <div className="text-center text-xs text-gray-400 mb-4">
+            <p>Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-september-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})</p>
             {candidateJSON && (
-              <>
-                <p className="mt-1">SFF list from <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-september-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS posting</a> (updated December 10, 2025, {candidateJSON.total_count} candidates)</p>
-              </>
+              <p className="mt-1">
+                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Terminated ({candidateJSON.summary.total_count} total)
+              </p>
+            )}
+          </div>
+
+          {/* Methodology Section */}
+          <div className="mt-6">
+            <button
+              onClick={() => setShowMethodology(!showMethodology)}
+              className="w-full text-left px-4 py-2 bg-[#0f172a]/60 hover:bg-[#0f172a]/80 border border-gray-700 rounded text-gray-300 text-xs font-medium transition-colors flex items-center justify-between"
+            >
+              <span>Methodology & Definitions</span>
+              <span className="text-gray-500">{showMethodology ? '−' : '+'}</span>
+            </button>
+            {showMethodology && (
+              <div className="mt-2 p-4 bg-[#0f172a]/60 border border-gray-700 rounded text-xs text-gray-300 space-y-3">
+                <div>
+                  <strong className="text-blue-300">Current SFF Facilities:</strong> Nursing homes currently in the SFF program. The date of the most recent inspection is posted. Results are noted as "Met" or "Not Met". "Met" means the facility met graduation criteria on their most recent survey and is on track for graduation. SFF facilities must meet graduation criteria on 2 consecutive surveys to be eligible for graduation. "Not Met" means the facility did not meet graduation criteria and must restart the process.
+                </div>
+                <div>
+                  <strong className="text-green-300">Facilities That Have Graduated:</strong> These nursing homes sustained improvement for about 12 months (through two standard health surveys) while in the SFF program. CMS lists their names as "graduates" for three years after they graduate so that anyone tracking their progress will be informed. "Graduation" does not mean there may not be problems in quality of care but does generally indicate an upward trend in quality improvement compared to the nursing home's prior history.
+                </div>
+                <div>
+                  <strong className="text-gray-300">No Longer in Medicare and Medicaid:</strong> These are nursing homes that were either terminated by CMS from participation in Medicare and Medicaid within the past few months or voluntarily chose not to continue such participation. In most cases, the nursing homes will have closed, although some nursing homes that leave Medicare later seek to show better quality and re-enter the Medicare program after demonstrating their ability to comply with all Federal health and safety requirements.
+                </div>
+                <div>
+                  <strong className="text-yellow-300">SFF Candidate List:</strong> These are nursing homes that qualify to be selected as an SFF. The number of nursing homes on the candidate list is based on five candidates for each SFF slot, with a minimum candidate pool of five nursing homes and a maximum of 30 per State.
+                </div>
+              </div>
             )}
           </div>
         </div>

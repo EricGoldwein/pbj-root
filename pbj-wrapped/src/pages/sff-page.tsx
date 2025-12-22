@@ -24,13 +24,15 @@ interface SFFFacility {
   rnHPRD: number;
   caseMixExpectedHPRD?: number;
   percentOfCaseMix?: number;
+  census?: number;
   isNewSFF: boolean;
   isNewCandidate: boolean;
   wasCandidate: boolean;
   wasSFF: boolean;
+  previousStatus?: string; // Store the previous status for display
 }
 
-type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state';
+type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census';
 type SortDirection = 'asc' | 'desc';
 
 export default function SFFPage() {
@@ -88,6 +90,18 @@ export default function SFFPage() {
                                 (typeof q1Status === 'string' && q1Status.includes('CANDIDATE') && !q1Status.includes('SFF'));
             const isNewSFF = isSFF && !wasSFF && !wasCandidate;
             const isNewCandidate = isCandidate && !wasCandidate && !wasSFF;
+            
+            // Determine previous status for display
+            let previousStatus: string | undefined;
+            if (wasSFF) {
+              previousStatus = 'Was SFF';
+            } else if (wasCandidate) {
+              previousStatus = 'Was Candidate';
+            } else if (q1Status === '') {
+              previousStatus = undefined; // Was nothing
+            } else {
+              previousStatus = q1Status; // Some other status
+            }
 
             const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
             const totalHPRD = facility.Total_Nurse_HPRD || 0;
@@ -107,10 +121,12 @@ export default function SFFPage() {
               rnHPRD: (facility.Total_RN_HPRD || facility.Direct_Care_RN_HPRD || 0),
               caseMixExpectedHPRD: caseMixExpected,
               percentOfCaseMix,
+              census: facility.Census,
               isNewSFF,
               isNewCandidate,
               wasCandidate,
               wasSFF,
+              previousStatus,
             };
 
             if (isSFF) {
@@ -195,6 +211,10 @@ export default function SFFPage() {
           aVal = a.state;
           bVal = b.state;
           break;
+        case 'census':
+          aVal = a.census ?? 0;
+          bVal = b.census ?? 0;
+          break;
       }
       
       if (typeof aVal === 'string' && typeof bVal === 'string') {
@@ -235,6 +255,10 @@ export default function SFFPage() {
         case 'state':
           aVal = a.state;
           bVal = b.state;
+          break;
+        case 'census':
+          aVal = a.census ?? 0;
+          bVal = b.census ?? 0;
           break;
       }
       
@@ -428,42 +452,55 @@ export default function SFFPage() {
           </p>
         </div>
 
-        {/* State/Region Links for USA page */}
+        {/* State/Region Dropdowns for USA page */}
         {scope === 'usa' && (statesWithSFFs.length > 0 || regionsWithSFFs.length > 0) && (
-          <div className="mb-6 md:mb-8 p-4 md:p-6 bg-[#0f172a]/60 rounded-lg border border-gray-700">
-            <h2 className="text-lg md:text-xl font-bold mb-4">Browse by State or Region</h2>
-            {statesWithSFFs.length > 0 && (
-              <div className="mb-4">
-                <h3 className="text-sm md:text-base font-semibold text-blue-300 mb-2">States</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {statesWithSFFs.map(stateCode => (
-                    <button
-                      key={stateCode}
-                      onClick={() => navigate(`/sff/${stateCode.toLowerCase()}`)}
-                      className="px-3 py-2 text-xs md:text-sm bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded text-blue-300 hover:text-blue-200 transition-colors text-left"
-                    >
-                      {getStateName(stateCode)}
-                    </button>
-                  ))}
+          <div className="mb-6 md:mb-8">
+            <div className="flex flex-col sm:flex-row gap-4">
+              {statesWithSFFs.length > 0 && (
+                <div className="flex-1">
+                  <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">State</label>
+                  <select
+                    id="state-select"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        navigate(`/sff/${e.target.value.toLowerCase()}`);
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                  >
+                    <option value="">Select a state...</option>
+                    {statesWithSFFs.map(stateCode => (
+                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
+                        {getStateName(stateCode)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
-            {regionsWithSFFs.length > 0 && (
-              <div>
-                <h3 className="text-sm md:text-base font-semibold text-green-300 mb-2">CMS Regions</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
-                  {regionsWithSFFs.map(regionNum => (
-                    <button
-                      key={`region${regionNum}`}
-                      onClick={() => navigate(`/sff/region${regionNum}`)}
-                      className="px-3 py-2 text-xs md:text-sm bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 rounded text-green-300 hover:text-green-200 transition-colors text-left"
-                    >
-                      Region {regionNum} ({getRegionName(regionNum)})
-                    </button>
-                  ))}
+              )}
+              {regionsWithSFFs.length > 0 && (
+                <div className="flex-1">
+                  <label htmlFor="region-select" className="block text-sm font-semibold text-green-300 mb-2">CMS Region</label>
+                  <select
+                    id="region-select"
+                    value=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        navigate(`/sff/region${e.target.value}`);
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-green-500/50 rounded text-green-300 hover:bg-green-600/20 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+                  >
+                    <option value="">Select a region...</option>
+                    {regionsWithSFFs.map(regionNum => (
+                      <option key={`region${regionNum}`} value={regionNum} className="bg-[#0f172a]">
+                        Region {regionNum} ({getRegionName(regionNum)})
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
 
@@ -488,6 +525,7 @@ export default function SFFPage() {
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">% of Case Mix</SortableHeader>
+                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300">Status</th>
                     </tr>
                   </thead>
@@ -514,19 +552,25 @@ export default function SFFPage() {
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
                         </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {facility.census ? facility.census.toLocaleString() : 'N/A'}
+                        </td>
                         <td className="px-3 md:px-4 py-2 md:py-3 text-center">
                           {facility.isNewSFF && (
                             <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
                               New SFF
                             </span>
                           )}
-                          {!facility.isNewSFF && facility.wasCandidate && (
+                          {!facility.isNewSFF && facility.wasSFF && (
+                            <span className="text-gray-500 text-xs">Existing</span>
+                          )}
+                          {!facility.isNewSFF && !facility.wasSFF && facility.wasCandidate && (
                             <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded whitespace-nowrap">
                               Was Candidate
                             </span>
                           )}
-                          {!facility.isNewSFF && !facility.wasCandidate && (
-                            <span className="text-gray-500 text-xs">Existing</span>
+                          {!facility.isNewSFF && !facility.wasSFF && !facility.wasCandidate && (
+                            <span className="text-gray-500 text-xs">—</span>
                           )}
                         </td>
                       </tr>
@@ -585,6 +629,7 @@ export default function SFFPage() {
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">% of Case Mix</SortableHeader>
+                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Census</SortableHeader>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300">Status</th>
                     </tr>
                   </thead>
@@ -611,14 +656,25 @@ export default function SFFPage() {
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
                         </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {facility.census ? facility.census.toLocaleString() : 'N/A'}
+                        </td>
                         <td className="px-3 md:px-4 py-2 md:py-3 text-center">
                           {facility.isNewCandidate && (
                             <span className="inline-block px-2 py-1 bg-orange-500/20 text-orange-300 text-xs font-semibold rounded whitespace-nowrap">
                               New Candidate
                             </span>
                           )}
-                          {!facility.isNewCandidate && (
+                          {!facility.isNewCandidate && facility.wasCandidate && (
                             <span className="text-gray-500 text-xs">Existing</span>
+                          )}
+                          {!facility.isNewCandidate && !facility.wasCandidate && facility.wasSFF && (
+                            <span className="inline-block px-2 py-1 bg-yellow-500/20 text-yellow-300 text-xs font-semibold rounded whitespace-nowrap">
+                              Was SFF
+                            </span>
+                          )}
+                          {!facility.isNewCandidate && !facility.wasCandidate && !facility.wasSFF && (
+                            <span className="text-gray-500 text-xs">—</span>
                           )}
                         </td>
                       </tr>

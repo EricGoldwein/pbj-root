@@ -55,3 +55,4 @@ The built files will be in the `dist/` directory.
 - The app includes touch navigation, keyboard navigation (arrow keys), and auto-advancing slides
 
 
+

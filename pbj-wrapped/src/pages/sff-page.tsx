@@ -841,7 +841,7 @@ export default function SFFPage() {
   };
 
 
-  // Get all states for state page dropdown
+  // Get all states for dropdown - always return full list so dropdown shows all states
   const allStates = useMemo(() => {
     const allStatesList = [
       'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
@@ -850,13 +850,9 @@ export default function SFFPage() {
       'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
       'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
     ];
-    // Filter to only states that have SFFs
-    if (allFacilities.length > 0) {
-      const statesWithSFFs = new Set(allFacilities.map(f => f.state));
-      return allStatesList.filter(state => statesWithSFFs.has(state));
-    }
+    // Always return full list - show all states in dropdown regardless of whether they have SFFs
     return allStatesList;
-  }, [allFacilities]);
+  }, []);
 
 
 

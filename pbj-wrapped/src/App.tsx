@@ -34,6 +34,14 @@ function App() {
       />
       <Route 
         path="/wrapped" 
+        element={<Index />}
+      />
+      <Route 
+        path="/wrapped/usa" 
+        element={<Wrapped />}
+      />
+      <Route 
+        path="/wrapped/:identifier" 
         element={<Wrapped />}
       />
       <Route 
@@ -47,14 +55,6 @@ function App() {
       <Route 
         path="/sff/:scope" 
         element={<SFFPage />}
-      />
-      <Route 
-        path="/wrapped/usa" 
-        element={<Wrapped />}
-      />
-      <Route 
-        path="/wrapped/:identifier" 
-        element={<Wrapped />}
       />
       <Route 
         path="/usa-news" 

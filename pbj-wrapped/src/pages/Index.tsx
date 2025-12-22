@@ -190,11 +190,17 @@ const Index: React.FC = () => {
         {/* Hero Section - Enhanced */}
         <div className="text-center mb-4 md:mb-5">
           <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
-            <WrappedImage
-              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
-              alt="PBJ Wrapped"
-              className="h-8 md:h-10 w-auto"
-            />
+            <div className="relative h-12 md:h-14 aspect-[4/1] rounded-lg border-2 border-blue-400/60 overflow-hidden bg-gray-800/50 flex items-center justify-center">
+              <WrappedImage
+                src={getAssetPath('/images/phoebe-wrapped-wide.png')}
+                alt="PBJ Wrapped"
+                className="w-full h-full"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                }}
+              />
+            </div>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
               PBJ Wrapped 2025
             </h1>
@@ -203,29 +209,32 @@ const Index: React.FC = () => {
 
         {/* Interactive Map Section */}
         <div className="mb-4 md:mb-5">
-          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 pt-3 md:pt-4 shadow-2xl relative">
-            <USMap className="w-full" />
+          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 pt-4 md:pt-6 shadow-2xl relative">
+            {/* USA Wrapped Button - Centered above map */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20">
+              <button
+                onClick={() => navigate('/wrapped/usa')}
+                className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-500 hover:via-blue-400 hover:to-blue-500 text-white font-bold py-2.5 px-6 md:py-3 md:px-8 rounded-lg text-sm md:text-base transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 active:scale-95 transform relative overflow-hidden"
+                style={{
+                  background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
+                  boxShadow: '0 4px 15px rgba(96, 165, 250, 0.3)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(96, 165, 250, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(96, 165, 250, 0.3)';
+                }}
+              >
+                <span className="relative z-10">USA Wrapped</span>
+              </button>
+            </div>
+            <div className="mt-12 md:mt-14">
+              <USMap className="w-full" />
+            </div>
           </div>
-        </div>
-
-        {/* USA Wrapped Button - Centered and Emphasized */}
-        <div className="mb-4 md:mb-5 flex justify-center">
-          <button
-            onClick={() => navigate('/wrapped/usa')}
-            className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-500 hover:via-blue-400 hover:to-blue-500 text-white font-bold py-3 px-8 md:py-4 md:px-10 rounded-xl text-base md:text-lg transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 active:scale-95 transform relative overflow-hidden"
-            style={{
-              backgroundSize: '200% 200%',
-              animation: 'shimmer 3s ease-in-out infinite',
-            }}
-          >
-            <span className="relative z-10">USA Wrapped</span>
-            <style>{`
-              @keyframes shimmer {
-                0%, 100% { background-position: 0% 50%; }
-                50% { background-position: 100% 50%; }
-              }
-            `}</style>
-          </button>
         </div>
 
         {/* Quick Actions - State and Region in same row */}

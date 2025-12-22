@@ -29,11 +29,10 @@ import { RegionStatesCard } from '../components/wrapped/cards/RegionStatesCard';
 import { StateFacilitySpotlightCard } from '../components/wrapped/cards/StateFacilitySpotlightCard';
 import { getAssetPath } from '../utils/assets';
 
-// Helper to get data path with base URL
+// Helper to get data path - data is served from /data, not /wrapped/data
 function getDataPath(path: string = ''): string {
-  const baseUrl = import.meta.env.BASE_URL;
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-  return `${baseUrl}data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
+  return `/data${cleanPath ? `/${cleanPath}` : ''}`.replace(/([^:]\/)\/+/g, '$1');
 }
 
 const Wrapped: React.FC = () => {
@@ -52,8 +51,8 @@ const Wrapped: React.FC = () => {
     // Debug: log the params
     console.log('Route params:', { identifier });
     
+    // If no identifier, redirect to /wrapped/usa
     if (!identifier) {
-      // Redirect to /wrapped/usa if no identifier is provided
       navigate('/wrapped/usa', { replace: true });
       return;
     }

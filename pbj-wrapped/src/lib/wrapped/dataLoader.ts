@@ -360,7 +360,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q1.json`),
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q2.json`),
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
-      loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`),
+      loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null),
     ]);
     
     // Load SFF data separately to avoid redeclaration

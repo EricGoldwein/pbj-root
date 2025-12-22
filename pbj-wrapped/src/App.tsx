@@ -37,10 +37,6 @@ function App() {
         element={<Index />}
       />
       <Route 
-        path="/wrapped/usa" 
-        element={<Wrapped />}
-      />
-      <Route 
         path="/wrapped/:identifier" 
         element={<Wrapped />}
       />

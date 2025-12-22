@@ -299,7 +299,7 @@ function processUSAData(
   facilityQ2: FacilityLiteRow[],
   _facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
-  providerInfoQ1: ProviderInfoRow[],
+  _providerInfoQ1: ProviderInfoRow[],
   stateDataQ2: StateQuarterlyRow[],
   stateDataQ1: StateQuarterlyRow[],
   regionDataQ2: RegionQuarterlyRow[],
@@ -513,14 +513,12 @@ function processUSAData(
     sffCount = sffFacilities.length;
     candidatesCount = candidateFacilities.length;
     
-    // Get new SFF facilities (those in SFF category that weren't in Q1)
-    const sffQ1Set = new Set(providerInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    
-    const newSFF = sffFacilities.filter(f => !sffQ1Set.has(f.provider_number));
+    // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
+    const newSFF = sffFacilities.filter(f => 
+      f.months_as_sff !== null && 
+      f.months_as_sff !== undefined && 
+      f.months_as_sff <= 3
+    );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
       const facility = facilityQ2.find(fac => fac.PROVNUM === f.provider_number);
@@ -533,40 +531,23 @@ function processUSAData(
       };
     });
   } else {
-    // Fall back to providerInfo data
-  const sffQ2 = providerInfoQ2.filter(p => {
-    if (!p.sff_status) return false;
-    const status = p.sff_status.trim().toUpperCase();
-    return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-  });
-  const candidatesQ2 = providerInfoQ2.filter(p => {
-    if (!p.sff_status) return false;
-    const status = p.sff_status.trim().toUpperCase();
-    return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
-  });
+    // Fall back to providerInfo data (no Q1/Q2 comparison, just use Q2 data)
+    const sffQ2 = providerInfoQ2.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+    });
+    const candidatesQ2 = providerInfoQ2.filter(p => {
+      if (!p.sff_status) return false;
+      const status = p.sff_status.trim().toUpperCase();
+      return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
+    });
     
     sffCount = sffQ2.length;
     candidatesCount = candidatesQ2.length;
   
-  const sffQ1Set = new Set(providerInfoQ1.filter(p => {
-    if (!p.sff_status) return false;
-    const status = p.sff_status.trim().toUpperCase();
-    return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-  }).map(p => p.PROVNUM));
-  const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
-
-  // Shuffle new SFF facilities for random order (not alphabetical)
-  const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
-    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
-    const facility = facilityQ2.find(f => f.PROVNUM === p.PROVNUM);
-    return {
-      provnum: p.PROVNUM,
-      name: toTitleCase(p.PROVNAME),
-      state: p.STATE,
-      value: facility?.Total_Nurse_HPRD || 0,
-      link: createFacilityLink(p.PROVNUM),
-    };
-  });
+    // No new SFF determination available without sffData, so use empty array
+    newSFFFacilities = [];
   }
 
   // Section 6: Trends - calculate changes from Q1 to Q2
@@ -731,7 +712,7 @@ function processStateData(
   facilityQ2: FacilityLiteRow[],
   facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
-  providerInfoQ1: ProviderInfoRow[],
+  _providerInfoQ1: ProviderInfoRow[],
   stateDataQ2: StateQuarterlyRow[],
   _stateDataQ1: StateQuarterlyRow[],
   _regionDataQ2: RegionQuarterlyRow[],
@@ -770,7 +751,6 @@ function processStateData(
   const stateFacilitiesQ2 = facilityQ2.filter(f => f.STATE === stateCode);
   const stateFacilitiesQ1 = facilityQ1.filter(f => f.STATE === stateCode);
   const stateProviderInfoQ2 = providerInfoQ2.filter(p => p.STATE === stateCode);
-  const stateProviderInfoQ1 = providerInfoQ1.filter(p => p.STATE === stateCode);
 
   // Section 2: Basics
   const facilityCount = stateQ2.facility_count;
@@ -884,13 +864,12 @@ function processStateData(
     sffCount = stateSFFFacilities.length;
     candidatesCount = stateCandidateFacilities.length;
     
-    const sffQ1Set = new Set(stateProviderInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    
-    const newSFF = stateSFFFacilities.filter(f => !sffQ1Set.has(f.provider_number));
+    // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
+    const newSFF = stateSFFFacilities.filter(f => 
+      f.months_as_sff !== null && 
+      f.months_as_sff !== undefined && 
+      f.months_as_sff <= 3
+    );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
       const facility = stateFacilitiesQ2.find(fac => fac.PROVNUM === f.provider_number);
@@ -917,24 +896,8 @@ function processStateData(
     sffCount = sffQ2.length;
     candidatesCount = candidatesQ2.length;
   
-    const sffQ1Set = new Set(stateProviderInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
-
-    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
-    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
-      const facility = stateFacilitiesQ2.find(f => f.PROVNUM === p.PROVNUM);
-      return {
-        provnum: p.PROVNUM,
-        name: toTitleCase(p.PROVNAME),
-        state: p.STATE,
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(p.PROVNUM),
-      };
-    });
+    // No new SFF determination available without sffData, so use empty array
+    newSFFFacilities = [];
   }
 
   // Section 6: Trends
@@ -1127,7 +1090,7 @@ function processRegionData(
   facilityQ2: FacilityLiteRow[],
   facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
-  providerInfoQ1: ProviderInfoRow[],
+  _providerInfoQ1: ProviderInfoRow[],
   _stateDataQ2: StateQuarterlyRow[],
   _stateDataQ1: StateQuarterlyRow[],
   regionDataQ2: RegionQuarterlyRow[],
@@ -1148,7 +1111,6 @@ function processRegionData(
   const regionFacilitiesQ2 = facilityQ2; // Already filtered in dataLoader
   const regionFacilitiesQ1 = facilityQ1; // Already filtered in dataLoader
   const regionProviderInfoQ2 = providerInfoQ2; // Already filtered in dataLoader
-  const regionProviderInfoQ1 = providerInfoQ1; // Already filtered in dataLoader
 
   // Section 2: Basics
   const facilityCount = regionQ2.facility_count;
@@ -1268,13 +1230,12 @@ function processRegionData(
     sffCount = regionSFFFacilities.length;
     candidatesCount = regionCandidateFacilities.length;
     
-    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    
-    const newSFF = regionSFFFacilities.filter(f => !sffQ1Set.has(f.provider_number));
+    // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
+    const newSFF = regionSFFFacilities.filter(f => 
+      f.months_as_sff !== null && 
+      f.months_as_sff !== undefined && 
+      f.months_as_sff <= 3
+    );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
       const facility = regionFacilitiesQ2.find(fac => fac.PROVNUM === f.provider_number);
@@ -1301,24 +1262,8 @@ function processRegionData(
     sffCount = sffQ2.length;
     candidatesCount = candidatesQ2.length;
   
-    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
-
-    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
-    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
-      const facility = regionFacilitiesQ2.find(f => f.PROVNUM === p.PROVNUM);
-      return {
-        provnum: p.PROVNUM,
-        name: toTitleCase(p.PROVNAME),
-        state: p.STATE,
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(p.PROVNUM),
-      };
-    });
+    // No new SFF determination available without sffData, so use empty array
+    newSFFFacilities = [];
   }
 
   // Section 6: Trends

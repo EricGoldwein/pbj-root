@@ -688,7 +688,7 @@ export default function SFFPage() {
                 : (pdfFacility.city && pdfFacility.city.trim() ? capitalizeCity(pdfFacility.city.trim()) : undefined);
 
               const sffFacility: SFFFacility = {
-                provnum: provider.PROVNUM,
+                provnum: provider.PROVNUM || ccn || pdfFacility.provider_number?.toString().trim() || '',
                 name: facilityName,
                 state: facilityState,
                 city: facilityCity,
@@ -836,7 +836,7 @@ export default function SFFPage() {
               }
               
               const sffFacility: SFFFacility = {
-                provnum: ccn,
+                provnum: (ccn || pdfFacility.provider_number?.toString().trim() || provider?.PROVNUM?.toString().trim() || '').replace(/[^0-9]/g, ''), // Ensure only digits
                 name: facilityName,
                 state: facilityState,
                 city: facilityCity,
@@ -1344,7 +1344,7 @@ export default function SFFPage() {
                         <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
                           <td className="px-2 md:px-3 py-2">
                             <a
-                              href={`https://pbjdashboard.com/?facility=${facility.provnum}`}
+                              href={`https://pbjdashboard.com/?facility=${encodeURIComponent(facility.provnum || '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-300 hover:text-blue-200 underline font-medium text-xs md:text-sm break-words"

@@ -4,6 +4,4396 @@
     "year": 2025,
     "month_name": "November"
   },
-  "candidates": {},
-  "total_count": 0
+  "candidates": {
+    "105460": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375365": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155222": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455881": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235552": {
+      "months_as_sff": 31,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045432": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335564": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165453": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "106074": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555781": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175078": {
+      "months_as_sff": 25,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056063": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455940": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125007": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155389": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555456": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415035": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375568": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335377": {
+      "months_as_sff": 100,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395421": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465158": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275104": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676494": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675764": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125050": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395289": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065327": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505319": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056078": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265607": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395892": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145180": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045421": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085012": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "146037": {
+      "months_as_sff": 44,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145469": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065188": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325065": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676437": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105363": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265534": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505254": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165601": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135094": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215113": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445260": {
+      "months_as_sff": 100,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465088": {
+      "months_as_sff": 25,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055932": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235036": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225049": {
+      "months_as_sff": 30,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395984": {
+      "months_as_sff": 45,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535040": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525281": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676132": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205180": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035255": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365370": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425289": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015420": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366488": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515087": {
+      "months_as_sff": 46,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245283": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325036": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "106103": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155637": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245542": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385254": {
+      "months_as_sff": 22,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265585": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425047": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675046": {
+      "months_as_sff": 65,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105765": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215321": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555854": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475040": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035217": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305020": {
+      "months_as_sff": 49,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366039": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676045": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105327": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145290": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245295": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225523": {
+      "months_as_sff": 29,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355081": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375381": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235654": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045341": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195488": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555707": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675797": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455855": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675447": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155799": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345133": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305095": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245596": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366195": {
+      "months_as_sff": 30,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175351": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365344": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165202": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015217": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555772": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395986": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365952": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145950": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215231": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525371": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455812": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255172": {
+      "months_as_sff": 17,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325037": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525688": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145333": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515086": {
+      "months_as_sff": 100,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315125": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345233": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505320": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035146": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135058": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375573": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135066": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285095": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145183": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435039": {
+      "months_as_sff": 43,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675172": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365754": {
+      "months_as_sff": 44,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "146026": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085033": {
+      "months_as_sff": 16,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105672": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045287": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056431": {
+      "months_as_sff": 41,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155218": {
+      "months_as_sff": 28,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495211": {
+      "months_as_sff": 29,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056039": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165175": {
+      "months_as_sff": 38,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265330": {
+      "months_as_sff": 47,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365704": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675817": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225063": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305096": {
+      "months_as_sff": 29,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175313": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395846": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335184": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425121": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455416": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525409": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495193": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015406": {
+      "months_as_sff": 90,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115624": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195519": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435119": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525321": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395985": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355031": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165362": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285192": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285083": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195512": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315467": {
+      "months_as_sff": 78,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155840": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165531": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445139": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115270": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275134": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175335": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335164": {
+      "months_as_sff": 64,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535042": {
+      "months_as_sff": 60,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045143": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375331": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105631": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325086": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676040": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105155": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215094": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365218": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675746": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225400": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445292": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295103": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676160": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235264": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055293": {
+      "months_as_sff": 72,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115654": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395258": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185468": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045456": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175070": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445237": {
+      "months_as_sff": 45,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165355": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235719": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155826": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385224": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335565": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495315": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525069": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105714": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115561": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225332": {
+      "months_as_sff": 19,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195312": {
+      "months_as_sff": 17,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135138": {
+      "months_as_sff": 67,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285275": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255112": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055461": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225546": {
+      "months_as_sff": 80,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145969": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445491": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165615": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065274": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015019": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215010": {
+      "months_as_sff": 28,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395623": {
+      "months_as_sff": 78,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "396115": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145517": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155086": {
+      "months_as_sff": 96,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085043": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365594": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555852": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235293": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335311": {
+      "months_as_sff": 100,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375117": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315280": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365629": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375483": {
+      "months_as_sff": 39,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165436": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395015": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315047": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375492": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305081": {
+      "months_as_sff": 62,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335658": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395270": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175435": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265460": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355103": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395545": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185208": {
+      "months_as_sff": 100,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015463": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676295": {
+      "months_as_sff": 22,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105140": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105428": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425062": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355024": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465117": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315124": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415084": {
+      "months_as_sff": 50,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105761": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055412": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265433": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205091": {
+      "months_as_sff": 27,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445387": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345006": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056259": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "146043": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125019": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225474": {
+      "months_as_sff": 68,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265721": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515049": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145811": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045259": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245626": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085010": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245028": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295029": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225219": {
+      "months_as_sff": 59,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395028": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065232": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285256": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045435": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355065": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365972": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675939": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375334": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056296": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045379": {
+      "months_as_sff": 22,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435090": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235187": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385148": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675918": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395484": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366094": {
+      "months_as_sff": 31,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375470": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225133": {
+      "months_as_sff": 75,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295000": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "045438": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675085": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535026": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056043": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145016": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345529": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525730": {
+      "months_as_sff": 33,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525074": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385091": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155270": {
+      "months_as_sff": 22,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165344": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055052": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305051": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225747": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315176": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425032": {
+      "months_as_sff": 63,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115483": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085028": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145581": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365770": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055189": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055539": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225412": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365022": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675222": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145613": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055559": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245164": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225723": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205103": {
+      "months_as_sff": 88,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115635": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365780": {
+      "months_as_sff": 60,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325047": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395506": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265822": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676355": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056206": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175334": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265463": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345420": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395751": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325131": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155491": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455893": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365147": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105407": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175298": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155042": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165448": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366096": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525424": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525108": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415129": {
+      "months_as_sff": 99,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315166": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225644": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185244": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015144": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415078": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035242": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235536": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365748": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535022": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255106": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145639": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195177": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305084": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366150": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255244": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375582": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676450": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105193": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225488": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245544": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385072": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515140": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455725": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395397": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425145": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125021": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375463": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395929": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335744": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035016": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035099": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455565": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055656": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555117": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035175": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265118": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185262": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125041": {
+      "months_as_sff": 31,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315279": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175172": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445114": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105262": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145434": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335389": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465152": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345247": {
+      "months_as_sff": 16,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375253": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365667": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445262": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365897": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056367": {
+      "months_as_sff": 25,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135098": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245329": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155606": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455724": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295072": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145995": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315205": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056066": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235296": {
+      "months_as_sff": 50,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345301": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455862": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195501": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675078": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175168": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395300": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495417": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075358": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056488": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366457": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "035254": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435051": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295067": {
+      "months_as_sff": 21,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675527": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265456": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265108": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155708": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445259": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425170": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385121": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015408": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315171": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365379": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475020": {
+      "months_as_sff": 98,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315324": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505491": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155801": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445150": {
+      "months_as_sff": 33,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255182": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056435": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135110": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "146097": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345229": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265766": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275020": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555776": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525482": {
+      "months_as_sff": 19,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676323": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375303": {
+      "months_as_sff": 31,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "366328": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676204": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535036": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395827": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145850": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335638": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445331": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235664": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435086": {
+      "months_as_sff": 41,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675595": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215168": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345261": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125026": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115585": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305094": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345008": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055870": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075113": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065152": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315390": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676409": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385189": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395826": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105269": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135135": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275132": {
+      "months_as_sff": 27,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105435": {
+      "months_as_sff": 17,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115020": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265462": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345183": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265589": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295085": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535024": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115129": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315282": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105274": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345489": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335600": {
+      "months_as_sff": 39,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465137": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "295050": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395414": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205077": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495235": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365284": {
+      "months_as_sff": 16,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055858": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465112": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056031": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365290": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105690": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475027": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235532": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "676233": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675112": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335471": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115685": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155156": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235363": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065278": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205114": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515060": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155857": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145965": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265258": {
+      "months_as_sff": 32,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335338": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055862": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335274": {
+      "months_as_sff": 48,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175454": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365950": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115628": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105234": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185165": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "385053": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365185": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675028": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125056": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275080": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505296": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365826": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115641": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505275": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155131": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365339": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495362": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535054": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365355": {
+      "months_as_sff": 90,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265379": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145418": {
+      "months_as_sff": 19,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395883": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355093": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555579": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245183": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165350": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555808": {
+      "months_as_sff": 17,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205063": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085058": {
+      "months_as_sff": 21,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515128": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285239": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "455429": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475030": {
+      "months_as_sff": 98,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105688": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "055077": {
+      "months_as_sff": 53,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245289": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365559": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675915": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675386": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "215085": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075309": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235361": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175397": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "265857": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555565": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435129": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165478": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675371": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135116": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "396048": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "056487": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155653": {
+      "months_as_sff": 21,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315183": {
+      "months_as_sff": 38,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "065248": {
+      "months_as_sff": 21,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325038": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "325045": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475025": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185176": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145389": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335082": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515186": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075182": {
+      "months_as_sff": 55,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "505322": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235503": {
+      "months_as_sff": 28,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675879": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145757": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235458": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475014": {
+      "months_as_sff": 10,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525325": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "465086": {
+      "months_as_sff": 72,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375295": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675408": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335657": {
+      "months_as_sff": 23,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "345185": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "305045": {
+      "months_as_sff": 69,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "185283": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555330": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "445008": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "245290": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395193": {
+      "months_as_sff": 35,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155469": {
+      "months_as_sff": 18,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145266": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355092": {
+      "months_as_sff": 95,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "205120": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "105638": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "435046": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555583": {
+      "months_as_sff": 20,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145774": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "225264": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335540": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155426": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115503": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365828": {
+      "months_as_sff": 31,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "555115": {
+      "months_as_sff": 49,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "255326": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "515169": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "085050": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "175463": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075158": {
+      "months_as_sff": 90,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "165426": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "315455": {
+      "months_as_sff": 29,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "425302": {
+      "months_as_sff": 5,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "285054": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335323": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "125011": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415079": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115701": {
+      "months_as_sff": 12,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155264": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "075011": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "415033": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "355097": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "675799": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "495150": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "475019": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "535025": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525315": {
+      "months_as_sff": 3,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "275120": {
+      "months_as_sff": 8,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "145655": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "335735": {
+      "months_as_sff": 6,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "375094": {
+      "months_as_sff": 13,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "135146": {
+      "months_as_sff": 9,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "525262": {
+      "months_as_sff": 4,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "115730": {
+      "months_as_sff": 7,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "155508": {
+      "months_as_sff": 14,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "195454": {
+      "months_as_sff": 11,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "235214": {
+      "months_as_sff": 15,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "395788": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "365879": {
+      "months_as_sff": 1,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    },
+    "015133": {
+      "months_as_sff": 2,
+      "month": 11,
+      "year": 2025,
+      "month_name": "November",
+      "source": "pdf_extraction"
+    }
+  },
+  "total_count": 627
 }

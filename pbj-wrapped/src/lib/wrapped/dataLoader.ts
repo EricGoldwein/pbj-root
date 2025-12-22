@@ -364,7 +364,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     // File is optional - 404s are expected and handled gracefully
     // Browser will still log 404s but code handles them silently
     const stateStandardsJson = (scope === 'state')
-      ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`, true).catch(() => null)
+      ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null)
       : null;
     
     // Load SFF data separately to avoid redeclaration

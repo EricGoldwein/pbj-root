@@ -414,7 +414,7 @@ export default function SFFPage() {
               
               if (facility) {
                 // Read values directly from facility object
-                // NOTE: Facility data has already been validated by isValidFacilityData() before being added to map
+                // NOTE: Facility data has already been auto-corrected for column shifts before being added to map
                 totalHPRD = typeof facility.Total_Nurse_HPRD === 'number' ? facility.Total_Nurse_HPRD : (parseFloat(String(facility.Total_Nurse_HPRD)) || 0);
                 directCareHPRD = typeof facility.Nurse_Care_HPRD === 'number' ? facility.Nurse_Care_HPRD : (parseFloat(String(facility.Nurse_Care_HPRD)) || 0);
                 rnHPRD = typeof facility.Total_RN_HPRD === 'number' ? facility.Total_RN_HPRD : (parseFloat(String(facility.Total_RN_HPRD)) || 0);

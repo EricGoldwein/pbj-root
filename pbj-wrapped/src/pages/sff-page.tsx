@@ -132,6 +132,15 @@ export default function SFFPage() {
         
         // Debug: Log data counts for troubleshooting
         console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
+        // Helper function to normalize CCNs for matching
+        const normalizeCCN = (ccn: string): string => {
+          if (!ccn) return '';
+          // Convert to string and trim whitespace
+          const str = ccn.toString().trim();
+          // Remove leading zeros, but keep at least one digit
+          const normalized = str.replace(/^0+/, '') || str;
+          return normalized.padStart(6, '0'); // Pad to 6 digits for consistent matching
+        };
         
         // Check if specific facilities are in the data - try all variations
         const testCCNs = ['265379', '675595', '195454'];
@@ -172,16 +181,6 @@ export default function SFFPage() {
             console.log(`  Sample Facility Q2 PROVNUMs:`, facilityQ2.slice(0, 10).map((f: FacilityLiteRow) => `"${f.PROVNUM}"`));
           }
         });
-
-        // Helper function to normalize CCNs for matching
-        const normalizeCCN = (ccn: string): string => {
-          if (!ccn) return '';
-          // Convert to string and trim whitespace
-          const str = ccn.toString().trim();
-          // Remove leading zeros, but keep at least one digit
-          const normalized = str.replace(/^0+/, '') || str;
-          return normalized.padStart(6, '0'); // Pad to 6 digits for consistent matching
-        };
 
         // Create map of PDF data by CCN (from all tables)
         const pdfDataMap = new Map<string, { data: PDFFacilityData; status: SFFStatus }>();

@@ -3,6 +3,7 @@ import React, { createContext, useContext, ReactNode } from 'react';
 interface WrappedContextValue {
   scope: string;
   name: string;
+  identifier?: string;
 }
 
 const WrappedContext = createContext<WrappedContextValue | undefined>(undefined);
@@ -18,16 +19,18 @@ export const useWrappedContext = () => {
 interface WrappedProviderProps {
   scope: string;
   name: string;
+  identifier?: string;
   children: ReactNode;
 }
 
 export const WrappedProvider: React.FC<WrappedProviderProps> = ({
   scope,
   name,
+  identifier,
   children,
 }) => {
   return (
-    <WrappedContext.Provider value={{ scope, name }}>
+    <WrappedContext.Provider value={{ scope, name, identifier }}>
       {children}
     </WrappedContext.Provider>
   );

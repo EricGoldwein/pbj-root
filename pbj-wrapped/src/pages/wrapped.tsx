@@ -9,7 +9,6 @@ import { WrappedScreenWrapper, type WrappedNavigationRef } from '../components/w
 import { WrappedProvider } from '../components/wrapped/WrappedContext';
 import { HeaderCard } from '../components/wrapped/cards/HeaderCard';
 import { BasicsCard } from '../components/wrapped/cards/BasicsCard';
-import { RankingsCard } from '../components/wrapped/cards/RankingsCard';
 import { LowestStaffingCard } from '../components/wrapped/cards/LowestStaffingCard';
 import { HighestStaffingCard } from '../components/wrapped/cards/HighestStaffingCard';
 import { USAStatesExtremesCard } from '../components/wrapped/cards/USAStatesExtremesCard';
@@ -295,7 +294,7 @@ const Wrapped: React.FC = () => {
   }
 
   return (
-    <WrappedProvider scope={wrappedData.scope} name={wrappedData.name}>
+    <WrappedProvider scope={wrappedData.scope} name={wrappedData.name} identifier={wrappedData.identifier}>
       <div
         className="fixed inset-0 w-full overflow-hidden"
         style={{

@@ -158,11 +158,9 @@ export default function SFFPage() {
           return str.padStart(6, '0');
         };
 
-        // Validate facility data to detect CSV column shifts
-        // Returns true if data appears valid, false if columns are shifted
-        // NOTE: This is a heuristic - some facilities may legitimately have Total_Nurse_HPRD = 0
-        // but we reject if Direct Care HPRD > 0 (which would be impossible)
-        const isValidFacilityData = (facility: FacilityLiteRow): boolean => {
+        // Auto-correct CSV column shifts: If Total_Nurse_HPRD is 0 but Nurse_Care_HPRD has a value,
+        // shift all columns to the right (this is a common PapaParse misalignment issue)
+        const correctColumnShift = (facility: FacilityLiteRow): FacilityLiteRow => {
           const totalHPRD = typeof facility.Total_Nurse_HPRD === 'number' 
             ? facility.Total_Nurse_HPRD 
             : (parseFloat(String(facility.Total_Nurse_HPRD)) || 0);
@@ -173,22 +171,26 @@ export default function SFFPage() {
             ? facility.Total_RN_HPRD 
             : (parseFloat(String(facility.Total_RN_HPRD)) || 0);
           
-          // CRITICAL: If Total_Nurse_HPRD is exactly 0 but Direct Care or RN HPRD have significant values (> 0.5),
-          // this strongly indicates a CSV column shift - reject this facility data
-          // We use 0.5 as threshold to avoid false positives from rounding/parsing issues
-          if (totalHPRD === 0 && (directCareHPRD > 0.5 || rnHPRD > 0.5)) {
-            console.warn(`[CSV Shift Detected] PROVNUM=${facility.PROVNUM}, TotalHPRD=${totalHPRD}, DirectCare=${directCareHPRD}, RN=${rnHPRD}`);
-            return false; // Column shift detected
+          // Detect shift: Total_Nurse_HPRD is 0 but Nurse_Care_HPRD has a value (> 0.5 to avoid false positives)
+          if (totalHPRD === 0 && directCareHPRD > 0.5) {
+            console.log(`[Auto-Correcting Shift] PROVNUM=${facility.PROVNUM}, shifting columns right`);
+            
+            // Shift columns: each field gets the value from the next field
+            return {
+              ...facility,
+              Total_Nurse_HPRD: directCareHPRD, // Nurse_Care_HPRD -> Total_Nurse_HPRD
+              Nurse_Care_HPRD: rnHPRD, // Total_RN_HPRD -> Nurse_Care_HPRD
+              Total_RN_HPRD: typeof facility.Direct_Care_RN_HPRD === 'number' 
+                ? facility.Direct_Care_RN_HPRD 
+                : (parseFloat(String(facility.Direct_Care_RN_HPRD)) || 0), // Direct_Care_RN_HPRD -> Total_RN_HPRD
+              Direct_Care_RN_HPRD: typeof facility.Contract_Percentage === 'number'
+                ? facility.Contract_Percentage
+                : (parseFloat(String(facility.Contract_Percentage)) || 0), // Contract_Percentage -> Direct_Care_RN_HPRD
+              // Note: Contract_Percentage and Census may also shift, but we'll keep them as-is for now
+            };
           }
           
-          // Additional validation: Direct Care HPRD should not significantly exceed Total HPRD
-          // Allow 15% tolerance for rounding and edge cases
-          if (totalHPRD > 0 && directCareHPRD > totalHPRD * 1.15) {
-            console.warn(`[CSV Shift Detected] PROVNUM=${facility.PROVNUM}, DirectCare (${directCareHPRD}) > TotalHPRD (${totalHPRD}) * 1.15`);
-            return false; // Likely column shift
-          }
-          
-          return true; // Data appears valid
+          return facility; // No shift detected, return as-is
         };
 
         // STRICT matching: Only use normalized 6-digit CCN
@@ -196,19 +198,13 @@ export default function SFFPage() {
           const normalized = normalizeCCN(ccn);
           if (!normalized) return undefined;
           
-          // Try map first (fastest)
+          // Try map first (fastest) - data is already corrected in the map
           const found = facilityMap.get(normalized);
           if (found) {
-            // Validate the facility data before returning
-            if (isValidFacilityData(found)) {
-              return found;
-            } else {
-              console.warn(`[CSV Shift Detected] CCN=${ccn} (normalized=${normalized}) has shifted columns - rejecting facility data`);
-              return undefined;
-            }
+            return found;
           }
           
-          // If not in map, search array directly (shouldn't happen if map is built correctly)
+          // If not in map, search array directly and auto-correct if needed
           const foundInArray = facilityQ2.find((f: FacilityLiteRow) => {
             if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
             const fProvNum = f.PROVNUM?.toString().trim() || '';
@@ -216,8 +212,9 @@ export default function SFFPage() {
             return normalizeCCN(fProvNum) === normalized;
           });
           
-          if (foundInArray && isValidFacilityData(foundInArray)) {
-            return foundInArray;
+          if (foundInArray) {
+            // Auto-correct any column shifts before returning
+            return correctColumnShift(foundInArray);
           }
           
           return undefined;
@@ -243,7 +240,7 @@ export default function SFFPage() {
         // Create maps for quick lookup - STRICT: Only use normalized 6-digit CCN as key
         // This prevents false matches from CCN variations
         const facilityMap = new Map<string, FacilityLiteRow>();
-        let skippedInvalidFacilities = 0;
+        let correctedShifts = 0;
         facilityQ2.forEach((f: FacilityLiteRow) => {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
@@ -251,11 +248,10 @@ export default function SFFPage() {
           // Only include Q2 2025 data
           if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return;
           
-          // Validate facility data to detect CSV column shifts
-          if (!isValidFacilityData(f)) {
-            skippedInvalidFacilities++;
-            console.warn(`[CSV Shift] Skipping facility with shifted columns: PROVNUM=${provNum}, Name=${f.PROVNAME || 'Unknown'}`);
-            return; // Skip this facility - it has shifted columns
+          // Auto-correct CSV column shifts before adding to map
+          const corrected = correctColumnShift(f);
+          if (corrected !== f) {
+            correctedShifts++;
           }
           
           // STRICT: Only use normalized 6-digit CCN as key
@@ -265,12 +261,12 @@ export default function SFFPage() {
             if (facilityMap.has(normalized)) {
               console.warn(`[Duplicate CCN] PROVNUM=${provNum} (normalized=${normalized}) already in map - keeping first entry`);
             } else {
-              facilityMap.set(normalized, f);
+              facilityMap.set(normalized, corrected);
             }
           }
         });
         
-        console.log(`[Matching] Created facilityMap with ${facilityMap.size} entries from ${facilityQ2.length} Q2 facilities (skipped ${skippedInvalidFacilities} with shifted columns)`);
+        console.log(`[Matching] Created facilityMap with ${facilityMap.size} entries from ${facilityQ2.length} Q2 facilities (auto-corrected ${correctedShifts} shifted columns)`);
         
         const providerMap = new Map<string, ProviderInfoRow>();
         providerInfoQ2.forEach((p: ProviderInfoRow) => {
@@ -374,11 +370,7 @@ export default function SFFPage() {
                 }
               }
               
-              // Final validation: If we have facility data, ensure it's still valid (double-check)
-              if (facility && !isValidFacilityData(facility)) {
-                console.warn(`[CSV Shift] Facility data for CCN=${ccn} failed validation - using provider data only`);
-                facility = undefined; // Reject shifted facility data
-              }
+              // Facility data is already auto-corrected in the map, no need for additional validation
               
               const q1Status = normalizedCCN ? (q1StatusMap.get(normalizedCCN) || '') : '';
               const status = provider?.sff_status?.trim().toUpperCase() || '';

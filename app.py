@@ -90,7 +90,7 @@ def pbj_wrapped_static(path):
             return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
 
 # Serve wrapped pages directly at /wrapped (for pbj320.com/wrapped/)
-@app.route('/wrapped')
+@app.route('/wrapped', defaults={'path': None})
 @app.route('/wrapped/')
 @app.route('/wrapped/<path:path>')
 def wrapped_pages(path=None):

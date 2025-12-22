@@ -413,10 +413,21 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         nationalQ1: !!nationalQ1Json,
         nationalQ2: !!nationalQ2Json,
         facilityQ1: !!facilityQ1Json,
+        facilityQ1Length: Array.isArray(facilityQ1Json) ? facilityQ1Json.length : 'not array',
         facilityQ2: !!facilityQ2Json,
+        facilityQ2Length: Array.isArray(facilityQ2Json) ? facilityQ2Json.length : 'not array',
         providerQ1: !!providerQ1Json,
+        providerQ1Length: Array.isArray(providerQ1Json) ? providerQ1Json.length : 'not array',
         providerQ2: !!providerQ2Json,
+        providerQ2Length: Array.isArray(providerQ2Json) ? providerQ2Json.length : 'not array',
       });
+      if (!hasJsonData) {
+        console.error('[USA] ❌ hasJsonData is FALSE - will fall back to CSV!', {
+          nationalQ2Json: nationalQ2Json !== null && nationalQ2Json !== undefined,
+          facilityQ2Json: facilityQ2Json !== null && facilityQ2Json !== undefined,
+          providerQ2Json: providerQ2Json !== null && providerQ2Json !== undefined,
+        });
+      }
     }
     
     // Log Q1 data status with detailed debugging

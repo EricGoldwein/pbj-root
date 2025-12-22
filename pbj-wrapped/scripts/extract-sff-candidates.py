@@ -1,210 +1,284 @@
 """
-Extract SFF candidate months from PDF and create a mapping file.
-Improved version that extracts ALL CCNs and months data more thoroughly.
+Extract SFF data from PDF with all columns and proper categorization.
+Tables:
+- Table A: Current SFF Facilities
+- Table B: Facilities That Have Graduated from the SFF Program
+- Table C: Facilities No Longer Participating in the Medicare and Medicaid Program
+- Table D: SFF Candidate List
 """
 import PyPDF2
 import json
 import re
 import sys
 from pathlib import Path
+from typing import Dict, List, Optional
+
+# US State abbreviations
+US_STATES = {
+    'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+    'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+    'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+    'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+    'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+}
 
 def extract_text_from_pdf(pdf_path):
-    """Extract all text from PDF."""
-    text = ""
+    """Extract all text from PDF, preserving page structure."""
+    pages = []
     with open(pdf_path, 'rb') as file:
         pdf_reader = PyPDF2.PdfReader(file)
         print(f"PDF has {len(pdf_reader.pages)} pages")
         for page_num, page in enumerate(pdf_reader.pages):
             page_text = page.extract_text()
-            text += page_text + "\n"
-            if page_num < 3:  # Debug: print first few pages
-                print(f"Page {page_num + 1} preview (first 200 chars): {page_text[:200]}")
-    return text
+            pages.append({
+                'number': page_num + 1,
+                'text': page_text
+            })
+    return pages
 
-def extract_sff_candidates(text, pdf_path=None):
-    """
-    Extract SFF candidate CCNs and their months as SFF from the PDF text.
-    More thorough extraction that:
-    1. Finds ALL tables with CCNs
-    2. Extracts months data from multiple column positions
-    3. Handles both SFF and Candidate tables
-    """
-    # Pattern to match CCN (6-digit number)
+def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: int) -> List[Dict]:
+    """Improved facility extraction that handles multi-line entries."""
+    facilities = []
     ccn_pattern = r'\b\d{6}\b'
+    i = start_idx
     
-    # Extract date from filename
-    doc_month = 12  # Default to December
-    doc_year = 2025  # Default to 2025
-    
-    if pdf_path:
-        pdf_path_obj = Path(pdf_path)
-        filename = pdf_path_obj.stem.lower()
+    while i < end_idx and i < len(lines):
+        line = lines[i].strip()
         
-        # Try to extract from filename
-        month_map = {
-            'january': 1, 'jan': 1, 'february': 2, 'feb': 2,
-            'march': 3, 'mar': 3, 'april': 4, 'apr': 4,
-            'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
-            'august': 8, 'aug': 8, 'september': 9, 'sep': 9,
-            'october': 10, 'oct': 10, 'november': 11, 'nov': 11,
-            'december': 12, 'dec': 12
-        }
+        # Skip empty lines and headers
+        if not line or len(line) < 5:
+            i += 1
+            continue
         
-        for month_name, month_num in month_map.items():
-            if month_name in filename:
-                doc_month = month_num
+        # Check if we've hit the next table
+        if i < len(lines) - 1:
+            next_line_lower = lines[i + 1].lower() if i + 1 < len(lines) else ''
+            if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
                 break
         
-        # Extract year from filename
-        year_match = re.search(r'(\d{4})', filename)
+        # Look for CCN in this line
+        ccns = re.findall(ccn_pattern, line)
+        if not ccns:
+            i += 1
+            continue
+        
+        ccn = ccns[0]
+        if len(ccn) != 6 or not ccn.isdigit():
+            i += 1
+            continue
+        
+        # Build facility data from this line and next few lines
+        facility = {
+            'provider_number': ccn,
+            'facility_name': None,
+            'address': None,
+            'city': None,
+            'state': None,
+            'zip': None,
+            'phone_number': None,
+            'most_recent_inspection': None,
+            'met_survey_criteria': None,
+            'months_as_sff': None
+        }
+        
+        # Get context from this line and next 2-3 lines
+        context_lines = [line]
+        for j in range(1, 4):
+            if i + j < len(lines):
+                context_lines.append(lines[i + j].strip())
+        
+        combined_text = ' '.join(context_lines)
+        
+        # Extract months (1-100, typically the last reasonable number)
+        numbers = re.findall(r'\b\d+\b', combined_text)
+        for num_str in reversed(numbers):
+            if num_str == ccn:
+                continue
+            num = int(num_str)
+            if 1 <= num <= 100:
+                facility['months_as_sff'] = num
+                break
+        
+        # Extract date (MM/DD/YYYY)
+        date_match = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{4})', combined_text)
+        if date_match:
+            facility['most_recent_inspection'] = f"{date_match.group(1).zfill(2)}/{date_match.group(2).zfill(2)}/{date_match.group(3)}"
+        
+        # Extract "Met" or "Not Met"
+        if re.search(r'\bmet\s+survey\s+criteria\b', combined_text, re.IGNORECASE):
+            facility['met_survey_criteria'] = 'Met'
+        elif re.search(r'\bnot\s+met\b', combined_text, re.IGNORECASE):
+            facility['met_survey_criteria'] = 'Not Met'
+        elif re.search(r'\bmet\b', combined_text, re.IGNORECASE) and 'not' not in combined_text.lower():
+            facility['met_survey_criteria'] = 'Met'
+        
+        # Extract phone number
+        phone_match = re.search(r'(\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4})', combined_text)
+        if phone_match:
+            facility['phone_number'] = phone_match.group(1)
+        
+        # Extract ZIP (5 digits, sometimes with -4)
+        zip_match = re.search(r'\b(\d{5}(-\d{4})?)\b', combined_text)
+        if zip_match:
+            facility['zip'] = zip_match.group(1)
+        
+        # Extract state (2-letter abbreviation, must be valid US state)
+        # Look for state pattern before ZIP or after city
+        state_candidates = re.findall(r'\b([A-Z]{2})\b', combined_text)
+        for state_candidate in state_candidates:
+            if state_candidate in US_STATES:
+                facility['state'] = state_candidate
+                break
+        
+        # Extract facility name - text before CCN, but after any previous CCN
+        # Facility name is usually the first substantial text on the line
+        name_part = line.split(ccn)[0].strip()
+        
+        # Clean up name - remove common prefixes/suffixes
+        name_part = re.sub(r'^\d+\s*', '', name_part)  # Remove leading numbers
+        name_part = re.sub(r'\s+', ' ', name_part)  # Normalize whitespace
+        
+        # If name part looks reasonable (has letters, not just numbers/symbols)
+        if name_part and len(name_part) > 3 and re.search(r'[A-Za-z]', name_part):
+            # Limit length and clean
+            facility['facility_name'] = name_part[:150].strip()
+        
+        # If we still don't have a name, try the previous line
+        if not facility['facility_name'] and i > 0:
+            prev_line = lines[i - 1].strip()
+            if prev_line and len(prev_line) > 3 and not re.search(ccn_pattern, prev_line):
+                if re.search(r'[A-Za-z]', prev_line):
+                    facility['facility_name'] = prev_line[:150].strip()
+        
+        # Extract address - usually contains street number and name
+        # Address is typically between name and city/state
+        address_pattern = r'(\d+\s+[A-Za-z0-9\s,.#-]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Court|Ct|Way|Circle|Cir))'
+        address_match = re.search(address_pattern, combined_text, re.IGNORECASE)
+        if address_match:
+            facility['address'] = address_match.group(1).strip()[:100]
+        else:
+            # Try simpler pattern - number followed by text
+            simple_address = re.search(r'(\d+\s+[A-Za-z0-9\s,.-]{10,50})', combined_text)
+            if simple_address and not facility['facility_name']:
+                addr_text = simple_address.group(1).strip()
+                # Don't use if it looks like a name
+                if not re.search(r'\b(Inc|LLC|Corp|Ltd|Nursing|Care|Center|Home)\b', addr_text, re.IGNORECASE):
+                    facility['address'] = addr_text[:100]
+        
+        # Extract city - usually before state, after address
+        # City names are typically capitalized words
+        if facility['state']:
+            # Look for text before state that could be a city
+            state_pos = combined_text.find(facility['state'])
+            if state_pos > 0:
+                before_state = combined_text[:state_pos]
+                # City is usually the last capitalized word/phrase before state
+                city_match = re.search(r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+' + facility['state'], before_state)
+                if city_match:
+                    city_candidate = city_match.group(1).strip()
+                    # Make sure it's not too long and looks like a city name
+                    if len(city_candidate) < 50 and re.match(r'^[A-Z][a-z]+', city_candidate):
+                        facility['city'] = city_candidate
+        
+        facilities.append(facility)
+        i += 1
+    
+    return facilities
+
+def extract_table_data(pages: List[Dict]) -> Dict:
+    """Extract all table data from PDF pages."""
+    full_text = '\n'.join([p['text'] for p in pages])
+    lines = full_text.split('\n')
+    
+    # Extract document date
+    doc_month = 12
+    doc_year = 2025
+    month_map = {
+        'january': 1, 'jan': 1, 'february': 2, 'feb': 2,
+        'march': 3, 'mar': 3, 'april': 4, 'apr': 4,
+        'may': 5, 'june': 6, 'jun': 6, 'july': 7, 'jul': 7,
+        'august': 8, 'aug': 8, 'september': 9, 'sep': 9,
+        'october': 10, 'oct': 10, 'november': 11, 'nov': 11,
+        'december': 12, 'dec': 12
+    }
+    
+    for page in pages[:5]:
+        page_lower = page['text'].lower()
+        for month_name, month_num in month_map.items():
+            if month_name in page_lower:
+                doc_month = month_num
+                break
+        year_match = re.search(r'(\d{4})', page['text'])
         if year_match:
             year_candidate = int(year_match.group(1))
             if 2000 <= year_candidate <= 2100:
                 doc_year = year_candidate
     
-    # Create mapping: CCN -> {months_as_sff, month, year}
-    candidate_months = {}
+    month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
+                   'July', 'August', 'September', 'October', 'November', 'December']
+    month_name = month_names[doc_month] if 1 <= doc_month <= 12 else 'December'
     
-    lines = text.split('\n')
-    print(f"Total lines in PDF: {len(lines)}")
+    # Find table boundaries
+    table_a_start = -1
+    table_b_start = -1
+    table_c_start = -1
+    table_d_start = -1
     
-    # Strategy 1: Look for table sections with headers
-    # Find all potential table headers
-    table_headers = []
     for i, line in enumerate(lines):
         line_lower = line.lower()
-        # Look for various table header patterns
-        if any(keyword in line_lower for keyword in [
-            'provider number', 'facility name', 'months as', 'months as an sff',
-            'table d', 'sff candidate', 'special focus facility'
-        ]):
-            table_headers.append((i, line))
+        if 'table a' in line_lower and ('current sff' in line_lower or 'facilities' in line_lower):
+            table_a_start = i
+        elif 'table b' in line_lower and ('graduated' in line_lower):
+            table_b_start = i
+        elif 'table c' in line_lower and ('no longer participating' in line_lower):
+            table_c_start = i
+        elif 'table d' in line_lower and ('candidate' in line_lower):
+            table_d_start = i
     
-    print(f"Found {len(table_headers)} potential table headers")
+    print(f"\nTable boundaries:")
+    print(f"  Table A: line {table_a_start}")
+    print(f"  Table B: line {table_b_start}")
+    print(f"  Table C: line {table_c_start}")
+    print(f"  Table D: line {table_d_start}")
     
-    # Strategy 2: Find ALL 6-digit numbers that could be CCNs
-    all_ccns = set()
-    for line in lines:
-        ccns = re.findall(ccn_pattern, line)
-        for ccn in ccns:
-            if len(ccn) == 6 and ccn.isdigit():
-                all_ccns.add(ccn)
+    # Determine table end boundaries
+    table_a_end = table_b_start if table_b_start > 0 else table_c_start if table_c_start > 0 else table_d_start if table_d_start > 0 else len(lines)
+    table_b_end = table_c_start if table_c_start > 0 else table_d_start if table_d_start > 0 else len(lines)
+    table_c_end = table_d_start if table_d_start > 0 else len(lines)
+    table_d_end = len(lines)
     
-    print(f"Found {len(all_ccns)} unique 6-digit numbers (potential CCNs)")
+    # Extract facilities from each table
+    print("\nExtracting Table A (Current SFF)...")
+    table_a_facilities = extract_facility_data_improved(lines, table_a_start, table_a_end) if table_a_start >= 0 else []
     
-    # Strategy 3: For each potential CCN, try to find months value on same line or nearby
-    for ccn in all_ccns:
-        months_value = None
-        
-        # Search for this CCN in the text
-        for i, line in enumerate(lines):
-            if ccn in line:
-                # Extract all numbers from this line
-                numbers = re.findall(r'\b\d+\b', line)
-                
-                # Find the months value (should be 1-100, and not the CCN itself)
-                for num_str in numbers:
-                    if num_str == ccn:
-                        continue
-                    num = int(num_str)
-                    # Months as SFF should be between 1 and 100
-                    if 1 <= num <= 100:
-                        months_value = num
-                        break
-                
-                # If not found on same line, check next few lines
-                if months_value is None:
-                    for j in range(i + 1, min(i + 5, len(lines))):
-                        next_line = lines[j]
-                        numbers = re.findall(r'\b\d+\b', next_line)
-                        for num_str in numbers:
-                            num = int(num_str)
-                            if 1 <= num <= 100:
-                                months_value = num
-                                break
-                        if months_value:
-                            break
-                
-                if months_value:
-                    break
-        
-        # If we found a months value, store it
-        if months_value is not None:
-            candidate_months[ccn] = {
-                'months_as_sff': months_value,
-                'month': doc_month,
-                'year': doc_year,
-                'month_name': ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                              'July', 'August', 'September', 'October', 'November', 'December'][doc_month],
-                'source': 'pdf_extraction'
-            }
-        else:
-            # Store even without months value (we'll try to match later)
-            candidate_months[ccn] = {
-                'months_as_sff': None,
-                'month': doc_month,
-                'year': doc_year,
-                'month_name': ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                              'July', 'August', 'September', 'October', 'November', 'December'][doc_month],
-                'source': 'pdf_extraction'
-            }
+    print("Extracting Table B (Graduated)...")
+    table_b_facilities = extract_facility_data_improved(lines, table_b_start, table_b_end) if table_b_start >= 0 else []
     
-    # Strategy 4: More targeted table parsing
-    # Look for structured table patterns
-    in_table = False
-    table_start = -1
+    print("Extracting Table C (No Longer Participating)...")
+    table_c_facilities = extract_facility_data_improved(lines, table_c_start, table_c_end) if table_c_start >= 0 else []
     
-    for i, line in enumerate(lines):
-        line_lower = line.lower().strip()
-        
-        # Detect table start
-        if not in_table and ('provider number' in line_lower or 'table' in line_lower):
-            if 'months' in line_lower or 'facility' in line_lower:
-                in_table = True
-                table_start = i
-                continue
-        
-        # If in table, look for CCN rows
-        if in_table:
-            # Check if this line has a CCN
-            ccns_in_line = re.findall(ccn_pattern, line)
-            if ccns_in_line:
-                ccn = ccns_in_line[0]
-                if len(ccn) == 6 and ccn.isdigit():
-                    # Extract numbers from this line
-                    numbers = re.findall(r'\b\d+\b', line)
-                    
-                    # Find months value (last reasonable number that's not the CCN)
-                    for num_str in reversed(numbers):
-                        if num_str == ccn:
-                            continue
-                        num = int(num_str)
-                        if 1 <= num <= 100:
-                            if ccn not in candidate_months or candidate_months[ccn]['months_as_sff'] is None:
-                                candidate_months[ccn] = {
-                                    'months_as_sff': num,
-                                    'month': doc_month,
-                                    'year': doc_year,
-                                    'month_name': ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                                                  'July', 'August', 'September', 'October', 'November', 'December'][doc_month],
-                                    'source': 'pdf_extraction'
-                                }
-                            break
-            
-            # Check if we've left the table (blank line or new section)
-            if not line.strip() and i > table_start + 10:
-                in_table = False
+    print("Extracting Table D (Candidates)...")
+    table_d_facilities = extract_facility_data_improved(lines, table_d_start, table_d_end) if table_d_start >= 0 else []
     
-    # Filter out entries without months values for final output
-    # But keep them for debugging
-    final_candidates = {ccn: data for ccn, data in candidate_months.items() if data.get('months_as_sff') is not None}
-    
-    print(f"\nExtraction summary:")
-    print(f"  Total CCNs found: {len(candidate_months)}")
-    print(f"  CCNs with months data: {len(final_candidates)}")
-    print(f"  CCNs without months data: {len(candidate_months) - len(final_candidates)}")
-    
-    return final_candidates, doc_month, doc_year
+    return {
+        'document_date': {
+            'month': doc_month,
+            'year': doc_year,
+            'month_name': month_name
+        },
+        'table_a_current_sff': table_a_facilities,
+        'table_b_graduated': table_b_facilities,
+        'table_c_no_longer_participating': table_c_facilities,
+        'table_d_candidates': table_d_facilities,
+        'summary': {
+            'current_sff_count': len(table_a_facilities),
+            'graduated_count': len(table_b_facilities),
+            'no_longer_participating_count': len(table_c_facilities),
+            'candidates_count': len(table_d_facilities),
+            'total_count': len(table_a_facilities) + len(table_b_facilities) + 
+                          len(table_c_facilities) + len(table_d_facilities)
+        }
+    }
 
 def main():
     pdf_path = Path(__file__).parent.parent / 'public' / 'sff-posting-with-candidate-list-november-2025.pdf'
@@ -213,41 +287,45 @@ def main():
         print(f"Error: PDF file not found at {pdf_path}")
         sys.exit(1)
     
-    print(f"Extracting text from {pdf_path}...")
-    text = extract_text_from_pdf(pdf_path)
+    print(f"Extracting from {pdf_path.name}...")
+    pages = extract_text_from_pdf(pdf_path)
     
-    print(f"\nText length: {len(text)} characters")
-    print("Extracting SFF candidate data...")
-    candidate_months, doc_month, doc_year = extract_sff_candidates(text, pdf_path)
+    print("Extracting table data...")
+    data = extract_table_data(pages)
     
-    print(f"\nFound {len(candidate_months)} SFF candidates with months data")
-    print(f"Document date: {doc_month}/{doc_year}")
-    
-    month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
-                   'July', 'August', 'September', 'October', 'November', 'December']
-    month_name = month_names[doc_month] if 1 <= doc_month <= 12 else 'December'
+    print(f"\nSummary:")
+    print(f"  Table A (Current SFF): {data['summary']['current_sff_count']}")
+    print(f"  Table B (Graduated): {data['summary']['graduated_count']}")
+    print(f"  Table C (No Longer Participating): {data['summary']['no_longer_participating_count']}")
+    print(f"  Table D (Candidates): {data['summary']['candidates_count']}")
+    print(f"  Total: {data['summary']['total_count']}")
+    print(f"  Date: {data['document_date']['month_name']} {data['document_date']['year']}")
     
     # Save to JSON
     output_path = Path(__file__).parent.parent / 'public' / 'sff-candidate-months.json'
     with open(output_path, 'w') as f:
-        json.dump({
-            'document_date': {
-                'month': doc_month,
-                'year': doc_year,
-                'month_name': month_name
-            },
-            'candidates': candidate_months,
-            'total_count': len(candidate_months)
-        }, f, indent=2)
+        json.dump(data, f, indent=2)
     
     print(f"\nSaved to {output_path}")
     
-    # Print first few for verification
-    print("\nFirst 10 candidates:")
-    for i, (ccn, data) in enumerate(list(candidate_months.items())[:10]):
-        print(f"  {ccn}: {data.get('months_as_sff', 'N/A')} months")
+    # Show samples
+    print("\nSamples:")
+    for table_name, facilities, sample_idx in [
+        ('Table A', data['table_a_current_sff'], 0),
+        ('Table D', data['table_d_candidates'], 0)
+    ]:
+        if facilities and len(facilities) > sample_idx:
+            f = facilities[sample_idx]
+            print(f"\n{table_name} sample:")
+            print(f"  CCN: {f['provider_number']}")
+            print(f"  Name: {f.get('facility_name', 'N/A')}")
+            print(f"  State: {f.get('state', 'N/A')}")
+            print(f"  City: {f.get('city', 'N/A')}")
+            print(f"  Months: {f.get('months_as_sff', 'N/A')}")
+            print(f"  Inspection: {f.get('most_recent_inspection', 'N/A')}")
+            print(f"  Met Criteria: {f.get('met_survey_criteria', 'N/A')}")
     
-    return candidate_months
+    return data
 
 if __name__ == '__main__':
     main()

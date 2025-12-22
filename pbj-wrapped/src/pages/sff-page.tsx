@@ -290,6 +290,14 @@ export default function SFFPage() {
     });
   };
 
+  const formatCensus = (num: number | undefined): string => {
+    if (num === undefined || isNaN(num)) return 'N/A';
+    return num.toLocaleString('en-US', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+  };
+
   const formatPercent = (num: number | undefined, decimals: number = 1): string => {
     if (num === undefined || isNaN(num)) return 'N/A';
     return num.toLocaleString('en-US', {
@@ -480,7 +488,7 @@ export default function SFFPage() {
               )}
               {regionsWithSFFs.length > 0 && (
                 <div className="flex-1">
-                  <label htmlFor="region-select" className="block text-sm font-semibold text-green-300 mb-2">CMS Region</label>
+                  <label htmlFor="region-select" className="block text-sm font-semibold text-blue-300 mb-2">CMS Region</label>
                   <select
                     id="region-select"
                     value=""
@@ -489,11 +497,11 @@ export default function SFFPage() {
                         navigate(`/sff/region${e.target.value}`);
                       }
                     }}
-                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-green-500/50 rounded text-green-300 hover:bg-green-600/20 focus:outline-none focus:ring-2 focus:ring-green-500 cursor-pointer"
+                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                   >
-                    <option value="">Select a region...</option>
+                    <option value="" className="bg-[#0f172a] text-blue-300">Select a region...</option>
                     {regionsWithSFFs.map(regionNum => (
-                      <option key={`region${regionNum}`} value={regionNum} className="bg-[#0f172a]">
+                      <option key={`region${regionNum}`} value={regionNum} className="bg-[#0f172a] text-blue-300">
                         Region {regionNum} ({getRegionName(regionNum)})
                       </option>
                     ))}
@@ -521,11 +529,11 @@ export default function SFFPage() {
                     <tr className="bg-blue-600/20 border-b border-blue-500/30">
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Facility</th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-blue-300">Location</th>
+                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
                       <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Total HPRD</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">% of Case Mix</SortableHeader>
-                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-blue-300">Status</th>
                     </tr>
                   </thead>
@@ -625,11 +633,11 @@ export default function SFFPage() {
                     <tr className="bg-yellow-600/20 border-b border-yellow-500/30">
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Facility</th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-xs md:text-sm font-semibold text-yellow-300">Location</th>
+                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Census</SortableHeader>
                       <SortableHeader field="totalHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Total HPRD</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Direct Care</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">RN HPRD</SortableHeader>
                       <SortableHeader field="percentOfCaseMix" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">% of Case Mix</SortableHeader>
-                      <SortableHeader field="census" className="px-2 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300 whitespace-nowrap">Census</SortableHeader>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-center text-xs md:text-sm font-semibold text-yellow-300">Status</th>
                     </tr>
                   </thead>
@@ -650,14 +658,14 @@ export default function SFFPage() {
                           {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
                           {facility.county && <span className="text-gray-500 text-xs ml-1 hidden md:inline">({facility.county})</span>}
                         </td>
+                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
+                          {formatCensus(facility.census)}
+                        </td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-white font-semibold text-sm md:text-base">{formatNumber(facility.totalHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.directCareHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">{formatNumber(facility.rnHPRD)}</td>
                         <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
                           {formatPercent(facility.percentOfCaseMix)}
-                        </td>
-                        <td className="px-2 md:px-4 py-2 md:py-3 text-center text-gray-300 text-sm md:text-base">
-                          {facility.census ? facility.census.toLocaleString() : 'N/A'}
                         </td>
                         <td className="px-3 md:px-4 py-2 md:py-3 text-center">
                           {facility.isNewCandidate && (

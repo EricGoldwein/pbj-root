@@ -27,6 +27,38 @@ export interface StateStandardRow {
   Display_Text: string;
 }
 
+export interface SFFFacilityData {
+  provider_number: string;
+  facility_name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  phone_number?: string;
+  category: 'SFF' | 'Graduate' | 'Terminated' | 'Candidate';
+  months_as_sff?: number | null;
+  most_recent_inspection?: string | null;
+  met_survey_criteria?: string | null;
+  date_of_graduation?: string | null;
+  date_of_termination?: string | null;
+}
+
+export interface SFFData {
+  facilities: SFFFacilityData[];
+  document_date?: {
+    month: number;
+    year: number;
+    month_name: string;
+  };
+  summary?: {
+    current_sff_count: number;
+    graduated_count: number;
+    no_longer_participating_count: number;
+    candidates_count: number;
+    total_count: number;
+  };
+}
+
 export interface LoadedData {
   stateData: {
     q1: StateQuarterlyRow[];
@@ -50,6 +82,7 @@ export interface LoadedData {
   };
   regionStateMapping: Map<number, Set<string>>;
   stateStandards: Map<string, StateStandardRow>; // Map state code to standard
+  sffData: SFFData | null; // SFF data from sff-facilities.json
 }
 
 /**
@@ -301,6 +334,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
   try {
     // Try to load pre-processed JSON files first (much faster)
     const jsonBasePath = `${basePath}/json`;
+    const baseUrl = import.meta.env.BASE_URL || '';
     const [
       stateQ1Json,
       stateQ2Json,
@@ -314,6 +348,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       providerQ2Json,
       regionMappingJson,
       stateStandardsJson,
+      sffDataJson,
     ] = await Promise.all([
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q1.json`),
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q2.json`),
@@ -327,6 +362,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q2.json`),
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
       loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`),
+      loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1')),
     ]);
 
     // If we got JSON data, use it (much faster!)
@@ -504,6 +540,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         providerInfo: { q1: providerQ1, q2: providerQ2 },
         regionStateMapping,
         stateStandards: stateStandardsMap,
+        sffData: sffDataJson,
       };
     }
 
@@ -641,6 +678,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       console.log(`Sample Q2 row: CCN=${providerInfoQ2[0].PROVNUM}, State=${providerInfoQ2[0].STATE}, Ownership=${providerInfoQ2[0].ownership_type}, SFF=${providerInfoQ2[0].sff_status}`);
     }
 
+    // Load SFF data from sff-facilities.json
+    const baseUrl = import.meta.env.BASE_URL || '';
+    const sffDataJson = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
+
     return {
       stateData: {
         q1: stateQ1,
@@ -664,6 +705,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       },
       regionStateMapping,
       stateStandards: stateStandardsMap,
+      sffData: sffDataJson,
     };
   } catch (error) {
     console.error('Error loading data:', error);

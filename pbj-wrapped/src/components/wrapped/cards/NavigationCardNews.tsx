@@ -1,6 +1,7 @@
 import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
+import { trackDashboardLinkClick } from '../../../utils/analytics';
 
 interface NavigationCardNewsProps {
   data: PBJWrappedData;
@@ -34,6 +35,7 @@ export const NavigationCardNews: React.FC<NavigationCardNewsProps> = ({ data, on
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full py-3 px-6 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-all duration-200 text-center"
+            onClick={() => trackDashboardLinkClick('State Dashboards', 'NavigationCardNews')}
           >
             Explore State Dashboards →
           </a>

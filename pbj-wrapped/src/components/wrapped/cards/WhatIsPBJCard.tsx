@@ -95,7 +95,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           
           {showContext && contextText && (
             <div className="pt-2 animate-fade-in-up">
-              <p className="text-gray-300 text-xs md:text-sm leading-relaxed">
+              <p className="text-gray-300 text-xs md:text-sm leading-relaxed break-words whitespace-normal">
                 {contextText}
               </p>
             </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { shortenProviderName } from '../../../lib/wrapped/dataProcessor';
+import { trackFacilityLinkClick, trackStateLinkClick } from '../../../utils/analytics';
 
 interface RisersCardProps {
   data: PBJWrappedData;
@@ -28,7 +29,10 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
       const handleStateClick = (e: React.MouseEvent) => {
         if (isInternalLink) {
           e.preventDefault();
+          trackStateLinkClick(stateItem.state, stateName, 'Risers');
           window.location.href = stateItem.link;
+        } else if (stateItem.link.includes('pbjdashboard.com')) {
+          trackStateLinkClick(stateItem.state, stateName, 'Risers - Dashboard');
         }
       };
       
@@ -81,6 +85,7 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
                 rel="noopener noreferrer"
                 className="text-blue-300 hover:text-blue-200 underline font-medium text-sm block truncate"
                 title={facility.name}
+                onClick={() => trackFacilityLinkClick(facility.provnum, facility.name, `Risers - ${data.scope}`)}
               >
                 {shortenProviderName(facility.name, 35)}
               </a>

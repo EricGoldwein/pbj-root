@@ -868,16 +868,7 @@ export default function SFFPage() {
     : 'Special Focus Facilities Program';
 
   // Mobile title (abbreviated)
-  const mobileTitle = scope === 'usa'
-    ? 'Special Focus Facilities Program'
-    : scope && scope.startsWith('region')
-    ? (() => {
-        const regionNum = parseInt(scope.replace(/^region-?/, ''));
-        return `SFF Program: Region ${regionNum}`;
-      })()
-    : scope
-    ? `SFF Program: ${getStateName(scope.toUpperCase())}`
-    : 'Special Focus Facilities Program';
+  const mobileTitle = 'Special Focus Facilities Program';
 
   const SortableHeader: React.FC<{ field: SortField; children: React.ReactNode; className?: string }> = ({ field, children, className = '' }) => {
     const isActive = sortField === field;
@@ -1089,7 +1080,6 @@ export default function SFFPage() {
               {/* Mobile: Dropdown and "All SFFs" button on same row */}
               <div className="md:hidden flex items-end gap-2 mb-4">
                 <div className="flex-1">
-                  <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
                   <select
                     id="state-select"
                     value={isState ? scope.toUpperCase() : ''}
@@ -1124,7 +1114,7 @@ export default function SFFPage() {
 
         {/* Category Filter Toggles with Desktop State Dropdown */}
         <div className="mb-4 md:mb-6">
-          <div className="flex flex-wrap gap-2 md:gap-3 md:items-center md:justify-between">
+          <div className="flex flex-wrap gap-2 md:gap-3 md:items-end md:justify-between">
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
                 onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
@@ -1185,8 +1175,10 @@ export default function SFFPage() {
               const shouldShow = (isUSA || isState);
               
               return shouldShow ? (
-                <div className="hidden md:block">
-                  <label htmlFor="state-select-desktop" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
+                <div className="hidden md:flex md:items-center md:gap-2">
+                  {isUSA && (
+                    <span className="text-sm font-semibold text-blue-300 whitespace-nowrap">USA SFFs</span>
+                  )}
                   <select
                     id="state-select-desktop"
                     value={isState ? scope.toUpperCase() : ''}
@@ -1196,7 +1188,7 @@ export default function SFFPage() {
                         navigate(`/sff/${selectedState.toLowerCase()}`);
                       }
                     }}
-                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
+                    className="px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
                   >
                     <option value="">Select a state...</option>
                     {allStates.map(stateCode => (
@@ -1231,7 +1223,7 @@ export default function SFFPage() {
                       </th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
-                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
+                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">
                         <div className="block leading-tight">
                           <span className="block">Months</span>
                           <span className="block">as SFF</span>
@@ -1283,6 +1275,15 @@ export default function SFFPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-300 hover:text-blue-200 underline font-medium text-xs leading-tight block"
+                              onClick={() => {
+                                if (typeof window !== 'undefined' && window.gtag) {
+                                  const facilityName = (facility as any).facility_name || (facility as any).name || '';
+                                  window.gtag('event', 'click', {
+                                    event_category: 'facility_dashboard_link',
+                                    event_label: `${facility.provnum || ''}${facilityName ? ` - ${facilityName}` : ''} (SFF Page)`,
+                                  });
+                                }
+                              }}
                               style={{ 
                                 display: '-webkit-box',
                                 WebkitLineClamp: 2,
@@ -1311,9 +1312,9 @@ export default function SFFPage() {
                           <td className="px-1 md:px-2 py-2 text-center">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[facility.sffStatus]}`}>
                               <span className="md:hidden">
-                                {facility.sffStatus === 'Candidate' ? 'Cand.' : 
-                                 facility.sffStatus === 'Graduate' ? 'Grad.' :
-                                 facility.sffStatus === 'Terminated' ? 'Term.' :
+                                {facility.sffStatus === 'Candidate' ? 'Cand' : 
+                                 facility.sffStatus === 'Graduate' ? 'Grad' :
+                                 facility.sffStatus === 'Terminated' ? 'Term' :
                                  facility.sffStatus}
                               </span>
                               <span className="hidden md:inline">{facility.sffStatus}</span>

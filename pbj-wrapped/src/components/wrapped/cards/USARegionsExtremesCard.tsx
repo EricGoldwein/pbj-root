@@ -1,6 +1,7 @@
 import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData, Facility } from '../../../lib/wrapped/wrappedTypes';
+import { trackDashboardLinkClick } from '../../../utils/analytics';
 
 interface USARegionsExtremesCardProps {
   data: PBJWrappedData;
@@ -33,6 +34,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
             target="_blank"
             rel="noopener noreferrer"
             className="text-blue-300 hover:text-blue-200 underline font-medium text-sm flex-1"
+            onClick={() => trackDashboardLinkClick(`Region ${regionNumber}`, 'USA Regions Extremes')}
           >
             {displayName}
           </a>

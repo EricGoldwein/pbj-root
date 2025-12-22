@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData, Facility } from '../../../lib/wrapped/wrappedTypes';
+import { trackStateLinkClick, trackFacilityLinkClick } from '../../../utils/analytics';
 
 interface USAStatesExtremesCardProps {
   data: PBJWrappedData;
@@ -56,7 +57,13 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
     const handleStateClick = (e: React.MouseEvent) => {
       if (isInternalLink) {
         e.preventDefault();
+        trackStateLinkClick(facility.state, stateName, 'USA States Extremes');
         navigate(facility.link);
+      } else {
+        // External link to pbjdashboard
+        if (facility.link.includes('pbjdashboard.com')) {
+          trackStateLinkClick(facility.state, stateName, 'USA States Extremes - Dashboard');
+        }
       }
     };
     

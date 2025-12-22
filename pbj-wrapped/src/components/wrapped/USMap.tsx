@@ -74,7 +74,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
 
         const container = containerRef.current;
         const width = container?.offsetWidth || 800;
-        const height = Math.min(width * 0.6, 500);
+        const height = Math.min(width * 0.55, 450);
 
         svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
 

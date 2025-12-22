@@ -4,6 +4,7 @@ import { WrappedImage } from '../components/wrapped/WrappedImage';
 import { USMap } from '../components/wrapped/USMap';
 import { updateSEO, getWrappedLandingSEO } from '../utils/seo';
 import { getAssetPath } from '../utils/assets';
+import { trackDashboardLinkClick } from '../utils/analytics';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
@@ -83,6 +84,7 @@ const Index: React.FC = () => {
               <a 
                 href="https://pbjdashboard.com/" 
                 className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
+                onClick={() => trackDashboardLinkClick('Navigation', 'Index Page')}
               >
                 Dashboard
               </a>
@@ -202,15 +204,28 @@ const Index: React.FC = () => {
         {/* Interactive Map Section */}
         <div className="mb-4 md:mb-5">
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 pt-3 md:pt-4 shadow-2xl relative">
-            {/* USA Badge - positioned in top right */}
-            <button
-              onClick={() => navigate('/wrapped/usa')}
-              className="absolute top-3 right-3 md:top-4 md:right-4 z-10 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-1.5 px-3 md:py-2 md:px-4 rounded-lg text-xs md:text-sm transition-all duration-200 shadow-md hover:shadow-lg hover:scale-105 active:scale-95"
-            >
-              USA Wrapped
-            </button>
             <USMap className="w-full" />
           </div>
+        </div>
+
+        {/* USA Wrapped Button - Centered and Emphasized */}
+        <div className="mb-4 md:mb-5 flex justify-center">
+          <button
+            onClick={() => navigate('/wrapped/usa')}
+            className="bg-gradient-to-r from-blue-600 via-blue-500 to-blue-600 hover:from-blue-500 hover:via-blue-400 hover:to-blue-500 text-white font-bold py-3 px-8 md:py-4 md:px-10 rounded-xl text-base md:text-lg transition-all duration-300 shadow-2xl hover:shadow-blue-500/50 hover:scale-105 active:scale-95 transform relative overflow-hidden"
+            style={{
+              backgroundSize: '200% 200%',
+              animation: 'shimmer 3s ease-in-out infinite',
+            }}
+          >
+            <span className="relative z-10">USA Wrapped</span>
+            <style>{`
+              @keyframes shimmer {
+                0%, 100% { background-position: 0% 50%; }
+                50% { background-position: 100% 50%; }
+              }
+            `}</style>
+          </button>
         </div>
 
         {/* Quick Actions - State and Region in same row */}

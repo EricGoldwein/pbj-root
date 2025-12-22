@@ -52,13 +52,14 @@ export const HeaderCard: React.FC<HeaderCardProps> = ({ name }) => {
               <WrappedImage
                 src={getAssetPath('/images/phoebe-wrapped-wide.png')}
                 alt="PBJ Wrapped"
-                className="block relative rounded-lg shadow-xl"
+                className="block relative rounded-2xl shadow-xl"
                 style={{ 
                   maxHeight: '280px', 
                   maxWidth: '100%',
                   height: 'auto',
                   width: 'auto',
                   objectFit: 'contain',
+                  borderRadius: '1rem',
                 }}
                 maxHeight="280px"
               />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
+import { trackFacilityLinkClick } from '../../../utils/analytics';
 
 interface StateFacilitySpotlightCardProps {
   data: PBJWrappedData;
@@ -119,6 +120,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-sm"
+            onClick={() => trackFacilityLinkClick(facility.provnum, facility.name, 'State Facility Spotlight')}
           >
             View full staffing history →
           </a>

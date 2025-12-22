@@ -2,6 +2,7 @@ import React from 'react';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { shortenProviderName } from '../../../lib/wrapped/dataProcessor';
+import { trackFacilityLinkClick } from '../../../utils/analytics';
 
 interface LowestStaffingCardProps {
   data: PBJWrappedData;
@@ -34,6 +35,7 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
             rel="noopener noreferrer"
             className="text-blue-300 hover:text-blue-200 underline font-medium text-sm flex-1 truncate"
             title={facility.name}
+            onClick={() => trackFacilityLinkClick(facility.provnum, facility.name, `Lowest Staffing - ${data.scope}`)}
           >
             {shortenProviderName(facility.name, 35)}
           </a>

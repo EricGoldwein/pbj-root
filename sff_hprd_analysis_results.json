@@ -1,0 +1,173 @@
+{
+  "analysis_by_type": {
+    "SFF": {
+      "count": 86,
+      "count_with_hprd": 85,
+      "total_hprd": {
+        "mean": 3.6813533077465936,
+        "median": 3.630778283383023,
+        "std": 0.6432961323678421,
+        "min": 1.7969331678046765,
+        "max": 5.3370072689511945,
+        "q25": 3.354673871824043,
+        "q75": 3.990083242493311
+      },
+      "direct_care_hprd": {
+        "mean": 3.4055560694718143,
+        "median": 3.3321119902617164
+      },
+      "rn_hprd": {
+        "mean": 0.5639372768154683,
+        "median": 0.4859764121663563
+      },
+      "percent_case_mix": {
+        "mean": 98.83223219313372,
+        "median": 98.07822769301451
+      },
+      "months_as_sff": {
+        "mean": 14.988372093023257,
+        "median": 12.0
+      }
+    },
+    "Candidate": {
+      "count": 435,
+      "count_with_hprd": 433,
+      "total_hprd": {
+        "mean": 3.6242534472083334,
+        "median": 3.5096610398379475,
+        "std": 0.8707263681194324,
+        "min": 1.755272432181776,
+        "max": 13.94190476190476,
+        "q25": 3.171205207354717,
+        "q75": 3.871556695992179
+      },
+      "direct_care_hprd": {
+        "mean": 3.366844952842223,
+        "median": 3.252693618196888
+      },
+      "rn_hprd": {
+        "mean": 0.5625752494269366,
+        "median": 0.5031615554852987
+      },
+      "percent_case_mix": {
+        "mean": 96.82698615043536,
+        "median": 93.36219334329309
+      },
+      "months_as_sff": {
+        "mean": 8.767816091954023,
+        "median": 4.0
+      }
+    },
+    "Graduate": {
+      "count": 105,
+      "count_with_hprd": 105,
+      "total_hprd": {
+        "mean": 3.6602727435265328,
+        "median": 3.570572485018488,
+        "std": 0.6192118918977497,
+        "min": 2.1865010979026267,
+        "max": 5.981921716054843,
+        "q25": 3.272866349847015,
+        "q75": 3.983013349795509
+      },
+      "direct_care_hprd": {
+        "mean": 3.3920002935307285,
+        "median": 3.2988099808061424
+      },
+      "rn_hprd": {
+        "mean": 0.5454750293165147,
+        "median": 0.4815885623510721
+      },
+      "percent_case_mix": {
+        "mean": 97.41442915904567,
+        "median": 94.51505380756498
+      },
+      "months_as_sff": null
+    },
+    "Terminated": {
+      "count": 8,
+      "count_with_hprd": 4,
+      "total_hprd": {
+        "mean": 6.506547396049509,
+        "median": 4.200276471441699,
+        "std": 4.964486168384604,
+        "min": 3.683731879409879,
+        "max": 13.94190476190476,
+        "q25": 3.955228322176308,
+        "q75": 6.751595545314901
+      },
+      "direct_care_hprd": {
+        "mean": 4.921995406836805,
+        "median": 3.5661241031184217
+      },
+      "rn_hprd": {
+        "mean": 1.9210954591378062,
+        "median": 1.0213238396930566
+      },
+      "percent_case_mix": {
+        "mean": 379.4159523945594,
+        "median": 379.4159523945594
+      },
+      "months_as_sff": null
+    },
+    "Overall": {
+      "count": 634,
+      "count_with_hprd": 627,
+      "total_hprd": {
+        "mean": 3.6564140374069427,
+        "median": 3.542898529835688,
+        "std": 0.9018072560307594
+      },
+      "direct_care_hPRD": {
+        "mean": 3.3862267032437967,
+        "median": 3.273052161903752
+      },
+      "rn_hprd": {
+        "mean": 0.568563016660229,
+        "median": 0.4918877402446128
+      },
+      "percent_case_mix": {
+        "mean": 97.6562263968369,
+        "median": 94.06739390334295
+      }
+    }
+  },
+  "analysis_by_months": {
+    "0-6 months": {
+      "count": 282,
+      "total_hprd_mean": 3.685725552658879,
+      "total_hprd_median": 3.521558414762293,
+      "percent_case_mix_mean": 98.59148554098985,
+      "percent_case_mix_median": 93.70163570297204
+    },
+    "7-12 months": {
+      "count": 100,
+      "total_hprd_mean": 3.557699973632355,
+      "total_hprd_median": 3.474716150720509,
+      "percent_case_mix_mean": 96.25117109327407,
+      "percent_case_mix_median": 93.84554576933081
+    },
+    "13-18 months": {
+      "count": 50,
+      "total_hprd_mean": 3.6658628833650915,
+      "total_hprd_median": 3.5937904494625723,
+      "percent_case_mix_mean": 98.02819882100546,
+      "percent_case_mix_median": 95.90560424598141
+    },
+    "19-24 months": {
+      "count": 37,
+      "total_hprd_mean": 3.5730733339285945,
+      "total_hprd_median": 3.561717134865621,
+      "percent_case_mix_mean": 93.87640045928113,
+      "percent_case_mix_median": 96.270693984644
+    },
+    "25+ months": {
+      "count": 48,
+      "total_hprd_mean": 3.4772591292701205,
+      "total_hprd_median": 3.523062720963967,
+      "percent_case_mix_mean": 91.22152958945969,
+      "percent_case_mix_median": 91.56393910184889
+    }
+  },
+  "phoebe_takeaway": "Current SFFs have slightly higher total HPRD (3.68) than SFF Candidates (3.62), though the difference is minimal (0.06 hours, 1.6% higher).\nCurrent SFFs are providing 98.8% of their case-mix expected staffing, indicating they are understaffed by 1.2 percentage points relative to their resident acuity.\nFacilities that have been in the SFF program longer (19+ months) have lower HPRD (3.53) than newer SFFs (0-12 months: 3.62), a difference of 0.10 hours (2.7% lower). This suggests that extended time in the program may be associated with persistent staffing challenges.\nFacilities in the program longer (19+ months) are providing 92.5% of case-mix expected staffing, compared to 97.4% for newer facilities (0-12 months), a 4.9 percentage point gap.\nAcross all SFF program facilities (SFFs, Candidates, Graduates, and Terminated), the average total HPRD is 3.66 hours per resident day. These facilities are providing 97.7% of their case-mix expected staffing, indicating systemic understaffing across the SFF program."
+}

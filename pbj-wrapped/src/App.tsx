@@ -31,11 +31,11 @@ function App() {
     <Routes>
       <Route 
         path="/" 
-        element={
-          <PasswordProtection>
-            <Index />
-          </PasswordProtection>
-        } 
+        element={<Index />}
+      />
+      <Route 
+        path="/wrapped" 
+        element={<Index />}
       />
       <Route 
         path="/sff" 
@@ -43,43 +43,23 @@ function App() {
       />
       <Route 
         path="/sff/usa" 
-        element={
-          <PasswordProtection password="320">
-            <SFFPage />
-          </PasswordProtection>
-        } 
+        element={<SFFPage />}
       />
       <Route 
         path="/sff/:scope" 
-        element={
-          <PasswordProtection password="320">
-            <SFFPage />
-          </PasswordProtection>
-        } 
+        element={<SFFPage />}
       />
       <Route 
         path="/wrapped/usa" 
-        element={
-          <PasswordProtection>
-            <Wrapped />
-          </PasswordProtection>
-        } 
+        element={<Wrapped />}
       />
       <Route 
         path="/wrapped/:identifier" 
-        element={
-          <PasswordProtection>
-            <Wrapped />
-          </PasswordProtection>
-        } 
+        element={<Wrapped />}
       />
       <Route 
         path="/usa-news" 
-        element={
-          <PasswordProtection>
-            <WrappedNews />
-          </PasswordProtection>
-        } 
+        element={<WrappedNews />}
       />
     </Routes>
   );

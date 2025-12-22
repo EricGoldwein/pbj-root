@@ -645,9 +645,37 @@ export default function SFFPage() {
                        provNoZeros === normalizedCCN;
               });
               
-              // If found in Q1, try to get facility data from Q1 as well
+              // CRITICAL FIX: Try to find facility data from Q2 FIRST (even if no provider found)
+              // Facility data exists in facility_lite_metrics.csv even if provider info doesn't exist
               let facility: FacilityLiteRow | undefined;
-              if (provider) {
+              
+              // Try Q2 facility data first (most current) using CCN directly
+              facility = facilityQ2.find((f: FacilityLiteRow) => {
+                // Only match Q2 2025 data
+                if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
+                
+                const fProvNum = f.PROVNUM?.toString().trim() || '';
+                if (!fProvNum) return false;
+                const fNormalized = normalizeCCN(fProvNum);
+                const fNoZeros = fProvNum.replace(/^0+/, '') || fProvNum;
+                const fWithZeros = fProvNum.length < 6 ? fProvNum.padStart(6, '0') : fProvNum;
+                
+                // Try all variations of CCN
+                return fProvNum === ccn ||
+                       fProvNum === normalizedCCN ||
+                       fProvNum === ccnNoZeros ||
+                       fProvNum === ccnWithZeros ||
+                       fNormalized === normalizedCCN ||
+                       fNormalized === ccn ||
+                       fNoZeros === ccnNoZeros ||
+                       fNoZeros === ccn ||
+                       fWithZeros === ccn ||
+                       fWithZeros === normalizedCCN ||
+                       fWithZeros === ccnWithZeros;
+              });
+              
+              // If not found in Q2, try Q1 facility data (if provider found in Q1)
+              if (!facility && provider) {
                 const provNum = provider.PROVNUM?.toString().trim() || '';
                 facility = data.facilityData.q1?.find((f: FacilityLiteRow) => {
                   const fProvNum = f.PROVNUM?.toString().trim() || '';
@@ -666,8 +694,17 @@ export default function SFFPage() {
                 });
                 
                 // Log Q1 match for debugging
-                if (ccn === '265379' || ccn === '675595' || ccn === '195454') {
+                if (ccn === '265379' || ccn === '675595' || ccn === '195454' || ccn === '205077' || ccn === '355031') {
                   console.log(`Matched in Q1: CCN=${ccn}, Provider=${provider.PROVNAME}, Facility=${facility ? 'Found' : 'Not Found'}`);
+                }
+              }
+              
+              // Log Q2 facility match for debugging
+              if (ccn === '265379' || ccn === '675595' || ccn === '195454' || ccn === '205077' || ccn === '355031') {
+                if (facility) {
+                  console.log(`✅ FOUND Q2 Facility Data: CCN=${ccn}, Name=${pdfFacility.facility_name}, PROVNUM=${facility.PROVNUM}, Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}`);
+                } else {
+                  console.log(`❌ NO Q2 Facility Data: CCN=${ccn}, Name=${pdfFacility.facility_name} - Tried all variations`);
                 }
               }
               

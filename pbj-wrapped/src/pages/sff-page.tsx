@@ -200,24 +200,44 @@ export default function SFFPage() {
             const text = await tableAResponse.text();
             tableA = parseCSV(text, 'A');
             console.log(`Loaded Table A (Current SFF): ${tableA.length} facilities`);
+            if (tableA.length > 0) {
+              console.log(`  Sample: ${tableA[0].provider_number} - ${tableA[0].facility_name}`);
+            }
+          } else {
+            console.error(`Failed to load Table A: ${tableAResponse.status}`);
           }
           
           if (tableBResponse.ok) {
             const text = await tableBResponse.text();
             tableB = parseCSV(text, 'B');
             console.log(`Loaded Table B (Graduated): ${tableB.length} facilities`);
+            if (tableB.length > 0) {
+              console.log(`  Sample: ${tableB[0].provider_number} - ${tableB[0].facility_name}`);
+            }
+          } else {
+            console.error(`Failed to load Table B: ${tableBResponse.status}`);
           }
           
           if (tableCResponse.ok) {
             const text = await tableCResponse.text();
             tableC = parseCSV(text, 'C');
             console.log(`Loaded Table C (Terminated): ${tableC.length} facilities`);
+            if (tableC.length > 0) {
+              console.log(`  Sample: ${tableC[0].provider_number} - ${tableC[0].facility_name}`);
+            }
+          } else {
+            console.error(`Failed to load Table C: ${tableCResponse.status}`);
           }
           
           if (tableDResponse.ok) {
             const text = await tableDResponse.text();
             tableD = parseCSV(text, 'D');
             console.log(`Loaded Table D (Candidates): ${tableD.length} facilities`);
+            if (tableD.length > 0) {
+              console.log(`  Sample: ${tableD[0].provider_number} - ${tableD[0].facility_name}`);
+            }
+          } else {
+            console.error(`Failed to load Table D: ${tableDResponse.status}`);
           }
           
           console.log(`Loaded SFF data: ${tableA.length + tableB.length + tableC.length + tableD.length} total facilities`);
@@ -438,8 +458,9 @@ export default function SFFPage() {
                                          pdfFacility.facility_name?.toLowerCase().includes('excel healthcare') ||
                                          pdfFacility.facility_name?.toLowerCase().includes('mission point');
             
-            if (isProblematicFacility) {
-              console.log(`[Searching] CCN=${ccn}, Name=${pdfFacility.facility_name}, Months=${pdfFacility.months_as_sff}`);
+            // Debug: Log first few facilities to see what we're processing
+            if (allFacilitiesList.length < 5 || isProblematicFacility) {
+              console.log(`[Processing] CCN=${ccn}, Name=${pdfFacility.facility_name || 'MISSING'}, Status=${pdfFacility.status}, Months=${pdfFacility.months_as_sff}`);
             }
             
             // Find provider by CCN - try multiple matching strategies
@@ -492,6 +513,11 @@ export default function SFFPage() {
               const provNum = provider.PROVNUM?.toString().trim() || '';
               const provNormalized = normalizeCCN(provNum);
               const provNoZeros = provNum.replace(/^0+/, '') || provNum;
+              
+              // Debug: Log if provider found but name is missing
+              if (isProblematicFacility || !provider.PROVNAME || !provider.PROVNAME.trim()) {
+                console.log(`[Provider Match] CCN=${ccn}, ProviderNum=${provNum}, PROVNAME=${provider.PROVNAME || 'MISSING'}, PDFName=${pdfFacility.facility_name || 'MISSING'}`);
+              }
               
               let facility = facilityMap.get(provNum);
               let facilityMatchMethod = provNum ? 'exact_provnum' : 'none';
@@ -689,8 +715,11 @@ export default function SFFPage() {
               processedCCNs.add(ccn);
               processedCCNs.add(normalizedCCN);
             } else {
-              // Facility in PDF but not in Q2 provider data - try Q1 data as fallback
-              // This is common for terminated/graduated facilities that may have closed or stopped reporting in Q2
+              // Provider not found in Q2 - still create facility entry using CSV data
+              // This is important for facilities that may have closed or stopped reporting
+              console.warn(`[No Provider Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, Status=${pdfFacility.status} - Creating entry from CSV data only`);
+              
+              // Try Q1 data as fallback
               let provider = providerInfoQ1.find(p => {
                 const provNum = p.PROVNUM?.toString().trim() || '';
                 if (!provNum) return false;
@@ -745,10 +774,14 @@ export default function SFFPage() {
                 pdfName.toLowerCase().includes('no longer participating')
               );
               
-              // Use provider name if found, otherwise use PDF name
+              // Use provider name if found, otherwise use CSV facility name
               const facilityName = provider?.PROVNAME && provider.PROVNAME.trim()
                 ? toTitleCase(provider.PROVNAME.trim())
-                : (pdfName && !isTableHeader ? toTitleCase(pdfName) : 'Unknown Facility');
+                : (pdfName && !isTableHeader 
+                    ? toTitleCase(pdfName) 
+                    : (pdfFacility.facility_name && pdfFacility.facility_name.trim()
+                        ? toTitleCase(pdfFacility.facility_name.trim())
+                        : `Facility ${ccn}`)); // Use CCN as fallback instead of "Unknown Facility"
               
               const facilityState = provider?.STATE && provider.STATE.trim()
                 ? provider.STATE.trim().toUpperCase()

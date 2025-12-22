@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { loadAllData } from '../lib/wrapped/dataLoader';
 import { toTitleCase, capitalizeCity } from '../lib/wrapped/dataProcessor';
 import { getAssetPath } from '../utils/assets';
@@ -76,7 +76,12 @@ type SortDirection = 'asc' | 'desc';
 type CategoryFilter = 'all' | 'sffs-and-candidates' | 'sffs-only' | 'graduates' | 'terminated';
 
 export default function SFFPage() {
-  const { scope } = useParams<{ scope?: string }>();
+  const { scope: scopeParam } = useParams<{ scope?: string }>();
+  const location = useLocation();
+  
+  // Determine scope from URL path since /sff/usa is a specific route
+  const scope = scopeParam || (location.pathname === '/sff/usa' ? 'usa' : location.pathname.replace('/sff/', '') || undefined);
+  
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -835,48 +840,25 @@ export default function SFFPage() {
     }) + '%';
   };
 
-  // Get all states with SFFs for USA page
-  const statesWithSFFs = useMemo(() => {
-    if (!allFacilities.length || scope !== 'usa') return [];
-    const stateSet = new Set<string>();
-    allFacilities.forEach(f => stateSet.add(f.state));
-    return Array.from(stateSet).sort();
-  }, [allFacilities, scope]);
 
-  // Get all regions with SFFs for USA page
-  const [regionStateMapping, setRegionStateMapping] = useState<Map<number, Set<string>> | null>(null);
-  
-  useEffect(() => {
-    async function loadRegionMapping() {
-      try {
-        const baseDataPath = getDataPath();
-        const data = await loadAllData(baseDataPath, 'usa', undefined);
-        if (data.regionStateMapping) {
-          setRegionStateMapping(data.regionStateMapping);
-        }
-      } catch (err) {
-        console.error('Error loading region mapping:', err);
-      }
+  // Get all states for state page dropdown
+  const allStates = useMemo(() => {
+    const allStatesList = [
+      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
+    ];
+    // Filter to only states that have SFFs
+    if (allFacilities.length > 0) {
+      const statesWithSFFs = new Set(allFacilities.map(f => f.state));
+      return allStatesList.filter(state => statesWithSFFs.has(state));
     }
-    if (scope === 'usa') {
-      loadRegionMapping();
-    }
-  }, [scope]);
+    return allStatesList;
+  }, [allFacilities]);
 
-  const regionsWithSFFs = useMemo(() => {
-    if (!allFacilities.length || !regionStateMapping || scope !== 'usa') return [];
-    const regionsWithData: number[] = [];
-    for (let i = 1; i <= 10; i++) {
-      const regionStates = regionStateMapping.get(i);
-      if (regionStates) {
-        const hasSFFs = allFacilities.some(f => regionStates.has(f.state));
-        if (hasSFFs) {
-          regionsWithData.push(i);
-        }
-      }
-    }
-    return regionsWithData;
-  }, [allFacilities, regionStateMapping, scope]);
+
 
   const pageTitle = scope === 'usa' 
     ? 'Special Focus Facilities Program'
@@ -1078,63 +1060,49 @@ export default function SFFPage() {
               </button>
             )}
           </div>
-            <p className="text-gray-300 text-sm md:text-base mb-2">
+            <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
               Source: CMS SFF Posting (Dec. 2025); CMS PBJ (Q2 2025)
             </p>
           </div>
         </div>
 
-        {/* State/Region Dropdowns for USA page */}
-        {scope === 'usa' && (statesWithSFFs.length > 0 || regionsWithSFFs.length > 0) && (
-          <div className="mb-6 md:mb-8">
-            <div className="flex flex-col sm:flex-row gap-4">
-              {statesWithSFFs.length > 0 && (
-                <div className="flex-1">
-                  <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">State</label>
-                  <select
-                    id="state-select"
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        navigate(`/sff/${e.target.value.toLowerCase()}`);
-                      }
-                    }}
-                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    <option value="">Select a state...</option>
-                    {statesWithSFFs.map(stateCode => (
-                      <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
-                        {getStateName(stateCode)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {regionsWithSFFs.length > 0 && (
-                <div className="flex-1">
-                  <label htmlFor="region-select" className="block text-sm font-semibold text-blue-300 mb-2">CMS Region</label>
-                  <select
-                    id="region-select"
-                    value=""
-                    onChange={(e) => {
-                      if (e.target.value) {
-                        navigate(`/sff/region-${e.target.value}`);
-                      }
-                    }}
-                    className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                  >
-                    <option value="" className="bg-[#0f172a] text-blue-300">Select a region...</option>
-                    {regionsWithSFFs.map(regionNum => (
-                      <option key={`region${regionNum}`} value={regionNum} className="bg-[#0f172a] text-blue-300">
-                        Region {regionNum} ({getRegionName(regionNum)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+        {/* State Dropdown - Always show on USA and state pages */}
+        {(() => {
+          const isUSA = scope === 'usa';
+          const isState = scope && scope.length === 2 && !scope.startsWith('region');
+          const shouldShow = isUSA || isState;
+          
+          // Debug logging
+          if (shouldShow) {
+            console.log('[SFF Page] Rendering dropdown:', { scope, isUSA, isState, allStatesCount: allStates.length });
+          }
+          
+          return shouldShow ? (
+            <div className="mb-6 md:mb-8">
+              <div className="max-w-md">
+                <label htmlFor="state-select" className="block text-sm font-semibold text-blue-300 mb-2">Select State</label>
+                <select
+                  id="state-select"
+                  value={isState ? scope.toUpperCase() : ''}
+                  onChange={(e) => {
+                    const selectedState = e.target.value;
+                    if (selectedState) {
+                      navigate(`/sff/${selectedState.toLowerCase()}`);
+                    }
+                  }}
+                  className="w-full px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value="">Select a state...</option>
+                  {allStates.map(stateCode => (
+                    <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
+                      {getStateName(stateCode)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
-        )}
+          ) : null;
+        })()}
 
         {/* Category Filter Toggles */}
         <div className="mb-4 md:mb-6">
@@ -1201,12 +1169,12 @@ export default function SFFPage() {
           ) : (
             <>
               <div className="overflow-x-auto rounded-lg border border-gray-700 bg-[#0f172a]/60 shadow-lg">
-                <table className="w-full border-collapse min-w-[700px]">
+                <table className="w-full border-collapse min-w-[500px] md:min-w-[700px]">
                   <thead>
                     <tr className="bg-blue-600/20 border-b border-blue-500/30">
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Facility</th>
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">
-                        {scope && scope !== 'usa' && !scope.startsWith('region') ? 'City or County' : 'Location'}
+                      <th className="px-1 md:px-2 py-2 text-left text-xs font-semibold text-blue-300 max-w-[120px] md:max-w-none">Provider</th>
+                      <th className="px-1 md:px-2 py-2 text-left text-xs font-semibold text-blue-300 max-w-[80px] md:max-w-none">
+                        {scope && scope !== 'usa' && !scope.startsWith('region') ? 'City' : 'Location'}
                       </th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
@@ -1252,21 +1220,36 @@ export default function SFFPage() {
                       };
                       return (
                         <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
-                          <td className="px-2 md:px-3 py-2">
+                          <td className="px-1 md:px-2 py-2 max-w-[120px] md:max-w-none">
                             <a
                               href={`https://pbjdashboard.com/?facility=${encodeURIComponent(facility.provnum || '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-blue-300 hover:text-blue-200 underline font-medium text-xs md:text-sm break-words"
+                              className="text-blue-300 hover:text-blue-200 underline font-medium text-xs leading-tight block"
+                              style={{ 
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                wordBreak: 'break-word'
+                              }}
                             >
                               {facility.name}
                             </a>
                           </td>
-                          <td className="px-2 md:px-3 py-2 text-gray-300 text-xs">
-                            {scope && scope !== 'usa' && !scope.startsWith('region') 
-                              ? (facility.city || facility.county || '—')
-                              : (facility.city ? `${facility.city}, ${facility.state}` : facility.state)
-                            }
+                          <td className="px-1 md:px-2 py-2 text-gray-300 text-xs max-w-[80px] md:max-w-none">
+                            <span className="block leading-tight" style={{ 
+                              display: '-webkit-box',
+                              WebkitLineClamp: 2,
+                              WebkitBoxOrient: 'vertical',
+                              overflow: 'hidden',
+                              wordBreak: 'break-word'
+                            }}>
+                              {scope && scope !== 'usa' && !scope.startsWith('region') 
+                                ? (facility.city || facility.county || '—')
+                                : (facility.city ? `${facility.city}, ${facility.state}` : facility.state)
+                              }
+                            </span>
                           </td>
                           <td className="px-1 md:px-2 py-2 text-center">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[facility.sffStatus]}`}>
@@ -1320,12 +1303,12 @@ export default function SFFPage() {
         </div>
 
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
-          <div className="text-left text-xs text-gray-500 mb-4">
+          <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({candidateJSON?.document_date ? `${candidateJSON.document_date.month_name} ${candidateJSON.document_date.year}` : 'December 2025'})
+              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> (Dec. 2025); CMS PBJ (Q2 2025)
             </p>
             {candidateJSON && (
-              <p className="text-gray-500">
+              <p className="text-gray-200">
                 Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Terminated ({candidateJSON.summary.total_count} total)
               </p>
             )}

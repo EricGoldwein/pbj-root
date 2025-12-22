@@ -54,11 +54,12 @@ def parse_table_row(line: str, ccn: str) -> Dict:
     # Remove the CCN from the line to get the rest
     line_without_ccn = line.replace(ccn, '', 1).strip()
     
-    # Extract months (usually the last number 1-100)
+    # Extract months (usually the last number 1-200, as some facilities have >100 months)
     numbers = re.findall(r'\b\d+\b', line_without_ccn)
     for num_str in reversed(numbers):
         num = int(num_str)
-        if 1 <= num <= 100 and num_str != ccn:
+        # Allow numbers 1-200 (some facilities have >100 months as SFF)
+        if 1 <= num <= 200 and num_str != ccn:
             facility['months_as_sff'] = num
             # Remove months from line
             line_without_ccn = re.sub(r'\b' + num_str + r'\b', '', line_without_ccn, count=1)

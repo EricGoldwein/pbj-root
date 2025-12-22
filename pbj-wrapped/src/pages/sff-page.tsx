@@ -129,6 +129,49 @@ export default function SFFPage() {
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || [];
+        
+        // Debug: Log data counts for troubleshooting
+        console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
+        
+        // Check if specific facilities are in the data - try all variations
+        const testCCNs = ['265379', '675595', '195454'];
+        testCCNs.forEach(testCCN => {
+          const normalized = normalizeCCN(testCCN);
+          const noZeros = testCCN.replace(/^0+/, '') || testCCN;
+          const withZeros = testCCN.length < 6 ? testCCN.padStart(6, '0') : testCCN;
+          
+          // Check provider Q2
+          const provMatchQ2 = providerInfoQ2.find(p => {
+            const pNum = p.PROVNUM?.toString().trim() || '';
+            return pNum === testCCN || pNum === normalized || pNum === noZeros || pNum === withZeros ||
+                   normalizeCCN(pNum) === normalized || (pNum.replace(/^0+/, '') || pNum) === noZeros;
+          });
+          
+          // Check facility Q2
+          const facMatchQ2 = facilityQ2.find((f: FacilityLiteRow) => {
+            const fNum = f.PROVNUM?.toString().trim() || '';
+            return fNum === testCCN || fNum === normalized || fNum === noZeros || fNum === withZeros ||
+                   normalizeCCN(fNum) === normalized || (fNum.replace(/^0+/, '') || fNum) === noZeros;
+          });
+          
+          // Check provider Q1
+          const provMatchQ1 = providerInfoQ1.find(p => {
+            const pNum = p.PROVNUM?.toString().trim() || '';
+            return pNum === testCCN || pNum === normalized || pNum === noZeros || pNum === withZeros ||
+                   normalizeCCN(pNum) === normalized || (pNum.replace(/^0+/, '') || pNum) === noZeros;
+          });
+          
+          console.log(`[SFF Page] Test CCN ${testCCN} (normalized=${normalized}, noZeros=${noZeros}, withZeros=${withZeros}):`);
+          console.log(`  Provider Q2: ${provMatchQ2 ? `YES - ${provMatchQ2.PROVNAME} (${provMatchQ2.PROVNUM})` : 'NO'}`);
+          console.log(`  Facility Q2: ${facMatchQ2 ? `YES - Census=${facMatchQ2.Census}, HPRD=${facMatchQ2.Total_Nurse_HPRD}, DirectCare=${facMatchQ2.Nurse_Care_HPRD}` : 'NO'}`);
+          console.log(`  Provider Q1: ${provMatchQ1 ? `YES - ${provMatchQ1.PROVNAME} (${provMatchQ1.PROVNUM})` : 'NO'}`);
+          
+          // Show sample provider numbers for comparison
+          if (!provMatchQ2 && !facMatchQ2) {
+            console.log(`  Sample Provider Q2 PROVNUMs:`, providerInfoQ2.slice(0, 10).map(p => `"${p.PROVNUM}"`));
+            console.log(`  Sample Facility Q2 PROVNUMs:`, facilityQ2.slice(0, 10).map((f: FacilityLiteRow) => `"${f.PROVNUM}"`));
+          }
+        });
 
         // Helper function to normalize CCNs for matching
         const normalizeCCN = (ccn: string): string => {
@@ -264,6 +307,17 @@ export default function SFFPage() {
               continue;
             }
             
+            // Debug: Log specific facilities that user mentioned
+            const isProblematicFacility = ccn === '165344' || ccn === '155857' || ccn === '175172' || ccn === '235187' || 
+                                         pdfFacility.facility_name?.toLowerCase().includes('aspire') ||
+                                         pdfFacility.facility_name?.toLowerCase().includes('tranquility') ||
+                                         pdfFacility.facility_name?.toLowerCase().includes('excel healthcare') ||
+                                         pdfFacility.facility_name?.toLowerCase().includes('mission point');
+            
+            if (isProblematicFacility) {
+              console.log(`[Searching] CCN=${ccn}, Name=${pdfFacility.facility_name}, Months=${pdfFacility.months_as_sff}`);
+            }
+            
             // Find provider by CCN - try multiple matching strategies
             const normalizedCCN = normalizeCCN(ccn);
             const ccnNoZeros = ccn.replace(/^0+/, '') || ccn;
@@ -316,24 +370,32 @@ export default function SFFPage() {
               const provNoZeros = provNum.replace(/^0+/, '') || provNum;
               
               let facility = facilityMap.get(provNum);
+              let facilityMatchMethod = provNum ? 'exact_provnum' : 'none';
+              
               if (!facility) {
                 facility = facilityMap.get(provNormalized);
+                if (facility) facilityMatchMethod = 'normalized_provnum';
               }
               if (!facility) {
                 facility = facilityMap.get(provNoZeros);
+                if (facility) facilityMatchMethod = 'noZeros_provnum';
               }
               // Also try the original CCN variations
               if (!facility) {
                 facility = facilityMap.get(ccn);
+                if (facility) facilityMatchMethod = 'exact_ccn';
               }
               if (!facility) {
                 facility = facilityMap.get(normalizedCCN);
+                if (facility) facilityMatchMethod = 'normalized_ccn';
               }
               if (!facility) {
                 facility = facilityMap.get(ccnNoZeros);
+                if (facility) facilityMatchMethod = 'noZeros_ccn';
               }
               if (!facility) {
                 facility = facilityMap.get(ccnWithZeros);
+                if (facility) facilityMatchMethod = 'withZeros_ccn';
               }
               if (!facility) {
                 // Try finding in array directly with all variations
@@ -360,10 +422,24 @@ export default function SFFPage() {
                          fNormalized === ccn ||
                          fNoZeros === ccnNoZeros;
                 });
+                if (facility) facilityMatchMethod = 'array_search';
               }
               
-              // Log successful match for debugging (only in development)
-              if (import.meta.env.DEV && (ccn === '265379' || ccn === '675595' || ccn === '195454')) {
+              // Debug: Log facility matching for specific facilities
+              if (isProblematicFacility || ccn === '265379' || ccn === '675595' || ccn === '195454') {
+                console.log(`[Facility Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, ProviderNum=${provNum}, ProviderMatch=${provider ? `YES (${matchMethod})` : 'NO'}, FacilityMatch=${facility ? `YES (${facilityMatchMethod})` : 'NO'}`);
+                if (provider) {
+                  console.log(`  Provider PROVNUM=${provider.PROVNUM}, PROVNAME=${provider.PROVNAME}`);
+                }
+                if (facility) {
+                  console.log(`  Facility PROVNUM=${facility.PROVNUM}, Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCare=${facility.Nurse_Care_HPRD}, RN=${facility.Total_RN_HPRD}`);
+                } else {
+                  console.log(`  Tried facility lookups: provNum=${provNum}, normalized=${provNormalized}, noZeros=${provNoZeros}, ccn=${ccn}, normalizedCCN=${normalizedCCN}, ccnNoZeros=${ccnNoZeros}, ccnWithZeros=${ccnWithZeros}`);
+                }
+              }
+              
+              // Log successful match for debugging (always for these specific facilities)
+              if (ccn === '265379' || ccn === '675595' || ccn === '195454') {
                 console.log(`Matched facility: CCN=${ccn}, Method=${matchMethod}, Provider=${provider.PROVNAME}, ProviderNum=${provider.PROVNUM}, Facility=${facility ? 'Found' : 'Not Found'}`);
                 if (facility) {
                   console.log(`  Facility data: Census=${facility.Census}, TotalHPRD=${facility.Total_Nurse_HPRD}, DirectCareHPRD=${facility.Nurse_Care_HPRD}, RNHPRD=${facility.Total_RN_HPRD}`);
@@ -416,9 +492,20 @@ export default function SFFPage() {
               // Nurse_Care_HPRD = direct care nurse HPRD (nurses providing direct care)
               // Total_RN_HPRD = total RN HPRD (all RNs)
               // Direct_Care_RN_HPRD = direct care RN HPRD (RNs providing direct care)
-              const totalHPRD = facility?.Total_Nurse_HPRD || 0;
-              const directCareHPRD = facility?.Nurse_Care_HPRD || 0;
-              const rnHPRD = facility?.Total_RN_HPRD || 0;
+              const totalHPRD = facility?.Total_Nurse_HPRD ?? 0;
+              const directCareHPRD = facility?.Nurse_Care_HPRD ?? 0;
+              const rnHPRD = facility?.Total_RN_HPRD ?? 0;
+              
+              // Debug: Log if we have suspicious data (Total HPRD is 0 but Direct Care/RN have values)
+              if (facility && totalHPRD === 0 && (directCareHPRD > 0 || rnHPRD > 0)) {
+                console.warn(`[Data Misalignment] CCN=${ccn}, Name=${pdfFacility.facility_name}, Facility PROVNUM=${facility.PROVNUM}, TotalHPRD=${totalHPRD}, DirectCare=${directCareHPRD}, RN=${rnHPRD}, Census=${facility.Census}`);
+                console.warn(`  Raw facility data:`, {
+                  Total_Nurse_HPRD: facility.Total_Nurse_HPRD,
+                  Nurse_Care_HPRD: facility.Nurse_Care_HPRD,
+                  Total_RN_HPRD: facility.Total_RN_HPRD,
+                  Census: facility.Census
+                });
+              }
               
               const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 && totalHPRD > 0
                 ? (totalHPRD / caseMixExpected) * 100 
@@ -519,7 +606,7 @@ export default function SFFPage() {
                 });
                 
                 // Log Q1 match for debugging
-                if (import.meta.env.DEV && (ccn === '265379' || ccn === '675595' || ccn === '195454')) {
+                if (ccn === '265379' || ccn === '675595' || ccn === '195454') {
                   console.log(`Matched in Q1: CCN=${ccn}, Provider=${provider.PROVNAME}, Facility=${facility ? 'Found' : 'Not Found'}`);
                 }
               }
@@ -553,8 +640,8 @@ export default function SFFPage() {
               const rnHPRD = facility?.Total_RN_HPRD || 0;
               const census = facility?.Census;
               
-              // Log unmatched facilities for debugging (only in development)
-              if (import.meta.env.DEV && !provider) {
+              // Log unmatched facilities for debugging (always for these specific facilities)
+              if (!provider && (ccn === '265379' || ccn === '675595' || ccn === '195454')) {
                 console.warn(`Facility not found in Q1 or Q2 provider data: CCN=${ccn}, Name=${pdfName}, Status=${pdfFacility.status}, Months=${pdfFacility.months_as_sff}`);
                 
                 // For specific facilities, do a deep search

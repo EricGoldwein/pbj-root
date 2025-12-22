@@ -4,6 +4,7 @@ import { loadAllData } from '../lib/wrapped/dataLoader';
 import { toTitleCase, capitalizeCity } from '../lib/wrapped/dataProcessor';
 import { getAssetPath } from '../utils/assets';
 import { updateSEO } from '../utils/seo';
+import { StateOutline } from '../components/wrapped/StateOutline';
 import type { FacilityLiteRow, ProviderInfoRow } from '../lib/wrapped/wrappedTypes';
 
 // Helper to get data path with base URL
@@ -1050,9 +1051,21 @@ export default function SFFPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
-        <div className="mb-6 md:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{pageTitle}</h1>
+        <div className="mb-6 md:mb-8 relative">
+          {/* State outline background - only for state pages */}
+          {scope && scope !== 'usa' && !scope.startsWith('region') && (
+            <div 
+              className="absolute top-0 right-0 w-64 h-64 md:w-80 md:h-80 pointer-events-none z-0 opacity-10"
+              style={{ 
+                transform: 'translate(20%, -20%)',
+              }}
+            >
+              <StateOutline stateCode={scope.toUpperCase()} className="w-full h-full" />
+            </div>
+          )}
+          <div className="relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold">{pageTitle}</h1>
             {(scope && scope !== 'usa') && (
               <button
                 onClick={() => navigate('/sff/usa')}
@@ -1065,12 +1078,10 @@ export default function SFFPage() {
               </button>
             )}
           </div>
-          <p className="text-gray-300 text-sm md:text-base mb-2">
-            Source: CMS SFF Posting Dec. 2025; CMS PBJ (Q2 2025)
-          </p>
-          <p className="text-gray-400 text-xs md:text-sm leading-relaxed max-w-3xl">
-            Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid.
-          </p>
+            <p className="text-gray-300 text-sm md:text-base mb-2">
+              Source: CMS SFF Posting (Dec. 2025); CMS PBJ (Q2 2025)
+            </p>
+          </div>
         </div>
 
         {/* State/Region Dropdowns for USA page */}
@@ -1194,7 +1205,9 @@ export default function SFFPage() {
                   <thead>
                     <tr className="bg-blue-600/20 border-b border-blue-500/30">
                       <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Facility</th>
-                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Location</th>
+                      <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">
+                        {scope && scope !== 'usa' && !scope.startsWith('region') ? 'City or County' : 'Location'}
+                      </th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
                       <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300">
@@ -1250,7 +1263,10 @@ export default function SFFPage() {
                             </a>
                           </td>
                           <td className="px-2 md:px-3 py-2 text-gray-300 text-xs">
-                            {facility.city ? `${facility.city}, ${facility.state}` : facility.state}
+                            {scope && scope !== 'usa' && !scope.startsWith('region') 
+                              ? (facility.city || facility.county || '—')
+                              : (facility.city ? `${facility.city}, ${facility.state}` : facility.state)
+                            }
                           </td>
                           <td className="px-1 md:px-2 py-2 text-center">
                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${statusColors[facility.sffStatus]}`}>

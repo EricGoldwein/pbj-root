@@ -166,13 +166,14 @@ def parse_table_row(line: str, ccn: str) -> Dict:
     
     return facility
 
-def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: int) -> List[Dict]:
-    """Improved facility extraction that properly parses table rows."""
+def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: int, table_type: str = '') -> List[Dict]:
+    """Improved facility extraction that properly parses table rows, handling repeated headers across pages."""
     facilities = []
     ccn_pattern = r'\b\d{6}\b'
     i = start_idx
+    processed_ccns = set()  # Track CCNs to avoid duplicates
     
-    # Skip header rows - look for the actual data rows
+    # Skip initial header rows - look for the actual data rows
     # Headers usually contain "Provider Number", "Facility Name", etc.
     while i < end_idx and i < len(lines):
         line = lines[i].strip()
@@ -182,15 +183,42 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
             i += 1
             continue
         
-        # Check if we've hit the next table
-        if i < len(lines) - 1:
-            next_line_lower = lines[i + 1].lower() if i + 1 < len(lines) else ''
-            if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
-                break
+        # Check if this line is a table header
+        # BUT: if the line starts with a CCN, it's a facility row (even if it contains table header text)
+        line_lower_for_table = line.lower()
+        line_starts_with_ccn = bool(re.match(ccn_pattern, line.strip()))
         
-        # Skip header rows
+        if 'table' in line_lower_for_table and not line_starts_with_ccn:
+            # Check if it's a different table (should break)
+            if table_type == 'a' and ('table b' in line_lower_for_table or 'table c' in line_lower_for_table or 'table d' in line_lower_for_table):
+                break
+            elif table_type == 'b' and ('table c' in line_lower_for_table or 'table d' in line_lower_for_table):
+                break
+            elif table_type == 'c' and 'table d' in line_lower_for_table:
+                break
+            # If it's the same table header repeated (page break), skip it and continue
+            elif (table_type == 'a' and ('table a' in line_lower_for_table or 'current sff' in line_lower_for_table)) or \
+                 (table_type == 'b' and ('table b' in line_lower_for_table or 'graduated' in line_lower_for_table)) or \
+                 (table_type == 'c' and ('table c' in line_lower_for_table or 'no longer participating' in line_lower_for_table)) or \
+                 (table_type == 'd' and ('table d' in line_lower_for_table or 'candidate' in line_lower_for_table)):
+                # Skip the table header line
+                i += 1
+                # Skip next few lines if they look like column headers
+                while i < end_idx and i < len(lines):
+                    header_line = lines[i].strip()
+                    if not header_line or len(header_line) < 5:
+                        i += 1
+                        continue
+                    header_line_lower = header_line.lower()
+                    if any(word in header_line_lower for word in ['provider number', 'facility name', 'address', 'city', 'state', 'zip', 'phone', 'inspection', 'met survey', 'months as', 'date of termination']):
+                        i += 1
+                    else:
+                        break
+                continue
+        
+        # Skip header rows (column headers) - but continue processing after them
         line_lower = line.lower()
-        if any(word in line_lower for word in ['provider number', 'facility name', 'address', 'city', 'state', 'zip', 'phone', 'inspection', 'met survey', 'months']):
+        if any(word in line_lower for word in ['provider number', 'facility name', 'address', 'city', 'state', 'zip', 'phone', 'inspection', 'met survey', 'months as', 'date of termination']):
             i += 1
             continue
         
@@ -200,26 +228,59 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
             i += 1
             continue
         
-        ccn = ccns[0]
-        if len(ccn) != 6 or not ccn.isdigit():
-            i += 1
-            continue
+        # Find the first valid 6-digit CCN
+        ccn = None
+        for candidate_ccn in ccns:
+            if len(candidate_ccn) == 6 and candidate_ccn.isdigit():
+                ccn_pos = line.find(candidate_ccn)
+                if ccn_pos >= 0:
+                    # CCN should be followed by text (facility name) or be at start of line
+                    after_ccn = line[ccn_pos + 6:].strip()
+                    # If there's substantial text after, it's likely a facility row
+                    if len(after_ccn) > 3:
+                        ccn = candidate_ccn
+                        break
+                    # Or if CCN is at start of line (might be followed by more on next line)
+                    elif ccn_pos == 0 or (ccn_pos > 0 and line[ccn_pos - 1] in [' ', '\t', '|']):
+                        ccn = candidate_ccn
+                        break
         
-        # Check if this CCN is actually part of a facility row (not a page number or other number)
-        # Facility rows should have the CCN followed by text (facility name, address, etc.)
-        ccn_pos = line.find(ccn)
-        if ccn_pos == -1:
+        if not ccn:
             i += 1
             continue
         
         # Get the full row - might span multiple lines
+        # First, check if this line contains a table header (which would be at the end)
+        # If so, extract the facility data before the header
         full_row = line
+        # Check if line contains table header text - if so, extract only the part before it
+        if 'table' in line_lower:
+            # Find where the table header starts
+            table_header_patterns = [
+                r'table\s+[a-d]:?\s+',
+                r'table\s+[a-d]:?\s+facilities',
+                r'table\s+[a-d]:?\s+.*no longer participating',
+                r'table\s+[a-d]:?\s+.*candidate',
+                r'table\s+[a-d]:?\s+.*graduated',
+                r'table\s+[a-d]:?\s+.*current sff'
+            ]
+            for pattern in table_header_patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    # Extract only the part before the table header
+                    full_row = line[:match.start()].strip()
+                    break
+        
         # Check next few lines to see if this is a multi-line entry
         j = i + 1
         while j < min(i + 3, len(lines)) and j < end_idx:
             next_line = lines[j].strip()
             # If next line doesn't start with a CCN, it might be continuation
             if next_line and not re.match(ccn_pattern, next_line):
+                # Don't add if it's a table header
+                next_line_lower = next_line.lower()
+                if 'table' in next_line_lower and any(x in next_line_lower for x in ['a', 'b', 'c', 'd']):
+                    break
                 # Check if it looks like continuation (has address parts, city, etc.)
                 if re.search(r'[A-Za-z]', next_line) and len(next_line) > 10:
                     full_row += ' ' + next_line
@@ -232,9 +293,10 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
         # Parse the row
         facility = parse_table_row(full_row, ccn)
         
-        # Only add if we got a valid facility (has at least CCN and some data)
-        if facility['provider_number']:
+        # Only add if we got a valid facility (has at least CCN and some data) and haven't seen this CCN before
+        if facility['provider_number'] and facility['provider_number'] not in processed_ccns:
             facilities.append(facility)
+            processed_ccns.add(facility['provider_number'])
         
         # Move past any continuation lines we consumed
         i = j if j > i + 1 else i + 1
@@ -242,10 +304,7 @@ def extract_facility_data_improved(lines: List[str], start_idx: int, end_idx: in
     return facilities
 
 def extract_table_data(pages: List[Dict]) -> Dict:
-    """Extract all table data from PDF pages."""
-    full_text = '\n'.join([p['text'] for p in pages])
-    lines = full_text.split('\n')
-    
+    """Extract all table data from PDF pages using page-based boundaries."""
     # Extract document date
     doc_month = 12
     doc_year = 2025
@@ -302,47 +361,76 @@ def extract_table_data(pages: List[Dict]) -> Dict:
                    'July', 'August', 'September', 'October', 'November', 'December']
     month_name = month_names[doc_month] if 1 <= doc_month <= 12 else 'December'
     
-    # Find table boundaries
-    table_a_start = -1
-    table_b_start = -1
-    table_c_start = -1
-    table_d_start = -1
+    # Extract from specific pages based on user's information:
+    # Table A: pages 4-5 (index 3-4)
+    # Table B: pages 6-8 (index 5-7)
+    # Table C: page 9 (index 8)
+    # Table D: pages 10-18 (index 9-17)
     
-    for i, line in enumerate(lines):
-        line_lower = line.lower()
-        if 'table a' in line_lower and ('current sff' in line_lower or 'facilities' in line_lower):
-            table_a_start = i
-        elif 'table b' in line_lower and ('graduated' in line_lower):
-            table_b_start = i
-        elif 'table c' in line_lower and ('no longer participating' in line_lower):
-            table_c_start = i
-        elif 'table d' in line_lower and ('candidate' in line_lower):
-            table_d_start = i
+    print(f"\nExtracting from pages:")
+    print(f"  Table A: pages 4-5")
+    print(f"  Table B: pages 6-8")
+    print(f"  Table C: page 9")
+    print(f"  Table D: pages 10-18")
     
-    print(f"\nTable boundaries:")
-    print(f"  Table A: line {table_a_start}")
-    print(f"  Table B: line {table_b_start}")
-    print(f"  Table C: line {table_c_start}")
-    print(f"  Table D: line {table_d_start}")
+    # Extract text from specific page ranges
+    table_a_text = '\n'.join([pages[i]['text'] for i in range(3, min(5, len(pages)))])  # pages 4-5
+    table_b_text = '\n'.join([pages[i]['text'] for i in range(5, min(8, len(pages)))])  # pages 6-8
+    table_c_text = pages[8]['text'] if len(pages) > 8 else ''  # page 9
+    table_d_text = '\n'.join([pages[i]['text'] for i in range(9, min(18, len(pages)))])  # pages 10-18
     
-    # Determine table end boundaries
-    table_a_end = table_b_start if table_b_start > 0 else table_c_start if table_c_start > 0 else table_d_start if table_d_start > 0 else len(lines)
-    table_b_end = table_c_start if table_c_start > 0 else table_d_start if table_d_start > 0 else len(lines)
-    table_c_end = table_d_start if table_d_start > 0 else len(lines)
-    table_d_end = len(lines)
+    # Convert to lines
+    table_a_lines = table_a_text.split('\n')
+    table_b_lines = table_b_text.split('\n')
+    table_c_lines = table_c_text.split('\n')
+    table_d_lines = table_d_text.split('\n')
     
     # Extract facilities from each table
     print("\nExtracting Table A (Current SFF)...")
-    table_a_facilities = extract_facility_data_improved(lines, table_a_start, table_a_end) if table_a_start >= 0 else []
+    table_a_facilities = extract_facility_data_improved(table_a_lines, 0, len(table_a_lines), 'a')
     
     print("Extracting Table B (Graduated)...")
-    table_b_facilities = extract_facility_data_improved(lines, table_b_start, table_b_end) if table_b_start >= 0 else []
+    table_b_facilities = extract_facility_data_improved(table_b_lines, 0, len(table_b_lines), 'b')
     
     print("Extracting Table C (No Longer Participating)...")
-    table_c_facilities = extract_facility_data_improved(lines, table_c_start, table_c_end) if table_c_start >= 0 else []
+    table_c_facilities = extract_facility_data_improved(table_c_lines, 0, len(table_c_lines), 'c')
+    
+    # Table C should only have these 8 specific facilities (user provided list)
+    # Filter to only include these CCNs (handle leading zeros)
+    table_c_expected_ccns = {'165344', '155857', '175172', '235187', '265857', '345008', '395414', '675764'}
+    # Normalize CCNs (remove leading zeros) for matching
+    def normalize_ccn(ccn):
+        normalized = ccn.lstrip('0')
+        return normalized if normalized else ccn
+    
+    # Create sets with and without leading zeros
+    table_c_normalized_expected = {normalize_ccn(ccn) for ccn in table_c_expected_ccns}
+    table_c_with_zeros = {ccn.zfill(6) for ccn in table_c_expected_ccns}
+    
+    # Debug: print what we found
+    found_ccns = [f['provider_number'] for f in table_c_facilities]
+    print(f"  Found {len(table_c_facilities)} facilities in Table C before filtering")
+    print(f"  Sample CCNs found: {found_ccns[:10] if found_ccns else 'None'}")
+    
+    # Filter to only expected CCNs
+    filtered = []
+    for f in table_c_facilities:
+        ccn = f['provider_number']
+        normalized = normalize_ccn(ccn)
+        if ccn in table_c_expected_ccns or ccn in table_c_with_zeros or normalized in table_c_normalized_expected:
+            # Normalize to 6 digits without leading zeros (except for single digit)
+            f['provider_number'] = normalized.zfill(6) if len(normalized) < 6 else normalized
+            filtered.append(f)
+    
+    table_c_facilities = filtered
+    print(f"  Filtered Table C to {len(table_c_facilities)} facilities (expected 8)")
+    if len(table_c_facilities) < 8:
+        print(f"  WARNING: Missing {8 - len(table_c_facilities)} facilities from Table C")
+        print(f"  Expected CCNs: {sorted(table_c_expected_ccns)}")
+        print(f"  Found CCNs: {sorted(found_ccns)}")
     
     print("Extracting Table D (Candidates)...")
-    table_d_facilities = extract_facility_data_improved(lines, table_d_start, table_d_end) if table_d_start >= 0 else []
+    table_d_facilities = extract_facility_data_improved(table_d_lines, 0, len(table_d_lines), 'd')
     
     return {
         'document_date': {

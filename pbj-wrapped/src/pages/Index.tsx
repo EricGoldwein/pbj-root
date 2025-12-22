@@ -188,25 +188,20 @@ const Index: React.FC = () => {
         {/* Hero Section - Enhanced */}
         <div className="text-center mb-4 md:mb-5">
           <div className="flex justify-center items-center gap-3 md:gap-4 mb-3">
-            <div className="relative inline-block">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 via-blue-400 to-blue-300 rounded-xl opacity-75 blur"></div>
-              <div className="relative bg-gray-900/90 p-2.5 md:p-3 rounded-xl shadow-2xl">
-                <WrappedImage
-                  src={getAssetPath('/images/phoebe-wrapped-wide.png')}
-                  alt="PBJ Wrapped"
-                  className="h-8 md:h-10 w-auto"
-                />
-              </div>
-            </div>
+            <WrappedImage
+              src={getAssetPath('/images/phoebe-wrapped-wide.png')}
+              alt="PBJ Wrapped"
+              className="h-8 md:h-10 w-auto"
+            />
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-300 via-blue-200 to-blue-100 bg-clip-text text-transparent">
-              Q2 2025
+              PBJ Wrapped 2025
             </h1>
           </div>
         </div>
 
         {/* Interactive Map Section */}
         <div className="mb-4 md:mb-5">
-          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 shadow-2xl relative">
+          <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4 pt-3 md:pt-4 shadow-2xl relative">
             {/* USA Badge - positioned in top right */}
             <button
               onClick={() => navigate('/usa')}
@@ -219,7 +214,7 @@ const Index: React.FC = () => {
         </div>
 
         {/* Quick Actions - State and Region in same row */}
-        <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
           {/* State Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
             <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">

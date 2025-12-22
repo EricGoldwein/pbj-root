@@ -100,10 +100,19 @@ export default function SFFPage() {
         try {
           const jsonResponse = await fetch(jsonPath);
           if (jsonResponse.ok) {
-            const jsonData = await jsonResponse.json() as SFFCandidateJSON;
-            candidateJSONData = jsonData;
-            setCandidateJSON(jsonData);
-            console.log(`Loaded SFF data: ${jsonData.summary.total_count} total facilities`);
+            const jsonData = await jsonResponse.json();
+            // Validate JSON structure
+            if (jsonData && typeof jsonData === 'object' && 
+                Array.isArray(jsonData.table_a_current_sff) &&
+                Array.isArray(jsonData.table_b_graduated) &&
+                Array.isArray(jsonData.table_c_no_longer_participating) &&
+                Array.isArray(jsonData.table_d_candidates)) {
+              candidateJSONData = jsonData as SFFCandidateJSON;
+              setCandidateJSON(jsonData);
+              console.log(`Loaded SFF data: ${jsonData.summary?.total_count || 0} total facilities`);
+            } else {
+              console.warn('SFF JSON file has unexpected structure');
+            }
           } else {
             console.warn('Could not load SFF JSON file');
           }
@@ -168,13 +177,14 @@ export default function SFFPage() {
         const processedCCNs = new Set<string>();
 
         // Process all facilities from PDF (all tables)
-        if (candidateJSONData) {
+        if (candidateJSONData && candidateJSONData.table_a_current_sff && candidateJSONData.table_b_graduated && 
+            candidateJSONData.table_c_no_longer_participating && candidateJSONData.table_d_candidates) {
           // Combine all tables into one list
           const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus }> = [
-            ...candidateJSONData.table_a_current_sff.map(f => ({ ...f, status: 'SFF' as SFFStatus })),
-            ...candidateJSONData.table_b_graduated.map(f => ({ ...f, status: 'Graduate' as SFFStatus })),
-            ...candidateJSONData.table_c_no_longer_participating.map(f => ({ ...f, status: 'Terminated' as SFFStatus })),
-            ...candidateJSONData.table_d_candidates.map(f => ({ ...f, status: 'Candidate' as SFFStatus }))
+            ...(candidateJSONData.table_a_current_sff || []).map(f => ({ ...f, status: 'SFF' as SFFStatus })),
+            ...(candidateJSONData.table_b_graduated || []).map(f => ({ ...f, status: 'Graduate' as SFFStatus })),
+            ...(candidateJSONData.table_c_no_longer_participating || []).map(f => ({ ...f, status: 'Terminated' as SFFStatus })),
+            ...(candidateJSONData.table_d_candidates || []).map(f => ({ ...f, status: 'Candidate' as SFFStatus }))
           ];
 
           for (const pdfFacility of allPDFFacilities) {

@@ -166,12 +166,39 @@ export default function SFFPage() {
           });
         }
 
-        // Create maps for quick lookup
-        const facilityMap = new Map<string, FacilityLiteRow>(facilityQ2.map((f: FacilityLiteRow) => [f.PROVNUM, f]));
-        const providerMap = new Map<string, ProviderInfoRow>(providerInfoQ2.map((p: ProviderInfoRow) => [p.PROVNUM, p]));
-        const q1StatusMap = new Map<string, string>(
-          providerInfoQ1.map((p: ProviderInfoRow) => [p.PROVNUM, p.sff_status?.trim().toUpperCase() || ''])
-        );
+        // Create maps for quick lookup - include normalized CCNs for better matching
+        const facilityMap = new Map<string, FacilityLiteRow>();
+        facilityQ2.forEach((f: FacilityLiteRow) => {
+          facilityMap.set(f.PROVNUM, f);
+          const normalized = normalizeCCN(f.PROVNUM);
+          if (normalized !== f.PROVNUM) {
+            facilityMap.set(normalized, f);
+          }
+        });
+        
+        const providerMap = new Map<string, ProviderInfoRow>();
+        providerInfoQ2.forEach((p: ProviderInfoRow) => {
+          providerMap.set(p.PROVNUM, p);
+          const normalized = normalizeCCN(p.PROVNUM);
+          if (normalized !== p.PROVNUM) {
+            providerMap.set(normalized, p);
+          }
+          // Also add without leading zeros
+          const noZeros = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
+          if (noZeros !== p.PROVNUM && noZeros !== normalized) {
+            providerMap.set(noZeros, p);
+          }
+        });
+        
+        const q1StatusMap = new Map<string, string>();
+        providerInfoQ1.forEach((p: ProviderInfoRow) => {
+          const status = p.sff_status?.trim().toUpperCase() || '';
+          q1StatusMap.set(p.PROVNUM, status);
+          const normalized = normalizeCCN(p.PROVNUM);
+          if (normalized !== p.PROVNUM) {
+            q1StatusMap.set(normalized, status);
+          }
+        });
 
         const allFacilitiesList: SFFFacility[] = [];
         const processedCCNs = new Set<string>();
@@ -189,19 +216,37 @@ export default function SFFPage() {
 
           for (const pdfFacility of allPDFFacilities) {
             const ccn = pdfFacility.provider_number;
-            // Find provider by CCN
+            // Find provider by CCN - try multiple matching strategies
             const normalizedCCN = normalizeCCN(ccn);
             let provider = providerMap.get(ccn);
+            
+            // Try exact match first
+            if (!provider) {
+              provider = providerInfoQ2.find(p => {
+                return p.PROVNUM === ccn;
+              });
+            }
+            
+            // Try normalized match
             if (!provider) {
               provider = providerInfoQ2.find(p => {
                 const normalizedProvnum = normalizeCCN(p.PROVNUM);
-                return normalizedProvnum === normalizedCCN || p.PROVNUM === ccn;
+                return normalizedProvnum === normalizedCCN;
+              });
+            }
+            
+            // Try without leading zeros
+            if (!provider) {
+              const ccnNoZeros = ccn.replace(/^0+/, '') || ccn;
+              provider = providerInfoQ2.find(p => {
+                const provNoZeros = p.PROVNUM.replace(/^0+/, '') || p.PROVNUM;
+                return provNoZeros === ccnNoZeros;
               });
             }
 
             if (provider) {
               const facility = facilityMap.get(provider.PROVNUM);
-              if (!facility) continue;
+              // Include facility even if no facility data - use 0 values
 
               const q1Status = q1StatusMap.get(provider.PROVNUM) || '';
               const status = provider.sff_status?.trim().toUpperCase() || '';
@@ -231,24 +276,29 @@ export default function SFFPage() {
               }
 
               const caseMixExpected = provider.case_mix_total_nurse_hrs_per_resident_per_day;
-              const totalHPRD = facility.Total_Nurse_HPRD || 0;
-              const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 
+              const totalHPRD = facility?.Total_Nurse_HPRD || 0;
+              const percentOfCaseMix = caseMixExpected && caseMixExpected > 0 && totalHPRD > 0
                 ? (totalHPRD / caseMixExpected) * 100 
                 : undefined;
 
+              // Use provider name if available, otherwise use PDF name, otherwise fallback
+              const facilityName = provider.PROVNAME 
+                ? toTitleCase(provider.PROVNAME)
+                : (pdfFacility.facility_name ? toTitleCase(pdfFacility.facility_name) : 'Unknown Facility');
+
               const sffFacility: SFFFacility = {
                 provnum: provider.PROVNUM,
-                name: toTitleCase(provider.PROVNAME),
-                state: pdfFacility.state || provider.STATE,
+                name: facilityName,
+                state: pdfFacility.state || provider.STATE || 'UN',
                 city: provider.CITY ? capitalizeCity(provider.CITY) : (pdfFacility.city ? capitalizeCity(pdfFacility.city) : undefined),
                 county: provider.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
                 sffStatus: pdfFacility.status,
                 totalHPRD,
-                directCareHPRD: facility.Nurse_Care_HPRD || 0,
-                rnHPRD: (facility.Total_RN_HPRD || facility.Direct_Care_RN_HPRD || 0),
+                directCareHPRD: facility?.Nurse_Care_HPRD || 0,
+                rnHPRD: (facility?.Total_RN_HPRD || facility?.Direct_Care_RN_HPRD || 0),
                 caseMixExpectedHPRD: caseMixExpected,
                 percentOfCaseMix,
-                census: facility.Census,
+                census: facility?.Census,
                 monthsAsSFF: pdfFacility.months_as_sff ?? undefined,
                 mostRecentInspection: pdfFacility.most_recent_inspection ?? undefined,
                 metSurveyCriteria: pdfFacility.met_survey_criteria ?? undefined,
@@ -716,7 +766,7 @@ export default function SFFPage() {
                       <th className="px-2 md:px-3 py-2 text-left text-xs font-semibold text-blue-300">Location</th>
                       <SortableHeader field="sffStatus" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Status</SortableHeader>
                       <SortableHeader field="census" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Census</SortableHeader>
-                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Months</SortableHeader>
+                      <SortableHeader field="monthsAsSFF" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Months as SFF</SortableHeader>
                       <SortableHeader field="totalHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap">Total</SortableHeader>
                       <SortableHeader field="directCareHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden sm:table-cell">Direct</SortableHeader>
                       <SortableHeader field="rnHPRD" className="px-1 md:px-2 py-2 text-center text-xs font-semibold text-blue-300 whitespace-nowrap hidden md:table-cell">RN</SortableHeader>

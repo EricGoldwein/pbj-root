@@ -202,17 +202,45 @@ def extract_table_data(pages: List[Dict]) -> Dict:
         'december': 12, 'dec': 12
     }
     
+    # Look for "December 10, 2025" or "December 2025" specifically first
     for page in pages[:5]:
-        page_lower = page['text'].lower()
-        for month_name, month_num in month_map.items():
-            if month_name in page_lower:
-                doc_month = month_num
-                break
-        year_match = re.search(r'(\d{4})', page['text'])
-        if year_match:
-            year_candidate = int(year_match.group(1))
-            if 2000 <= year_candidate <= 2100:
-                doc_year = year_candidate
+        page_text = page['text']
+        page_lower = page_text.lower()
+        
+        # Prioritize December 2025
+        if 'december' in page_lower and '2025' in page_text:
+            doc_month = 12
+            year_match = re.search(r'2025', page_text)
+            if year_match:
+                doc_year = 2025
+            break
+        
+        # Also check for "list updated Dec. 10, 2025" or similar
+        dec_pattern = re.search(r'dec\.?\s+10,?\s+2025|december\s+10,?\s+2025', page_lower)
+        if dec_pattern:
+            doc_month = 12
+            doc_year = 2025
+            break
+    
+    # If not found, search for any month
+    if doc_month == 0:
+        for page in pages[:5]:
+            page_lower = page['text'].lower()
+            for month_name, month_num in month_map.items():
+                if month_name in page_lower:
+                    doc_month = month_num
+                    break
+            year_match = re.search(r'(\d{4})', page['text'])
+            if year_match:
+                year_candidate = int(year_match.group(1))
+                if 2000 <= year_candidate <= 2100:
+                    doc_year = year_candidate
+    
+    # Default to December 2025 if not found
+    if doc_month == 0:
+        doc_month = 12
+    if doc_year == 0:
+        doc_year = 2025
     
     month_names = ['', 'January', 'February', 'March', 'April', 'May', 'June', 
                    'July', 'August', 'September', 'October', 'November', 'December']

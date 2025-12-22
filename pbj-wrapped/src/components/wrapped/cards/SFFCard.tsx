@@ -48,14 +48,14 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
           <span className="text-white font-bold text-base md:text-lg">{data.sff.candidates}</span>
         </div>
         
-        <div className="mt-2 pt-1.5 border-t border-gray-600">
+          <div className="mt-2 pt-1.5 border-t border-gray-600">
           <button
             onClick={handleSFFClick}
             className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
-          >
+            >
             View All SFFs & Candidates →
           </button>
-        </div>
+          </div>
       </div>
     </WrappedCard>
   );

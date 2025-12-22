@@ -34,7 +34,7 @@ function App() {
       />
       <Route 
         path="/wrapped" 
-        element={<Index />}
+        element={<Wrapped />}
       />
       <Route 
         path="/sff" 

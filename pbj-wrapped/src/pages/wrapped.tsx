@@ -53,8 +53,8 @@ const Wrapped: React.FC = () => {
     console.log('Route params:', { identifier });
     
     if (!identifier) {
-      setError(`Invalid route parameters. Identifier: ${identifier || 'missing'}. Expected format: /{usa|state|region}`);
-      setLoading(false);
+      // Redirect to /wrapped/usa if no identifier is provided
+      navigate('/wrapped/usa', { replace: true });
       return;
     }
 

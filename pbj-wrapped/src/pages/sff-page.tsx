@@ -1114,7 +1114,7 @@ export default function SFFPage() {
 
         {/* Category Filter Toggles with Desktop State Dropdown */}
         <div className="mb-4 md:mb-6">
-          <div className="flex flex-wrap gap-2 md:gap-3 md:items-end md:justify-between">
+          <div className="flex flex-wrap gap-2 md:gap-3 md:items-end">
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
                 onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
@@ -1168,7 +1168,7 @@ export default function SFFPage() {
               </button>
             </div>
             
-            {/* Desktop: State Dropdown on same row as filters, aligned right */}
+            {/* Desktop: State Dropdown on same row as filters */}
             {(() => {
               const isUSA = scope === 'usa';
               const isState = scope && scope.length === 2 && !scope.startsWith('region');

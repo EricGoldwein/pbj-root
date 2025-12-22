@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData, Facility } from '../../../lib/wrapped/wrappedTypes';
-import { trackStateLinkClick, trackFacilityLinkClick } from '../../../utils/analytics';
+import { trackStateLinkClick } from '../../../utils/analytics';
 
 interface USAStatesExtremesCardProps {
   data: PBJWrappedData;

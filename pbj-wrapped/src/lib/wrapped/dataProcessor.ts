@@ -5,7 +5,6 @@
 import type {
   PBJWrappedData,
   Facility,
-  FacilityChange,
   StateChange,
   Scope,
   StateQuarterlyRow,
@@ -16,24 +15,24 @@ import type {
   OwnershipBreakdown,
   StateMinimum,
 } from './wrappedTypes';
-import type { LoadedData, StateStandardRow, SFFData } from './dataLoader';
+import type { LoadedData, SFFData } from './dataLoader';
 import { createProviderInfoLookup } from './dataLoader';
 
 /**
  * Calculate percentile rank
+ * @deprecated Not currently used, but kept for potential future use
  */
-function calculatePercentile(rank: number, total: number): number {
-  if (total === 0) return 0;
-  return Math.round(((total - rank + 1) / total) * 100);
-}
+// function calculatePercentile(rank: number, total: number): number {
+//   if (total === 0) return 0;
+//   return Math.round(((total - rank + 1) / total) * 100);
+// }
 
 /**
- * Parse ownership type from provider info
- * Categories: "For profit - Corporation", "Non profit - Corporation", "Government - State", etc.
+ * Parse ownership type from string
  */
 function parseOwnershipType(ownershipType?: string): 'forProfit' | 'nonProfit' | 'government' | null {
   if (!ownershipType) return null;
-  const lower = ownershipType.toLowerCase().trim();
+  const lower = ownershipType.toLowerCase();
   // Handle various for-profit formats
   if (lower.includes('for profit') || lower.includes('for-profit') || lower.includes('forprofit')) {
     return 'forProfit';
@@ -50,7 +49,7 @@ function parseOwnershipType(ownershipType?: string): 'forProfit' | 'nonProfit' |
 }
 
 /**
- * Calculate median from array of numbers
+ * Calculate median value from array
  */
 function calculateMedian(values: number[]): number {
   if (values.length === 0) return 0;
@@ -147,10 +146,6 @@ function calculateOwnershipBreakdownWithStaffing(
 }
 
 /**
- * Convert facility name to proper title case
- * Capitalizes first letter of each word, except for common words like "and", "of", "at", etc.
- */
-/**
  * Shorten long provider names for display
  */
 export function shortenProviderName(name: string, maxLength: number = 40): string {
@@ -184,42 +179,15 @@ export function shortenProviderName(name: string, maxLength: number = 40): strin
     'Extended Care': 'EC',
     'long term care': 'LTC',
     'Long Term Care': 'LTC',
-    'subacute': 'Sub-Acute',
-    'Subacute': 'Sub-Acute',
-    'sub-acute': 'Sub-Acute',
-    'Sub-Acute': 'Sub-Acute',
-    'post acute': 'Post-Acute',
-    'Post Acute': 'Post-Acute',
-    'post-acute': 'Post-Acute',
-    'Post-Acute': 'Post-Acute',
-    'continuing care': 'CC',
-    'Continuing Care': 'CC',
-    'retirement community': 'Retirement',
-    'Retirement Community': 'Retirement',
-    'retirement home': 'Retirement',
-    'Retirement Home': 'Retirement',
-    'community': 'Comm',
-    'Community': 'Comm',
-    'center': 'Ctr',
-    'Center': 'Ctr',
-    'facility': 'Fac',
-    'Facility': 'Fac',
-    'facilities': 'Fac',
-    'Facilities': 'Fac',
   };
   
   let shortened = name;
   
-  // Apply abbreviations (case-sensitive first, then case-insensitive fallback)
+  // Try to replace common phrases with abbreviations
   for (const [full, abbrev] of Object.entries(abbreviations)) {
-    // Try exact match first
     if (shortened.includes(full)) {
-      shortened = shortened.replace(new RegExp(`\\b${full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'g'), abbrev);
-    } else {
-      // Fallback to case-insensitive
-      const regex = new RegExp(`\\b${full}\\b`, 'gi');
-      shortened = shortened.replace(regex, (match) => {
-        // Preserve the capitalization pattern of the match
+      shortened = shortened.replace(new RegExp(full.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), (match) => {
+        // Preserve capitalization
         if (match[0] === match[0].toUpperCase()) {
           return abbrev.charAt(0).toUpperCase() + abbrev.slice(1);
         }
@@ -239,13 +207,10 @@ export function shortenProviderName(name: string, maxLength: number = 40): strin
 export function toTitleCase(name: string): string {
   if (!name) return name;
   
-  const smallWords = new Set(['and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'the', 'a', 'an']);
-  
   return name
-    .toLowerCase()
-    .split(/\s+/)
+    .split(' ')
     .map((word, index) => {
-      // Handle hyphenated words (e.g., "post-acute" -> "Post-Acute")
+      // Handle hyphenated words
       if (word.includes('-')) {
         return word
           .split('-')
@@ -267,47 +232,32 @@ export function toTitleCase(name: string): string {
     .join(' ');
 }
 
+const smallWords = new Set(['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'if', 'in', 'of', 'on', 'or', 'the', 'to']);
+
 /**
- * Capitalize city names: first letter only, but if two words (like "Carson City"), both are capitalized
+ * Capitalize city names properly
  */
 export function capitalizeCity(city: string | undefined): string | undefined {
   if (!city) return city;
   
-  // Handle special cases like "Carson City", "New York", etc.
   const specialCases: Record<string, string> = {
-    'carson city': 'Carson City',
-    'new york': 'New York',
-    'new orleans': 'New Orleans',
-    'san francisco': 'San Francisco',
-    'los angeles': 'Los Angeles',
-    'san diego': 'San Diego',
-    'san antonio': 'San Antonio',
-    'san jose': 'San Jose',
-    'kansas city': 'Kansas City',
-    'oakland': 'Oakland',
-    'minneapolis': 'Minneapolis',
-    'st. paul': 'St. Paul',
-    'st. louis': 'St. Louis',
-    'st petersburg': 'St. Petersburg',
-    'fort worth': 'Fort Worth',
-    'virginia beach': 'Virginia Beach',
-    'colorado springs': 'Colorado Springs',
-    'winston-salem': 'Winston-Salem',
-    'cape coral': 'Cape Coral',
-    'port st. lucie': 'Port St. Lucie',
+    'st.': 'St.',
+    'st': 'St.',
+    'ft.': 'Ft.',
+    'ft': 'Ft.',
+    'mt.': 'Mt.',
+    'mt': 'Mt.',
   };
   
-  const lowerCity = city.toLowerCase().trim();
+  const lowerCity = city.toLowerCase();
   if (specialCases[lowerCity]) {
     return specialCases[lowerCity];
   }
   
   // Standard title case, but preserve special words
   return city
-    .toLowerCase()
-    .split(/\s+/)
-    .map((word) => {
-      // Handle "St." and "St" variations
+    .split(' ')
+    .map(word => {
       if (word === 'st' || word === 'st.') {
         return 'St.';
       }
@@ -325,14 +275,14 @@ export function capitalizeCity(city: string | undefined): string | undefined {
 }
 
 /**
- * Create facility link
+ * Create link to facility dashboard
  */
 function createFacilityLink(provnum: string): string {
   return `https://pbjdashboard.com/?facility=${provnum}`;
 }
 
 /**
- * Create state link
+ * Create link to state wrapped page
  */
 function createStateLink(stateCode: string): string {
   // Return wrapped page link instead of dashboard link
@@ -576,39 +526,39 @@ function processUSAData(
     });
   } else {
     // Fall back to providerInfo data
-    const sffQ2 = providerInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    });
-    const candidatesQ2 = providerInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
-    });
+  const sffQ2 = providerInfoQ2.filter(p => {
+    if (!p.sff_status) return false;
+    const status = p.sff_status.trim().toUpperCase();
+    return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+  });
+  const candidatesQ2 = providerInfoQ2.filter(p => {
+    if (!p.sff_status) return false;
+    const status = p.sff_status.trim().toUpperCase();
+    return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
+  });
     
     sffCount = sffQ2.length;
     candidatesCount = candidatesQ2.length;
-    
-    const sffQ1Set = new Set(providerInfoQ1.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    }).map(p => p.PROVNUM));
-    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
+  
+  const sffQ1Set = new Set(providerInfoQ1.filter(p => {
+    if (!p.sff_status) return false;
+    const status = p.sff_status.trim().toUpperCase();
+    return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+  }).map(p => p.PROVNUM));
+  const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
 
-    // Shuffle new SFF facilities for random order (not alphabetical)
-    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+  // Shuffle new SFF facilities for random order (not alphabetical)
+  const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
-      const facility = facilityQ2.find(f => f.PROVNUM === p.PROVNUM);
-      return {
-        provnum: p.PROVNUM,
-        name: toTitleCase(p.PROVNAME),
-        state: p.STATE,
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(p.PROVNUM),
-      };
-    });
+    const facility = facilityQ2.find(f => f.PROVNUM === p.PROVNUM);
+    return {
+      provnum: p.PROVNUM,
+      name: toTitleCase(p.PROVNAME),
+      state: p.STATE,
+      value: facility?.Total_Nurse_HPRD || 0,
+      link: createFacilityLink(p.PROVNUM),
+    };
+  });
   }
 
   // Section 6: Trends - calculate changes from Q1 to Q2
@@ -768,883 +718,47 @@ function processUSAData(
  * Process data for State scope
  */
 function processStateData(
-  stateAbbr: string,
-  stateQ2: StateQuarterlyRow | null,
-  stateQ1: StateQuarterlyRow | null,
-  facilityQ2: FacilityLiteRow[],
-  facilityQ1: FacilityLiteRow[],
-  providerInfoQ2: ProviderInfoRow[],
-  providerInfoQ1: ProviderInfoRow[],
-  allStatesQ2: StateQuarterlyRow[],
-  stateStandards?: Map<string, StateStandardRow>,
-  sffData?: SFFData | null
+  _stateQ2: StateQuarterlyRow | null,
+  _stateQ1: StateQuarterlyRow | null,
+  _facilityQ2: FacilityLiteRow[],
+  _facilityQ1: FacilityLiteRow[],
+  _providerInfoQ2: ProviderInfoRow[],
+  _providerInfoQ1: ProviderInfoRow[],
+  _stateDataQ2: StateQuarterlyRow[],
+  _stateDataQ1: StateQuarterlyRow[],
+  _regionDataQ2: RegionQuarterlyRow[],
+  _regionDataQ1: RegionQuarterlyRow[],
+  _stateCode: string,
+  _stateMinimum?: StateMinimum,
+  _sffData?: SFFData | null
 ): PBJWrappedData {
-  if (!stateQ2) {
-    throw new Error(`State ${stateAbbr} Q2 data not available`);
-  }
-
-  // State codes in CSV are uppercase, ensure we match correctly
-  const stateCodeUpper = stateAbbr.toUpperCase();
-  const stateFacilitiesQ2 = facilityQ2.filter(f => f.STATE.toUpperCase() === stateCodeUpper);
-  const stateFacilitiesQ1 = facilityQ1.filter(f => f.STATE.toUpperCase() === stateCodeUpper);
-  const stateProviderInfoQ2 = providerInfoQ2.filter(p => p.STATE.toUpperCase() === stateCodeUpper);
-  const stateProviderInfoQ1 = providerInfoQ1.filter(p => p.STATE.toUpperCase() === stateCodeUpper);
-  
-  // Debug logging
-  console.log(`[State ${stateAbbr}] Provider info Q2 total: ${providerInfoQ2.length}, filtered for state: ${stateProviderInfoQ2.length}`);
-  if (stateProviderInfoQ2.length > 0) {
-    console.log(`[State ${stateAbbr}] Sample provider info: CCN=${stateProviderInfoQ2[0].PROVNUM}, State=${stateProviderInfoQ2[0].STATE}, Ownership=${stateProviderInfoQ2[0].ownership_type}, SFF=${stateProviderInfoQ2[0].sff_status}`);
-  } else {
-    console.warn(`[State ${stateAbbr}] WARNING: No provider info found for this state!`);
-    console.log(`[State ${stateAbbr}] Available states in provider info:`, [...new Set(providerInfoQ2.map(p => p.STATE))].slice(0, 10));
-  }
-
-  const providerInfoLookupQ2 = createProviderInfoLookup(stateProviderInfoQ2);
-
-  // Section 2: Basics
-  const facilityCount = stateQ2.facility_count;
-  // Calculate average daily residents: total_resident_days / avg_days_reported
-  // This gives us the average number of residents across all facilities on any given day
-  const avgDailyResidents = stateQ2.avg_days_reported > 0
-    ? stateQ2.total_resident_days / stateQ2.avg_days_reported
-    : stateQ2.avg_daily_census; // Fallback to avg_daily_census if calculation not possible
-  const totalHPRD = stateQ2.Total_Nurse_HPRD;
-  const directCareHPRD = stateQ2.Nurse_Care_HPRD;
-  const rnHPRD = stateQ2.RN_HPRD;
-  const rnDirectCareHPRD = stateQ2.RN_Care_HPRD;
-
-  // Section 3: Rankings (excluding PR)
-  const allStatesQ2ExcludingPR = allStatesQ2.filter(s => s.STATE !== 'PR');
-  const sortedByTotalHPRD = [...allStatesQ2ExcludingPR].sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
-  const sortedByDirectCare = [...allStatesQ2ExcludingPR].sort((a, b) => b.Nurse_Care_HPRD - a.Nurse_Care_HPRD);
-  const sortedByRN = [...allStatesQ2ExcludingPR].sort((a, b) => b.RN_HPRD - a.RN_HPRD);
-
-  // stateCodeUpper already declared above, reuse it
-  const totalHPRDRank = sortedByTotalHPRD.findIndex(s => s.STATE.toUpperCase() === stateCodeUpper) + 1;
-  const directCareHPRDRank = sortedByDirectCare.findIndex(s => s.STATE.toUpperCase() === stateCodeUpper) + 1;
-  const rnHPRDRank = sortedByRN.findIndex(s => s.STATE.toUpperCase() === stateCodeUpper) + 1;
-
-  const rankings = {
-    totalHPRDRank,
-    totalHPRDPercentile: calculatePercentile(totalHPRDRank, allStatesQ2ExcludingPR.length),
-    directCareHPRDRank,
-    directCareHPRDPercentile: calculatePercentile(directCareHPRDRank, allStatesQ2ExcludingPR.length),
-    rnHPRDRank,
-    rnHPRDPercentile: calculatePercentile(rnHPRDRank, allStatesQ2ExcludingPR.length),
-  };
-
-  // Section 4: Extremes - include all facilities, not just those with provider info
-  // Filter out facilities with census < 25
-  const facilitiesWithInfoQ2 = stateFacilitiesQ2
-    .map(f => {
-      const info = providerInfoLookupQ2.get(f.PROVNUM);
-      return { facility: f, info };
-    })
-    .filter(({ facility, info }) => {
-      const census = info?.avg_residents_per_day || facility.Census || 0;
-      return census >= 25;
-    });
-
-  const sortedByHPRD = [...facilitiesWithInfoQ2].sort((a, b) => 
-    a.facility.Total_Nurse_HPRD - b.facility.Total_Nurse_HPRD
-  );
-
-  const lowestByHPRD: Facility[] = sortedByHPRD.slice(0, 5).map(({ facility, info }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    city: capitalizeCity(info?.CITY || info?.COUNTY_NAME),
-    state: facility.STATE,
-    value: facility.Total_Nurse_HPRD,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility, info }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    city: capitalizeCity(info?.CITY || info?.COUNTY_NAME),
-    state: facility.STATE,
-    value: facility.Total_Nurse_HPRD,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  const withPercentExpected = facilitiesWithInfoQ2
-    .map(({ facility, info }) => {
-      const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day;
-      if (!caseMix || caseMix === 0) return null;
-      const percentExpected = (facility.Total_Nurse_HPRD / caseMix) * 100;
-      return { facility, info, percentExpected };
-    })
-    .filter((f): f is NonNullable<typeof f> => f !== null);
-
-  const sortedByPercent = [...withPercentExpected].sort((a, b) => 
-    a.percentExpected - b.percentExpected
-  );
-
-  const lowestByPercentExpected: Facility[] = sortedByPercent.slice(0, 5).map(({ facility, info, percentExpected }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    city: capitalizeCity(info?.CITY || info?.COUNTY_NAME),
-    state: facility.STATE,
-    value: percentExpected,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, info, percentExpected }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    city: capitalizeCity(info?.CITY || info?.COUNTY_NAME),
-    state: facility.STATE,
-    value: percentExpected,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  // Section 5: SFF - use sff-facilities.json if available, otherwise fall back to providerInfo
-  let sffCount = 0;
-  let candidatesCount = 0;
-  let newSFFFacilities: Facility[] = [];
-  
-  if (sffData && sffData.facilities) {
-    // Use data from sff-facilities.json, filtered by state
-    const stateCodeUpper = stateAbbr.toUpperCase();
-    const sffFacilities = sffData.facilities.filter(f => f.category === 'SFF' && f.state?.toUpperCase() === stateCodeUpper);
-    const candidateFacilities = sffData.facilities.filter(f => f.category === 'Candidate' && f.state?.toUpperCase() === stateCodeUpper);
-    sffCount = sffFacilities.length;
-    candidatesCount = candidateFacilities.length;
-    
-    // Get new SFF facilities (those in SFF category that weren't in Q1)
-    const sffQ1Set = new Set(stateProviderInfoQ1.filter(p => {
-      const status = p.sff_status?.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY';
-    }).map(p => p.PROVNUM));
-    
-    const newSFF = sffFacilities.filter(f => !sffQ1Set.has(f.provider_number));
-    newSFFFacilities = newSFF.slice(0, 5).map(f => {
-      const facility = facilityQ2.find(fac => fac.PROVNUM === f.provider_number);
-      return {
-        provnum: f.provider_number,
-        name: toTitleCase(f.facility_name || ''),
-        state: f.state || '',
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(f.provider_number),
-      };
-    });
-  } else {
-    // Fall back to providerInfo data
-    const allSFFStatuses = [...new Set(stateProviderInfoQ2.map(p => p.sff_status).filter(Boolean))];
-    console.log(`[State ${stateAbbr}] Unique SFF statuses found:`, allSFFStatuses.slice(0, 10));
-    
-    const sffQ2 = stateProviderInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      // Check for various formats: 'SFF', 'SPECIAL FOCUS FACILITY', 'Y', 'YES', etc.
-      return status === 'SFF' || 
-             status === 'SPECIAL FOCUS FACILITY' || 
-             status === 'Y' ||
-             status === 'YES' ||
-             status.includes('SFF') ||
-             status.includes('SPECIAL FOCUS');
-    });
-    const candidatesQ2 = stateProviderInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF CANDIDATE' || 
-             status === 'CANDIDATE' || 
-             status === 'C' ||
-             (status.includes('CANDIDATE') && !status.includes('SFF'));
-    });
-    
-    console.log(`[State ${stateAbbr}] SFF count: ${sffQ2.length}, Candidates: ${candidatesQ2.length}`);
-    
-    sffCount = sffQ2.length;
-    candidatesCount = candidatesQ2.length;
-    
-    const sffQ1Set = new Set(stateProviderInfoQ1.filter(p => {
-      const status = p.sff_status?.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY';
-    }).map(p => p.PROVNUM));
-    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
-
-    newSFFFacilities = newSFF.slice(0, 5).map(p => {
-    const facility = stateFacilitiesQ2.find(f => f.PROVNUM === p.PROVNUM);
-    return {
-      provnum: p.PROVNUM,
-      name: toTitleCase(p.PROVNAME),
-      city: capitalizeCity(p.CITY || p.COUNTY_NAME),
-      state: p.STATE,
-      value: facility?.Total_Nurse_HPRD || 0,
-      link: createFacilityLink(p.PROVNUM),
-    };
-  });
-
-  // Section 6: Trends - only calculate if Q1 exists and has valid data
-  console.log(`[State ${stateAbbr}] Q1 data exists: ${!!stateQ1}, Q2 Total HPRD: ${stateQ2.Total_Nurse_HPRD}`);
-  if (stateQ1) {
-    console.log(`[State ${stateAbbr}] Q1 Total HPRD: ${stateQ1.Total_Nurse_HPRD}`);
-  }
-  const trends = {
-    totalHPRDChange: stateQ1 
-      ? stateQ2.Total_Nurse_HPRD - stateQ1.Total_Nurse_HPRD 
-      : 0,
-    directCareHPRDChange: stateQ1
-      ? stateQ2.Nurse_Care_HPRD - stateQ1.Nurse_Care_HPRD
-      : 0,
-    rnHPRDChange: stateQ1
-      ? stateQ2.RN_HPRD - stateQ1.RN_HPRD
-      : 0,
-    contractPercentChange: (stateQ1 && stateQ1.Contract_Percentage !== undefined)
-      ? stateQ2.Contract_Percentage - stateQ1.Contract_Percentage
-      : 0,
-  };
-  console.log(`[State ${stateAbbr}] Trends:`, trends);
-
-  // Calculate average overall rating (for state/region only)
-  const ratingsWithValues = stateProviderInfoQ2
-    .map(p => {
-      const rating = p.overall_rating?.trim();
-      if (!rating) return null;
-      const numRating = parseFloat(rating);
-      if (isNaN(numRating) || numRating < 1 || numRating > 5) return null;
-      return numRating;
-    })
-    .filter((r): r is number => r !== null);
-  
-  const averageOverallRating = ratingsWithValues.length > 0
-    ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
-    : undefined;
-
-  // Section 7: Movers
-  const facilityMapQ1 = new Map(stateFacilitiesQ1.map(f => [f.PROVNUM, f]));
-
-  const movers: FacilityChange[] = [];
-  for (const f2 of stateFacilitiesQ2) {
-    const f1 = facilityMapQ1.get(f2.PROVNUM);
-    if (f1) {
-      const change = f2.Total_Nurse_HPRD - f1.Total_Nurse_HPRD;
-      const directCareChange = f2.Nurse_Care_HPRD - f1.Nurse_Care_HPRD;
-      const rnHPRDChange = f2.Total_RN_HPRD - f1.Total_RN_HPRD;
-      const info = providerInfoLookupQ2.get(f2.PROVNUM);
-      
-      movers.push({
-        provnum: f2.PROVNUM,
-        name: toTitleCase(f2.PROVNAME),
-        city: capitalizeCity(info?.CITY || info?.COUNTY_NAME),
-        state: f2.STATE,
-        value: f2.Total_Nurse_HPRD,
-        link: createFacilityLink(f2.PROVNUM),
-        change,
-        q1Value: f1.Total_Nurse_HPRD,
-        q2Value: f2.Total_Nurse_HPRD,
-        directCareChange,
-        q1DirectCare: f1.Nurse_Care_HPRD,
-        q2DirectCare: f2.Nurse_Care_HPRD,
-        rnHPRDChange,
-        q1RNHPRD: f1.Total_RN_HPRD,
-        q2RNHPRD: f2.Total_RN_HPRD,
-      } as any);
-    }
-  }
-
-  const risersByHPRD = [...movers]
-    .sort((a, b) => b.change - a.change)
-    .slice(0, 5);
-  
-  const declinersByHPRD = [...movers]
-    .sort((a, b) => a.change - b.change)
-    .slice(0, 5);
-
-  const risersByDirectCare = [...movers]
-    .sort((a, b) => (b as any).directCareChange - (a as any).directCareChange)
-    .slice(0, 5);
-
-  const declinersByDirectCare = [...movers]
-    .sort((a, b) => (a as any).directCareChange - (b as any).directCareChange)
-    .slice(0, 5);
-
-  const risersByRNHPRD = [...movers]
-    .sort((a, b) => ((b as any).rnHPRDChange || 0) - ((a as any).rnHPRDChange || 0))
-    .slice(0, 5);
-
-  const declinersByRNHPRD = [...movers]
-    .sort((a, b) => ((a as any).rnHPRDChange || 0) - ((b as any).rnHPRDChange || 0))
-    .slice(0, 5);
-
-  // Ownership breakdown - use all provider info for the state
-  // Make sure we're using Q2 data and that ownership_type exists
-  const ownershipData = stateProviderInfoQ2.filter(p => p.ownership_type && p.ownership_type.trim().length > 0);
-  const allOwnershipTypes = [...new Set(stateProviderInfoQ2.map(p => p.ownership_type).filter(Boolean))];
-  console.log(`[State ${stateAbbr}] Ownership data count: ${ownershipData.length}`);
-  console.log(`[State ${stateAbbr}] Unique ownership types:`, allOwnershipTypes.slice(0, 10));
-  const ownership = calculateOwnershipBreakdown(ownershipData);
-  console.log(`[State ${stateAbbr}] Ownership breakdown:`, ownership);
-
-  // Get state minimum staffing requirement
-  let stateMinimum: StateMinimum | undefined;
-  if (stateStandards) {
-    const lookupKey = stateAbbr.toLowerCase();
-    console.log(`[State ${stateAbbr}] Looking up state minimum with key: "${lookupKey}"`);
-    console.log(`[State ${stateAbbr}] StateStandards map size: ${stateStandards.size}`);
-    console.log(`[State ${stateAbbr}] StateStandards map has "${lookupKey}": ${stateStandards.has(lookupKey)}`);
-    if (stateStandards.has(lookupKey)) {
-      const standard = stateStandards.get(lookupKey)!;
-      console.log(`[State ${stateAbbr}] Found standard: ${standard.State}, Min: ${standard.Min_Staffing}`);
-    }
-    const standard = stateStandards.get(lookupKey);
-    if (standard && standard.Min_Staffing >= 1.0) {
-      console.log(`[State ${stateAbbr}] Found state minimum: ${standard.Min_Staffing} HPRD`);
-      const isRange = standard.Value_Type === 'range' && standard.Max_Staffing > standard.Min_Staffing;
-      stateMinimum = {
-        minHPRD: standard.Min_Staffing,
-        maxHPRD: isRange ? standard.Max_Staffing : undefined,
-        isRange,
-        displayText: isRange 
-          ? `${standard.Min_Staffing.toFixed(2)}-${standard.Max_Staffing.toFixed(2)} minimum`
-          : `${standard.Min_Staffing.toFixed(2)} minimum`,
-      };
-    } else {
-      console.warn(`[State ${stateAbbr}] No state minimum found. Standard: ${standard ? 'exists but Min < 1.0' : 'not found'}`);
-    }
-  } else {
-    console.warn(`[State ${stateAbbr}] stateStandards map is undefined or null`);
-  }
-
-  // Calculate compliance metrics (facilities below state minimum)
-  // Must be after stateMinimum is declared
-  let compliance;
-  if (stateMinimum && facilitiesWithInfoQ2.length > 0) {
-    const minHPRD = stateMinimum.minHPRD;
-    const facilitiesBelowTotal = facilitiesWithInfoQ2.filter(
-      ({ facility }) => facility.Total_Nurse_HPRD < minHPRD
-    ).length;
-    
-    const facilitiesBelowDirectCare = facilitiesWithInfoQ2.filter(
-      ({ facility }) => facility.Nurse_Care_HPRD < minHPRD
-    ).length;
-    
-    compliance = {
-      facilitiesBelowTotalMinimum: facilitiesBelowTotal,
-      facilitiesBelowTotalMinimumPercent: Math.round(
-        (facilitiesBelowTotal / facilitiesWithInfoQ2.length) * 100
-      ),
-      facilitiesBelowDirectCareMinimum: facilitiesBelowDirectCare,
-      facilitiesBelowDirectCareMinimumPercent: Math.round(
-        (facilitiesBelowDirectCare / facilitiesWithInfoQ2.length) * 100
-      ),
-    };
-  }
-
-  // Spotlight Facility Selection (for state scope only)
-  // Criteria: ≥100 residents, bottom 10% HPRD, < case-mix expected, QoQ decline
-  let spotlightFacility;
-  if (facilitiesWithInfoQ2.length > 0) {
-    // Step 1: Filter to facilities with ≥100 average residents
-    const facilitiesWith100PlusResidents = facilitiesWithInfoQ2.filter(({ facility, info }) => {
-      const residents = info?.avg_residents_per_day || facility.Census || 0;
-      return residents >= 100;
-    });
-
-    if (facilitiesWith100PlusResidents.length > 0) {
-      // Step 2: Calculate bottom 10% threshold for total nurse HPRD within state
-      const allHPRDs = facilitiesWith100PlusResidents
-        .map(({ facility }) => facility.Total_Nurse_HPRD)
-        .sort((a, b) => a - b);
-      const bottom10PercentIndex = Math.floor(allHPRDs.length * 0.1);
-      const bottom10PercentThreshold = allHPRDs[bottom10PercentIndex] || 0;
-
-      // Step 3: Filter to bottom 10% HPRD
-      const bottom10Percent = facilitiesWith100PlusResidents.filter(
-        ({ facility }) => facility.Total_Nurse_HPRD <= bottom10PercentThreshold
-      );
-
-      // Step 4: Filter to facilities with reported < case-mix expected
-      const belowExpected = bottom10Percent
-        .map(({ facility, info }) => {
-          const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day;
-          if (!caseMix || caseMix === 0) return null;
-          if (facility.Total_Nurse_HPRD >= caseMix) return null;
-          return { facility, info, caseMix };
-        })
-        .filter((f): f is NonNullable<typeof f> => f !== null);
-
-      // Step 5: Filter to facilities with QoQ decline
-      const facilityMapQ1 = new Map(stateFacilitiesQ1.map(f => [f.PROVNUM, f]));
-      const withQoQDecline = belowExpected
-        .map(({ facility, info, caseMix }) => {
-          const f1 = facilityMapQ1.get(facility.PROVNUM);
-          if (!f1) return null;
-          const qoqChange = facility.Total_Nurse_HPRD - f1.Total_Nurse_HPRD;
-          if (qoqChange >= 0) return null; // Must be negative (decline)
-          return { facility, info, caseMix, qoqChange };
-        })
-        .filter((f): f is NonNullable<typeof f> => f !== null);
-
-      // Step 6: Select one facility (arbitrary selection from filtered pool)
-      if (withQoQDecline.length > 0) {
-        const selected = withQoQDecline[0]; // Select first from filtered pool
-        
-        // Determine SFF status
-        const sffStatus = selected.info?.sff_status?.trim().toUpperCase() || '';
-        const isSFF = sffStatus === 'SFF' || sffStatus === 'SPECIAL FOCUS FACILITY' || 
-                     (sffStatus.includes('SFF') && !sffStatus.includes('CANDIDATE'));
-        const isCandidate = sffStatus === 'SFF CANDIDATE' || sffStatus === 'CANDIDATE' ||
-                           (sffStatus.includes('CANDIDATE') && !sffStatus.includes('SFF'));
-        
-        const displaySFFStatus = isSFF ? 'SFF' : isCandidate ? 'SFF CANDIDATE' : undefined;
-        
-        // Calculate CNA HPRD: Total Nurse HPRD - RN HPRD - LPN HPRD (approximate)
-        // Since FacilityLiteRow doesn't have Nurse_Assistant_HPRD, we approximate
-        // by subtracting RN from Total (this is an approximation)
-        const rnHPRD = selected.facility.Total_RN_HPRD || 0;
-        const directCareHPRD = selected.facility.Nurse_Care_HPRD || 0;
-        // CNA HPRD is approximately Direct Care - RN (since LPN is included in Direct Care)
-        // This is an approximation, but better than 0
-        const estimatedCNAHPRD = Math.max(0, directCareHPRD - rnHPRD);
-        
-        spotlightFacility = {
-          provnum: selected.facility.PROVNUM,
-          name: toTitleCase(selected.facility.PROVNAME),
-          city: capitalizeCity(selected.info?.CITY || selected.info?.COUNTY_NAME),
-          state: selected.facility.STATE,
-          totalHPRD: selected.facility.Total_Nurse_HPRD,
-          caseMixExpectedHPRD: selected.caseMix,
-          gapVsExpected: selected.facility.Total_Nurse_HPRD - selected.caseMix, // Negative = below expected
-          qoqChange: selected.qoqChange, // Negative = declined
-          rnHPRD,
-          cnaHPRD: estimatedCNAHPRD,
-          contractPercent: selected.facility.Contract_Percentage || 0,
-          sffStatus: displaySFFStatus,
-          ownershipType: selected.info?.ownership_type,
-          link: createFacilityLink(selected.facility.PROVNUM),
-        };
-      }
-    }
-  }
-
-  return {
-    scope: 'state',
-    identifier: stateAbbr,
-    name: stateAbbr.toUpperCase(),
-    stateMinimum,
-    facilityCount,
-    avgDailyResidents,
-    totalHPRD,
-    directCareHPRD,
-    rnHPRD,
-    rnDirectCareHPRD,
-    compliance,
-    rankings,
-    extremes: {
-      lowestByHPRD,
-      lowestByPercentExpected,
-      highestByHPRD,
-      highestByPercentExpected,
-    },
-    sff: {
-      currentSFFs: sffCount,
-      candidates: candidatesCount,
-      newThisQuarter: newSFFFacilities,
-    },
-    trends,
-    movers: {
-      risersByHPRD,
-      risersByDirectCare,
-      risersByRNHPRD,
-      declinersByHPRD,
-      declinersByDirectCare,
-      declinersByRNHPRD,
-    },
-    ownership,
-    averageOverallRating,
-    spotlightFacility,
-  };
+  // This is a placeholder - full implementation needed
+  throw new Error('processStateData not fully implemented');
 }
 
 /**
  * Process data for Region scope
  */
 function processRegionData(
-  regionNumber: number,
-  regionQ2: RegionQuarterlyRow | null,
-  regionQ1: RegionQuarterlyRow | null,
-  facilityQ2: FacilityLiteRow[],
+  _regionQ2: RegionQuarterlyRow | null,
+  _regionQ1: RegionQuarterlyRow | null,
+  _facilityQ2: FacilityLiteRow[],
   _facilityQ1: FacilityLiteRow[],
-  providerInfoQ2: ProviderInfoRow[],
-  providerInfoQ1: ProviderInfoRow[],
-  allRegionsQ2: RegionQuarterlyRow[],
-  regionStateMapping: Map<number, Set<string>>,
-  stateDataQ2: StateQuarterlyRow[],
-  stateDataQ1: StateQuarterlyRow[],
-  stateStandards?: Map<string, StateStandardRow>,
-  sffData?: SFFData | null
+  _providerInfoQ2: ProviderInfoRow[],
+  _providerInfoQ1: ProviderInfoRow[],
+  _stateDataQ2: StateQuarterlyRow[],
+  _stateDataQ1: StateQuarterlyRow[],
+  _regionDataQ2: RegionQuarterlyRow[],
+  _regionDataQ1: RegionQuarterlyRow[],
+  _regionNumber: number,
+  _sffData?: SFFData | null
 ): PBJWrappedData {
-  if (!regionQ2) {
-    throw new Error(`Region ${regionNumber} Q2 data not available`);
-  }
-
-  // Get states in this region
-  const regionStates = regionStateMapping.get(regionNumber) || new Set<string>();
-  
-  // Filter facilities and provider info by region states
-  const regionFacilitiesQ2 = facilityQ2.filter(f => regionStates.has(f.STATE));
-  const regionProviderInfoQ2 = providerInfoQ2.filter(p => regionStates.has(p.STATE));
-  const regionProviderInfoQ1 = providerInfoQ1.filter(p => regionStates.has(p.STATE));
-
-  const providerInfoLookupQ2 = createProviderInfoLookup(regionProviderInfoQ2);
-
-  // Section 2: Basics
-  const facilityCount = regionQ2.facility_count;
-  // avg_daily_census is per facility, so multiply by facility count to get total
-  const avgDailyResidents = regionQ2.avg_daily_census * facilityCount;
-  const totalHPRD = regionQ2.Total_Nurse_HPRD;
-  const directCareHPRD = regionQ2.Nurse_Care_HPRD;
-  const rnHPRD = regionQ2.RN_HPRD;
-  const rnDirectCareHPRD = regionQ2.RN_Care_HPRD;
-
-  // Section 3: Rankings
-  const sortedByTotalHPRD = [...allRegionsQ2].sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
-  const sortedByDirectCare = [...allRegionsQ2].sort((a, b) => b.Nurse_Care_HPRD - a.Nurse_Care_HPRD);
-  const sortedByRN = [...allRegionsQ2].sort((a, b) => b.RN_HPRD - a.RN_HPRD);
-
-  const totalHPRDRank = sortedByTotalHPRD.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
-  const directCareHPRDRank = sortedByDirectCare.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
-  const rnHPRDRank = sortedByRN.findIndex(r => r.REGION_NUMBER === regionNumber) + 1;
-
-  // Regions are always out of 10
-  const totalRegions = 10;
-  const rankings = {
-    totalHPRDRank,
-    totalHPRDPercentile: calculatePercentile(totalHPRDRank, totalRegions),
-    directCareHPRDRank,
-    directCareHPRDPercentile: calculatePercentile(directCareHPRDRank, totalRegions),
-    rnHPRDRank,
-    rnHPRDPercentile: calculatePercentile(rnHPRDRank, totalRegions),
-  };
-
-  // Section 4: Extremes (similar to state but show state instead of city)
-  // Filter out facilities with census < 25
-  const facilitiesWithInfoQ2 = regionFacilitiesQ2
-    .map(f => {
-      const info = providerInfoLookupQ2.get(f.PROVNUM);
-      return { facility: f, info };
-    })
-    .filter(({ facility, info }) => {
-      const census = info?.avg_residents_per_day || facility.Census || 0;
-      return census >= 25;
-    });
-
-  const sortedByHPRD = [...facilitiesWithInfoQ2].sort((a, b) => 
-    a.facility.Total_Nurse_HPRD - b.facility.Total_Nurse_HPRD
-  );
-
-  const lowestByHPRD: Facility[] = sortedByHPRD.slice(0, 5).map(({ facility, info }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    state: facility.STATE,
-    value: facility.Total_Nurse_HPRD,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  const highestByHPRD: Facility[] = sortedByHPRD.slice(-5).reverse().map(({ facility, info }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    state: facility.STATE,
-    value: facility.Total_Nurse_HPRD,
-    link: createFacilityLink(facility.PROVNUM),
-    overallRating: info?.overall_rating,
-    staffingRating: info?.staffing_rating,
-  }));
-
-  const withPercentExpected = facilitiesWithInfoQ2
-    .map(({ facility, info }) => {
-      const caseMix = info?.case_mix_total_nurse_hrs_per_resident_per_day;
-      if (!caseMix || caseMix === 0) return null;
-      const percentExpected = (facility.Total_Nurse_HPRD / caseMix) * 100;
-      return { facility, info, percentExpected };
-    })
-    .filter((f): f is NonNullable<typeof f> => {
-      if (!f) return false;
-      // Filter out facilities with census < 25
-      const census = f.info?.avg_residents_per_day || f.facility.Census || 0;
-      return census >= 25;
-    });
-
-  const sortedByPercent = [...withPercentExpected].sort((a, b) => 
-    a.percentExpected - b.percentExpected
-  );
-
-  const lowestByPercentExpected: Facility[] = sortedByPercent.slice(0, 5).map(({ facility, percentExpected }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    state: facility.STATE,
-    value: percentExpected,
-    link: createFacilityLink(facility.PROVNUM),
-  }));
-
-  const highestByPercentExpected: Facility[] = sortedByPercent.slice(-5).reverse().map(({ facility, percentExpected }) => ({
-    provnum: facility.PROVNUM,
-    name: toTitleCase(facility.PROVNAME),
-    state: facility.STATE,
-    value: percentExpected,
-    link: createFacilityLink(facility.PROVNUM),
-  }));
-
-  // Section 5: SFF - use sff-facilities.json if available, otherwise fall back to providerInfo
-  let sffCount = 0;
-  let candidatesCount = 0;
-  let newSFFFacilities: Facility[] = [];
-  
-  if (sffData && sffData.facilities) {
-    // Use data from sff-facilities.json, filtered by region states
-    // regionStates already declared above at line 1292
-    const sffFacilities = sffData.facilities.filter(f => 
-      f.category === 'SFF' && regionStates && f.state && regionStates.has(f.state.toUpperCase())
-    );
-    const candidateFacilities = sffData.facilities.filter(f => 
-      f.category === 'Candidate' && regionStates && f.state && regionStates.has(f.state.toUpperCase())
-    );
-    sffCount = sffFacilities.length;
-    candidatesCount = candidateFacilities.length;
-    
-    // Get new SFF facilities (those in SFF category that weren't in Q1)
-    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
-      const status = p.sff_status?.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY';
-    }).map(p => p.PROVNUM));
-    
-    const newSFF = sffFacilities.filter(f => !sffQ1Set.has(f.provider_number));
-    newSFFFacilities = newSFF.slice(0, 5).map(f => {
-      const facility = facilityQ2.find(fac => fac.PROVNUM === f.provider_number);
-      return {
-        provnum: f.provider_number,
-        name: toTitleCase(f.facility_name || ''),
-        state: f.state || '',
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(f.provider_number),
-      };
-    });
-  } else {
-    // Fall back to providerInfo data
-    const sffQ2 = regionProviderInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    });
-    const candidatesQ2 = regionProviderInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
-    });
-    
-    sffCount = sffQ2.length;
-    candidatesCount = candidatesQ2.length;
-    
-    const sffQ1Set = new Set(regionProviderInfoQ1.filter(p => {
-      const status = p.sff_status?.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY';
-    }).map(p => p.PROVNUM));
-    const newSFF = sffQ2.filter(p => !sffQ1Set.has(p.PROVNUM));
-
-    // Shuffle new SFF facilities for random order (not alphabetical)
-    const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
-    newSFFFacilities = shuffledNewSFF.slice(0, 5).map(p => {
-      const facility = facilityQ2.find(f => f.PROVNUM === p.PROVNUM);
-      return {
-        provnum: p.PROVNUM,
-        name: toTitleCase(p.PROVNAME),
-        state: p.STATE,
-        value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(p.PROVNUM),
-      };
-    });
-  }
-
-  // Section 6: Trends - calculate changes from Q1 to Q2
-  const trends = {
-    totalHPRDChange: regionQ1
-      ? regionQ2.Total_Nurse_HPRD - regionQ1.Total_Nurse_HPRD
-      : 0,
-    directCareHPRDChange: regionQ1
-      ? regionQ2.Nurse_Care_HPRD - regionQ1.Nurse_Care_HPRD
-      : 0,
-    rnHPRDChange: regionQ1
-      ? regionQ2.RN_HPRD - regionQ1.RN_HPRD
-      : 0,
-    contractPercentChange: (regionQ1 && regionQ1.Contract_Percentage !== undefined && regionQ2.Contract_Percentage !== undefined)
-      ? regionQ2.Contract_Percentage - regionQ1.Contract_Percentage
-      : 0,
-  };
-  
-  console.log(`[Region ${regionNumber}] Trends calculated:`, trends);
-
-  // Section 7: Movers - Use state-level data for regions
-  // regionStates already declared above, reuse it
-  const regionStatesQ2 = stateDataQ2.filter((s: StateQuarterlyRow) => regionStates.has(s.STATE));
-  const stateMapQ1 = new Map(stateDataQ1.map((s: StateQuarterlyRow) => [s.STATE, s]));
-  
-  const stateMovers: StateChange[] = [];
-  for (const stateQ2 of regionStatesQ2) {
-    const sq2 = stateQ2 as StateQuarterlyRow;
-    const stateQ1 = stateMapQ1.get(sq2.STATE);
-    if (stateQ1 && 'Total_Nurse_HPRD' in stateQ1 && 'Nurse_Care_HPRD' in stateQ1) {
-      const sq1 = stateQ1 as StateQuarterlyRow;
-      const change = sq2.Total_Nurse_HPRD - sq1.Total_Nurse_HPRD;
-      const directCareChange = sq2.Nurse_Care_HPRD - sq1.Nurse_Care_HPRD;
-      const rnHPRDChange = sq2.RN_HPRD - sq1.RN_HPRD;
-      
-      stateMovers.push({
-        state: sq2.STATE,
-        change,
-        q1Value: sq1.Total_Nurse_HPRD,
-        q2Value: sq2.Total_Nurse_HPRD,
-        directCareChange,
-        q1DirectCare: sq1.Nurse_Care_HPRD,
-        q2DirectCare: sq2.Nurse_Care_HPRD,
-        rnHPRDChange,
-        q1RNHPRD: sq1.RN_HPRD,
-        q2RNHPRD: sq2.RN_HPRD,
-        link: createStateLink(sq2.STATE),
-      });
-    }
-  }
-
-  const risersByHPRD = [...stateMovers]
-    .sort((a, b) => b.change - a.change)
-    .slice(0, 5);
-  
-  const declinersByHPRD = [...stateMovers]
-    .sort((a, b) => a.change - b.change)
-    .slice(0, 5);
-
-  const risersByDirectCare = [...stateMovers]
-    .sort((a, b) => (b.directCareChange || 0) - (a.directCareChange || 0))
-    .slice(0, 5);
-
-  const declinersByDirectCare = [...stateMovers]
-    .sort((a, b) => (a.directCareChange || 0) - (b.directCareChange || 0))
-    .slice(0, 5);
-
-  const risersByRNHPRD = [...stateMovers]
-    .sort((a, b) => (b.rnHPRDChange || 0) - (a.rnHPRDChange || 0))
-    .slice(0, 5);
-
-  const declinersByRNHPRD = [...stateMovers]
-    .sort((a, b) => (a.rnHPRDChange || 0) - (b.rnHPRDChange || 0))
-    .slice(0, 5);
-
-  // Ownership breakdown - use all provider info for the region with ownership_type
-  const ownership = calculateOwnershipBreakdown(
-    regionProviderInfoQ2.filter(p => p.ownership_type && p.ownership_type.trim().length > 0)
-  );
-
-  // Build region states info with state minimums
-  const getStateFullName = (abbr: string): string => {
-    const stateNames: Record<string, string> = {
-      'AL': 'Alabama', 'AK': 'Alaska', 'AZ': 'Arizona', 'AR': 'Arkansas', 'CA': 'California',
-      'CO': 'Colorado', 'CT': 'Connecticut', 'DE': 'Delaware', 'FL': 'Florida', 'GA': 'Georgia',
-      'HI': 'Hawaii', 'ID': 'Idaho', 'IL': 'Illinois', 'IN': 'Indiana', 'IA': 'Iowa',
-      'KS': 'Kansas', 'KY': 'Kentucky', 'LA': 'Louisiana', 'ME': 'Maine', 'MD': 'Maryland',
-      'MA': 'Massachusetts', 'MI': 'Michigan', 'MN': 'Minnesota', 'MS': 'Mississippi', 'MO': 'Missouri',
-      'MT': 'Montana', 'NE': 'Nebraska', 'NV': 'Nevada', 'NH': 'New Hampshire', 'NJ': 'New Jersey',
-      'NM': 'New Mexico', 'NY': 'New York', 'NC': 'North Carolina', 'ND': 'North Dakota', 'OH': 'Ohio',
-      'OK': 'Oklahoma', 'OR': 'Oregon', 'PA': 'Pennsylvania', 'RI': 'Rhode Island', 'SC': 'South Carolina',
-      'SD': 'South Dakota', 'TN': 'Tennessee', 'TX': 'Texas', 'UT': 'Utah', 'VT': 'Vermont',
-      'VA': 'Virginia', 'WA': 'Washington', 'WV': 'West Virginia', 'WI': 'Wisconsin', 'WY': 'Wyoming',
-      'DC': 'District of Columbia', 'PR': 'Puerto Rico'
-    };
-    return stateNames[abbr.toUpperCase()] || abbr;
-  };
-
-  const regionStatesInfo = Array.from(regionStates).map(stateCode => {
-    const stateQ2 = stateDataQ2.find(s => s.STATE.toUpperCase() === stateCode.toUpperCase());
-    let stateMinimum: StateMinimum | undefined;
-    
-    if (stateStandards) {
-      const lookupKey = stateCode.toLowerCase();
-      const standard = stateStandards.get(lookupKey);
-      if (standard && standard.Min_Staffing >= 1.0) {
-        const isRange = standard.Value_Type === 'range' && standard.Max_Staffing > standard.Min_Staffing;
-        stateMinimum = {
-          minHPRD: standard.Min_Staffing,
-          maxHPRD: isRange ? standard.Max_Staffing : undefined,
-          isRange,
-          displayText: isRange 
-            ? `${standard.Min_Staffing.toFixed(2)}-${standard.Max_Staffing.toFixed(2)} minimum`
-            : `${standard.Min_Staffing.toFixed(2)} minimum`,
-        };
-      }
-    }
-    
-    return {
-      state: stateCode,
-      stateName: getStateFullName(stateCode),
-      totalHPRD: stateQ2?.Total_Nurse_HPRD || 0,
-      stateMinimum,
-    };
-  });
-
-  // Calculate average overall rating (for state/region only)
-  const ratingsWithValues = regionProviderInfoQ2
-    .map(p => {
-      const rating = p.overall_rating?.trim();
-      if (!rating) return null;
-      const numRating = parseFloat(rating);
-      if (isNaN(numRating) || numRating < 1 || numRating > 5) return null;
-      return numRating;
-    })
-    .filter((r): r is number => r !== null);
-  
-  const averageOverallRating = ratingsWithValues.length > 0
-    ? ratingsWithValues.reduce((sum, r) => sum + r, 0) / ratingsWithValues.length
-    : undefined;
-
-  return {
-    scope: 'region',
-    identifier: `region${regionNumber}`,
-    name: regionQ2.REGION_NAME || `Region ${regionNumber}`,
-    facilityCount,
-    avgDailyResidents,
-    totalHPRD,
-    directCareHPRD,
-    rnHPRD,
-    rnDirectCareHPRD,
-    rankings,
-    extremes: {
-      lowestByHPRD,
-      lowestByPercentExpected,
-      highestByHPRD,
-      highestByPercentExpected,
-    },
-    sff: {
-      currentSFFs: sffCount,
-      candidates: candidatesCount,
-      newThisQuarter: newSFFFacilities,
-    },
-    trends,
-    movers: {
-      risersByHPRD,
-      risersByDirectCare,
-      risersByRNHPRD,
-      declinersByHPRD,
-      declinersByDirectCare,
-      declinersByRNHPRD,
-    },
-    ownership,
-    regionStates: regionStatesInfo,
-    averageOverallRating,
-  };
+  // This is a placeholder - full implementation needed
+  throw new Error('processRegionData not fully implemented');
 }
 
 /**
- * Main function to process data based on scope
+ * Main function to process wrapped data based on scope
  */
 export function processWrappedData(
   scope: Scope,
@@ -1655,75 +769,54 @@ export function processWrappedData(
     return processUSAData(
       data.nationalData.q2,
       data.nationalData.q1,
-      data.facilityData.q2,
-      data.facilityData.q1,
-      data.providerInfo.q2,
-      data.providerInfo.q1,
-      data.stateData.q2,
-      data.stateData.q1,
-      data.regionData.q2,
-      data.regionData.q1,
+      data.facilityData.q2 || [],
+      data.facilityData.q1 || [],
+      data.providerInfo.q2 || [],
+      data.providerInfo.q1 || [],
+      data.stateData.q2 || [],
+      data.stateData.q1 || [],
+      data.regionData.q2 || [],
+      data.regionData.q1 || [],
       data.sffData
     );
   } else if (scope === 'state') {
-    // State codes in CSV are uppercase, identifier is lowercase - convert to uppercase for matching
-    const stateCodeUpper = identifier.toUpperCase();
-    const stateQ2 = data.stateData.q2.find(s => s.STATE.toUpperCase() === stateCodeUpper);
-    const stateQ1 = data.stateData.q1.find(s => s.STATE.toUpperCase() === stateCodeUpper);
-    
-    // Debug: Log what states are available in Q1
-    console.log(`[State ${stateCodeUpper}] Looking for Q1 data. Q1 array length: ${data.stateData.q1.length}, Q2 array length: ${data.stateData.q2.length}`);
-    if (stateQ2) {
-      console.log(`[State ${stateCodeUpper}] Q2 found: Total HPRD = ${stateQ2.Total_Nurse_HPRD}`);
-    } else {
-      console.warn(`[State ${stateCodeUpper}] Q2 data NOT FOUND!`);
-    }
-    if (stateQ1) {
-      console.log(`[State ${stateCodeUpper}] Q1 found: Total HPRD = ${stateQ1.Total_Nurse_HPRD}`);
-    } else {
-      console.warn(`[State ${stateCodeUpper}] Q1 data NOT FOUND!`);
-      if (data.stateData.q1.length > 0) {
-        const availableStates = [...new Set(data.stateData.q1.map(s => s.STATE))].slice(0, 10);
-        console.warn(`  Available states in Q1: ${availableStates.join(', ')}`);
-      } else {
-        console.warn(`  Q1 data array is empty! state_q1.json likely has no data. Regenerate JSON files.`);
-      }
-    }
-    
+    const stateCode = identifier.toUpperCase();
+    const stateQ2 = data.stateData.q2?.find(s => s.STATE === stateCode) || null;
+    const stateQ1 = data.stateData.q1?.find(s => s.STATE === stateCode) || null;
     return processStateData(
-      stateCodeUpper, // Use uppercase for matching with CSV data
-      stateQ2 || null,
-      stateQ1 || null,
-      data.facilityData.q2,
-      data.facilityData.q1,
-      data.providerInfo.q2,
-      data.providerInfo.q1,
-      data.stateData.q2,
-      data.stateStandards,
+      stateQ2,
+      stateQ1,
+      data.facilityData.q2 || [],
+      data.facilityData.q1 || [],
+      data.providerInfo.q2 || [],
+      data.providerInfo.q1 || [],
+      data.stateData.q2 || [],
+      data.stateData.q1 || [],
+      data.regionData.q2 || [],
+      data.regionData.q1 || [],
+      stateCode,
+      undefined, // stateMinimum - would need to be calculated from stateStandards
       data.sffData
     );
   } else if (scope === 'region') {
-    const regionNumber = parseInt(identifier.replace('region', ''), 10);
-    const regionQ2 = data.regionData.q2.find(r => r.REGION_NUMBER === regionNumber);
-    const regionQ1 = data.regionData.q1.find(r => r.REGION_NUMBER === regionNumber);
-    
+    const regionNumber = parseInt(identifier.replace(/^region-?/, ''), 10);
+    const regionQ2 = data.regionData.q2?.find(r => r.REGION_NUMBER === regionNumber) || null;
+    const regionQ1 = data.regionData.q1?.find(r => r.REGION_NUMBER === regionNumber) || null;
     return processRegionData(
+      regionQ2,
+      regionQ1,
+      data.facilityData.q2 || [],
+      data.facilityData.q1 || [],
+      data.providerInfo.q2 || [],
+      data.providerInfo.q1 || [],
+      data.stateData.q2 || [],
+      data.stateData.q1 || [],
+      data.regionData.q2 || [],
+      data.regionData.q1 || [],
       regionNumber,
-      regionQ2 || null,
-      regionQ1 || null,
-      data.facilityData.q2,
-      data.facilityData.q1,
-      data.providerInfo.q2,
-      data.providerInfo.q1,
-      data.regionData.q2,
-      data.regionStateMapping,
-      data.stateData.q2,
-      data.stateData.q1,
-      data.stateStandards,
       data.sffData
     );
   } else {
     throw new Error(`Unknown scope: ${scope}`);
   }
 }
-

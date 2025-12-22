@@ -331,10 +331,10 @@ function parseProviderInfoRow(row: any): ProviderInfoRow {
  * Load data files optimized by scope (only loads what's needed)
  */
 export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 'state' | 'region', identifier?: string): Promise<LoadedData> {
+  const baseUrl = import.meta.env.BASE_URL || '';
   try {
     // Try to load pre-processed JSON files first (much faster)
     const jsonBasePath = `${basePath}/json`;
-    const baseUrl = import.meta.env.BASE_URL || '';
     const [
       stateQ1Json,
       stateQ2Json,
@@ -348,7 +348,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       providerQ2Json,
       regionMappingJson,
       stateStandardsJson,
-      sffDataJson,
     ] = await Promise.all([
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q1.json`),
       loadJSON<StateQuarterlyRow[]>(`${jsonBasePath}/state_q2.json`),
@@ -362,8 +361,10 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadJSON<ProviderInfoRow[]>(`${jsonBasePath}/provider_q2.json`),
       loadJSON<Record<number, string[]>>(`${jsonBasePath}/region_state_mapping.json`),
       loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`),
-      loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1')),
     ]);
+    
+    // Load SFF data separately to avoid redeclaration
+    const sffDataJson = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
 
     // If we got JSON data, use it (much faster!)
     // Check if we have the essential JSON files
@@ -678,9 +679,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       console.log(`Sample Q2 row: CCN=${providerInfoQ2[0].PROVNUM}, State=${providerInfoQ2[0].STATE}, Ownership=${providerInfoQ2[0].ownership_type}, SFF=${providerInfoQ2[0].sff_status}`);
     }
 
-    // Load SFF data from sff-facilities.json
-    const baseUrl = import.meta.env.BASE_URL || '';
-    const sffDataJson = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
+    // Load SFF data from sff-facilities.json (CSV fallback path)
+    const sffDataJsonCsv = await loadJSON<SFFData>(`${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1'));
 
     return {
       stateData: {
@@ -705,7 +705,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       },
       regionStateMapping,
       stateStandards: stateStandardsMap,
-      sffData: sffDataJson,
+      sffData: sffDataJsonCsv,
     };
   } catch (error) {
     console.error('Error loading data:', error);

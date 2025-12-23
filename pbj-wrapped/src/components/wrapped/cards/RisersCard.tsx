@@ -133,7 +133,7 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
       return `${possessive} Biggest Risers`;
     } else if (data.scope === 'region') {
       const regionNum = data.identifier.replace(/^region/i, '');
-      return `CMS Region ${regionNum}'s Biggest Risers`;
+      return `Region ${regionNum}'s Biggest Risers`;
     }
     return "Biggest Risers";
   };

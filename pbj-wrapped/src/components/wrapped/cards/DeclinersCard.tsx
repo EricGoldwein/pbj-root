@@ -133,7 +133,7 @@ export const DeclinersCard: React.FC<DeclinersCardProps> = ({ data }) => {
       return `${possessive} Biggest Decliners`;
     } else if (data.scope === 'region') {
       const regionNum = data.identifier.replace(/^region/i, '');
-      return `CMS Region ${regionNum}'s Biggest Decliners`;
+      return `Region ${regionNum}'s Biggest Decliners`;
     }
     return "Biggest Decliners";
   };

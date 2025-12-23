@@ -11,15 +11,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const DATA_DIR = join(__dirname, '../public/data');
-const OUTPUT_DIR = join(__dirname, '../dist/data/json');
+const OUTPUT_DIR_DIST = join(__dirname, '../dist/data/json');
+const OUTPUT_DIR_PUBLIC = join(__dirname, '../public/data/json');
 
-// Create output directory
-if (!existsSync(OUTPUT_DIR)) {
-  mkdirSync(OUTPUT_DIR, { recursive: true });
+// Create output directories
+if (!existsSync(OUTPUT_DIR_DIST)) {
+  mkdirSync(OUTPUT_DIR_DIST, { recursive: true });
+}
+if (!existsSync(OUTPUT_DIR_PUBLIC)) {
+  mkdirSync(OUTPUT_DIR_PUBLIC, { recursive: true });
 }
 
 const stateStandardsFilePath = join(DATA_DIR, 'macpac_state_standards_clean.csv');
-const outputPath = join(OUTPUT_DIR, 'state_standards.json');
+const outputPathDist = join(OUTPUT_DIR_DIST, 'state_standards.json');
+const outputPathPublic = join(OUTPUT_DIR_PUBLIC, 'state_standards.json');
 
 if (!existsSync(stateStandardsFilePath)) {
   console.error(`ERROR: State standards CSV file not found at ${stateStandardsFilePath}`);
@@ -88,7 +93,10 @@ for (const row of stateStandardsRows) {
   }
 }
 
-writeFileSync(outputPath, JSON.stringify(stateStandardsMap, null, 2));
+const jsonContent = JSON.stringify(stateStandardsMap, null, 2);
+writeFileSync(outputPathDist, jsonContent);
+writeFileSync(outputPathPublic, jsonContent);
 console.log(`✅ Generated state_standards.json with ${Object.keys(stateStandardsMap).length} states`);
-console.log(`Output: ${outputPath}`);
+console.log(`Output (dist): ${outputPathDist}`);
+console.log(`Output (public): ${outputPathPublic}`);
 

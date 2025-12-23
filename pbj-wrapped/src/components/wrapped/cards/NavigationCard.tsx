@@ -163,8 +163,8 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
           </div>
         )}
         
-        <p className="text-[10px] md:text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700 leading-relaxed">
-          Sources: CMS PBJ (Q2 2025); CMS Provider Info; CMS SFF (12/25); MacPac
+        <p className="text-[10px] text-gray-500 text-center mt-4 pt-3 border-t border-gray-700 leading-relaxed">
+          Sources: CMS PBJ, Provider Info, SFF (12/25) | MacPac
         </p>
       </div>
     </WrappedCard>

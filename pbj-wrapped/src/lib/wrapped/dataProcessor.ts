@@ -1545,7 +1545,7 @@ function processRegionData(
       contractPercent: candidate.facility.Contract_Percentage,
       census: Math.round(census),
       sffStatus: candidate.info?.sff_status,
-      ownershipType: simplifiedOwnershipType,
+      ownershipType: simplifyOwnershipType(candidate.info?.ownership_type),
       link: createFacilityLink(candidate.facility.PROVNUM),
     };
   }

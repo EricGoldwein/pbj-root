@@ -155,7 +155,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             )}
           </div>
         </div>
-        <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
+        <p className="text-xs text-gray-500 text-center mt-2 pt-2 pb-1 border-t border-gray-700">
           Source: CMS PBJ Q2 2025
         </p>
       </WrappedCard>
@@ -189,7 +189,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               )}
               {data.scope === 'state' && data.stateMinimum && (
                 <span className="text-xs text-red-400 mt-0.5">
-                  State minimum: {data.stateMinimum.minHPRD.toFixed(2)} HPRD
+                  {getStateFullName(data.name)} state minimum: {data.stateMinimum.minHPRD.toFixed(2)} HPRD
                 </span>
               )}
             </div>
@@ -205,14 +205,14 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
           </div>
           {data.scope === 'state' && data.compliance && (
-            <div className="pt-1.5 md:pt-2 border-t border-gray-700">
+            <div className="pt-1.5 md:pt-2">
               <div className="text-xs text-gray-400 space-y-0.5 md:space-y-1">
                 <div>
                   <span className="text-red-300 font-semibold">
                     {data.compliance.facilitiesBelowTotalMinimum}
                   </span>
                   {' '}facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) 
-                  below state minimum
+                  below {getStateFullName(data.name)} minimum
                 </div>
                 {data.compliance.facilitiesBelowDirectCareMinimum !== undefined && (
                   <div>
@@ -220,7 +220,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                       {data.compliance.facilitiesBelowDirectCareMinimum}
                     </span>
                     {' '}facilities ({data.compliance.facilitiesBelowDirectCareMinimumPercent}%) 
-                    below state minimum (using direct care HPRD)
+                    below {getStateFullName(data.name)} minimum (using direct care HPRD)
                   </div>
                 )}
               </div>
@@ -313,7 +313,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
           </div>
         )}
-        <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
+        <p className="text-xs text-gray-500 text-center mt-2 pt-2 pb-1 border-t border-gray-700">
           <span className="hidden md:inline">Source: CMS PBJ Q2 2025 | CMS Provider Info</span>
           <span className="md:hidden">Source: CMS (Q2 2025)</span>
         </p>

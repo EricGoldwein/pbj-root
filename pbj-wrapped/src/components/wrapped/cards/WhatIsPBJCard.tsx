@@ -103,8 +103,8 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           <div className="pt-3 border-t border-gray-700">
             <p className="text-[10px] text-gray-500 leading-relaxed">
               <span>HPRD</span> = Hours Per Resident Per Day ·
-              <span> Total Nurse</span> = All nursing staff ·
-              <span> Direct Care</span> = RNs, LPNs, CNAs ·
+              <span> Total Nurse</span> = RNs, LPNs, Aides ·
+              <span> Direct Care</span> = Staff excl. Admin/DONs ·
               <span> RN</span> = Registered Nurse
             </p>
             <p className="text-xs text-gray-500 text-center mt-3">

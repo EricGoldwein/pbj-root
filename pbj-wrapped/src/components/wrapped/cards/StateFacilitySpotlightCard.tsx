@@ -7,12 +7,111 @@ interface StateFacilitySpotlightCardProps {
   data: PBJWrappedData;
 }
 
+// State abbreviation to full name mapping
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+  'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+  'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+  'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+  'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+  'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+  'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+  'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+  'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+  'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+  'dc': 'District of Columbia'
+};
+
+function getStateFullName(abbr: string): string {
+  const lowerAbbr = abbr.toLowerCase();
+  const fullName = STATE_ABBR_TO_NAME[lowerAbbr];
+  if (fullName) {
+    return fullName;
+  }
+  const foundEntry = Object.entries(STATE_ABBR_TO_NAME).find(([_, name]) => 
+    name.toLowerCase() === lowerAbbr
+  );
+  if (foundEntry) {
+    return foundEntry[1];
+  }
+  const words = abbr.split(' ');
+  return words.map((word, index) => {
+    const lowerWord = word.toLowerCase();
+    if (lowerWord === 'of' && index > 0 && index < words.length - 1) {
+      return 'of';
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+/**
+ * Break facility name into two lines more evenly
+ * Tries to break before common phrases like "Rehabilitation Center"
+ */
+function breakFacilityName(name: string): { line1: string; line2: string } {
+  const commonPhrases = [
+    'Rehabilitation Center',
+    'Rehab Center',
+    'Nursing Center',
+    'Care Center',
+    'Health Center',
+    'Medical Center',
+    'Living Center',
+    'Rehabilitation',
+    'Healthcare',
+    'Health Care'
+  ];
+  
+  // Try to find a common phrase at the end
+  for (const phrase of commonPhrases) {
+    const index = name.lastIndexOf(phrase);
+    if (index > 0) {
+      // Found a phrase, break before it
+      const line1 = name.substring(0, index).trim();
+      const line2 = name.substring(index).trim();
+      // Only break if both parts have reasonable length (at least 3 chars)
+      if (line1.length >= 3 && line2.length >= 3) {
+        return { line1, line2 };
+      }
+    }
+  }
+  
+  // If no common phrase found, try to break at "and" if it's near the middle
+  const andIndex = name.indexOf(' and ');
+  if (andIndex > 5 && andIndex < name.length - 10) {
+    const line1 = name.substring(0, andIndex + 4).trim(); // Include "and"
+    const line2 = name.substring(andIndex + 5).trim();
+    if (line1.length >= 3 && line2.length >= 3) {
+      return { line1, line2 };
+    }
+  }
+  
+  // Fallback: split roughly in the middle
+  const words = name.split(' ');
+  if (words.length > 1) {
+    const mid = Math.floor(words.length / 2);
+    const line1 = words.slice(0, mid).join(' ');
+    const line2 = words.slice(mid).join(' ');
+    return { line1, line2 };
+  }
+  
+  // Single word or empty - don't break
+  return { line1: name, line2: '' };
+}
+
 export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProps> = ({ data }) => {
   if (data.scope !== 'state' || !data.spotlightFacility) {
     return null;
   }
 
   const facility = data.spotlightFacility;
+  
+  // Get location name for subtitle
+  const stateFullName = getStateFullName(data.name);
+  const subtitleText = `A ${stateFullName} facility with staffing below benchmarks`;
+  
+  // Break facility name for better display
+  const { line1, line2 } = breakFacilityName(facility.name);
 
   const formatHPRD = (num: number, decimals: number = 2): string => {
     return num.toLocaleString('en-US', {
@@ -35,13 +134,21 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           Phoebe J's PBJ <span className="text-blue-300">Spotlight</span>
         </h2>
         <p className="text-xs text-gray-400 text-center mb-3">
-          One facility where staffing fell below expectations
+          {subtitleText}
         </p>
 
         {/* Facility Name */}
         <div className="pb-2 border-b border-gray-700">
           <h3 className="text-lg md:text-xl font-bold text-white mb-1 text-center">
-            {facility.name}
+            {line2 ? (
+              <>
+                {line1}
+                <br />
+                {line2}
+              </>
+            ) : (
+              line1
+            )}
           </h3>
         </div>
 

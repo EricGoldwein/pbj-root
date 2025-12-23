@@ -72,7 +72,7 @@ interface SFFFacility {
 
 type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census' | 'monthsAsSFF' | 'sffStatus';
 type SortDirection = 'asc' | 'desc';
-type CategoryFilter = Set<'SFF' | 'Candidate' | 'Graduate' | 'Inactive'>;
+type CategoryFilter = 'all' | 'sffs-only' | 'candidates-only' | 'graduates' | 'inactive';
 
 export default function SFFPage() {
   const { scope: scopeParam } = useParams<{ scope?: string }>();
@@ -86,7 +86,7 @@ export default function SFFPage() {
   const [error, setError] = useState<string | null>(null);
   const [allFacilities, setAllFacilities] = useState<SFFFacility[]>([]);
   const [candidateJSON, setCandidateJSON] = useState<SFFCandidateJSON | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(new Set(['SFF', 'Candidate', 'Graduate', 'Inactive'])); // Default: all selected
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -520,8 +520,9 @@ export default function SFFPage() {
                     ? toTitleCase(pdfName)
                     : 'Unknown Facility');
 
-              // Use JSON/PDF state as primary source (matches wrapped page counting logic)
+              // CRITICAL: Always prioritize JSON/PDF state as primary source (matches wrapped page counting logic)
               // Provider state may differ, so prioritize PDF state for consistency with counts
+              // This ensures facilities are counted correctly by state even if provider data has wrong state
               const facilityState = (pdfFacility.state && pdfFacility.state.trim() 
                 ? pdfFacility.state.trim().toUpperCase()
                 : (provider?.STATE && provider.STATE.trim() 
@@ -608,9 +609,13 @@ export default function SFFPage() {
                         ? toTitleCase(pdfFacility.facility_name.trim())
                         : `Facility ${ccn}`)); // Use CCN as fallback instead of "Unknown Facility"
               
-              const facilityState = provider?.STATE && provider.STATE.trim()
-                ? provider.STATE.trim().toUpperCase()
-                : (pdfFacility.state && pdfFacility.state.trim() ? pdfFacility.state.trim().toUpperCase() : 'UN');
+              // CRITICAL: Always prioritize JSON/PDF state as primary source (matches wrapped page counting logic)
+              // Even when no provider match, use JSON state first - provider data may be wrong/missing
+              const facilityState = (pdfFacility.state && pdfFacility.state.trim() 
+                ? pdfFacility.state.trim().toUpperCase()
+                : (provider?.STATE && provider.STATE.trim() 
+                    ? provider.STATE.trim().toUpperCase() 
+                    : 'UN'));
               
               const facilityCity = provider?.CITY && provider.CITY.trim()
                 ? capitalizeCity(provider.CITY.trim())
@@ -705,7 +710,26 @@ export default function SFFPage() {
         if (scope && scope !== 'usa') {
           if (scope.length === 2) {
             const stateCode = scope.toUpperCase();
+            const beforeFilter = allFacilitiesList.length;
             filteredFacilities = allFacilitiesList.filter(f => f.state === stateCode);
+            const afterFilter = filteredFacilities.length;
+            
+            // Debug: Log state filtering for NY candidates
+            if (stateCode === 'NY' && process.env.NODE_ENV === 'development') {
+              const nyCandidates = filteredFacilities.filter(f => f.sffStatus === 'Candidate');
+              const allCandidates = allFacilitiesList.filter(f => f.sffStatus === 'Candidate');
+              const candidatesByState = allCandidates.reduce((acc, f) => {
+                acc[f.state] = (acc[f.state] || 0) + 1;
+                return acc;
+              }, {} as Record<string, number>);
+              console.log(`[NY Filter Debug] Total facilities: ${beforeFilter} → ${afterFilter}, NY Candidates: ${nyCandidates.length}, All candidates by state:`, candidatesByState);
+              
+              // Check for facilities with wrong state
+              const candidatesWithWrongState = allCandidates.filter(f => f.state !== 'NY' && f.sffStatus === 'Candidate');
+              if (candidatesWithWrongState.length > 0) {
+                console.warn(`[NY Filter Debug] Found ${candidatesWithWrongState.length} candidates with non-NY state:`, candidatesWithWrongState.map(f => ({ ccn: f.provnum, name: f.name, state: f.state })));
+              }
+            }
           } else if (scope.startsWith('region')) {
             const regionNum = parseInt(scope.replace(/^region-?/, ''));
             if (!isNaN(regionNum) && data.regionStateMapping) {
@@ -738,17 +762,31 @@ export default function SFFPage() {
     setCurrentPage(1);
   };
 
-  // Filter by category (supports multiple selections)
+  // Filter by category
   const filteredFacilities = useMemo(() => {
     if (!allFacilities.length) return [];
     
-    // If no categories selected, show all
-    if (categoryFilter.size === 0) {
-      return allFacilities;
+    switch (categoryFilter) {
+      case 'sffs-only':
+        return allFacilities.filter(f => f.sffStatus === 'SFF');
+      case 'candidates-only':
+        // Strict filter: only facilities with exactly 'Candidate' status
+        // Double-check: filter out anything that's not exactly 'Candidate'
+        return allFacilities.filter(f => {
+          const status = f.sffStatus;
+          // Must be exactly 'Candidate', case-sensitive
+          if (status !== 'Candidate') {
+            return false;
+          }
+          return true;
+        });
+      case 'graduates':
+        return allFacilities.filter(f => f.sffStatus === 'Graduate');
+      case 'inactive':
+        return allFacilities.filter(f => f.sffStatus === 'Inactive');
+      default:
+        return allFacilities;
     }
-    
-    // Filter by selected categories
-    return allFacilities.filter(f => categoryFilter.has(f.sffStatus));
   }, [allFacilities, categoryFilter]);
 
   // Sort facilities
@@ -1049,12 +1087,12 @@ export default function SFFPage() {
             {(scope && scope !== 'usa') && (
               <button
                 onClick={() => navigate('/sff/usa')}
-                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-xs md:text-sm font-medium whitespace-nowrap self-start sm:self-auto"
+                className="hidden md:inline-flex items-center gap-2 px-4 py-2 bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/50 rounded-lg text-blue-300 hover:text-blue-200 transition-colors text-sm font-medium whitespace-nowrap"
               >
-                <svg className="w-4 h-4 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span className="hidden md:inline">View All USA SFFs</span>
+                <span>View All USA SFFs</span>
               </button>
             )}
           </div>
@@ -1145,13 +1183,9 @@ export default function SFFPage() {
             
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
-                onClick={() => {
-                  // "All" button: select all categories
-                  setCategoryFilter(new Set(['SFF', 'Candidate', 'Graduate', 'Inactive']));
-                  setCurrentPage(1);
-                }}
+                onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter.size === 4 && categoryFilter.has('SFF') && categoryFilter.has('Candidate') && categoryFilter.has('Graduate') && categoryFilter.has('Inactive')
+                  categoryFilter === 'all'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1164,26 +1198,13 @@ export default function SFFPage() {
                 const graduateCount = allFacilities.filter(f => f.sffStatus === 'Graduate').length;
                 const inactiveCount = allFacilities.filter(f => f.sffStatus === 'Inactive').length;
                 
-                const toggleCategory = (category: 'SFF' | 'Candidate' | 'Graduate' | 'Inactive') => {
-                  setCategoryFilter(prev => {
-                    const newFilter = new Set(prev);
-                    if (newFilter.has(category)) {
-                      newFilter.delete(category);
-                    } else {
-                      newFilter.add(category);
-                    }
-                    return newFilter;
-                  });
-                  setCurrentPage(1);
-                };
-                
                 return (
                   <>
                     {sffCount > 0 && (
               <button
-                        onClick={() => toggleCategory('SFF')}
+                        onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter.has('SFF')
+                          categoryFilter === 'sffs-only'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1193,9 +1214,9 @@ export default function SFFPage() {
                     )}
                     {candidateCount > 0 && (
               <button
-                        onClick={() => toggleCategory('Candidate')}
+                        onClick={() => { setCategoryFilter('candidates-only'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter.has('Candidate')
+                          categoryFilter === 'candidates-only'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1205,9 +1226,9 @@ export default function SFFPage() {
                     )}
                     {graduateCount > 0 && (
               <button
-                onClick={() => toggleCategory('Graduate')}
+                onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter.has('Graduate')
+                  categoryFilter === 'graduates'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1217,9 +1238,9 @@ export default function SFFPage() {
                     )}
                     {inactiveCount > 0 && (
               <button
-                        onClick={() => toggleCategory('Inactive')}
+                        onClick={() => { setCategoryFilter('inactive'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter.has('Inactive')
+                          categoryFilter === 'inactive'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}

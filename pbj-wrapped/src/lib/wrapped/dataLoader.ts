@@ -10,7 +10,6 @@ import type {
   FacilityLiteRow,
   ProviderInfoRow,
 } from './wrappedTypes';
-import { stateNameToAbbr } from './routing';
 
 export interface RegionStateMapping {
   regionNumber: number;
@@ -566,10 +565,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         loadCSV('../cms_region_state_mapping.csv').catch(() => '')
       ),
     ]);
-    
-    // State standards CSV removed from Promise.all to avoid 404 errors
-    // State pages work fine without state standards data (it's optional)
-    const stateStandardsCsv = '';
 
     // Parse all CSVs
     const [

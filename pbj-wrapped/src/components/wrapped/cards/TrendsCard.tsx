@@ -91,7 +91,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
           </div>
         </div>
         
-        <div className="py-1.5">
+        <div className="py-1.5 border-b border-gray-600">
           <div className="flex justify-between items-center">
             <span className="text-gray-300">Contract staff %</span>
             <div className="flex items-center gap-3">
@@ -107,6 +107,19 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
           </div>
         </div>
       </div>
+      
+      {data.scope === 'state' && data.identifier && (
+        <div className="pt-4 mt-3 border-t border-gray-700">
+          <a
+            href={`https://pbjdashboard.com/?state=${data.identifier.toUpperCase()}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-sm"
+          >
+            View {data.identifier.toUpperCase()} PBJ Trends since 2017 →
+          </a>
+        </div>
+      )}
     </WrappedCard>
   );
 };

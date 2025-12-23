@@ -1,0 +1,317 @@
+{
+  "ar": {
+    "State": "Arkansas",
+    "Total_Estimated_Staffing_Requirements": "3.42 HPRD",
+    "Min_Staffing": 3.42,
+    "Max_Staffing": 3.42,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.42 HPRD"
+  },
+  "ca": {
+    "State": "California",
+    "Total_Estimated_Staffing_Requirements": "3.56 HPRD",
+    "Min_Staffing": 3.56,
+    "Max_Staffing": 3.56,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.56 HPRD"
+  },
+  "co": {
+    "State": "Colorado",
+    "Total_Estimated_Staffing_Requirements": "2.06 HPRD",
+    "Min_Staffing": 2.06,
+    "Max_Staffing": 2.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.06 HPRD"
+  },
+  "ct": {
+    "State": "Connecticut",
+    "Total_Estimated_Staffing_Requirements": "3.06 HPRD",
+    "Min_Staffing": 3.06,
+    "Max_Staffing": 3.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.06 HPRD"
+  },
+  "de": {
+    "State": "Delaware",
+    "Total_Estimated_Staffing_Requirements": "3.34 HPRD",
+    "Min_Staffing": 3.34,
+    "Max_Staffing": 3.34,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.34 HPRD"
+  },
+  "dc": {
+    "State": "District of Columbia",
+    "Total_Estimated_Staffing_Requirements": "3.56—4.16 HPRD",
+    "Min_Staffing": 3.56,
+    "Max_Staffing": 4.16,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.56—4.16 HPRD"
+  },
+  "fl": {
+    "State": "Florida",
+    "Total_Estimated_Staffing_Requirements": "3.66 HPRD",
+    "Min_Staffing": 3.66,
+    "Max_Staffing": 3.66,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.66 HPRD"
+  },
+  "ga": {
+    "State": "Georgia",
+    "Total_Estimated_Staffing_Requirements": "2.06 HPRD",
+    "Min_Staffing": 2.06,
+    "Max_Staffing": 2.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.06 HPRD"
+  },
+  "id": {
+    "State": "Idaho",
+    "Total_Estimated_Staffing_Requirements": "2.46 HPRD",
+    "Min_Staffing": 2.46,
+    "Max_Staffing": 2.46,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.46 HPRD"
+  },
+  "il": {
+    "State": "Illinois",
+    "Total_Estimated_Staffing_Requirements": "2.56—3.86 HPRD",
+    "Min_Staffing": 2.56,
+    "Max_Staffing": 3.86,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.56—3.86 HPRD"
+  },
+  "ia": {
+    "State": "Iowa",
+    "Total_Estimated_Staffing_Requirements": "1.76—2.06 HPRD",
+    "Min_Staffing": 1.76,
+    "Max_Staffing": 2.06,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 1.76—2.06 HPRD"
+  },
+  "ks": {
+    "State": "Kansas",
+    "Total_Estimated_Staffing_Requirements": "1.91—2.06 HPRD",
+    "Min_Staffing": 1.91,
+    "Max_Staffing": 2.06,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 1.91—2.06 HPRD"
+  },
+  "la": {
+    "State": "Louisiana",
+    "Total_Estimated_Staffing_Requirements": "2.41 HPRD",
+    "Min_Staffing": 2.41,
+    "Max_Staffing": 2.41,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.41 HPRD"
+  },
+  "me": {
+    "State": "Maine",
+    "Total_Estimated_Staffing_Requirements": "3.02 HPRD",
+    "Min_Staffing": 3.02,
+    "Max_Staffing": 3.02,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.02 HPRD"
+  },
+  "md": {
+    "State": "Maryland",
+    "Total_Estimated_Staffing_Requirements": "3.06 HPRD",
+    "Min_Staffing": 3.06,
+    "Max_Staffing": 3.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.06 HPRD"
+  },
+  "ma": {
+    "State": "Massachusetts",
+    "Total_Estimated_Staffing_Requirements": "3.64 HPRD",
+    "Min_Staffing": 3.64,
+    "Max_Staffing": 3.64,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.64 HPRD"
+  },
+  "mi": {
+    "State": "Michigan",
+    "Total_Estimated_Staffing_Requirements": "2.31 HPRD",
+    "Min_Staffing": 2.31,
+    "Max_Staffing": 2.31,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.31 HPRD"
+  },
+  "mn": {
+    "State": "Minnesota",
+    "Total_Estimated_Staffing_Requirements": "2.06 HPRD",
+    "Min_Staffing": 2.06,
+    "Max_Staffing": 2.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.06 HPRD"
+  },
+  "ms": {
+    "State": "Mississippi",
+    "Total_Estimated_Staffing_Requirements": "2.86 HPRD",
+    "Min_Staffing": 2.86,
+    "Max_Staffing": 2.86,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.86 HPRD"
+  },
+  "mt": {
+    "State": "Montana",
+    "Total_Estimated_Staffing_Requirements": "1.90 HPRD",
+    "Min_Staffing": 1.9,
+    "Max_Staffing": 1.9,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 1.9 HPRD"
+  },
+  "nj": {
+    "State": "New Jersey",
+    "Total_Estimated_Staffing_Requirements": "2.56 HPRD",
+    "Min_Staffing": 2.56,
+    "Max_Staffing": 2.56,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.56 HPRD"
+  },
+  "nm": {
+    "State": "New Mexico",
+    "Total_Estimated_Staffing_Requirements": "2.56 HPRD",
+    "Min_Staffing": 2.56,
+    "Max_Staffing": 2.56,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.56 HPRD"
+  },
+  "ny": {
+    "State": "New York",
+    "Total_Estimated_Staffing_Requirements": "3.56 HPRD",
+    "Min_Staffing": 3.56,
+    "Max_Staffing": 3.56,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.56 HPRD"
+  },
+  "oh": {
+    "State": "Ohio",
+    "Total_Estimated_Staffing_Requirements": "2.56 HPRD",
+    "Min_Staffing": 2.56,
+    "Max_Staffing": 2.56,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.56 HPRD"
+  },
+  "ok": {
+    "State": "Oklahoma",
+    "Total_Estimated_Staffing_Requirements": "2.92 HPRD",
+    "Min_Staffing": 2.92,
+    "Max_Staffing": 2.92,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.92 HPRD"
+  },
+  "or": {
+    "State": "Oregon",
+    "Total_Estimated_Staffing_Requirements": "2.46 HPRD",
+    "Min_Staffing": 2.46,
+    "Max_Staffing": 2.46,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.46 HPRD"
+  },
+  "pa": {
+    "State": "Pennsylvania",
+    "Total_Estimated_Staffing_Requirements": "2.76 HPRD",
+    "Min_Staffing": 2.76,
+    "Max_Staffing": 2.76,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.76 HPRD"
+  },
+  "ri": {
+    "State": "Rhode Island",
+    "Total_Estimated_Staffing_Requirements": "3.64 HPRD",
+    "Min_Staffing": 3.64,
+    "Max_Staffing": 3.64,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.64 HPRD"
+  },
+  "sc": {
+    "State": "South Carolina",
+    "Total_Estimated_Staffing_Requirements": "2.01 HPRD",
+    "Min_Staffing": 2.01,
+    "Max_Staffing": 2.01,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.01 HPRD"
+  },
+  "tn": {
+    "State": "Tennessee",
+    "Total_Estimated_Staffing_Requirements": "2.06 HPRD",
+    "Min_Staffing": 2.06,
+    "Max_Staffing": 2.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.06 HPRD"
+  },
+  "vt": {
+    "State": "Vermont",
+    "Total_Estimated_Staffing_Requirements": "3.06 HPRD",
+    "Min_Staffing": 3.06,
+    "Max_Staffing": 3.06,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.06 HPRD"
+  },
+  "wa": {
+    "State": "Washington",
+    "Total_Estimated_Staffing_Requirements": "3.46 HPRD",
+    "Min_Staffing": 3.46,
+    "Max_Staffing": 3.46,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 3.46 HPRD"
+  },
+  "wv": {
+    "State": "West Virginia",
+    "Total_Estimated_Staffing_Requirements": "2.31 HPRD",
+    "Min_Staffing": 2.31,
+    "Max_Staffing": 2.31,
+    "Value_Type": "single",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.31 HPRD"
+  },
+  "wi": {
+    "State": "Wisconsin",
+    "Total_Estimated_Staffing_Requirements": "2.06—3.31 HPRD",
+    "Min_Staffing": 2.06,
+    "Max_Staffing": 3.31,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 2.06—3.31 HPRD"
+  },
+  "wy": {
+    "State": "Wyoming",
+    "Total_Estimated_Staffing_Requirements": "1.56—2.31 HPRD",
+    "Min_Staffing": 1.56,
+    "Max_Staffing": 2.31,
+    "Value_Type": "range",
+    "Is_Federal_Minimum": "False",
+    "Display_Text": "State Standard: 1.56—2.31 HPRD"
+  }
+}

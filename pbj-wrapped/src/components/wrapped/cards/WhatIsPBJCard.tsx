@@ -111,7 +111,7 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
               Source: CMS Payroll-Based Journal (Q2 2025)
             </p>
             <p className="text-[10px] text-gray-500 text-center italic mt-2">
-              Note: Providers with missing or invalid PBJ data are excluded.
+              Note: CMS PBJ excludes providers with missing or invalid data.
             </p>
           </div>
         </div>

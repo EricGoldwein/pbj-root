@@ -149,10 +149,8 @@ async function loadJSON<T>(path: string, silent: boolean = false): Promise<T | n
   try {
     const response = await fetch(path);
     if (!response.ok || response.status === 404) {
-      // Suppress console errors for optional files
-      if (!silent && response.status === 404) {
-        // Browser will log 404, but we handle it gracefully
-      }
+      // Browser will log 404 - this is unavoidable for HTTP errors
+      // We handle it gracefully by returning null
       return null;
     }
     const contentType = response.headers.get('content-type');

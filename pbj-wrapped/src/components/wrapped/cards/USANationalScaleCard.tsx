@@ -102,9 +102,6 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
                   <div className="text-white">{topState.value.toFixed(2)}</div>
                 </div>
               </div>
-              <div className="text-xs text-gray-500 pt-1">
-                {stateRange}
-              </div>
             </div>
           )}
         </div>

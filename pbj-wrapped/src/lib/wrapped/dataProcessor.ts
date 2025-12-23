@@ -1401,10 +1401,7 @@ function processRegionData(
   }
 
   // Section 6: Trends
-  // Debug logging before calculating trends
-  if (!regionQ1) {
-    console.warn(`[Region ${regionNumber}] Q1 data not found - trends will show 0.00. Looking for REGION_NUMBER: ${regionNumber}`);
-  }
+  // Q1 data may not be available - this is expected and handled gracefully
   const trends = {
     totalHPRDChange: regionQ1 
       ? regionQ2.Total_Nurse_HPRD - regionQ1.Total_Nurse_HPRD 

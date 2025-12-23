@@ -9,6 +9,10 @@ coverage/
 # Production
 dist/
 build/
+# Exception: Allow specific JSON files to be committed (needed for deployment)
+!dist/data/json/state_standards.json
+!dist/data/json/region_q1.json
+!dist/data/json/region_q2.json
 
 # Misc
 .DS_Store

@@ -39,7 +39,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
     
     return (
       <WrappedCard title="The Basics">
-        <div className="space-y-4 text-left">
+        <div className="space-y-3 text-left">
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="text-center p-2.5 bg-blue-500/10 rounded-lg border border-blue-500/30">
               <div className="text-xs text-gray-400 mb-1">Nursing Homes</div>
@@ -108,7 +108,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             )}
           </div>
         </div>
-        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+        <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
           Source: CMS PBJ Q2 2025
         </p>
       </WrappedCard>
@@ -116,9 +116,9 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
   }
 
   return (
-    <WrappedCard title="The Basics">
-        <div className="space-y-1.5 md:space-y-3 text-left">
-        <div className="flex justify-between items-center py-1 md:py-2 border-b border-gray-600">
+      <WrappedCard title="The Basics">
+        <div className="space-y-1.5 md:space-y-2.5 text-left">
+        <div className="flex justify-between items-center py-1 md:py-1.5 border-b border-gray-600">
           <span className="text-gray-300 text-sm md:text-base">Number of nursing homes</span>
           <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedFacilityCount)}</span>
         </div>
@@ -200,7 +200,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
         
         {/* Ownership breakdown for state and region */}
         {data.ownership && (data.scope === 'state' || data.scope === 'region') && (
-          <div className="pt-2 md:pt-3 mt-2 md:mt-3 border-t border-gray-600">
+          <div className="pt-2 md:pt-2 mt-2 md:mt-2 border-t border-gray-600">
             <h3 className="text-sm md:text-base font-semibold text-gray-200 mb-2 md:mb-3">Ownership Type</h3>
             <div className="flex items-start gap-4">
               <OwnershipPieChart ownership={data.ownership} size={100} />
@@ -236,7 +236,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             </div>
           </div>
         )}
-        <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
+        <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
           <span className="hidden md:inline">Source: CMS PBJ Q2 2025 | CMS Provider Info</span>
           <span className="md:hidden">Source: CMS (Q2 2025)</span>
         </p>

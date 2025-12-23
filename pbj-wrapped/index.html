@@ -32,6 +32,50 @@
     <meta name="twitter:image" content="https://www.pbj320.com/images/phoebe-wrapped-wide.png" />
     <meta name="twitter:image:alt" content="PBJ Wrapped Q2 2025 — Nursing Home Staffing Data" />
     
+    <!-- Inline script to set SEO meta tags before React loads (for crawlers) -->
+    <script>
+      (function() {
+        var baseUrl = 'https://www.pbj320.com';
+        var path = window.location.pathname;
+        var ogImage = baseUrl + '/images/phoebe-wrapped-wide.png';
+        
+        // Update og:url and canonical based on current path
+        function updateMetaTag(attr, name, content) {
+          var meta = document.querySelector('meta[' + attr + '="' + name + '"]');
+          if (meta) {
+            meta.setAttribute('content', content);
+          } else {
+            meta = document.createElement('meta');
+            meta.setAttribute(attr, name);
+            meta.setAttribute('content', content);
+            document.head.appendChild(meta);
+          }
+        }
+        
+        function updateLinkTag(rel, href) {
+          var link = document.querySelector('link[rel="' + rel + '"]');
+          if (link) {
+            link.setAttribute('href', href);
+          } else {
+            link = document.createElement('link');
+            link.setAttribute('rel', rel);
+            link.setAttribute('href', href);
+            document.head.appendChild(link);
+          }
+        }
+        
+        // Ensure og:image is always set correctly
+        updateMetaTag('property', 'og:image', ogImage);
+        updateMetaTag('property', 'og:image:secure_url', ogImage);
+        updateMetaTag('name', 'twitter:image', ogImage);
+        
+        // Update URL-based meta tags
+        var fullUrl = baseUrl + path;
+        updateMetaTag('property', 'og:url', fullUrl);
+        updateLinkTag('canonical', fullUrl);
+      })();
+    </script>
+    
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
     <script>

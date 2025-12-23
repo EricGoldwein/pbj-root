@@ -158,7 +158,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
       <svg
         ref={svgRef}
         className="w-full h-auto"
-        style={{ minHeight: '300px' }}
+        style={{ minHeight: '220px' }}
       />
       {hoveredState && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-black/80 text-white px-4 py-2 rounded-lg text-sm font-medium pointer-events-none z-10">

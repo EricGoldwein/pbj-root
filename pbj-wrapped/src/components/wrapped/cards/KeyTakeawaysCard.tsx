@@ -146,10 +146,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       // Determine which rank is worse (higher number = worse rank)
       // If RN rank is significantly worse (5+ positions worse), lead with RN
       // Otherwise, if total rank is worse or equal, lead with total
-      const rnRankWorse = rnRank > totalRank + 4; // RN rank is 5+ positions worse
-      const totalRankWorse = totalRank >= rnRank; // Total rank is worse or equal
-      const leadWithRN = rnRankWorse;
-      const leadWithTotal = !leadWithRN && totalRankWorse;
+      const leadWithRN = rnRank > totalRank + 4; // RN rank is 5+ positions worse
       
       return (
         <>

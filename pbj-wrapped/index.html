@@ -5,6 +5,7 @@
     <link rel="icon" type="image/png" href="/pbj_favicon.png" />
     <link rel="shortcut icon" type="image/png" href="/pbj_favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- SEO meta tags will be updated by inline script below -->
     <title>PBJ Wrapped Q2 2025 — Nursing Home Staffing Data by State and Region | PBJ320</title>
     <meta name="description" content="Explore Q2 2025 nursing home staffing data across all 50 states, CMS regions, and the United States. Interactive staffing insights from CMS Payroll-Based Journal (PBJ) data. Comprehensive analysis of 15,000+ nursing homes and long-term care facilities." />
     <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, PBJ Wrapped" />
@@ -32,7 +33,7 @@
     <meta name="twitter:image" content="https://www.pbj320.com/images/phoebe-wrapped-wide.png" />
     <meta name="twitter:image:alt" content="PBJ Wrapped Q2 2025 — Nursing Home Staffing Data" />
     
-    <!-- Inline script to set SEO meta tags before React loads (for crawlers) -->
+    <!-- Inline script to set SEO meta tags synchronously before React loads (for crawlers) -->
     <script>
       (function() {
         var baseUrl = 'https://www.pbj320.com';
@@ -58,9 +59,9 @@
           return stateNames[code.toLowerCase()] || code.toUpperCase();
         }
         
-        // Update og:url and canonical based on current path
         function updateMetaTag(attr, name, content) {
-          var meta = document.querySelector('meta[' + attr + '="' + name + '"]');
+          var selector = 'meta[' + attr + '="' + name + '"]';
+          var meta = document.querySelector(selector);
           if (meta) {
             meta.setAttribute('content', content);
           } else {
@@ -83,20 +84,11 @@
           }
         }
         
-        // Ensure og:image is always set correctly
-        updateMetaTag('property', 'og:image', ogImage);
-        updateMetaTag('property', 'og:image:secure_url', ogImage);
-        updateMetaTag('name', 'twitter:image', ogImage);
-        
-        // Update URL-based meta tags
         var fullUrl = baseUrl + path;
-        updateMetaTag('property', 'og:url', fullUrl);
-        updateLinkTag('canonical', fullUrl);
+        var title, description, ogTitle, ogDescription;
         
         // Handle SFF pages
-        if (path.startsWith('/sff')) {
-          var title, description, ogTitle, ogDescription;
-          
+        if (path && path.startsWith('/sff')) {
           if (path === '/sff/usa' || path === '/sff/usa/') {
             title = 'Special Focus Facilities Program — United States | PBJ320';
             description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
@@ -110,28 +102,39 @@
             ogTitle = 'SFF Program: CMS Region ' + regionNum;
             ogDescription = description;
           } else if (path.length > 4) {
-            // Extract state code from path (e.g., /sff/ny -> ny)
-            var stateCode = path.split('/').pop().toLowerCase();
-            if (stateCode && stateCode !== 'sff') {
-              var stateName = getStateName(stateCode);
-              title = stateName + ' Special Focus Facilities | PBJ320';
-              description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
-              ogTitle = stateName + ' Special Focus Facilities';
-              ogDescription = description;
+            var parts = path.split('/').filter(function(p) { return p; });
+            if (parts.length >= 2 && parts[0] === 'sff') {
+              var stateCode = parts[1].toLowerCase();
+              if (stateCode && stateCode !== 'sff' && stateCode !== 'usa') {
+                var stateName = getStateName(stateCode);
+                title = stateName + ' Special Focus Facilities | PBJ320';
+                description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+                ogTitle = stateName + ' Special Focus Facilities';
+                ogDescription = description;
+              }
             }
           }
-          
-          if (title) {
-            document.title = title;
-            updateMetaTag('name', 'description', description);
-            updateMetaTag('property', 'og:title', ogTitle);
-            updateMetaTag('property', 'og:description', ogDescription);
-            updateMetaTag('name', 'twitter:title', ogTitle);
-            updateMetaTag('name', 'twitter:description', ogDescription);
-          }
         }
+        
+        // Update all meta tags
+        if (title) {
+          document.title = title;
+          updateMetaTag('name', 'description', description);
+          updateMetaTag('property', 'og:title', ogTitle);
+          updateMetaTag('property', 'og:description', ogDescription);
+          updateMetaTag('name', 'twitter:title', ogTitle);
+          updateMetaTag('name', 'twitter:description', ogDescription);
+        }
+        
+        // Always update URL-based tags
+        updateMetaTag('property', 'og:url', fullUrl);
+        updateLinkTag('canonical', fullUrl);
+        updateMetaTag('property', 'og:image', ogImage);
+        updateMetaTag('property', 'og:image:secure_url', ogImage);
+        updateMetaTag('name', 'twitter:image', ogImage);
       })();
     </script>
+    
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>

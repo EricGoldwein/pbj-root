@@ -149,7 +149,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               </>
             )}
           </p>
-          {data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent > 5 && (
+          {data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent > 10 && (
             <p className="mb-2">
               In Q2 2025, <strong className="text-red-300">{data.compliance.facilitiesBelowTotalMinimum}</strong> of {stateFullName}'s facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) fell below the state minimum of <strong className="text-white">{data.stateMinimum?.minHPRD.toFixed(2)} HPRD</strong>.
             </p>
@@ -161,11 +161,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               ) : (
                 <>decreased from Q1 to Q2 by <strong className="text-white">{formatHPRD(Math.abs(trend))} HPRD</strong>.</>
               )}
-            </p>
-          )}
-          {data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent > 0 && data.compliance.facilitiesBelowTotalMinimumPercent >= 10 && (
-            <p>
-              <strong className="text-red-300">{data.compliance.facilitiesBelowTotalMinimumPercent}%</strong> of facilities fell below the state minimum staffing requirement.
             </p>
           )}
           {data.averageOverallRating !== undefined && (

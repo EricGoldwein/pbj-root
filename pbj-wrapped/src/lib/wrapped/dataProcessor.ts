@@ -1157,12 +1157,13 @@ function processRegionData(
   facilityQ1: FacilityLiteRow[],
   providerInfoQ2: ProviderInfoRow[],
   _providerInfoQ1: ProviderInfoRow[],
-  _stateDataQ2: StateQuarterlyRow[],
+  stateDataQ2: StateQuarterlyRow[],
   _stateDataQ1: StateQuarterlyRow[],
   regionDataQ2: RegionQuarterlyRow[],
   _regionDataQ1: RegionQuarterlyRow[],
   regionNumber: number,
-  sffData?: SFFData | null
+  sffData?: SFFData | null,
+  regionStateMapping?: Map<number, Set<string>>
 ): PBJWrappedData {
   if (!regionQ2) {
     throw new Error(`Region Q2 data not available for region ${regionNumber}`);
@@ -1170,6 +1171,25 @@ function processRegionData(
 
   const regionName = regionQ2.REGION_NAME || `Region ${regionNumber}`;
   const providerInfoLookupQ2 = createProviderInfoLookup(providerInfoQ2);
+  
+  // State abbreviation to full name mapping
+  const STATE_ABBR_TO_NAME: Record<string, string> = {
+    'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+    'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+    'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+    'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+    'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+    'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+    'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+    'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+    'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+    'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+    'dc': 'District of Columbia', 'vi': 'Virgin Islands'
+  };
+  
+  function getStateFullName(abbr: string): string {
+    return STATE_ABBR_TO_NAME[abbr.toLowerCase()] || abbr.toUpperCase();
+  }
 
   // Filter facilities by region - need to get state codes for this region
   // We'll filter facilities by checking if their state is in the region
@@ -1286,9 +1306,15 @@ function processRegionData(
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
-    // Get state codes for this region - filter SFF by states in region
-    // Create Set with uppercase state codes for efficient lookup
-    const regionStateCodes = new Set(regionFacilitiesQ2.map(f => f.STATE.toUpperCase()));
+    // Get state codes for this region - use regionStateMapping if available (matches SFF page logic)
+    // Otherwise fall back to deriving from facilities
+    let regionStateCodes: Set<string>;
+    if (regionStateMapping) {
+      const regionStates = regionStateMapping.get(regionNumber) || new Set<string>();
+      regionStateCodes = new Set(Array.from(regionStates).map(s => s.toUpperCase()));
+    } else {
+      regionStateCodes = new Set(regionFacilitiesQ2.map(f => f.STATE.toUpperCase()));
+    }
     const regionSFFFacilities = sffData.facilities.filter(f => 
       f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'SFF'
     );
@@ -1484,6 +1510,40 @@ function processRegionData(
     };
   }
 
+  // Find highest and lowest HPRD states in this region (excluding PR and VI)
+  let highestStateInRegion: { state: string; stateName: string; hprd: number } | undefined = undefined;
+  let lowestStateInRegion: { state: string; stateName: string; hprd: number } | undefined = undefined;
+  
+  if (regionStateMapping && stateDataQ2.length > 0) {
+    const regionStates = regionStateMapping.get(regionNumber);
+    if (regionStates) {
+      const regionStateCodes = new Set(Array.from(regionStates).map(s => s.toUpperCase()));
+      const regionStatesData = stateDataQ2.filter(s => 
+        regionStateCodes.has(s.STATE.toUpperCase()) && 
+        s.STATE !== 'PR' && 
+        s.STATE !== 'VI'
+      );
+      
+      if (regionStatesData.length > 0) {
+        const sortedByHPRD = [...regionStatesData].sort((a, b) => b.Total_Nurse_HPRD - a.Total_Nurse_HPRD);
+        const highest = sortedByHPRD[0];
+        const lowest = sortedByHPRD[sortedByHPRD.length - 1];
+        
+        highestStateInRegion = {
+          state: highest.STATE,
+          stateName: getStateFullName(highest.STATE),
+          hprd: highest.Total_Nurse_HPRD,
+        };
+        
+        lowestStateInRegion = {
+          state: lowest.STATE,
+          stateName: getStateFullName(lowest.STATE),
+          hprd: lowest.Total_Nurse_HPRD,
+        };
+      }
+    }
+  }
+
   return {
     scope: 'region',
     identifier: `region${regionNumber}`,
@@ -1521,6 +1581,8 @@ function processRegionData(
     },
     averageOverallRating,
     spotlightFacility,
+    highestStateInRegion,
+    lowestStateInRegion,
   };
 }
 
@@ -1609,7 +1671,8 @@ export function processWrappedData(
       data.regionData.q2 || [],
       data.regionData.q1 || [],
       regionNumber,
-      data.sffData
+      data.sffData,
+      data.regionStateMapping
     );
   } else {
     throw new Error(`Unknown scope: ${scope}`);

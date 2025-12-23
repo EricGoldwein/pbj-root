@@ -201,10 +201,13 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const residentCount = Math.round(data.avgDailyResidents);
       const residentCountFormatted = formatNumber(residentCount, 0);
       
+      // Calculate total regions for rank display (should be 10)
+      const totalRegions = 10;
+      
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong> (rank {data.rankings.totalHPRDRank}) and RN staffing ratio of <strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong> (rank {data.rankings.rnHPRDRank}).
+            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong> ({data.rankings.totalHPRDRank} of {totalRegions}) and RN staffing ratio of <strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong> ({data.rankings.rnHPRDRank} of {totalRegions}).
             {data.averageOverallRating !== undefined && (
               <span className="block mt-1 text-sm text-gray-300">
                 Average overall rating: <strong className="text-white">{data.averageOverallRating.toFixed(1)}★</strong>
@@ -220,9 +223,9 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               )}
             </p>
           )}
-          {biggestRiser && biggestDecliner && typeof biggestRiser.change === 'number' && typeof biggestDecliner.change === 'number' && (
+          {data.highestStateInRegion && data.lowestStateInRegion && (
             <p className="mb-2">
-              <strong className="text-white">{getStateFullName(biggestRiser.stateName || biggestRiser.state)}</strong> saw the biggest increase (<strong className="text-white">+{formatHPRD(biggestRiser.change)} HPRD</strong>), while <strong className="text-white">{getStateFullName(biggestDecliner.stateName || biggestDecliner.state)}</strong> declined the most (<strong className="text-white">{formatHPRD(Math.abs(biggestDecliner.change))} HPRD</strong>).
+              <strong className="text-white">{data.highestStateInRegion.stateName}</strong> has the highest HPRD in the region (<strong className="text-white">{formatHPRD(data.highestStateInRegion.hprd)} HPRD</strong>), while <strong className="text-white">{data.lowestStateInRegion.stateName}</strong> has the lowest (<strong className="text-white">{formatHPRD(data.lowestStateInRegion.hprd)} HPRD</strong>).
             </p>
           )}
         </>

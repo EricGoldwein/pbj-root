@@ -234,13 +234,11 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 </div>
               </div>
             </div>
-            <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
-              Source: CMS Provider Info
-            </p>
           </div>
         )}
         <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
-          Source: CMS PBJ Q2 2025
+          <span className="hidden md:inline">Source: CMS PBJ Q2 2025 | CMS Provider Info</span>
+          <span className="md:hidden">Source: CMS (Q2 2025)</span>
         </p>
       </div>
     </WrappedCard>

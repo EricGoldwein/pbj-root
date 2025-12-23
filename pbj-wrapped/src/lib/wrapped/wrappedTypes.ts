@@ -165,6 +165,10 @@ export interface PBJWrappedData {
   
   // States with minimum >= 2.00 HPRD (for USA scope only)
   statesWithMinAbove2HPRD?: number;
+  
+  // Highest and lowest HPRD states in region (for region scope only)
+  highestStateInRegion?: { state: string; stateName: string; hprd: number };
+  lowestStateInRegion?: { state: string; stateName: string; hprd: number };
 }
 
 // CSV row types

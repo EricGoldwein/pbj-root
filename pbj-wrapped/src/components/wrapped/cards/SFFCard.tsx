@@ -33,7 +33,7 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
   // Get link text based on scope
   const getLinkText = () => {
     if (data.scope === 'usa') {
-      return "View United States' SFF List →";
+      return "View United States SFF List →";
     } else if (data.scope === 'state') {
       return `View ${data.name}'s SFF List →`;
     } else if (data.scope === 'region') {
@@ -61,15 +61,17 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
           <span className="text-white font-bold text-base md:text-lg">{data.sff.candidates}</span>
         </div>
         
-        <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
+        <div className={`flex justify-between items-center py-0.5 md:py-1 ${(data.sff.inactive ?? 0) > 0 ? 'border-b border-gray-600' : ''}`}>
           <span className="text-gray-300 text-sm">SFF Graduates</span>
           <span className="text-white font-bold text-base md:text-lg">{data.sff.graduates ?? 0}</span>
         </div>
         
-        <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
-          <span className="text-gray-300 text-sm">Inactive</span>
-          <span className="text-white font-bold text-base md:text-lg">{data.sff.inactive ?? 0}</span>
-        </div>
+        {(data.sff.inactive ?? 0) > 0 && (
+          <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
+            <span className="text-gray-300 text-sm">Inactive</span>
+            <span className="text-white font-bold text-base md:text-lg">{data.sff.inactive ?? 0}</span>
+          </div>
+        )}
         
           <div className="mt-2 pt-1.5 border-t border-gray-600">
           <button

@@ -160,7 +160,11 @@ export default function SFFPage() {
         setError(null);
 
         // Load SFF JSON file (combined from all 4 CSV tables with category field)
-        const baseUrl = import.meta.env.BASE_URL;
+        // Detect current route - if on /sff/* use /sff/, otherwise use BASE_URL (/wrapped/)
+        // Both routes serve from the same dist directory, so we can use either path
+        const currentPath = location.pathname;
+        const isSffRoute = currentPath.startsWith('/sff');
+        const baseUrl = isSffRoute ? '/sff/' : import.meta.env.BASE_URL;
         const jsonPath = `${baseUrl}sff-facilities.json`.replace(/([^:]\/)\/+/g, '$1');
         let sffFacilitiesData: { facilities: Array<PDFFacilityData & { category: string }>, document_date?: any, summary?: any } | null = null;
         

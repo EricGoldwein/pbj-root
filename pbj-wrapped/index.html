@@ -39,6 +39,25 @@
         var path = window.location.pathname;
         var ogImage = baseUrl + '/images/phoebe-wrapped-wide.png';
         
+        // State code to name mapping
+        var stateNames = {
+          'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+          'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+          'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+          'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+          'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+          'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+          'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+          'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+          'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+          'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+          'dc': 'District of Columbia'
+        };
+        
+        function getStateName(code) {
+          return stateNames[code.toLowerCase()] || code.toUpperCase();
+        }
+        
         // Update og:url and canonical based on current path
         function updateMetaTag(attr, name, content) {
           var meta = document.querySelector('meta[' + attr + '="' + name + '"]');
@@ -73,6 +92,44 @@
         var fullUrl = baseUrl + path;
         updateMetaTag('property', 'og:url', fullUrl);
         updateLinkTag('canonical', fullUrl);
+        
+        // Handle SFF pages
+        if (path.startsWith('/sff')) {
+          var title, description, ogTitle, ogDescription;
+          
+          if (path === '/sff/usa' || path === '/sff/usa/') {
+            title = 'Special Focus Facilities Program — United States | PBJ320';
+            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'Special Focus Facilities Program — United States';
+            ogDescription = description;
+          } else if (path.match(/^\/sff\/region/i)) {
+            var regionMatch = path.match(/region-?(\d+)/i);
+            var regionNum = regionMatch ? regionMatch[1] : '';
+            title = 'SFF Program: CMS Region ' + regionNum + ' | PBJ320';
+            description = 'CMS Region ' + regionNum + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'SFF Program: CMS Region ' + regionNum;
+            ogDescription = description;
+          } else if (path.length > 4) {
+            // Extract state code from path (e.g., /sff/ny -> ny)
+            var stateCode = path.split('/').pop().toLowerCase();
+            if (stateCode && stateCode !== 'sff') {
+              var stateName = getStateName(stateCode);
+              title = stateName + ' Special Focus Facilities | PBJ320';
+              description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+              ogTitle = stateName + ' Special Focus Facilities';
+              ogDescription = description;
+            }
+          }
+          
+          if (title) {
+            document.title = title;
+            updateMetaTag('name', 'description', description);
+            updateMetaTag('property', 'og:title', ogTitle);
+            updateMetaTag('property', 'og:description', ogDescription);
+            updateMetaTag('name', 'twitter:title', ogTitle);
+            updateMetaTag('name', 'twitter:description', ogDescription);
+          }
+        }
       })();
     </script>
     

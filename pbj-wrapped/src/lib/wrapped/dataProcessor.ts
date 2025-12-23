@@ -249,7 +249,7 @@ export function toTitleCase(name: string): string {
           .split('-')
           .map((part) => {
             // Capitalize each part of hyphenated words
-            return part.charAt(0).toUpperCase() + part.slice(1);
+              return part.charAt(0).toUpperCase() + part.slice(1);
           })
           .join('-');
       }
@@ -577,16 +577,16 @@ function processUSAData(
     });
   } else {
     // Fall back to providerInfo data (no Q1/Q2 comparison, just use Q2 data)
-    const sffQ2 = providerInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
-    });
-    const candidatesQ2 = providerInfoQ2.filter(p => {
-      if (!p.sff_status) return false;
-      const status = p.sff_status.trim().toUpperCase();
-      return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
-    });
+  const sffQ2 = providerInfoQ2.filter(p => {
+    if (!p.sff_status) return false;
+    const status = p.sff_status.trim().toUpperCase();
+    return status === 'SFF' || status === 'SPECIAL FOCUS FACILITY' || status.includes('SFF');
+  });
+  const candidatesQ2 = providerInfoQ2.filter(p => {
+    if (!p.sff_status) return false;
+    const status = p.sff_status.trim().toUpperCase();
+    return status === 'SFF CANDIDATE' || status === 'CANDIDATE' || (status.includes('CANDIDATE') && !status.includes('SFF'));
+  });
     
     sffCount = sffQ2.length;
     candidatesCount = candidatesQ2.length;

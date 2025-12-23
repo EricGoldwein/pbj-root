@@ -1167,52 +1167,52 @@ export default function SFFPage() {
                 return (
                   <>
                     {sffCount > 0 && (
-                      <button
+              <button
                         onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
-                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
                           categoryFilter === 'sffs-only'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                        }`}
-                      >
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
                         Special Focus Facilities ({sffCount})
-                      </button>
+              </button>
                     )}
                     {candidateCount > 0 && (
-                      <button
+              <button
                         onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
-                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
                           categoryFilter === 'sffs-and-candidates'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                        }`}
-                      >
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
                         Candidates ({candidateCount})
-                      </button>
+              </button>
                     )}
                     {graduateCount > 0 && (
-                      <button
-                        onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
-                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'graduates'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                        }`}
-                      >
+              <button
+                onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                  categoryFilter === 'graduates'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
                         Graduates ({graduateCount})
-                      </button>
+              </button>
                     )}
                     {inactiveCount > 0 && (
-                      <button
+              <button
                         onClick={() => { setCategoryFilter('inactive'); setCurrentPage(1); }}
-                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
                           categoryFilter === 'inactive'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                        }`}
-                      >
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                }`}
+              >
                         Inactive ({inactiveCount})
-                      </button>
+              </button>
                     )}
                   </>
                 );

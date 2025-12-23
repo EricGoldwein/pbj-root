@@ -164,10 +164,10 @@ export function getSFFWrappedSEO(year: string = '2025'): SEOData {
   ].join(', ');
 
   return {
-    title: `PBJ Wrapped Q2 ${year} — Special Focus Facilities (SFF) | PBJ320`,
+    title: `Special Focus Facilities (SFF) Q2 ${year} | PBJ320`,
     description: `Q2 ${year} Special Focus Facilities (SFF) nursing home staffing data. Explore staffing levels, quality ratings, and locations of SFF and SFF candidate facilities from CMS Payroll-Based Journal (PBJ) data.`,
     keywords,
-    ogTitle: `PBJ Wrapped Q2 ${year} — Special Focus Facilities`,
+    ogTitle: `Special Focus Facilities (SFF) Q2 ${year}`,
     ogDescription: `Special Focus Facilities (SFF) nursing home staffing data for Q2 ${year}. Staffing levels, quality ratings, and locations from CMS PBJ data.`,
     ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
     ogUrl: fullUrl,

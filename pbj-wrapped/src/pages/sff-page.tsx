@@ -1158,46 +1158,65 @@ export default function SFFPage() {
               >
                 All ({allFacilities.length})
               </button>
-              <button
-                onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'sffs-and-candidates'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                }`}
-              >
-                SFFs & Candidates ({allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate').length})
-              </button>
-              <button
-                onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'sffs-only'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                }`}
-              >
-                SFFs Only ({allFacilities.filter(f => f.sffStatus === 'SFF').length})
-              </button>
-              <button
-                onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'graduates'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                }`}
-              >
-                Graduates ({allFacilities.filter(f => f.sffStatus === 'Graduate').length})
-              </button>
-              <button
-                onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
-                className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'terminated'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                }`}
-              >
-                Terminated ({allFacilities.filter(f => f.sffStatus === 'Terminated').length})
-              </button>
+              {(() => {
+                const sffCount = allFacilities.filter(f => f.sffStatus === 'SFF').length;
+                const candidateCount = allFacilities.filter(f => f.sffStatus === 'Candidate').length;
+                const graduateCount = allFacilities.filter(f => f.sffStatus === 'Graduate').length;
+                const terminatedCount = allFacilities.filter(f => f.sffStatus === 'Terminated').length;
+                
+                return (
+                  <>
+                    {sffCount > 0 && (
+                      <button
+                        onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
+                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                          categoryFilter === 'sffs-only'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                        }`}
+                      >
+                        Special Focus Facilities ({sffCount})
+                      </button>
+                    )}
+                    {candidateCount > 0 && (
+                      <button
+                        onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
+                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                          categoryFilter === 'sffs-and-candidates'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                        }`}
+                      >
+                        Candidates ({candidateCount})
+                      </button>
+                    )}
+                    {graduateCount > 0 && (
+                      <button
+                        onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
+                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                          categoryFilter === 'graduates'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                        }`}
+                      >
+                        Graduates ({graduateCount})
+                      </button>
+                    )}
+                    {terminatedCount > 0 && (
+                      <button
+                        onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
+                        className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
+                          categoryFilter === 'terminated'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
+                        }`}
+                      >
+                        Terminated ({terminatedCount})
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         </div>

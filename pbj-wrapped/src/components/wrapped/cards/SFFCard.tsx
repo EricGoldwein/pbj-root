@@ -29,6 +29,18 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
     navigate(getSFFPagePath());
   };
 
+  // Get link text based on scope
+  const getLinkText = () => {
+    if (data.scope === 'usa') {
+      return "View United States' SFF List →";
+    } else if (data.scope === 'state') {
+      return `View ${data.name}'s SFF List →`;
+    } else if (data.scope === 'region') {
+      return `View ${data.name}'s SFF List →`;
+    }
+    return "Learn more about SFFs →";
+  };
+
   return (
     <WrappedCard title="Special Focus Facilities">
       <div className="space-y-1.5 md:space-y-2">
@@ -53,7 +65,7 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
             onClick={handleSFFClick}
             className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
             >
-            Learn more about SFFs →
+            {getLinkText()}
           </button>
           </div>
       </div>

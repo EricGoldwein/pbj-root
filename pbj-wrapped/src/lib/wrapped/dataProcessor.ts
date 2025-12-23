@@ -29,6 +29,16 @@ import { createProviderInfoLookup } from './dataLoader';
 // }
 
 /**
+ * Normalize provider number to 6 digits with leading zeros
+ */
+function normalizeProviderNumber(providerNumber: string | number | null | undefined): string {
+  if (!providerNumber) return '';
+  const str = providerNumber.toString().trim().replace(/[^0-9]/g, ''); // Remove non-digits
+  if (!str) return '';
+  return str.padStart(6, '0');
+}
+
+/**
  * Parse ownership type from string
  */
 function parseOwnershipType(ownershipType?: string): 'forProfit' | 'nonProfit' | 'government' | null {
@@ -208,18 +218,19 @@ export function shortenProviderName(name: string, maxLength: number = 40): strin
 export function toTitleCase(name: string): string {
   if (!name) return name;
   
-  return name
+  // First, normalize to lowercase for consistent processing
+  const lowerName = name.toLowerCase();
+  
+  return lowerName
     .split(' ')
     .map((word, index) => {
-      // Handle hyphenated words
+      // Handle hyphenated words - capitalize both parts (e.g., "Post-Acute")
       if (word.includes('-')) {
         return word
           .split('-')
-          .map((part, partIndex) => {
-            if (partIndex === 0 || !smallWords.has(part)) {
-              return part.charAt(0).toUpperCase() + part.slice(1);
-            }
-            return part;
+          .map((part) => {
+            // Capitalize each part of hyphenated words
+            return part.charAt(0).toUpperCase() + part.slice(1);
           })
           .join('-');
       }
@@ -520,14 +531,17 @@ function processUSAData(
       f.months_as_sff <= 3
     );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+    // Create a map for efficient lookup
+    const facilityMapQ2 = new Map(facilityQ2.map(f => [normalizeProviderNumber(f.PROVNUM), f]));
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
-      const facility = facilityQ2.find(fac => fac.PROVNUM === f.provider_number);
+      const normalizedProviderNum = normalizeProviderNumber(f.provider_number);
+      const facility = facilityMapQ2.get(normalizedProviderNum);
       return {
-        provnum: f.provider_number,
+        provnum: normalizedProviderNum,
         name: toTitleCase(f.facility_name || ''),
         state: f.state || '',
         value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(f.provider_number),
+        link: createFacilityLink(normalizedProviderNum),
       };
     });
   } else {
@@ -859,8 +873,14 @@ function processStateData(
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
-    const stateSFFFacilities = sffData.facilities.filter(f => f.state === stateCode && f.category === 'SFF');
-    const stateCandidateFacilities = sffData.facilities.filter(f => f.state === stateCode && f.category === 'Candidate');
+    // Filter SFF facilities by state code (case-insensitive matching)
+    const stateCodeUpper = stateCode.toUpperCase();
+    const stateSFFFacilities = sffData.facilities.filter(f => 
+      f.state && f.state.toUpperCase() === stateCodeUpper && f.category === 'SFF'
+    );
+    const stateCandidateFacilities = sffData.facilities.filter(f => 
+      f.state && f.state.toUpperCase() === stateCodeUpper && f.category === 'Candidate'
+    );
     sffCount = stateSFFFacilities.length;
     candidatesCount = stateCandidateFacilities.length;
     
@@ -871,14 +891,17 @@ function processStateData(
       f.months_as_sff <= 3
     );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+    // Create a map for efficient lookup
+    const stateFacilityMapQ2 = new Map(stateFacilitiesQ2.map(f => [normalizeProviderNumber(f.PROVNUM), f]));
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
-      const facility = stateFacilitiesQ2.find(fac => fac.PROVNUM === f.provider_number);
+      const normalizedProviderNum = normalizeProviderNumber(f.provider_number);
+      const facility = stateFacilityMapQ2.get(normalizedProviderNum);
       return {
-        provnum: f.provider_number,
+        provnum: normalizedProviderNum,
         name: toTitleCase(f.facility_name || ''),
         state: f.state || stateCode,
         value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(f.provider_number),
+        link: createFacilityLink(normalizedProviderNum),
       };
     });
   } else {
@@ -1218,14 +1241,14 @@ function processRegionData(
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
-    // Get state codes for this region - we need to filter SFF by states in region
-    // For now, filter by facilities in regionFacilitiesQ2
-    const regionStateCodes = new Set(regionFacilitiesQ2.map(f => f.STATE));
+    // Get state codes for this region - filter SFF by states in region
+    // Create Set with uppercase state codes for efficient lookup
+    const regionStateCodes = new Set(regionFacilitiesQ2.map(f => f.STATE.toUpperCase()));
     const regionSFFFacilities = sffData.facilities.filter(f => 
-      regionStateCodes.has(f.state || '') && f.category === 'SFF'
+      f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'SFF'
     );
     const regionCandidateFacilities = sffData.facilities.filter(f => 
-      regionStateCodes.has(f.state || '') && f.category === 'Candidate'
+      f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'Candidate'
     );
     sffCount = regionSFFFacilities.length;
     candidatesCount = regionCandidateFacilities.length;
@@ -1237,14 +1260,17 @@ function processRegionData(
       f.months_as_sff <= 3
     );
     const shuffledNewSFF = [...newSFF].sort(() => Math.random() - 0.5);
+    // Create a map for efficient lookup
+    const regionFacilityMapQ2 = new Map(regionFacilitiesQ2.map(f => [normalizeProviderNumber(f.PROVNUM), f]));
     newSFFFacilities = shuffledNewSFF.slice(0, 5).map(f => {
-      const facility = regionFacilitiesQ2.find(fac => fac.PROVNUM === f.provider_number);
+      const normalizedProviderNum = normalizeProviderNumber(f.provider_number);
+      const facility = regionFacilityMapQ2.get(normalizedProviderNum);
       return {
-        provnum: f.provider_number,
+        provnum: normalizedProviderNum,
         name: toTitleCase(f.facility_name || ''),
         state: f.state || '',
         value: facility?.Total_Nurse_HPRD || 0,
-        link: createFacilityLink(f.provider_number),
+        link: createFacilityLink(normalizedProviderNum),
       };
     });
   } else {

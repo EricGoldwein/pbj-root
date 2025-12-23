@@ -144,11 +144,16 @@ async function loadCSV(path: string): Promise<string> {
 
 /**
  * Load JSON file from path (faster than CSV)
+ * @param silent If true, suppress console errors for 404s (for optional files)
  */
-async function loadJSON<T>(path: string): Promise<T | null> {
+async function loadJSON<T>(path: string, silent: boolean = false): Promise<T | null> {
   try {
     const response = await fetch(path);
     if (!response.ok || response.status === 404) {
+      // Suppress console errors for optional files
+      if (!silent && response.status === 404) {
+        // Browser will log 404, but we handle it gracefully
+      }
       return null;
     }
     const contentType = response.headers.get('content-type');
@@ -361,10 +366,9 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     ]);
     
     // Load state standards only for state scope (not needed for USA/region)
-    // File is optional - 404s are expected and handled gracefully
-    // Browser will still log 404s but code handles them silently
+    // File is optional - load silently to avoid console errors
     const stateStandardsJson = (scope === 'state')
-      ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`).catch(() => null)
+      ? await loadJSON<Record<string, StateStandardRow>>(`${jsonBasePath}/state_standards.json`, true).catch(() => null)
       : null;
     
     // Load SFF data separately to avoid redeclaration
@@ -508,65 +512,15 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
         console.warn('⚠️ WARNING: region_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
       }
 
-      // Load state standards from JSON if available, otherwise try CSV
+      // Load state standards from JSON if available (CSV fallback removed to avoid 404 errors)
       let stateStandardsMap = new Map<string, StateStandardRow>();
       if (stateStandardsJson) {
         for (const [key, value] of Object.entries(stateStandardsJson)) {
           stateStandardsMap.set(key, value as StateStandardRow);
         }
         console.log(`✅ Loaded ${stateStandardsMap.size} state standards from JSON`);
-      } else if (scope === 'state') {
-        // State standards JSON not found - try CSV fallback (only for state scope)
-        // CSV file may not exist and that's okay - state pages work without it
-        // Only try to load CSV for state scope to avoid unnecessary 404s for USA/region
-        try {
-          // Use fetch directly with silent error handling to avoid console noise
-          let stateStandardsCsv: string | null = null;
-          try {
-            const response = await fetch(`${basePath}/macpac_state_standards_clean.csv`);
-            if (response.ok) {
-              stateStandardsCsv = await response.text();
-            }
-            // Silently ignore 404s - file is optional
-          } catch {
-            // Silently ignore fetch errors - file is optional
-          }
-          if (stateStandardsCsv) {
-            const stateStandardsRows = await parseCSV<any>(stateStandardsCsv);
-            // Process state standards: filter for >= 1.00, map state name to state code
-            stateStandardsMap = new Map<string, StateStandardRow>();
-            if (stateStandardsRows && stateStandardsRows.length > 0) {
-              for (const row of stateStandardsRows) {
-                const minStaffing = parseFloat(row.Min_Staffing) || 0;
-                // Only include states with requirements >= 1.00
-                if (minStaffing >= 1.0) {
-                  const stateName = row.State?.trim();
-                  if (stateName) {
-                    // Convert state name to state code
-                    const stateCode = stateNameToAbbr(stateName);
-                    if (stateCode) {
-                      const key = stateCode.toLowerCase();
-                      stateStandardsMap.set(key, {
-                        State: stateName,
-                        Total_Estimated_Staffing_Requirements: row.Total_Estimated_Staffing_Requirements || '',
-                        Min_Staffing: minStaffing,
-                        Max_Staffing: parseFloat(row.Max_Staffing) || minStaffing,
-                        Value_Type: row.Value_Type || 'single',
-                        Is_Federal_Minimum: row.Is_Federal_Minimum || 'False',
-                        Display_Text: row.Display_Text || '',
-                      });
-                    }
-                  }
-                }
-              }
-            }
-            console.log(`✅ Loaded ${stateStandardsMap.size} state standards from CSV. NY present: ${stateStandardsMap.has('ny')}`);
-          }
-          // Silently skip if CSV not found - it's optional
-        } catch (err) {
-          // Silently skip - state standards are optional, no need to log errors
-        }
       }
+      // If JSON not found, stateStandardsMap remains empty - state pages work fine without it
 
       return {
         stateData: { q1: stateQ1Json || [], q2: stateQ2Json || [] },
@@ -584,7 +538,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     console.log('⚠️ JSON files not found, falling back to CSV parsing (this will be slower)...');
     console.log('💡 Tip: Run "preprocess-data.bat" to create JSON files for faster loading');
     
-    // Load all CSV files in parallel
+    // Load all CSV files in parallel (excluding optional state standards CSV to avoid 404 errors)
     const [
       stateCsv,
       regionCsv,
@@ -592,7 +546,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       facilityCsv,
       providerInfoCsv,
       regionMappingCsv,
-      stateStandardsCsv,
     ] = await Promise.all([
       loadCSV(`${basePath}/state_quarterly_metrics.csv`).catch(() => 
         loadCSV('../state_quarterly_metrics.csv')
@@ -612,11 +565,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() => 
         loadCSV('../cms_region_state_mapping.csv').catch(() => '')
       ),
-      loadCSV(`${basePath}/macpac_state_standards_clean.csv`).catch(() => {
-        // Silently fail - state standards CSV is optional
-        return '';
-      }),
     ]);
+    
+    // State standards CSV removed from Promise.all to avoid 404 errors
+    // State pages work fine without state standards data (it's optional)
+    const stateStandardsCsv = '';
 
     // Parse all CSVs
     const [
@@ -626,7 +579,6 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       facilityRows,
       providerInfoRows,
       regionMappingRows,
-      stateStandardsRows,
     ] = await Promise.all([
       parseCSV<any>(stateCsv).then(rows => rows.map(parseStateRow)),
       parseCSV<any>(regionCsv).then(rows => rows.map(parseRegionRow)),
@@ -634,46 +586,11 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       parseCSV<any>(facilityCsv).then(rows => rows.map(parseFacilityRow)),
       parseCSV<any>(providerInfoCsv).then(rows => rows.map(parseProviderInfoRow)),
       regionMappingCsv ? parseCSV<any>(regionMappingCsv) : Promise.resolve([]),
-      stateStandardsCsv ? parseCSV<any>(stateStandardsCsv) : Promise.resolve([]),
     ]);
 
-    // Process state standards: filter for >= 1.00, map state name to state code
+    // State standards CSV loading removed to avoid 404 errors
+    // State pages work fine without state standards data (it's optional)
     const stateStandardsMap = new Map<string, StateStandardRow>();
-    if (stateStandardsRows && stateStandardsRows.length > 0) {
-      for (const row of stateStandardsRows) {
-        const minStaffing = parseFloat(row.Min_Staffing) || 0;
-        // Only include states with requirements >= 1.00
-        if (minStaffing >= 1.0) {
-          const stateName = row.State?.trim();
-          if (stateName) {
-            // Convert state name to state code
-            const stateCode = stateNameToAbbr(stateName);
-            if (stateCode) {
-              const key = stateCode.toLowerCase();
-              stateStandardsMap.set(key, {
-                State: stateName,
-                Total_Estimated_Staffing_Requirements: row.Total_Estimated_Staffing_Requirements || '',
-                Min_Staffing: minStaffing,
-                Max_Staffing: parseFloat(row.Max_Staffing) || minStaffing,
-                Value_Type: row.Value_Type || 'single',
-                Is_Federal_Minimum: row.Is_Federal_Minimum || 'False',
-                Display_Text: row.Display_Text || '',
-              });
-              // Debug: Log NY specifically
-              if (key === 'ny' || stateName.toLowerCase().includes('new york')) {
-                console.log(`[State Standards] Mapped "${stateName}" -> "${key}" with min ${minStaffing}`);
-              }
-            } else {
-              // Debug: Log if state name couldn't be converted
-              if (stateName.toLowerCase().includes('new york')) {
-                console.warn(`[State Standards] Could not convert state name "${stateName}" to code`);
-              }
-            }
-          }
-        }
-      }
-    }
-    console.log(`[State Standards] Loaded ${stateStandardsMap.size} state standards. NY present: ${stateStandardsMap.has('ny')}`);
 
     // Build region-state mapping
     const regionStateMapping = new Map<number, Set<string>>();

@@ -122,7 +122,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
             className="block w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-sm"
             onClick={() => trackFacilityLinkClick(facility.provnum, facility.name, 'State Facility Spotlight')}
           >
-            View full staffing history →
+            View Provider's PBJ Dashboard →
           </a>
         </div>
       </div>

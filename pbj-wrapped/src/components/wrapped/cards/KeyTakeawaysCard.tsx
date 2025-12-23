@@ -49,13 +49,6 @@ function getStateFullName(abbr: string): string {
 }
 
 export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
-  const formatNumber = (num: number, decimals: number = 0): string => {
-    return num.toLocaleString('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    });
-  };
-
   const formatHPRD = (num: number): string => {
     return num.toLocaleString('en-US', {
       minimumFractionDigits: 2,

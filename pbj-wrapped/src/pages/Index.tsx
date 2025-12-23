@@ -244,9 +244,6 @@ const Index: React.FC = () => {
         <div className="grid grid-cols-2 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
           {/* State Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
-            <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">
-              Select a State
-            </label>
             <select
               value={selectedState}
               onChange={(e) => {
@@ -255,7 +252,7 @@ const Index: React.FC = () => {
               }}
               className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
             >
-              <option value="">Choose a state...</option>
+              <option value="">Select a state</option>
               {states.map((state) => (
                 <option key={state.code} value={state.code}>
                   {state.name} ({state.code})
@@ -266,9 +263,6 @@ const Index: React.FC = () => {
 
           {/* Region Dropdown */}
           <div className="bg-black/40 backdrop-blur-sm border-2 border-blue-500/30 rounded-xl p-3 md:p-4">
-            <label className="block text-xs md:text-sm font-semibold text-blue-300 mb-2">
-              Select a CMS Region
-            </label>
             <select
               value={selectedRegion}
               onChange={(e) => {
@@ -279,7 +273,7 @@ const Index: React.FC = () => {
               }}
               className="w-full px-3 py-2 text-sm bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none cursor-pointer"
             >
-              <option value="">Choose a region...</option>
+              <option value="">Select a region</option>
               {regions.map((region) => (
                 <option key={region.num} value={region.num.toString()}>
                   Region {region.num} — {region.name}

@@ -20,9 +20,9 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
     const regionNumber = facility.provnum?.replace(/region/i, '') || 
                         facility.state?.replace(/region/i, '').trim() || '';
     let regionName = facility.name; // e.g., "Boston"
-    // Abbreviate San Francisco to San Fran
+    // Abbreviate San Francisco to SF
     if (regionName === 'San Francisco') {
-      regionName = 'San Fran';
+      regionName = 'SF';
     }
     const displayName = regionNumber ? `Region ${regionNumber} (${regionName})` : regionName;
     

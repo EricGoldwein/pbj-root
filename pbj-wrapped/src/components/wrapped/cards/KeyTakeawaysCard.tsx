@@ -189,15 +189,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       // Extract region number from identifier (e.g., "region1" -> "1")
       const regionNumber = data.identifier?.replace(/region/i, '') || '';
       let regionName = data.name; // e.g., "Boston"
-      // Abbreviate San Francisco to San Fran
+      // Abbreviate San Francisco to SF
       if (regionName === 'San Francisco') {
-        regionName = 'San Fran';
+        regionName = 'SF';
       }
       const displayName = regionNumber ? `CMS Region ${regionNumber} (${regionName})` : regionName;
-      
-      // Format resident count properly
-      const residentCount = Math.round(data.avgDailyResidents);
-      const residentCountFormatted = formatNumber(residentCount, 0);
       
       // Calculate total regions for rank display (should be 10)
       const totalRegions = 10;
@@ -205,7 +201,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong> ({data.rankings.totalHPRDRank} of {totalRegions}) and RN staffing ratio of <strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong> ({data.rankings.rnHPRDRank} of {totalRegions}).
+            <strong className="text-white">{displayName}</strong> reports a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong> ({data.rankings.totalHPRDRank} of {totalRegions}) and RN staffing ratio of <strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong> ({data.rankings.rnHPRDRank} of {totalRegions}).
             {data.averageOverallRating !== undefined && (
               <span className="block mt-1 text-sm text-gray-300">
                 Average overall rating: <strong className="text-white">{data.averageOverallRating.toFixed(1)}★</strong>

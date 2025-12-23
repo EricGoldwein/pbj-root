@@ -36,13 +36,6 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
     return `${sign}${formatted}${isPercent ? '%' : ''}`;
   };
 
-  // Check if all trends are exactly 0.00 (likely means Q1 data is missing)
-  // This is a heuristic - if all four metrics are exactly 0.00, Q1 data is probably missing
-  const allZero = data.trends.totalHPRDChange === 0 && 
-                  data.trends.directCareHPRDChange === 0 && 
-                  data.trends.rnHPRDChange === 0 &&
-                  data.trends.contractPercentChange === 0;
-
   // Dynamic title based on scope
   const getTitle = () => {
     if (data.scope === 'state') {
@@ -60,22 +53,6 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
         Changes from Q1 2025 to Q2 2025
       </p>
       
-      {allZero && (
-        <div className="mb-3 p-2.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-          <p className="text-yellow-300 text-xs leading-relaxed">
-            <strong>Note:</strong> Q1 2025 data may not be available. If all trends show 0.00, check that{' '}
-            {data.scope === 'region' ? (
-              <>
-                <code className="text-yellow-200">region_q1.json</code> contains Q1 data for this region
-              </>
-            ) : (
-              <>
-                <code className="text-yellow-200">state_q1.json</code> contains Q1 data for this state
-              </>
-            )}.
-          </p>
-        </div>
-      )}
       
       <div className="space-y-3 text-left">
         <div className="py-1.5 border-b border-gray-600">

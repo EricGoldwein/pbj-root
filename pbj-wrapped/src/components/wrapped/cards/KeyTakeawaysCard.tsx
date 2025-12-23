@@ -149,7 +149,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
               </>
             )}
           </p>
-          {data.compliance && data.compliance.facilitiesBelowTotalMinimum > 0 && (
+          {data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent > 5 && (
             <p className="mb-2">
               In Q2 2025, <strong className="text-red-300">{data.compliance.facilitiesBelowTotalMinimum}</strong> of {stateFullName}'s facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) fell below the state minimum of <strong className="text-white">{data.stateMinimum?.minHPRD.toFixed(2)} HPRD</strong>.
             </p>

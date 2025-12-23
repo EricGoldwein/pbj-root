@@ -23,7 +23,6 @@ import { WhatIsPBJCard } from '../components/wrapped/cards/WhatIsPBJCard';
 import { USAOwnershipCard } from '../components/wrapped/cards/USAOwnershipCard';
 import { StateOverviewCard } from '../components/wrapped/cards/StateOverviewCard';
 import { USANationalScaleCard } from '../components/wrapped/cards/USANationalScaleCard';
-import { StateMinimumCard } from '../components/wrapped/cards/StateMinimumCard';
 import { RegionStatesCard } from '../components/wrapped/cards/RegionStatesCard';
 import { StateFacilitySpotlightCard } from '../components/wrapped/cards/StateFacilitySpotlightCard';
 import { getAssetPath } from '../utils/assets';
@@ -188,8 +187,6 @@ const Wrapped: React.FC = () => {
     const screensArray: React.ReactElement[] = [
       <HeaderCard key="header" name={wrappedData.name} />,
       <WhatIsPBJCard key="what-is-pbj" data={wrappedData} />,
-      // State minimum staffing requirement (if available)
-      ...(wrappedData.scope === 'state' && wrappedData.stateMinimum ? [<StateMinimumCard key="state-minimum" data={wrappedData} />] : []),
       // Region states overview (early on for regions)
       ...(wrappedData.scope === 'region' && wrappedData.regionStates ? [<RegionStatesCard key="region-states" data={wrappedData} />] : []),
       // State-specific narrative overview
@@ -221,7 +218,7 @@ const Wrapped: React.FC = () => {
         ? [<StateFacilitySpotlightCard key="spotlight" data={wrappedData} />]
         : []
       ),
-      <TrendsCard key="trends" data={wrappedData} />,
+      ...(wrappedData.scope !== 'region' ? [<TrendsCard key="trends" data={wrappedData} />] : []),
       <RisersCard key="risers" data={wrappedData} />,
       <DeclinersCard key="decliners" data={wrappedData} />,
       <KeyTakeawaysCard key="takeaways" data={wrappedData} />,

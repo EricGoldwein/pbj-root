@@ -60,6 +60,25 @@ function parseOwnershipType(ownershipType?: string): 'forProfit' | 'nonProfit' |
 }
 
 /**
+ * Simplify ownership type to exactly one of: "Nonprofit", "For-profit", or "Government"
+ * Removes all suffixes like "- Individual", "- Corporation", etc.
+ */
+function simplifyOwnershipType(ownershipType: string | undefined): string | undefined {
+  if (!ownershipType) return undefined;
+  const lowerType = ownershipType.toLowerCase();
+  if (lowerType.includes('for profit') || lowerType.includes('for-profit') || lowerType.includes('forprofit')) {
+    return 'For-profit';
+  }
+  if (lowerType.includes('non profit') || lowerType.includes('non-profit') || lowerType.includes('nonprofit') || lowerType.includes('not for profit')) {
+    return 'Nonprofit';
+  }
+  if (lowerType.includes('government') || lowerType.includes('govt') || lowerType.includes('state') || lowerType.includes('county') || lowerType.includes('city') || lowerType.includes('federal')) {
+    return 'Government';
+  }
+  return undefined; // Don't return unknown types
+}
+
+/**
  * Calculate median value from array
  */
 function calculateMedian(values: number[]): number {
@@ -1110,7 +1129,7 @@ function processStateData(
       contractPercent: candidate.facility.Contract_Percentage,
       census: Math.round(census),
       sffStatus: candidate.info?.sff_status,
-      ownershipType: candidate.info?.ownership_type,
+      ownershipType: simplifyOwnershipType(candidate.info?.ownership_type),
       link: createFacilityLink(candidate.facility.PROVNUM),
     };
   }
@@ -1510,14 +1529,7 @@ function processRegionData(
     const facilityQ1Item = facilityMapQ1.get(candidate.facility.PROVNUM);
     const census = candidate.facility.Census || candidate.info?.avg_residents_per_day || 0;
     
-    // Simplify ownership type - remove "- Individual", "- Corporation", etc.
-    let simplifiedOwnershipType = candidate.info?.ownership_type;
-    if (simplifiedOwnershipType) {
-      // Remove suffixes like " - Individual", " - Corporation", " - Partnership", etc.
-      simplifiedOwnershipType = simplifiedOwnershipType
-        .replace(/\s*-\s*(Individual|Corporation|Partnership|Limited Liability Company|LLC|Non-Profit|Government|Church Related|Other).*$/i, '')
-        .trim();
-    }
+    // Simplify ownership type using helper function
     
     spotlightFacility = {
       provnum: candidate.facility.PROVNUM,

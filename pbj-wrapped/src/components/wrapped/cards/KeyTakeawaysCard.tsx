@@ -90,12 +90,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       });
       const mostNoticeable = sortedTrends[0];
       
-      const facilityCount = formatNumber(data.facilityCount);
-      const residentCount = Math.round(data.avgDailyResidents);
-      const residentCountFormatted = residentCount >= 1000000 
-        ? `${(residentCount / 1000000).toFixed(1)} million`
-        : formatNumber(residentCount, 0);
-      
       const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
       
       // Check for ownership disparity
@@ -106,11 +100,11 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            Nationwide, PBJ reports <strong className="text-white">{facilityCount}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents in the United States with a ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)}</strong> staffing hours per resident day.
+            US nursing homes reported <strong className="text-white">{formatHPRD(totalHPRDValue)}</strong> staffing hours per resident day, including <strong className="text-white">{formatHPRD(data.directCareHPRD || 0)} HPRD</strong> of direct care and <strong className="text-white">{formatHPRD(data.rnHPRD || 0)} HPRD</strong> of RN (total).
           </p>
           {hasOwnershipDisparity && data.ownership && (
             <p className="mb-2">
-              For-profit facilities median <strong className="text-white">{formatHPRD(data.ownership.forProfit.medianHPRD!)} HPRD</strong>, while non-profits median <strong className="text-white">{formatHPRD(data.ownership.nonProfit.medianHPRD!)} HPRD</strong>. The ownership model directly impacts staffing levels.
+              Staffing levels were associated with ownership type; For-profit facilities provided a median HPRD of <strong className="text-white">{formatHPRD(data.ownership.forProfit.medianHPRD!)}</strong> while non-profits provided a median of <strong className="text-white">{formatHPRD(data.ownership.nonProfit.medianHPRD!)} HPRD</strong>.
             </p>
           )}
           {data.statesWithMinAbove2HPRD !== undefined && data.statesWithMinAbove2HPRD > 0 && (

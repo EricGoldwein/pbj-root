@@ -80,7 +80,7 @@ export const USAOwnershipCard: React.FC<USAOwnershipCardProps> = ({ data }) => {
         </div>
 
         <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">
-          Source: CMS PBJ Q2 2025
+          Source: CMS Provider Info
         </p>
       </div>
     </WrappedCard>

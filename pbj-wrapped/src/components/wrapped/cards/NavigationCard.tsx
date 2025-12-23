@@ -18,7 +18,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
   };
 
   const handleUSA = () => {
-    navigate('/usa');
+    navigate('/wrapped/usa');
   };
 
   const handleReport = () => {

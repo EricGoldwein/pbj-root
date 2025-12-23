@@ -180,7 +180,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
           </div>
         </div>
         
-        <div className="py-1 md:py-1.5 border-b border-gray-600">
+        <div className="py-1 md:py-1.5">
           <div className="flex justify-between items-center mb-1">
             <div className="flex flex-col">
               <span className="text-gray-300 text-sm md:text-base">RN HPRD</span>

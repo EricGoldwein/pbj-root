@@ -40,7 +40,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
 
         {/* Facility Name */}
         <div className="pb-2 border-b border-gray-700">
-          <h3 className="text-lg md:text-xl font-bold text-white mb-1">
+          <h3 className="text-lg md:text-xl font-bold text-white mb-1 text-center">
             {facility.name}
           </h3>
         </div>

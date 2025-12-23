@@ -4,6 +4,25 @@ import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 import { shortenProviderName } from '../../../lib/wrapped/dataProcessor';
 import { trackFacilityLinkClick, trackStateLinkClick } from '../../../utils/analytics';
 
+// State abbreviation to full name mapping
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+  'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+  'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+  'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+  'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+  'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+  'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+  'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+  'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+  'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+  'dc': 'District of Columbia'
+};
+
+function getStateFullName(abbr: string): string {
+  return STATE_ABBR_TO_NAME[abbr.toLowerCase()] || abbr;
+}
+
 interface DeclinersCardProps {
   data: PBJWrappedData;
 }
@@ -108,7 +127,10 @@ export const DeclinersCard: React.FC<DeclinersCardProps> = ({ data }) => {
   // Dynamic title based on scope
   const getTitle = () => {
     if (data.scope === 'state') {
-      return `${data.identifier.toUpperCase()}'s Biggest Decliners`;
+      const stateName = getStateFullName(data.identifier);
+      // Handle states with apostrophes in their names (e.g., "New Hampshire's")
+      const possessive = stateName.endsWith('s') ? `${stateName}'` : `${stateName}'s`;
+      return `${possessive} Biggest Decliners`;
     } else if (data.scope === 'region') {
       const regionNum = data.identifier.replace(/^region/i, '');
       return `CMS Region ${regionNum}'s Biggest Decliners`;

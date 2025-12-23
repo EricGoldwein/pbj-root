@@ -45,7 +45,7 @@ interface SFFCandidateJSON {
   };
 }
 
-type SFFStatus = 'SFF' | 'Candidate' | 'Graduate' | 'Inactive';
+type SFFStatus = 'SFF' | 'Candidate' | 'Graduate' | 'Decertified';
 
 interface SFFFacility {
   provnum: string;
@@ -53,7 +53,8 @@ interface SFFFacility {
   state: string;
   city?: string;
   county?: string;
-  sffStatus: SFFStatus; // New: Categorized status
+  sffStatus: SFFStatus; // Primary status (highest priority category)
+  categories?: string[]; // All categories this facility appears in (for multi-category facilities)
   totalHPRD: number;
   directCareHPRD: number;
   rnHPRD: number;
@@ -72,7 +73,7 @@ interface SFFFacility {
 
 type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census' | 'monthsAsSFF' | 'sffStatus';
 type SortDirection = 'asc' | 'desc';
-type CategoryFilter = 'all' | 'sffs-only' | 'candidates-only' | 'graduates' | 'inactive';
+type CategoryFilter = 'all' | 'sffs-only' | 'candidates-only' | 'graduates' | 'decertified';
 
 export default function SFFPage() {
   const { scope: scopeParam } = useParams<{ scope?: string }>();
@@ -374,17 +375,67 @@ export default function SFFPage() {
 
         // Process all facilities from JSON (already has category field from the 4 CSVs)
         if (sffFacilitiesData && sffFacilitiesData.facilities) {
-          // Use facilities directly - they already have category field
-          const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus }> = sffFacilitiesData.facilities.map(f => ({
-            ...f,
-            status: (f.category === 'SFF' ? 'SFF' : 
-                     f.category === 'Graduate' ? 'Graduate' : 
-                     f.category === 'Terminated' ? 'Inactive' : 
-                     'Candidate') as SFFStatus
-          }));
+          // FIRST PASS: Group facilities by CCN to handle duplicates
+          // A facility may appear in multiple categories (e.g., Candidate AND Graduate, or Candidate AND SFF)
+          const facilitiesByCCN = new Map<string, Array<PDFFacilityData & { status: SFFStatus; category: string }>>();
+          
+          for (const f of sffFacilitiesData.facilities) {
+            const ccn = f.provider_number?.toString().trim();
+            if (!ccn) continue;
+            
+            const status: SFFStatus = (f.category === 'SFF' ? 'SFF' : 
+                                     f.category === 'Graduate' ? 'Graduate' : 
+                                     f.category === 'Terminated' ? 'Decertified' : 
+                                     'Candidate');
+            
+            if (!facilitiesByCCN.has(ccn)) {
+              facilitiesByCCN.set(ccn, []);
+            }
+            facilitiesByCCN.get(ccn)!.push({ ...f, status, category: f.category });
+          }
+
+          // Convert to array of facilities, handling duplicates by using highest priority category
+          // Priority: SFF > Candidate > Graduate > Decertified (Terminated)
+          const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus; categories: string[] }> = [];
+          for (const [ccn, facilities] of facilitiesByCCN.entries()) {
+            if (facilities.length === 0) continue;
+            
+            // Get all unique categories for this facility
+            const categories = [...new Set(facilities.map(f => f.category))];
+            
+            // Determine highest priority status
+            let priorityStatus: SFFStatus = 'Decertified';
+            if (categories.includes('SFF')) {
+              priorityStatus = 'SFF';
+            } else if (categories.includes('Candidate')) {
+              priorityStatus = 'Candidate';
+            } else if (categories.includes('Graduate')) {
+              priorityStatus = 'Graduate';
+            }
+            
+            // Use the first facility entry as base, but with highest priority status
+            const baseFacility = facilities[0];
+            allPDFFacilities.push({
+              ...baseFacility,
+              status: priorityStatus,
+              categories, // Store all categories for filtering later
+            });
+            
+            // Log if facility appears in multiple categories
+            if (categories.length > 1) {
+              console.log(`[Multi-Category] CCN=${ccn}, Name=${baseFacility.facility_name}, Categories=${categories.join(', ')}, Using status=${priorityStatus}`);
+            }
+          }
 
           totalFromJSON = allPDFFacilities.length;
-          console.log(`[Processing] Total facilities from JSON: ${totalFromJSON}`);
+          console.log(`[Processing] Total unique facilities from JSON: ${totalFromJSON} (from ${sffFacilitiesData.facilities.length} entries)`);
+          
+          // Debug: Track NY candidates specifically
+          const nyCandidatesInJSON = allPDFFacilities.filter((f: any) => 
+            f.state === 'NY' && (f.categories && f.categories.includes('Candidate'))
+          );
+          console.log(`[NY Debug] Found ${nyCandidatesInJSON.length} NY candidates in JSON (including multi-category):`, 
+            nyCandidatesInJSON.map((f: any) => ({ ccn: f.provider_number?.toString().trim(), categories: f.categories || [f.category] })));
           
           for (const pdfFacility of allPDFFacilities) {
             const ccn = pdfFacility.provider_number?.toString().trim();
@@ -394,19 +445,20 @@ export default function SFFPage() {
               continue;
             }
             
-            // Skip if already processed
-            if (processedCCNs.has(ccn)) {
-              skippedDuplicates++;
-              console.log(`[Duplicate] Skipping duplicate CCN: ${ccn}, Facility: ${pdfFacility.facility_name}`);
-              continue;
-            }
+            // No longer skip duplicates - we've already handled them in the grouping step
             
-            // Debug: Log specific facilities that user mentioned
-            const isProblematicFacility = ccn === '165344' || ccn === '155857' || ccn === '175172' || ccn === '235187' || 
+              // Debug: Log specific facilities that user mentioned
+              const isProblematicFacility = ccn === '165344' || ccn === '155857' || ccn === '175172' || ccn === '235187' || 
                                          pdfFacility.facility_name?.toLowerCase().includes('aspire') ||
                                          pdfFacility.facility_name?.toLowerCase().includes('tranquility') ||
                                          pdfFacility.facility_name?.toLowerCase().includes('excel healthcare') ||
                                          pdfFacility.facility_name?.toLowerCase().includes('mission point');
+            
+            // Debug: Log NY candidates specifically
+            const isNyCandidate = pdfFacility.state === 'NY' && pdfFacility.status === 'Candidate';
+            if (isNyCandidate) {
+              console.log(`[NY Candidate Processing] CCN=${ccn}, Name=${pdfFacility.facility_name}, JSON State=${pdfFacility.state}, JSON Status=${pdfFacility.status}, Has Provider=${!!findProviderByCCN(ccn)}, Has Facility=${!!findFacilityByCCN(ccn)}`);
+            }
             
             // Debug: Log first few facilities to see what we're processing
             if (allFacilitiesList.length < 5 || isProblematicFacility) {
@@ -685,6 +737,7 @@ export default function SFFPage() {
                 city: facilityCity,
                 county: provider?.COUNTY_NAME ? capitalizeCity(provider.COUNTY_NAME) : undefined,
                 sffStatus: pdfFacility.status,
+                categories: pdfFacility.categories || [pdfFacility.status === 'SFF' ? 'SFF' : pdfFacility.status === 'Graduate' ? 'Graduate' : pdfFacility.status === 'Decertified' ? 'Terminated' : 'Candidate'],
                 totalHPRD,
                 directCareHPRD,
                 rnHPRD,
@@ -719,7 +772,7 @@ export default function SFFPage() {
             const afterFilter = filteredFacilities.length;
             
             // Debug: Log state filtering for NY candidates
-            if (stateCode === 'NY' && process.env.NODE_ENV === 'development') {
+            if (stateCode === 'NY') {
               const nyCandidates = filteredFacilities.filter(f => f.sffStatus === 'Candidate');
               const allCandidates = allFacilitiesList.filter(f => f.sffStatus === 'Candidate');
               const candidatesByState = allCandidates.reduce((acc, f) => {
@@ -732,6 +785,36 @@ export default function SFFPage() {
               const candidatesWithWrongState = allCandidates.filter(f => f.state !== 'NY' && f.sffStatus === 'Candidate');
               if (candidatesWithWrongState.length > 0) {
                 console.warn(`[NY Filter Debug] Found ${candidatesWithWrongState.length} candidates with non-NY state:`, candidatesWithWrongState.map(f => ({ ccn: f.provnum, name: f.name, state: f.state })));
+              }
+              
+              // Log all NY candidates to see which ones are present
+              console.log(`[NY Filter Debug] NY Candidates found (${nyCandidates.length}):`, nyCandidates.map(f => ({ ccn: f.provnum, name: f.name, state: f.state, status: f.sffStatus })));
+              
+              // Check which NY candidates from JSON are missing
+              // Note: Facilities may appear in multiple categories, so check if they have Candidate in categories array
+              const jsonCcnSet = new Set<string>();
+              if (sffFacilitiesData) {
+                const jsonNyCandidates = sffFacilitiesData.facilities.filter((f: any) => 
+                  f.state === 'NY' && f.category === 'Candidate'
+                );
+                jsonNyCandidates.forEach((f: any) => {
+                  const ccn = f.provider_number?.toString().trim();
+                  if (ccn) jsonCcnSet.add(ccn);
+                });
+                
+                const foundCcnSet = new Set(nyCandidates.map(f => f.provnum));
+                const missingCcnSet = new Set([...jsonCcnSet].filter(ccn => !foundCcnSet.has(ccn)));
+                if (missingCcnSet.size > 0) {
+                  console.error(`[NY Filter Debug] Missing ${missingCcnSet.size} NY candidates from JSON:`, Array.from(missingCcnSet));
+                  const missingFacilities = jsonNyCandidates.filter((f: any) => missingCcnSet.has(f.provider_number?.toString().trim()));
+                  console.error(`[NY Filter Debug] Missing facilities:`, missingFacilities.map((f: any) => ({ 
+                    ccn: f.provider_number, 
+                    name: f.facility_name, 
+                    state: f.state, 
+                    category: f.category,
+                    allCategories: allFacilitiesList.find(a => a.provnum === f.provider_number?.toString().trim())?.categories
+                  })));
+                }
               }
             }
           } else if (scope.startsWith('region')) {
@@ -774,20 +857,24 @@ export default function SFFPage() {
       case 'sffs-only':
         return allFacilities.filter(f => f.sffStatus === 'SFF');
       case 'candidates-only':
-        // Strict filter: only facilities with exactly 'Candidate' status
-        // Double-check: filter out anything that's not exactly 'Candidate'
+        // Filter: Include facilities that appear in the Candidate category
+        // This includes facilities that are primarily Candidates OR facilities that
+        // appear in multiple categories including Candidate (e.g., Candidate + SFF, Candidate + Graduate)
         return allFacilities.filter(f => {
-          const status = f.sffStatus;
-          // Must be exactly 'Candidate', case-sensitive
-          if (status !== 'Candidate') {
-            return false;
+          // Check if facility appears in Candidate category (either as primary status or in categories array)
+          if (f.sffStatus === 'Candidate') {
+            return true;
           }
-          return true;
+          // Check if facility has Candidate in its categories array (for multi-category facilities)
+          if (f.categories && f.categories.includes('Candidate')) {
+            return true;
+          }
+          return false;
         });
       case 'graduates':
         return allFacilities.filter(f => f.sffStatus === 'Graduate');
-      case 'inactive':
-        return allFacilities.filter(f => f.sffStatus === 'Inactive');
+      case 'decertified':
+        return allFacilities.filter(f => f.sffStatus === 'Decertified');
       default:
         return allFacilities;
     }
@@ -1200,7 +1287,7 @@ export default function SFFPage() {
                 const sffCount = allFacilities.filter(f => f.sffStatus === 'SFF').length;
                 const candidateCount = allFacilities.filter(f => f.sffStatus === 'Candidate').length;
                 const graduateCount = allFacilities.filter(f => f.sffStatus === 'Graduate').length;
-                const inactiveCount = allFacilities.filter(f => f.sffStatus === 'Inactive').length;
+                const decertifiedCount = allFacilities.filter(f => f.sffStatus === 'Decertified').length;
                 
                 return (
                   <>
@@ -1240,16 +1327,16 @@ export default function SFFPage() {
                         Graduates ({graduateCount})
               </button>
                     )}
-                    {inactiveCount > 0 && (
+                    {decertifiedCount > 0 && (
               <button
-                        onClick={() => { setCategoryFilter('inactive'); setCurrentPage(1); }}
+                        onClick={() => { setCategoryFilter('decertified'); setCurrentPage(1); }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'inactive'
+                          categoryFilter === 'decertified'
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
-                }`}
+                  }`}
               >
-                        Inactive ({inactiveCount})
+                        Decertified ({decertifiedCount})
               </button>
                     )}
                   </>
@@ -1317,7 +1404,7 @@ export default function SFFPage() {
                         'SFF': 'bg-red-500/20 text-red-300',
                         'Candidate': 'bg-yellow-500/20 text-yellow-300',
                         'Graduate': 'bg-green-500/20 text-green-300',
-                        'Inactive': 'bg-gray-500/20 text-gray-300'
+                        'Decertified': 'bg-gray-500/20 text-gray-300'
                       };
                       return (
                         <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
@@ -1370,7 +1457,7 @@ export default function SFFPage() {
                               <span className="md:hidden">
                                 {facility.sffStatus === 'Candidate' ? 'Cand' : 
                                  facility.sffStatus === 'Graduate' ? 'Grad' :
-                                 facility.sffStatus === 'Inactive' ? 'Inact' :
+                                 facility.sffStatus === 'Decertified' ? 'Decert' :
                                  facility.sffStatus}
                               </span>
                               <span className="hidden md:inline">{facility.sffStatus}</span>
@@ -1429,7 +1516,7 @@ export default function SFFPage() {
             </p>
             {candidateJSON && (
               <p className="text-gray-200">
-                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Inactive ({candidateJSON.summary.total_count} total)
+                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Decertified ({candidateJSON.summary.total_count} total)
               </p>
             )}
           </div>
@@ -1452,10 +1539,13 @@ export default function SFFPage() {
                   <strong className="text-green-300">Facilities That Have Graduated:</strong> These nursing homes sustained improvement for about 12 months (through two standard health surveys) while in the SFF program. CMS lists their names as "graduates" for three years after they graduate so that anyone tracking their progress will be informed. "Graduation" does not mean there may not be problems in quality of care but does generally indicate an upward trend in quality improvement compared to the nursing home's prior history.
                 </div>
                 <div>
-                  <strong className="text-gray-300">No Longer in Medicare and Medicaid:</strong> These are nursing homes that were either terminated by CMS from participation in Medicare and Medicaid within the past few months or voluntarily chose not to continue such participation. In most cases, the nursing homes will have closed, although some nursing homes that leave Medicare later seek to show better quality and re-enter the Medicare program after demonstrating their ability to comply with all Federal health and safety requirements.
+                  <strong className="text-gray-300">Decertified:</strong> These are nursing homes that were either terminated by CMS from participation in Medicare and Medicaid within the past few months or voluntarily chose not to continue such participation. In most cases, the nursing homes will have closed, although some nursing homes that leave Medicare later seek to show better quality and re-enter the Medicare program after demonstrating their ability to comply with all Federal health and safety requirements.
                 </div>
                 <div>
                   <strong className="text-yellow-300">SFF Candidate List:</strong> These are nursing homes that qualify to be selected as an SFF. The number of nursing homes on the candidate list is based on five candidates for each SFF slot, with a minimum candidate pool of five nursing homes and a maximum of 30 per State.
+                </div>
+                <div className="pt-2 border-t border-gray-700">
+                  <strong className="text-blue-300">Multi-Category Facilities:</strong> Some facilities appear in multiple CMS SFF categories (e.g., Graduate and Candidate, or Candidate and SFF) due to status changes over time (e.g., Candidate → SFF → Graduate). For clarity, facilities are shown once using the highest priority category: SFF {'>'} Candidate {'>'} Graduate {'>'} Decertified.
                 </div>
                 <div className="pt-2 border-t border-gray-700">
                   <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have Q2 2025 PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.

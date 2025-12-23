@@ -45,6 +45,27 @@ const Wrapped: React.FC = () => {
   const [loadingProgress, setLoadingProgress] = useState(0);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Set SEO immediately on mount so crawlers see og:image even before data loads
+  useEffect(() => {
+    if (identifier) {
+      const params = parseRouteParams(year, identifier);
+      if (params.scope && params.normalizedIdentifier) {
+        const baseUrl = 'https://www.pbj320.com';
+        const path = `/wrapped/${params.normalizedIdentifier}`;
+        // Set basic SEO immediately with og:image so crawlers see it
+        updateSEO({
+          title: `PBJ Wrapped Q2 ${year} | PBJ320`,
+          description: `Q2 ${year} nursing home staffing data. Explore staffing levels, trends, and insights from CMS Payroll-Based Journal (PBJ) data.`,
+          ogTitle: `PBJ Wrapped Q2 ${year}`,
+          ogDescription: `Nursing home staffing data and trends for Q2 ${year}. Staffing levels, rankings, and insights from CMS PBJ data.`,
+          ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
+          ogUrl: `${baseUrl}${path}`,
+          canonical: `${baseUrl}${path}`,
+        });
+      }
+    }
+  }, [identifier, year]);
+
   useEffect(() => {
     // Debug: log the params
     console.log('Route params:', { identifier });

@@ -38,6 +38,7 @@
       (function() {
         var baseUrl = 'https://www.pbj320.com';
         var path = window.location.pathname;
+        var isSFFPage = path && path.startsWith('/sff');
         var ogImage = baseUrl + '/images/phoebe-wrapped-wide.png';
         
         // State code to name mapping
@@ -89,7 +90,13 @@
         
         // Handle SFF pages
         if (path && path.startsWith('/sff')) {
-          if (path === '/sff/usa' || path === '/sff/usa/') {
+          if (path === '/sff' || path === '/sff/') {
+            // Base SFF path - redirects to /sff/usa, use USA metadata
+            title = 'Special Focus Facilities Program — United States | PBJ320';
+            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'Special Focus Facilities Program — United States';
+            ogDescription = description;
+          } else if (path === '/sff/usa' || path === '/sff/usa/') {
             title = 'Special Focus Facilities Program — United States | PBJ320';
             description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
             ogTitle = 'Special Focus Facilities Program — United States';
@@ -129,9 +136,21 @@
         // Always update URL-based tags
         updateMetaTag('property', 'og:url', fullUrl);
         updateLinkTag('canonical', fullUrl);
-        updateMetaTag('property', 'og:image', ogImage);
-        updateMetaTag('property', 'og:image:secure_url', ogImage);
-        updateMetaTag('name', 'twitter:image', ogImage);
+        
+        // Only set og:image for non-SFF pages
+        if (!isSFFPage) {
+          updateMetaTag('property', 'og:image', ogImage);
+          updateMetaTag('property', 'og:image:secure_url', ogImage);
+          updateMetaTag('name', 'twitter:image', ogImage);
+        } else {
+          // Remove og:image for SFF pages
+          var ogImageMeta = document.querySelector('meta[property="og:image"]');
+          if (ogImageMeta) ogImageMeta.remove();
+          var ogImageSecureMeta = document.querySelector('meta[property="og:image:secure_url"]');
+          if (ogImageSecureMeta) ogImageSecureMeta.remove();
+          var twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
+          if (twitterImageMeta) twitterImageMeta.remove();
+        }
       })();
     </script>
     

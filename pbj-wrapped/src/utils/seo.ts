@@ -169,7 +169,6 @@ export function getSFFWrappedSEO(year: string = '2025'): SEOData {
     keywords,
     ogTitle: `Special Focus Facilities PBJ Data`,
     ogDescription: `Special Focus Facilities (SFF) nursing home staffing data for Q2 ${year}. Staffing levels, quality ratings, and locations from CMS PBJ data.`,
-    ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
     ogUrl: fullUrl,
     canonical: fullUrl,
   };

@@ -148,7 +148,6 @@ export default function SFFPage() {
       keywords: 'special focus facilities, SFF, nursing home staffing, CMS PBJ, Q2 2025, nursing home quality, long-term care',
       ogTitle: title.replace(' | PBJ320', ''),
       ogDescription: description,
-      ogImage: `${baseUrl}/images/phoebe-wrapped-wide.png`,
       ogUrl: fullUrl,
       canonical: fullUrl,
     });

@@ -50,7 +50,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
         </div>
 
         {/* Status Badges */}
-        <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-700">
+        <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-700 items-center">
           {facility.sffStatus && (
             <span className={`inline-block px-2 py-1 text-xs font-semibold rounded ${
               facility.sffStatus === 'SFF' 
@@ -65,6 +65,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
               {facility.ownershipType}
             </span>
           )}
+          {facility.census !== undefined && facility.census > 0 && (
+            <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-blue-500/20 text-blue-300">
+              Census: {facility.census.toLocaleString()}
+            </span>
+          )}
         </div>
 
         {/* Key Metrics */}
@@ -75,7 +80,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           </div>
           
           <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
-            <span className="text-gray-300 text-sm">Case-mix expected HPRD</span>
+            <span className="text-gray-300 text-sm">Case-Mix (expected)</span>
             <span className="text-gray-400 font-semibold text-base">{formatHPRD(facility.caseMixExpectedHPRD)}</span>
           </div>
           
@@ -88,13 +93,16 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
             </span>
           </div>
           
-          <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
-            <span className="text-gray-300 text-sm">QoQ Change</span>
-            <span className="text-red-400 font-bold text-base flex items-center gap-1">
-              <span>↓</span>
-              {formatHPRD(Math.abs(facility.qoqChange))}
-            </span>
-          </div>
+          {/* Only show QoQ Change if staffing decreased (negative qoqChange) */}
+          {facility.qoqChange < 0 && (
+            <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
+              <span className="text-gray-300 text-sm">QoQ Change</span>
+              <span className="text-red-400 font-bold text-base flex items-center gap-1">
+                <span>↓</span>
+                {formatHPRD(Math.abs(facility.qoqChange))}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Staffing Composition */}
@@ -108,7 +116,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
             <span className="text-gray-300 text-xs font-semibold">{formatHPRD(facility.cnaHPRD)}</span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-gray-400 text-xs">% contract staffing</span>
+            <span className="text-gray-400 text-xs">% Contract Staff</span>
             <span className="text-gray-300 text-xs font-semibold">{formatPercent(facility.contractPercent)}%</span>
           </div>
         </div>

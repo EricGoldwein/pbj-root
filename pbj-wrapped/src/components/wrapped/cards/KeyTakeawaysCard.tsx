@@ -143,18 +143,27 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       const rnHPRDValue = typeof data.rnHPRD === 'number' ? data.rnHPRD : 0;
       const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
       
+      // Determine which rank is worse (higher number = worse rank)
+      // If RN rank is significantly worse (5+ positions worse), lead with RN
+      // Otherwise, if total rank is worse or equal, lead with total
+      const rnRankWorse = rnRank > totalRank + 4; // RN rank is 5+ positions worse
+      const totalRankWorse = totalRank >= rnRank; // Total rank is worse or equal
+      const leadWithRN = rnRankWorse;
+      const leadWithTotal = !leadWithRN && totalRankWorse;
+      
       return (
         <>
           <p className="mb-2">
             <strong className="text-white">{stateFullName}</strong> ranks{' '}
-            <strong className="text-white">
-              #{rnRank} of 51
-            </strong>
-            {' '}for RN (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>) and{' '}
-            <strong className="text-white">
-              #{totalRank}
-            </strong>
-            {' '}for total (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>).
+            {leadWithRN ? (
+              <>
+                <strong className="text-white">#{rnRank} of 51</strong> for RN (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>) and <strong className="text-white">#{totalRank}</strong> for total (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>).
+              </>
+            ) : (
+              <>
+                <strong className="text-white">#{totalRank} of 51</strong> for total (<strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>) and <strong className="text-white">#{rnRank}</strong> for RN (<strong className="text-white">{formatHPRD(rnHPRDValue)} HPRD</strong>).
+              </>
+            )}
           </p>
           {data.compliance && data.compliance.facilitiesBelowTotalMinimum > 0 && (
             <p className="mb-2">
@@ -183,8 +192,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
         </>
       );
     } else if (data.scope === 'region') {
-      const biggestRiser = data.movers.risersByHPRD?.[0] as any;
-      const biggestDecliner = data.movers.declinersByHPRD?.[0] as any;
       const trend = typeof data.trends.totalHPRDChange === 'number' ? data.trends.totalHPRDChange : 0;
       const totalHPRDValue = typeof data.totalHPRD === 'number' ? data.totalHPRD : 0;
       

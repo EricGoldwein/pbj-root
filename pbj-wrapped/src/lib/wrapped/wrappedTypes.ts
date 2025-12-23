@@ -158,6 +158,7 @@ export interface PBJWrappedData {
     rnHPRD: number;
     cnaHPRD: number;
     contractPercent: number;
+    census?: number; // Facility census
     sffStatus?: string; // 'SFF', 'SFF CANDIDATE', or undefined
     ownershipType?: string;
     link: string; // pbjdashboard.com link

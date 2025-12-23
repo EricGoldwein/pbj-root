@@ -1077,16 +1077,23 @@ function processStateData(
       const census = f.facility.Census || f.info.avg_residents_per_day || 0;
       return census >= 50;
     })
+    .filter(f => {
+      // Only include facilities where staffing decreased (negative qoqChange) or has significant gap
+      // This ensures we highlight facilities with problems, not improvements
+      return f.qoqChange < 0 || f.gapVsExpected < -0.5;
+    })
     .sort((a, b) => {
-      // Prefer facilities with significant gaps or changes
-      const scoreA = Math.abs(a.gapVsExpected) + Math.abs(a.qoqChange);
-      const scoreB = Math.abs(b.gapVsExpected) + Math.abs(b.qoqChange);
+      // Prefer facilities with significant negative gaps (below expected) and negative changes (declined)
+      // Weight negative qoqChange more heavily since we want to highlight declines
+      const scoreA = Math.abs(a.gapVsExpected < 0 ? a.gapVsExpected : 0) + (a.qoqChange < 0 ? Math.abs(a.qoqChange) * 2 : 0);
+      const scoreB = Math.abs(b.gapVsExpected < 0 ? b.gapVsExpected : 0) + (b.qoqChange < 0 ? Math.abs(b.qoqChange) * 2 : 0);
       return scoreB - scoreA;
     });
 
   if (spotlightCandidates.length > 0) {
     const candidate = spotlightCandidates[0];
     const facilityQ1Item = facilityMapQ1.get(candidate.facility.PROVNUM);
+    const census = candidate.facility.Census || candidate.info?.avg_residents_per_day || 0;
     spotlightFacility = {
       provnum: candidate.facility.PROVNUM,
       name: toTitleCase(candidate.facility.PROVNAME),
@@ -1099,6 +1106,7 @@ function processStateData(
       rnHPRD: candidate.facility.Total_RN_HPRD,
       cnaHPRD: candidate.facility.Total_Nurse_HPRD - candidate.facility.Total_RN_HPRD,
       contractPercent: candidate.facility.Contract_Percentage,
+      census: Math.round(census),
       sffStatus: candidate.info?.sff_status,
       ownershipType: candidate.info?.ownership_type,
       link: createFacilityLink(candidate.facility.PROVNUM),
@@ -1482,16 +1490,23 @@ function processRegionData(
       const census = f.facility.Census || f.info.avg_residents_per_day || 0;
       return census >= 50;
     })
+    .filter(f => {
+      // Only include facilities where staffing decreased (negative qoqChange) or has significant gap
+      // This ensures we highlight facilities with problems, not improvements
+      return f.qoqChange < 0 || f.gapVsExpected < -0.5;
+    })
     .sort((a, b) => {
-      // Prefer facilities with significant gaps or changes
-      const scoreA = Math.abs(a.gapVsExpected) + Math.abs(a.qoqChange);
-      const scoreB = Math.abs(b.gapVsExpected) + Math.abs(b.qoqChange);
+      // Prefer facilities with significant negative gaps (below expected) and negative changes (declined)
+      // Weight negative qoqChange more heavily since we want to highlight declines
+      const scoreA = Math.abs(a.gapVsExpected < 0 ? a.gapVsExpected : 0) + (a.qoqChange < 0 ? Math.abs(a.qoqChange) * 2 : 0);
+      const scoreB = Math.abs(b.gapVsExpected < 0 ? b.gapVsExpected : 0) + (b.qoqChange < 0 ? Math.abs(b.qoqChange) * 2 : 0);
       return scoreB - scoreA;
     });
 
   if (spotlightCandidates.length > 0) {
     const candidate = spotlightCandidates[0];
     const facilityQ1Item = facilityMapQ1.get(candidate.facility.PROVNUM);
+    const census = candidate.facility.Census || candidate.info?.avg_residents_per_day || 0;
     spotlightFacility = {
       provnum: candidate.facility.PROVNUM,
       name: toTitleCase(candidate.facility.PROVNAME),
@@ -1504,6 +1519,7 @@ function processRegionData(
       rnHPRD: candidate.facility.Total_RN_HPRD,
       cnaHPRD: candidate.facility.Total_Nurse_HPRD - candidate.facility.Total_RN_HPRD,
       contractPercent: candidate.facility.Contract_Percentage,
+      census: Math.round(census),
       sffStatus: candidate.info?.sff_status,
       ownershipType: candidate.info?.ownership_type,
       link: createFacilityLink(candidate.facility.PROVNUM),

@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/pbj_favicon.png" />
+    <link rel="shortcut icon" type="image/png" href="/pbj_favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ seo.title }}</title>
+    <meta name="description" content="{{ seo.description }}" />
+    <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, PBJ Wrapped" />
+    <meta name="author" content="320 Consulting" />
+    <link rel="canonical" href="{{ seo.canonical_url }}" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="{{ seo.og_url }}" />
+    <meta property="og:title" content="{{ seo.og_title }}" />
+    <meta property="og:description" content="{{ seo.og_description }}" />
+    {% if seo.include_image %}
+    <meta property="og:image" content="https://www.pbj320.com/images/phoebe-wrapped-wide.png" />
+    <meta property="og:image:secure_url" content="https://www.pbj320.com/images/phoebe-wrapped-wide.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="{{ seo.og_title }}" />
+    {% endif %}
+    <meta property="og:site_name" content="PBJ320" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="{{ seo.og_title }}" />
+    <meta name="twitter:description" content="{{ seo.og_description }}" />
+    {% if seo.include_image %}
+    <meta name="twitter:image" content="https://www.pbj320.com/images/phoebe-wrapped-wide.png" />
+    <meta name="twitter:image:alt" content="{{ seo.og_title }}" />
+    {% endif %}
+    
+    <!-- Inline script to set SEO meta tags synchronously before React loads (for crawlers - fallback) -->
+    <script>
+      (function() {
+        var baseUrl = 'https://www.pbj320.com';
+        var path = window.location.pathname;
+        var isSFFPage = path && path.startsWith('/sff');
+        var ogImage = baseUrl + '/images/phoebe-wrapped-wide.png';
+        
+        // State code to name mapping
+        var stateNames = {
+          'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+          'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+          'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+          'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+          'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+          'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+          'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+          'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+          'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+          'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+          'dc': 'District of Columbia'
+        };
+        
+        function getStateName(code) {
+          return stateNames[code.toLowerCase()] || code.toUpperCase();
+        }
+        
+        function updateMetaTag(attr, name, content) {
+          var selector = 'meta[' + attr + '="' + name + '"]';
+          var meta = document.querySelector(selector);
+          if (meta) {
+            meta.setAttribute('content', content);
+          } else {
+            meta = document.createElement('meta');
+            meta.setAttribute(attr, name);
+            meta.setAttribute('content', content);
+            document.head.appendChild(meta);
+          }
+        }
+        
+        function updateLinkTag(rel, href) {
+          var link = document.querySelector('link[rel="' + rel + '"]');
+          if (link) {
+            link.setAttribute('href', href);
+          } else {
+            link = document.createElement('link');
+            link.setAttribute('rel', rel);
+            link.setAttribute('href', href);
+            document.head.appendChild(link);
+          }
+        }
+        
+        var fullUrl = baseUrl + path;
+        var title, description, ogTitle, ogDescription;
+        
+        // Handle SFF pages
+        if (path && path.startsWith('/sff')) {
+          if (path === '/sff' || path === '/sff/') {
+            // Base SFF path - redirects to /sff/usa, use USA metadata
+            title = 'Special Focus Facilities Program — United States | PBJ320';
+            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'Special Focus Facilities Program — United States';
+            ogDescription = description;
+          } else if (path === '/sff/usa' || path === '/sff/usa/') {
+            title = 'Special Focus Facilities Program — United States | PBJ320';
+            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'Special Focus Facilities Program — United States';
+            ogDescription = description;
+          } else if (path.match(/^\/sff\/region/i)) {
+            var regionMatch = path.match(/region-?(\d+)/i);
+            var regionNum = regionMatch ? regionMatch[1] : '';
+            title = 'SFF Program: CMS Region ' + regionNum + ' | PBJ320';
+            description = 'CMS Region ' + regionNum + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            ogTitle = 'SFF Program: CMS Region ' + regionNum;
+            ogDescription = description;
+          } else if (path.length > 4) {
+            var parts = path.split('/').filter(function(p) { return p; });
+            if (parts.length >= 2 && parts[0] === 'sff') {
+              var stateCode = parts[1].toLowerCase();
+              if (stateCode && stateCode !== 'sff' && stateCode !== 'usa') {
+                var stateName = getStateName(stateCode);
+                title = stateName + ' Special Focus Facilities | PBJ320';
+                description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+                ogTitle = stateName + ' Special Focus Facilities';
+                ogDescription = description;
+              }
+            }
+          }
+        }
+        
+        // Update all meta tags
+        if (title) {
+          document.title = title;
+          updateMetaTag('name', 'description', description);
+          updateMetaTag('property', 'og:title', ogTitle);
+          updateMetaTag('property', 'og:description', ogDescription);
+          updateMetaTag('name', 'twitter:title', ogTitle);
+          updateMetaTag('name', 'twitter:description', ogDescription);
+        }
+        
+        // Always update URL-based tags
+        updateMetaTag('property', 'og:url', fullUrl);
+        updateLinkTag('canonical', fullUrl);
+        
+        // Only set og:image for non-SFF pages
+        if (!isSFFPage) {
+          updateMetaTag('property', 'og:image', ogImage);
+          updateMetaTag('property', 'og:image:secure_url', ogImage);
+          updateMetaTag('name', 'twitter:image', ogImage);
+        } else {
+          // Remove og:image for SFF pages
+          var ogImageMeta = document.querySelector('meta[property="og:image"]');
+          if (ogImageMeta) ogImageMeta.remove();
+          var ogImageSecureMeta = document.querySelector('meta[property="og:image:secure_url"]');
+          if (ogImageSecureMeta) ogImageSecureMeta.remove();
+          var twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
+          if (twitterImageMeta) twitterImageMeta.remove();
+        }
+      })();
+    </script>
+    
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-NDPVY6TWBK');
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+

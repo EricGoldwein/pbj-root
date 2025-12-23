@@ -72,7 +72,7 @@ interface SFFFacility {
 
 type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census' | 'monthsAsSFF' | 'sffStatus';
 type SortDirection = 'asc' | 'desc';
-type CategoryFilter = 'all' | 'sffs-and-candidates' | 'sffs-only' | 'graduates' | 'inactive';
+type CategoryFilter = Set<'SFF' | 'Candidate' | 'Graduate' | 'Inactive'>;
 
 export default function SFFPage() {
   const { scope: scopeParam } = useParams<{ scope?: string }>();
@@ -86,7 +86,7 @@ export default function SFFPage() {
   const [error, setError] = useState<string | null>(null);
   const [allFacilities, setAllFacilities] = useState<SFFFacility[]>([]);
   const [candidateJSON, setCandidateJSON] = useState<SFFCandidateJSON | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>(new Set(['SFF', 'Candidate', 'Graduate', 'Inactive'])); // Default: all selected
   const [sortField, setSortField] = useState<SortField>('name');
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -520,10 +520,13 @@ export default function SFFPage() {
                     ? toTitleCase(pdfName)
                     : 'Unknown Facility');
 
-              // ALWAYS use provider state/city if available
-              const facilityState = provider?.STATE && provider.STATE.trim() 
-                ? provider.STATE.trim().toUpperCase()
-                : (pdfFacility.state && pdfFacility.state.trim() ? pdfFacility.state.trim().toUpperCase() : 'UN');
+              // Use JSON/PDF state as primary source (matches wrapped page counting logic)
+              // Provider state may differ, so prioritize PDF state for consistency with counts
+              const facilityState = (pdfFacility.state && pdfFacility.state.trim() 
+                ? pdfFacility.state.trim().toUpperCase()
+                : (provider?.STATE && provider.STATE.trim() 
+                    ? provider.STATE.trim().toUpperCase() 
+                    : 'UN'));
               
               const facilityCity = provider?.CITY && provider.CITY.trim()
                 ? capitalizeCity(provider.CITY.trim())
@@ -735,22 +738,17 @@ export default function SFFPage() {
     setCurrentPage(1);
   };
 
-  // Filter by category
+  // Filter by category (supports multiple selections)
   const filteredFacilities = useMemo(() => {
     if (!allFacilities.length) return [];
     
-    switch (categoryFilter) {
-      case 'sffs-and-candidates':
-        return allFacilities.filter(f => f.sffStatus === 'SFF' || f.sffStatus === 'Candidate');
-      case 'sffs-only':
-        return allFacilities.filter(f => f.sffStatus === 'SFF');
-      case 'graduates':
-        return allFacilities.filter(f => f.sffStatus === 'Graduate');
-      case 'inactive':
-        return allFacilities.filter(f => f.sffStatus === 'Inactive');
-      default:
-        return allFacilities;
+    // If no categories selected, show all
+    if (categoryFilter.size === 0) {
+      return allFacilities;
     }
+    
+    // Filter by selected categories
+    return allFacilities.filter(f => categoryFilter.has(f.sffStatus));
   }, [allFacilities, categoryFilter]);
 
   // Sort facilities
@@ -1056,7 +1054,6 @@ export default function SFFPage() {
                 <svg className="w-4 h-4 hidden md:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
-                <span className="md:hidden">All SFFs</span>
                 <span className="hidden md:inline">View All USA SFFs</span>
               </button>
             )}
@@ -1089,7 +1086,7 @@ export default function SFFPage() {
                     }}
                     className="w-full px-3 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer text-xs"
                   >
-                    <option value="">Select a state...</option>
+                    <option value="" className="bg-[#0f172a] text-gray-500">Select a state...</option>
                     {allStates.map(stateCode => (
                       <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
                         {getStateName(stateCode)}
@@ -1135,7 +1132,7 @@ export default function SFFPage() {
                     }}
                     className="px-4 py-2 bg-[#0f172a]/60 border border-blue-500/50 rounded text-blue-300 hover:bg-blue-600/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer min-w-[200px]"
                   >
-                    <option value="">Select a state...</option>
+                    <option value="" className="bg-[#0f172a] text-gray-500">Select a state...</option>
                     {allStates.map(stateCode => (
                       <option key={stateCode} value={stateCode} className="bg-[#0f172a]">
                         {getStateName(stateCode)}
@@ -1148,9 +1145,13 @@ export default function SFFPage() {
             
             <div className="flex flex-wrap gap-2 md:gap-3">
               <button
-                onClick={() => { setCategoryFilter('all'); setCurrentPage(1); }}
+                onClick={() => {
+                  // "All" button: select all categories
+                  setCategoryFilter(new Set(['SFF', 'Candidate', 'Graduate', 'Inactive']));
+                  setCurrentPage(1);
+                }}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'all'
+                  categoryFilter.size === 4 && categoryFilter.has('SFF') && categoryFilter.has('Candidate') && categoryFilter.has('Graduate') && categoryFilter.has('Inactive')
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1163,13 +1164,26 @@ export default function SFFPage() {
                 const graduateCount = allFacilities.filter(f => f.sffStatus === 'Graduate').length;
                 const inactiveCount = allFacilities.filter(f => f.sffStatus === 'Inactive').length;
                 
+                const toggleCategory = (category: 'SFF' | 'Candidate' | 'Graduate' | 'Inactive') => {
+                  setCategoryFilter(prev => {
+                    const newFilter = new Set(prev);
+                    if (newFilter.has(category)) {
+                      newFilter.delete(category);
+                    } else {
+                      newFilter.add(category);
+                    }
+                    return newFilter;
+                  });
+                  setCurrentPage(1);
+                };
+                
                 return (
                   <>
                     {sffCount > 0 && (
               <button
-                        onClick={() => { setCategoryFilter('sffs-only'); setCurrentPage(1); }}
+                        onClick={() => toggleCategory('SFF')}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'sffs-only'
+                          categoryFilter.has('SFF')
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1179,9 +1193,9 @@ export default function SFFPage() {
                     )}
                     {candidateCount > 0 && (
               <button
-                        onClick={() => { setCategoryFilter('sffs-and-candidates'); setCurrentPage(1); }}
+                        onClick={() => toggleCategory('Candidate')}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'sffs-and-candidates'
+                          categoryFilter.has('Candidate')
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1191,9 +1205,9 @@ export default function SFFPage() {
                     )}
                     {graduateCount > 0 && (
               <button
-                onClick={() => { setCategoryFilter('graduates'); setCurrentPage(1); }}
+                onClick={() => toggleCategory('Graduate')}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                  categoryFilter === 'graduates'
+                  categoryFilter.has('Graduate')
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}
@@ -1203,9 +1217,9 @@ export default function SFFPage() {
                     )}
                     {inactiveCount > 0 && (
               <button
-                        onClick={() => { setCategoryFilter('inactive'); setCurrentPage(1); }}
+                        onClick={() => toggleCategory('Inactive')}
                 className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'inactive'
+                          categoryFilter.has('Inactive')
                     ? 'bg-blue-600 text-white'
                     : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                 }`}

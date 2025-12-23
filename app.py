@@ -3,12 +3,13 @@
 Simple Flask app to serve static files with proper headers for Facebook scraper
 Now with dynamic date support
 """
-from flask import Flask, send_from_directory, send_file, render_template_string, jsonify
+from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request
 import os
 import sys
 
 # Import date utilities from local utils package
 from utils.date_utils import get_latest_data_periods
+from utils.seo_utils import get_seo_metadata
 
 app = Flask(__name__)
 
@@ -85,7 +86,13 @@ def data_files(path):
 @app.route('/sff')
 @app.route('/sff/')
 def sff_index():
-    """Serve the wrapped React app index page for SFF routes"""
+    """Serve the wrapped React app index page for SFF routes with server-rendered SEO metadata"""
+    seo = get_seo_metadata(request.path)
+    try:
+        return render_template('wrapped_index.html', seo=seo)
+    except Exception as e:
+        # Fallback to static file if template rendering fails
+        print(f"Warning: Template rendering failed: {e}, falling back to static file")
     wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
     if os.path.exists(wrapped_index):
         return send_file(wrapped_index, mimetype='text/html')
@@ -112,8 +119,14 @@ def sff_static(path):
         else:
             return send_from_directory(wrapped_dist, path)
     else:
-        # For SPA routing, serve index.html for any route
+        # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
+        seo = get_seo_metadata(request.path)
+        try:
+            return render_template('wrapped_index.html', seo=seo)
+        except Exception as e:
+            # Fallback to static file if template rendering fails
+            print(f"Warning: Template rendering failed: {e}, falling back to static file")
         wrapped_index = os.path.join(wrapped_dist, 'index.html')
         if os.path.exists(wrapped_index):
             return send_file(wrapped_index, mimetype='text/html')
@@ -124,7 +137,13 @@ def sff_static(path):
 @app.route('/wrapped')
 @app.route('/wrapped/')
 def wrapped_index():
-    """Serve the wrapped React app index page"""
+    """Serve the wrapped React app index page with server-rendered SEO metadata"""
+    seo = get_seo_metadata(request.path)
+    try:
+        return render_template('wrapped_index.html', seo=seo)
+    except Exception as e:
+        # Fallback to static file if template rendering fails
+        print(f"Warning: Template rendering failed: {e}, falling back to static file")
     wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
     if os.path.exists(wrapped_index):
         return send_file(wrapped_index, mimetype='text/html')
@@ -151,8 +170,14 @@ def wrapped_static(path):
         else:
             return send_from_directory(wrapped_dist, path)
     else:
-        # For SPA routing, serve index.html for any route
+        # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
+        seo = get_seo_metadata(request.path)
+        try:
+            return render_template('wrapped_index.html', seo=seo)
+        except Exception as e:
+            # Fallback to static file if template rendering fails
+            print(f"Warning: Template rendering failed: {e}, falling back to static file")
         wrapped_index = os.path.join(wrapped_dist, 'index.html')
         if os.path.exists(wrapped_index):
             return send_file(wrapped_index, mimetype='text/html')
@@ -163,7 +188,13 @@ def wrapped_static(path):
 @app.route('/pbj-wrapped')
 @app.route('/pbj-wrapped/')
 def pbj_wrapped_index():
-    """Serve the pbj-wrapped React app index page (legacy)"""
+    """Serve the pbj-wrapped React app index page (legacy) with server-rendered SEO metadata"""
+    seo = get_seo_metadata(request.path)
+    try:
+        return render_template('wrapped_index.html', seo=seo)
+    except Exception as e:
+        # Fallback to static file if template rendering fails
+        print(f"Warning: Template rendering failed: {e}, falling back to static file")
     wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
     if os.path.exists(wrapped_index):
         return send_file(wrapped_index, mimetype='text/html')
@@ -190,8 +221,14 @@ def pbj_wrapped_static(path):
         else:
             return send_from_directory(wrapped_dist, path)
     else:
-        # For SPA routing, serve index.html for any route
+        # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
+        seo = get_seo_metadata(request.path)
+        try:
+            return render_template('wrapped_index.html', seo=seo)
+        except Exception as e:
+            # Fallback to static file if template rendering fails
+            print(f"Warning: Template rendering failed: {e}, falling back to static file")
         wrapped_index = os.path.join(wrapped_dist, 'index.html')
         if os.path.exists(wrapped_index):
             return send_file(wrapped_index, mimetype='text/html')

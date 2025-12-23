@@ -166,7 +166,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
   const nursingHomesLabel = displayName ? `${displayName} nursing homes` : 'Number of nursing homes';
 
   return (
-      <WrappedCard title="The Basics">
+    <WrappedCard title="The Basics">
         <div className="space-y-1.5 md:space-y-2.5 text-left">
         <div className="flex justify-between items-center py-1 md:py-1.5 border-b border-gray-600">
           <span className="text-gray-300 text-sm md:text-base">{nursingHomesLabel}</span>

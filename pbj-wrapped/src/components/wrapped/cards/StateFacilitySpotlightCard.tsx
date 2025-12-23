@@ -136,12 +136,12 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
   return (
     <WrappedCard title="" hideBadge>
       <div className="space-y-3 text-left">
-        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3 text-white">
-          Phoebe J's PBJ <span className="text-blue-300">Spotlight</span>
+        <h2 className="text-2xl md:text-3xl font-bold text-center mb-3 text-blue-300">
+          Phoebe J's PBJ Spotlight
         </h2>
 
         {/* Facility Name - moved above subtitle */}
-        <div className="pb-2 border-b border-gray-700">
+        <div className="pb-2">
           <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-white mb-1 text-center">
             {line2 ? (
               <>

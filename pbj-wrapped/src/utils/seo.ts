@@ -84,7 +84,7 @@ export function getWrappedSEO(
   name: string,
   year: string = '2025'
 ): SEOData {
-  const baseUrl = 'https://pbj320.com';
+  const baseUrl = 'https://www.pbj320.com';
   const path = `/wrapped/${identifier}`;
   const fullUrl = `${baseUrl}${path}`;
   
@@ -143,7 +143,7 @@ export function getWrappedSEO(
  * Generate SEO data for SFF Wrapped page
  */
 export function getSFFWrappedSEO(year: string = '2025'): SEOData {
-  const baseUrl = 'https://pbj320.com';
+  const baseUrl = 'https://www.pbj320.com';
   const path = `/wrapped/${year}/sff`;
   const fullUrl = `${baseUrl}${path}`;
   
@@ -179,7 +179,7 @@ export function getSFFWrappedSEO(year: string = '2025'): SEOData {
  * Generate SEO data for Wrapped landing page
  */
 export function getWrappedLandingSEO(year: string = '2025'): SEOData {
-  const baseUrl = 'https://pbj320.com';
+  const baseUrl = 'https://www.pbj320.com';
   const path = '/';
   const fullUrl = `${baseUrl}${path}`;
   

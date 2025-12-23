@@ -6,12 +6,38 @@ Now with dynamic date support
 from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request
 import os
 import sys
+import re
 
 # Import date utilities from local utils package
 from utils.date_utils import get_latest_data_periods
 from utils.seo_utils import get_seo_metadata
 
 app = Flask(__name__)
+
+def get_built_assets():
+    """Extract script and CSS link tags from built index.html"""
+    wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
+    if not os.path.exists(wrapped_index):
+        return {'scripts': '', 'stylesheets': ''}
+    
+    try:
+        with open(wrapped_index, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Extract script tags
+        script_pattern = r'<script[^>]*src=["\']([^"\']+)["\'][^>]*></script>'
+        scripts = re.findall(script_pattern, content)
+        script_tags = '\n'.join([f'    <script type="module" crossorigin src="{s}"></script>' for s in scripts])
+        
+        # Extract link tags for stylesheets
+        link_pattern = r'<link[^>]*rel=["\']stylesheet["\'][^>]*href=["\']([^"\']+)["\'][^>]*>'
+        links = re.findall(link_pattern, content)
+        link_tags = '\n'.join([f'    <link rel="stylesheet" crossorigin href="{l}">' for l in links])
+        
+        return {'scripts': script_tags, 'stylesheets': link_tags}
+    except Exception as e:
+        print(f"Warning: Could not extract assets from built index.html: {e}")
+        return {'scripts': '', 'stylesheets': ''}
 
 def get_dynamic_dates():
     """Get dynamic date information"""
@@ -88,8 +114,9 @@ def data_files(path):
 def sff_index():
     """Serve the wrapped React app index page for SFF routes with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
+    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo)
+        return render_template('wrapped_index.html', seo=seo, assets=assets)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -122,8 +149,9 @@ def sff_static(path):
         # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
         seo = get_seo_metadata(request.path)
+        assets = get_built_assets()
         try:
-            return render_template('wrapped_index.html', seo=seo)
+            return render_template('wrapped_index.html', seo=seo, assets=assets)
         except Exception as e:
             # Fallback to static file if template rendering fails
             print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -139,8 +167,9 @@ def sff_static(path):
 def wrapped_index():
     """Serve the wrapped React app index page with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
+    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo)
+        return render_template('wrapped_index.html', seo=seo, assets=assets)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -173,8 +202,9 @@ def wrapped_static(path):
         # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
         seo = get_seo_metadata(request.path)
+        assets = get_built_assets()
         try:
-            return render_template('wrapped_index.html', seo=seo)
+            return render_template('wrapped_index.html', seo=seo, assets=assets)
         except Exception as e:
             # Fallback to static file if template rendering fails
             print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -190,8 +220,9 @@ def wrapped_static(path):
 def pbj_wrapped_index():
     """Serve the pbj-wrapped React app index page (legacy) with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
+    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo)
+        return render_template('wrapped_index.html', seo=seo, assets=assets)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -224,8 +255,9 @@ def pbj_wrapped_static(path):
         # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
         seo = get_seo_metadata(request.path)
+        assets = get_built_assets()
         try:
-            return render_template('wrapped_index.html', seo=seo)
+            return render_template('wrapped_index.html', seo=seo, assets=assets)
         except Exception as e:
             # Fallback to static file if template rendering fails
             print(f"Warning: Template rendering failed: {e}, falling back to static file")

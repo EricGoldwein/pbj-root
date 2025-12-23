@@ -167,10 +167,11 @@
 
       gtag('config', 'G-NDPVY6TWBK');
     </script>
+    {% if assets.stylesheets %}{{ assets.stylesheets | safe }}{% endif %}
+    {% if assets.scripts %}{{ assets.scripts | safe }}{% endif %}
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
 

@@ -204,7 +204,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
               </span>
             </div>
           </div>
-          {data.scope === 'state' && data.compliance && (
+          {data.scope === 'state' && data.compliance && data.compliance.facilitiesBelowTotalMinimumPercent >= 5 && (
             <div className="pt-1.5 md:pt-2">
               <div className="text-xs text-gray-400 space-y-0.5 md:space-y-1">
                 <div>
@@ -214,7 +214,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                   {' '}facilities ({data.compliance.facilitiesBelowTotalMinimumPercent}%) 
                   below {getStateFullName(data.name)} minimum
                 </div>
-                {data.compliance.facilitiesBelowDirectCareMinimum !== undefined && (
+                {data.compliance.facilitiesBelowDirectCareMinimum !== undefined && data.compliance.facilitiesBelowDirectCareMinimumPercent !== undefined && data.compliance.facilitiesBelowDirectCareMinimumPercent >= 5 && (
                   <div>
                     <span className="text-red-300 font-semibold">
                       {data.compliance.facilitiesBelowDirectCareMinimum}

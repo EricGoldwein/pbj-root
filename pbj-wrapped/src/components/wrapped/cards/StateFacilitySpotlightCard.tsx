@@ -46,9 +46,15 @@ function getStateFullName(abbr: string): string {
 
 /**
  * Break facility name into two lines more evenly
- * Tries to break before common phrases like "Rehabilitation Center"
+ * Only breaks if the name is long enough to benefit from splitting
+ * Short names (under ~25 chars) stay on one line
  */
 function breakFacilityName(name: string): { line1: string; line2: string } {
+  // If name is short, don't break it
+  if (name.length <= 25) {
+    return { line1: name, line2: '' };
+  }
+  
   const commonPhrases = [
     'Rehabilitation Center',
     'Rehab Center',
@@ -133,13 +139,10 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
         <h2 className="text-2xl md:text-3xl font-bold text-center mb-3 text-white">
           Phoebe J's PBJ <span className="text-blue-300">Spotlight</span>
         </h2>
-        <p className="text-xs text-gray-400 text-center mb-3">
-          {subtitleText}
-        </p>
 
-        {/* Facility Name */}
+        {/* Facility Name - moved above subtitle */}
         <div className="pb-2 border-b border-gray-700">
-          <h3 className="text-lg md:text-xl font-bold text-white mb-1 text-center">
+          <h3 className="text-xl md:text-2xl lg:text-3xl font-bold text-white mb-1 text-center">
             {line2 ? (
               <>
                 {line1}
@@ -151,6 +154,10 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
             )}
           </h3>
         </div>
+        
+        <p className="text-xs text-gray-400 text-center mb-3">
+          {subtitleText}
+        </p>
 
         {/* Status Badges */}
         <div className="flex flex-wrap gap-2 pb-2 border-b border-gray-700 items-center">

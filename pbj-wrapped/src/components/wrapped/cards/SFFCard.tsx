@@ -39,7 +39,7 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
       <div className="space-y-1.5 md:space-y-2">
         <div className="bg-orange-500/10 border-l-4 border-orange-400 pl-2 md:pl-3 py-1 md:py-1.5 rounded mb-1 md:mb-1.5">
           <p className="text-gray-200 text-xs leading-relaxed">
-            <strong className="text-orange-300">Special Focus Facilities</strong> are nursing homes with a history of serious quality problems. They receive more frequent inspections and enhanced oversight from CMS.
+            <strong className="text-orange-300">Special Focus Facilities</strong> are nursing homes with a history of serious quality problems. They receive enhanced oversight from CMS.
           </p>
         </div>
         

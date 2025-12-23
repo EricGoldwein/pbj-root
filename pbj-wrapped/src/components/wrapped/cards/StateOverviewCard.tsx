@@ -51,13 +51,13 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
 
   return (
     <WrappedCard title={`${stateFullName} at a Glance`} hideBadge>
-      <div className="space-y-3 md:space-y-4 text-center pb-2">
+      <div className="space-y-3 md:space-y-3 text-center pb-2">
         <div className="space-y-1.5 md:space-y-2">
           <p className="text-gray-200 text-base md:text-lg leading-relaxed">
             In Q2 2025, <strong className="text-white text-xl md:text-2xl">{stateFullName}</strong> reported
           </p>
           
-          <div className="flex flex-col items-center gap-1 md:gap-1.5 py-2 md:py-2.5">
+          <div className="flex flex-col items-center gap-1 md:gap-1 py-2 md:py-1.5">
             <div className="text-3xl md:text-4xl lg:text-5xl font-bold text-white">
               {formatNumber(animatedResidents, 0)}
             </div>
@@ -69,7 +69,7 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
           </p>
         </div>
 
-        <div className="pt-2 md:pt-3 border-t border-gray-600 space-y-2 md:space-y-3">
+        <div className="pt-2 md:pt-2 border-t border-gray-600 space-y-2 md:space-y-2">
           <div className="space-y-1 md:space-y-1.5">
             <div className="text-gray-300 text-xs uppercase tracking-wide">Staffing Level</div>
             <div className="text-2xl md:text-3xl lg:text-4xl font-bold text-white">

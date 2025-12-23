@@ -41,27 +41,25 @@ const formatNumber = (value: number, decimals = 0) =>
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   const facilities = formatNumber(data.facilityCount);
 
-  // Build location text based on scope
-  let locationText = '';
+  // Build answer text based on scope
+  let answerText = '';
   switch (data.scope) {
     case 'state':
-      locationText = getStateFullName(data.identifier);
+      const stateName = getStateFullName(data.identifier);
+      answerText = `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in ${stateName}'s ${facilities} nursing homes.`;
       break;
     case 'region':
       // Extract region number from identifier (e.g., "region1" -> "1")
       const regionNum = data.identifier.replace(/^region/i, '');
-      locationText = `Region ${regionNum}`;
+      answerText = `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in Region ${regionNum}'s ${facilities} nursing homes.`;
       break;
     case 'usa':
-      locationText = 'the United States';
+      answerText = `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in the ${facilities} nursing homes in the United States.`;
       break;
     default:
-      locationText = 'the United States';
+      answerText = `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in the ${facilities} nursing homes in the United States.`;
       break;
   }
-
-  const answerText =
-    `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in the ${facilities} nursing homes in ${locationText}.`;
 
   const typedAnswer = useTypingEffect(answerText, 30, 300);
 

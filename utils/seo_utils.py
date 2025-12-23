@@ -36,6 +36,7 @@ def get_seo_metadata(path):
         'canonical_url': base_url + '/wrapped',
         'og_url': base_url + '/wrapped',
         'include_image': True,
+        'og_image': base_url + '/images/phoebe-wrapped-wide.png',
     }
     
     # Normalize path (ensure leading slash, handle trailing slash)
@@ -58,7 +59,8 @@ def get_seo_metadata(path):
                 'og_description': 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
                 'canonical_url': base_url + '/sff/usa',
                 'og_url': base_url + '/sff/usa',
-                'include_image': False,
+                'include_image': True,
+                'og_image': base_url + '/og-image-1200x630.png',
             }
         elif '/sff/region' in path.lower():
             # Extract region number
@@ -72,7 +74,8 @@ def get_seo_metadata(path):
                 'og_description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
                 'canonical_url': base_url + path.rstrip('/'),
                 'og_url': base_url + path.rstrip('/'),
-                'include_image': False,
+                'include_image': True,
+                'og_image': base_url + '/og-image-1200x630.png',
             }
         else:
             # Extract state code
@@ -88,7 +91,8 @@ def get_seo_metadata(path):
                         'og_description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
                         'canonical_url': base_url + path.rstrip('/'),
                         'og_url': base_url + path.rstrip('/'),
-                        'include_image': False,
+                        'include_image': True,
+                        'og_image': 'https://www.pbj320.com/og-image-1200x630.png',
                     }
     
     # For wrapped pages, update canonical and og:url to match path

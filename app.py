@@ -14,11 +14,25 @@ from utils.seo_utils import get_seo_metadata
 
 app = Flask(__name__)
 
+# Cache for built assets (cleared on app start)
+_built_assets_cache = None
+_built_assets_mtime = None
+
 def get_built_assets():
-    """Extract script and CSS link tags from built index.html"""
+    """Extract script and CSS link tags from built index.html (cached)"""
+    global _built_assets_cache, _built_assets_mtime
+    
     wrapped_index = os.path.join('pbj-wrapped', 'dist', 'index.html')
     if not os.path.exists(wrapped_index):
         return {'scripts': '', 'stylesheets': ''}
+    
+    # Check if file has been modified (cache invalidation)
+    try:
+        current_mtime = os.path.getmtime(wrapped_index)
+        if _built_assets_cache is not None and _built_assets_mtime == current_mtime:
+            return _built_assets_cache
+    except Exception:
+        pass
     
     try:
         with open(wrapped_index, 'r', encoding='utf-8') as f:
@@ -34,7 +48,16 @@ def get_built_assets():
         links = re.findall(link_pattern, content)
         link_tags = '\n'.join([f'    <link rel="stylesheet" crossorigin href="{l}">' for l in links])
         
-        return {'scripts': script_tags, 'stylesheets': link_tags}
+        result = {'scripts': script_tags, 'stylesheets': link_tags}
+        
+        # Cache the result
+        _built_assets_cache = result
+        try:
+            _built_assets_mtime = os.path.getmtime(wrapped_index)
+        except Exception:
+            _built_assets_mtime = None
+        
+        return result
     except Exception as e:
         print(f"Warning: Could not extract assets from built index.html: {e}")
         return {'scripts': '', 'stylesheets': ''}
@@ -85,6 +108,25 @@ def report():
 @app.route('/sitemap.xml')
 def sitemap():
     return send_file('sitemap.xml', mimetype='application/xml')
+
+# Serve images from pbj-wrapped/dist/images (for SEO meta tags)
+# This route MUST come before the catch-all route to work correctly
+@app.route('/images/<path:filename>')
+def images_files(filename):
+    """Serve image files from pbj-wrapped/dist/images directory"""
+    images_dir = os.path.join('pbj-wrapped', 'dist', 'images')
+    file_path = os.path.join(images_dir, filename)
+    
+    if os.path.isfile(file_path):
+        # Serve with proper MIME type
+        return send_file(file_path, mimetype='image/png')
+    else:
+        # Fallback to root directory for backward compatibility
+        root_file = os.path.join('.', filename)
+        if os.path.isfile(root_file) and filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+            return send_file(root_file, mimetype='image/png')
+        from flask import abort
+        abort(404)
 
 # Serve data files from pbj-wrapped/dist/data
 # This route MUST come before the catch-all route to work correctly

@@ -97,6 +97,8 @@ export interface PBJWrappedData {
   sff: {
     currentSFFs: number;
     candidates: number;
+    graduates?: number;
+    inactive?: number;
     newThisQuarter: Facility[];
   };
   
@@ -160,6 +162,9 @@ export interface PBJWrappedData {
     ownershipType?: string;
     link: string; // pbjdashboard.com link
   };
+  
+  // States with minimum >= 2.00 HPRD (for USA scope only)
+  statesWithMinAbove2HPRD?: number;
 }
 
 // CSV row types

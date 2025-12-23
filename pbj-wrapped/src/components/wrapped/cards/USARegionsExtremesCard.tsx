@@ -51,7 +51,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
   return (
     <WrappedCard title="CMS Region Rankings">
       <div className="space-y-3 text-left">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-6">
           <div>
             <div className="flex justify-between items-center mb-1">
               <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wide whitespace-nowrap">Bottom 3</h4>
@@ -61,7 +61,7 @@ export const USARegionsExtremesCard: React.FC<USARegionsExtremesCardProps> = ({ 
               {data.extremes.bottomRegionsByHPRD?.slice(0, 3).map(f => renderRegion(f)) || []}
             </div>
           </div>
-          <div>
+          <div className="border-l border-gray-700 pl-6">
             <div className="flex justify-between items-center mb-1">
               <h4 className="text-xs font-semibold text-green-400 uppercase tracking-wide whitespace-nowrap">Top 3</h4>
               <span className="text-xs text-gray-500">HPRD</span>

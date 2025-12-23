@@ -15,7 +15,8 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
     if (data.scope === 'usa') {
       return '/sff/usa';
     } else if (data.scope === 'state') {
-      const stateCode = data.name.toUpperCase();
+      // Use identifier which contains the state code (e.g., "mn" not "Minnesota")
+      const stateCode = (data.identifier || data.name).toUpperCase();
       return `/sff/${stateCode.toLowerCase()}`;
     } else if (data.scope === 'region') {
       // identifier is like "region1", "region2", etc.
@@ -58,6 +59,16 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
         <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
           <span className="text-gray-300 text-sm">SFF Candidates</span>
           <span className="text-white font-bold text-base md:text-lg">{data.sff.candidates}</span>
+        </div>
+        
+        <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
+          <span className="text-gray-300 text-sm">SFF Graduates</span>
+          <span className="text-white font-bold text-base md:text-lg">{data.sff.graduates ?? 0}</span>
+        </div>
+        
+        <div className="flex justify-between items-center py-0.5 md:py-1 border-b border-gray-600">
+          <span className="text-gray-300 text-sm">Inactive</span>
+          <span className="text-white font-bold text-base md:text-lg">{data.sff.inactive ?? 0}</span>
         </div>
         
           <div className="mt-2 pt-1.5 border-t border-gray-600">

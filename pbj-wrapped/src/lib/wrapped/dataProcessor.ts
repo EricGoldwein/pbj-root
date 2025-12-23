@@ -16,7 +16,7 @@ import type {
   OwnershipBreakdown,
   StateMinimum,
 } from './wrappedTypes';
-import type { LoadedData, SFFData } from './dataLoader';
+import type { LoadedData, SFFData, StateStandardRow } from './dataLoader';
 import { createProviderInfoLookup } from './dataLoader';
 
 /**
@@ -252,6 +252,9 @@ const smallWords = new Set(['a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'i
 export function capitalizeCity(city: string | undefined): string | undefined {
   if (!city) return city;
   
+  // First normalize to lowercase to handle all-caps input like "MEMPHIS"
+  const normalized = city.trim().toLowerCase();
+  
   const specialCases: Record<string, string> = {
     'st.': 'St.',
     'st': 'St.',
@@ -261,26 +264,28 @@ export function capitalizeCity(city: string | undefined): string | undefined {
     'mt': 'Mt.',
   };
   
-  const lowerCity = city.toLowerCase();
-  if (specialCases[lowerCity]) {
-    return specialCases[lowerCity];
+  if (specialCases[normalized]) {
+    return specialCases[normalized];
   }
   
-  // Standard title case, but preserve special words
-  return city
+  // Standard title case: capitalize first letter of each word
+  return normalized
     .split(' ')
     .map(word => {
+      if (!word) return word;
+      // Handle "Mc" prefix
+      if (word.startsWith('mc') && word.length > 2) {
+        return 'Mc' + word.charAt(2).toUpperCase() + word.slice(3);
+      }
+      // Handle "O'" prefix
+      if (word.startsWith("o'") && word.length > 2) {
+        return "O'" + word.charAt(2).toUpperCase() + word.slice(3);
+      }
+      // Handle special cases within words
       if (word === 'st' || word === 'st.') {
         return 'St.';
       }
-      // Handle "Mc" prefix
-      if (word.startsWith('mc')) {
-        return 'Mc' + word.slice(2).charAt(0).toUpperCase() + word.slice(3);
-      }
-      // Handle "O'" prefix
-      if (word.startsWith("o'")) {
-        return "O'" + word.slice(2).charAt(0).toUpperCase() + word.slice(3);
-      }
+      // Capitalize first letter, lowercase the rest
       return word.charAt(0).toUpperCase() + word.slice(1);
     })
     .join(' ');
@@ -315,7 +320,8 @@ function processUSAData(
   stateDataQ1: StateQuarterlyRow[],
   regionDataQ2: RegionQuarterlyRow[],
   regionDataQ1: RegionQuarterlyRow[],
-  sffData?: SFFData | null
+  sffData?: SFFData | null,
+  stateStandards?: Map<string, StateStandardRow>
 ): PBJWrappedData {
   if (!nationalQ2) {
     throw new Error('National Q2 data not available');
@@ -515,14 +521,20 @@ function processUSAData(
   // Section 5: SFF - use sff-facilities.json if available, otherwise fall back to providerInfo
   let sffCount = 0;
   let candidatesCount = 0;
+  let graduatesCount = 0;
+  let inactiveCount = 0;
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
     // Use data from sff-facilities.json
     const sffFacilities = sffData.facilities.filter(f => f.category === 'SFF');
     const candidateFacilities = sffData.facilities.filter(f => f.category === 'Candidate');
+    const graduateFacilities = sffData.facilities.filter(f => f.category === 'Graduate');
+    const inactiveFacilities = sffData.facilities.filter(f => f.category === 'Terminated');
     sffCount = sffFacilities.length;
     candidatesCount = candidateFacilities.length;
+    graduatesCount = graduateFacilities.length;
+    inactiveCount = inactiveFacilities.length;
     
     // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
     const newSFF = sffFacilities.filter(f => 
@@ -672,6 +684,17 @@ function processUSAData(
   const ownershipData = providerInfoQ2.filter(p => p.ownership_type && p.ownership_type.trim().length > 0);
   const ownership = calculateOwnershipBreakdownWithStaffing(ownershipData, facilityQ2);
 
+  // Calculate count of states with minimum >= 2.00 HPRD (including ranges where max >= 2.00)
+  let statesWithMinAbove2HPRD = 0;
+  if (stateStandards) {
+    for (const standard of stateStandards.values()) {
+      // Include states where min >= 2.00 OR max >= 2.00 (for ranges like Kansas 1.91-2.06)
+      if (standard.Min_Staffing >= 2.0 || (standard.Max_Staffing && standard.Max_Staffing >= 2.0)) {
+        statesWithMinAbove2HPRD++;
+      }
+    }
+  }
+
   return {
     scope: 'usa',
     identifier: 'usa',
@@ -703,6 +726,8 @@ function processUSAData(
     sff: {
       currentSFFs: sffCount,
       candidates: candidatesCount,
+      graduates: graduatesCount || 0,
+      inactive: inactiveCount || 0,
       newThisQuarter: newSFFFacilities,
     },
     trends,
@@ -714,6 +739,7 @@ function processUSAData(
       declinersByDirectCare,
       declinersByRNHPRD,
     },
+    statesWithMinAbove2HPRD,
   };
 }
 
@@ -870,6 +896,8 @@ function processStateData(
   // Section 5: SFF
   let sffCount = 0;
   let candidatesCount = 0;
+  let graduatesCount = 0;
+  let inactiveCount = 0;
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
@@ -881,8 +909,16 @@ function processStateData(
     const stateCandidateFacilities = sffData.facilities.filter(f => 
       f.state && f.state.toUpperCase() === stateCodeUpper && f.category === 'Candidate'
     );
+    const stateGraduateFacilities = sffData.facilities.filter(f => 
+      f.state && f.state.toUpperCase() === stateCodeUpper && f.category === 'Graduate'
+    );
+    const stateInactiveFacilities = sffData.facilities.filter(f => 
+      f.state && f.state.toUpperCase() === stateCodeUpper && f.category === 'Terminated'
+    );
     sffCount = stateSFFFacilities.length;
     candidatesCount = stateCandidateFacilities.length;
+    graduatesCount = stateGraduateFacilities.length;
+    inactiveCount = stateInactiveFacilities.length;
     
     // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
     const newSFF = stateSFFFacilities.filter(f => 
@@ -1035,7 +1071,12 @@ function processStateData(
         qoqChange,
       };
     })
-    .filter(f => f.info && f.facility.Total_Nurse_HPRD > 0)
+    .filter(f => {
+      if (!f.info || f.facility.Total_Nurse_HPRD <= 0) return false;
+      // Filter out facilities with census < 50
+      const census = f.facility.Census || f.info.avg_residents_per_day || 0;
+      return census >= 50;
+    })
     .sort((a, b) => {
       // Prefer facilities with significant gaps or changes
       const scoreA = Math.abs(a.gapVsExpected) + Math.abs(a.qoqChange);
@@ -1087,6 +1128,8 @@ function processStateData(
     sff: {
       currentSFFs: sffCount,
       candidates: candidatesCount,
+      graduates: graduatesCount || 0,
+      inactive: inactiveCount || 0,
       newThisQuarter: newSFFFacilities,
     },
     trends,
@@ -1238,6 +1281,8 @@ function processRegionData(
   // Section 5: SFF
   let sffCount = 0;
   let candidatesCount = 0;
+  let graduatesCount = 0;
+  let inactiveCount = 0;
   let newSFFFacilities: Facility[] = [];
   
   if (sffData && sffData.facilities) {
@@ -1250,8 +1295,16 @@ function processRegionData(
     const regionCandidateFacilities = sffData.facilities.filter(f => 
       f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'Candidate'
     );
+    const regionGraduateFacilities = sffData.facilities.filter(f => 
+      f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'Graduate'
+    );
+    const regionInactiveFacilities = sffData.facilities.filter(f => 
+      f.state && regionStateCodes.has(f.state.toUpperCase()) && f.category === 'Terminated'
+    );
     sffCount = regionSFFFacilities.length;
     candidatesCount = regionCandidateFacilities.length;
+    graduatesCount = regionGraduateFacilities.length;
+    inactiveCount = regionInactiveFacilities.length;
     
     // Get new SFF facilities based on months_as_sff (facilities with <= 3 months are considered new)
     const newSFF = regionSFFFacilities.filter(f => 
@@ -1293,6 +1346,10 @@ function processRegionData(
   }
 
   // Section 6: Trends
+  // Debug logging before calculating trends
+  if (!regionQ1) {
+    console.warn(`[Region ${regionNumber}] Q1 data not found - trends will show 0.00. Looking for REGION_NUMBER: ${regionNumber}`);
+  }
   const trends = {
     totalHPRDChange: regionQ1 
       ? regionQ2.Total_Nurse_HPRD - regionQ1.Total_Nurse_HPRD 
@@ -1307,6 +1364,7 @@ function processRegionData(
       ? regionQ2.Contract_Percentage - regionQ1.Contract_Percentage
       : 0,
   };
+  console.log(`[Region ${regionNumber}] Trends calculated:`, trends);
 
   // Section 7: Movers - Facility changes Q1 to Q2
   const facilityMapQ1 = new Map(regionFacilitiesQ1.map(f => [f.PROVNUM, f]));
@@ -1392,7 +1450,12 @@ function processRegionData(
         qoqChange,
       };
     })
-    .filter(f => f.info && f.facility.Total_Nurse_HPRD > 0)
+    .filter(f => {
+      if (!f.info || f.facility.Total_Nurse_HPRD <= 0) return false;
+      // Filter out facilities with census < 50
+      const census = f.facility.Census || f.info.avg_residents_per_day || 0;
+      return census >= 50;
+    })
     .sort((a, b) => {
       // Prefer facilities with significant gaps or changes
       const scoreA = Math.abs(a.gapVsExpected) + Math.abs(a.qoqChange);
@@ -1443,6 +1506,8 @@ function processRegionData(
     sff: {
       currentSFFs: sffCount,
       candidates: candidatesCount,
+      graduates: graduatesCount || 0,
+      inactive: inactiveCount || 0,
       newThisQuarter: newSFFFacilities,
     },
     trends,
@@ -1479,7 +1544,8 @@ export function processWrappedData(
       data.stateData.q1 || [],
       data.regionData.q2 || [],
       data.regionData.q1 || [],
-      data.sffData
+      data.sffData,
+      data.stateStandards
     );
   } else if (scope === 'state') {
     const stateCode = identifier.toUpperCase();
@@ -1519,9 +1585,18 @@ export function processWrappedData(
       data.sffData
     );
   } else if (scope === 'region') {
-    const regionNumber = parseInt(identifier.replace(/^region-?/, ''), 10);
+    const regionNumber = parseInt(identifier.replace(/^region/i, '').replace(/^-/, ''), 10);
     const regionQ2 = data.regionData.q2?.find(r => r.REGION_NUMBER === regionNumber) || null;
     const regionQ1 = data.regionData.q1?.find(r => r.REGION_NUMBER === regionNumber) || null;
+    
+    // Debug logging for region Q1 data
+    console.log(`[Region ${regionNumber}] Q1 data check:`, {
+      regionQ1Found: !!regionQ1,
+      regionQ1TotalHPRD: regionQ1?.Total_Nurse_HPRD,
+      regionQ2TotalHPRD: regionQ2?.Total_Nurse_HPRD,
+      regionDataQ1Length: data.regionData.q1?.length || 0,
+      regionDataQ2Length: data.regionData.q2?.length || 0,
+    });
     return processRegionData(
       regionQ2,
       regionQ1,

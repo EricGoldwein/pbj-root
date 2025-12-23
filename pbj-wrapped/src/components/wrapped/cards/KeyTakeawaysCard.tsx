@@ -110,7 +110,12 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
           </p>
           {hasOwnershipDisparity && data.ownership && (
             <p className="mb-2">
-              For-profit facilities average <strong className="text-white">{formatHPRD(data.ownership.forProfit.medianHPRD!)} HPRD</strong>, while non-profits average <strong className="text-white">{formatHPRD(data.ownership.nonProfit.medianHPRD!)} HPRD</strong>. The ownership model directly impacts staffing levels.
+              For-profit facilities median <strong className="text-white">{formatHPRD(data.ownership.forProfit.medianHPRD!)} HPRD</strong>, while non-profits median <strong className="text-white">{formatHPRD(data.ownership.nonProfit.medianHPRD!)} HPRD</strong>. The ownership model directly impacts staffing levels.
+            </p>
+          )}
+          {data.statesWithMinAbove2HPRD !== undefined && data.statesWithMinAbove2HPRD > 0 && (
+            <p className="mb-2">
+              <strong className="text-white">{data.statesWithMinAbove2HPRD}</strong> states have a minimum staffing requirement above 2.00 HPRD.
             </p>
           )}
           {mostNoticeable && typeof mostNoticeable.value === 'number' && !isNaN(mostNoticeable.value) && Math.abs(mostNoticeable.value) > 0.01 && (() => {
@@ -120,8 +125,8 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
                 From Q1 to Q2 2025, <strong className="text-white">{mostNoticeable.name}</strong> {value > 0 ? 'increased' : 'decreased'} by{' '}
                 <strong className={value > 0 ? 'text-white' : 'text-white'}>
                 {mostNoticeable.isPercent 
-                    ? `${value > 0 ? '+' : ''}${value.toFixed(2)}%`
-                    : `${value > 0 ? '+' : ''}${formatHPRD(Math.abs(value))} HPRD`
+                    ? `${value.toFixed(2)}%`
+                    : `${formatHPRD(Math.abs(value))} HPRD`
                 }
               </strong>.
             </p>
@@ -199,7 +204,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       return (
         <>
           <p className="mb-2">
-            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong>.
+            <strong className="text-white">{displayName}</strong> reports <strong className="text-white">{formatNumber(data.facilityCount)}</strong> nursing homes and <strong className="text-white">{residentCountFormatted}</strong> residents with a regional staffing ratio of <strong className="text-white">{formatHPRD(totalHPRDValue)} HPRD</strong> (rank {data.rankings.totalHPRDRank}) and RN staffing ratio of <strong className="text-white">{formatHPRD(data.rnHPRD)} HPRD</strong> (rank {data.rankings.rnHPRDRank}).
             {data.averageOverallRating !== undefined && (
               <span className="block mt-1 text-sm text-gray-300">
                 Average overall rating: <strong className="text-white">{data.averageOverallRating.toFixed(1)}★</strong>
@@ -218,11 +223,6 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
           {biggestRiser && biggestDecliner && typeof biggestRiser.change === 'number' && typeof biggestDecliner.change === 'number' && (
             <p className="mb-2">
               <strong className="text-white">{getStateFullName(biggestRiser.stateName || biggestRiser.state)}</strong> saw the biggest increase (<strong className="text-white">+{formatHPRD(biggestRiser.change)} HPRD</strong>), while <strong className="text-white">{getStateFullName(biggestDecliner.stateName || biggestDecliner.state)}</strong> declined the most (<strong className="text-white">{formatHPRD(Math.abs(biggestDecliner.change))} HPRD</strong>).
-            </p>
-          )}
-          {data.sff.currentSFFs > 0 && (
-            <p>
-              <strong className="text-white">{data.sff.currentSFFs}</strong> Special Focus Facilities.
             </p>
           )}
         </>

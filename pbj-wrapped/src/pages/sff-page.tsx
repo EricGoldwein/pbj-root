@@ -45,7 +45,7 @@ interface SFFCandidateJSON {
   };
 }
 
-type SFFStatus = 'SFF' | 'Candidate' | 'Graduate' | 'Terminated';
+type SFFStatus = 'SFF' | 'Candidate' | 'Graduate' | 'Inactive';
 
 interface SFFFacility {
   provnum: string;
@@ -72,7 +72,7 @@ interface SFFFacility {
 
 type SortField = 'totalHPRD' | 'directCareHPRD' | 'rnHPRD' | 'percentOfCaseMix' | 'name' | 'state' | 'census' | 'monthsAsSFF' | 'sffStatus';
 type SortDirection = 'asc' | 'desc';
-type CategoryFilter = 'all' | 'sffs-and-candidates' | 'sffs-only' | 'graduates' | 'terminated';
+type CategoryFilter = 'all' | 'sffs-and-candidates' | 'sffs-only' | 'graduates' | 'inactive';
 
 export default function SFFPage() {
   const { scope: scopeParam } = useParams<{ scope?: string }>();
@@ -376,7 +376,7 @@ export default function SFFPage() {
             ...f,
             status: (f.category === 'SFF' ? 'SFF' : 
                      f.category === 'Graduate' ? 'Graduate' : 
-                     f.category === 'Terminated' ? 'Terminated' : 
+                     f.category === 'Terminated' ? 'Inactive' : 
                      'Candidate') as SFFStatus
           }));
 
@@ -747,8 +747,8 @@ export default function SFFPage() {
         return allFacilities.filter(f => f.sffStatus === 'SFF');
       case 'graduates':
         return allFacilities.filter(f => f.sffStatus === 'Graduate');
-      case 'terminated':
-        return allFacilities.filter(f => f.sffStatus === 'Terminated');
+      case 'inactive':
+        return allFacilities.filter(f => f.sffStatus === 'Inactive');
       default:
         return allFacilities;
     }
@@ -1162,7 +1162,7 @@ export default function SFFPage() {
                 const sffCount = allFacilities.filter(f => f.sffStatus === 'SFF').length;
                 const candidateCount = allFacilities.filter(f => f.sffStatus === 'Candidate').length;
                 const graduateCount = allFacilities.filter(f => f.sffStatus === 'Graduate').length;
-                const terminatedCount = allFacilities.filter(f => f.sffStatus === 'Terminated').length;
+                const inactiveCount = allFacilities.filter(f => f.sffStatus === 'Inactive').length;
                 
                 return (
                   <>
@@ -1202,16 +1202,16 @@ export default function SFFPage() {
                         Graduates ({graduateCount})
                       </button>
                     )}
-                    {terminatedCount > 0 && (
+                    {inactiveCount > 0 && (
                       <button
-                        onClick={() => { setCategoryFilter('terminated'); setCurrentPage(1); }}
+                        onClick={() => { setCategoryFilter('inactive'); setCurrentPage(1); }}
                         className={`px-3 md:px-4 py-1.5 md:py-2 rounded text-xs md:text-sm font-medium transition-colors ${
-                          categoryFilter === 'terminated'
+                          categoryFilter === 'inactive'
                             ? 'bg-blue-600 text-white'
                             : 'bg-[#0f172a]/60 text-gray-300 hover:bg-blue-600/20 border border-blue-500/50'
                         }`}
                       >
-                        Terminated ({terminatedCount})
+                        Inactive ({inactiveCount})
                       </button>
                     )}
                   </>
@@ -1279,7 +1279,7 @@ export default function SFFPage() {
                         'SFF': 'bg-red-500/20 text-red-300',
                         'Candidate': 'bg-yellow-500/20 text-yellow-300',
                         'Graduate': 'bg-green-500/20 text-green-300',
-                        'Terminated': 'bg-gray-500/20 text-gray-300'
+                        'Inactive': 'bg-gray-500/20 text-gray-300'
                       };
                       return (
                         <tr key={facility.provnum} className="border-b border-gray-700/50 hover:bg-gray-800/30 transition-colors">
@@ -1332,7 +1332,7 @@ export default function SFFPage() {
                               <span className="md:hidden">
                                 {facility.sffStatus === 'Candidate' ? 'Cand' : 
                                  facility.sffStatus === 'Graduate' ? 'Grad' :
-                                 facility.sffStatus === 'Terminated' ? 'Term' :
+                                 facility.sffStatus === 'Inactive' ? 'Inact' :
                                  facility.sffStatus}
                               </span>
                               <span className="hidden md:inline">{facility.sffStatus}</span>
@@ -1391,7 +1391,7 @@ export default function SFFPage() {
             </p>
             {candidateJSON && (
               <p className="text-gray-200">
-                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Terminated ({candidateJSON.summary.total_count} total)
+                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Inactive ({candidateJSON.summary.total_count} total)
               </p>
             )}
           </div>

@@ -80,7 +80,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           </div>
           
           <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
-            <span className="text-gray-300 text-sm">% case-mix</span>
+            <span className="text-gray-300 text-sm">% Case-Mix</span>
             <span className="text-red-400 font-bold text-base">
               {facility.caseMixExpectedHPRD > 0 
                 ? formatPercent((facility.totalHPRD / facility.caseMixExpectedHPRD) * 100, 1) + '%'
@@ -89,7 +89,7 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           </div>
           
           <div className="flex justify-between items-center py-1.5 border-b border-gray-700">
-            <span className="text-gray-300 text-sm">QoQ change in total nurse HPRD</span>
+            <span className="text-gray-300 text-sm">QoQ Change</span>
             <span className="text-red-400 font-bold text-base flex items-center gap-1">
               <span>↓</span>
               {formatHPRD(Math.abs(facility.qoqChange))}

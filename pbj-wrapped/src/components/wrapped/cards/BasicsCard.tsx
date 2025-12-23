@@ -234,6 +234,9 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 </div>
               </div>
             </div>
+            <p className="text-xs text-gray-500 text-center mt-3 pt-2 border-t border-gray-700">
+              Source: CMS Provider Info
+            </p>
           </div>
         )}
         <p className="text-xs text-gray-500 text-center mt-4 pt-3 border-t border-gray-700">

@@ -40,28 +40,28 @@ const formatNumber = (value: number, decimals = 0) =>
 
 export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
   const facilities = formatNumber(data.facilityCount);
-  const residents = formatNumber(Math.round(data.avgDailyResidents));
 
-  // Build the full answer text with context based on scope
-  let contextPart = '';
+  // Build location text based on scope
+  let locationText = '';
   switch (data.scope) {
     case 'state':
-      contextPart = ` In Q2 2025, ${getStateFullName(data.identifier)} reported ${facilities} nursing homes and ${residents} residents per day.`;
+      locationText = getStateFullName(data.identifier);
       break;
     case 'region':
       // Extract region number from identifier (e.g., "region1" -> "1")
       const regionNum = data.identifier.replace(/^region/i, '');
-      contextPart = ` In Q2 2025, Region ${regionNum} reported ${facilities} nursing homes and ${residents} residents per day.`;
+      locationText = `Region ${regionNum}`;
       break;
     case 'usa':
-      contextPart = ` In Q2 2025, the U.S. reported ${facilities} nursing homes and ${residents} residents per day.`;
+      locationText = 'the United States';
       break;
     default:
+      locationText = 'the United States';
       break;
   }
 
   const answerText =
-    'PBJ stands for Payroll-Based Journal, a federal dataset tracking who actually worked in nursing homes, and when.' + contextPart;
+    `PBJ (Payroll-Based Journal) is a federal dataset tracking staffing in the ${facilities} nursing homes in ${locationText}.`;
 
   const typedAnswer = useTypingEffect(answerText, 30, 300);
 
@@ -97,8 +97,9 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           {revealStage >= 1 && (
             <p className="pt-3 text-xs text-gray-400 animate-fade-in-up">
               <strong className="text-gray-300">Why it matters:</strong> PBJ makes staffing measurable,
-              comparable, and auditable—revealing chronic understaffing that would otherwise stay hidden.
-              Facilities with missing or invalid PBJ submissions are excluded.
+              comparable, and auditable—revealing trends that would otherwise stay hidden.
+              <br />
+              <span className="text-gray-500 italic">Note: Providers with missing or invalid PBJ data are excluded.</span>
             </p>
           )}
 

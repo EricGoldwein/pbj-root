@@ -101,7 +101,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
   return (
     <WrappedCard title="State Rankings">
       <div className="space-y-3 text-left">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-6">
           <div>
             <div className="flex justify-between items-center mb-1">
               <h4 className="text-xs font-semibold text-red-400 uppercase tracking-wide">Bottom 5</h4>
@@ -111,7 +111,7 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
               {data.extremes.bottomStatesByHPRD?.slice(0, 5).map(f => renderState(f)) || []}
             </div>
           </div>
-          <div>
+          <div className="border-l border-gray-700 pl-6">
             <div className="flex justify-between items-center mb-1">
               <h4 className="text-xs font-semibold text-green-400 uppercase tracking-wide">Top 5</h4>
               <span className="text-xs text-gray-500">HPRD</span>

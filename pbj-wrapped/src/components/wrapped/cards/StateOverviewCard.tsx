@@ -54,7 +54,7 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
       <div className="space-y-3 md:space-y-4 text-center pb-2">
         <div className="space-y-1.5 md:space-y-2">
           <p className="text-gray-200 text-base md:text-lg leading-relaxed">
-            In Q2 2025, <strong className="text-white text-xl md:text-2xl">{stateFullName}</strong> had
+            In Q2 2025, <strong className="text-white text-xl md:text-2xl">{stateFullName}</strong> reported
           </p>
           
           <div className="flex flex-col items-center gap-1 md:gap-1.5 py-2 md:py-2.5">
@@ -80,12 +80,12 @@ export const StateOverviewCard: React.FC<StateOverviewCardProps> = ({ data }) =>
           <div className="flex items-center justify-center pt-1">
             <div className={`px-4 py-2 rounded-lg border-2 ${
               isTopHalf 
-                ? 'bg-green-500/10 border-green-500/50' 
+                ? 'bg-blue-500/10 border-blue-500/50' 
                 : 'bg-orange-500/10 border-orange-500/50'
             }`}>
               <div className="text-xs text-gray-400 mb-0.5">National Rank</div>
               <div className={`text-2xl font-bold ${
-                isTopHalf ? 'text-green-300' : 'text-orange-300'
+                isTopHalf ? 'text-blue-300' : 'text-orange-300'
               }`}>
                 #{rank}
               </div>

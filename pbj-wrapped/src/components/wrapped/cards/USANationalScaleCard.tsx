@@ -103,7 +103,7 @@ export const USANationalScaleCard: React.FC<USANationalScaleCardProps> = ({ data
                 </div>
               </div>
               <div className="text-xs text-gray-500 pt-1">
-                {stateRange} HPRD
+                {stateRange}
               </div>
             </div>
           )}

@@ -180,7 +180,7 @@ export function getSFFWrappedSEO(year: string = '2025'): SEOData {
  */
 export function getWrappedLandingSEO(year: string = '2025'): SEOData {
   const baseUrl = 'https://www.pbj320.com';
-  const path = '/';
+  const path = '/wrapped';
   const fullUrl = `${baseUrl}${path}`;
   
   const keywords = [

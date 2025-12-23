@@ -138,7 +138,7 @@ export default function SFFPage() {
       description = `CMS Region ${regionNum} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
     } else if (scope) {
       const stateName = getStateName(scope.toUpperCase());
-      title = `Special Focus Facilities Program — ${stateName} | PBJ320`;
+      title = `${stateName} Special Focus Facilities | PBJ320`;
       description = `${stateName} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
     }
     

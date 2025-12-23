@@ -24,8 +24,19 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
                   data.trends.rnHPRDChange === 0 &&
                   data.trends.contractPercentChange === 0;
 
+  // Dynamic title based on scope
+  const getTitle = () => {
+    if (data.scope === 'state') {
+      return `${data.identifier.toUpperCase()} Trends`;
+    } else if (data.scope === 'region') {
+      const regionNum = data.identifier.replace(/^region/i, '');
+      return `CMS Region ${regionNum} Trends`;
+    }
+    return "Trends";
+  };
+
   return (
-    <WrappedCard title="Trends">
+    <WrappedCard title={getTitle()}>
       <p className="text-gray-300 mb-3 text-sm">
         Changes from Q1 2025 to Q2 2025
       </p>

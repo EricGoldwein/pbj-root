@@ -985,10 +985,12 @@ function processStateData(
       const change = facilityQ2Item.Total_Nurse_HPRD - facilityQ1Item.Total_Nurse_HPRD;
       const directCareChange = facilityQ2Item.Nurse_Care_HPRD - facilityQ1Item.Nurse_Care_HPRD;
       const rnHPRDChange = facilityQ2Item.Total_RN_HPRD - facilityQ1Item.Total_RN_HPRD;
+      const providerInfo = providerInfoLookupQ2.get(facilityQ2Item.PROVNUM);
       
       facilityMovers.push({
         provnum: facilityQ2Item.PROVNUM,
         name: toTitleCase(facilityQ2Item.PROVNAME),
+        city: providerInfo?.CITY ? capitalizeCity(providerInfo.CITY) : undefined,
         state: facilityQ2Item.STATE,
         value: facilityQ2Item.Total_Nurse_HPRD,
         change,
@@ -1507,6 +1509,16 @@ function processRegionData(
     const candidate = spotlightCandidates[0];
     const facilityQ1Item = facilityMapQ1.get(candidate.facility.PROVNUM);
     const census = candidate.facility.Census || candidate.info?.avg_residents_per_day || 0;
+    
+    // Simplify ownership type - remove "- Individual", "- Corporation", etc.
+    let simplifiedOwnershipType = candidate.info?.ownership_type;
+    if (simplifiedOwnershipType) {
+      // Remove suffixes like " - Individual", " - Corporation", " - Partnership", etc.
+      simplifiedOwnershipType = simplifiedOwnershipType
+        .replace(/\s*-\s*(Individual|Corporation|Partnership|Limited Liability Company|LLC|Non-Profit|Government|Church Related|Other).*$/i, '')
+        .trim();
+    }
+    
     spotlightFacility = {
       provnum: candidate.facility.PROVNUM,
       name: toTitleCase(candidate.facility.PROVNAME),
@@ -1521,7 +1533,7 @@ function processRegionData(
       contractPercent: candidate.facility.Contract_Percentage,
       census: Math.round(census),
       sffStatus: candidate.info?.sff_status,
-      ownershipType: candidate.info?.ownership_type,
+      ownershipType: simplifiedOwnershipType,
       link: createFacilityLink(candidate.facility.PROVNUM),
     };
   }

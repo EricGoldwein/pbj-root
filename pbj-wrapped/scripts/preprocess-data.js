@@ -141,9 +141,13 @@ function parseStateRow(row) {
 }
 
 function parseRegionRow(row) {
+  // CRITICAL: Get CY_Qtr FIRST before doing anything else (same as parseStateRow)
+  const quarterValue = row.CY_Qtr || row['CY_Qtr'] || row.CY_QTR || row['CY_QTR'] || row.cy_qtr;
+  
   return {
     ...row,
     REGION_NUMBER: parseInt(row.REGION_NUMBER, 10) || 0,
+    CY_Qtr: quarterValue, // CRITICAL: Preserve the quarter value AS-IS
     facility_count: parseNumeric(row.facility_count),
     avg_days_reported: parseNumeric(row.avg_days_reported),
     total_resident_days: parseNumeric(row.total_resident_days),
@@ -421,11 +425,81 @@ async function runPreprocessing() {
     // Process region data
     console.log('Processing region data...');
     const regionRows = parseCSV(join(DATA_DIR, 'cms_region_quarterly_metrics.csv')).map(parseRegionRow);
-    const regionQ1 = filterByQuarter(regionRows, ['2025Q1']);
-    const regionQ2 = filterByQuarter(regionRows, ['2025Q2']);
+    console.log(`  Total region rows loaded: ${regionRows.length}`);
+    
+    // Debug: Check what quarters exist in region data
+    const allRegionQuarters = [...new Set(regionRows.map(r => r.CY_Qtr).filter(Boolean))].sort();
+    const regionQuarters2025 = allRegionQuarters.filter(q => {
+      const qStr = q.toString().toUpperCase();
+      return qStr.includes('2025');
+    });
+    console.log(`  Found 2025 quarters in region data: ${regionQuarters2025.join(', ')}`);
+    console.log(`  All unique region quarters (first 20): ${allRegionQuarters.slice(0, 20).join(', ')}`);
+    
+    let regionQ1 = filterByQuarter(regionRows, ['2025Q1']);
+    let regionQ2 = filterByQuarter(regionRows, ['2025Q2']);
+    console.log(`  After filterByQuarter - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
+    
+    // If Q1 is empty, try DIRECT filtering (similar to state data)
+    if (regionQ1.length === 0) {
+      console.warn(`  ⚠️ No 2025Q1 data found with filterByQuarter. Trying DIRECT filtering...`);
+      const sampleQuarters = [...new Set(regionRows.slice(0, 100).map(r => r.CY_Qtr).filter(Boolean))];
+      console.warn(`  Sample quarter values from first 100 rows: ${sampleQuarters.slice(0, 10).join(', ')}`);
+      
+      // DIRECT filter - check every row manually
+      regionQ1 = regionRows.filter((row) => {
+        const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
+        const matches = q === '2025Q1';
+        return matches;
+      });
+      
+      regionQ2 = regionRows.filter((row) => {
+        const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
+        const matches = q === '2025Q2';
+        return matches;
+      });
+      
+      console.log(`  After DIRECT filtering - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
+      
+      // If STILL empty, try even more flexible matching
+      if (regionQ1.length === 0) {
+        console.warn(`  ⚠️ Still no Q1 data. Trying flexible matching...`);
+        regionQ1 = regionRows.filter((row) => {
+          const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
+          return q.includes('2025') && q.includes('Q1');
+        });
+        regionQ2 = regionRows.filter((row) => {
+          const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
+          return q.includes('2025') && q.includes('Q2');
+        });
+        console.log(`  After flexible matching - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
+      }
+    }
+    
+    // Debug: Check if Region 4 exists in Q1
+    const region4Q1 = regionQ1.find(r => r.REGION_NUMBER === 4);
+    const region4Q2 = regionQ2.find(r => r.REGION_NUMBER === 4);
+    console.log(`  Region 4 Q1: ${region4Q1 ? `found (Total HPRD: ${region4Q1.Total_Nurse_HPRD})` : 'NOT FOUND'}`);
+    console.log(`  Region 4 Q2: ${region4Q2 ? `found (Total HPRD: ${region4Q2.Total_Nurse_HPRD})` : 'NOT FOUND'}`);
+    
     writeFileSync(join(OUTPUT_DIR, 'region_q1.json'), JSON.stringify(regionQ1));
     writeFileSync(join(OUTPUT_DIR, 'region_q2.json'), JSON.stringify(regionQ2));
-    console.log(`  Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
+    console.log(`  ✅ Q1: ${regionQ1.length} rows written to region_q1.json`);
+    console.log(`  ✅ Q2: ${regionQ2.length} rows written to region_q2.json`);
+    
+    // Verify files were written
+    if (regionQ1.length === 0) {
+      console.error(`  ❌ ERROR: region_q1.json is EMPTY! Q1 data was not found in CSV.`);
+      console.error(`  This means trends will show 0.00. Check the CSV file for 2025Q1 data.`);
+      if (regionRows.length > 0) {
+        const firstRow = regionRows[0];
+        console.error(`  First row sample: REGION_NUMBER=${firstRow.REGION_NUMBER}, CY_Qtr="${firstRow.CY_Qtr}", type=${typeof firstRow.CY_Qtr}`);
+        const allUniqueQuarters = [...new Set(regionRows.map(r => r.CY_Qtr).filter(Boolean))].sort();
+        console.error(`  All unique quarters in region CSV: ${allUniqueQuarters.slice(0, 20).join(', ')}`);
+      }
+    } else {
+      console.log(`  ✅ SUCCESS: region_q1.json contains ${regionQ1.length} rows of Q1 data`);
+    }
 
     // Process national data
     console.log('Processing national data...');

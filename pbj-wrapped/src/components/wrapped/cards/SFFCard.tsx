@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { WrappedCard } from '../WrappedCard';
 import type { PBJWrappedData } from '../../../lib/wrapped/wrappedTypes';
 
@@ -8,8 +7,6 @@ interface SFFCardProps {
 }
 
 export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
-  const navigate = useNavigate();
-  
   // Determine the SFF page path based on scope
   const getSFFPagePath = () => {
     if (data.scope === 'usa') {
@@ -23,11 +20,6 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
       return `/sff/${data.identifier}`;
     }
     return '/sff';
-  };
-
-  const handleSFFClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    navigate(getSFFPagePath());
   };
 
   // Get link text based on scope
@@ -74,12 +66,14 @@ export const SFFCard: React.FC<SFFCardProps> = ({ data }) => {
         )}
         
           <div className="mt-2 pt-1.5 border-t border-gray-600">
-          <button
-            onClick={handleSFFClick}
+          <a
+            href={getSFFPagePath()}
+            target="_blank"
+            rel="noopener noreferrer"
             className="block w-full py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-xs cursor-pointer"
             >
             {getLinkText()}
-          </button>
+          </a>
           </div>
       </div>
     </WrappedCard>

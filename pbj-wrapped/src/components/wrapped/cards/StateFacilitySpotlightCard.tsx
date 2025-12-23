@@ -38,15 +38,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           One facility where staffing fell below expectations
         </p>
 
-        {/* Facility Name & City */}
+        {/* Facility Name */}
         <div className="pb-2 border-b border-gray-700">
           <h3 className="text-lg md:text-xl font-bold text-white mb-1">
-            <span className="hidden md:inline">{facility.name}{facility.city ? ` (${facility.city})` : ''}</span>
-            <span className="md:hidden">{facility.name}</span>
+            {facility.name}
           </h3>
-          {facility.city && (
-            <p className="text-sm text-gray-300 md:hidden">{facility.city}</p>
-          )}
         </div>
 
         {/* Status Badges */}
@@ -63,6 +59,11 @@ export const StateFacilitySpotlightCard: React.FC<StateFacilitySpotlightCardProp
           {facility.ownershipType && (
             <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-gray-700/50 text-gray-300">
               {facility.ownershipType}
+            </span>
+          )}
+          {facility.city && (
+            <span className="inline-block px-2 py-1 text-xs font-semibold rounded bg-purple-500/20 text-purple-300">
+              {facility.city}
             </span>
           )}
           {facility.census !== undefined && facility.census > 0 && (

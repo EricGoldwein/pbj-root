@@ -96,14 +96,12 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
           {/* Why it matters */}
           {revealStage >= 1 && (
             <p className="pt-3 text-xs text-gray-400 animate-fade-in-up">
-              <strong className="text-gray-300">Why it matters:</strong> PBJ makes staffing measurable,
+              <strong className="text-blue-300">Why it matters:</strong> PBJ makes staffing measurable,
               comparable, and auditable—revealing trends that would otherwise stay hidden.
-              <br />
-              <span className="text-gray-500 italic">Note: Providers with missing or invalid PBJ data are excluded.</span>
             </p>
           )}
 
-          {/* Definitions */}
+          {/* Definitions and Source */}
           <div className="pt-3 border-t border-gray-700">
             <p className="text-[10px] text-gray-500 leading-relaxed">
               <span>HPRD</span> = Hours Per Resident Per Day ·
@@ -111,11 +109,13 @@ export const WhatIsPBJCard: React.FC<WhatIsPBJCardProps> = ({ data }) => {
               <span> Direct Care</span> = RNs, LPNs, CNAs ·
               <span> RN</span> = Registered Nurse
             </p>
+            <p className="text-xs text-gray-500 text-center mt-3">
+              Source: CMS Payroll-Based Journal (Q2 2025)
+            </p>
+            <p className="text-[10px] text-gray-500 text-center italic mt-2">
+              Note: Providers with missing or invalid PBJ data are excluded.
+            </p>
           </div>
-
-          <p className="text-xs text-gray-500 text-center pt-3 border-t border-gray-700">
-            Source: CMS Payroll-Based Journal (Q2 2025)
-          </p>
         </div>
       </WrappedCard>
 

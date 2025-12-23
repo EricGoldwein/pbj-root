@@ -70,9 +70,9 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
       );
     } else {
       const facility = item as any;
-      // For state pages, show only city. For region/USA pages, show state.
+      // For state pages, show city (capitalized). For region/USA pages, show state.
       const location = data.scope === 'state' && facility.city 
-        ? facility.city
+        ? facility.city // Already capitalized by capitalizeCity in dataProcessor
         : facility.state;
       
       return (
@@ -105,8 +105,19 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
     }
   };
 
+  // Dynamic title based on scope
+  const getTitle = () => {
+    if (data.scope === 'state') {
+      return `${data.identifier.toUpperCase()}'s Biggest Risers`;
+    } else if (data.scope === 'region') {
+      const regionNum = data.identifier.replace(/^region/i, '');
+      return `CMS Region ${regionNum}'s Biggest Risers`;
+    }
+    return "Biggest Risers";
+  };
+
   return (
-    <WrappedCard title="Biggest Risers">
+    <WrappedCard title={getTitle()}>
       <div className="space-y-3 text-left">
         <div>
           <h4 className="text-xs font-semibold text-gray-400 mb-1 uppercase tracking-wide">By total HPRD</h4>

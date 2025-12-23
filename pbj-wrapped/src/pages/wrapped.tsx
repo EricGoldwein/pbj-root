@@ -251,9 +251,9 @@ const Wrapped: React.FC = () => {
     ];
 
     const slideDurationsArray = screensArray.map((screen) => {
-      // Make "What is PBJ" slide click-to-advance (use Infinity to disable auto-advance)
+      // "What is PBJ" slide gets 8 seconds (longer for typing animation)
       if (screen.key === 'what-is-pbj') {
-        return Infinity; // Click/tap to advance only
+        return 8000; // 8 seconds
       }
       return 5000; // 5 seconds per slide
     });

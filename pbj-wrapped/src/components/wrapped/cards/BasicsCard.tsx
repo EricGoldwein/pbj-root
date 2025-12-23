@@ -9,6 +9,53 @@ interface BasicsCardProps {
   data: PBJWrappedData;
 }
 
+// State abbreviation to full name mapping
+const STATE_ABBR_TO_NAME: Record<string, string> = {
+  'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
+  'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
+  'hi': 'Hawaii', 'id': 'Idaho', 'il': 'Illinois', 'in': 'Indiana', 'ia': 'Iowa',
+  'ks': 'Kansas', 'ky': 'Kentucky', 'la': 'Louisiana', 'me': 'Maine', 'md': 'Maryland',
+  'ma': 'Massachusetts', 'mi': 'Michigan', 'mn': 'Minnesota', 'ms': 'Mississippi', 'mo': 'Missouri',
+  'mt': 'Montana', 'ne': 'Nebraska', 'nv': 'Nevada', 'nh': 'New Hampshire', 'nj': 'New Jersey',
+  'nm': 'New Mexico', 'ny': 'New York', 'nc': 'North Carolina', 'nd': 'North Dakota', 'oh': 'Ohio',
+  'ok': 'Oklahoma', 'or': 'Oregon', 'pa': 'Pennsylvania', 'pr': 'Puerto Rico', 'ri': 'Rhode Island', 'sc': 'South Carolina',
+  'sd': 'South Dakota', 'tn': 'Tennessee', 'tx': 'Texas', 'ut': 'Utah', 'vt': 'Vermont',
+  'va': 'Virginia', 'wa': 'Washington', 'wv': 'West Virginia', 'wi': 'Wisconsin', 'wy': 'Wyoming',
+  'dc': 'District of Columbia'
+};
+
+function getStateFullName(abbr: string): string {
+  const lowerAbbr = abbr.toLowerCase();
+  const fullName = STATE_ABBR_TO_NAME[lowerAbbr];
+  if (fullName) {
+    return fullName;
+  }
+  const foundEntry = Object.entries(STATE_ABBR_TO_NAME).find(([_, name]) => 
+    name.toLowerCase() === lowerAbbr
+  );
+  if (foundEntry) {
+    return foundEntry[1];
+  }
+  const words = abbr.split(' ');
+  return words.map((word, index) => {
+    const lowerWord = word.toLowerCase();
+    if (lowerWord === 'of' && index > 0 && index < words.length - 1) {
+      return 'of';
+    }
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  }).join(' ');
+}
+
+function getDisplayName(data: PBJWrappedData): string {
+  if (data.scope === 'state') {
+    return getStateFullName(data.name);
+  } else if (data.scope === 'region') {
+    const regionNumber = data.identifier?.replace(/region/i, '') || '';
+    return regionNumber ? `CMS Region ${regionNumber}` : data.name;
+  }
+  return '';
+}
+
 export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
   const formatNumber = (num: number, decimals: number = 0): string => {
     return num.toLocaleString('en-US', {
@@ -115,17 +162,20 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
     );
   }
 
+  const displayName = getDisplayName(data);
+  const nursingHomesLabel = displayName ? `${displayName} nursing homes` : 'Number of nursing homes';
+
   return (
       <WrappedCard title="The Basics">
         <div className="space-y-1.5 md:space-y-2.5 text-left">
         <div className="flex justify-between items-center py-1 md:py-1.5 border-b border-gray-600">
-          <span className="text-gray-300 text-sm md:text-base">Number of nursing homes</span>
+          <span className="text-gray-300 text-sm md:text-base">{nursingHomesLabel}</span>
           <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedFacilityCount)}</span>
         </div>
         
         <div className="flex justify-between items-center py-1 md:py-1.5 border-b border-gray-600">
           <span className="text-gray-300 text-sm md:text-base">Average daily residents</span>
-          <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedResidents, 1)}</span>
+          <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedResidents, 0)}</span>
         </div>
         
         <div className="py-1 md:py-1.5 border-b border-gray-600">
@@ -133,7 +183,7 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             <div className="flex flex-col">
               <span className="text-gray-300 text-sm md:text-base">Total staff HPRD</span>
               {showRankings && (
-                <span className="text-xs text-gray-500 mt-0.5">
+                <span className="hidden md:block text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.totalHPRDRank}
                 </span>
               )}
@@ -143,7 +193,16 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
                 </span>
               )}
             </div>
-            <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedTotalHPRD, 2)}</span>
+            <div className="text-right">
+              <span className="text-white font-bold text-base md:text-xl">
+                {formatNumber(animatedTotalHPRD, 2)}
+                {showRankings && (
+                  <span className="md:hidden text-xs text-gray-500 font-normal ml-1">
+                    (rank #{data.rankings.totalHPRDRank})
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
           {data.scope === 'state' && data.compliance && (
             <div className="pt-1.5 md:pt-2 border-t border-gray-700">
@@ -171,12 +230,21 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             <div className="flex flex-col">
               <span className="text-gray-400 text-xs md:text-sm">Direct care HPRD</span>
               {showRankings && (
-                <span className="text-xs text-gray-500 mt-0.5">
+                <span className="hidden md:block text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.directCareHPRDRank}
                 </span>
               )}
             </div>
-            <span className="text-gray-300 font-semibold text-sm md:text-lg">{formatNumber(animatedDirectCareHPRD, 2)}</span>
+            <div className="text-right">
+              <span className="text-gray-300 font-semibold text-sm md:text-lg">
+                {formatNumber(animatedDirectCareHPRD, 2)}
+                {showRankings && (
+                  <span className="md:hidden text-xs text-gray-500 font-normal ml-1">
+                    (rank #{data.rankings.directCareHPRDRank})
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
         </div>
         
@@ -185,12 +253,21 @@ export const BasicsCard: React.FC<BasicsCardProps> = ({ data }) => {
             <div className="flex flex-col">
               <span className="text-gray-300 text-sm md:text-base">RN HPRD</span>
               {showRankings && (
-                <span className="text-xs text-gray-500 mt-0.5">
+                <span className="hidden md:block text-xs text-gray-500 mt-0.5">
                   Rank #{data.rankings.rnHPRDRank}
                 </span>
               )}
             </div>
-            <span className="text-white font-bold text-base md:text-xl">{formatNumber(animatedRNHPRD, 2)}</span>
+            <div className="text-right">
+              <span className="text-white font-bold text-base md:text-xl">
+                {formatNumber(animatedRNHPRD, 2)}
+                {showRankings && (
+                  <span className="md:hidden text-xs text-gray-500 font-normal ml-1">
+                    (rank #{data.rankings.rnHPRDRank})
+                  </span>
+                )}
+              </span>
+            </div>
           </div>
           <div className="flex justify-between items-center">
             <span className="text-gray-400 text-xs md:text-sm">RN direct care HPRD</span>

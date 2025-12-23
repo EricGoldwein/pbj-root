@@ -26,11 +26,12 @@ export const WrappedCard: React.FC<WrappedCardProps> = ({
     >
       <div className="relative z-10 w-full flex flex-col justify-center items-center" style={{ minHeight: '100%', height: '100%', paddingBottom: '8px' }}>
         {!hideBadge && (
-          <div className="text-center mb-3 flex-shrink-0">
+          <div className="text-center mb-3 flex-shrink-0 relative z-20">
             <a
               href="http://pbj320.com/wrapped"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 backdrop-blur-sm rounded-full border-2 border-blue-500/50 shadow-lg no-underline"
-              style={{ textDecoration: 'none' }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 backdrop-blur-sm rounded-full border-2 border-blue-500/50 shadow-lg no-underline relative z-20"
+              style={{ textDecoration: 'none', pointerEvents: 'auto' }}
+              onClick={(e) => e.stopPropagation()}
             >
               <span className="text-sm md:text-base text-blue-300 font-bold tracking-wide">
                 PBJ Wrapped

@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>State and Regional Staffing Rankings for Q2 2025</title>
+  <title>State and Regional Staffing Rankings</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. Q2 2025 staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.">
+  <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. Staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, state rankings, regional rankings">
   <link rel="canonical" href="https://pbj320.com/report">
   
@@ -21,13 +21,13 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj-320.onrender.com/report">
-  <meta property="og:title" content="State and Regional Staffing Rankings for Q2 2025" id="og-title">
+  <meta property="og:title" content="State and Regional Staffing Rankings" id="og-title">
   <meta property="og:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="og-description">
   <meta property="og:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="State and Regional Staffing Rankings for Q2 2025" id="twitter-title">
+  <meta property="twitter:title" content="State and Regional Staffing Rankings" id="twitter-title">
   <meta property="twitter:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="twitter-description">
   <meta property="twitter:image" content="https://pbj-320.onrender.com/og-image-1200x630.png">
   
@@ -73,6 +73,9 @@
   
   <!-- Script to update OG tags with dynamic quarter -->
   <script>
+    // Global variable to store current quarter year (set dynamically from data)
+    let currentQuarterYear = null;
+    
     (function() {
       // Simple CSV parser that handles quoted fields
       function parseCSVLine(line) {
@@ -118,14 +121,17 @@
           if (quarters.size === 0) return;
           
           // Get most recent quarter
-          const mostRecentQuarter = Array.from(quarters).sort().reverse()[0] || '2025Q2';
+          const mostRecentQuarter = Array.from(quarters).sort().reverse()[0] || null;
           
-          // Format: "2025Q2" -> "Q2 2025"
+          // Format: "2025Q3" -> "Q3 2025"
           const match = mostRecentQuarter.match(/(\d{4})Q(\d)/);
           if (!match) return;
           
           const quarterYear = `Q${match[2]} ${match[1]}`;
           const title = `State and Regional Staffing Rankings for ${quarterYear}`;
+          
+          // Store globally for use throughout the page
+          currentQuarterYear = quarterYear;
           
           // Update page title
           document.title = title;
@@ -136,22 +142,28 @@
             ogTitle.setAttribute('content', title);
           }
           
-          // Update Twitter title
-          const twitterTitle = document.getElementById('twitter-title');
-          if (twitterTitle) {
-            twitterTitle.setAttribute('content', title);
-          }
-          
           // Update OG description
           const ogDescription = document.getElementById('og-description');
           if (ogDescription) {
             ogDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
           }
           
+          // Update Twitter title
+          const twitterTitle = document.getElementById('twitter-title');
+          if (twitterTitle) {
+            twitterTitle.setAttribute('content', title);
+          }
+          
           // Update Twitter description
           const twitterDescription = document.getElementById('twitter-description');
           if (twitterDescription) {
             twitterDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+          }
+          
+          // Update meta description
+          const metaDesc = document.querySelector('meta[name="description"]');
+          if (metaDesc) {
+            metaDesc.setAttribute('content', `Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. ${quarterYear} staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.`);
           }
         })
         .catch(err => {
@@ -4260,7 +4272,7 @@
 
   <div class="container">
     <div class="page-header">
-      <h1 id="pageTitle">US Nursing Home Payroll-Based Journal Staffing Report (Q2 2025)</h1>
+      <h1 id="pageTitle">US Nursing Home Payroll-Based Journal Staffing Report (Loading...)</h1>
     </div>
 
     <!-- US Summary - now displayed as small box on map -->
@@ -4306,7 +4318,7 @@
     <!-- Data Tables -->
     <div class="data-section">
       <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
-        <h2 id="stateDataTitle" style="margin: 0;">US Nursing Home PBJ Staffing Data (Q2 2025)</h2>
+        <h2 id="stateDataTitle" style="margin: 0;">US Nursing Home PBJ Staffing Data (Loading...)</h2>
         <div id="viewTabsContainer" style="display: flex; gap: 8px; margin-left: auto;">
           <button id="stateViewTab" class="view-tab active" onclick="switchTableView('state')">State</button>
           <button id="regionViewTab" class="view-tab" onclick="switchTableView('region')">CMS Region</button>
@@ -4647,6 +4659,7 @@
     let providerDataByState = {}; // Store provider-level data for admin/DON calculations
     let facilityQuarterlyData = {}; // Store facility-level direct care data from facility_quarterly_metrics.csv, keyed by CCN and quarter
     let regionQuarterlyData = {}; // Store region-level data from cms_region_quarterly_metrics.csv, keyed by region full name
+    // currentQuarterYear is already declared globally at the top of the script
 
     // CSV line parser - defined early so it can be used
     function parseCSVLine(line) {
@@ -4758,7 +4771,7 @@
 
         // Find the most recent quarter from state data
         const allQuarters = stateRows.map(row => row.CY_Qtr).filter(q => q);
-        const mostRecentQuarter = allQuarters.sort().reverse()[0] || '2025Q2'; // Default fallback
+        const mostRecentQuarter = allQuarters.sort().reverse()[0] || null; // Will be determined dynamically
         
         console.log(`Using most recent quarter: ${mostRecentQuarter}`);
         
@@ -5201,20 +5214,33 @@
           calculateStateRankings();
           
           // Extract quarter/year from data for dynamic title
-          let quarterYear = 'Q2 2025'; // Default fallback
+          let quarterYear = null;
           if (mostRecentQuarter) {
-            // Format: "2025Q2" -> "Q2 2025"
+            // Format: "2025Q3" -> "Q3 2025"
             const match = mostRecentQuarter.match(/(\d{4})Q(\d)/);
             if (match) {
               quarterYear = `Q${match[2]} ${match[1]}`;
             }
           } else if (q2NationalData && q2NationalData.CY_Qtr) {
-            // Format: "2025Q2" -> "Q2 2025"
+            // Format: "2025Q3" -> "Q3 2025"
             const match = q2NationalData.CY_Qtr.match(/(\d{4})Q(\d)/);
             if (match) {
               quarterYear = `Q${match[2]} ${match[1]}`;
             }
           }
+          
+          // If we still don't have a quarter, try to get it from the initial page load
+          if (!quarterYear && currentQuarterYear) {
+            quarterYear = currentQuarterYear;
+          }
+          
+          // Fallback only if we truly can't determine the quarter
+          if (!quarterYear) {
+            quarterYear = 'Q3 2025'; // Last resort fallback
+          }
+          
+          // Store globally for use in updateStateDataTitle()
+          currentQuarterYear = quarterYear;
           
           // Update page title dynamically (different for desktop vs mobile)
           const pageTitleEl = document.getElementById('pageTitle');
@@ -5227,27 +5253,27 @@
             }
           }
           
-          // Update document title and meta tags
-          const fullTitle = `US Nursing Home Staffing Rankings - ${quarterYear}`;
+          // Update document title and meta tags (consistent with early script format)
+          const fullTitle = `State and Regional Staffing Rankings for ${quarterYear}`;
           const fullDescription = `Comprehensive ${quarterYear} nursing home staffing analysis by state with ratios, medians, and interactive map.`;
           
           document.title = fullTitle;
           
           // Update meta description
           const metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc) metaDesc.setAttribute('content', fullDescription);
+          if (metaDesc) metaDesc.setAttribute('content', `Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. ${quarterYear} staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.`);
           
           // Update Open Graph tags
           const ogTitle = document.querySelector('meta[property="og:title"]');
           if (ogTitle) ogTitle.setAttribute('content', fullTitle);
           const ogDesc = document.querySelector('meta[property="og:description"]');
-          if (ogDesc) ogDesc.setAttribute('content', fullDescription);
+          if (ogDesc) ogDesc.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
           
           // Update Twitter tags
           const twitterTitle = document.querySelector('meta[property="twitter:title"]');
           if (twitterTitle) twitterTitle.setAttribute('content', fullTitle);
           const twitterDesc = document.querySelector('meta[property="twitter:description"]');
-          if (twitterDesc) twitterDesc.setAttribute('content', fullDescription);
+          if (twitterDesc) twitterDesc.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
           
           // Update title on window resize
           window.addEventListener('resize', function() {
@@ -5421,10 +5447,8 @@
     function updateStateDataTitle() {
       const titleEl = document.getElementById('stateDataTitle');
       if (titleEl) {
-        // Get the quarter year from the page title or use default
-        const pageTitle = document.title;
-        const quarterMatch = pageTitle.match(/\(([^)]+)\)/);
-        const quarterYear = quarterMatch ? quarterMatch[1] : 'Q2 2025';
+        // Use the globally stored quarter year (set dynamically from data)
+        const quarterYear = currentQuarterYear || 'Q3 2025'; // Fallback only if data hasn't loaded yet
         
         // Title should NOT change based on view type - always show "US Nursing Home PBJ Staffing Data"
         const medianText = showMedians ? ' (Medians)' : '';

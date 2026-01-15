@@ -1780,11 +1780,18 @@
           return;
         }
         
-        filteredData = facilityData.filter(row => row.WorkDate === specificDay);
+        // Normalize the date to YYYY-MM-DD format (date input already provides this)
+        // Compare directly as strings to avoid timezone issues
+        filteredData = facilityData.filter(row => {
+          // WorkDate should already be in YYYY-MM-DD format from parseCSV
+          return row.WorkDate === specificDay;
+        });
         
         if (filteredData.length > 0) {
           showSpecificDayAnalysis(filteredData[0], specificDay);
           return;
+        } else {
+          showError(`No data found for ${specificDay}. Please check the date and try again.`);
         }
       }
       
@@ -2324,9 +2331,18 @@
         loadingIndicator.style.display = 'none';
       }
       
+      // Parse date without timezone issues - use local time explicitly
+      const [yearStr, monthStr, dayStr] = specificDay.split('-');
+      const year = parseInt(yearStr);
+      const month = parseInt(monthStr);
+      const day = parseInt(dayStr);
+      
+      // Create date in local timezone (not UTC)
+      const specificDayLocal = new Date(year, month - 1, day);
+      
       // Get quarter and year data for comparison
       const quarter = dayData.CY_Qtr;
-      const year = new Date(specificDay).getFullYear().toString();
+      const yearStrForFilter = year.toString();
       
       // Convert quarter format from 2023Q2 to Q2 2023
       const quarterYear = quarter.substring(0, 4);
@@ -2337,25 +2353,27 @@
       const quarterData = facilityData.filter(row => row.CY_Qtr === quarter);
       const quarterStats = calculateStats(quarterData);
       
-      // Get year data
+      // Get year data - parse dates in local time to avoid timezone issues
       const yearData = facilityData.filter(row => {
-        const workDate = new Date(row.WorkDate);
-        return workDate.getFullYear().toString() === year;
+        const [y, m, d] = row.WorkDate.split('-');
+        const workDateLocal = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        return workDateLocal.getFullYear().toString() === yearStrForFilter;
       });
       const yearStats = calculateStats(yearData);
       
       // Get day of week data (same day of week for the year)
-      const dayOfWeek = new Date(specificDay).getDay(); // 0 = Sunday, 1 = Monday, etc.
+      const dayOfWeek = specificDayLocal.getDay(); // 0 = Sunday, 1 = Monday, etc.
       const dayOfWeekData = facilityData.filter(row => {
-        const workDate = new Date(row.WorkDate);
-        return workDate.getFullYear().toString() === year && workDate.getDay() === dayOfWeek;
+        const [y, m, d] = row.WorkDate.split('-');
+        const workDateLocal = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+        return workDateLocal.getFullYear().toString() === yearStrForFilter && workDateLocal.getDay() === dayOfWeek;
       });
       const dayOfWeekStats = calculateStats(dayOfWeekData);
       
       // Calculate day stats
       const dayStats = calculateDayStats(dayData);
       
-      const dayName = new Date(specificDay).toLocaleDateString('en-US', { 
+      const dayName = specificDayLocal.toLocaleDateString('en-US', { 
         weekday: 'long', 
         year: 'numeric', 
         month: 'long', 
@@ -2363,7 +2381,7 @@
       });
       
       // Format date for display (MM/DD/YYYY)
-      const displayDate = new Date(specificDay).toLocaleDateString('en-US');
+      const displayDate = specificDayLocal.toLocaleDateString('en-US');
       
       // Generate proper CMS URL with specific date filter
       const provnum = "335513";
@@ -2380,11 +2398,8 @@
       ];
       const provnumCol = earlyQuarters.includes(quarter) ? "provnum" : "PROVNUM";
       
-      // Convert date to YYYYMMDD format for CMS
-      const dateObj = new Date(specificDay);
-      const cmsDate = dateObj.getFullYear().toString() + 
-                     String(dateObj.getMonth() + 1).padStart(2, '0') + 
-                     String(dateObj.getDate()).padStart(2, '0');
+      // Convert date to YYYYMMDD format for CMS (use the already parsed date to avoid timezone issues)
+      const cmsDate = yearStr + monthStr.padStart(2, '0') + dayStr.padStart(2, '0');
       
       // Use the exact working URL format with date filter and correct PROVNUM case
       const cmsUrl = `https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing/data/${quarterUrl}?query=%7B%22filters%22%3A%7B%22list%22%3A%5B%7B%22conditions%22%3A%5B%7B%22column%22%3A%7B%22value%22%3A%22${provnumCol}%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${provnum}%22%5D%7D%2C%7B%22column%22%3A%7B%22value%22%3A%22WorkDate%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${cmsDate}%22%5D%7D%5D%7D%5D%2C%22rootConjunction%22%3A%7B%22value%22%3A%22AND%22%7D%7D%2C%22keywords%22%3A%22%22%2C%22offset%22%3A0%2C%22limit%22%3A10%2C%22sort%22%3A%7B%22sortBy%22%3Anull%2C%22sortOrder%22%3Anull%7D%2C%22columns%22%3A%5B%5D%7D`;

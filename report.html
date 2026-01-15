@@ -5816,7 +5816,7 @@
         const stateMedian = stateMedians[stateName];
         if (!stateMedian) return 0;
         
-        // Map metric to median field
+        // Map metric to median field - handle all metrics that have medians
         switch(metric) {
           case 'Total_Nurse_HPRD':
             return stateMedian.Total_Nurse_HPRD || 0;
@@ -5824,6 +5824,10 @@
             return stateMedian.Nurse_Care_HPRD || 0;
           case 'Total_RN_HPRD':
             return stateMedian.RN_HPRD || 0;
+          case 'Nurse_Assistant_HPRD':
+            return stateMedian.Nurse_Assistant_HPRD || 0;
+          case 'Contract_Percentage':
+            return stateMedian.Contract_Percentage || 0;
           default:
             return 0;
         }
@@ -5843,6 +5847,10 @@
           // Apply excludeAdminDON toggle if enabled
           return excludeAdminDON ? calculateRNCareExclAdmin(stateName) : (state.RN_HPRD || 0);
         case 'Nurse_Assistant_HPRD':
+          // Use median if median toggle is on
+          if (mapDisplayMode === 'median' && stateMedians[stateName] && stateMedians[stateName].Nurse_Assistant_HPRD !== undefined) {
+            return stateMedians[stateName].Nurse_Assistant_HPRD;
+          }
           return state.Nurse_Assistant_HPRD || 0;
         case 'avg_daily_census':
           // Calculate average daily census from total_resident_days and avg_days_reported
@@ -5850,10 +5858,7 @@
           const daysReported = state.avg_days_reported || 0;
           return daysReported > 0 ? residentDays / daysReported : 0;
         case 'Contract_Percentage':
-          // Use median if median toggle is on
-          if (mapDisplayMode === 'median' && stateMedians[stateName] && stateMedians[stateName].Contract_Percentage !== undefined) {
-            return stateMedians[stateName].Contract_Percentage;
-          }
+          // Note: Contract_Percentage median is already handled in the median mode check above
           return state.Contract_Percentage || 0;
         default:
           return state[metric] || 0;

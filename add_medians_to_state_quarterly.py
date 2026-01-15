@@ -24,9 +24,14 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 
-def calculate_median(values):
-    """Calculate median - matches JavaScript implementation"""
-    sorted_vals = sorted([v for v in values if not (pd.isna(v) or np.isnan(v)) and v > 0])
+def calculate_median(values, exclude_zeros=False):
+    """Calculate median - matches JavaScript implementation
+    For contract percentage, include zeros since many facilities have 0% contract staffing
+    """
+    if exclude_zeros:
+        sorted_vals = sorted([v for v in values if not (pd.isna(v) or np.isnan(v)) and v > 0])
+    else:
+        sorted_vals = sorted([v for v in values if not (pd.isna(v) or np.isnan(v))])
     if not sorted_vals:
         return np.nan
     mid = len(sorted_vals) // 2
@@ -61,16 +66,14 @@ def main():
         }
     print(f"   - Mapped {len(state_to_region)} states to regions")
     
-    # Get most recent quarter only
+    # Process ALL quarters, not just most recent
     all_quarters = sorted(state_df['CY_Qtr'].unique())
-    most_recent_quarter = all_quarters[-1] if all_quarters else None
-    quarters = [most_recent_quarter] if most_recent_quarter else []
     
-    if not most_recent_quarter:
+    if not all_quarters:
         print("ERROR: No quarters found in state data")
         return
     
-    print(f"\n3. Processing most recent quarter only: {most_recent_quarter}")
+    print(f"\n3. Processing all {len(all_quarters)} quarters to add medians...")
     
     # Initialize median columns in state_df
     median_columns = [
@@ -86,17 +89,20 @@ def main():
         if col not in state_df.columns:
             state_df[col] = np.nan
     
-    # Calculate state medians for most recent quarter only
-    print(f"\n4. Calculating state medians for {most_recent_quarter}...")
-    state_median_count = 0
+    # Calculate state medians for ALL quarters
+    print(f"\n4. Calculating state medians for all quarters...")
+    total_state_median_count = 0
     
-    quarter = most_recent_quarter
-    # Filter facilities for most recent quarter
-    quarter_facilities = facility_df[facility_df['CY_Qtr'] == quarter].copy()
-    
-    if len(quarter_facilities) == 0:
-        print(f"   - Warning: No facilities found for quarter {quarter}")
-    else:
+    for quarter in all_quarters:
+        print(f"   - Processing {quarter}...")
+        # Filter facilities for this quarter
+        quarter_facilities = facility_df[facility_df['CY_Qtr'] == quarter].copy()
+        
+        if len(quarter_facilities) == 0:
+            print(f"      Warning: No facilities found for quarter {quarter}")
+            continue
+        
+        quarter_state_count = 0
         # Group by state
         for state_abbr in state_df[state_df['CY_Qtr'] == quarter]['STATE'].unique():
             state_facilities = quarter_facilities[quarter_facilities['STATE'] == state_abbr].copy()
@@ -107,12 +113,12 @@ def main():
             # Calculate medians - map column names from facility_lite_metrics.csv
             # facility_lite_metrics.csv has: Total_Nurse_HPRD, Nurse_Care_HPRD, Total_RN_HPRD, Direct_Care_RN_HPRD, Contract_Percentage
             medians = {
-                'Total_Nurse_HPRD_Median': calculate_median(state_facilities['Total_Nurse_HPRD'].tolist()),
-                'RN_HPRD_Median': calculate_median(state_facilities['Total_RN_HPRD'].tolist()) if 'Total_RN_HPRD' in state_facilities.columns else np.nan,
-                'Nurse_Care_HPRD_Median': calculate_median(state_facilities['Nurse_Care_HPRD'].tolist()),
-                'RN_Care_HPRD_Median': calculate_median(state_facilities['Direct_Care_RN_HPRD'].tolist()) if 'Direct_Care_RN_HPRD' in state_facilities.columns else np.nan,
+                'Total_Nurse_HPRD_Median': calculate_median(state_facilities['Total_Nurse_HPRD'].tolist(), exclude_zeros=True),
+                'RN_HPRD_Median': calculate_median(state_facilities['Total_RN_HPRD'].tolist(), exclude_zeros=True) if 'Total_RN_HPRD' in state_facilities.columns else np.nan,
+                'Nurse_Care_HPRD_Median': calculate_median(state_facilities['Nurse_Care_HPRD'].tolist(), exclude_zeros=True),
+                'RN_Care_HPRD_Median': calculate_median(state_facilities['Direct_Care_RN_HPRD'].tolist(), exclude_zeros=True) if 'Direct_Care_RN_HPRD' in state_facilities.columns else np.nan,
                 'Nurse_Assistant_HPRD_Median': np.nan,  # Not available in facility_lite_metrics.csv
-                'Contract_Percentage_Median': calculate_median(state_facilities['Contract_Percentage'].tolist())
+                'Contract_Percentage_Median': calculate_median(state_facilities['Contract_Percentage'].tolist(), exclude_zeros=False)  # Include zeros for contract %
             }
             
             # Update state_df
@@ -120,12 +126,16 @@ def main():
             for col, value in medians.items():
                 state_df.loc[mask, col] = value
             
-            state_median_count += 1
+            quarter_state_count += 1
+            total_state_median_count += 1
+        
+        print(f"      Calculated medians for {quarter_state_count} states in {quarter}")
     
-    print(f"   - Calculated medians for {state_median_count} states")
+    print(f"\n   - Total: Calculated medians for {total_state_median_count} state/quarter combinations")
     
     # Create CMS region quarterly metrics file (most recent quarter only)
-    print(f"\n5. Creating cms_region_quarterly_metrics.csv for {quarter}...")
+    most_recent_quarter = all_quarters[-1]
+    print(f"\n5. Creating cms_region_quarterly_metrics.csv for {most_recent_quarter}...")
     
     # Group states by region
     region_states = defaultdict(list)
@@ -139,14 +149,14 @@ def main():
     # Build region quarterly metrics for most recent quarter only
     region_quarterly_rows = []
     
-    # Filter facilities for most recent quarter (already filtered above)
-    # quarter_facilities is already filtered to most recent quarter
+    # Filter facilities for most recent quarter
+    quarter_facilities = facility_df[facility_df['CY_Qtr'] == most_recent_quarter].copy()
     
     if len(quarter_facilities) == 0:
         print("   - Warning: No facilities found for most recent quarter")
     else:
         # Get state data for most recent quarter (for aggregating averages)
-        quarter_state_data = state_df[state_df['CY_Qtr'] == quarter].copy()
+        quarter_state_data = state_df[state_df['CY_Qtr'] == most_recent_quarter].copy()
         
         for region_full, states_in_region in region_states.items():
             # Get all facilities from states in this region
@@ -203,12 +213,12 @@ def main():
             
             # Calculate medians from facility-level data - map column names from facility_lite_metrics.csv
             medians = {
-                'Total_Nurse_HPRD_Median': calculate_median(region_facilities['Total_Nurse_HPRD'].tolist()),
-                'RN_HPRD_Median': calculate_median(region_facilities['Total_RN_HPRD'].tolist()) if 'Total_RN_HPRD' in region_facilities.columns else np.nan,
-                'Nurse_Care_HPRD_Median': calculate_median(region_facilities['Nurse_Care_HPRD'].tolist()),
-                'RN_Care_HPRD_Median': calculate_median(region_facilities['Direct_Care_RN_HPRD'].tolist()) if 'Direct_Care_RN_HPRD' in region_facilities.columns else np.nan,
+                'Total_Nurse_HPRD_Median': calculate_median(region_facilities['Total_Nurse_HPRD'].tolist(), exclude_zeros=True),
+                'RN_HPRD_Median': calculate_median(region_facilities['Total_RN_HPRD'].tolist(), exclude_zeros=True) if 'Total_RN_HPRD' in region_facilities.columns else np.nan,
+                'Nurse_Care_HPRD_Median': calculate_median(region_facilities['Nurse_Care_HPRD'].tolist(), exclude_zeros=True),
+                'RN_Care_HPRD_Median': calculate_median(region_facilities['Direct_Care_RN_HPRD'].tolist(), exclude_zeros=True) if 'Direct_Care_RN_HPRD' in region_facilities.columns else np.nan,
                 'Nurse_Assistant_HPRD_Median': np.nan,  # Not available in facility_lite_metrics.csv
-                'Contract_Percentage_Median': calculate_median(region_facilities['Contract_Percentage'].tolist())
+                'Contract_Percentage_Median': calculate_median(region_facilities['Contract_Percentage'].tolist(), exclude_zeros=False)  # Include zeros for contract %
             }
             
             # Get region info
@@ -219,7 +229,7 @@ def main():
                 'REGION': region_full,  # Use REGION column instead of STATE
                 'REGION_NUMBER': region_info['regionNumber'],
                 'REGION_NAME': region_info['regionName'],
-                'CY_Qtr': quarter,
+                'CY_Qtr': most_recent_quarter,
                 'facility_count': facility_count,
                 'avg_days_reported': avg_days_reported,
                 'total_resident_days': total_resident_days,
@@ -282,21 +292,16 @@ def main():
     else:
         print("\n6. Warning: No region data to save")
     
-    # Filter state_df to most recent quarter only before saving
-    print("\n7. Filtering state_quarterly_metrics.csv to most recent quarter only...")
-    state_df_latest = state_df[state_df['CY_Qtr'] == quarter].copy()
-    print(f"   - Filtered to {len(state_df_latest):,} rows (from {len(state_df):,} total)")
-    
-    # Save updated state_quarterly_metrics.csv (most recent quarter only)
-    print("\n8. Saving updated state_quarterly_metrics.csv...")
+    # Save updated state_quarterly_metrics.csv with ALL quarters (now includes medians)
+    print("\n7. Saving updated state_quarterly_metrics.csv with all quarters...")
     try:
         # Try to save directly
-        state_df_latest.to_csv('state_quarterly_metrics.csv', index=False)
-        print(f"   - Saved {len(state_df_latest):,} state rows for {quarter}")
+        state_df.to_csv('state_quarterly_metrics.csv', index=False)
+        print(f"   - Saved {len(state_df):,} state rows (all quarters with medians)")
     except PermissionError:
         # If permission denied, save to a temporary file and ask user to replace manually
         temp_filename = 'state_quarterly_metrics_updated.csv'
-        state_df_latest.to_csv(temp_filename, index=False)
+        state_df.to_csv(temp_filename, index=False)
         print(f"   - ERROR: Could not write to state_quarterly_metrics.csv (file may be open in Excel)")
         print(f"   - Saved to {temp_filename} instead")
         print(f"   - Please close state_quarterly_metrics.csv and manually replace it with {temp_filename}")
@@ -306,9 +311,9 @@ def main():
     print("\n" + "="*80)
     print("SUMMARY")
     print("="*80)
-    print(f"✓ Added median columns to state_quarterly_metrics.csv (quarter: {quarter}):")
+    print(f"Added median columns to state_quarterly_metrics.csv (all quarters):")
     for col in median_columns:
-        non_null = state_df_latest[col].notna().sum()
+        non_null = state_df[col].notna().sum()
         print(f"   - {col}: {non_null:,} values calculated")
     
     if region_quarterly_rows:

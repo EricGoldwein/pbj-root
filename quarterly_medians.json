@@ -262,5 +262,23 @@
     "RN_HPRD_Median": 0.575,
     "Nurse_Care_HPRD_Median": 3.392,
     "facility_count": 14551
+  },
+  {
+    "CY_Qtr": "2025Q2",
+    "Total_Nurse_HPRD_Median": 3.7230309685921377,
+    "Contract_Percentage_Median": 0.5014833036400191,
+    "facility_count": 14537,
+    "RN_HPRD_Median": 0.5798802545637245,
+    "Nurse_Care_HPRD_Median": 3.4430387352059517,
+    "RN_Care_HPRD_Median": 0.38789272836122873
+  },
+  {
+    "CY_Qtr": "2025Q3",
+    "Total_Nurse_HPRD_Median": 3.711341403405176,
+    "Contract_Percentage_Median": 0.3751195693627344,
+    "facility_count": 14487,
+    "RN_HPRD_Median": 0.5795465583823791,
+    "Nurse_Care_HPRD_Median": 3.439264590127067,
+    "RN_Care_HPRD_Median": 0.3898126356748792
   }
 ]

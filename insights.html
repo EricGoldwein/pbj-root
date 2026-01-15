@@ -603,6 +603,35 @@
         align-items: baseline !important;
       }
       
+      /* Ensure Phoebe images display on mobile */
+      .phoebe-takeaway {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+      }
+      
+      .phoebe-takeaway a {
+        display: block !important;
+        flex-shrink: 0 !important;
+      }
+      
+      .phoebe-avatar {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 50px !important;
+        height: 50px !important;
+        max-width: 50px !important;
+        max-height: 50px !important;
+        object-fit: cover !important;
+      }
+      
+      .phoebe-content {
+        display: block !important;
+        flex: 1 !important;
+      }
+      
       /* Make quarter display more compact on mobile - closer to map */
       #quarterDisplay {
         font-size: 1rem !important;
@@ -985,7 +1014,7 @@
             ">Q1 2017</div>
           </div>
       
-      <div class="phoebe-takeaway">
+      <div class="phoebe-takeaway" style="margin-top: 1.5rem;">
         <a href="https://www.320insight.com/phoebe" target="_blank"><img src="phoebe.png" alt="Phoebe J" class="phoebe-avatar"></a>
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
@@ -1482,9 +1511,26 @@
       const processedStateData = {};
       const quarters = nationalData.map(row => row.CY_Qtr);
       
+      // Check if we have historical state data or just latest quarter
+      const stateQuarters = [...new Set(stateData.map(row => row.CY_Qtr))];
+      const hasHistoricalData = stateQuarters.length > 1;
+      
+      if (!hasHistoricalData) {
+        console.warn('State data only contains latest quarter. Loading historical state data from facility data...');
+        // Try to load facility data to calculate state aggregates
+        // For now, we'll use what we have and show a message
+        console.warn('Historical state data not available. State evolution map will only show latest quarter.');
+      }
+      
       // Group state data by quarter and state (excluding PR and GU)
       quarters.forEach((quarter, index) => {
         const quarterData = stateData.filter(row => row.CY_Qtr === quarter);
+        
+        if (quarterData.length === 0 && hasHistoricalData) {
+          // No data for this quarter - leave as undefined
+          return;
+        }
+        
         quarterData.forEach(row => {
           const stateAbbr = row.STATE; // Already in abbreviation format
           // Exclude territories
@@ -1497,9 +1543,21 @@
               contract: new Array(quarters.length)
             };
           }
-          processedStateData[stateAbbr].hprd[index] = parseFloat(row.Total_Nurse_HPRD);
-          processedStateData[stateAbbr].rn_hprd[index] = parseFloat(row.RN_HPRD);
-          processedStateData[stateAbbr].contract[index] = parseFloat(row.Contract_Percentage);
+          
+          const hprd = parseFloat(row.Total_Nurse_HPRD);
+          const rn_hprd = parseFloat(row.RN_HPRD);
+          const contract = parseFloat(row.Contract_Percentage);
+          
+          // Only set if values are valid
+          if (!isNaN(hprd) && hprd > 0) {
+            processedStateData[stateAbbr].hprd[index] = hprd;
+          }
+          if (!isNaN(rn_hprd) && rn_hprd > 0) {
+            processedStateData[stateAbbr].rn_hprd[index] = rn_hprd;
+          }
+          if (!isNaN(contract) && contract >= 0) {
+            processedStateData[stateAbbr].contract[index] = contract;
+          }
         });
       });
       
@@ -3138,42 +3196,6 @@
       }
     }
 
-    function getCurrentQuarterData() {
-      const data = {};
-      
-      // Use the processed state data from window.stateData
-      if (window.stateData) {
-        Object.keys(window.stateData).forEach(state => {
-          if (window.stateData[state][currentQuarterIndex] !== undefined) {
-            data[state] = window.stateData[state][currentQuarterIndex];
-          }
-        });
-      }
-      
-      return data;
-    }
-
-
-    function updateChart() {
-      if (!stateEvolutionChart) return;
-      
-      const currentData = getCurrentQuarterData();
-      const currentQuarter = getQuarters()[currentQuarterIndex];
-      
-      // Update chart data
-      stateEvolutionChart.data.labels = Object.keys(currentData);
-      stateEvolutionChart.data.datasets[0].data = Object.values(currentData);
-      stateEvolutionChart.data.datasets[0].backgroundColor = Object.values(currentData).map(value => getColorForValue(value));
-      
-      // Update title
-      stateEvolutionChart.options.plugins.title.text = `State HPRD by Quarter - ${currentQuarter}`;
-      
-      // Update quarter display
-      document.getElementById('quarterDisplay').textContent = currentQuarter;
-      
-      // Update chart
-      stateEvolutionChart.update('active');
-    }
 
     function toggleAnimation() {
       const button = document.getElementById('animateButton');

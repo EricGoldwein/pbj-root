@@ -71,3 +71,13 @@ def get_latest_data_periods():
         'affiliated_entity_latest': 'July 2025',  # TODO: Move to config file if needed
         'current_year': current_year
     }
+
+
+def get_latest_update_month_year():
+    """
+    Get the month and year of the latest data update.
+    This is currently hardcoded but could be made dynamic by reading the latest quarter.
+    """
+    # For now, return a hardcoded value as per user request.
+    # In a real application, this would be derived from the latest data available.
+    return "January 2026"

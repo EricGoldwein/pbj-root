@@ -17,6 +17,7 @@
   
   <!-- Mobile and PWA meta tags -->
   <meta name="theme-color" content="#1e40af">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PBJ320">
@@ -455,6 +456,14 @@
       color: #e2e8f0;
     }
     
+    .footer a:hover {
+      opacity: 1 !important;
+    }
+    
+    .footer a:hover img {
+      opacity: 1 !important;
+    }
+    
     @media (max-width: 768px) {
       .footer {
         margin-top: 10px;
@@ -792,6 +801,7 @@
   <main class="container">
     <article class="map-section">
       <div class="map-container">
+        
         <header class="map-header">
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
           <p class="map-subtitle">50 Million Days. 15,000 Nursing Homes.<br class="mobile-break"> One PBJ Dashboard.</p>
@@ -807,22 +817,18 @@
             <h2 style="color: #60a5fa; margin-bottom: 20px;">Nursing Home Staffing Data Overview</h2>
             <p style="margin-bottom: 15px; line-height: 1.8;">The PBJ Dashboard provides comprehensive staffing data for over <strong>15,000 U.S. nursing homes</strong> using CMS Payroll-Based Journal data from 2017 to present.</p>
             
-            <h3 style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Key Statistics (Q2 2025)</h3>
-            <ul style="line-height: 2; margin-left: 20px;">
-              <li><strong>National Average HPRD:</strong> 3.781 hours per resident day</li>
-              <li><strong>Highest State:</strong> Oregon (5.019 HPRD)</li>
-              <li><strong>Lowest State:</strong> Texas (3.343 HPRD)</li>
+            <h3 id="noscript-quarter-title" style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Key Statistics (Loading...)</h3>
+            <ul id="noscript-key-stats" style="line-height: 2; margin-left: 20px;">
+              <li><strong>National Average HPRD:</strong> Loading...</li>
+              <li><strong>Highest State:</strong> Loading...</li>
+              <li><strong>Lowest State:</strong> Loading...</li>
               <li><strong>Data Coverage:</strong> 50 states + DC, 15,000+ facilities</li>
-              <li><strong>Time Period:</strong> Q1 2017 through Q2 2025 (34 quarters)</li>
+              <li><strong>Time Period:</strong> Loading...</li>
             </ul>
             
-            <h3 style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Top 5 States by Staffing (Q2 2025)</h3>
-            <ol style="line-height: 2; margin-left: 20px;">
-              <li>Oregon: 5.019 HPRD</li>
-              <li>Alaska: 6.016 HPRD</li>
-              <li>North Dakota: 4.656 HPRD</li>
-              <li>Hawaii: 4.452 HPRD</li>
-              <li>Maine: 4.338 HPRD</li>
+            <h3 id="noscript-top5-title" style="color: #60a5fa; margin-top: 25px; margin-bottom: 15px;">Top 5 States by Staffing (Loading...)</h3>
+            <ol id="noscript-top5-list" style="line-height: 2; margin-left: 20px;">
+              <li>Loading...</li>
             </ol>
             
             <p style="margin-top: 25px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
@@ -866,15 +872,110 @@
       </div>
     </article>
 
+    <!-- Context / credibility - moved above footer -->
+    <section style="
+      background: rgba(255,255,255,0.05);
+      padding: 30px 20px;
+      margin: 40px auto 30px;
+      border-radius: 12px;
+      max-width: 1200px;
+      text-align: center;
+    ">
+      <p style="
+        color: rgba(255,255,255,0.65);
+        margin: 0 auto 1rem;
+        line-height: 1.5;
+        text-align: center;
+        max-width: 720px;
+        font-size: 0.9rem;
+      ">
+        <strong>The PBJ Dashboard</strong> a free public resource providing longitudinal staffing data for ~15,000 U.S. nursing homes.
+        As seen in
+        <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Columbia Public Health</a>,
+        <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Positive Aging</a>,
+        and
+        <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Aging in America News</a>.
+      </p>
+      <p style="
+        color: rgba(255,255,255,0.78);
+        margin: 0 auto;
+        line-height: 1.55;
+        text-align: center;
+        max-width: 720px;
+        font-size: 0.95rem;
+      ">
+        <a href="mailto:eric@320insight.com"
+           style="color:rgba(255,255,255,0.85); text-decoration:none;">
+          Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
+        </a>
+      </p>
+    </section>
 
   </main>
 
-  <footer class="footer">
-    <p style="color: rgba(255,255,255,0.7); margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #60a5fa; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #60a5fa; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #60a5fa; text-decoration: none;">Aging in America News</a>.</p>
-    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
-      <p style="margin: 0; color: rgba(255,255,255,0.6); font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.6); text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
+  <footer class="footer" style="padding: 1.25rem 1rem;">
+    <!-- Brand -->
+    <p style="
+      margin: 0 0 1rem 0;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8rem;
+      text-align: center;
+      letter-spacing: 0.03em;
+    ">
+      <strong>320 Consulting</strong> — Turning Spreadsheets into Stories
+    </p>
+  
+    <!-- Social Icons -->
+    <div style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-top: 0.5rem;
+    ">
+      <!-- Email -->
+      <a href="mailto:eric@320insight.com"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="Email: eric@320insight.com">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- SMS -->
+      <a href="sms:+13479923569"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="SMS: (347) 992-3569">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- LinkedIn -->
+      <a href="https://www.linkedin.com/in/eric-goldwein/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="LinkedIn">
+        <img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
+      
+      <!-- Substack -->
+      <a href="https://320insight.substack.com/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="The 320 Newsletter">
+        <img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
     </div>
+  
   </footer>
+  
 
   <script>
     // Prevent scroll restoration on mobile
@@ -974,8 +1075,45 @@
       }
     }
     
-    // Mobile Navigation Toggle
+    // Update noscript section dynamically (for users with JS enabled)
     document.addEventListener('DOMContentLoaded', function() {
+      fetch('/latest_quarter_data.json')
+        .then(r => r.json())
+        .then(data => {
+          const quarterTitle = document.getElementById('noscript-quarter-title');
+          const keyStats = document.getElementById('noscript-key-stats');
+          const top5Title = document.getElementById('noscript-top5-title');
+          const top5List = document.getElementById('noscript-top5-list');
+          
+          if (quarterTitle) {
+            quarterTitle.textContent = `Key Statistics (${data.quarter_display})`;
+          }
+          
+          if (keyStats) {
+            keyStats.innerHTML = `
+              <li><strong>National Average HPRD:</strong> ${data.national_hprd} hours per resident day</li>
+              <li><strong>Highest State:</strong> ${data.highest_state.name} (${data.highest_state.hprd} HPRD)</li>
+              <li><strong>Lowest State:</strong> ${data.lowest_state.name} (${data.lowest_state.hprd} HPRD)</li>
+              <li><strong>Data Coverage:</strong> 50 states + DC, 15,000+ facilities</li>
+              <li><strong>Time Period:</strong> Q1 2017 through ${data.quarter_display} (${data.total_quarters} quarters)</li>
+            `;
+          }
+          
+          if (top5Title) {
+            top5Title.textContent = `Top 5 States by Staffing (${data.quarter_display})`;
+          }
+          
+          if (top5List) {
+            top5List.innerHTML = data.top_5_states.map((state, index) => 
+              `<li>${state.name}: ${state.hprd} HPRD</li>`
+            ).join('');
+          }
+        })
+        .catch(error => {
+          console.error('Error loading latest quarter data for noscript:', error);
+        });
+      
+      // Mobile Navigation Toggle
       const navToggle = document.getElementById('navToggle');
       const navMenu = document.getElementById('navMenu');
       
@@ -995,148 +1133,47 @@
          });
        }
       
-      // Mobile Chart Setup
+      // Mobile Chart Setup - Load data dynamically from JSON files
       const stateSelect = document.getElementById('stateSelect');
       const chartCanvas = document.getElementById('staffingChart');
       
-      if (stateSelect && chartCanvas) {
-        // Populate state dropdown
-        const states = [
-          'USA', 'Alabama', 'Alaska', 'Arizona', 'Arkansas', 'California', 'Colorado',
-          'Connecticut', 'Delaware', 'Florida', 'Georgia', 'Hawaii', 'Idaho',
-          'Illinois', 'Indiana', 'Iowa', 'Kansas', 'Kentucky', 'Louisiana',
-          'Maine', 'Maryland', 'Massachusetts', 'Michigan', 'Minnesota', 'Mississippi',
-          'Missouri', 'Montana', 'Nebraska', 'Nevada', 'New Hampshire', 'New Jersey',
-          'New Mexico', 'New York', 'North Carolina', 'North Dakota', 'Ohio', 'Oklahoma',
-          'Oregon', 'Pennsylvania', 'Rhode Island', 'South Carolina', 'South Dakota',
-          'Tennessee', 'Texas', 'Utah', 'Vermont', 'Virginia', 'Washington',
-          'West Virginia', 'Wisconsin', 'Wyoming'
-        ];
-        
-        // State name to abbreviation mapping
-        const stateAbbreviations = {
-          'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
-          'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
-          'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
-          'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-          'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
-          'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
-          'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
-          'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-          'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
-          'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
-        };
-        
-        states.forEach(state => {
-          const option = document.createElement('option');
-          option.value = stateAbbreviations[state] || state;
-          option.textContent = state;
-          stateSelect.appendChild(option);
-        });
-        
-        // Create longitudinal time series chart
-        const ctx = chartCanvas.getContext('2d');
-        
-        // Actual national data from PBJ
-        const nationalData = [3.707,3.737,3.724,3.74,3.74,3.771,3.766,3.757,3.74,3.754,3.754,3.75,3.775,3.894,3.869,3.926,3.925,3.747,3.618,3.613,3.616,3.625,3.614,3.606,3.63,3.663,3.662,3.679,3.677,3.714,3.73,3.749,3.73,3.781];
-        
-        // Real data embedded directly
-        const realStateData = {
-          'AK': [6.61,6.678,6.518,6.647,6.469,6.338,6.307,6.334,6.361,6.249,6.319,6.146,6.386,6.557,6.086,6.347,6.37,5.923,5.611,6.266,6.041,5.886,5.82,5.997,5.905,6.133,6.218,6.369,6.258,6.012,6.017,6.161,6.157,6.016],
-          'AL': [3.98,4.011,3.964,4.021,4.009,3.965,3.964,3.926,3.864,3.875,3.889,3.867,3.89,3.965,3.966,4.01,3.986,3.751,3.678,3.689,3.607,3.678,3.752,3.694,3.729,3.734,3.829,3.827,3.79,3.857,3.883,3.868,3.848,3.908],
-          'AR': [4.035,4.029,4.091,4.046,4.088,4.151,4.187,4.153,4.1,4.022,4.084,4.11,4.086,4.175,4.181,4.392,4.248,4.006,3.86,3.878,3.819,3.871,3.884,3.866,3.866,3.931,3.992,4.019,3.982,4.075,4.071,4.088,4.026,4.123],
-          'AZ': [3.913,4.015,4.068,4.008,4.015,4.131,4.141,4.13,4.009,4.024,4.062,4.046,3.993,4.246,4.264,4.234,4.178,4.059,3.989,3.913,3.863,3.899,3.948,3.93,3.843,3.955,3.964,3.99,3.972,3.986,4.037,4.021,3.96,4.055],
-          'CA': [3.872,3.898,3.897,3.896,3.976,4.055,4.143,4.111,4.117,4.147,4.177,4.176,4.204,4.299,4.365,4.365,4.44,4.277,4.169,4.1,4.139,4.116,4.107,4.125,4.103,4.164,4.178,4.184,4.212,4.226,4.26,4.303,4.32,4.355],
-          'CO': [3.752,3.801,3.754,3.798,3.807,3.812,3.78,3.797,3.782,3.8,3.773,3.783,3.796,3.971,3.957,3.92,4.146,3.912,3.717,3.575,3.609,3.568,3.551,3.552,3.633,3.685,3.446,3.58,3.619,3.666,3.558,3.67,3.644,3.599],
-          'CT': [3.789,3.782,3.784,3.764,3.733,3.751,3.669,3.689,3.655,3.665,3.633,3.659,3.76,3.961,3.892,3.889,3.865,3.685,3.515,3.379,3.533,3.522,3.579,3.558,3.594,3.641,3.625,3.656,3.642,3.656,3.672,3.67,3.713,3.741],
-          'DC': [4.49,4.4,4.286,4.334,4.064,4.163,4.437,4.339,4.414,4.195,4.448,4.511,4.356,4.363,4.655,4.613,4.572,4.563,4.18,3.921,3.631,4.088,3.987,4.265,4.245,4.294,4.199,4.26,4.195,4.239,4.266,4.182,4.027,4.263],
-          'DE': [4.178,4.208,4.083,4.28,4.053,4.269,4.318,4.233,4.123,4.175,4.205,4.099,4.128,4.341,4.268,4.166,4.252,4.008,3.96,3.969,4.04,3.967,3.977,3.947,3.978,3.991,3.937,4.046,4.046,4.138,4.131,4.123,4.131,4.172],
-          'FL': [4.175,4.244,4.267,4.22,4.231,4.236,4.252,4.24,4.24,4.251,4.262,4.225,4.185,4.323,4.352,4.325,4.248,4.137,4.116,4.047,4.048,3.908,3.828,3.772,3.783,3.781,3.753,3.763,3.759,3.805,3.783,3.785,3.786,3.815],
-          'GA': [3.504,3.527,3.478,3.485,3.494,3.51,3.531,3.479,3.481,3.496,3.53,3.528,3.516,3.598,3.542,3.532,3.584,3.424,3.381,3.329,3.334,3.26,3.308,3.334,3.374,3.421,3.41,3.45,3.419,3.491,3.494,3.483,3.474,3.529],
-          'HI': [4.118,4.123,4.079,4.205,4.256,4.276,4.32,4.215,4.335,4.255,4.274,4.314,4.316,4.495,4.537,4.532,4.605,4.573,4.483,4.408,4.448,4.367,4.289,4.275,4.232,4.331,4.377,4.382,4.389,4.449,4.606,4.521,4.459,4.452],
-          'IA': [3.692,3.735,3.65,3.711,3.736,3.75,3.718,3.729,3.681,3.716,3.688,3.696,3.709,3.851,3.783,3.887,3.966,3.763,3.602,3.613,3.635,3.674,3.647,3.646,3.654,3.683,3.652,3.704,3.716,3.772,3.788,3.799,3.804,3.819],
-          'ID': [4.292,4.288,4.237,4.264,4.424,4.316,4.375,4.351,4.392,4.359,4.267,4.282,4.297,4.502,4.443,4.557,4.45,4.228,4.157,4.16,4.042,3.977,3.954,3.923,3.938,3.917,3.907,3.954,3.943,3.909,3.944,3.935,3.939,4.01],
-          'IL': [3.241,3.252,3.273,3.296,3.254,3.277,3.247,3.245,3.198,3.217,3.212,3.226,3.163,3.302,3.252,3.341,3.335,3.155,2.979,2.96,2.985,3.066,3.111,3.175,3.217,3.221,3.236,3.211,3.2,3.253,3.27,3.273,3.247,3.328],
-          'IN': [3.554,3.573,3.597,3.594,3.575,3.599,3.601,3.628,3.582,3.607,3.599,3.606,3.602,3.742,3.672,3.828,3.772,3.539,3.427,3.428,3.41,3.457,3.493,3.52,3.558,3.606,3.585,3.584,3.563,3.596,3.622,3.641,3.605,3.674],
-          'KS': [3.957,3.958,4.001,3.993,3.963,3.984,3.959,3.899,3.963,4.024,3.994,3.93,3.937,4.076,4.025,4.139,4.219,4.037,3.838,3.822,3.783,3.856,3.908,3.885,3.849,3.884,3.884,3.882,3.881,3.963,3.976,3.965,3.931,4.039],
-          'KY': [3.813,3.813,3.805,3.841,3.826,3.869,3.836,3.802,3.809,3.827,3.854,3.813,3.88,3.916,3.866,4.014,3.936,3.738,3.65,3.623,3.621,3.68,3.696,3.695,3.754,3.716,3.768,3.765,3.76,3.767,3.775,3.869,3.842,3.843],
-          'LA': [3.475,3.512,3.485,3.551,3.563,3.618,3.621,3.629,3.55,3.585,3.622,3.598,3.553,3.697,3.632,3.751,3.657,3.539,3.526,3.426,3.386,3.533,3.527,3.52,3.495,3.556,3.598,3.593,3.551,3.612,3.668,3.69,3.63,3.724],
-          'MA': [3.747,3.773,3.732,3.763,3.722,3.759,3.687,3.727,3.716,3.719,3.664,3.648,3.738,3.955,3.945,3.971,3.975,3.788,3.609,3.578,3.613,3.648,3.597,3.626,3.654,3.707,3.687,3.665,3.703,3.724,3.766,3.81,3.793,3.822],
-          'MD': [3.867,3.938,3.88,3.859,3.821,3.891,3.873,3.882,3.826,3.837,3.833,3.809,3.857,4.045,3.989,4.001,3.984,3.787,3.717,3.707,3.702,3.72,3.614,3.665,3.698,3.697,3.661,3.654,3.693,3.768,3.709,3.735,3.716,3.752],
-          'ME': [4.406,4.5,4.443,4.325,4.426,4.46,4.357,4.406,4.313,4.348,4.388,4.441,4.468,4.657,4.525,4.58,4.652,4.403,4.301,4.283,4.336,4.321,4.308,4.374,4.447,4.486,4.351,4.329,4.346,4.303,4.233,4.326,4.356,4.338],
-          'MI': [3.991,4.064,4.024,4.021,4.019,4.056,4.06,4.019,4.0,4.065,4.041,4.071,4.103,4.119,3.947,4.071,4.037,3.836,3.669,3.812,3.784,3.786,3.799,3.773,3.82,3.855,3.824,3.832,3.811,3.843,3.908,3.946,3.895,3.989],
-          'MN': [4.071,4.064,3.982,4.092,4.112,4.164,4.137,4.139,4.143,4.197,4.203,4.191,4.232,4.485,4.418,4.423,4.525,4.341,4.153,4.18,4.16,4.121,4.041,4.012,4.025,4.108,4.067,4.085,4.15,4.201,4.197,4.186,4.191,4.23],
-          'MO': [3.358,3.317,3.325,3.385,3.4,3.388,3.452,3.41,3.434,3.385,3.402,3.391,3.348,3.504,3.421,3.608,3.551,3.351,2.995,3.083,3.073,3.127,3.141,3.098,3.149,3.187,3.196,3.233,3.212,3.242,3.279,3.297,3.294,3.386],
-          'MS': [3.892,3.874,3.89,3.953,3.943,3.994,4.036,3.969,3.95,3.966,3.996,3.956,3.934,3.986,4.027,4.146,4.068,3.882,3.908,3.871,3.871,3.853,3.905,3.848,3.878,3.881,3.955,3.94,3.903,3.997,4.057,4.065,4.008,3.98],
-          'MT': [3.838,3.947,3.771,3.789,3.801,3.776,3.715,3.759,3.761,3.783,3.7,3.708,3.799,3.851,3.765,3.906,3.998,3.77,3.707,3.516,3.702,3.778,3.699,3.602,3.596,3.577,3.496,3.611,3.774,3.779,3.749,3.795,3.759,3.757],
-          'NC': [3.51,3.571,3.605,3.606,3.635,3.659,3.63,3.579,3.618,3.637,3.628,3.567,3.597,3.689,3.704,3.776,3.821,3.595,3.46,3.44,3.468,3.58,3.538,3.524,3.598,3.59,3.633,3.649,3.613,3.624,3.662,3.657,3.596,3.647],
-          'ND': [4.419,4.442,4.378,4.504,4.507,4.564,4.513,4.477,4.49,4.548,4.524,4.499,4.436,4.69,4.538,4.739,4.827,4.515,4.455,4.476,4.484,4.537,4.461,4.451,4.524,4.556,4.523,4.493,4.5,4.652,4.592,4.565,4.613,4.656],
-          'NE': [4.079,4.067,4.111,4.109,4.103,4.102,4.064,4.053,4.049,4.091,4.107,4.096,3.978,4.314,4.266,4.372,4.35,4.167,3.987,3.953,3.906,4.022,3.976,3.93,4.003,4.033,3.974,3.965,3.977,4.102,4.109,4.053,4.043,4.149],
-          'NH': [3.978,4.032,4.008,3.976,3.949,4.001,3.896,3.892,3.877,3.879,3.843,3.779,3.834,3.997,3.959,4.0,4.142,3.924,3.79,3.669,3.816,3.745,3.718,3.729,3.762,3.77,3.707,3.745,3.738,3.744,3.736,3.69,3.874,3.914],
-          'NJ': [3.631,3.67,3.616,3.65,3.616,3.639,3.602,3.587,3.601,3.589,3.55,3.578,3.643,3.839,3.849,3.836,3.819,3.732,3.587,3.61,3.641,3.612,3.563,3.572,3.569,3.595,3.59,3.591,3.623,3.636,3.661,3.691,3.644,3.729],
-          'NM': [3.381,3.396,3.371,3.399,3.428,3.411,3.441,3.412,3.383,3.373,3.453,3.487,3.609,3.736,3.799,3.76,3.811,3.598,3.54,3.482,3.43,3.528,3.508,3.36,3.388,3.406,3.356,3.358,3.371,3.394,3.303,3.364,3.427,3.474],
-          'NV': [3.916,3.958,3.963,3.931,3.79,3.921,3.985,3.977,3.944,3.952,3.972,3.906,3.983,4.109,4.163,4.196,4.096,3.998,3.85,3.854,3.906,3.82,3.861,3.824,3.763,3.826,3.835,3.772,3.836,3.757,3.816,3.849,3.852,3.877],
-          'NY': [3.554,3.572,3.559,3.615,3.587,3.64,3.592,3.626,3.611,3.631,3.603,3.607,3.585,3.745,3.714,3.688,3.665,3.517,3.384,3.39,3.413,3.456,3.43,3.409,3.445,3.5,3.517,3.562,3.552,3.593,3.553,3.594,3.559,3.615],
-          'OH': [3.59,3.636,3.606,3.619,3.635,3.633,3.615,3.614,3.561,3.56,3.567,3.578,3.56,3.678,3.615,3.737,3.736,3.531,3.412,3.481,3.45,3.498,3.412,3.437,3.483,3.544,3.568,3.582,3.57,3.628,3.631,3.638,3.618,3.685],
-          'OK': [3.618,3.648,3.626,3.66,3.627,3.644,3.661,3.644,3.578,3.602,3.629,3.687,3.722,3.962,3.949,4.074,4.04,3.813,3.688,3.707,3.677,3.741,3.731,3.724,3.734,3.735,3.704,3.694,3.701,3.705,3.753,3.773,3.795,3.856],
-          'OR': [4.438,4.525,4.531,4.55,4.646,4.646,4.638,4.596,4.612,4.595,4.631,4.65,4.637,4.837,4.857,4.922,4.949,4.798,4.723,4.688,4.879,4.802,4.748,4.829,4.763,4.721,4.6,4.886,4.881,5.012,5.04,5.038,5.007,5.019],
-          'PA': [3.699,3.733,3.708,3.696,3.687,3.739,3.68,3.698,3.684,3.677,3.66,3.683,3.758,3.799,3.725,3.786,3.83,3.643,3.501,3.547,3.551,3.543,3.51,3.497,3.542,3.577,3.614,3.661,3.631,3.629,3.706,3.731,3.699,3.745],
-          'PR': [5.367,3.547,3.927,4.323,4.156,4.315,4.803,4.593,4.673,5.774,8.77,5.562,6.243,6.365,4.497,3.233,3.006,3.517,3.717,3.843,3.027,4.173,4.257,4.024,4.816,5.216,4.792,4.171,4.885,4.194,3.11],
-          'RI': [3.67,3.679,3.675,3.595,3.632,3.612,3.565,3.55,3.567,3.583,3.595,3.593,3.604,3.717,3.729,3.784,3.774,3.67,3.443,3.526,3.591,3.591,3.593,3.646,3.641,3.681,3.558,3.628,3.621,3.632,3.647,3.704,3.692,3.715],
-          'SC': [3.787,3.78,3.865,3.872,3.809,3.878,3.857,3.846,3.822,3.81,3.841,3.827,3.84,3.922,3.929,3.996,3.927,3.759,3.544,3.649,3.628,3.682,3.693,3.633,3.663,3.651,3.662,3.63,3.611,3.656,3.651,3.631,3.613,3.634],
-          'SD': [3.527,3.526,3.597,3.632,3.622,3.643,3.6,3.619,3.602,3.715,3.671,3.615,3.689,3.749,3.619,3.701,3.752,3.68,3.568,3.544,3.571,3.557,3.574,3.592,3.61,3.672,3.646,3.609,3.719,3.793,3.753,3.767,3.772,3.802],
-          'TN': [3.665,3.683,3.709,3.722,3.715,3.768,3.75,3.715,3.694,3.705,3.709,3.706,3.752,3.883,3.812,3.905,3.894,3.689,3.623,3.661,3.591,3.381,3.662,3.641,3.6,3.632,3.662,3.665,3.64,3.683,3.739,3.773,3.75,3.778],
-          'TX': [3.195,3.331,3.309,3.303,3.319,3.331,3.384,3.374,3.345,3.377,3.382,3.37,3.395,3.508,3.571,3.637,3.579,3.406,3.3,3.312,3.295,3.307,3.296,3.239,3.244,3.26,3.231,3.26,3.253,3.295,3.302,3.328,3.316,3.343],
-          'UT': [3.897,3.995,3.894,3.908,3.99,4.04,4.047,4.004,4.006,4.024,4.068,3.972,4.018,4.198,4.187,4.169,4.165,4.028,3.938,3.923,3.941,3.912,3.864,3.87,3.916,3.981,3.923,3.876,3.897,3.873,3.848,3.893,3.684,3.831],
-          'VA': [3.604,3.619,3.575,3.628,3.633,3.641,3.595,3.618,3.588,3.609,3.629,3.611,3.696,3.713,3.665,3.721,3.727,3.472,3.323,3.404,3.327,3.345,3.361,3.374,3.366,3.416,3.447,3.458,3.437,3.514,3.493,3.535,3.5,3.559],
-          'VT': [3.968,3.868,4.01,4.031,4.015,4.091,4.01,4.005,3.935,3.968,3.978,4.041,4.157,4.416,4.314,4.302,4.274,4.041,3.949,3.914,4.05,4.03,3.982,3.862,4.079,4.214,4.051,4.03,4.118,4.069,4.126,4.058,4.07,4.137],
-          'WA': [4.122,4.178,4.122,4.146,4.169,4.146,4.221,4.122,4.1,4.142,4.1,4.075,4.159,4.363,4.351,4.365,4.455,4.186,4.07,4.088,4.132,4.182,4.1,4.154,4.164,4.192,4.149,4.175,4.263,4.336,4.282,4.287,4.298,4.314],
-          'WI': [3.978,3.939,3.897,3.882,3.897,3.94,3.939,3.933,3.906,3.955,3.953,3.907,4.022,4.071,4.04,4.106,4.144,3.991,3.829,3.791,3.824,3.762,3.75,3.784,3.81,3.908,3.957,3.967,3.984,3.987,4.077,4.047,4.053,4.16],
-          'WV': [3.623,3.588,3.581,3.58,3.623,3.64,3.559,3.615,3.604,3.617,3.619,3.662,3.674,3.857,3.805,3.958,4.007,3.721,3.61,3.638,3.646,3.588,3.551,3.532,3.525,3.45,3.464,3.5,3.477,3.451,3.481,3.548,3.506,3.554],
-          'WY': [3.83,3.873,3.888,3.822,3.886,3.801,3.834,3.817,3.822,3.834,3.738,3.74,3.762,3.823,3.787,3.887,4.033,3.778,3.554,3.555,3.58,3.502,3.473,3.35,3.619,3.63,3.582,3.743,3.72,3.741,3.78,3.698,3.711,3.835],
-          'USA': [3.707,3.737,3.724,3.74,3.74,3.771,3.766,3.757,3.74,3.754,3.754,3.75,3.775,3.894,3.869,3.926,3.925,3.747,3.618,3.613,3.616,3.625,3.614,3.606,3.63,3.663,3.662,3.679,3.677,3.714,3.73,3.749,3.73,3.781],
-        };
-        
+      // State name to abbreviation mapping
+      const stateAbbreviations = {
+        'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+        'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+        'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+        'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+        'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+        'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+        'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+        'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+        'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+        'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+      };
+      
+      // Load data from JSON files
+      Promise.all([
+        fetch('/states_list.json').then(r => r.json()),
+        fetch('/state_historical_data.json').then(r => r.json()),
+        fetch('/quarters_list.json').then(r => r.json()),
+        fetch('/national_historical_data.json').then(r => r.json())
+      ]).then(([states, realStateData, quarters, nationalDataObj]) => {
+        const nationalData = nationalDataObj.hprd_values;
         const timeData = realStateData;
         
-        const quarters = [
-          'Q1 2017',
-          'Q2 2017',
-          'Q3 2017',
-          'Q4 2017',
-          'Q1 2018',
-          'Q2 2018',
-          'Q3 2018',
-          'Q4 2018',
-          'Q1 2019',
-          'Q2 2019',
-          'Q3 2019',
-          'Q4 2019',
-          'Q1 2020',
-          'Q2 2020',
-          'Q3 2020',
-          'Q4 2020',
-          'Q1 2021',
-          'Q2 2021',
-          'Q3 2021',
-          'Q4 2021',
-          'Q1 2022',
-          'Q2 2022',
-          'Q3 2022',
-          'Q4 2022',
-          'Q1 2023',
-          'Q2 2023',
-          'Q3 2023',
-          'Q4 2023',
-          'Q1 2024',
-          'Q2 2024',
-          'Q3 2024',
-          'Q4 2024',
-          'Q1 2025',
-          'Q2 2025',
-        ];
-        
-        function drawChart(selectedState = 'USA') {
+        if (stateSelect && chartCanvas) {
+          // Populate state dropdown dynamically
+          states.forEach(state => {
+            const option = document.createElement('option');
+            option.value = stateAbbreviations[state] || state;
+            option.textContent = state;
+            stateSelect.appendChild(option);
+          });
+          
+          // Create longitudinal time series chart
+          const ctx = chartCanvas.getContext('2d');
+          
+          function drawChart(selectedState = 'USA') {
           ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
           
            const data = timeData[selectedState] || timeData['USA'];
@@ -1235,45 +1272,51 @@
            ctx.fillText(titleText, chartCanvas.width / 2, paddingTop - 2);
         }
         
-        // Initial chart - show USA by default
-        drawChart('USA');
-        updateStateInfo('USA');
-        
-        // State selection handler
-        if (stateSelect) {
-          stateSelect.addEventListener('change', function() {
-            const selectedState = this.value;
-            console.log('State selected:', selectedState);
-            drawChart(selectedState);
-            updateStateInfo(selectedState);
-          });
-        } else {
-          console.error('State select element not found');
-        }
-        
-        // Update state info display
-        function updateStateInfo(stateAbbr) {
-          const chartFooter = document.getElementById('chartFooter');
-          const exploreLink = document.getElementById('exploreLink');
+          // Initial chart - show USA by default
+          drawChart('USA');
+          updateStateInfo('USA');
           
-          if (stateAbbr === 'USA') {
-            // Don't show anything for USA default
-            chartFooter.style.display = 'none';
-          } else if (stateAbbr && stateAbbr !== '') {
-            // Find state name from abbreviation
-            const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === stateAbbr);
-            if (stateName) {
-              exploreLink.innerHTML = `<a href="https://pbjdashboard.com/?state=${stateAbbr}" target="_blank">Explore ${stateName} PBJ Data</a>`;
-              chartFooter.style.display = 'block';
-            }
+          // State selection handler
+          if (stateSelect) {
+            stateSelect.addEventListener('change', function() {
+              const selectedState = this.value;
+              console.log('State selected:', selectedState);
+              drawChart(selectedState);
+              updateStateInfo(selectedState);
+            });
           } else {
-            chartFooter.style.display = 'none';
+            console.error('State select element not found');
+          }
+          
+          // Update state info display
+          function updateStateInfo(stateAbbr) {
+            const chartFooter = document.getElementById('chartFooter');
+            const exploreLink = document.getElementById('exploreLink');
+            
+            if (stateAbbr === 'USA') {
+              // Don't show anything for USA default
+              chartFooter.style.display = 'none';
+            } else if (stateAbbr && stateAbbr !== '') {
+              // Find state name from abbreviation
+              const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === stateAbbr);
+              if (stateName) {
+                exploreLink.innerHTML = `<a href="https://pbjdashboard.com/?state=${stateAbbr}" target="_blank">Explore ${stateName} PBJ Data</a>`;
+                chartFooter.style.display = 'block';
+              }
+            } else {
+              chartFooter.style.display = 'none';
+            }
           }
         }
-      }
+      }).catch(error => {
+        console.error('Error loading data:', error);
+        if (stateSelect) {
+          stateSelect.innerHTML = '<option value="">Error loading data</option>';
+        }
+      });
     });
     
-    // Professional D3.js US Map with gradient coloring
+    // Professional D3.js US Map with gradient coloring - Load data dynamically
     document.addEventListener('DOMContentLoaded', function() {
       const width = 1000;
       const height = 500;
@@ -1292,123 +1335,71 @@
         'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
       };
       
-      // Real HPRD data from state_lite_metrics (Q2 2025 - most recent quarter)
-      const stateData = {
-        'Alabama': { hprd: 3.908, name: 'Alabama' },
-        'Alaska': { hprd: 6.016, name: 'Alaska' },
-        'Arizona': { hprd: 4.055, name: 'Arizona' },
-        'Arkansas': { hprd: 4.123, name: 'Arkansas' },
-        'California': { hprd: 4.355, name: 'California' },
-        'Colorado': { hprd: 3.599, name: 'Colorado' },
-        'Connecticut': { hprd: 3.741, name: 'Connecticut' },
-        'Delaware': { hprd: 4.172, name: 'Delaware' },
-        'District of Columbia': { hprd: 4.263, name: 'District of Columbia' },
-        'Florida': { hprd: 3.815, name: 'Florida' },
-        'Georgia': { hprd: 3.529, name: 'Georgia' },
-        'Hawaii': { hprd: 4.452, name: 'Hawaii' },
-        'Idaho': { hprd: 4.01, name: 'Idaho' },
-        'Illinois': { hprd: 3.328, name: 'Illinois' },
-        'Indiana': { hprd: 3.674, name: 'Indiana' },
-        'Iowa': { hprd: 3.819, name: 'Iowa' },
-        'Kansas': { hprd: 4.039, name: 'Kansas' },
-        'Kentucky': { hprd: 3.843, name: 'Kentucky' },
-        'Louisiana': { hprd: 3.724, name: 'Louisiana' },
-        'Maine': { hprd: 4.338, name: 'Maine' },
-        'Maryland': { hprd: 3.752, name: 'Maryland' },
-        'Massachusetts': { hprd: 3.822, name: 'Massachusetts' },
-        'Michigan': { hprd: 3.989, name: 'Michigan' },
-        'Minnesota': { hprd: 4.23, name: 'Minnesota' },
-        'Mississippi': { hprd: 3.98, name: 'Mississippi' },
-        'Missouri': { hprd: 3.386, name: 'Missouri' },
-        'Montana': { hprd: 3.757, name: 'Montana' },
-        'Nebraska': { hprd: 4.149, name: 'Nebraska' },
-        'Nevada': { hprd: 3.877, name: 'Nevada' },
-        'New Hampshire': { hprd: 3.914, name: 'New Hampshire' },
-        'New Jersey': { hprd: 3.729, name: 'New Jersey' },
-        'New Mexico': { hprd: 3.474, name: 'New Mexico' },
-        'New York': { hprd: 3.615, name: 'New York' },
-        'North Carolina': { hprd: 3.647, name: 'North Carolina' },
-        'North Dakota': { hprd: 4.656, name: 'North Dakota' },
-        'Ohio': { hprd: 3.685, name: 'Ohio' },
-        'Oklahoma': { hprd: 3.856, name: 'Oklahoma' },
-        'Oregon': { hprd: 5.019, name: 'Oregon' },
-        'Pennsylvania': { hprd: 3.745, name: 'Pennsylvania' },
-        'Puerto Rico': { hprd: 3.11, name: 'Puerto Rico' },
-        'Rhode Island': { hprd: 3.715, name: 'Rhode Island' },
-        'South Carolina': { hprd: 3.634, name: 'South Carolina' },
-        'South Dakota': { hprd: 3.802, name: 'South Dakota' },
-        'Tennessee': { hprd: 3.778, name: 'Tennessee' },
-        'Texas': { hprd: 3.343, name: 'Texas' },
-        'Utah': { hprd: 3.831, name: 'Utah' },
-        'Vermont': { hprd: 4.137, name: 'Vermont' },
-        'Virginia': { hprd: 3.559, name: 'Virginia' },
-        'Washington': { hprd: 4.314, name: 'Washington' },
-        'West Virginia': { hprd: 3.554, name: 'West Virginia' },
-        'Wisconsin': { hprd: 4.16, name: 'Wisconsin' },
-        'Wyoming': { hprd: 3.835, name: 'Wyoming' },
-      };
+      // Load latest quarter data dynamically
+      fetch('/latest_quarter_data.json')
+        .then(r => r.json())
+        .then(latestData => {
+          const stateData = latestData.state_data;
+          const currentQuarter = latestData.quarter_display;
       
-      // Create color scale with specific thresholds - purple gradient
-      const colorScale = d3.scaleThreshold()
-        .domain([3.5, 3.8])
-        .range(['#c084fc', '#9333ea', '#581c87']);
-      
-      // Update legend labels with threshold values
-      const legendLabels = document.getElementById('legendLabels');
-      if (legendLabels) {
-        legendLabels.innerHTML = `
-          <span>&lt;3.5</span>
-          <span>&gt;3.8</span>
-        `;
-      }
-      
-      // Create SVG
-      const svg = d3.select('#stateMap')
-        .html('') // This clears everything including the legend
-        .append('svg')
-        .attr('width', width)
-        .attr('height', height)
-        .attr('viewBox', '0 0 1000 500')
-        .attr('style', 'margin-top: 50px;');
-      
-      // Re-add the legend after clearing with dynamic quarter
-      // Get the most recent quarter (Q2 2025 is hardcoded in the data comment)
-      const currentQuarter = 'Q2 2025'; // This should match the data source
-      
-      d3.select('#stateMap')
-        .append('div')
-        .attr('class', 'map-legend')
-        .html(`
-          <div class="legend-title">US Nursing Home Staffing, ${currentQuarter} (Hours Per Resident Day)</div>
-          <div class="legend-content">
-            <div class="legend-gradient"></div>
-            <div class="legend-labels" id="legendLabels">
-              <span>3.0</span>
-              <span>4.5</span>
-            </div>
-          </div>
-        `);
-      
-      // Add source citation
-      d3.select('#stateMap')
-        .append('div')
-        .attr('class', 'map-source')
-        .html('Source: CMS Payroll-Based Journal Data • 320 Consulting');
-      
-      // Create tooltip
-      const tooltip = d3.select('body').append('div')
-        .attr('class', 'tooltip')
-        .style('opacity', 0);
-      
-      // Calculate rankings for all states
-      const stateRankings = Object.entries(stateData)
-        .sort((a, b) => b[1].hprd - a[1].hprd)
-        .map(([name, data], index) => ({ name, hprd: data.hprd, rank: index + 1 }));
-      
-      const totalStates = stateRankings.length;
-      
-      // Load US map data
-      d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(function(us) {
+          // Create color scale with specific thresholds - purple gradient
+          const colorScale = d3.scaleThreshold()
+            .domain([3.5, 3.8])
+            .range(['#c084fc', '#9333ea', '#581c87']);
+          
+          // Update legend labels with threshold values
+          const legendLabels = document.getElementById('legendLabels');
+          if (legendLabels) {
+            legendLabels.innerHTML = `
+              <span>&lt;3.5</span>
+              <span>&gt;3.8</span>
+            `;
+          }
+          
+          // Create SVG
+          const svg = d3.select('#stateMap')
+            .html('') // This clears everything including the legend
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height)
+            .attr('viewBox', '0 0 1000 500')
+            .attr('style', 'margin-top: 50px;');
+          
+          // Re-add the legend after clearing with dynamic quarter
+          d3.select('#stateMap')
+            .append('div')
+            .attr('class', 'map-legend')
+            .html(`
+              <div class="legend-title">US Nursing Home Staffing, ${currentQuarter} (Hours Per Resident Day)</div>
+              <div class="legend-content">
+                <div class="legend-gradient"></div>
+                <div class="legend-labels" id="legendLabels">
+                  <span>3.0</span>
+                  <span>4.5</span>
+                </div>
+              </div>
+            `);
+          
+          // Add source citation
+          d3.select('#stateMap')
+            .append('div')
+            .attr('class', 'map-source')
+            .html('Source: CMS Payroll-Based Journal Data • 320 Consulting');
+          
+          // Create tooltip
+          const tooltip = d3.select('body').append('div')
+            .attr('class', 'tooltip')
+            .style('opacity', 0);
+          
+          // Calculate rankings for all states
+          const stateRankings = Object.entries(stateData)
+            .sort((a, b) => b[1].hprd - a[1].hprd)
+            .map(([name, data], index) => ({ name, hprd: data.hprd, rank: index + 1 }));
+          
+          const totalStates = stateRankings.length;
+          
+          // Load US map data
+          d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(function(us) {
         const states = topojson.feature(us, us.objects.states);
         
         // Create projection
@@ -1417,99 +1408,104 @@
         
         const path = d3.geoPath().projection(projection);
         
-        // Draw states
-        const statePaths = svg.selectAll('.state')
-          .data(states.features)
-          .enter()
-          .append('path')
-          .attr('class', 'state')
-          .attr('d', path)
-          .attr('data-state', d => d.properties.name)
-          .style('fill', function(d) {
-            const stateName = d.properties.name;
-            const data = stateData[stateName];
-            if (data) {
-              return colorScale(data.hprd);
-            }
-            return '#cbd5e1';
-          })
-          .on('click', function(event, d) {
-            const stateName = d.properties.name;
-            const stateAbbr = stateAbbreviations[stateName];
-            window.location.href = `https://pbjdashboard.com/?state=${stateAbbr}`;
-          })
-          .on('mouseover', function(event, d) {
-            const stateName = d.properties.name;
-            const data = stateData[stateName];
-            if (data) {
-              const ranking = stateRankings.find(r => r.name === stateName);
-              const rank = ranking ? ranking.rank : 'N/A';
-              const roundedHprd = data.hprd.toFixed(2);
-              
-              tooltip.transition()
-                .duration(200)
-                .style('opacity', .9);
-              tooltip.html(`
-                <strong>${data.name}</strong><br/>
-                HPRD: ${roundedHprd} (Rank: ${rank} of ${totalStates})<br/>
-                <em>Click to explore</em>
-              `)
-                .style('left', (event.pageX + 10) + 'px')
-                .style('top', (event.pageY - 28) + 'px');
-            }
-          })
-          .on('mouseout', function(d) {
-            tooltip.transition()
-              .duration(500)
-              .style('opacity', 0);
+            // Draw states
+            const statePaths = svg.selectAll('.state')
+              .data(states.features)
+              .enter()
+              .append('path')
+              .attr('class', 'state')
+              .attr('d', path)
+              .attr('data-state', d => d.properties.name)
+              .style('fill', function(d) {
+                const stateName = d.properties.name;
+                const data = stateData[stateName];
+                if (data) {
+                  return colorScale(data.hprd);
+                }
+                return '#cbd5e1';
+              })
+              .on('click', function(event, d) {
+                const stateName = d.properties.name;
+                const stateAbbr = stateAbbreviations[stateName];
+                window.location.href = `https://pbjdashboard.com/?state=${stateAbbr}`;
+              })
+              .on('mouseover', function(event, d) {
+                const stateName = d.properties.name;
+                const data = stateData[stateName];
+                if (data) {
+                  const ranking = stateRankings.find(r => r.name === stateName);
+                  const rank = ranking ? ranking.rank : 'N/A';
+                  const roundedHprd = data.hprd.toFixed(2);
+                  
+                  tooltip.transition()
+                    .duration(200)
+                    .style('opacity', .9);
+                  tooltip.html(`
+                    <strong>${data.name}</strong><br/>
+                    HPRD: ${roundedHprd} (Rank: ${rank} of ${totalStates})<br/>
+                    <em>Click to explore</em>
+                  `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                }
+              })
+              .on('mouseout', function(d) {
+                tooltip.transition()
+                  .duration(500)
+                  .style('opacity', 0);
+              });
+            
+            // Add state labels
+            svg.selectAll('.state-label')
+              .data(states.features)
+              .enter()
+              .append('text')
+              .attr('class', 'state-label')
+              .attr('transform', function(d) {
+                const centroid = path.centroid(d);
+                const stateName = d.properties.name;
+                let xOffset = 0;
+                let yOffset = 0;
+                
+                // Check for NaN values
+                if (isNaN(centroid[0]) || isNaN(centroid[1])) {
+                  return 'translate(0, 0)';
+                }
+                
+                // Adjust specific states
+                if (stateName === 'Florida') {
+                  xOffset = 8;
+                } else if (stateName === 'Louisiana') {
+                  xOffset = -8;
+                }
+                
+                return `translate(${centroid[0] + xOffset}, ${centroid[1] + yOffset})`;
+              })
+              .text(function(d) {
+                const stateName = d.properties.name;
+                const data = stateData[stateName];
+                if (data) {
+                  const hprd = data.hprd;
+                  if (hprd >= 4.0) {
+                    d3.select(this).classed('high-hprd', true);
+                  } else if (hprd >= 3.0) {
+                    d3.select(this).classed('medium-hprd', true);
+                  } else {
+                    d3.select(this).classed('low-hprd', true);
+                  }
+                }
+                return stateAbbreviations[stateName] || stateName.substring(0, 2).toUpperCase();
+              });
+            
+          }).catch(function(error) {
+            console.error('Error loading map data:', error);
+            d3.select('#stateMap').html('<div class="loading">Map data unavailable. Please try again later.</div>');
           });
-        
-        // Add state labels
-        svg.selectAll('.state-label')
-          .data(states.features)
-          .enter()
-          .append('text')
-          .attr('class', 'state-label')
-          .attr('transform', function(d) {
-            const centroid = path.centroid(d);
-            const stateName = d.properties.name;
-            let xOffset = 0;
-            let yOffset = 0;
-            
-            // Check for NaN values
-            if (isNaN(centroid[0]) || isNaN(centroid[1])) {
-              return 'translate(0, 0)';
-            }
-            
-            // Adjust specific states
-            if (stateName === 'Florida') {
-              xOffset = 8;
-            } else if (stateName === 'Louisiana') {
-              xOffset = -8;
-            }
-            
-            return `translate(${centroid[0] + xOffset}, ${centroid[1] + yOffset})`;
-          })
-          .text(function(d) {
-            const stateName = d.properties.name;
-            const data = stateData[stateName];
-            if (data) {
-              const hprd = data.hprd;
-              if (hprd >= 4.0) {
-                d3.select(this).classed('high-hprd', true);
-              } else if (hprd >= 3.0) {
-                d3.select(this).classed('medium-hprd', true);
-              } else {
-                d3.select(this).classed('low-hprd', true);
-              }
-            }
-            return stateAbbreviations[stateName] || stateName.substring(0, 2).toUpperCase();
-          });
-        
-      }).catch(function(error) {
-        console.error('Error loading map data:', error);
-        d3.select('#stateMap').html('<div class="loading">Map data unavailable. Please try again later.</div>');
-      });
+        })
+        .catch(function(error) {
+          console.error('Error loading latest quarter data:', error);
+          d3.select('#stateMap').html('<div class="loading">Data unavailable. Please try again later.</div>');
+        });
     });
   </script>
 </body>

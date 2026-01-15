@@ -1,0 +1,246 @@
+{
+  "quarter": "2025Q3",
+  "quarter_display": "Q3 2025",
+  "national_hprd": 3.774,
+  "highest_state": {
+    "name": "Alaska",
+    "hprd": 5.977
+  },
+  "lowest_state": {
+    "name": "Puerto Rico",
+    "hprd": 2.893
+  },
+  "top_5_states": [
+    {
+      "name": "Alaska",
+      "hprd": 5.977
+    },
+    {
+      "name": "Oregon",
+      "hprd": 4.937
+    },
+    {
+      "name": "Hawaii",
+      "hprd": 4.627
+    },
+    {
+      "name": "North Dakota",
+      "hprd": 4.555
+    },
+    {
+      "name": "California",
+      "hprd": 4.357
+    }
+  ],
+  "state_data": {
+    "Alaska": {
+      "hprd": 5.977,
+      "name": "Alaska"
+    },
+    "Alabama": {
+      "hprd": 3.916,
+      "name": "Alabama"
+    },
+    "Arkansas": {
+      "hprd": 4.104,
+      "name": "Arkansas"
+    },
+    "Arizona": {
+      "hprd": 4.057,
+      "name": "Arizona"
+    },
+    "California": {
+      "hprd": 4.357,
+      "name": "California"
+    },
+    "Colorado": {
+      "hprd": 3.601,
+      "name": "Colorado"
+    },
+    "Connecticut": {
+      "hprd": 3.746,
+      "name": "Connecticut"
+    },
+    "District of Columbia": {
+      "hprd": 4.309,
+      "name": "District of Columbia"
+    },
+    "Delaware": {
+      "hprd": 4.145,
+      "name": "Delaware"
+    },
+    "Florida": {
+      "hprd": 3.797,
+      "name": "Florida"
+    },
+    "Georgia": {
+      "hprd": 3.513,
+      "name": "Georgia"
+    },
+    "Hawaii": {
+      "hprd": 4.627,
+      "name": "Hawaii"
+    },
+    "Iowa": {
+      "hprd": 3.814,
+      "name": "Iowa"
+    },
+    "Idaho": {
+      "hprd": 3.954,
+      "name": "Idaho"
+    },
+    "Illinois": {
+      "hprd": 3.316,
+      "name": "Illinois"
+    },
+    "Indiana": {
+      "hprd": 3.655,
+      "name": "Indiana"
+    },
+    "Kansas": {
+      "hprd": 3.988,
+      "name": "Kansas"
+    },
+    "Kentucky": {
+      "hprd": 3.89,
+      "name": "Kentucky"
+    },
+    "Louisiana": {
+      "hprd": 3.712,
+      "name": "Louisiana"
+    },
+    "Massachusetts": {
+      "hprd": 3.809,
+      "name": "Massachusetts"
+    },
+    "Maryland": {
+      "hprd": 3.755,
+      "name": "Maryland"
+    },
+    "Maine": {
+      "hprd": 4.349,
+      "name": "Maine"
+    },
+    "Michigan": {
+      "hprd": 3.988,
+      "name": "Michigan"
+    },
+    "Minnesota": {
+      "hprd": 4.187,
+      "name": "Minnesota"
+    },
+    "Missouri": {
+      "hprd": 3.391,
+      "name": "Missouri"
+    },
+    "Mississippi": {
+      "hprd": 4.103,
+      "name": "Mississippi"
+    },
+    "Montana": {
+      "hprd": 3.804,
+      "name": "Montana"
+    },
+    "North Carolina": {
+      "hprd": 3.671,
+      "name": "North Carolina"
+    },
+    "North Dakota": {
+      "hprd": 4.555,
+      "name": "North Dakota"
+    },
+    "Nebraska": {
+      "hprd": 4.152,
+      "name": "Nebraska"
+    },
+    "New Hampshire": {
+      "hprd": 3.831,
+      "name": "New Hampshire"
+    },
+    "New Jersey": {
+      "hprd": 3.705,
+      "name": "New Jersey"
+    },
+    "New Mexico": {
+      "hprd": 3.471,
+      "name": "New Mexico"
+    },
+    "Nevada": {
+      "hprd": 3.873,
+      "name": "Nevada"
+    },
+    "New York": {
+      "hprd": 3.573,
+      "name": "New York"
+    },
+    "Ohio": {
+      "hprd": 3.686,
+      "name": "Ohio"
+    },
+    "Oklahoma": {
+      "hprd": 3.848,
+      "name": "Oklahoma"
+    },
+    "Oregon": {
+      "hprd": 4.937,
+      "name": "Oregon"
+    },
+    "Pennsylvania": {
+      "hprd": 3.72,
+      "name": "Pennsylvania"
+    },
+    "Puerto Rico": {
+      "hprd": 2.893,
+      "name": "Puerto Rico"
+    },
+    "Rhode Island": {
+      "hprd": 3.679,
+      "name": "Rhode Island"
+    },
+    "South Carolina": {
+      "hprd": 3.639,
+      "name": "South Carolina"
+    },
+    "South Dakota": {
+      "hprd": 3.816,
+      "name": "South Dakota"
+    },
+    "Tennessee": {
+      "hprd": 3.794,
+      "name": "Tennessee"
+    },
+    "Texas": {
+      "hprd": 3.346,
+      "name": "Texas"
+    },
+    "Utah": {
+      "hprd": 3.891,
+      "name": "Utah"
+    },
+    "Virginia": {
+      "hprd": 3.592,
+      "name": "Virginia"
+    },
+    "Vermont": {
+      "hprd": 4.207,
+      "name": "Vermont"
+    },
+    "Washington": {
+      "hprd": 4.253,
+      "name": "Washington"
+    },
+    "Wisconsin": {
+      "hprd": 4.162,
+      "name": "Wisconsin"
+    },
+    "West Virginia": {
+      "hprd": 3.551,
+      "name": "West Virginia"
+    },
+    "Wyoming": {
+      "hprd": 3.684,
+      "name": "Wyoming"
+    }
+  },
+  "total_quarters": 35
+}

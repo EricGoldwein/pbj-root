@@ -1,0 +1,415 @@
+[
+  {
+    "state": "Alaska",
+    "state_code": "AK",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/alaska",
+    "website_url": "https://dhss.alaska.gov/dhcs/Pages/hflc/Complaint-form.aspx",
+    "phone": {
+      "general": ["907-334-2483"],
+      "toll_free": ["888-387-9387"]
+    }
+  },
+  {
+    "state": "Alabama",
+    "state_code": "AL",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/alabama",
+    "website_url": "https://www.alabamapublichealth.gov/providerstandards/complaints.html",
+    "phone": {"general": ["800-356-9596"]}
+  },
+  {
+    "state": "Arkansas",
+    "state_code": "AR",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/arkansas",
+    "website_url": "https://healthy.arkansas.gov/programs-services/licensing-military-member-licensure-permits-plan-reviews/health-facility-services/health-facility-services/",
+    "phone": {
+      "general": ["501-661-2201"],
+      "toll_free": ["800-223-0340"]
+    }
+  },
+  {
+    "state": "American Samoa",
+    "state_code": "AS",
+    "detail_path": "/medicare/health-safety-standards/quality-safety-oversight-general-information/contact-information/american-samoa",
+    "website_url": "https://www.cms.gov/contacts/cms-san-francisco-regional-office/general-professional-contact/1551801",
+    "phone": {"general": ["415-744-3501"], "email": ["ROSFOSO@cms.hhs.gov"]},
+    "notes": ["Complaints can be filed with Survey & Operations Group, San Francisco/Seattle Acute & Continuing Care Branch."]
+  },
+  {
+    "state": "Arizona",
+    "state_code": "AZ",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/arizona",
+    "website_url": "https://app3.azdhs.gov/PROD-AZHSComplaint-UI",
+    "phone": {"general": ["602-364-2536"]}
+  },
+  {
+    "state": "California",
+    "state_code": "CA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/california",
+    "website_url": "https://www.cdph.ca.gov/programs/chcq/lcp/calhealthfind/Pages/Home.aspx",
+    "phone": {},
+    "notes": ["District-specific toll-free numbers: https://www.cdph.ca.gov/Programs/CHCQ/LCP/Pages/DistrictOffices.aspx"]
+  },
+  {
+    "state": "Colorado",
+    "state_code": "CO",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/colorado",
+    "website_url": "https://cdphe.colorado.gov/health-facilities-complaints",
+    "phone": {"hha": ["800-842-8826", "303-692-2910"], "toll_free": ["800-842-8826"]},
+    "notes": ["Other provider-specific contacts: https://cdphe.colorado.gov/file-a-complaint/health-facilities-complaint-and-occurrence-contacts"]
+  },
+  {
+    "state": "Connecticut",
+    "state_code": "CT",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/connecticut",
+    "website_url": "https://dphflisevents.ct.gov/Complaints",
+    "phone": {"general": ["860-509-7400"], "hha": ["800-828-9769"], "toll_free": ["800-828-9769"]}
+  },
+  {
+    "state": "District of Columbia",
+    "state_code": "DC",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/district-columbia-dc",
+    "website_url": "https://dchealth.dc.gov/node/145702",
+    "phone": {"general": ["202-442-5833"]}
+  },
+  {
+    "state": "Delaware",
+    "state_code": "DE",
+    "detail_path": "/medicareprovider-enrollment-and-certificationsurveycertificationgeninfocontactinformation/delaware",
+    "website_url": "https://dhss.delaware.gov/dhss/dhcq/ohflcmain.html",
+    "phone": {"general": ["800-942-7373"]}
+  },
+  {
+    "state": "Florida",
+    "state_code": "FL",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/florida",
+    "website_url": "https://ahca.myflorida.com/contact-ahca/filing-a-complaint",
+    "phone": {"general": ["888-419-3456"]}
+  },
+  {
+    "state": "Georgia",
+    "state_code": "GA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/georgia",
+    "website_url": "https://dch.georgia.gov/divisionsoffices/healthcare-facility-regulation/facility-licensure/hfr-file-complaint",
+    "phone": {"general": ["800-878-6442"]}
+  },
+  {
+    "state": "Guam",
+    "state_code": "GU",
+    "detail_path": "/medicare/health-safety-standards/quality-safety-oversight-general-information/contact-information/guam-0",
+    "website_url": "https://www.cms.gov/contacts/cms-san-francisco-regional-office/general-professional-contact/1551801",
+    "phone": {"general": ["415-744-3501"]}
+  },
+  {
+    "state": "Hawaii",
+    "state_code": "HI",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/hawaii",
+    "website_url": "https://health.hawaii.gov/ohca/files/2017/06/Complaint-Intake-Form-62017.pdf",
+    "phone": {"general": ["808-692-7420"], "hha": ["833-886-8811"], "toll_free": ["833-886-8811"]}
+  },
+  {
+    "state": "Iowa",
+    "state_code": "IA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/iowa",
+    "website_url": "https://dia.iowa.gov/",
+    "phone": {"general": ["877-686-0027"], "toll_free": ["877-686-0027"]}
+  },
+  {
+    "state": "Idaho",
+    "state_code": "ID",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/idaho",
+    "website_url": "https://healthandwelfare.idaho.gov/providers/acute-and-continuing-care/home-health-agencies",
+    "phone": {"general": ["800-345-1453"], "toll_free": ["800-345-1453"], "fax": ["208-364-1888"]}
+  },
+  {
+    "state": "Illinois",
+    "state_code": "IL",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/illinois",
+    "website_url": "https://dph.illinois.gov/topics-services/health-care-regulation/complaints.html",
+    "phone": {"general": ["800-252-4343"], "toll_free": ["800-252-4343"]}
+  },
+  {
+    "state": "Indiana",
+    "state_code": "IN",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/indiana",
+    "website_url": "https://www.in.gov/health/ltc/contact/complaints/",
+    "phone": {"general": ["800-246-8909"], "toll_free": ["800-246-8909"]}
+  },
+  {
+    "state": "Kansas",
+    "state_code": "KS",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/kansas",
+    "website_url": "https://www.kdads.ks.gov/commissions/survey-certification-and-credentialing-commission/abuse-neglect-or-exploitation",
+    "phone": {"general": ["800-842-0078"], "toll_free": ["800-842-0078"]}
+  },
+  {
+    "state": "Kansas",
+    "state_code": "KS",
+    "detail_path": "/medicare/health-safety-standards/quality-safety-oversight-general-information/contact-information/kansas-kdhe",
+    "website_url": "https://www.kdhe.ks.gov/625/Complaint-Hotline",
+    "phone": {"general": ["800-842-0078"], "toll_free": ["800-842-0078"]}
+  },
+  {
+    "state": "Kentucky",
+    "state_code": "KY",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/kentucky",
+    "website_url": "https://www.chfs.ky.gov/agencies/os/oig/dhc/Pages/default.aspx",
+    "phone": {"abuse": ["877-597-2331"], "toll_free": ["877-597-2331"]}
+  },
+  {
+    "state": "Louisiana",
+    "state_code": "LA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/louisiana",
+    "website_url": "https://ldh.la.gov/page/health-standards-section-complaints",
+    "phone": {"hha": ["800-327-3419"], "hospice": ["800-327-3419"], "toll_free": ["800-327-3419"]},
+    "notes": ["See website for contacts."]
+  },
+  {
+    "state": "Massachusetts",
+    "state_code": "MA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/massachusetts",
+    "website_url": "https://www.mass.gov/how-to/file-a-complaint-regarding-a-nursing-home-or-other-health-care-facility",
+    "phone": {"general": ["800-462-5540", "617-753-8000"], "toll_free": ["800-462-5540"]}
+  },
+  {
+    "state": "Maryland",
+    "state_code": "MD",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/maryland",
+    "website_url": "https://app.smartsheet.com/b/publish?EQBCT=07c94438f6714af1bbfe8ff1037b8b74",
+    "phone": {"general": ["410-402-8015"], "hha": ["800-492-6005"], "other": ["Hospital triage line: 410-402-8016"]}
+  },
+  {
+    "state": "Maine",
+    "state_code": "ME",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/maine",
+    "website_url": "https://www.maine.gov/dhhs/dlc/safety-reporting/file-a-complaint",
+    "phone": {"general": ["800-621-8222"], "toll_free": ["800-621-8222"]}
+  },
+  {
+    "state": "Michigan",
+    "state_code": "MI",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/michigan",
+    "website_url": "https://www.michigan.gov/lara/bureau-list/bsc/file-a-complaint-with-bsc",
+    "phone": {"general": ["800-882-6006"], "toll_free": ["800-882-6006"]}
+  },
+  {
+    "state": "Minnesota",
+    "state_code": "MN",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/minnesota",
+    "website_url": "https://www.health.state.mn.us/facilities/regulation/filecomplaint.html",
+    "phone": {"general": ["844-880-1574"], "toll_free": ["844-880-1574"]}
+  },
+  {
+    "state": "Missouri",
+    "state_code": "MO",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/missouri",
+    "website_url": "https://health.mo.gov/safety/abuse/",
+    "phone": {"general": ["800-392-0210"], "toll_free": ["800-392-0210"]}
+  },
+  {
+    "state": "Northern Mariana Islands",
+    "state_code": "MP",
+    "detail_path": "/medicare/health-safety-standards/quality-safety-oversight-general-information/contact-information/northern-mariana-islands",
+    "website_url": "https://www.cms.gov/contacts/cms-san-francisco-regional-office/general-professional-contact/1551801",
+    "phone": {"general": ["415-744-3501"]}
+  },
+  {
+    "state": "Mississippi",
+    "state_code": "MS",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/mississippi",
+    "website_url": "https://msdh.ms.gov/page/30,0,83,787.html",
+    "phone": {"general": ["800-227-7308"], "toll_free": ["800-227-7308"]}
+  },
+  {
+    "state": "Montana",
+    "state_code": "MT",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/montana",
+    "website_url": "https://dphhs.mt.gov/qad/certificationcomplaintform",
+    "phone": {"general": ["800-762-4618"], "toll_free": ["800-762-4618"]}
+  },
+  {
+    "state": "North Carolina",
+    "state_code": "NC",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/north-carolina",
+    "website_url": "https://info.ncdhhs.gov/dhsr/ciu/filecomplaint.html",
+    "phone": {"general": ["919-855-4500"], "toll_free": ["800-624-3004"]},
+    "notes": ["800-624-3004 is indicated as within NC."]
+  },
+  {
+    "state": "North Dakota",
+    "state_code": "ND",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/north-dakota",
+    "website_url": "https://www.hhs.nd.gov/health-facility-concerns",
+    "phone": {"general": ["800-545-8256"], "toll_free": ["800-545-8256"]}
+  },
+  {
+    "state": "Nebraska",
+    "state_code": "NE",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/nebraska",
+    "website_url": "https://dhhs.ne.gov/licensure/Pages/Health-Care-Facilities-and-Services-Complaints.aspx",
+    "phone": {"general": ["402-471-0316"], "fax": ["402-742-2389"]}
+  },
+  {
+    "state": "New Hampshire",
+    "state_code": "NH",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/new-hampshire",
+    "website_url": "https://www.dhhs.nh.gov/file-complaint-against-health-facility-nh",
+    "phone": {"general": ["603-271-9049"], "hha": ["800-621-6232"], "toll_free": ["800-621-6232"]}
+  },
+  {
+    "state": "New Jersey",
+    "state_code": "NJ",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/new-jersey",
+    "website_url": "https://www.state.nj.us/health/healthfacilities/file_complaint.shtml",
+    "phone": {"general": ["800-792-9770"], "toll_free": ["800-792-9770"]}
+  },
+  {
+    "state": "New Mexico",
+    "state_code": "NM",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/new-mexico",
+    "website_url": "https://www.nmhealth.org/about/dhi/ane/rane/",
+    "phone": {"general": ["800-752-8649"], "toll_free": ["800-752-8649"]}
+  },
+  {
+    "state": "Nevada",
+    "state_code": "NV",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/nevada",
+    "website_url": "https://dpbh.nv.gov/Reg/HealthFacilities/dta/Complaints/HCQC-Complaint-Form/",
+    "phone": {"general": ["800-225-3414"], "toll_free": ["800-225-3414"]}
+  },
+  {
+    "state": "New York",
+    "state_code": "NY",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/new-york",
+    "website_url": "https://apps.health.ny.gov/surveyd8/facility-complaint-form",
+    "phone": {"general": ["800-663-6114"], "toll_free": ["800-663-6114"]}
+  },
+  {
+    "state": "Ohio",
+    "state_code": "OH",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/ohio",
+    "website_url": "https://odh.ohio.gov/know-our-programs/complaints-nursing-home-and-healthcare-facilities/complaints-hcf-nh",
+    "phone": {"general": ["800-342-0553"], "hha": ["800-669-3534"], "toll_free": ["800-342-0553", "800-669-3534"]}
+  },
+  {
+    "state": "Oklahoma",
+    "state_code": "OK",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/oklahoma",
+    "website_url": "https://oklahoma.gov/health/services/licensing-inspections/medical-facilities-service/complaints-and-enforcement-division.html",
+    "phone": {"general": ["405-426-8470"], "toll_free": ["800-747-8419", "800-234-7258"], "hha": ["800-234-7258"], "other": ["Nursing homes/ICF/IIDs: 800-747-8419"]}
+  },
+  {
+    "state": "Oregon",
+    "state_code": "OR",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/oregon",
+    "website_url": "https://www.oregon.gov/oha/PH/PROVIDERPARTNERRESOURCES/HEALTHCAREPROVIDERSFACILITIES/HEALTHCAREHEALTHCAREREGULATIONQUALITYIMPROVEMENT/Pages/complaint.aspx",
+    "phone": {"general": ["971-673-0540"], "toll_free": ["877-280-4555"]},
+    "notes": ["Acute and Continuing Care: 971-673-0540; Long Term Care: 877-280-4555"]
+  },
+  {
+    "state": "Pennsylvania",
+    "state_code": "PA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/pennsylvania",
+    "website_url": "https://www.health.pa.gov/topics/facilities/Pages/Facilities-Licensing.aspx",
+    "phone": {"general": ["800-254-5164"], "toll_free": ["800-254-5164"]}
+  },
+  {
+    "state": "Puerto Rico",
+    "state_code": "PR",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/puerto-rico",
+    "website_url": "https://www.salud.gov.pr/CMS/DOWNLOAD/4975",
+    "phone": {"general": ["787-273-8487"]}
+  },
+  {
+    "state": "Rhode Island",
+    "state_code": "RI",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/rhode-island",
+    "website_url": "https://health.ri.gov/complaints/",
+    "phone": {"general": ["401-222-5200"]}
+  },
+  {
+    "state": "South Carolina",
+    "state_code": "SC",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/south-carolina",
+    "website_url": "https://scdhec.gov/healthcare-quality/healthcare-facility-licensing/health-facility-cna-abuse-complaints",
+    "phone": {"general": ["803-545-4370"], "toll_free": ["800-922-6735"]}
+  },
+  {
+    "state": "South Dakota",
+    "state_code": "SD",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/south-dakota",
+    "website_url": "https://doh.sd.gov/health-care-professionals/health-facility-licensure/health-facility-complaints/",
+    "phone": {"toll_free": ["800-738-2301"], "general": ["605-367-5368", "605-773-6373", "605-367-4640"]},
+    "notes": ["800-738-2301 is listed for HHA and hospice."]
+  },
+  {
+    "state": "Tennessee",
+    "state_code": "TN",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/tennessee",
+    "website_url": "https://www.tn.gov/hfc/division-of-licensure-and-regulation/filing-a-complaint.html",
+    "phone": {"general": ["615-253-5905", "877-287-0010"], "hha": ["800-541-7367"], "hospice": ["877-253-0010"], "toll_free": ["877-287-0010", "800-541-7367", "877-253-0010"]}
+  },
+  {
+    "state": "Texas",
+    "state_code": "TX",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/texas",
+    "website_url": "https://txhhs.my.site.com/complaint/s/",
+    "phone": {"general": ["800-458-9858"], "toll_free": ["800-458-9858"]}
+  },
+  {
+    "state": "Utah",
+    "state_code": "UT",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/utah",
+    "website_url": "https://docs.google.com/forms/d/10ZlXc7c6ps5uv-eV-WGMW2voX5L-Syq0nL5mrSTPSMU/edit",
+    "phone": {"general": ["800-662-4157"], "toll_free": ["800-662-4157"]}
+  },
+  {
+    "state": "Virginia",
+    "state_code": "VA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/virginia",
+    "website_url": "https://www.vdh.virginia.gov/licensure-and-certification/complaint-unit/",
+    "phone": {"general": ["800-955-1819"], "toll_free": ["800-955-1819"]}
+  },
+  {
+    "state": "Virgin Islands",
+    "state_code": "VI",
+    "detail_path": "/medicare/health-safety-standards/quality-safety-oversight-general-information/contact-information/us-virgin-islands",
+    "website_url": "https://www.cms.gov/contacts/cms-new-york-regional-office/general-professional-contact/1551871",
+    "phone": {"general": ["212-616-2500"]}
+  },
+  {
+    "state": "Vermont",
+    "state_code": "VT",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/vermont",
+    "website_url": "https://dlp.vermont.gov/survey-cert/sc-complaints",
+    "phone": {"general": ["802-241-0482"], "toll_free": ["888-700-5330"]}
+  },
+  {
+    "state": "Washington",
+    "state_code": "WA",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/washington",
+    "website_url": "https://www.doh.wa.gov/LicensesPermitsandCertificates/FileComplaintAboutProviderorFacility/FacilityComplaintProcess#heading25859",
+    "phone": {"toll_free": ["800-633-6828", "800-562-6078", "800-737-7931"], "tty": ["800-737-7931"], "other": ["Acute and Continuing Care: 1-800-633-6828", "Long-Term Care: 1-800-562-6078"]}
+  },
+  {
+    "state": "Wisconsin",
+    "state_code": "WI",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/wisconsin",
+    "website_url": "https://www.dhs.wisconsin.gov/guide/complaints.htm",
+    "phone": {"general": ["800-642-6552"], "toll_free": ["800-642-6552"]}
+  },
+  {
+    "state": "West Virginia",
+    "state_code": "WV",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/west-virginia",
+    "website_url": "https://ohflac.wvdhhr.org/complaint.html",
+    "phone": {"general": ["304-558-0050"], "hha": ["800-442-2888"], "toll_free": ["800-442-2888"]}
+  },
+  {
+    "state": "Wyoming",
+    "state_code": "WY",
+    "detail_path": "/medicareprovider-enrollment-and-certificationssurveycertificationgeninfocontactinformation/wyoming",
+    "website_url": "https://health.wyo.gov/aging/hls/complaints-against-healthcare-facilities/",
+    "phone": {"general": ["307-777-7123"], "toll_free": ["800-548-1367"], "hha": ["800-548-1367"], "hospice": ["800-548-1367"]},
+    "notes": ["307-777-7123 appears twice in the source cell; retained once."]
+  }
+]

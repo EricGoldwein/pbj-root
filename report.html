@@ -39,6 +39,7 @@
   
   <!-- Mobile and PWA meta tags -->
   <meta name="theme-color" content="#1e40af">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="author" content="320 Consulting">
@@ -4435,12 +4436,107 @@
     </div>
   </div>
 
-  <div class="footer">
-    <p style="color: rgba(255,255,255,0.7); margin: 0 auto; font-style: italic; line-height: 1.6; text-align: center; max-width: 800px;">The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" style="color: #60a5fa; text-decoration: none;">Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" style="color: #60a5fa; text-decoration: none;">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" style="color: #60a5fa; text-decoration: none;">Aging in America News</a>.</p>
-    <div style="border-top: 1px solid rgba(255,255,255,0.1); margin: 1.5rem auto 0; padding-top: 1.5rem; max-width: 800px;">
-      <p style="margin: 0; color: rgba(255,255,255,0.6); font-style: italic; font-size: 0.9rem; text-align: center;"><a href="https://www.320insight.com" style="color: rgba(255,255,255,0.6); text-decoration: none;">320 Consulting — Turning Spreadsheets into Stories</a></p>
+    <!-- Context / credibility - moved above footer -->
+    <section style="
+      background: rgba(255,255,255,0.05);
+      padding: 30px 20px;
+      margin: 40px auto 30px;
+      border-radius: 12px;
+      max-width: 1200px;
+      text-align: center;
+    ">
+      <p style="
+        color: rgba(255,255,255,0.65);
+        margin: 0 auto 1rem;
+        line-height: 1.5;
+        text-align: center;
+        max-width: 720px;
+        font-size: 0.9rem;
+      ">
+        <strong>The PBJ Dashboard</strong> a free public resource providing longitudinal staffing data for ~15,000 U.S. nursing homes.
+        As seen in
+        <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Columbia Public Health</a>,
+        <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Positive Aging</a>,
+        and
+        <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/"
+           target="_blank"
+           style="color:#7dd3fc; text-decoration:none;">Aging in America News</a>.
+      </p>
+      <p style="
+        color: rgba(255,255,255,0.78);
+        margin: 0 auto;
+        line-height: 1.55;
+        text-align: center;
+        max-width: 720px;
+        font-size: 0.95rem;
+      ">
+        <a href="mailto:eric@320insight.com"
+           style="color:rgba(255,255,255,0.85); text-decoration:none;">
+          Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
+        </a>
+      </p>
+    </section>
+
+  <footer class="footer" style="padding: 1.25rem 1rem;">
+    <!-- Brand -->
+    <p style="
+      margin: 0 0 1rem 0;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8rem;
+      text-align: center;
+      letter-spacing: 0.03em;
+    ">
+      <strong>320 Consulting</strong> — Turning Spreadsheets into Stories
+    </p>
+  
+    <!-- Social Icons -->
+    <div style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-top: 0.5rem;
+    ">
+      <!-- Email -->
+      <a href="mailto:eric@320insight.com"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="Email: eric@320insight.com">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- SMS -->
+      <a href="sms:+13479923569"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="SMS: (347) 992-3569">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- LinkedIn -->
+      <a href="https://www.linkedin.com/in/eric-goldwein/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="LinkedIn">
+        <img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
+      
+      <!-- Substack -->
+      <a href="https://320insight.substack.com/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="The 320 Newsletter">
+        <img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
     </div>
-  </div>
+  
+  </footer>
 
   <script>
     // Fix loading row colspan immediately on page load (before data loads)

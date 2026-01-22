@@ -976,7 +976,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     <div style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.5em; margin: 2em 0;">
         <h3 style="margin-top: 0; font-size: 1.1em;">Custom PBJ Analysis for Attorneys & Journalists</h3>
         <p>320 Consulting offers custom reports and dashboards for {state_name} nursing homes with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. Check out a <a href="https://pbj320-395258.vercel.app/" target="_blank" rel="noopener">sample dashboard</a>.</p>
-        <p><strong>Contact:</strong> <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+13479923569">(347) 992-3569</a> (text preferred)</p>
+        <p><strong>Contact:</strong> <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(347) 992-3569</a> (text preferred)</p>
         <p style="margin-bottom: 0;"><strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it.</p>
     </div>
     """
@@ -1911,7 +1911,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+13479923569">(347) 992-3569</a> (text preferred)
+            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(347) 992-3569</a> (text preferred)
         </p>
     </div>
     <script>
@@ -3272,7 +3272,7 @@ def pbjpedia_page(page):
             <div style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.5em; margin: 2em 0;">
                 <h3 style="margin-top: 0; font-size: 1.1em;">Custom PBJ Analysis for Attorneys & Journalists</h3>
                 <p>320 Consulting offers custom reports and dashboards with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. Check out a <a href="https://pbj320-395258.vercel.app/" target="_blank" rel="noopener">sample dashboard</a>.</p>
-                <p><strong>Contact:</strong> <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+13479923569">(347) 992-3569</a> (text preferred)</p>
+                <p><strong>Contact:</strong> <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(347) 992-3569</a> (text preferred)</p>
                 <p style="margin-bottom: 0;"><strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it.</p>
             </div>
             <div class="categories">
@@ -3288,7 +3288,7 @@ def pbjpedia_page(page):
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+13479923569">(347) 992-3569</a> (text preferred)
+            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(347) 992-3569</a> (text preferred)
         </p>
     </div>
     <script>

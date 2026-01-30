@@ -23,7 +23,7 @@
     <meta property="og:url" content="https://pbj320.com/owners">
     <meta property="og:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
     <meta property="og:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
-    <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+    <meta property="og:image" content="https://pbj320.com/og-owner-pbj320.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
@@ -32,7 +32,7 @@
     <meta property="twitter:card" content="summary_large_image">
     <meta property="twitter:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
     <meta property="twitter:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions.">
-    <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+    <meta property="twitter:image" content="https://pbj320.com/og-owner-pbj320.png">
     
     <!-- Performance: DNS prefetch -->
     <link rel="dns-prefetch" href="https://fonts.googleapis.com">
@@ -638,6 +638,36 @@
         .facility-link:hover {
             color: #8b9aff;
             text-decoration: underline;
+        }
+        
+        .donor-committee-link {
+            color: inherit;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(102,126,234,0.5);
+            transition: border-color 0.2s ease, color 0.2s ease;
+        }
+        .donor-committee-link:hover {
+            border-bottom-color: rgba(139,154,255,0.85);
+            color: rgba(255,255,255,0.98);
+        }
+        
+        .donor-source-btn {
+            display: inline-block;
+            padding: 0.25rem 0.55rem;
+            border-radius: 4px;
+            border: 1px solid rgba(102,126,234,0.45);
+            color: rgba(200,210,255,0.95);
+            font-size: 0.7rem;
+            font-weight: 500;
+            text-decoration: none;
+            margin-left: 0.4rem;
+            background: rgba(102,126,234,0.12);
+            transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+        }
+        .donor-source-btn:hover {
+            background: rgba(102,126,234,0.2);
+            border-color: rgba(102,126,234,0.6);
+            color: #fff;
         }
         
         .facility-link-icon {
@@ -1414,7 +1444,7 @@
                                          onclick="filterByRecipient('${escapeHtml(committee.name).replace(/'/g, "\\'")}')"
                                          onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'"
                                          onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
-                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${committee.committee_id ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.committee_id)}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(committee.name)}</a>` : escapeHtml(committee.name)}</div>
+                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${committee.committee_id ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.committee_id)}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(committee.name)}</a>` : escapeHtml(committee.name)}</div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">$${committee.total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
                                     </div>
                                 `).join('')}
@@ -1524,7 +1554,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
                                     <div style="flex: 1;">
                                         <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                            ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
+                                            ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                             ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -2090,7 +2120,7 @@
                                 <strong>Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2322,7 +2352,7 @@
                                 <strong style="font-size: 0.9rem;">Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.4rem; font-size: 0.85rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2346,7 +2376,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
+                                    ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                     ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -2362,8 +2392,8 @@
                 <div id="donationsPagination" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
                     ${donations.length > 20 ? `
                         <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">Page <span id="donationsPageNum">1</span> of <span id="donationsTotalPages">${Math.ceil(donations.length / 20)}</span></span>
-                        <button type="button" id="donationsPrevBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage - 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" disabled>Prev</button>
-                        <button type="button" id="donationsNextBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage + 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">Next</button>
+                        <button type="button" id="donationsPrevBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage - 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; display: none;" disabled>Prev</button>
+                        <button type="button" id="donationsNextBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage + 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; ${Math.ceil(donations.length / 20) <= 1 ? 'display: none;' : ''}">Next</button>
                     ` : ''}
                     <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: underline; font-size: 0.85rem; margin-left: auto;">Export CSV</a>
                 </div>
@@ -2390,7 +2420,7 @@
                     <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                         <div style="flex: 1;">
                             <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
+                                ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                 ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -2409,8 +2439,8 @@
             const nextBtn = document.getElementById('donationsNextBtn');
             if (pageNumEl) pageNumEl.textContent = page;
             if (totalPagesEl) totalPagesEl.textContent = totalPages;
-            if (prevBtn) prevBtn.disabled = page <= 1;
-            if (nextBtn) nextBtn.disabled = page >= totalPages;
+            if (prevBtn) { prevBtn.disabled = page <= 1; prevBtn.style.display = page <= 1 ? 'none' : ''; }
+            if (nextBtn) { nextBtn.disabled = page >= totalPages; nextBtn.style.display = page >= totalPages ? 'none' : ''; }
         };
         
         // Query FEC API (from owner details page)

@@ -77,7 +77,7 @@ def get_seo_metadata(path):
                 'canonical_url': base_url + '/sff/usa',
                 'og_url': base_url + '/sff/usa',
                 'include_image': True,
-                'og_image': base_url + '/og-image-1200x630.png',
+                'og_image': base_url + '/og-owner-pbj320.png',
             }
         elif '/sff/region' in path.lower():
             # Extract region number
@@ -92,7 +92,7 @@ def get_seo_metadata(path):
                 'canonical_url': base_url + path.rstrip('/'),
                 'og_url': base_url + path.rstrip('/'),
                 'include_image': True,
-                'og_image': base_url + '/og-image-1200x630.png',
+                'og_image': base_url + '/og-owner-pbj320.png',
             }
         else:
             # Extract state code
@@ -109,7 +109,7 @@ def get_seo_metadata(path):
                         'canonical_url': base_url + path.rstrip('/'),
                         'og_url': base_url + path.rstrip('/'),
                         'include_image': True,
-                        'og_image': 'https://www.pbj320.com/og-image-1200x630.png',
+                        'og_image': 'https://www.pbj320.com/og-owner-pbj320.png',
                     }
     
     # Handle wrapped pages

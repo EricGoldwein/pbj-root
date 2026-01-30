@@ -986,10 +986,11 @@ def search_by_provider(query):
                     ]
                 
                 if not enrollment_matches.empty:
-                    # Filter for "5% OR GREATER DIRECT OWNERSHIP INTEREST" (ROLE CODE 34)
+                    # Get ALL owners (not just 5%+)
+                    # Filter for direct ownership (ROLE CODE 34 or similar)
                     direct_ownership = enrollment_matches[
                         (enrollment_matches['ROLE CODE - OWNER'].astype(str) == '34') |
-                        (enrollment_matches['ROLE TEXT - OWNER'].astype(str).str.contains('5% OR GREATER DIRECT OWNERSHIP', na=False, case=False))
+                        (enrollment_matches['ROLE TEXT - OWNER'].astype(str).str.contains('DIRECT OWNERSHIP', na=False, case=False))
                     ]
                     
                     if not direct_ownership.empty:
@@ -1030,9 +1031,22 @@ def search_by_provider(query):
                                     'date': assoc_date
                                 }
                         
-                        # Convert to list and sort by percentage (descending)
-                        direct_owners = sorted(owner_data.values(), key=lambda x: x['percentage'], reverse=True)
-                        print(f"[DEBUG] Found {len(direct_owners)} direct owners for CCN {ccn}")
+                        # Separate into >=5% and <5%, then sort each by percentage (descending)
+                        owners_5plus = []
+                        owners_under5 = []
+                        for owner in owner_data.values():
+                            if owner['percentage'] >= 5:
+                                owners_5plus.append(owner)
+                            else:
+                                owners_under5.append(owner)
+                        
+                        # Sort both lists by percentage (descending)
+                        owners_5plus = sorted(owners_5plus, key=lambda x: x['percentage'], reverse=True)
+                        owners_under5 = sorted(owners_under5, key=lambda x: x['percentage'], reverse=True)
+                        
+                        # Combine: 5%+ first, then <5%
+                        direct_owners = owners_5plus + owners_under5
+                        print(f"[DEBUG] Found {len(direct_owners)} direct owners for CCN {ccn} ({len(owners_5plus)} >=5%, {len(owners_under5)} <5%)")
             
             provider_info = {
                 'provider_name': provider_name if pd.notna(provider_name) else '',
@@ -1125,18 +1139,23 @@ def get_owner_details(owner_name):
                 ]
                 if not mapping_match.empty:
                     # Get CCN from mapping and look up in provider_info_latest_df
-                    mapping_row = mapping_match.iloc[0]
-                    ccn_from_mapping = str(mapping_row.get('CCN', '')).strip().replace('O', '').replace(' ', '').replace('-', '')
-                    if ccn_from_mapping and ccn_from_mapping.isdigit() and len(ccn_from_mapping) <= 6:
-                        ccn_from_mapping = ccn_from_mapping.zfill(6)
-                        if provider_info_latest_df is not None and not provider_info_latest_df.empty:
-                            ccn_col = 'CMS Certification Number (CCN)' if 'CMS Certification Number (CCN)' in provider_info_latest_df.columns else 'ccn'
-                            if ccn_col in provider_info_latest_df.columns:
-                                prov_info = provider_info_latest_df[
-                                    provider_info_latest_df[ccn_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn_from_mapping
-                                ]
-                                if not prov_info.empty:
-                                    matched = True
+                    try:
+                        mapping_row = mapping_match.iloc[0]
+                        if mapping_row is not None and hasattr(mapping_row, 'get'):
+                            ccn_from_mapping = str(mapping_row.get('CCN', '')).strip().replace('O', '').replace(' ', '').replace('-', '')
+                            if ccn_from_mapping and ccn_from_mapping.isdigit() and len(ccn_from_mapping) <= 6:
+                                ccn_from_mapping = ccn_from_mapping.zfill(6)
+                                if provider_info_latest_df is not None and not provider_info_latest_df.empty:
+                                    ccn_col = 'CMS Certification Number (CCN)' if 'CMS Certification Number (CCN)' in provider_info_latest_df.columns else 'ccn'
+                                    if ccn_col in provider_info_latest_df.columns:
+                                        prov_info = provider_info_latest_df[
+                                            provider_info_latest_df[ccn_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn_from_mapping
+                                        ]
+                                        if not prov_info.empty:
+                                            matched = True
+                    except Exception as e:
+                        print(f"[WARNING] Error processing mapping_row for facility {name}: {e}")
+                        # Continue to fallback matching
             
             # FALLBACK: Live matching using Legal Business Name (slower but works if mapping doesn't exist)
             if not matched and provider_info_latest_df is not None and not provider_info_latest_df.empty:
@@ -1177,33 +1196,44 @@ def get_owner_details(owner_name):
             
             # ONLY use data from provider_info if we have a confirmed match
             if matched and not prov_info.empty:
-                row = prov_info.iloc[0]
-                # Get state/city - handle both provider_info_combined.csv and NH_ProviderInfo_Dec2025.csv column names
-                facility_info['state'] = row.get('State', row.get('state', ''))
-                facility_info['city'] = row.get('City/Town', row.get('City', row.get('city', '')))
-                facility_info['beds'] = row.get('Average Number of Residents per Day', row.get('Number of Certified Beds', row.get('avg_residents_per_day', '')))
-                facility_info['rating'] = row.get('Overall Rating', row.get('overall_rating', ''))
-                facility_info['staffing_rating'] = row.get('Staffing Rating', row.get('staffing_rating', ''))
-                facility_info['health_rating'] = row.get('Health Inspection Rating', row.get('health_inspection_rating', ''))
-                facility_info['ownership_type'] = row.get('Ownership Type', row.get('ownership_type', ''))
-                
-                # Store Legal Business Name from provider_info (confirmed match)
-                facility_info['legal_business_name'] = row.get('Legal Business Name', '')
-                
-                # Store Provider Name from provider_info (confirmed match)
-                facility_info['provider_name'] = row.get('Provider Name', '')
-                
-                # Get CCN from provider_info (NOT from enrollment ID - they're different!)
-                ccn_col = None
-                for col in ['CMS Certification Number (CCN)', 'ccn', 'CCN', 'PROVNUM']:
-                    if col in row.index and pd.notna(row.get(col)):
-                        ccn_val = str(row.get(col)).strip().replace('O', '').replace(' ', '').replace('-', '')
-                        # Only use if it's a valid numeric CCN (6 digits)
-                        if ccn_val and ccn_val.isdigit() and len(ccn_val) <= 6:
-                            facility_info['ccn'] = ccn_val.zfill(6)
-                            break
-                if 'ccn' not in facility_info:
-                    facility_info['ccn'] = None
+                try:
+                    row = prov_info.iloc[0]
+                    # Defensive check: ensure row is not None and is a valid Series
+                    if row is None or not hasattr(row, 'get'):
+                        print(f"[WARNING] Invalid row from prov_info for facility {name}")
+                        matched = False
+                    else:
+                        # Get state/city - handle both provider_info_combined.csv and NH_ProviderInfo_Dec2025.csv column names
+                        facility_info['state'] = row.get('State', row.get('state', '')) if 'State' in row.index or 'state' in row.index else ''
+                        facility_info['city'] = row.get('City/Town', row.get('City', row.get('city', ''))) if any(col in row.index for col in ['City/Town', 'City', 'city']) else ''
+                        facility_info['beds'] = row.get('Average Number of Residents per Day', row.get('Number of Certified Beds', row.get('avg_residents_per_day', ''))) if any(col in row.index for col in ['Average Number of Residents per Day', 'Number of Certified Beds', 'avg_residents_per_day']) else ''
+                        facility_info['rating'] = row.get('Overall Rating', row.get('overall_rating', '')) if any(col in row.index for col in ['Overall Rating', 'overall_rating']) else ''
+                        facility_info['staffing_rating'] = row.get('Staffing Rating', row.get('staffing_rating', '')) if any(col in row.index for col in ['Staffing Rating', 'staffing_rating']) else ''
+                        facility_info['health_rating'] = row.get('Health Inspection Rating', row.get('health_inspection_rating', '')) if any(col in row.index for col in ['Health Inspection Rating', 'health_inspection_rating']) else ''
+                        facility_info['ownership_type'] = row.get('Ownership Type', row.get('ownership_type', '')) if any(col in row.index for col in ['Ownership Type', 'ownership_type']) else ''
+                        
+                        # Store Legal Business Name from provider_info (confirmed match)
+                        facility_info['legal_business_name'] = row.get('Legal Business Name', '') if 'Legal Business Name' in row.index else ''
+                        
+                        # Store Provider Name from provider_info (confirmed match)
+                        facility_info['provider_name'] = row.get('Provider Name', '') if 'Provider Name' in row.index else ''
+                        
+                        # Get CCN from provider_info (NOT from enrollment ID - they're different!)
+                        ccn_col = None
+                        for col in ['CMS Certification Number (CCN)', 'ccn', 'CCN', 'PROVNUM']:
+                            if col in row.index and pd.notna(row.get(col)):
+                                ccn_val = str(row.get(col)).strip().replace('O', '').replace(' ', '').replace('-', '')
+                                # Only use if it's a valid numeric CCN (6 digits)
+                                if ccn_val and ccn_val.isdigit() and len(ccn_val) <= 6:
+                                    facility_info['ccn'] = ccn_val.zfill(6)
+                                    break
+                        if 'ccn' not in facility_info:
+                            facility_info['ccn'] = None
+                except Exception as e:
+                    print(f"[ERROR] Error processing provider info row for facility {name}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    matched = False
                 
                 # Get entity ID for linking (only if we have a match)
                 entity_id = None
@@ -1365,11 +1395,13 @@ def query_fec():
                 )
                 
                 # Deduplicate by sub_id
-                for donation in donations:
-                    record_id = donation.get('sub_id')
-                    if record_id and record_id not in seen_ids:
-                        seen_ids.add(record_id)
-                        all_donations.append(donation)
+                if donations:  # Ensure donations is not None
+                    for donation in donations:
+                        if donation and isinstance(donation, dict):  # Safety check
+                            record_id = donation.get('sub_id')
+                            if record_id and record_id not in seen_ids:
+                                seen_ids.add(record_id)
+                                all_donations.append(donation)
             except Exception as e:
                 # Continue with next variation if one fails
                 continue
@@ -1387,19 +1419,27 @@ def query_fec():
         # Normalize all donations
         normalized = []
         for donation in all_donations:
-            norm = normalize_fec_donation(donation)
-            normalized.append({
-                'amount': float(norm.get('donation_amount', 0)) if pd.notna(norm.get('donation_amount')) else 0,
-                'date': norm.get('donation_date', ''),
-                'committee': norm.get('committee_name', ''),
-                'candidate': norm.get('candidate_name', ''),
-                'office': norm.get('candidate_office', ''),
-                'party': norm.get('candidate_party', ''),
-                'employer': norm.get('employer', ''),
-                'occupation': norm.get('occupation', ''),
-                'donor_city': norm.get('donor_city', ''),
-                'donor_state': norm.get('donor_state', '')
-            })
+            if not donation or not isinstance(donation, dict):
+                continue  # Skip invalid donations
+            try:
+                norm = normalize_fec_donation(donation)
+                if not norm or not isinstance(norm, dict):
+                    continue  # Skip if normalization failed
+                normalized.append({
+                    'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
+                    'date': norm.get('donation_date', '') or '',
+                    'committee': norm.get('committee_name', '') or '',
+                    'candidate': norm.get('candidate_name', '') or '',
+                    'office': norm.get('candidate_office', '') or '',
+                    'party': norm.get('candidate_party', '') or '',
+                    'employer': norm.get('employer', '') or '',
+                    'occupation': norm.get('occupation', '') or '',
+                    'donor_city': norm.get('donor_city', '') or '',
+                    'donor_state': norm.get('donor_state', '') or ''
+                })
+            except Exception as e:
+                print(f"[WARNING] Error normalizing donation: {e}")
+                continue  # Skip this donation and continue
         
         # Sort by date (most recent first)
         normalized.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
@@ -1412,6 +1452,9 @@ def query_fec():
         })
     
     except Exception as e:
+        print(f"[ERROR] Error in query_fec: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 

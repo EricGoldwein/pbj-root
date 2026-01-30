@@ -287,6 +287,26 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Normalized dictionary with standard field names
     """
+    # Safety check: ensure record is a dict
+    if not record or not isinstance(record, dict):
+        return {
+            "donor_name": "", "donor_type": "", "donor_city": "", "donor_state": "", "donor_zip": "",
+            "employer": "", "occupation": "", "donation_amount": 0, "donation_date": "",
+            "committee_id": "", "committee_name": "", "committee_type": "",
+            "candidate_id": "", "candidate_name": "", "candidate_office": "", "candidate_party": "",
+            "fec_record_id": "", "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
+        }
+    
+    # Safely get nested objects (committee and candidate can be None)
+    committee = record.get("committee") or {}
+    candidate = record.get("candidate") or {}
+    
+    # Ensure they're dicts
+    if not isinstance(committee, dict):
+        committee = {}
+    if not isinstance(candidate, dict):
+        candidate = {}
+    
     return {
         "donor_name": record.get("contributor_name", ""),
         "donor_type": record.get("contributor_type", ""),
@@ -297,13 +317,13 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "occupation": record.get("contributor_occupation", ""),
         "donation_amount": record.get("contribution_receipt_amount", 0),
         "donation_date": record.get("contribution_receipt_date", ""),
-        "committee_id": record.get("committee", {}).get("committee_id", ""),
-        "committee_name": record.get("committee", {}).get("name", ""),
-        "committee_type": record.get("committee", {}).get("committee_type", ""),
-        "candidate_id": record.get("candidate", {}).get("candidate_id", ""),
-        "candidate_name": record.get("candidate", {}).get("name", ""),
-        "candidate_office": record.get("candidate", {}).get("office", ""),
-        "candidate_party": record.get("candidate", {}).get("party", ""),
+        "committee_id": committee.get("committee_id", "") if isinstance(committee, dict) else "",
+        "committee_name": committee.get("name", "") if isinstance(committee, dict) else "",
+        "committee_type": committee.get("committee_type", "") if isinstance(committee, dict) else "",
+        "candidate_id": candidate.get("candidate_id", "") if isinstance(candidate, dict) else "",
+        "candidate_name": candidate.get("name", "") if isinstance(candidate, dict) else "",
+        "candidate_office": candidate.get("office", "") if isinstance(candidate, dict) else "",
+        "candidate_party": candidate.get("party", "") if isinstance(candidate, dict) else "",
         "fec_record_id": record.get("sub_id", ""),
         "memo_code": record.get("memo_code", ""),
         "memo_text": record.get("memo_text", ""),

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nursing Home Owner Political Donation Search | PBJ320</title>
-    <meta name="description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
-    <meta name="keywords" content="nursing home owners, political donations, FEC, CMS ownership, nursing home operators, campaign contributions">
+    <title>Nursing Home Owner Political Contributions Search | PBJ320</title>
+    <meta name="description" content="Search nursing home owners and view their political contributions. Explore ownership data and campaign contributions from nursing home operators.">
+    <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
     <link rel="canonical" href="https://pbj320.com/owners">
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
     
@@ -21,7 +21,7 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://pbj320.com/owners">
-    <meta property="og:title" content="Nursing Home Owner Political Donation Search | PBJ320">
+    <meta property="og:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
     <meta property="og:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
     <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
     <meta property="og:image:width" content="1200">
@@ -30,7 +30,7 @@
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Nursing Home Owner Political Donation Search | PBJ320">
+    <meta property="twitter:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
     <meta property="twitter:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions.">
     <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
     
@@ -541,6 +541,11 @@
             background: rgba(255,255,255,0.03);
         }
         
+        .facilities-table {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
         @media (max-width: 768px) {
             .facilities-table {
                 font-size: 0.85rem;
@@ -550,9 +555,6 @@
             .facilities-table td {
                 padding: 0.5rem 0.4rem;
             }
-        }
-            border-radius: 8px;
-            overflow: hidden;
         }
         
         .facilities-table thead {
@@ -690,6 +692,12 @@
             transform: rotate(180deg);
         }
         
+        @media (max-width: 768px) {
+            .methodology-caret {
+                color: white;
+            }
+        }
+        
         /* Mobile menu toggle */
         .nav-toggle {
             display: none;
@@ -769,10 +777,10 @@
 
     <div class="container" style="padding: 20px;">
         <div class="header">
-            <h1 class="page-title">Nursing Home Owner Political Donation<span class="search-text"> Search</span></h1>
+            <h1 class="page-title">Nursing Home Owner Political Contributions</h1>
             <div style="margin-top: 0.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
-                A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">320 Consulting</a>
-                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(102, 126, 234, 0.2); border: 1px solid #667eea; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #667eea;">BETA</span>
+                A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: rgba(255,255,255,0.7); text-decoration: none; font-weight: normal;">320 Consulting</a>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #eab308;">BETA</span>
             </div>
         </div>
 
@@ -818,7 +826,7 @@
                 <button id="searchBtn" class="search-btn" onclick="performSearch()">Search</button>
             </div>
             <div class="suggestions">
-                <strong>Search tips:</strong> Search by owner name, organization, or provider name/CCN.
+                <strong>Tips:</strong> Search by owner name, organization, or provider name/CCN.
             </div>
         </div>
 
@@ -845,7 +853,7 @@
                 Sources and Methodology
             </h3>
             <p style="margin-bottom: 1rem;">
-                This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political donations of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
+                This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political contributions of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
             </p>
             
             <details>
@@ -866,7 +874,7 @@
                         <li style="margin-bottom: 0.5rem;"><strong>Prefix Match:</strong> For longer names, matching the first 15 characters</li>
                     </ol>
                     <p style="margin-bottom: 1.5rem;">
-                        Political donations are matched to owners by name using the FEC API's search functionality, which handles name variations and common aliases.
+                        Political contributions are matched to owners by name using the FEC API's search functionality, which handles name variations and common aliases.
                     </p>
                     
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
@@ -894,7 +902,7 @@
                             <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
                         </p>
                         <p style="margin-bottom: 0.75rem;">
-                            <strong>Name Matching Limitations:</strong> Political donation matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
+                            <strong>Name Matching Limitations:</strong> Political contribution matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
                         </p>
                         <p style="margin-bottom: 0.75rem;">
                             <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
@@ -1056,12 +1064,16 @@
         // Update placeholder based on search type
         function updatePlaceholder() {
             const type = searchType.value;
+            const isMobile = window.innerWidth <= 768;
             if (type === 'provider') {
-                searchInput.placeholder = 'Search by provider name or CCN (e.g., Seagate Rehabilitation, 335513)...';
+                searchInput.placeholder = isMobile ? 'Enter provider name or CCN' : 'Search by provider name or CCN (e.g., Seagate Rehabilitation, 335513)...';
             } else {
-                searchInput.placeholder = 'Search by owner name or organization (e.g., John Smith, Saber Health Group)...';
+                searchInput.placeholder = isMobile ? 'Search by owner' : 'Enter owner name or organization (e.g., John Smith, Saber Health... )';
             }
         }
+        
+        // Update placeholder on window resize
+        window.addEventListener('resize', updatePlaceholder);
         
         // Listen for search type changes
         searchType.addEventListener('change', function() {
@@ -1161,10 +1173,12 @@
                 if (searchType === 'provider' && item.type === 'PROVIDER') {
                     // For provider search, show provider name and CCN
                     const ccn = item.ccn || '';
-                    const providerName = item.provider_name || item.name.replace(/\s*\(\d+\)$/, ''); // Remove CCN from name if present
+                    const providerNameRaw = item.provider_name || item.name.replace(/\s*\(\d+\)$/, ''); // Remove CCN from name if present
+                    const providerName = toTitleCase(providerNameRaw);
+                    const displayName = item.name.includes('(') ? item.name : `${providerName}${ccn ? ` (${ccn})` : ''}`;
                     return `
-                        <div class="autocomplete-item" data-index="${index}" data-ccn="${ccn}" data-provider-name="${escapeHtml(providerName)}" onclick="selectAutocomplete('${escapeHtml(item.name)}', '${ccn}', '${escapeHtml(providerName)}')">
-                            <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
+                        <div class="autocomplete-item" data-index="${index}" data-ccn="${ccn}" data-provider-name="${escapeHtml(providerNameRaw)}" onclick="selectAutocomplete('${escapeHtml(item.name)}', '${ccn}', '${escapeHtml(providerNameRaw)}')">
+                            <div class="autocomplete-item-name">${escapeHtml(displayName)}</div>
                             <div class="autocomplete-item-details">Provider</div>
                         </div>
                     `;
@@ -1324,7 +1338,7 @@
                                 >
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                                Showing all ${data.combined_donations.length} donations
+                                Showing all ${data.combined_donations.length} contributions
                             </div>
                         </div>
                     </div>
@@ -1352,7 +1366,7 @@
                 
                 // Combined donations list
                 html += `
-                    <h3 style="margin-bottom: 1rem;">All Donations (Combined List)</h3>
+                    <h3 style="margin-bottom: 1rem;">All Contributions (Combined List)</h3>
                     <div id="combinedDonationsList">
                         ${displayCombinedDonationsList(data.combined_donations)}
                     </div>
@@ -1365,7 +1379,7 @@
             data.owners.forEach(owner => {
                 const donationSummary = owner.donations.length > 0 
                     ? `${owner.donations.length} donation(s) totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
-                    : 'No donations found';
+                    : 'No contributions found';
                 
                 html += `
                     <div class="result-card" onclick="showOwnerDetails('${owner.owner_name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
@@ -1402,7 +1416,7 @@
         
         function displayCombinedDonationsList(donations, filterText = '') {
             if (!donations || donations.length === 0) {
-                return '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+                return '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
             }
             
             let filtered = donations;
@@ -1416,7 +1430,7 @@
             }
             
             if (filtered.length === 0) {
-                return `<p style="color: rgba(255,255,255,0.7);">No donations match "${escapeHtml(filterText)}"</p>`;
+                return `<p style="color: rgba(255,255,255,0.7);">No contributions match "${escapeHtml(filterText)}"</p>`;
             }
             
             // Group by recipient for better organization
@@ -1516,6 +1530,26 @@
             return STATE_NAME_TO_CODE[normalized] || stateName.toUpperCase();
         }
         
+        // Title case function (capitalize first letter, except and/of/at, handle Post-Acute)
+        function toTitleCase(str) {
+            if (!str) return '';
+            const words = str.toLowerCase().split(/\s+/);
+            const exceptions = ['and', 'of', 'at', 'the', 'a', 'an', 'in', 'on', 'for', 'to', 'with'];
+            return words.map((word, index) => {
+                // Handle hyphenated words (e.g., Post-Acute)
+                if (word.includes('-')) {
+                    return word.split('-').map(part => 
+                        part.charAt(0).toUpperCase() + part.slice(1)
+                    ).join('-');
+                }
+                // First word always capitalized, or if not in exceptions
+                if (index === 0 || !exceptions.includes(word)) {
+                    return word.charAt(0).toUpperCase() + word.slice(1);
+                }
+                return word;
+            }).join(' ');
+        }
+        
         function displayResults(results, providerInfo = null, searchType = 'all') {
             const container = document.getElementById('resultsContainer');
             
@@ -1528,7 +1562,8 @@
             
             // Add provider info header if this is a provider search
             if (searchType === 'provider' && providerInfo && providerInfo.provider_name) {
-                const providerName = escapeHtml(providerInfo.provider_name);
+                const providerNameRaw = providerInfo.provider_name;
+                const providerName = toTitleCase(providerNameRaw);
                 const ccn = providerInfo.ccn || '';
                 const state = providerInfo.state || '';
                 const directOwners = providerInfo.direct_owners || [];
@@ -1554,14 +1589,18 @@
                     }
                 }
                 
+                // Separate owners into >=5% and <5%
+                const owners5Plus = directOwners.filter(o => o.percentage >= 5);
+                const ownersUnder5 = directOwners.filter(o => o.percentage < 5);
+                
                 // Build direct owners list
                 let ownersListHtml = '';
                 if (directOwners.length > 0) {
                     ownersListHtml = `
                         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(102, 126, 234, 0.3);">
-                            <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">Owners and Managers (5% or greater direct ownership interest)</h4>
+                            <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">All Owners and Managers</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                ${directOwners.map(owner => {
+                                ${owners5Plus.map(owner => {
                                     const name = escapeHtml(owner.name || '');
                                     const percentage = owner.percentage || 0;
                                     const date = formatDate(owner.date || '');
@@ -1572,47 +1611,100 @@
                                                 <div style="color: white; font-weight: 500;">${name}</div>
                                                 ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
                                             </div>
-                                            <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; margin-left: 1rem;">${percentage}%</div>
+                                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                                <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">${percentage}%</div>
+                                                <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
+                                                    style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
+                                                    View Political Contributions
+                                                </button>
+                                                <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
+                                                    style="padding: 0.5rem 1rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
+                                                    View Other Provider(s)
+                                                </button>
+                                            </div>
                                         </div>
                                     `;
                                 }).join('')}
+                                ${ownersUnder5.length > 0 ? `
+                                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(102, 126, 234, 0.2);">
+                                        ${ownersUnder5.map(owner => {
+                                            const name = escapeHtml(owner.name || '');
+                                            const percentage = owner.percentage || 0;
+                                            const date = formatDate(owner.date || '');
+                                            const dateDisplay = date ? `since ${date}` : '';
+                                            return `
+                                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; margin-bottom: 0.75rem;">
+                                                    <div style="flex: 1;">
+                                                        <div style="color: white; font-weight: 500;">${name}</div>
+                                                        ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                                    </div>
+                                                    <div style="display: flex; align-items: center; gap: 1rem;">
+                                                        <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">${percentage}%</div>
+                                                        <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
+                                                            style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
+                                                            View Political Contributions
+                                                        </button>
+                                                        <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
+                                                            style="padding: 0.5rem 1rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
+                                                            View Other Provider(s)
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            `;
+                                        }).join('')}
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                     `;
                 }
                 
-                // Build CMS link
-                let cmsLink = '';
-                if (ccn && state) {
-                    const stateCode = getStateCode(state);
-                    cmsLink = `
-                        <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea;">
+                // Build PBJ Dashboard link
+                let providerHeader = '';
+                if (ccn) {
+                    providerHeader = `
+                        <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea; position: relative;">
                             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: ${directOwners.length > 0 ? '0' : '0'};">
                                 <div style="flex: 1;">
-                                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${providerName}</h3>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}</h3>
                                     ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` • ${state}` : ''}</div>` : ''}
                                 </div>
-                                <a href="https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all?state=${stateCode}&measure=nursing-home-ownership#ProviderDetailsLocations" 
+                                <a href="https://pbjdashboard.com/?facility=${ccn}" 
                                    target="_blank" 
                                    style="padding: 0.6rem 1.2rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: background 0.3s; white-space: nowrap;"
                                    onmouseover="this.style.background='#5568d3'"
                                    onmouseout="this.style.background='#667eea'">
-                                    📋 CMS Ownership Info
+                                    View PBJ Dashboard
                                 </a>
                             </div>
                             ${ownersListHtml}
+                            ${ccn && state ? `
+                                <div style="text-align: right; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid rgba(102, 126, 234, 0.2);">
+                                    <a href="https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all?state=${getStateCode(state)}&measure=nursing-home-ownership#ProviderDetailsLocations" 
+                                       target="_blank" 
+                                       style="color: rgba(255,255,255,0.6); font-size: 0.8rem; text-decoration: none;">
+                                        View CMS Ownership Info
+                                    </a>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 } else {
-                    cmsLink = `
+                    providerHeader = `
                         <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea;">
-                            <h3 style="margin: 0; color: white; font-size: 1.2rem;">Ownership of ${providerName}</h3>
+                            <h3 style="margin: 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}</h3>
                             ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.5rem;">CCN: ${ccn}</div>` : ''}
                             ${ownersListHtml}
                         </div>
                     `;
                 }
-                headerHtml = cmsLink;
+                headerHtml = providerHeader;
+            }
+            
+            // For provider search, don't show result cards - only show header
+            if (searchType === 'provider') {
+                container.innerHTML = headerHtml;
+                return;
             }
             
             container.innerHTML = headerHtml + results.map(result => `
@@ -1636,7 +1728,7 @@
                             class="query-fec-btn" 
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
-                            🔍 Query FEC API
+                            View Political Contributions
                         </button>
                         <button 
                             onclick="showOwnerDetails('${result.owner_name.replace(/'/g, "\\'")}')" 
@@ -1757,15 +1849,15 @@
                         const container = document.getElementById('donationsContainer');
                         const note = document.createElement('div');
                         note.style.cssText = 'background: rgba(102, 126, 234, 0.2); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; color: rgba(255,255,255,0.8);';
-                        note.innerHTML = '📊 Showing donations from pre-processed database. <button onclick="queryFecApi()" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">Query FEC API (Live)</button> to search for latest donations.';
+                        note.innerHTML = '📊 Showing contributions from pre-processed database. <button onclick="queryFecApi()" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">View Political Contributions</button> to search for latest contributions.';
                         container.insertBefore(note, container.firstChild);
                     }
                 } else {
                     document.getElementById('donationsContainer').innerHTML = `
                         <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
-                            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">No donations found in database.</p>
+                            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">No contributions found in database.</p>
                             <button onclick="queryFecApi()" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
-                                🔍 Query FEC API (Live) - Search for Political Donations
+                             View Political Contributions
                             </button>
                         </div>
                     `;
@@ -1784,7 +1876,7 @@
             const container = document.getElementById('donationsContainer');
             
             if (!donations || donations.length === 0) {
-                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
                 return;
             }
             
@@ -1880,7 +1972,7 @@
                 ` : ''}
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h4 style="margin: 0;">All Donations (${donationCount})</h4>
+                    <h4 style="margin: 0;">All Contributions (${donationCount})</h4>
                 </div>
                 <div class="donations-grid">
                     ${donations.map(d => `
@@ -1909,7 +2001,7 @@
             const donationsDiv = document.createElement('div');
             donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
             donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
-            donationsDiv.innerHTML = '<div class="loading">Querying FEC API for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+            donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
             
             // Insert at top of results
             container.insertBefore(donationsDiv, container.firstChild);
@@ -1935,14 +2027,14 @@
                 displayDonationsInContainer(data.donations, data.total, data.count, donationsDiv, ownerName);
                 
             } catch (error) {
-                donationsDiv.innerHTML = '<div class="error">Error querying FEC API: ' + escapeHtml(error.message) + '</div>';
+                donationsDiv.innerHTML = '<div class="error">Error searching for contributions: ' + escapeHtml(error.message) + '</div>';
             }
         }
         
         // Display donations in a specific container (for search results)
         function displayDonationsInContainer(donations, total, count, container, ownerName = '') {
             if (!donations || donations.length === 0) {
-                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
                 return;
             }
             
@@ -1996,15 +2088,17 @@
             const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const csvUrl = URL.createObjectURL(csvBlob);
             
+            const isMobile = window.innerWidth <= 768;
             container.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <h3 style="margin: 0; color: white; font-weight: 600;">Political Donations - ${escapeHtml(ownerName)}</h3>
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer;">✕ Close</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
+                    ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.5rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.2rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: 0; right: 0;' : ''}">${isMobile ? '✕' : '✕ Close'}</button>
+                    ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; color: white;">
-                            Total Donated: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            Total Contributed: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                             ${donationCount} donation(s) total
@@ -2041,7 +2135,7 @@
                     </div>
                 ` : ''}
                 
-                <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">All Donations (${donationCount})</h4>
+                <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">All Contributions (${donationCount})</h4>
                 <div style="max-height: 400px; overflow-y: auto;">
                     ${donations.slice(0, 20).map(d => `
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
@@ -2081,7 +2175,7 @@
             }
             
             const container = document.getElementById('donationsContainer');
-            container.innerHTML = '<div class="loading">Querying FEC API... This may take a moment.</div>';
+            container.innerHTML = '<div class="loading">Searching for political contributions... This may take a moment.</div>';
             
             try {
                 const response = await fetch('/owners/api/query-fec', {
@@ -2103,7 +2197,7 @@
                 displayDonations(data.donations, data.total, data.count);
                 
             } catch (error) {
-                showError('Error querying FEC API: ' + error.message);
+                showError('Error searching for contributions: ' + error.message);
             }
         }
 

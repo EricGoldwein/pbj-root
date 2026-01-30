@@ -16,7 +16,14 @@ donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
     sys.path.insert(0, str(donor_dir))
 
-from fec_api_client import query_donations_by_name, normalize_fec_donation, FEC_API_KEY, FEC_API_BASE_URL
+from fec_api_client import (
+    query_donations_by_name,
+    normalize_fec_donation,
+    build_schedule_a_docquery_link,
+    is_valid_docquery_schedule_a_url,
+    FEC_API_KEY,
+    FEC_API_BASE_URL,
+)
 import requests
 
 app = Flask(__name__, template_folder='templates')
@@ -31,8 +38,18 @@ PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Dec2025.csv
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
 DONATIONS_DB = BASE_DIR / "donor" / "output" / "owner_donations_database.csv"
+# FEC committee master: CMTE_ID -> CMTE_NM (cm26=2025-2026, cm24=2023-2024, etc.)
+FEC_COMMITTEE_MASTER_DIR = BASE_DIR / "donor" / "data" / "fec_committee_master"
+FEC_COMMITTEE_MASTER_FILES = [
+    "cm26_2025_2026.csv", "cm24_2023_2024.csv", "cm22_2021_2022.csv",
+    "cm20_2019_2020.csv", "cm18_2017_2018.csv", "cm16_2015_2016.csv", "cm14_2013_2014.csv",
+]
+# Fallback: donor/cm26.csv, donor/cm24.csv, etc. (same cycle naming)
+DONOR_DIR = BASE_DIR / "donor"
+FEC_CM_FALLBACK = ["cm26.csv", "cm24.csv", "cm22.csv", "cm20.csv", "cm18.csv", "cm16.csv", "cm14.csv"]
 
 # Cache data
+committee_master = None  # dict CMTE_ID -> CMTE_NM, loaded at startup for fast lookup
 owners_df = None
 ownership_df = None
 ownership_raw_df = None  # Raw ownership file for provider matching
@@ -42,6 +59,32 @@ facility_name_mapping_df = None  # Pre-computed mapping
 entity_lookup_df = None
 donations_df = None
 facility_metrics_df = None
+
+# JSON-serializable sanitizer: NaN/Inf/pd.NA are not valid JSON; replace with None
+def sanitize_for_json(obj):
+    """Recursively replace NaN, Inf, and pd.NA with None so jsonify() produces valid JSON."""
+    if isinstance(obj, dict):
+        return {k: sanitize_for_json(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [sanitize_for_json(v) for v in obj]
+    # Pandas/NumPy NA or NaN (must check before float so we catch pd.NA)
+    try:
+        if pd.isna(obj):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if isinstance(obj, float):
+        if obj != obj or obj == float('inf') or obj == float('-inf'):  # nan or inf
+            return None
+    # NumPy scalars (e.g. from DataFrame row) - convert to Python type or None
+    if hasattr(obj, 'item'):
+        try:
+            v = obj.item()
+            return sanitize_for_json(v)
+        except (ValueError, TypeError, AttributeError):
+            return None
+    return obj
+
 
 # Normalize name function (matches owner_donor.py)
 def normalize_name_for_matching(s):
@@ -126,6 +169,66 @@ def normalize_name_for_search(name):
     return list(set(variations))
 
 
+def _load_committee_master():
+    """
+    Load FEC committee master (CMTE_ID -> CMTE_NM) from CSVs.
+    Tries donor/data/fec_committee_master/*.csv first, then donor/cm*.csv.
+    Newer cycles override older so we have one in-memory lookup for display/verification.
+    """
+    out = {}
+    # Prefer data/fec_committee_master (named by cycle). Load oldest first so newer cycle wins.
+    for fname in reversed(FEC_COMMITTEE_MASTER_FILES):
+        path = FEC_COMMITTEE_MASTER_DIR / fname
+        if not path.exists():
+            continue
+        try:
+            try:
+                df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8", on_bad_lines="skip")
+            except TypeError:
+                df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8")
+            for _, row in df.iterrows():
+                # pandas can return float/NaN for some cells; convert to str before .strip()
+                cid = str(row.get("CMTE_ID") or "").strip()
+                nm = str(row.get("CMTE_NM") or "").strip()
+                if cid and cid != "nan":
+                    out[cid] = nm
+        except Exception as e:
+            print(f"  [WARN] Could not load {path}: {e}")
+    # Fallback: donor/cm26.csv, donor/cm24.csv, etc.
+    if not out:
+        for fname in reversed(FEC_CM_FALLBACK):
+            path = DONOR_DIR / fname
+            if not path.exists():
+                continue
+            try:
+                try:
+                    df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8", on_bad_lines="skip")
+                except TypeError:
+                    df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8")
+                for _, row in df.iterrows():
+                    cid = str(row.get("CMTE_ID") or "").strip()
+                    nm = str(row.get("CMTE_NM") or "").strip()
+                    if cid and cid != "nan":
+                        out[cid] = nm
+            except Exception as e:
+                print(f"  [WARN] Could not load {path}: {e}")
+    return out
+
+
+def get_committee_display_name(committee_id, fallback=""):
+    """
+    Return committee name from master (CMTE_NM) for verification/display.
+    Uses in-memory committee_master loaded at startup; O(1) lookup.
+    """
+    global committee_master
+    if committee_master is None:
+        return fallback or ""
+    cid = (committee_id or "").strip()
+    if not cid:
+        return fallback or ""
+    return committee_master.get(cid) or fallback or ""
+
+
 def load_data():
     """
     Load all data files - FAST: prioritize pre-processed database over raw CSV
@@ -134,7 +237,7 @@ def load_data():
     - Initial load: Only loads owner names for search (from pre-processed database)
     - FEC API: Only called when user clicks "Query FEC API (Live)" button (on-demand)
     """
-    global owners_df, ownership_df, ownership_raw_df, provider_info_df, entity_lookup_df, donations_df
+    global owners_df, ownership_df, ownership_raw_df, provider_info_df, entity_lookup_df, donations_df, committee_master
     
     print("="*60)
     print("Loading data for dashboard...")
@@ -200,6 +303,17 @@ def load_data():
         print("  (Optional) Run 'python donor/owner_donor.py MODE=query' to pre-process donations")
         print("  Or use 'Query FEC API (Live)' button to query on-demand")
         donations_df = pd.DataFrame()
+    
+    # PART 3: Load FEC committee master (CMTE_ID -> CMTE_NM) for fast committee name lookup/verification
+    try:
+        committee_master = _load_committee_master()
+        if committee_master:
+            print(f"✓ Loaded FEC committee master: {len(committee_master)} committees (for display/verification)")
+        else:
+            print("  (No FEC committee master CSVs found; committee names from API/CSV only)")
+    except Exception as e:
+        print(f"  [WARN] FEC committee master: {e}")
+        committee_master = {}
     
     # Load normalized ownership for facility details (if available)
     if OWNERSHIP_NORM.exists():
@@ -1102,10 +1216,35 @@ def get_owner_details(owner_name):
     if owners_df is None:
         return jsonify({'error': 'Owners database not loaded'}), 500
     
+    query_upper = owner_name.upper().strip()
     # Find owner - prioritize normalized name (more reliable)
-    owner = owners_df[owners_df['owner_name'].str.upper() == owner_name.upper()]
+    owner = owners_df[owners_df['owner_name'].str.upper().str.strip() == query_upper]
     if owner.empty:
-        owner = owners_df[owners_df['owner_name_original'].str.upper() == owner_name.upper()]
+        owner = owners_df[owners_df['owner_name_original'].astype(str).str.upper().str.strip() == query_upper]
+    
+    # Fallback: entity view sends "FIRST LAST" but DB may have "LAST, FIRST" or "LAST FIRST"
+    if owner.empty and query_upper:
+        def name_col_match(col, val):
+            return owners_df[col].fillna('').astype(str).str.upper().str.strip() == val.upper()
+        parts = query_upper.split()
+        if len(parts) == 2:
+            for alt in (f"{parts[1]} {parts[0]}", f"{parts[1]}, {parts[0]}"):
+                owner = owners_df[name_col_match('owner_name', alt)]
+                if not owner.empty:
+                    break
+                owner = owners_df[name_col_match('owner_name_original', alt)]
+                if not owner.empty:
+                    break
+        elif len(parts) >= 3:
+            alt1 = f"{parts[-1]} {' '.join(parts[:-1])}".strip()
+            alt2 = f"{parts[-1]}, {' '.join(parts[:-1])}".strip()
+            for alt in (alt1, alt2):
+                owner = owners_df[name_col_match('owner_name', alt)]
+                if not owner.empty:
+                    break
+                owner = owners_df[name_col_match('owner_name_original', alt)]
+                if not owner.empty:
+                    break
     
     if owner.empty:
         return jsonify({'error': 'Owner not found'}), 404
@@ -1121,11 +1260,12 @@ def get_owner_details(owner_name):
             display_name = orig_name
         # Otherwise keep normalized name (it's more reliable)
     
-    # Get facilities
+    # Get facilities (use comma split + strip to match rest of codebase and handle "A,B" or "A, B")
     facilities = []
     if pd.notna(owner_row['facilities']):
-        facility_names = owner_row['facilities'].split(', ')
-        enrollment_ids = owner_row['enrollment_ids'].split(', ') if pd.notna(owner_row['enrollment_ids']) else []
+        facility_names = [f.strip() for f in owner_row['facilities'].split(',') if f.strip()]
+        enrollment_ids_str = owner_row.get('enrollment_ids', '')
+        enrollment_ids = [e.strip() for e in enrollment_ids_str.split(',') if e.strip()] if pd.notna(enrollment_ids_str) else []
         
         for i, name in enumerate(facility_names):
             facility_info = {'name': name.strip()}
@@ -1321,17 +1461,34 @@ def get_owner_details(owner_name):
                             date_str = date_str.replace(f'{year}-', f'{fixed_year}-', 1)
                             print(f"[FIXED] Corrected date from {year_match.group(0)} to {fixed_year}-{date_str.split('-', 1)[1] if '-' in date_str else ''}")
                 
+                # FEC docquery link: use file_number (e.g. 1930534) from Schedule A. Stored or from /filings/.
+                fec_link = (d.get('fec_docquery_url') or '').strip()
+                if fec_link and not is_valid_docquery_schedule_a_url(fec_link):
+                    fec_link = ""
+                if not fec_link and d.get('committee_id'):
+                    file_num = d.get('fec_file_number') or None
+                    if file_num:
+                        result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num)
+                        fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                    elif d.get('donation_date'):
+                        result = build_schedule_a_docquery_link(
+                            committee_id=d.get('committee_id'),
+                            schedule_a_record={"contribution_receipt_date": d.get('donation_date')},
+                        )
+                        fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')
                 donations.append({
                     'amount': amount,
                     'date': date_str,
-                    'committee': d.get('committee_name', ''),
+                    'committee': committee_display,
                     'candidate': d.get('candidate_name', ''),
                     'office': d.get('candidate_office', ''),
                     'party': d.get('candidate_party', ''),
                     'employer': d.get('employer', ''),
                     'occupation': d.get('occupation', ''),
                     'donor_city': d.get('donor_city', ''),
-                    'donor_state': d.get('donor_state', '')
+                    'donor_state': d.get('donor_state', ''),
+                    'fec_link': fec_link,
                 })
     
     # Calculate portfolio summary
@@ -1355,7 +1512,7 @@ def get_owner_details(owner_name):
     # Sort donations by date (most recent first)
     donations.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
     
-    return jsonify({
+    response_data = {
         'owner_name': display_name,
         'owner_type': owner_row['owner_type'],
         'facilities': facilities,
@@ -1367,7 +1524,8 @@ def get_owner_details(owner_name):
         'is_equity_owner': owner_row.get('is_equity_owner', False) if 'is_equity_owner' in owner_row else False,
         'is_officer': owner_row.get('is_officer', False) if 'is_officer' in owner_row else False,
         'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else ''
-    })
+    }
+    return jsonify(sanitize_for_json(response_data))
 
 
 @app.route('/api/query-fec', methods=['POST'])
@@ -1469,17 +1627,27 @@ def query_fec():
                             date_str = date_str.replace(f'{year}-', f'{fixed_year}-', 1)
                             print(f"[FIXED DATE] Corrected {year_match.group(0)} to {fixed_year}-{date_str.split('-', 1)[1] if '-' in date_str else ''} for {owner_name}")
                 
+                committee_display = get_committee_display_name(norm.get('committee_id'), norm.get('committee_name', '') or '') or norm.get('committee_name', '') or ''
+                fec_link = norm.get('fec_docquery_url', '') or ''
+                if (not fec_link or fec_link.startswith("https://www.fec.gov/data/receipts")) and norm.get("committee_id") and date_str:
+                    result = build_schedule_a_docquery_link(
+                        committee_id=norm.get("committee_id"),
+                        schedule_a_record={"contribution_receipt_date": date_str, "committee_id": norm.get("committee_id")},
+                    )
+                    if result.get("image_number"):
+                        fec_link = result.get("url", "")
                 normalized.append({
                     'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
                     'date': date_str,
-                    'committee': norm.get('committee_name', '') or '',
+                    'committee': committee_display,
                     'candidate': norm.get('candidate_name', '') or '',
                     'office': norm.get('candidate_office', '') or '',
                     'party': norm.get('candidate_party', '') or '',
                     'employer': norm.get('employer', '') or '',
                     'occupation': norm.get('occupation', '') or '',
                     'donor_city': norm.get('donor_city', '') or '',
-                    'donor_state': norm.get('donor_state', '') or ''
+                    'donor_state': norm.get('donor_state', '') or '',
+                    'fec_link': fec_link,
                 })
             except Exception as e:
                 print(f"[WARNING] Error normalizing donation: {e}")
@@ -1635,17 +1803,34 @@ def get_entity_owners(entity_id):
                     except (ValueError, TypeError):
                         amount = 0.0
                     
+                    # FEC docquery link: use file_number from Schedule A; else get from /filings/.
+                    fec_link = (d.get('fec_docquery_url') or '').strip()
+                    if fec_link and not is_valid_docquery_schedule_a_url(fec_link):
+                        fec_link = ""
+                    if not fec_link and d.get('committee_id'):
+                        file_num = d.get('fec_file_number') or None
+                        if file_num:
+                            result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num)
+                            fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                        elif d.get('donation_date'):
+                            result = build_schedule_a_docquery_link(
+                                committee_id=d.get('committee_id'),
+                                schedule_a_record={"contribution_receipt_date": d.get('donation_date')},
+                            )
+                            fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                    committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')
                     owner_donations.append({
                         'amount': amount,
                         'date': d.get('donation_date', ''),
-                        'committee': d.get('committee_name', ''),
+                        'committee': committee_display,
                         'candidate': d.get('candidate_name', ''),
                         'office': d.get('candidate_office', ''),
                         'party': d.get('candidate_party', ''),
                         'employer': d.get('employer', ''),
                         'occupation': d.get('occupation', ''),
                         'donor_city': d.get('donor_city', ''),
-                        'donor_state': d.get('donor_state', '')
+                        'donor_state': d.get('donor_state', ''),
+                        'fec_link': fec_link,
                     })
             
             owner_total = sum(d['amount'] for d in owner_donations)

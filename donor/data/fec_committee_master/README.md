@@ -7,6 +7,12 @@ Committee master files are **uploaded beforehand** and stored here. They are **n
 
 ## File naming (by cycle)
 
+**Designation:** The `cmNN` number is the **election cycle** (two years).  
+- **cm26** = 2025–2026  
+- **cm24** = 2023–2024  
+- **cm22** = 2021–2022  
+- (cm20 = 2019–2020, etc.)
+
 | Zip / cycle | Label | CSV filename (use this) |
 |-------------|--------|---------------------------|
 | cm26.zip    | 2025–2026 | `cm26_2025_2026.csv` |

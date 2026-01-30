@@ -1651,7 +1651,8 @@
                             <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">All Owners and Managers</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                                 ${owners5Plus.map(owner => {
-                                    const name = escapeHtml(owner.name || '');
+                                    const nameDisplay = escapeHtml(owner.name || '');
+                                    const nameForApi = (owner.name || '').replace(/'/g, "\\'");
                                     const percentage = owner.percentage || 0;
                                     const date = formatDate(owner.date || '');
                                     const dateDisplay = date ? `since ${date}` : '';
@@ -1659,17 +1660,17 @@
                                         <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
                                             <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                                                 <div style="flex: 1; min-width: 0;">
-                                                    <div style="color: white; font-weight: 500; word-break: break-word;">${name}</div>
+                                                    <div style="color: white; font-weight: 500; word-break: break-word;">${nameDisplay}</div>
                                                     ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
                                                 </div>
                                                 <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; flex-shrink: 0; margin-left: 0.5rem;">${percentage}%</div>
                                             </div>
                                             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                                <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
+                                                <button onclick="event.stopPropagation(); queryFecApiForOwner('${nameForApi}', 'INDIVIDUAL')" 
                                                     style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
                                                     Contributions
                                                 </button>
-                                                <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
+                                                <button onclick="event.stopPropagation(); showOwnerDetails('${nameForApi}')" 
                                                     style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
                                                     Providers
                                                 </button>
@@ -1680,7 +1681,8 @@
                                 ${ownersUnder5.length > 0 ? `
                                     <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(102, 126, 234, 0.2);">
                                         ${ownersUnder5.map(owner => {
-                                            const name = escapeHtml(owner.name || '');
+                                            const nameDisplay = escapeHtml(owner.name || '');
+                                            const nameForApi = (owner.name || '').replace(/'/g, "\\'");
                                             const percentage = owner.percentage || 0;
                                             const date = formatDate(owner.date || '');
                                             const dateDisplay = date ? `since ${date}` : '';
@@ -1688,17 +1690,17 @@
                                                 <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; margin-bottom: 0.75rem;">
                                                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
                                                         <div style="flex: 1; min-width: 0;">
-                                                            <div style="color: white; font-weight: 500; word-break: break-word;">${name}</div>
+                                                            <div style="color: white; font-weight: 500; word-break: break-word;">${nameDisplay}</div>
                                                             ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
                                                         </div>
                                                         <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; flex-shrink: 0; margin-left: 0.5rem;">${percentage}%</div>
                                                     </div>
                                                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                                        <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
+                                                        <button onclick="event.stopPropagation(); queryFecApiForOwner('${nameForApi}', 'INDIVIDUAL')" 
                                                             style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
                                                             Contributions
                                                         </button>
-                                                        <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
+                                                        <button onclick="event.stopPropagation(); showOwnerDetails('${nameForApi}')" 
                                                             style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
                                                             Providers
                                                         </button>
@@ -1785,8 +1787,9 @@
                             Political Contributions
                         </button>
                         <button 
-                            onclick="showOwnerDetails('${result.owner_name.replace(/'/g, "\\'")}')" 
-                            class="back-btn" 
+                            type="button"
+                            class="back-btn show-owner-providers-btn" 
+                            data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}"
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
                             Providers
@@ -1798,8 +1801,28 @@
 
         // Show owner details
         async function showOwnerDetails(ownerName) {
+            // Show details section and loading state immediately so user sees something
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('resultsContainer').innerHTML = '';
+            document.getElementById('resultsCount').textContent = '';
+            document.getElementById('ownerTitle').textContent = ownerName || 'Loading...';
+            document.getElementById('detailsSection').style.display = 'block';
+            document.getElementById('donationsContainer').innerHTML = '<div class="loading">Loading provider list...</div>';
+            document.getElementById('facilitiesContainer').innerHTML = '<div class="loading">Loading...</div>';
+            document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
             try {
                 const response = await fetch(`/owners/api/owner/${encodeURIComponent(ownerName)}`);
+                if (!response.ok) {
+                    const errText = await response.text();
+                    let errMsg = 'Owner not found';
+                    try {
+                        const errJson = JSON.parse(errText);
+                        if (errJson && errJson.error) errMsg = errJson.error;
+                    } catch (_) {}
+                    showError(errMsg);
+                    return;
+                }
                 const owner = await response.json();
                 
                 if (owner.error) {
@@ -1809,15 +1832,10 @@
                 
                 currentOwner = owner;
                 document.getElementById('ownerTitle').textContent = owner.owner_name;
-                // Hide search results completely
-                document.getElementById('resultsSection').style.display = 'none';
-                document.getElementById('resultsContainer').innerHTML = ''; // Clear results
-                document.getElementById('resultsCount').textContent = ''; // Clear count
-                document.getElementById('detailsSection').style.display = 'block';
                 
                 // Show facilities in a polished table (skip portfolio summary - redundant)
-                // Ensure facilities is an array
-                const facilities = Array.isArray(owner.facilities) ? owner.facilities : [];
+                // Ensure facilities is an array (filter out null/undefined)
+                const facilities = (Array.isArray(owner.facilities) ? owner.facilities : []).filter(function(f) { return f != null; });
                 const facilitiesHtml = facilities.length > 0 ? `
                     <h3 style="margin-bottom: 1rem;">Providers (${facilities.length})</h3>
                     <div style="overflow-x: auto;">
@@ -1916,14 +1934,13 @@
                         const container = document.getElementById('donationsContainer');
                         const note = document.createElement('div');
                         note.style.cssText = 'background: rgba(102, 126, 234, 0.2); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; color: rgba(255,255,255,0.8);';
-                        note.innerHTML = '📊 Showing contributions from pre-processed database. <button onclick="queryFecApi()" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">View Political Contributions</button> to search for latest contributions.';
+                        note.innerHTML = '📊 Showing contributions from pre-processed database. <button onclick="queryFecApiForOwner(\'' + (owner.owner_name || '').replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">View Political Contributions</button> to search for latest contributions.';
                         container.insertBefore(note, container.firstChild);
                     }
                 } else {
                     document.getElementById('donationsContainer').innerHTML = `
                         <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
-                            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">No contributions found in database.</p>
-                            <button onclick="queryFecApi()" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                            <button onclick="queryFecApiForOwner('${(owner.owner_name || '').replace(/'/g, "\\'")}', '${owner.owner_type || 'ORGANIZATION'}')" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
                              Political Contributions
                             </button>
                         </div>
@@ -2123,18 +2140,24 @@
             `;
         }
 
-        // Query FEC API for owner from search results (without loading full details)
+        // Query FEC API for owner (from search results or from owner details page)
         async function queryFecApiForOwner(ownerName, ownerType) {
-            const container = document.getElementById('resultsContainer');
+            const detailsSection = document.getElementById('detailsSection');
+            const isDetailsView = detailsSection && detailsSection.style.display === 'block';
+            let targetContainer;
             
-            // Create a temporary donations display area
-            const donationsDiv = document.createElement('div');
-            donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
-            donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
-            donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
-            
-            // Insert at top of results
-            container.insertBefore(donationsDiv, container.firstChild);
+            if (isDetailsView) {
+                targetContainer = document.getElementById('donationsContainer');
+                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+            } else {
+                const resultsContainer = document.getElementById('resultsContainer');
+                const donationsDiv = document.createElement('div');
+                donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
+                donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
+                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+                resultsContainer.insertBefore(donationsDiv, resultsContainer.firstChild);
+                targetContainer = donationsDiv;
+            }
             
             try {
                 const response = await fetch('/owners/api/query-fec', {
@@ -2149,15 +2172,14 @@
                 const data = await response.json();
                 
                 if (data.error) {
-                    donationsDiv.innerHTML = '<div class="error">' + escapeHtml(data.error) + '</div>';
+                    targetContainer.innerHTML = '<div class="error">' + escapeHtml(data.error) + '</div>';
                     return;
                 }
                 
-                // Display donations in the temp div
-                displayDonationsInContainer(data.donations, data.total, data.count, donationsDiv, ownerName, ownerType);
+                displayDonationsInContainer(data.donations, data.total, data.count, targetContainer, ownerName, ownerType);
                 
             } catch (error) {
-                donationsDiv.innerHTML = '<div class="error">Error searching for contributions: ' + escapeHtml(error.message) + '</div>';
+                targetContainer.innerHTML = '<div class="error">Error searching for contributions: ' + escapeHtml(error.message) + '</div>';
             }
         }
         
@@ -2306,7 +2328,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    ${d.fec_link ? `<a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: underline;">$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</a> <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-left: 0.25rem;">View on FEC</a>` : `$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
+                                    $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-left: 0.25rem;">View on FEC</a>` : ''}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                     ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -2381,6 +2403,17 @@
             const container = document.getElementById('donationsContainer');
             container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
         }
+
+        // Delegated click handler for "Providers" buttons (search result cards) - avoids onclick escaping issues
+        document.getElementById('resultsSection').addEventListener('click', function(e) {
+            const btn = e.target.closest('.show-owner-providers-btn');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const name = btn.getAttribute('data-owner-name');
+                if (name) showOwnerDetails(name);
+            }
+        });
 
         // Load stats on page load
         loadStats();

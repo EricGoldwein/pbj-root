@@ -1264,8 +1264,17 @@ def get_owner_details(owner_name):
                         # Get latest quarter data
                         latest = metrics.iloc[-1] if len(metrics) > 0 else None
                         if latest is not None:
-                            facility_info['latest_quarter'] = latest.get('CY_QTR', '')
-                            facility_info['avg_hprd'] = latest.get('Total_Nurse_HPRD', '')
+                            # Handle both CY_QTR and CY_Qtr column names
+                            facility_info['latest_quarter'] = latest.get('CY_Qtr', latest.get('CY_QTR', ''))
+                            # Get HPRD - handle both string and numeric types
+                            hprd_val = latest.get('Total_Nurse_HPRD', '')
+                            if pd.notna(hprd_val) and hprd_val != '':
+                                try:
+                                    facility_info['avg_hprd'] = float(hprd_val)
+                                except (ValueError, TypeError):
+                                    facility_info['avg_hprd'] = ''
+                            else:
+                                facility_info['avg_hprd'] = ''
                             facility_info['contract_pct'] = latest.get('Contract_Percentage', '')
                             facility_info['avg_census'] = latest.get('Census', '')
             

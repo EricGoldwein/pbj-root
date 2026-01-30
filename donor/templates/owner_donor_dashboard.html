@@ -331,6 +331,12 @@
             position: relative;
             z-index: 1;
         }
+        
+        /* Ensure autocomplete appears above results section */
+        .search-input-wrapper {
+            position: relative;
+            z-index: 10002;
+        }
 
         .results-count {
             color: rgba(255, 255, 255, 0.7);
@@ -548,12 +554,35 @@
         
         @media (max-width: 768px) {
             .facilities-table {
-                font-size: 0.85rem;
+                font-size: 0.75rem;
             }
             
             .facilities-table th,
             .facilities-table td {
-                padding: 0.5rem 0.4rem;
+                padding: 0.4rem 0.3rem;
+            }
+            
+            /* Hide Legal Business Name column on mobile */
+            .facilities-table th:nth-child(1),
+            .facilities-table td:nth-child(1) {
+                display: none;
+            }
+            
+            /* Footer spacing fix */
+            .footer {
+                margin-bottom: 0 !important;
+                padding-bottom: 1rem !important;
+            }
+            
+            /* Contributions table width fix */
+            .donations-grid {
+                max-width: 100%;
+                overflow-x: auto;
+            }
+            
+            .donation-card-grid {
+                min-width: 280px;
+                max-width: 100%;
             }
         }
         
@@ -826,7 +855,7 @@
                 <button id="searchBtn" class="search-btn" onclick="performSearch()">Search</button>
             </div>
             <div class="suggestions">
-                <strong>Tips:</strong> Search by owner name, organization, or provider name/CCN.
+                Search by owner name, organization, or provider name/CCN.
             </div>
         </div>
 
@@ -838,8 +867,7 @@
         <div id="detailsSection" class="details-section" style="display: none;">
             <div class="details-header">
                 <h2 id="ownerTitle"></h2>
-                <button class="back-btn" onclick="showSearchResults()">← Back to Results</button>
-                <button class="back-btn-arrow" onclick="showSearchResults()" title="Back to Results">←</button>
+                <button class="back-btn" onclick="showSearchResults()">← Back</button>
             </div>
             <div id="donationsContainer"></div>
             <div id="facilitiesContainer"></div>
@@ -858,13 +886,13 @@
             
             <details>
                 <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-top: 1rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
-                    <span>View Details</span>
+                    <span>Details</span>
                     <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
-                </summary>
+            </summary>
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching Methodology</h3>
-                    <p style="margin-bottom: 1rem;">
+                <p style="margin-bottom: 1rem;">
                         Facility names from the CMS ownership dataset are matched to provider information using the following process:
                     </p>
                     <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: decimal;">
@@ -875,108 +903,108 @@
                     </ol>
                     <p style="margin-bottom: 1.5rem;">
                         Political contributions are matched to owners by name using the FEC API's search functionality, which handles name variations and common aliases.
-                    </p>
-                    
-                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
-                    <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
-                        <li style="margin-bottom: 0.5rem;">
-                            <strong>CMS Ownership Data:</strong> 
-                            <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
-                            — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
-                        </li>
-                        <li style="margin-bottom: 0.5rem;">
-                            <strong>CMS Provider Information:</strong> 
-                            <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
-                            — Contains facility details including ratings, staffing levels, and operational information.
-                        </li>
-                        <li style="margin-bottom: 0.5rem;">
-                            <strong>FEC API:</strong> 
-                            <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
-                            — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
-                        </li>
-                    </ul>
-                    
+                </p>
+                
+                <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
+                <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Ownership Data:</strong> 
+                        <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
+                        — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Provider Information:</strong> 
+                        <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
+                        — Contains facility details including ratings, staffing levels, and operational information.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>FEC API:</strong> 
+                        <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
+                        — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
+                    </li>
+                </ul>
+                
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
-                    <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
-                        <p style="margin-bottom: 0.75rem; font-weight: 500;">
-                            <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
-                        </p>
-                        <p style="margin-bottom: 0.75rem;">
+                <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <p style="margin-bottom: 0.75rem; font-weight: 500;">
+                        <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
+                    </p>
+                    <p style="margin-bottom: 0.75rem;">
                             <strong>Name Matching Limitations:</strong> Political contribution matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
-                        </p>
-                        <p style="margin-bottom: 0.75rem;">
-                            <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
-                        </p>
-                        <p>
-                            <strong>Public Information:</strong> All data presented here is publicly available from federal government sources. This tool aggregates and presents this information for transparency and research purposes.
-                        </p>
-                    </div>
-                    
-                    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); text-align: center;">
-                        Contact for questions or to report data issues: 
-                        <a href="mailto:eric@320insight.com" style="color: #667eea; text-decoration: none;">eric@320insight.com</a>
+                    </p>
+                    <p style="margin-bottom: 0.75rem;">
+                        <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
+                    </p>
+                    <p>
+                        <strong>Public Information:</strong> All data presented here is publicly available from federal government sources. This tool aggregates and presents this information for transparency and research purposes.
                     </p>
                 </div>
-            </details>
+                
+                <p style="margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); text-align: center;">
+                        Contact for questions or to report data issues: 
+                        <a href="mailto:eric@320insight.com" style="color: #667eea; text-decoration: none;">eric@320insight.com</a>
+                </p>
+            </div>
+        </details>
         </div>
     </section>
     
-  <footer class="footer" style="padding: 1.25rem 1rem;">
-    <!-- Brand -->
-    <p style="
+  <footer class="footer" style="padding: 1.25rem 1rem; margin-bottom: 0;">
+        <!-- Brand -->
+        <p style="
       margin: 0 0 1rem 0;
       color: rgba(255,255,255,0.55);
-      font-size: 0.8rem;
-      text-align: center;
-      letter-spacing: 0.03em;
-    ">
+          font-size: 0.8rem;
+          text-align: center;
+          letter-spacing: 0.03em;
+        ">
       <strong>320 Consulting</strong> — Turning Spreadsheets into Stories
-    </p>
-  
-    <!-- Social Icons -->
-    <div style="
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
-      margin-top: 0.5rem;
-    ">
-      <!-- Email -->
-      <a href="mailto:eric@320insight.com"
-         style="display: inline-block; transition: opacity 0.3s ease;"
-         title="Email: eric@320insight.com">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+        </p>
+      
+        <!-- Social Icons -->
+        <div style="
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 20px;
+          margin-top: 0.5rem;
+        ">
+          <!-- Email -->
+          <a href="mailto:eric@320insight.com"
+             style="display: inline-block; transition: opacity 0.3s ease;"
+             title="Email: eric@320insight.com">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
           <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/>
-        </svg>
-      </a>
-      
-      <!-- SMS -->
-      <a href="sms:+19298084996"
-         style="display: inline-block; transition: opacity 0.3s ease;"
-         title="SMS: (347) 992-3569">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+            </svg>
+          </a>
+          
+          <!-- SMS -->
+          <a href="sms:+19298084996"
+             style="display: inline-block; transition: opacity 0.3s ease;"
+             title="SMS: (347) 992-3569">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
           <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/>
-        </svg>
-      </a>
-      
-      <!-- LinkedIn -->
-      <a href="https://www.linkedin.com/in/eric-goldwein/"
-         target="_blank"
-         style="display: inline-block; transition: opacity 0.3s ease;"
-         title="LinkedIn">
+            </svg>
+          </a>
+          
+          <!-- LinkedIn -->
+          <a href="https://www.linkedin.com/in/eric-goldwein/"
+             target="_blank"
+             style="display: inline-block; transition: opacity 0.3s ease;"
+             title="LinkedIn">
         <img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
-      </a>
-      
-      <!-- Substack -->
-      <a href="https://320insight.substack.com/"
-         target="_blank"
-         style="display: inline-block; transition: opacity 0.3s ease;"
-         title="The 320 Newsletter">
+          </a>
+          
+          <!-- Substack -->
+          <a href="https://320insight.substack.com/"
+             target="_blank"
+             style="display: inline-block; transition: opacity 0.3s ease;"
+             title="The 320 Newsletter">
         <img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
-      </a>
-    </div>
-  
-  </footer>
+          </a>
+        </div>
+      
+      </footer>
 
     <script>
         let currentOwner = null;
@@ -1025,7 +1053,7 @@
                 }
             });
         }
-        
+
         // Load stats on page load
         async function loadStats() {
             try {
@@ -1066,9 +1094,9 @@
             const type = searchType.value;
             const isMobile = window.innerWidth <= 768;
             if (type === 'provider') {
-                searchInput.placeholder = isMobile ? 'Enter provider name or CCN' : 'Search by provider name or CCN (e.g., Seagate Rehabilitation, 335513)...';
+                searchInput.placeholder = isMobile ? 'e.g., Seagate or 335513' : 'e.g., Seagate or 335513';
             } else {
-                searchInput.placeholder = isMobile ? 'Search by owner' : 'Enter owner name or organization (e.g., John Smith, Saber Health... )';
+                searchInput.placeholder = isMobile ? 'e.g., John Smith or Saber Health' : 'e.g., John Smith or Saber Health';
             }
         }
         
@@ -1185,10 +1213,10 @@
                 } else {
                     // For owner search, show owner info
                     return `
-                        <div class="autocomplete-item" data-index="${index}" onclick="selectAutocomplete('${escapeHtml(item.name)}')">
-                            <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
-                            <div class="autocomplete-item-details">${item.type} • ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
-                        </div>
+                <div class="autocomplete-item" data-index="${index}" onclick="selectAutocomplete('${escapeHtml(item.name)}')">
+                    <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
+                    <div class="autocomplete-item-details">${item.type} • ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
+                </div>
                     `;
                 }
             }).join('');
@@ -1213,7 +1241,7 @@
                 // For provider search, use the provider name or CCN for searching
                 searchInput.value = providerName || ccn || name;
             } else {
-                searchInput.value = name;
+            searchInput.value = name;
             }
             autocomplete.style.display = 'none';
             selectedAutocompleteIndex = -1;
@@ -1606,20 +1634,22 @@
                                     const date = formatDate(owner.date || '');
                                     const dateDisplay = date ? `since ${date}` : '';
                                     return `
-                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
-                                            <div style="flex: 1;">
-                                                <div style="color: white; font-weight: 500;">${name}</div>
-                                                ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                        <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
+                                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                                                <div style="flex: 1; min-width: 0;">
+                                                    <div style="color: white; font-weight: 500; word-break: break-word;">${name}</div>
+                                                    ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                                </div>
+                                                <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; flex-shrink: 0; margin-left: 0.5rem;">${percentage}%</div>
                                             </div>
-                                            <div style="display: flex; align-items: center; gap: 1rem;">
-                                                <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">${percentage}%</div>
+                                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                                 <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
-                                                    style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
-                                                    View Political Contributions
+                                                    style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
+                                                    Contributions
                                                 </button>
                                                 <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
-                                                    style="padding: 0.5rem 1rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
-                                                    View Other Provider(s)
+                                                    style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
+                                                    Providers
                                                 </button>
                                             </div>
                                         </div>
@@ -1633,20 +1663,22 @@
                                             const date = formatDate(owner.date || '');
                                             const dateDisplay = date ? `since ${date}` : '';
                                             return `
-                                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; margin-bottom: 0.75rem;">
-                                                    <div style="flex: 1;">
-                                                        <div style="color: white; font-weight: 500;">${name}</div>
-                                                        ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                                <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; margin-bottom: 0.75rem;">
+                                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem;">
+                                                        <div style="flex: 1; min-width: 0;">
+                                                            <div style="color: white; font-weight: 500; word-break: break-word;">${name}</div>
+                                                            ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                                        </div>
+                                                        <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; flex-shrink: 0; margin-left: 0.5rem;">${percentage}%</div>
                                                     </div>
-                                                    <div style="display: flex; align-items: center; gap: 1rem;">
-                                                        <div style="color: #667eea; font-weight: 600; font-size: 1.1rem;">${percentage}%</div>
+                                                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                                         <button onclick="queryFecApiForOwner('${name.replace(/'/g, "\\'")}', 'INDIVIDUAL')" 
-                                                            style="padding: 0.5rem 1rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
-                                                            View Political Contributions
+                                                            style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
+                                                            Contributions
                                                         </button>
                                                         <button onclick="showOwnerDetails('${name.replace(/'/g, "\\'")}')" 
-                                                            style="padding: 0.5rem 1rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.85rem; white-space: nowrap;">
-                                                            View Other Provider(s)
+                                                            style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
+                                                            Providers
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1674,7 +1706,7 @@
                                    style="padding: 0.6rem 1.2rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: background 0.3s; white-space: nowrap;"
                                    onmouseover="this.style.background='#5568d3'"
                                    onmouseout="this.style.background='#667eea'">
-                                    View PBJ Dashboard
+                                    PBJ Dashboard
                                 </a>
                             </div>
                             ${ownersListHtml}
@@ -1683,7 +1715,7 @@
                                     <a href="https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all?state=${getStateCode(state)}&measure=nursing-home-ownership#ProviderDetailsLocations" 
                                        target="_blank" 
                                        style="color: rgba(255,255,255,0.6); font-size: 0.8rem; text-decoration: none;">
-                                        View CMS Ownership Info
+                                        CMS Ownership Info
                                     </a>
                                 </div>
                             ` : ''}
@@ -1728,14 +1760,14 @@
                             class="query-fec-btn" 
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
-                            View Political Contributions
+                            Political Contributions
                         </button>
                         <button 
                             onclick="showOwnerDetails('${result.owner_name.replace(/'/g, "\\'")}')" 
                             class="back-btn" 
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
-                            View Providers
+                            Providers
                         </button>
                     </div>
                 </div>
@@ -1801,9 +1833,6 @@
                                     const rating = f.rating ? parseInt(f.rating) : null;
                                     const ratingBadge = rating ? `<span class="rating-badge rating-${rating}">${rating}★</span>` : 'N/A';
                                     
-                                    // Format HPRD
-                                    const hprd = f.avg_hprd ? parseFloat(f.avg_hprd).toFixed(2) : 'N/A';
-                                    
                                     // Format beds
                                     const beds = f.beds ? Math.round(parseFloat(f.beds)).toLocaleString() : 'N/A';
                                     
@@ -1824,15 +1853,29 @@
                                     const legalBusinessName = f.legal_business_name || f.name || 'N/A';
                                     const providerName = f.provider_name || f.name || 'N/A';
                                     
+                                    // Apply title case for display
+                                    const legalBusinessNameDisplay = legalBusinessName !== 'N/A' ? toTitleCase(legalBusinessName) : 'N/A';
+                                    const providerNameDisplay = providerName !== 'N/A' ? toTitleCase(providerName) : 'N/A';
+                                    const locationDisplay = location !== 'N/A' ? toTitleCase(location) : 'N/A';
+                                    
+                                    // Format HPRD - check if it's a valid number
+                                    let hprdDisplay = 'N/A';
+                                    if (f.avg_hprd && f.avg_hprd !== 'N/A' && f.avg_hprd !== 'None') {
+                                        const hprdVal = parseFloat(f.avg_hprd);
+                                        if (!isNaN(hprdVal) && isFinite(hprdVal)) {
+                                            hprdDisplay = hprdVal.toFixed(2);
+                                        }
+                                    }
+                                    
                                     return `
                                         <tr>
-                                            <td>${escapeHtml(legalBusinessName)}</td>
-                                            <td>${dashboardLink ? `<a href="${dashboardLink}" target="_blank" style="color: #667eea; text-decoration: none;">${escapeHtml(providerName)} <span style="font-size: 0.8em;">↗</span></a>` : escapeHtml(providerName)}${entityLink ? `<br><a href="${entityLink}" target="_blank" style="font-size: 0.8rem; color: rgba(102, 126, 234, 0.7); text-decoration: none;">Entity ${f.entity_id} ↗</a>` : ''}</td>
-                                            <td>${escapeHtml(location)}</td>
+                                            <td>${escapeHtml(legalBusinessNameDisplay)}</td>
+                                            <td title="${escapeHtml(legalBusinessName)}" style="cursor: help;">${dashboardLink ? `<a href="${dashboardLink}" target="_blank" style="color: #667eea; text-decoration: none;">${escapeHtml(providerNameDisplay)} <span style="font-size: 0.8em;">↗</span></a>` : escapeHtml(providerNameDisplay)}${entityLink ? `<br><a href="${entityLink}" target="_blank" style="font-size: 0.8rem; color: rgba(102, 126, 234, 0.7); text-decoration: none;">Entity ${f.entity_id} ↗</a>` : ''}</td>
+                                            <td>${escapeHtml(locationDisplay)}</td>
                                             <td>${ccnDisplay}</td>
                                             <td>${ratingBadge}</td>
                                             <td>${beds}</td>
-                                            <td>${hprd}</td>
+                                            <td>${hprdDisplay}</td>
                                         </tr>
                                     `;
                                 }).join('')}
@@ -1857,7 +1900,7 @@
                         <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
                             <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">No contributions found in database.</p>
                             <button onclick="queryFecApi()" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
-                             View Political Contributions
+                             Political Contributions
                             </button>
                         </div>
                     `;
@@ -1942,7 +1985,7 @@
                         </div>
                     </div>
                     <a href="${csvUrl}" download="donations.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
-                        Export donation CSV
+                        Export CSV
                     </a>
                 </div>
                 
@@ -1989,6 +2032,11 @@
                             </div>
                         </div>
                     `).join('')}
+                </div>
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
+                        Source: <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                    </p>
                 </div>
             `;
         }
@@ -2092,7 +2140,7 @@
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
                     ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.5rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.2rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: 0; right: 0;' : ''}">${isMobile ? '✕' : '✕ Close'}</button>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: -0.5rem; right: -0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕ Close'}</button>
                     ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -2106,7 +2154,7 @@
                         </div>
                     </div>
                     <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
-                        📥 Export CSV
+                        Export CSV
                     </a>
                 </div>
                 
@@ -2153,7 +2201,12 @@
                             </div>
                         </div>
                     `).join('')}
-                    ${donations.length > 20 ? `<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">... and ${donations.length - 20} more donations. <button onclick="showOwnerDetails('${escapeHtml(ownerName).replace(/'/g, "\\'")}')" style="background: none; border: none; color: #667eea; cursor: pointer; text-decoration: underline; font-size: 0.85rem; padding: 0;">View all in details</button></p>` : ''}
+                    ${donations.length > 20 ? `<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">... and ${donations.length - 20} more contributions. <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: underline; font-size: 0.85rem; cursor: pointer;">Export CSV</a></p>` : ''}
+                </div>
+                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
+                    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
+                        Source: <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                    </p>
                 </div>
             `;
         }

@@ -1481,6 +1481,7 @@ def get_owner_details(owner_name):
                     'amount': amount,
                     'date': date_str,
                     'committee': committee_display,
+                    'committee_id': d.get('committee_id', ''),
                     'candidate': d.get('candidate_name', ''),
                     'office': d.get('candidate_office', ''),
                     'party': d.get('candidate_party', ''),
@@ -1640,6 +1641,7 @@ def query_fec():
                     'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
                     'date': date_str,
                     'committee': committee_display,
+                    'committee_id': norm.get('committee_id', '') or '',
                     'candidate': norm.get('candidate_name', '') or '',
                     'office': norm.get('candidate_office', '') or '',
                     'party': norm.get('candidate_party', '') or '',
@@ -1823,6 +1825,7 @@ def get_entity_owners(entity_id):
                         'amount': amount,
                         'date': d.get('donation_date', ''),
                         'committee': committee_display,
+                        'committee_id': d.get('committee_id', ''),
                         'candidate': d.get('candidate_name', ''),
                         'office': d.get('candidate_office', ''),
                         'party': d.get('candidate_party', ''),
@@ -1867,19 +1870,26 @@ def get_entity_owners(entity_id):
         # Sort combined donations by date (most recent first)
         combined_donations.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
         
-        # Group donations by recipient for summary
+        # Group donations by recipient for summary; keep one committee_id per committee name for links
         by_committee = {}
         by_candidate = {}
         for donation in combined_donations:
             if donation.get('committee'):
                 committee = donation['committee']
-                by_committee[committee] = by_committee.get(committee, 0) + donation['amount']
+                prev = by_committee.get(committee, {'total': 0, 'committee_id': ''})
+                by_committee[committee] = {
+                    'total': prev['total'] + donation['amount'],
+                    'committee_id': prev['committee_id'] or donation.get('committee_id', ''),
+                }
             if donation.get('candidate'):
                 candidate_key = f"{donation['candidate']} ({donation.get('office', 'Unknown')})"
                 by_candidate[candidate_key] = by_candidate.get(candidate_key, 0) + donation['amount']
         
-        # Sort recipients by total amount
-        top_committees = sorted(by_committee.items(), key=lambda x: x[1], reverse=True)
+        top_committees = sorted(
+            [{'name': n, 'total': v['total'], 'committee_id': v['committee_id']} for n, v in by_committee.items()],
+            key=lambda x: x['total'],
+            reverse=True,
+        )
         top_candidates = sorted(by_candidate.items(), key=lambda x: x[1], reverse=True)
         
         return jsonify({
@@ -1891,7 +1901,7 @@ def get_entity_owners(entity_id):
             'donation_count': total_donation_count,
             'owner_count': len(owners_with_donations),
             'combined_donations': combined_donations,
-            'top_committees': [{'name': name, 'total': total} for name, total in top_committees],
+            'top_committees': top_committees,
             'top_candidates': [{'name': name, 'total': total} for name, total in top_candidates]
         })
     

@@ -1051,6 +1051,15 @@
             }
         }
 
+        // Format individual contribution amount: on mobile round to nearest dollar; desktop show 2 decimals
+        function formatContributionAmount(amount) {
+            const n = Number(amount);
+            if (isNaN(n)) return '$0';
+            const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+            if (isMobile) return '$' + Math.round(n).toLocaleString();
+            return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         // Mobile menu toggle
         const navToggle = document.getElementById('navToggle');
         const navMenu = document.getElementById('navMenu');
@@ -1405,7 +1414,7 @@
                                          onclick="filterByRecipient('${escapeHtml(committee.name).replace(/'/g, "\\'")}')"
                                          onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'"
                                          onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
-                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${escapeHtml(committee.name)}</div>
+                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${committee.committee_id ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.committee_id)}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(committee.name)}</a>` : escapeHtml(committee.name)}</div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">$${committee.total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
                                     </div>
                                 `).join('')}
@@ -1515,7 +1524,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
                                     <div style="flex: 1;">
                                         <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                            $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                            ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                             ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -1997,6 +2006,8 @@
             
             const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
             const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const committeeIds = {};
+            donations.forEach(d => { if (d.committee && d.committee_id && !committeeIds[d.committee]) committeeIds[d.committee] = d.committee_id; });
             
             // Group by year for breakdown
             const byYear = {};
@@ -2020,7 +2031,7 @@
                 return `<strong style="font-weight: 600; color: rgba(255,255,255,0.9);">${year}</strong>: ${amountStr}`;
             }).join('; ');
             
-            // Prepare CSV data
+            // Prepare CSV data (include FEC link)
             const csvData = donations.map(d => ({
                 date: d.date || '',
                 amount: d.amount || 0,
@@ -2030,11 +2041,12 @@
                 party: d.party || '',
                 employer: d.employer || '',
                 occupation: d.occupation || '',
-                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : ''
+                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : '',
+                fec_link: d.fec_link || ''
             }));
             
             const csvContent = [
-                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location'],
+                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location', 'FEC Link'],
                 ...csvData.map(d => [
                     d.date,
                     d.amount,
@@ -2044,7 +2056,8 @@
                     d.party,
                     d.employer,
                     d.occupation,
-                    d.location
+                    d.location,
+                    d.fec_link
                 ])
             ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
             
@@ -2077,7 +2090,7 @@
                                 <strong>Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2102,7 +2115,7 @@
                     ${donations.map(d => `
                         <div class="donation-card-grid">
                             <div style="font-size: 1.2rem; font-weight: 600; color: #667eea; margin-bottom: 0.5rem;">
-                                $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                ${formatContributionAmount(d.amount)}
                             </div>
                             <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.6;">
                                 ${d.date ? `<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>` : ''}
@@ -2218,6 +2231,8 @@
             
             const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
             const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const committeeIds = {};
+            donations.forEach(d => { if (d.committee && d.committee_id && !committeeIds[d.committee]) committeeIds[d.committee] = d.committee_id; });
             
             // Group by year for breakdown
             const byYear = {};
@@ -2241,7 +2256,7 @@
                 return `<strong style="font-weight: 600; color: rgba(255,255,255,0.9);">${year}</strong>: ${amountStr}`;
             }).join('; ');
             
-            // Prepare CSV data
+            // Prepare CSV data (include FEC link)
             const csvData = donations.map(d => ({
                 date: d.date || '',
                 amount: d.amount || 0,
@@ -2251,11 +2266,12 @@
                 party: d.party || '',
                 employer: d.employer || '',
                 occupation: d.occupation || '',
-                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : ''
+                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : '',
+                fec_link: d.fec_link || ''
             }));
             
             const csvContent = [
-                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location'],
+                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location', 'FEC Link'],
                 ...csvData.map(d => [
                     d.date,
                     d.amount,
@@ -2265,13 +2281,15 @@
                     d.party,
                     d.employer,
                     d.occupation,
-                    d.location
+                    d.location,
+                    d.fec_link
                 ])
             ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
             
             const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
             const csvUrl = URL.createObjectURL(csvBlob);
-            
+            window.currentDonationsPageData = { donations, ownerName, csvUrl };
+            window.currentDonationsPage = 1;
             const isMobile = window.innerWidth <= 768;
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
@@ -2304,7 +2322,7 @@
                                 <strong style="font-size: 0.9rem;">Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.4rem; font-size: 0.85rem;">
-                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2323,12 +2341,12 @@
                 ` : ''}
                 
                 <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">All Contributions (${donationCount})</h4>
-                <div style="max-height: 400px; overflow-y: auto;">
+                <div id="donationsListContainer" style="max-height: 400px; overflow-y: auto;">
                     ${donations.slice(0, 20).map(d => `
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-left: 0.25rem;">View on FEC</a>` : ''}
+                                    ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                     ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
@@ -2340,7 +2358,14 @@
                             </div>
                         </div>
                     `).join('')}
-                    ${donations.length > 20 ? `<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">... and ${donations.length - 20} more contributions. <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: underline; font-size: 0.85rem; cursor: pointer;">Export CSV</a></p>` : ''}
+                </div>
+                <div id="donationsPagination" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
+                    ${donations.length > 20 ? `
+                        <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">Page <span id="donationsPageNum">1</span> of <span id="donationsTotalPages">${Math.ceil(donations.length / 20)}</span></span>
+                        <button type="button" id="donationsPrevBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage - 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;" disabled>Prev</button>
+                        <button type="button" id="donationsNextBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage + 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">Next</button>
+                    ` : ''}
+                    <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: underline; font-size: 0.85rem; margin-left: auto;">Export CSV</a>
                 </div>
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
@@ -2349,6 +2374,44 @@
                 </div>
             `;
         }
+        
+        window.showDonationsPage = function(page) {
+            const data = window.currentDonationsPageData;
+            if (!data || !data.donations) return;
+            const PER_PAGE = 20;
+            const totalPages = Math.max(1, Math.ceil(data.donations.length / PER_PAGE));
+            page = Math.max(1, Math.min(page, totalPages));
+            window.currentDonationsPage = page;
+            const start = (page - 1) * PER_PAGE;
+            const pageDonations = data.donations.slice(start, start + PER_PAGE);
+            const container = document.getElementById('donationsListContainer');
+            if (container) {
+                container.innerHTML = pageDonations.map(d => `
+                    <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
+                                ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.35); color: rgba(255,255,255,0.85); font-size: 0.7rem; text-decoration: none; margin-left: 0.35rem;">Source</a>` : ''}
+                            </div>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                                ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
+                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
+                                ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
+                                ${d.office ? ` (${d.office})` : ''}
+                                ${d.party ? ` - ${d.party}` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            const pageNumEl = document.getElementById('donationsPageNum');
+            const totalPagesEl = document.getElementById('donationsTotalPages');
+            const prevBtn = document.getElementById('donationsPrevBtn');
+            const nextBtn = document.getElementById('donationsNextBtn');
+            if (pageNumEl) pageNumEl.textContent = page;
+            if (totalPagesEl) totalPagesEl.textContent = totalPages;
+            if (prevBtn) prevBtn.disabled = page <= 1;
+            if (nextBtn) nextBtn.disabled = page >= totalPages;
+        };
         
         // Query FEC API (from owner details page)
         async function queryFecApi() {

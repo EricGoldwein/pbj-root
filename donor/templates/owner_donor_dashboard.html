@@ -157,6 +157,9 @@
             padding: 30px;
             margin-bottom: 30px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .search-box {
@@ -164,6 +167,21 @@
             gap: 15px;
             margin-bottom: 20px;
             position: relative;
+            flex-wrap: wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .search-box {
+                flex-direction: column;
+            }
+            
+            .search-input-wrapper {
+                width: 100%;
+            }
+            
+            .search-btn {
+                width: 100%;
+            }
         }
 
         .search-input-wrapper {
@@ -521,6 +539,18 @@
             border-collapse: collapse;
             margin-top: 1rem;
             background: rgba(255,255,255,0.03);
+        }
+        
+        @media (max-width: 768px) {
+            .facilities-table {
+                font-size: 0.85rem;
+            }
+            
+            .facilities-table th,
+            .facilities-table td {
+                padding: 0.5rem 0.4rem;
+            }
+        }
             border-radius: 8px;
             overflow: hidden;
         }
@@ -788,7 +818,7 @@
                 <button id="searchBtn" class="search-btn" onclick="performSearch()">Search</button>
             </div>
             <div class="suggestions">
-                <strong>Search tips:</strong> Search by owner name or organization to find donations. Select "Search by Provider" to find donations from a specific nursing home.
+                <strong>Search tips:</strong> Search by owner name, organization, or provider name/CCN.
             </div>
         </div>
 
@@ -801,6 +831,7 @@
             <div class="details-header">
                 <h2 id="ownerTitle"></h2>
                 <button class="back-btn" onclick="showSearchResults()">← Back to Results</button>
+                <button class="back-btn-arrow" onclick="showSearchResults()" title="Back to Results">←</button>
             </div>
             <div id="donationsContainer"></div>
             <div id="facilitiesContainer"></div>
@@ -810,15 +841,19 @@
     <!-- Methodology and Data Sources Section -->
     <section id="methodology" style="max-width: 1200px; margin: 3rem auto 0; padding: 2rem; background: rgba(26, 31, 46, 0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
         <div style="color: rgba(255,255,255,0.85); line-height: 1.7;">
+            <h3 style="color: white; font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; padding: 0.75rem 0; text-align: center;">
+                Sources and Methodology
+            </h3>
             <p style="margin-bottom: 1rem;">
                 This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political donations of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
             </p>
             
-            <details style="margin-top: 1.5rem;">
-                <summary style="cursor: pointer; font-size: 1.1rem; font-weight: 600; color: white; margin-bottom: 0.75rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
-                    <span>Sources and Methodology</span>
+            <details>
+                <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-top: 1rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
+                    <span>View Details</span>
                     <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
                 </summary>
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching Methodology</h3>
                     <p style="margin-bottom: 1rem;">
@@ -986,7 +1021,7 @@
         // Load stats on page load
         async function loadStats() {
             try {
-                const response = await fetch('/owner/api/stats');
+                const response = await fetch('/owners/api/stats');
                 const stats = await response.json();
                 
                 // Show setup warning if database is incomplete
@@ -1067,7 +1102,7 @@
 
             autocompleteTimeout = setTimeout(async () => {
                 try {
-                    const response = await fetch(`/owner/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`);
+                    const response = await fetch(`/owners/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`);
                     const data = await response.json();
                     
                     if (data.suggestions && data.suggestions.length > 0) {
@@ -1195,7 +1230,7 @@
                 if (entityIdMatch && type !== 'provider') {
                     // Search by entity ID (only for non-provider searches)
                     const entityId = entityIdMatch[1];
-                    const response = await fetch(`/owner/api/entity/${entityId}`);
+                    const response = await fetch(`/owners/api/entity/${entityId}`);
                     const data = await response.json();
                     
                     if (data.error) {
@@ -1213,7 +1248,7 @@
                         return;
                     }
                     
-                    const response = await fetch(`/owner/api/search?q=${encodeURIComponent(query)}&type=${type}`);
+                    const response = await fetch(`/owners/api/search?q=${encodeURIComponent(query)}&type=${type}`);
                     const data = await response.json();
                     
                     if (data.error) {
@@ -1618,7 +1653,7 @@
         // Show owner details
         async function showOwnerDetails(ownerName) {
             try {
-                const response = await fetch(`/owner/api/owner/${encodeURIComponent(ownerName)}`);
+                const response = await fetch(`/owners/api/owner/${encodeURIComponent(ownerName)}`);
                 const owner = await response.json();
                 
                 if (owner.error) {
@@ -1880,7 +1915,7 @@
             container.insertBefore(donationsDiv, container.firstChild);
             
             try {
-                const response = await fetch('/owner/api/query-fec', {
+                const response = await fetch('/owners/api/query-fec', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2049,7 +2084,7 @@
             container.innerHTML = '<div class="loading">Querying FEC API... This may take a moment.</div>';
             
             try {
-                const response = await fetch('/owner/api/query-fec', {
+                const response = await fetch('/owners/api/query-fec', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({

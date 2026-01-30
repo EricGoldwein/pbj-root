@@ -1319,12 +1319,30 @@ def query_fec():
     Called on-demand when user clicks "Query FEC API (Live)" button.
     NOT called during initial load or when viewing owner details.
     """
-    data = request.json
-    owner_name = data.get('owner_name', '').strip()
-    owner_type = data.get('owner_type', 'ORGANIZATION')
-    
-    if not owner_name:
-        return jsonify({'error': 'Owner name required'}), 400
+    try:
+        # Handle both direct requests and proxied requests
+        if request.is_json:
+            data = request.json
+        else:
+            # Try to parse JSON from raw data
+            try:
+                data = json.loads(request.get_data(as_text=True))
+            except:
+                return jsonify({'error': 'Invalid JSON in request body'}), 400
+        
+        if not data:
+            return jsonify({'error': 'Request body required'}), 400
+            
+        owner_name = data.get('owner_name', '').strip()
+        owner_type = data.get('owner_type', 'ORGANIZATION')
+        
+        if not owner_name:
+            return jsonify({'error': 'Owner name required'}), 400
+    except Exception as e:
+        print(f"Error parsing request in query_fec: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error parsing request: {str(e)}'}), 400
     
     try:
         all_donations = []

@@ -204,13 +204,33 @@ try:
     @app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
     def owner_api_proxy(api_path):
         """Direct proxy for owner API routes"""
-        with owner_app.test_request_context(f'/api/{api_path}',
-                                             method=request.method,
-                                             query_string=request.query_string.decode(),
-                                             data=request.get_data(),
-                                             content_type=request.content_type,
-                                             headers=list(request.headers)):
-            return owner_app.full_dispatch_request()
+        try:
+            # Get request data properly for POST/PUT requests
+            request_data = None
+            if request.method in ['POST', 'PUT']:
+                if request.is_json:
+                    request_data = request.get_json()
+                else:
+                    request_data = request.get_data()
+            
+            # Build headers dict (exclude Host header which can cause issues)
+            headers = {k: v for k, v in request.headers if k.lower() != 'host'}
+            
+            with owner_app.test_request_context(
+                f'/api/{api_path}',
+                method=request.method,
+                query_string=request.query_string.decode() if request.query_string else '',
+                json=request_data if request.is_json and request_data else None,
+                data=request_data if not request.is_json and request_data else None,
+                content_type=request.content_type,
+                headers=headers
+            ):
+                return owner_app.full_dispatch_request()
+        except Exception as e:
+            print(f"Error in owner_api_proxy for {api_path}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Proxy error: {str(e)}'}), 500
     
     print("✓ Owner donor dashboard mounted at /owners (aliases: /owner, /ownership)")
 except Exception as e:

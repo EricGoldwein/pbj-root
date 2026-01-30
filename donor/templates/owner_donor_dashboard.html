@@ -814,12 +814,13 @@
                 This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political donations of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
             </p>
             
-            <details open style="margin-top: 1.5rem;">
-                <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-bottom: 0.75rem; padding: 0.5rem 0; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
-                    <span>Matching Methodology</span>
+            <details style="margin-top: 1.5rem;">
+                <summary style="cursor: pointer; font-size: 1.1rem; font-weight: 600; color: white; margin-bottom: 0.75rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
+                    <span>Sources and Methodology</span>
                     <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
                 </summary>
-                <div style="margin-top: 0.75rem; padding-left: 1rem;">
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching Methodology</h3>
                     <p style="margin-bottom: 1rem;">
                         Facility names from the CMS ownership dataset are matched to provider information using the following process:
                     </p>
@@ -829,53 +830,52 @@
                         <li style="margin-bottom: 0.5rem;"><strong>Fuzzy Match:</strong> Matching after removing punctuation (commas, periods, hyphens) and normalizing spacing</li>
                         <li style="margin-bottom: 0.5rem;"><strong>Prefix Match:</strong> For longer names, matching the first 15 characters</li>
                     </ol>
-                    <p style="margin-bottom: 1rem;">
+                    <p style="margin-bottom: 1.5rem;">
                         Political donations are matched to owners by name using the FEC API's search functionality, which handles name variations and common aliases.
+                    </p>
+                    
+                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
+                    <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
+                        <li style="margin-bottom: 0.5rem;">
+                            <strong>CMS Ownership Data:</strong> 
+                            <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
+                            — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
+                        </li>
+                        <li style="margin-bottom: 0.5rem;">
+                            <strong>CMS Provider Information:</strong> 
+                            <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
+                            — Contains facility details including ratings, staffing levels, and operational information.
+                        </li>
+                        <li style="margin-bottom: 0.5rem;">
+                            <strong>FEC API:</strong> 
+                            <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
+                            — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
+                        </li>
+                    </ul>
+                    
+                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
+                    <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                        <p style="margin-bottom: 0.75rem; font-weight: 500;">
+                            <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
+                        </p>
+                        <p style="margin-bottom: 0.75rem;">
+                            <strong>Name Matching Limitations:</strong> Political donation matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
+                        </p>
+                        <p style="margin-bottom: 0.75rem;">
+                            <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
+                        </p>
+                        <p>
+                            <strong>Public Information:</strong> All data presented here is publicly available from federal government sources. This tool aggregates and presents this information for transparency and research purposes.
+                        </p>
+                    </div>
+                    
+                    <p style="margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); text-align: center;">
+                        Contact for questions or to report data issues: 
+                        <a href="mailto:eric@320insight.com" style="color: #667eea; text-decoration: none;">eric@320insight.com</a>
                     </p>
                 </div>
             </details>
-            
-            <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
-                <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
-                    <li style="margin-bottom: 0.5rem;">
-                        <strong>CMS Ownership Data:</strong> 
-                        <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
-                        — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
-                    </li>
-                    <li style="margin-bottom: 0.5rem;">
-                        <strong>CMS Provider Information:</strong> 
-                        <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
-                        — Contains facility details including ratings, staffing levels, and operational information.
-                    </li>
-                    <li style="margin-bottom: 0.5rem;">
-                        <strong>FEC API:</strong> 
-                        <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
-                        — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
-                    </li>
-                </ul>
-            
-            <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
-                <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
-                    <p style="margin-bottom: 0.75rem; font-weight: 500;">
-                        <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
-                    </p>
-                    <p style="margin-bottom: 0.75rem;">
-                        <strong>Name Matching Limitations:</strong> Political donation matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
-                    </p>
-                    <p style="margin-bottom: 0.75rem;">
-                        <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
-                    </p>
-                    <p>
-                        <strong>Public Information:</strong> All data presented here is publicly available from federal government sources. This tool aggregates and presents this information for transparency and research purposes.
-                    </p>
-                </div>
-                
-                <p style="margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); text-align: center;">
-                    Contact for questions or to report data issues: 
-                    <a href="mailto:eric@320insight.com" style="color: #667eea; text-decoration: none;">eric@320insight.com</a>
-                </p>
-            </div>
-        </details>
+        </div>
     </section>
     
   <footer class="footer" style="padding: 1.25rem 1rem;">

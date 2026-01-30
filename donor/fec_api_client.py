@@ -178,6 +178,17 @@ def query_donations_by_name(
             if not results:
                 break
             
+            # Debug: Check for corrupted dates in FEC API response
+            for r in results[:3]:  # Check first 3 results
+                date_val = r.get("contribution_receipt_date", "")
+                if date_val:
+                    import re
+                    year_match = re.match(r'^(\d{4})-', str(date_val))
+                    if year_match:
+                        year = int(year_match.group(1))
+                        if 2030 <= year <= 2040:
+                            print(f"[WARNING] FEC API returned suspicious date: {date_val} (year: {year})")
+            
             all_results.extend(results)
             
             # Check if there are more pages
@@ -277,6 +288,24 @@ def query_donations_by_committee(
     return all_results
 
 
+def _build_docquery_url(committee_id: str, sub_id: Any) -> str:
+    """
+    Build FEC docquery URL for a Schedule A contribution.
+    URL format: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
+    If no sub_id, fall back to FEC receipts search for the committee.
+    """
+    committee_id = str(committee_id).strip() if committee_id else ""
+    if not committee_id:
+        return ""
+    if sub_id:
+        sub_id_str = str(sub_id).strip()
+        if sub_id_str.upper().startswith("FEC-"):
+            sub_id_str = sub_id_str[4:].strip()
+        if sub_id_str:
+            return f"https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{sub_id_str}/sa/ALL"
+    return f"https://www.fec.gov/data/receipts/?committee_id={committee_id}"
+
+
 def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     """
     Normalize a raw FEC API response record into a standardized format.
@@ -294,7 +323,7 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
             "employer": "", "occupation": "", "donation_amount": 0, "donation_date": "",
             "committee_id": "", "committee_name": "", "committee_type": "",
             "candidate_id": "", "candidate_name": "", "candidate_office": "", "candidate_party": "",
-            "fec_record_id": "", "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
+            "fec_record_id": "", "fec_docquery_url": "", "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
         }
     
     # Safely get nested objects (committee and candidate can be None)
@@ -307,6 +336,10 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(candidate, dict):
         candidate = {}
     
+    # Committee ID: API can return in committee object or at top level; sub_id or image_number
+    committee_id = (committee.get("committee_id", "") or record.get("committee_id", "")) if isinstance(committee, dict) else (record.get("committee_id", "") or "")
+    sub_id = record.get("sub_id") or record.get("image_number") or ""
+    
     return {
         "donor_name": record.get("contributor_name", ""),
         "donor_type": record.get("contributor_type", ""),
@@ -317,14 +350,15 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "occupation": record.get("contributor_occupation", ""),
         "donation_amount": record.get("contribution_receipt_amount", 0),
         "donation_date": record.get("contribution_receipt_date", ""),
-        "committee_id": committee.get("committee_id", "") if isinstance(committee, dict) else "",
+        "committee_id": committee_id,
         "committee_name": committee.get("name", "") if isinstance(committee, dict) else "",
         "committee_type": committee.get("committee_type", "") if isinstance(committee, dict) else "",
         "candidate_id": candidate.get("candidate_id", "") if isinstance(candidate, dict) else "",
         "candidate_name": candidate.get("name", "") if isinstance(candidate, dict) else "",
         "candidate_office": candidate.get("office", "") if isinstance(candidate, dict) else "",
         "candidate_party": candidate.get("party", "") if isinstance(candidate, dict) else "",
-        "fec_record_id": record.get("sub_id", ""),
+        "fec_record_id": sub_id or record.get("sub_id", ""),
+        "fec_docquery_url": _build_docquery_url(committee_id, sub_id),
         "memo_code": record.get("memo_code", ""),
         "memo_text": record.get("memo_text", ""),
         "receipt_type": record.get("receipt_type", ""),

@@ -103,6 +103,10 @@ def normalize_name_for_search(name):
         first = parts[0]
         last = parts[-1]
         
+        # Add first word alone if it's substantial (3+ chars, not common suffixes)
+        if len(first) >= 3 and first not in ['THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD']:
+            variations.append(first)
+        
         # Add nickname variations
         if first in NAME_VARIATIONS:
             for nickname in NAME_VARIATIONS[first]:
@@ -111,8 +115,9 @@ def normalize_name_for_search(name):
                     # Handle middle names/initials
                     variations.append(f"{nickname} {parts[1]} {last}")
         
-        # Add last name only
-        variations.append(last)
+        # Add last name only (if substantial)
+        if len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
+            variations.append(last)
         
         # Add "First Last" (without middle)
         if len(parts) > 2:
@@ -1300,9 +1305,25 @@ def get_owner_details(owner_name):
                         amount = 0.0
                 except (ValueError, TypeError):
                     amount = 0.0
+                # Fix corrupted dates (2033, 2034, 2035 etc. - likely Excel corruption)
+                date_str = str(d.get('donation_date', '')).strip()
+                if date_str:
+                    # Check if year is in the future (likely corrupted)
+                    import re
+                    year_match = re.match(r'^(\d{4})-', date_str)
+                    if year_match:
+                        year = int(year_match.group(1))
+                        # If year is 2030-2040, it's likely corrupted (subtract 10 years)
+                        # This fixes Excel's common date corruption issue
+                        if 2030 <= year <= 2040:
+                            # Try to fix by subtracting 10 years (common Excel corruption)
+                            fixed_year = year - 10
+                            date_str = date_str.replace(f'{year}-', f'{fixed_year}-', 1)
+                            print(f"[FIXED] Corrected date from {year_match.group(0)} to {fixed_year}-{date_str.split('-', 1)[1] if '-' in date_str else ''}")
+                
                 donations.append({
                     'amount': amount,
-                    'date': d.get('donation_date', ''),
+                    'date': date_str,
                     'committee': d.get('committee_name', ''),
                     'candidate': d.get('candidate_name', ''),
                     'office': d.get('candidate_office', ''),
@@ -1434,9 +1455,23 @@ def query_fec():
                 norm = normalize_fec_donation(donation)
                 if not norm or not isinstance(norm, dict):
                     continue  # Skip if normalization failed
+                # Get and validate date
+                date_str = str(norm.get('donation_date', '') or '').strip()
+                # Check for corrupted dates (2030-2040 range - likely should be 2020-2030)
+                if date_str:
+                    import re
+                    year_match = re.match(r'^(\d{4})-', date_str)
+                    if year_match:
+                        year = int(year_match.group(1))
+                        # If year is 2030-2040, it's likely corrupted (subtract 10 years)
+                        if 2030 <= year <= 2040:
+                            fixed_year = year - 10
+                            date_str = date_str.replace(f'{year}-', f'{fixed_year}-', 1)
+                            print(f"[FIXED DATE] Corrected {year_match.group(0)} to {fixed_year}-{date_str.split('-', 1)[1] if '-' in date_str else ''} for {owner_name}")
+                
                 normalized.append({
                     'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
-                    'date': norm.get('donation_date', '') or '',
+                    'date': date_str,
                     'committee': norm.get('committee_name', '') or '',
                     'candidate': norm.get('candidate_name', '') or '',
                     'office': norm.get('candidate_office', '') or '',

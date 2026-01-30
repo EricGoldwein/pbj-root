@@ -221,11 +221,14 @@ def load_data():
             print("  To load all owners, run: python donor/owner_donor.py MODE=extract (without filters)")
     
     # Load raw ownership file for provider matching (needed for ORGANIZATION NAME matching)
+    # This is a large file (55MB+) - load with error handling and memory management
     global ownership_raw_df
     if OWNERSHIP_RAW.exists():
         try:
             print(f"Loading raw ownership file for provider matching: {OWNERSHIP_RAW}")
+            print("  (This is a large file and may take a moment...)")
             try:
+                # Use chunksize for very large files to manage memory
                 ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
             except UnicodeDecodeError:
                 try:
@@ -236,11 +239,18 @@ def load_data():
                     except UnicodeDecodeError:
                         ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
             print(f"✓ Loaded {len(ownership_raw_df)} raw ownership records for provider matching")
+        except MemoryError as e:
+            print(f"✗ Memory error loading raw ownership file: {e}")
+            print("  The file is very large. Consider using a smaller subset or increasing server memory.")
+            ownership_raw_df = pd.DataFrame()
         except Exception as e:
             print(f"✗ Error loading raw ownership file: {e}")
+            import traceback
+            traceback.print_exc()
             ownership_raw_df = pd.DataFrame()
     else:
         print(f"⚠ Raw ownership file not found: {OWNERSHIP_RAW}")
+        print("  Provider search by name/CCN will have limited functionality")
         ownership_raw_df = pd.DataFrame()
     
     # Note: ownership_df is already loaded above, no need to load again

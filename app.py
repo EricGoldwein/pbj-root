@@ -132,11 +132,20 @@ try:
     from owner_donor_dashboard import app as owner_app, load_data as load_owner_data  # type: ignore
     
     # Load owner dashboard data on startup
+    # Wrap in try-except to prevent startup failure if data loading has issues
     try:
+        print("Loading owner dashboard data (this may take a moment for large files)...")
         load_owner_data()
         print("✓ Owner donor dashboard data loaded")
+    except MemoryError as e:
+        print(f"⚠ Memory warning: Could not load all owner dashboard data: {e}")
+        print("  The app will still work but some features may be limited.")
+        print("  Consider using smaller data files or increasing server memory.")
     except Exception as e:
         print(f"⚠ Warning: Could not load owner dashboard data: {e}")
+        import traceback
+        traceback.print_exc()
+        print("  The app will still start but owner dashboard features may not work.")
     
     # Register owner app routes with /owner prefix using blueprint approach
     from flask import Blueprint

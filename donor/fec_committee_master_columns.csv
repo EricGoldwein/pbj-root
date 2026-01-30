@@ -1,0 +1,16 @@
+Column name,Field name,Position,Null,Data type,Description,Example data
+CMTE_ID,Committee identification,1,N,VARCHAR2(9),A 9-character alpha-numeric code assigned to each committee by the FEC. Committee IDs are unique.,C00100005
+CMTE_NM,Committee name,2,Y,VARCHAR2(200),,Martha Washington for Congress
+TRES_NM,Treasurer's name,3,Y,VARCHAR2(90),The officially registered treasurer for the committee.,Alexander Hamilton
+CMTE_ST1,Street one,4,Y,VARCHAR2(34),,1001 George Washington Hwy
+CMTE_ST2,Street two,5,Y,VARCHAR2(34),,Suite 203
+CMTE_CITY,City or town,6,Y,VARCHAR2(30),,Alexandria
+CMTE_ST,State,7,Y,VARCHAR2(2),,VA
+CMTE_ZIP,ZIP code,8,Y,VARCHAR2(9),,22201
+CMTE_DSGN,Committee designation,9,Y,VARCHAR2(1),A=Authorized by candidate B=Lobbyist/Registrant PAC D=Leadership PAC J=Joint fundraiser P=Principal campaign committee U=Unauthorized,A
+CMTE_TP,Committee type,10,Y,VARCHAR2(1),Committee type codes (H/S/P etc.),H
+CMTE_PTY_AFFILIATION,Committee party,11,Y,VARCHAR2(3),Party codes,NON
+CMTE_FILING_FREQ,Filing frequency,12,Y,VARCHAR2(1),A=Administratively terminated D=Debt M=Monthly Q=Quarterly T=Terminated W=Waived,Q
+ORG_TP,Interest group category,13,Y,VARCHAR2(1),C=Corporation L=Labor M=Membership T=Trade association V=Cooperative W=Corp without capital stock H=Host I=Inaugural,C
+CONNECTED_ORG_NM,Connected organization's name,14,Y,VARCHAR2(200),,Widgets Incorporated
+CAND_ID,Candidate identification,15,Y,VARCHAR2(9),When committee type is H S or P the candidate ID is in this field.,H1VA01225

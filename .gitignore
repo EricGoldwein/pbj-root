@@ -33,6 +33,9 @@ macpac_state_standards_clean.csv
 NH_ProviderInfo_*.csv
 !provider_info/NH_ProviderInfo_Dec2025.csv
 
+# FEC committee master CSVs: committed and used by donor dashboard (do not ignore)
+!donor/data/fec_committee_master/*.csv
+
 # Node modules
 node_modules/
 pbj-wrapped/node_modules/

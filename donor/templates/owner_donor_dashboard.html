@@ -150,6 +150,8 @@
         }
 
         .search-section {
+            position: relative;
+            z-index: 2;
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -223,7 +225,7 @@
             margin-top: 5px;
             max-height: 300px;
             overflow-y: auto;
-            z-index: 10001;
+            z-index: 99999;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
             display: none;
         }
@@ -332,10 +334,8 @@
             z-index: 1;
         }
         
-        /* Ensure autocomplete appears above results section */
         .search-input-wrapper {
             position: relative;
-            z-index: 10002;
         }
 
         .results-count {
@@ -890,7 +890,6 @@
                     <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
             </summary>
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching Methodology</h3>
                 <p style="margin-bottom: 1rem;">
                         Facility names from the CMS ownership dataset are matched to provider information using the following process:
@@ -927,7 +926,7 @@
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
                 <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <p style="margin-bottom: 0.75rem; font-weight: 500;">
-                        <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
+                        <strong>Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
                     </p>
                     <p style="margin-bottom: 0.75rem;">
                             <strong>Name Matching Limitations:</strong> Political contribution matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
@@ -1018,6 +1017,40 @@
             return div.innerHTML;
         }
 
+        // Format donation date (handles YYYY-MM-DD format and validates dates)
+        function formatDonationDate(dateStr) {
+            if (!dateStr || dateStr === 'nan' || dateStr === '' || dateStr === 'None') return 'N/A';
+            try {
+                // Handle YYYY-MM-DD format directly
+                const dateMatch = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
+                if (dateMatch) {
+                    const year = parseInt(dateMatch[1]);
+                    const month = dateMatch[2];
+                    const day = dateMatch[3];
+                    // Validate year is reasonable (1900-2100)
+                    if (year >= 1900 && year <= 2100) {
+                        return `${month}/${day}/${year}`;
+                    } else {
+                        // Invalid year - return as-is with warning
+                        console.warn('Invalid date year:', dateStr);
+                        return dateStr;
+                    }
+                }
+                // Fallback: try to parse as date
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return dateStr;
+                const year = date.getFullYear();
+                // Validate year
+                if (year >= 1900 && year <= 2100) {
+                    return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                } else {
+                    return dateStr;
+                }
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
         // Mobile menu toggle
         const navToggle = document.getElementById('navToggle');
         const navMenu = document.getElementById('navMenu');
@@ -1037,21 +1070,10 @@
             });
         }
         
-        // Auto-expand methodology on desktop
+        // Keep methodology collapsed by default (both mobile and desktop)
         const methodologyDetails = document.querySelector('#methodology details');
         if (methodologyDetails) {
-            if (window.innerWidth >= 769) {
-                methodologyDetails.setAttribute('open', '');
-            } else {
-                methodologyDetails.removeAttribute('open');
-            }
-            
-            // Handle window resize
-            window.addEventListener('resize', function() {
-                if (window.innerWidth >= 769) {
-                    methodologyDetails.setAttribute('open', '');
-                }
-            });
+            methodologyDetails.removeAttribute('open');
         }
 
         // Load stats on page load
@@ -1096,7 +1118,7 @@
             if (type === 'provider') {
                 searchInput.placeholder = isMobile ? 'e.g., Seagate or 335513' : 'e.g., Seagate or 335513';
             } else {
-                searchInput.placeholder = isMobile ? 'e.g., John Smith or Saber Health' : 'e.g., John Smith or Saber Health';
+                searchInput.placeholder = isMobile ? 'e.g., Joe Smith or Saber Healthcare' : 'e.g., Joe Smith or Saber Healthcare';
             }
         }
         
@@ -1344,7 +1366,7 @@
                                 Total Donated: $${data.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                                ${data.donation_count} donation(s) across all owners
+                                ${data.donation_count} ${data.donation_count === 1 ? 'donation' : 'donations'} across all owners
                             </div>
                         </div>
                     ` : ''}
@@ -1406,7 +1428,7 @@
             
             data.owners.forEach(owner => {
                 const donationSummary = owner.donations.length > 0 
-                    ? `${owner.donations.length} donation(s) totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                    ? `${owner.donations.length} ${owner.donations.length === 1 ? 'donation' : 'donations'} totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
                     : 'No contributions found';
                 
                 html += `
@@ -1496,7 +1518,7 @@
                                             $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                            ${d.date ? `Date: ${d.date}` : ''}
+                                            ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
                                             ${d.owner_name ? ` • From: ${escapeHtml(d.owner_name)}` : ''}
                                             ${d.office ? ` • ${d.office}` : ''}
                                             ${d.party ? ` (${d.party})` : ''}
@@ -1794,8 +1816,10 @@
                 document.getElementById('detailsSection').style.display = 'block';
                 
                 // Show facilities in a polished table (skip portfolio summary - redundant)
-                const facilitiesHtml = owner.facilities.length > 0 ? `
-                    <h3 style="margin-bottom: 1rem;">Providers (${owner.facilities.length})</h3>
+                // Ensure facilities is an array
+                const facilities = Array.isArray(owner.facilities) ? owner.facilities : [];
+                const facilitiesHtml = facilities.length > 0 ? `
+                    <h3 style="margin-bottom: 1rem;">Providers (${facilities.length})</h3>
                     <div style="overflow-x: auto;">
                         <table class="facilities-table">
                             <thead>
@@ -1810,7 +1834,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                ${owner.facilities.map(f => {
+                                ${facilities.map(f => {
                                     // Build dashboard link - ONLY use CCN from provider_info (NOT enrollment_id - they're different!)
                                     let dashboardLink = '';
                                     let ccnForLink = '';
@@ -1886,7 +1910,7 @@
                 
                 // Display donations FIRST (above facilities)
                 if (owner.donations && owner.donations.length > 0) {
-                    displayDonations(owner.donations, owner.total_donated, owner.donation_count);
+                    displayDonations(owner.donations, owner.total_donated, owner.donation_count, owner.owner_type || 'ORGANIZATION');
                     // Show note if from pre-processed database
                     if (owner.has_preprocessed_donations) {
                         const container = document.getElementById('donationsContainer');
@@ -1915,12 +1939,27 @@
         }
 
         // Display donations
-        function displayDonations(donations, total = null, count = null) {
+        function displayDonations(donations, total = null, count = null, ownerType = 'ORGANIZATION') {
             const container = document.getElementById('donationsContainer');
             
             if (!donations || donations.length === 0) {
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
                 return;
+            }
+            
+            // Get owner name from currentOwner if available
+            const ownerName = currentOwner ? currentOwner.owner_name : '';
+            
+            // Generate FEC API search URL for verification
+            let fecApiSearchUrl = '';
+            if (ownerName) {
+                const fecApiBaseUrl = 'https://api.open.fec.gov/v1/schedules/schedule_a';
+                const fecSearchParams = new URLSearchParams({
+                    'contributor_name': ownerName.toUpperCase(),
+                    'per_page': '100',
+                    'sort': '-contribution_receipt_date'
+                });
+                fecApiSearchUrl = `${fecApiBaseUrl}?${fecSearchParams.toString()}`;
             }
             
             const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
@@ -1941,6 +1980,28 @@
             
             const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
             const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            
+            // Group by year for breakdown
+            const byYear = {};
+            donations.forEach(d => {
+                if (d.date) {
+                    // Parse date (format: YYYY-MM-DD)
+                    const yearMatch = d.date.match(/^(\d{4})/);
+                    if (yearMatch) {
+                        const year = parseInt(yearMatch[1]);
+                        byYear[year] = (byYear[year] || 0) + (d.amount || 0);
+                    }
+                }
+            });
+            
+            // Get current year and create year breakdown string with styling
+            const currentYear = new Date().getFullYear();
+            const years = [currentYear, currentYear - 1, currentYear - 2].filter(y => y >= 2020);
+            const yearBreakdown = years.map(year => {
+                const amount = byYear[year] || 0;
+                const amountStr = amount > 0 ? '$' + amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 'N/A';
+                return `<strong style="font-weight: 600; color: rgba(255,255,255,0.9);">${year}</strong>: ${amountStr}`;
+            }).join('; ');
             
             // Prepare CSV data
             const csvData = donations.map(d => ({
@@ -1980,8 +2041,11 @@
                             Total Donated: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </div>
                         <div style="color: rgba(255,255,255,0.7);">
-                            ${donationCount} donation(s) total
+                            ${donationCount} ${donationCount === 1 ? 'donation' : 'donations'} total
                             ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                        </div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
+                            ${yearBreakdown}
                         </div>
                     </div>
                     <a href="${csvUrl}" download="donations.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
@@ -2024,7 +2088,7 @@
                                 $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                             </div>
                             <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.6;">
-                                ${d.date ? `<div><strong>Date:</strong> ${d.date}</div>` : ''}
+                                ${d.date ? `<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>` : ''}
                                 ${d.committee ? `<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>` : ''}
                                 ${d.candidate ? `<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${d.office})` : ''}${d.party ? ` - ${d.party}` : ''}</div>` : ''}
                                 ${d.employer ? `<div><strong>Employer:</strong> ${escapeHtml(d.employer)}${d.occupation ? `, ${escapeHtml(d.occupation)}` : ''}</div>` : ''}
@@ -2033,9 +2097,27 @@
                         </div>
                     `).join('')}
                 </div>
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
-                    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
-                        Source: <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <details style="margin-bottom: 1rem;">
+                        <summary style="cursor: pointer; color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.5rem;">How this data was found</summary>
+                        <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px; margin-top: 0.5rem; font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.6;">
+                            <p style="margin-bottom: 0.75rem;"><strong>Search Process:</strong></p>
+                            <ol style="margin-left: 1.5rem; margin-bottom: 0.75rem;">
+                                <li style="margin-bottom: 0.5rem;">Searched FEC API using name: <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 3px;">${escapeHtml(ownerName.toUpperCase())}</code></li>
+                                <li style="margin-bottom: 0.5rem;">API Endpoint: <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 3px;">/schedules/schedule_a</code> (Schedule A - Individual Contributions)</li>
+                                <li style="margin-bottom: 0.5rem;">Search Parameters: <code style="background: rgba(0,0,0,0.3); padding: 0.2rem 0.4rem; border-radius: 3px;">contributor_name=${escapeHtml(ownerName.toUpperCase())}</code>${ownerType === 'ORGANIZATION' ? ' (no contributor_type filter for organizations)' : ' (contributor_type=individual)'}</li>
+                                <li style="margin-bottom: 0.5rem;">Results: ${donationCount} contribution${donationCount === 1 ? '' : 's'} found, totaling $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</li>
+                            </ol>
+                            <p style="margin-bottom: 0.5rem;"><strong>Verify on FEC Website:</strong></p>
+                            <ul style="margin-left: 1.5rem; margin-bottom: 0.75rem;">
+                                <li style="margin-bottom: 0.5rem;"><a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: underline;">FEC Receipts Database</a> - Search manually by contributor name</li>
+                                <li style="margin-bottom: 0.5rem;"><a href="${fecApiSearchUrl}" target="_blank" style="color: #667eea; text-decoration: underline;">Direct FEC API Query</a> (requires API key) - Shows exact API call used</li>
+                            </ul>
+                            <p style="margin-bottom: 0; font-size: 0.8rem; color: rgba(255,255,255,0.6);"><strong>Note:</strong> The FEC API uses fuzzy matching, so results may include contributions from similar names. Always verify independently.</p>
+                        </div>
+                    </details>
+                    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0; text-align: center;">
+                        Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
                     </p>
                 </div>
             `;
@@ -2072,7 +2154,7 @@
                 }
                 
                 // Display donations in the temp div
-                displayDonationsInContainer(data.donations, data.total, data.count, donationsDiv, ownerName);
+                displayDonationsInContainer(data.donations, data.total, data.count, donationsDiv, ownerName, ownerType);
                 
             } catch (error) {
                 donationsDiv.innerHTML = '<div class="error">Error searching for contributions: ' + escapeHtml(error.message) + '</div>';
@@ -2080,11 +2162,21 @@
         }
         
         // Display donations in a specific container (for search results)
-        function displayDonationsInContainer(donations, total, count, container, ownerName = '') {
+        function displayDonationsInContainer(donations, total, count, container, ownerName = '', ownerType = 'ORGANIZATION') {
             if (!donations || donations.length === 0) {
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
                 return;
             }
+            
+            // Generate FEC API search URL for verification
+            const fecApiBaseUrl = 'https://api.open.fec.gov/v1/schedules/schedule_a';
+            const fecSearchParams = new URLSearchParams({
+                'contributor_name': ownerName.toUpperCase(),
+                'per_page': '100',
+                'sort': '-contribution_receipt_date'
+            });
+            // Note: For organizations, we don't add contributor_type parameter
+            const fecApiSearchUrl = `${fecApiBaseUrl}?${fecSearchParams.toString()}`;
             
             const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
             const donationCount = count !== null ? count : donations.length;
@@ -2104,6 +2196,28 @@
             
             const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
             const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            
+            // Group by year for breakdown
+            const byYear = {};
+            donations.forEach(d => {
+                if (d.date) {
+                    // Parse date (format: YYYY-MM-DD)
+                    const yearMatch = d.date.match(/^(\d{4})/);
+                    if (yearMatch) {
+                        const year = parseInt(yearMatch[1]);
+                        byYear[year] = (byYear[year] || 0) + (d.amount || 0);
+                    }
+                }
+            });
+            
+            // Get current year and create year breakdown string with styling
+            const currentYear = new Date().getFullYear();
+            const years = [currentYear, currentYear - 1, currentYear - 2].filter(y => y >= 2020);
+            const yearBreakdown = years.map(year => {
+                const amount = byYear[year] || 0;
+                const amountStr = amount > 0 ? '$' + amount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) : 'N/A';
+                return `<strong style="font-weight: 600; color: rgba(255,255,255,0.9);">${year}</strong>: ${amountStr}`;
+            }).join('; ');
             
             // Prepare CSV data
             const csvData = donations.map(d => ({
@@ -2140,7 +2254,7 @@
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
                     ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: -0.5rem; right: -0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕ Close'}</button>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕'}</button>
                     ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -2149,8 +2263,11 @@
                             Total Contributed: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
-                            ${donationCount} donation(s) total
+                            ${donationCount} ${donationCount === 1 ? 'donation' : 'donations'} total
                             ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                        </div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
+                            ${yearBreakdown}
                         </div>
                     </div>
                     <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
@@ -2189,10 +2306,10 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    ${d.fec_link ? `<a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: underline;">$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</a> <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-left: 0.25rem;">View on FEC</a>` : `$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                    ${d.date ? `Date: ${d.date}` : ''}
+                                    ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
                                     ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
                                     ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
                                     ${d.office ? ` (${d.office})` : ''}
@@ -2205,7 +2322,7 @@
                 </div>
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
-                        Source: <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                        Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
                     </p>
                 </div>
             `;
@@ -2247,7 +2364,7 @@
                     return;
                 }
                 
-                displayDonations(data.donations, data.total, data.count);
+                displayDonations(data.donations, data.total, data.count, currentOwner.owner_type || 'ORGANIZATION');
                 
             } catch (error) {
                 showError('Error searching for contributions: ' + error.message);

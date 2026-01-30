@@ -16,7 +16,7 @@ donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
     sys.path.insert(0, str(donor_dir))
 
-from fec_api_client import query_donations_by_name, normalize_fec_donation, FEC_API_KEY, FEC_API_BASE_URL
+from fec_api_client import query_donations_by_name, normalize_fec_donation, load_committee_master, FEC_API_KEY, FEC_API_BASE_URL
 import requests
 
 app = Flask(__name__, template_folder='templates')
@@ -103,6 +103,10 @@ def normalize_name_for_search(name):
         first = parts[0]
         last = parts[-1]
         
+        # Add first word alone if it's substantial (3+ chars, not common suffixes)
+        if len(first) >= 3 and first not in ['THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD']:
+            variations.append(first)
+        
         # Add nickname variations
         if first in NAME_VARIATIONS:
             for nickname in NAME_VARIATIONS[first]:
@@ -111,8 +115,9 @@ def normalize_name_for_search(name):
                     # Handle middle names/initials
                     variations.append(f"{nickname} {parts[1]} {last}")
         
-        # Add last name only
-        variations.append(last)
+        # Add last name only (if substantial)
+        if len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
+            variations.append(last)
         
         # Add "First Last" (without middle)
         if len(parts) > 2:
@@ -195,6 +200,14 @@ def load_data():
         print("  (Optional) Run 'python donor/owner_donor.py MODE=query' to pre-process donations")
         print("  Or use 'Query FEC API (Live)' button to query on-demand")
         donations_df = pd.DataFrame()
+    
+    # Load FEC committee master (uploaded CSVs, no API) — used to enrich donation display
+    try:
+        n_cm = load_committee_master()
+        if n_cm:
+            print(f"✓ Loaded {n_cm} committees from donor/data/fec_committee_master/ (no API)")
+    except Exception as e:
+        print(f"⚠ Committee master not loaded: {e}")
     
     # Load normalized ownership for facility details (if available)
     if OWNERSHIP_NORM.exists():
@@ -1097,10 +1110,17 @@ def get_owner_details(owner_name):
     if owners_df is None:
         return jsonify({'error': 'Owners database not loaded'}), 500
     
-    # Find owner - prioritize normalized name (more reliable)
+    # Find owner - exact match first (normalized then original)
     owner = owners_df[owners_df['owner_name'].str.upper() == owner_name.upper()]
     if owner.empty:
         owner = owners_df[owners_df['owner_name_original'].str.upper() == owner_name.upper()]
+    # Fallback: normalize name (remove comma, collapse spaces) for provider-search names like "SABER PA HOLDINGS, LLC"
+    if owner.empty:
+        name_norm = ' '.join(owner_name.upper().replace(',', ' ').split())
+        if 'owner_name' in owners_df.columns:
+            owner = owners_df[owners_df['owner_name'].astype(str).str.upper().str.replace(',', ' ').str.split().str.join(' ') == name_norm]
+        if owner.empty and 'owner_name_original' in owners_df.columns:
+            owner = owners_df[owners_df['owner_name_original'].astype(str).str.upper().str.replace(',', ' ').str.split().str.join(' ') == name_norm]
     
     if owner.empty:
         return jsonify({'error': 'Owner not found'}), 404
@@ -1109,18 +1129,18 @@ def get_owner_details(owner_name):
     
     # Use normalized name for display if it matches the query, otherwise use original
     display_name = owner_row.get('owner_name', owner_name)
-    if owner_name.upper() not in display_name.upper():
-        # If normalized name doesn't match, try original
+    if owner_name.upper() not in (display_name or '').upper():
         orig_name = owner_row.get('owner_name_original', '')
-        if orig_name and owner_name.upper() in orig_name.upper():
+        if orig_name and owner_name.upper() in (orig_name or '').upper():
             display_name = orig_name
-        # Otherwise keep normalized name (it's more reliable)
     
-    # Get facilities
+    # Get facilities - use .get to avoid KeyError if column missing
     facilities = []
-    if pd.notna(owner_row['facilities']):
-        facility_names = owner_row['facilities'].split(', ')
-        enrollment_ids = owner_row['enrollment_ids'].split(', ') if pd.notna(owner_row['enrollment_ids']) else []
+    facilities_val = owner_row.get('facilities') if 'facilities' in owner_row.index else None
+    enrollment_ids_val = owner_row.get('enrollment_ids') if 'enrollment_ids' in owner_row.index else None
+    if pd.notna(facilities_val) and str(facilities_val).strip():
+        facility_names = [x.strip() for x in str(facilities_val).split(',') if x.strip()]
+        enrollment_ids = [x.strip() for x in str(enrollment_ids_val).split(',') if x.strip()] if pd.notna(enrollment_ids_val) and str(enrollment_ids_val).strip() else []
         
         for i, name in enumerate(facility_names):
             facility_info = {'name': name.strip()}
@@ -1300,9 +1320,25 @@ def get_owner_details(owner_name):
                         amount = 0.0
                 except (ValueError, TypeError):
                     amount = 0.0
+                # Fix corrupted dates (2033, 2034, 2035 etc. - likely Excel corruption)
+                date_str = str(d.get('donation_date', '')).strip()
+                if date_str:
+                    # Check if year is in the future (likely corrupted)
+                    import re
+                    year_match = re.match(r'^(\d{4})-', date_str)
+                    if year_match:
+                        year = int(year_match.group(1))
+                        # If year is 2030-2040, it's likely corrupted (subtract 10 years)
+                        # This fixes Excel's common date corruption issue
+                        if 2030 <= year <= 2040:
+                            # Try to fix by subtracting 10 years (common Excel corruption)
+                            fixed_year = year - 10
+                            date_str = date_str.replace(f'{year}-', f'{fixed_year}-', 1)
+                            print(f"[FIXED] Corrected date from {year_match.group(0)} to {fixed_year}-{date_str.split('-', 1)[1] if '-' in date_str else ''}")
+                
                 donations.append({
                     'amount': amount,
-                    'date': d.get('donation_date', ''),
+                    'date': date_str,
                     'committee': d.get('committee_name', ''),
                     'candidate': d.get('candidate_name', ''),
                     'office': d.get('candidate_office', ''),
@@ -1403,12 +1439,21 @@ def query_fec():
                     per_page=100
                 )
                 
-                # Deduplicate by sub_id
-                if donations:  # Ensure donations is not None
+                # Deduplicate by image_number (OpenFEC filing image) when present
+                if donations:
                     for donation in donations:
-                        if donation and isinstance(donation, dict):  # Safety check
-                            record_id = donation.get('sub_id')
-                            if record_id and record_id not in seen_ids:
+                        if donation and isinstance(donation, dict):
+                            record_id = donation.get("image_number")
+                            if record_id is not None:
+                                record_id = (record_id,)
+                            else:
+                                record_id = (
+                                    donation.get("contribution_receipt_date"),
+                                    donation.get("contribution_receipt_amount"),
+                                    donation.get("contributor_name"),
+                                    (donation.get("committee") or {}).get("committee_id") if isinstance(donation.get("committee"), dict) else donation.get("committee_id"),
+                                )
+                            if record_id not in seen_ids:
                                 seen_ids.add(record_id)
                                 all_donations.append(donation)
             except Exception as e:
@@ -1425,6 +1470,14 @@ def query_fec():
             except:
                 pass
         
+        # One-time debug: confirm OpenFEC record keys and image/sub_id presence (remove after confirmation)
+        if all_donations:
+            r = all_donations[0]
+            print(f"[FEC DEBUG] OpenFEC record keys: {sorted(r.keys())}")
+            print(f"[FEC DEBUG] sub_id={r.get('sub_id')!r} image_num={r.get('image_num')!r} image_number={r.get('image_number')!r}")
+            n0 = normalize_fec_donation(r)
+            print(f"[FEC DEBUG] first fec_docquery_url={n0.get('fec_docquery_url')!r}")
+
         # Normalize all donations
         normalized = []
         for donation in all_donations:
@@ -1434,9 +1487,11 @@ def query_fec():
                 norm = normalize_fec_donation(donation)
                 if not norm or not isinstance(norm, dict):
                     continue  # Skip if normalization failed
+                date_str = str(norm.get('donation_date', '') or '').strip()
+
                 normalized.append({
                     'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
-                    'date': norm.get('donation_date', '') or '',
+                    'date': date_str,
                     'committee': norm.get('committee_name', '') or '',
                     'candidate': norm.get('candidate_name', '') or '',
                     'office': norm.get('candidate_office', '') or '',
@@ -1444,7 +1499,8 @@ def query_fec():
                     'employer': norm.get('employer', '') or '',
                     'occupation': norm.get('occupation', '') or '',
                     'donor_city': norm.get('donor_city', '') or '',
-                    'donor_state': norm.get('donor_state', '') or ''
+                    'donor_state': norm.get('donor_state', '') or '',
+                    'fec_link': norm.get('fec_docquery_url', '') or '',
                 })
             except Exception as e:
                 print(f"[WARNING] Error normalizing donation: {e}")

@@ -1082,12 +1082,10 @@ export default function SFFPage() {
                 Phoebe J
               </a>
               <a 
-                href="https://pbj320.vercel.app/" 
-                target="_blank"
-                rel="noopener noreferrer"
+                href="https://pbj320.com/owners" 
                 className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
               >
-                PBJ Converter
+                Owner
               </a>
             </div>
             {/* Mobile Menu Button */}
@@ -1142,12 +1140,10 @@ export default function SFFPage() {
                   Phoebe J
                 </a>
                 <a 
-                  href="https://pbj320.vercel.app/" 
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="https://pbj320.com/owners" 
                   className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
                 >
-                  PBJ Converter
+                  Owner
                 </a>
               </div>
             </div>

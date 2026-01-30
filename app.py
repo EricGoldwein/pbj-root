@@ -126,6 +126,96 @@ def pbj_sample():
 def report():
     return send_file('report.html', mimetype='text/html')
 
+# Owner Donor Dashboard - import and mount the app
+try:
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'donor'))
+    from owner_donor_dashboard import app as owner_app, load_data as load_owner_data  # type: ignore
+    
+    # Load owner dashboard data on startup
+    try:
+        load_owner_data()
+        print("✓ Owner donor dashboard data loaded")
+    except Exception as e:
+        print(f"⚠ Warning: Could not load owner dashboard data: {e}")
+    
+    # Register owner app routes with /owner prefix using blueprint approach
+    from flask import Blueprint
+    
+    # Create a blueprint that proxies to the owner app - main route is /owners
+    owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
+    
+    @owner_bp.route('/', defaults={'path': ''})
+    @owner_bp.route('/<path:path>')
+    def owner_proxy(path):
+        """Proxy requests to the owner donor dashboard app"""
+        # Reconstruct the path for the owner app
+        if path.startswith('api/'):
+            # API routes - forward to owner app's /api routes
+            api_path = path[4:]  # Remove 'api/'
+            with owner_app.test_request_context(f'/api/{api_path}', 
+                                                 method=request.method,
+                                                 query_string=request.query_string.decode(),
+                                                 data=request.get_data(),
+                                                 content_type=request.content_type,
+                                                 headers=list(request.headers)):
+                return owner_app.full_dispatch_request()
+        elif path == '':
+            # Root route
+            with owner_app.test_request_context('/', method=request.method):
+                return owner_app.full_dispatch_request()
+        else:
+            # Other routes
+            with owner_app.test_request_context(f'/{path}', 
+                                                 method=request.method,
+                                                 query_string=request.query_string.decode(),
+                                                 data=request.get_data(),
+                                                 content_type=request.content_type,
+                                                 headers=list(request.headers)):
+                return owner_app.full_dispatch_request()
+    
+    app.register_blueprint(owner_bp)
+    
+    # Also register aliases for /owner and /ownership
+    @app.route('/owner', defaults={'path': ''})
+    @app.route('/owner/', defaults={'path': ''})
+    @app.route('/owner/<path:path>')
+    @app.route('/ownership', defaults={'path': ''})
+    @app.route('/ownership/', defaults={'path': ''})
+    @app.route('/ownership/<path:path>')
+    def owner_alias(path=''):
+        """Alias routes for /owner and /ownership - redirect to /owners"""
+        from flask import redirect, url_for
+        if path:
+            return redirect(f'/owners/{path}', code=301)
+        return redirect('/owners', code=301)
+    
+    # Also register API routes directly at /owners/api/*, /owner/api/*, and /ownership/api/* for easier access
+    @app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+    @app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+    @app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+    def owner_api_proxy(api_path):
+        """Direct proxy for owner API routes"""
+        with owner_app.test_request_context(f'/api/{api_path}',
+                                             method=request.method,
+                                             query_string=request.query_string.decode(),
+                                             data=request.get_data(),
+                                             content_type=request.content_type,
+                                             headers=list(request.headers)):
+            return owner_app.full_dispatch_request()
+    
+    print("✓ Owner donor dashboard mounted at /owners (aliases: /owner, /ownership)")
+except Exception as e:
+    print(f"⚠ Warning: Could not load owner donor dashboard: {e}")
+    import traceback
+    traceback.print_exc()
+    
+    # Fallback route
+    @app.route('/owner')
+    @app.route('/owner/')
+    @app.route('/owner/<path:path>')
+    def owner_fallback(path=''):
+        return "Owner dashboard unavailable. Please check server logs.", 503
+
 @app.route('/sitemap.xml')
 def sitemap():
     return send_file('sitemap.xml', mimetype='application/xml')
@@ -2019,7 +2109,7 @@ def canonical_state_page(state_slug):
         abort(404)
     
     # Check if this is a known route first (avoid conflicts)
-    known_routes = ['pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml']
+    known_routes = ['pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml', 'owner', 'owners', 'ownership']
     if state_slug.lower() in known_routes:
         # Let Flask continue to next route by aborting (Flask will handle 404)
         from flask import abort
@@ -3603,7 +3693,7 @@ def pbj_wrapped_static(path):
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined
-    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia']:
+    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner']:
         from flask import abort
         abort(404)
     

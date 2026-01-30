@@ -1,0 +1,2090 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nursing Home Owner Political Donation Search | PBJ320</title>
+    <meta name="description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
+    <meta name="keywords" content="nursing home owners, political donations, FEC, CMS ownership, nursing home operators, campaign contributions">
+    <link rel="canonical" href="https://pbj320.com/owners">
+    <link rel="icon" type="image/png" href="/pbj_favicon.png">
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-NDPVY6TWBK');
+    </script>
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pbj320.com/owners">
+    <meta property="og:title" content="Nursing Home Owner Political Donation Search | PBJ320">
+    <meta property="og:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
+    <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:title" content="Nursing Home Owner Political Donation Search | PBJ320">
+    <meta property="twitter:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions.">
+    <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+    
+    <!-- Performance: DNS prefetch -->
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+    <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+    
+    <!-- Mobile and PWA meta tags -->
+    <meta name="theme-color" content="#1e40af">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="author" content="320 Consulting">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1f2e 0%, #16213e 50%, #0f1419 100%);
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+            color: #e8e8e8;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(100, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+        
+        .header h1 .search-text {
+            display: inline;
+        }
+        
+        /* Mobile: hide "Search" text */
+        @media (max-width: 768px) {
+            .header h1 .search-text {
+                display: none;
+            }
+        }
+
+        .header .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.85;
+            font-weight: 500;
+            margin-top: 10px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .search-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .search-input-wrapper {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            font-size: 1.1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .search-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: rgba(26, 31, 46, 0.98);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            border-radius: 8px;
+            margin-top: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 10001;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .autocomplete-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.2s;
+            color: white;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: rgba(102, 126, 234, 0.4);
+        }
+
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+
+        .autocomplete-item-name {
+            font-weight: 600;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .autocomplete-item-details {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .search-type {
+            padding: 15px 20px;
+            font-size: 1rem;
+            background: rgba(26, 31, 46, 0.95);
+            border: 2px solid rgba(102, 126, 234, 0.5);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .search-type option {
+            background: rgba(26, 31, 46, 0.95);
+            color: white;
+        }
+
+        .search-type:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .search-btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .suggestions {
+            margin-top: 15px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 4px solid #667eea;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .suggestions ul {
+            margin: 0.5rem 0 0 1.5rem;
+        }
+
+        .suggestions li {
+            margin-bottom: 0.3rem;
+        }
+
+        .results-section, .details-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            z-index: 1;
+        }
+
+        .results-count {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        .result-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .result-card:hover {
+            background: rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+            transform: translateX(5px);
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .owner-name {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 5px;
+        }
+
+        .owner-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .owner-type.individual {
+            background: rgba(102, 126, 234, 0.3);
+            color: #9bb5ff;
+        }
+
+        .owner-type.organization {
+            background: rgba(118, 75, 162, 0.3);
+            color: #c5a3e0;
+        }
+
+        .facilities-count {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .facilities-list {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        .details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .back-btn {
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: white;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .donations-section {
+            margin-top: 30px;
+        }
+
+        .donations-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .query-fec-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .query-fec-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .query-fec-btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .donation-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .donation-amount {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .donation-details {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .donation-details strong {
+            color: white;
+        }
+        
+        .donations-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .donation-card-grid {
+            background: rgba(255,255,255,0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+        
+        /* Desktop: horizontal layout for donations */
+        @media (min-width: 769px) {
+            .donations-grid {
+                grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            }
+        }
+        
+        /* Mobile: vertical layout for donations */
+        @media (max-width: 768px) {
+            .donations-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .facilities-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .facility-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .facility-name {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 10px;
+        }
+
+        .facility-details {
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+        
+        .facilities-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .facilities-table thead {
+            background: rgba(102, 126, 234, 0.2);
+        }
+        
+        .facilities-table th {
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+        
+        .facilities-table th:hover {
+            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+        }
+        
+        .facilities-table td {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+        }
+        
+        .facilities-table tbody tr {
+            transition: background 0.2s;
+        }
+        
+        .facilities-table tbody tr:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .facilities-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+        
+        .facility-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+        
+        .facility-link:hover {
+            color: #8b9aff;
+            text-decoration: underline;
+        }
+        
+        .facility-link-icon {
+            margin-left: 0.3rem;
+            font-size: 0.8rem;
+        }
+        
+        .rating-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .query-fec-section {
+            background: rgba(102, 126, 234, 0.15);
+            padding: 1.5rem;
+            border-radius: 8px;
+            border: 2px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .error {
+            background: rgba(220, 53, 69, 0.2);
+            color: #ff6b7a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #ff6b7a;
+        }
+
+        h2, h3, h4 {
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+        }
+
+        h3 {
+            font-size: 1.4rem;
+        }
+
+        h4 {
+            font-size: 1.2rem;
+        }
+        
+        /* Methodology section */
+        #methodology details {
+            cursor: pointer;
+        }
+        
+        #methodology details summary {
+            list-style: none;
+        }
+        
+        #methodology details summary::-webkit-details-marker {
+            display: none;
+        }
+        
+        #methodology details summary::marker {
+            display: none;
+        }
+        
+        .methodology-caret {
+            display: inline-block;
+            transition: transform 0.3s ease;
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+        }
+        
+        #methodology details[open] .methodology-caret {
+            transform: rotate(180deg);
+        }
+        
+        /* Mobile menu toggle */
+        .nav-toggle {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            gap: 4px;
+        }
+        
+        .nav-toggle span {
+            width: 25px;
+            height: 3px;
+            background: white;
+            transition: all 0.3s ease;
+        }
+        
+        @media (max-width: 768px) {
+            .nav-menu {
+                position: fixed;
+                top: 60px;
+                left: -100%;
+                width: 100%;
+                background: #0f172a;
+                flex-direction: column;
+                padding: 20px;
+                transition: left 0.3s ease;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                gap: 15px;
+            }
+            
+            .nav-menu.active {
+                left: 0;
+            }
+            
+            .nav-toggle {
+                display: flex;
+            }
+            
+            .nav-toggle.active span:nth-child(1) {
+                transform: rotate(45deg) translate(5px, 5px);
+            }
+            
+            .nav-toggle.active span:nth-child(2) {
+                opacity: 0;
+            }
+            
+            .nav-toggle.active span:nth-child(3) {
+                transform: rotate(-45deg) translate(7px, -6px);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" style="background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #1e40af; margin: 0;">
+        <div class="nav-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px;">
+            <div class="nav-brand" style="display: flex; align-items: center; color: white; font-size: 1.2rem; font-weight: 700;">
+                <a href="https://pbj320.com/" style="color: inherit; text-decoration: none; display: flex; align-items: center;">
+                    <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+                    <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+                </a>
+            </div>
+            <div class="nav-menu" id="navMenu" style="display: flex; gap: 30px; align-items: center;">
+                <a href="/about" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">About</a>
+                <a href="https://pbjdashboard.com/" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Dashboard</a>
+                <a href="/insights" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Insights</a>
+                <a href="/report" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Report</a>
+                <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Phoebe J</a>
+                <a href="/owners" class="nav-link active" style="color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership</a>
+            </div>
+            <div class="nav-toggle" id="navToggle">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container" style="padding: 20px;">
+        <div class="header">
+            <h1 class="page-title">Nursing Home Owner Political Donation<span class="search-text"> Search</span></h1>
+            <div style="margin-top: 0.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
+                A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 600;">320 Consulting</a>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(102, 126, 234, 0.2); border: 1px solid #667eea; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #667eea;">BETA</span>
+            </div>
+        </div>
+
+
+        <div id="setupWarning" class="setup-warning" style="display: none;">
+            <div class="warning-content">
+                <h3>⚠️ Setup Required</h3>
+                <p id="setupMessage"></p>
+                <div class="setup-instructions">
+                    <p><strong>📋 Simple Setup (One-Time):</strong></p>
+                    <div style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 6px; margin: 15px 0;">
+                        <p style="margin-bottom: 10px;"><strong>Step 1:</strong> Open terminal/command prompt in this project folder</p>
+                        <p style="margin-bottom: 10px;"><strong>Step 2:</strong> Copy and paste this command:</p>
+                        <code style="display: block; padding: 10px; background: rgba(0,0,0,0.6); border-radius: 4px; font-size: 1.1rem; margin: 10px 0;">
+                            python donor/owner_donor.py MODE=extract
+                        </code>
+                        <p style="margin-top: 10px;"><strong>Step 3:</strong> Wait 1-5 minutes for it to finish</p>
+                        <p style="margin-top: 10px;"><strong>Step 4:</strong> Refresh this page</p>
+                    </div>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 15px;">
+                        <em>💡 This extracts all unique owners from the 250k nursing home ownership dataset. You only need to do this once (or when you want to update the data).</em>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="search-section">
+            <div class="search-box">
+                <div class="search-input-wrapper">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        class="search-input"
+                        placeholder="Search by owner name, entity ID, or provider name/CCN..."
+                        autocomplete="off"
+                    >
+                    <div id="autocomplete" class="autocomplete-dropdown"></div>
+                </div>
+                <select id="searchType" class="search-type">
+                    <option value="all">Search Owners</option>
+                    <option value="provider">Search by Provider</option>
+                </select>
+                <button id="searchBtn" class="search-btn" onclick="performSearch()">Search</button>
+            </div>
+            <div class="suggestions">
+                <strong>Search tips:</strong> Search by owner name or organization to find donations. Select "Search by Provider" to find donations from a specific nursing home.
+            </div>
+        </div>
+
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <div id="resultsCount" class="results-count"></div>
+            <div id="resultsContainer"></div>
+        </div>
+
+        <div id="detailsSection" class="details-section" style="display: none;">
+            <div class="details-header">
+                <h2 id="ownerTitle"></h2>
+                <button class="back-btn" onclick="showSearchResults()">← Back to Results</button>
+            </div>
+            <div id="donationsContainer"></div>
+            <div id="facilitiesContainer"></div>
+        </div>
+    </div>
+    
+    <!-- Methodology and Data Sources Section -->
+    <section id="methodology" style="max-width: 1200px; margin: 3rem auto 0; padding: 2rem; background: rgba(26, 31, 46, 0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+        <div style="color: rgba(255,255,255,0.85); line-height: 1.7;">
+            <p style="margin-bottom: 1rem;">
+                This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political donations of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
+            </p>
+            
+            <details open style="margin-top: 1.5rem;">
+                <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-bottom: 0.75rem; padding: 0.5rem 0; list-style: none; display: flex; align-items: center; gap: 0.5rem;">
+                    <span>Matching Methodology</span>
+                    <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
+                </summary>
+                <div style="margin-top: 0.75rem; padding-left: 1rem;">
+                    <p style="margin-bottom: 1rem;">
+                        Facility names from the CMS ownership dataset are matched to provider information using the following process:
+                    </p>
+                    <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: decimal;">
+                        <li style="margin-bottom: 0.5rem;"><strong>Exact Match:</strong> Direct comparison of organization names (case-insensitive)</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>Partial Match:</strong> Matching after removing common business suffixes (LLC, INC, CORP, LP, etc.)</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>Fuzzy Match:</strong> Matching after removing punctuation (commas, periods, hyphens) and normalizing spacing</li>
+                        <li style="margin-bottom: 0.5rem;"><strong>Prefix Match:</strong> For longer names, matching the first 15 characters</li>
+                    </ol>
+                    <p style="margin-bottom: 1rem;">
+                        Political donations are matched to owners by name using the FEC API's search functionality, which handles name variations and common aliases.
+                    </p>
+                </div>
+            </details>
+            
+            <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
+                <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Ownership Data:</strong> 
+                        <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
+                        — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Provider Information:</strong> 
+                        <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
+                        — Contains facility details including ratings, staffing levels, and operational information.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>FEC API:</strong> 
+                        <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
+                        — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
+                    </li>
+                </ul>
+            
+            <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
+                <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
+                    <p style="margin-bottom: 0.75rem; font-weight: 500;">
+                        <strong>⚠️ Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
+                    </p>
+                    <p style="margin-bottom: 0.75rem;">
+                        <strong>Name Matching Limitations:</strong> Political donation matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
+                    </p>
+                    <p style="margin-bottom: 0.75rem;">
+                        <strong>Data Completeness:</strong> Not all facilities may have complete provider information, and not all owners may have political donation records in the FEC database. Missing data does not necessarily indicate an absence of donations or facility information.
+                    </p>
+                    <p>
+                        <strong>Public Information:</strong> All data presented here is publicly available from federal government sources. This tool aggregates and presents this information for transparency and research purposes.
+                    </p>
+                </div>
+                
+                <p style="margin-top: 1.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7); text-align: center;">
+                    Contact for questions or to report data issues: 
+                    <a href="mailto:eric@320insight.com" style="color: #667eea; text-decoration: none;">eric@320insight.com</a>
+                </p>
+            </div>
+        </details>
+    </section>
+    
+  <footer class="footer" style="padding: 1.25rem 1rem;">
+    <!-- Brand -->
+    <p style="
+      margin: 0 0 1rem 0;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8rem;
+      text-align: center;
+      letter-spacing: 0.03em;
+    ">
+      <strong>320 Consulting</strong> — Turning Spreadsheets into Stories
+    </p>
+  
+    <!-- Social Icons -->
+    <div style="
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-top: 0.5rem;
+    ">
+      <!-- Email -->
+      <a href="mailto:eric@320insight.com"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="Email: eric@320insight.com">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- SMS -->
+      <a href="sms:+19298084996"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="SMS: (347) 992-3569">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
+          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/>
+        </svg>
+      </a>
+      
+      <!-- LinkedIn -->
+      <a href="https://www.linkedin.com/in/eric-goldwein/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="LinkedIn">
+        <img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
+      
+      <!-- Substack -->
+      <a href="https://320insight.substack.com/"
+         target="_blank"
+         style="display: inline-block; transition: opacity 0.3s ease;"
+         title="The 320 Newsletter">
+        <img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      </a>
+    </div>
+  
+  </footer>
+
+    <script>
+        let currentOwner = null;
+        let autocompleteTimeout = null;
+        let selectedAutocompleteIndex = -1;
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Mobile menu toggle
+        const navToggle = document.getElementById('navToggle');
+        const navMenu = document.getElementById('navMenu');
+        
+        if (navToggle && navMenu) {
+            navToggle.addEventListener('click', function() {
+                navMenu.classList.toggle('active');
+                navToggle.classList.toggle('active');
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!navToggle.contains(e.target) && !navMenu.contains(e.target)) {
+                    navMenu.classList.remove('active');
+                    navToggle.classList.remove('active');
+                }
+            });
+        }
+        
+        // Auto-expand methodology on desktop
+        const methodologyDetails = document.querySelector('#methodology details');
+        if (methodologyDetails) {
+            if (window.innerWidth >= 769) {
+                methodologyDetails.setAttribute('open', '');
+            } else {
+                methodologyDetails.removeAttribute('open');
+            }
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth >= 769) {
+                    methodologyDetails.setAttribute('open', '');
+                }
+            });
+        }
+        
+        // Load stats on page load
+        async function loadStats() {
+            try {
+                const response = await fetch('/owner/api/stats');
+                const stats = await response.json();
+                
+                // Show setup warning if database is incomplete
+                const setupWarning = document.getElementById('setupWarning');
+                const setupMessage = document.getElementById('setupMessage');
+                
+                if (stats.total_owners === 0) {
+                    setupWarning.style.display = 'block';
+                    setupMessage.textContent = 'No owners database found. You need to create it first.';
+                } else if (stats.total_owners < 1000) {
+                    setupWarning.style.display = 'block';
+                    setupMessage.textContent = `Only ${stats.total_owners} owners loaded. This seems incomplete - the database was likely created with a filter. To load ALL owners from the full 250k dataset, regenerate it.`;
+                } else {
+                    setupWarning.style.display = 'none';
+                }
+                
+            } catch (error) {
+                console.error('Error loading stats:', error);
+                // Don't show error - just hide warning if stats endpoint fails
+                const setupWarning = document.getElementById('setupWarning');
+                if (setupWarning) {
+                    setupWarning.style.display = 'none';
+                }
+            }
+        }
+
+        // Autocomplete functionality
+        const searchInput = document.getElementById('searchInput');
+        const autocomplete = document.getElementById('autocomplete');
+        const searchType = document.getElementById('searchType');
+        
+        // Update placeholder based on search type
+        function updatePlaceholder() {
+            const type = searchType.value;
+            if (type === 'provider') {
+                searchInput.placeholder = 'Search by provider name or CCN (e.g., Seagate Rehabilitation, 335513)...';
+            } else {
+                searchInput.placeholder = 'Search by owner name or organization (e.g., John Smith, Saber Health Group)...';
+            }
+        }
+        
+        // Listen for search type changes
+        searchType.addEventListener('change', function() {
+            updatePlaceholder();
+            // Hide donations container when provider search is selected
+            const donationsContainer = document.getElementById('donationsContainer');
+            if (donationsContainer) {
+                if (this.value === 'provider') {
+                    donationsContainer.style.display = 'none';
+                } else {
+                    donationsContainer.style.display = 'block';
+                }
+            }
+            // Clear autocomplete when switching types
+            autocomplete.style.display = 'none';
+            searchInput.value = '';
+        });
+        
+        // Set initial placeholder and hide donations if provider is selected
+        updatePlaceholder();
+        if (searchType.value === 'provider') {
+            const donationsContainer = document.getElementById('donationsContainer');
+            if (donationsContainer) {
+                donationsContainer.style.display = 'none';
+            }
+        }
+
+        searchInput.addEventListener('input', function() {
+            const query = this.value.trim();
+            const type = searchType.value;
+            
+            clearTimeout(autocompleteTimeout);
+            
+            if (query.length < 2) {
+                autocomplete.style.display = 'none';
+                return;
+            }
+
+            autocompleteTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/owner/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`);
+                    const data = await response.json();
+                    
+                    if (data.suggestions && data.suggestions.length > 0) {
+                        displayAutocomplete(data.suggestions);
+                    } else {
+                        autocomplete.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Error fetching autocomplete:', error);
+                    autocomplete.style.display = 'none';
+                }
+            }, 200);
+        });
+
+        searchInput.addEventListener('keydown', function(e) {
+            const items = autocomplete.querySelectorAll('.autocomplete-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                selectedAutocompleteIndex = Math.min(selectedAutocompleteIndex + 1, items.length - 1);
+                updateAutocompleteSelection();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedAutocompleteIndex = Math.max(selectedAutocompleteIndex - 1, -1);
+                updateAutocompleteSelection();
+            } else if (e.key === 'Enter' && selectedAutocompleteIndex >= 0) {
+                e.preventDefault();
+                if (items[selectedAutocompleteIndex]) {
+                    const item = items[selectedAutocompleteIndex];
+                    const name = item.querySelector('.autocomplete-item-name').textContent;
+                    const searchType = document.getElementById('searchType').value;
+                    if (searchType === 'provider') {
+                        // Extract provider name and CCN from the item
+                        const ccn = item.getAttribute('data-ccn') || '';
+                        const providerName = item.getAttribute('data-provider-name') || name;
+                        selectAutocomplete(name, ccn, providerName);
+                    } else {
+                        selectAutocomplete(name);
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                autocomplete.style.display = 'none';
+                selectedAutocompleteIndex = -1;
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !autocomplete.contains(e.target)) {
+                autocomplete.style.display = 'none';
+            }
+        });
+
+        function displayAutocomplete(suggestions) {
+            const searchType = document.getElementById('searchType').value;
+            autocomplete.innerHTML = suggestions.slice(0, 10).map((item, index) => {
+                if (searchType === 'provider' && item.type === 'PROVIDER') {
+                    // For provider search, show provider name and CCN
+                    const ccn = item.ccn || '';
+                    const providerName = item.provider_name || item.name.replace(/\s*\(\d+\)$/, ''); // Remove CCN from name if present
+                    return `
+                        <div class="autocomplete-item" data-index="${index}" data-ccn="${ccn}" data-provider-name="${escapeHtml(providerName)}" onclick="selectAutocomplete('${escapeHtml(item.name)}', '${ccn}', '${escapeHtml(providerName)}')">
+                            <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
+                            <div class="autocomplete-item-details">Provider</div>
+                        </div>
+                    `;
+                } else {
+                    // For owner search, show owner info
+                    return `
+                        <div class="autocomplete-item" data-index="${index}" onclick="selectAutocomplete('${escapeHtml(item.name)}')">
+                            <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
+                            <div class="autocomplete-item-details">${item.type} • ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
+                        </div>
+                    `;
+                }
+            }).join('');
+            autocomplete.style.display = 'block';
+            selectedAutocompleteIndex = -1;
+        }
+
+        function updateAutocompleteSelection() {
+            const items = autocomplete.querySelectorAll('.autocomplete-item');
+            items.forEach((item, index) => {
+                if (index === selectedAutocompleteIndex) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+
+        function selectAutocomplete(name, ccn = '', providerName = '') {
+            const searchType = document.getElementById('searchType').value;
+            if (searchType === 'provider' && ccn) {
+                // For provider search, use the provider name or CCN for searching
+                searchInput.value = providerName || ccn || name;
+            } else {
+                searchInput.value = name;
+            }
+            autocomplete.style.display = 'none';
+            selectedAutocompleteIndex = -1;
+            // Trigger search
+            setTimeout(() => {
+                performSearch();
+            }, 100);
+        }
+
+        // Perform search
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            const type = document.getElementById('searchType').value;
+            const btn = document.getElementById('searchBtn');
+            
+            if (query.length < 1) {
+                alert('Please enter a search query');
+                return;
+            }
+            
+            autocomplete.style.display = 'none';
+            btn.disabled = true;
+            btn.textContent = 'Searching...';
+            
+            try {
+                // Check if query is a numeric entity ID (but NOT if provider search is selected)
+                const entityIdMatch = query.match(/^(\d+)$/);
+                if (entityIdMatch && type !== 'provider') {
+                    // Search by entity ID (only for non-provider searches)
+                    const entityId = entityIdMatch[1];
+                    const response = await fetch(`/owner/api/entity/${entityId}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    displayEntityResults(data);
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('detailsSection').style.display = 'none';
+                } else {
+                    // Regular owner search or provider search
+                    if (query.length < 2) {
+                        alert('Please enter at least 2 characters for search');
+                        return;
+                    }
+                    
+                    const response = await fetch(`/owner/api/search?q=${encodeURIComponent(query)}&type=${type}`);
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        showError(data.error);
+                        return;
+                    }
+                    
+                    displayResults(data.results, data.provider_info, type);
+                    document.getElementById('resultsCount').textContent = `${data.count} result(s) found`;
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('detailsSection').style.display = 'none';
+                }
+                
+            } catch (error) {
+                showError('Error performing search: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Search';
+            }
+        }
+        
+        function displayEntityResults(data) {
+            const container = document.getElementById('resultsContainer');
+            const countEl = document.getElementById('resultsCount');
+            
+            if (!data.owners || data.owners.length === 0) {
+                container.innerHTML = `<p style="color: rgba(255,255,255,0.7);">No owners found for entity ${data.entity_id}${data.entity_name ? ` (${data.entity_name})` : ''}.</p>`;
+                countEl.textContent = '0 result(s) found';
+                return;
+            }
+            
+            const entityName = data.entity_name || `Entity ${data.entity_id}`;
+            const entityLink = `https://pbjdashboard.com/?entity=${data.entity_id}`;
+            
+            // Store entity data for filtering
+            window.currentEntityData = data;
+            
+            let html = `
+                <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid rgba(102, 126, 234, 0.3);">
+                    <h2 style="margin: 0 0 0.5rem 0;">
+                        <a href="${entityLink}" target="_blank" style="color: #667eea; text-decoration: none;">
+                            ${escapeHtml(entityName)} <span style="font-size: 0.8rem;">↗</span>
+                        </a>
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        Entity ID: ${data.entity_id} | ${data.facility_count} ${data.facility_count === 1 ? 'Provider' : 'Providers'} | ${data.owner_count} owner(s)
+                    </div>
+                    ${data.total_donated > 0 ? `
+                        <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                            <div style="font-size: 1.3rem; font-weight: 600; color: #667eea;">
+                                Total Donated: $${data.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                                ${data.donation_count} donation(s) across all owners
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            // Add filter/search for recipients
+            if (data.combined_donations && data.combined_donations.length > 0) {
+                html += `
+                    <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <input 
+                                    type="text" 
+                                    id="recipientFilter" 
+                                    placeholder="Filter by recipient (e.g., MAGA INC, Trump, etc.)..."
+                                    style="width: 100%; padding: 0.7rem; background: rgba(255,255,255,0.1); border: 1px solid rgba(102, 126, 234, 0.3); border-radius: 6px; color: white; font-size: 0.9rem;"
+                                    onkeyup="filterEntityDonations()"
+                                >
+                            </div>
+                            <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                                Showing all ${data.combined_donations.length} donations
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Top recipients summary
+                if (data.top_committees && data.top_committees.length > 0) {
+                    html += `
+                        <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin: 0 0 0.5rem 0; color: rgba(255,255,255,0.9);">Top Recipients</h4>
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem;">
+                                ${data.top_committees.slice(0, 5).map(committee => `
+                                    <div style="cursor: pointer; padding: 0.5rem; border-radius: 4px; background: rgba(102, 126, 234, 0.1);" 
+                                         onclick="filterByRecipient('${escapeHtml(committee.name).replace(/'/g, "\\'")}')"
+                                         onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'"
+                                         onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
+                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${escapeHtml(committee.name)}</div>
+                                        <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">$${committee.total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Combined donations list
+                html += `
+                    <h3 style="margin-bottom: 1rem;">All Donations (Combined List)</h3>
+                    <div id="combinedDonationsList">
+                        ${displayCombinedDonationsList(data.combined_donations)}
+                    </div>
+                `;
+            }
+            
+            // Owners list
+            html += `<h3 style="margin-bottom: 1rem; margin-top: 2rem;">Owners</h3>`;
+            
+            data.owners.forEach(owner => {
+                const donationSummary = owner.donations.length > 0 
+                    ? `${owner.donations.length} donation(s) totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
+                    : 'No donations found';
+                
+                html += `
+                    <div class="result-card" onclick="showOwnerDetails('${owner.owner_name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                        <div style="display: flex; justify-content: space-between; align-items: start;">
+                            <div>
+                                <div style="font-size: 1.1rem; font-weight: 600; color: white; margin-bottom: 0.3rem;">
+                                    ${escapeHtml(owner.owner_name)}
+                                </div>
+                                <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
+                                    ${owner.owner_type} • ${owner.num_facilities} ${owner.num_facilities === 1 ? 'Provider' : 'Providers'}
+                                </div>
+                                <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                                    ${donationSummary}
+                                </div>
+                            </div>
+                            ${owner.total_donated > 0 ? `
+                                <div style="text-align: right;">
+                                    <div style="font-size: 1.2rem; font-weight: 600; color: #667eea;">
+                                        $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                    </div>
+                                    <div style="color: rgba(255,255,255,0.6); font-size: 0.8rem;">
+                                        Total Donated
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+            countEl.textContent = `${data.owner_count} owner(s) found for ${entityName}`;
+        }
+        
+        function displayCombinedDonationsList(donations, filterText = '') {
+            if (!donations || donations.length === 0) {
+                return '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+            }
+            
+            let filtered = donations;
+            if (filterText && filterText.trim()) {
+                const filterUpper = filterText.toUpperCase();
+                filtered = donations.filter(d => 
+                    (d.committee && d.committee.toUpperCase().includes(filterUpper)) ||
+                    (d.candidate && d.candidate.toUpperCase().includes(filterUpper)) ||
+                    (d.owner_name && d.owner_name.toUpperCase().includes(filterUpper))
+                );
+            }
+            
+            if (filtered.length === 0) {
+                return `<p style="color: rgba(255,255,255,0.7);">No donations match "${escapeHtml(filterText)}"</p>`;
+            }
+            
+            // Group by recipient for better organization
+            const byRecipient = {};
+            filtered.forEach(d => {
+                const recipient = d.committee || d.candidate || 'Unknown';
+                if (!byRecipient[recipient]) {
+                    byRecipient[recipient] = [];
+                }
+                byRecipient[recipient].push(d);
+            });
+            
+            let html = '';
+            const sortedRecipients = Object.entries(byRecipient).sort((a, b) => {
+                const totalA = a[1].reduce((sum, d) => sum + d.amount, 0);
+                const totalB = b[1].reduce((sum, d) => sum + d.amount, 0);
+                return totalB - totalA;
+            });
+            
+            sortedRecipients.forEach(([recipient, recipientDonations]) => {
+                const total = recipientDonations.reduce((sum, d) => sum + d.amount, 0);
+                html += `
+                    <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #667eea;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <h4 style="margin: 0; color: #667eea; font-size: 1rem;">${escapeHtml(recipient)}</h4>
+                            <div style="font-weight: 600; color: white;">
+                                $${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${recipientDonations.length} donation${recipientDonations.length !== 1 ? 's' : ''})
+                            </div>
+                        </div>
+                        <div style="display: grid; gap: 0.5rem;">
+                            ${recipientDonations.map(d => `
+                                <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
+                                            $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                        </div>
+                                        <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                                            ${d.date ? `Date: ${d.date}` : ''}
+                                            ${d.owner_name ? ` • From: ${escapeHtml(d.owner_name)}` : ''}
+                                            ${d.office ? ` • ${d.office}` : ''}
+                                            ${d.party ? ` (${d.party})` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            return html;
+        }
+        
+        function filterEntityDonations() {
+            const filterInput = document.getElementById('recipientFilter');
+            if (!filterInput || !window.currentEntityData) return;
+            
+            const filterText = filterInput.value;
+            const container = document.getElementById('combinedDonationsList');
+            if (container) {
+                container.innerHTML = displayCombinedDonationsList(window.currentEntityData.combined_donations, filterText);
+            }
+        }
+        
+        function filterByRecipient(recipientName) {
+            const filterInput = document.getElementById('recipientFilter');
+            if (filterInput) {
+                filterInput.value = recipientName;
+                filterEntityDonations();
+            }
+        }
+
+        // Display search results
+        // State name to code mapping
+        const STATE_NAME_TO_CODE = {
+            'alabama': 'AL', 'alaska': 'AK', 'arizona': 'AZ', 'arkansas': 'AR', 'california': 'CA',
+            'colorado': 'CO', 'connecticut': 'CT', 'delaware': 'DE', 'florida': 'FL', 'georgia': 'GA',
+            'hawaii': 'HI', 'idaho': 'ID', 'illinois': 'IL', 'indiana': 'IN', 'iowa': 'IA',
+            'kansas': 'KS', 'kentucky': 'KY', 'louisiana': 'LA', 'maine': 'ME', 'maryland': 'MD',
+            'massachusetts': 'MA', 'michigan': 'MI', 'minnesota': 'MN', 'mississippi': 'MS', 'missouri': 'MO',
+            'montana': 'MT', 'nebraska': 'NE', 'nevada': 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+            'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', 'ohio': 'OH',
+            'oklahoma': 'OK', 'oregon': 'OR', 'pennsylvania': 'PA', 'puerto rico': 'PR', 'rhode island': 'RI',
+            'south carolina': 'SC', 'south dakota': 'SD', 'tennessee': 'TN', 'texas': 'TX', 'utah': 'UT',
+            'vermont': 'VT', 'virginia': 'VA', 'washington': 'WA', 'west virginia': 'WV', 'wisconsin': 'WI',
+            'wyoming': 'WY', 'district of columbia': 'DC'
+        };
+        
+        function getStateCode(stateName) {
+            if (!stateName) return '';
+            const normalized = stateName.toLowerCase().trim();
+            // If already a 2-letter code, return it
+            if (normalized.length === 2 && STATE_NAME_TO_CODE[normalized]) {
+                return normalized.toUpperCase();
+            }
+            // Try to find in mapping
+            return STATE_NAME_TO_CODE[normalized] || stateName.toUpperCase();
+        }
+        
+        function displayResults(results, providerInfo = null, searchType = 'all') {
+            const container = document.getElementById('resultsContainer');
+            
+            if (results.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.7); padding: 2rem;">No results found. Try a different search term.</p>';
+                return;
+            }
+            
+            let headerHtml = '';
+            
+            // Add provider info header if this is a provider search
+            if (searchType === 'provider' && providerInfo && providerInfo.provider_name) {
+                const providerName = escapeHtml(providerInfo.provider_name);
+                const ccn = providerInfo.ccn || '';
+                const state = providerInfo.state || '';
+                const directOwners = providerInfo.direct_owners || [];
+                
+                // Format date for display (parse YYYY-MM-DD format directly to avoid timezone issues)
+                function formatDate(dateStr) {
+                    if (!dateStr || dateStr === 'nan' || dateStr === '') return '';
+                    try {
+                        // Handle YYYY-MM-DD format directly without timezone conversion
+                        const dateMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                        if (dateMatch) {
+                            const year = dateMatch[1];
+                            const month = dateMatch[2];
+                            const day = dateMatch[3];
+                            return `${month}/${day}/${year}`;
+                        }
+                        // Fallback to Date parsing if format is different
+                        const date = new Date(dateStr);
+                        if (isNaN(date.getTime())) return dateStr;
+                        return date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                    } catch (e) {
+                        return dateStr;
+                    }
+                }
+                
+                // Build direct owners list
+                let ownersListHtml = '';
+                if (directOwners.length > 0) {
+                    ownersListHtml = `
+                        <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(102, 126, 234, 0.3);">
+                            <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">Owners and Managers (5% or greater direct ownership interest)</h4>
+                            <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                ${directOwners.map(owner => {
+                                    const name = escapeHtml(owner.name || '');
+                                    const percentage = owner.percentage || 0;
+                                    const date = formatDate(owner.date || '');
+                                    const dateDisplay = date ? `since ${date}` : '';
+                                    return `
+                                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
+                                            <div style="flex: 1;">
+                                                <div style="color: white; font-weight: 500;">${name}</div>
+                                                ${dateDisplay ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">${dateDisplay}</div>` : ''}
+                                            </div>
+                                            <div style="color: #667eea; font-weight: 600; font-size: 1.1rem; margin-left: 1rem;">${percentage}%</div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                // Build CMS link
+                let cmsLink = '';
+                if (ccn && state) {
+                    const stateCode = getStateCode(state);
+                    cmsLink = `
+                        <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea;">
+                            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: ${directOwners.length > 0 ? '0' : '0'};">
+                                <div style="flex: 1;">
+                                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${providerName}</h3>
+                                    ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` • ${state}` : ''}</div>` : ''}
+                                </div>
+                                <a href="https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all?state=${stateCode}&measure=nursing-home-ownership#ProviderDetailsLocations" 
+                                   target="_blank" 
+                                   style="padding: 0.6rem 1.2rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: background 0.3s; white-space: nowrap;"
+                                   onmouseover="this.style.background='#5568d3'"
+                                   onmouseout="this.style.background='#667eea'">
+                                    📋 CMS Ownership Info
+                                </a>
+                            </div>
+                            ${ownersListHtml}
+                        </div>
+                    `;
+                } else {
+                    cmsLink = `
+                        <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea;">
+                            <h3 style="margin: 0; color: white; font-size: 1.2rem;">Ownership of ${providerName}</h3>
+                            ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.5rem;">CCN: ${ccn}</div>` : ''}
+                            ${ownersListHtml}
+                        </div>
+                    `;
+                }
+                headerHtml = cmsLink;
+            }
+            
+            container.innerHTML = headerHtml + results.map(result => `
+                <div class="result-card">
+                    <div class="result-header">
+                        <div>
+                            <div class="owner-name">${escapeHtml(result.owner_name)}</div>
+                            <span class="owner-type ${result.owner_type.toLowerCase()}">${result.owner_type}</span>
+                        </div>
+                        <div class="facilities-count">${result.num_facilities} ${result.num_facilities === 1 ? 'Provider' : 'Providers'}</div>
+                    </div>
+                    ${result.facilities.length > 0 ? `
+                        <div class="facilities-list">
+                            <strong>Facilities:</strong> ${result.facilities.slice(0, 3).map(f => escapeHtml(f)).join(', ')}
+                            ${result.facilities.length > 3 ? ` and ${result.facilities.length - 3} more` : ''}
+                        </div>
+                    ` : ''}
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button 
+                            onclick="event.stopPropagation(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" 
+                            class="query-fec-btn" 
+                            style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
+                        >
+                            🔍 Query FEC API
+                        </button>
+                        <button 
+                            onclick="showOwnerDetails('${result.owner_name.replace(/'/g, "\\'")}')" 
+                            class="back-btn" 
+                            style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
+                        >
+                            View Providers
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Show owner details
+        async function showOwnerDetails(ownerName) {
+            try {
+                const response = await fetch(`/owner/api/owner/${encodeURIComponent(ownerName)}`);
+                const owner = await response.json();
+                
+                if (owner.error) {
+                    showError(owner.error);
+                    return;
+                }
+                
+                currentOwner = owner;
+                document.getElementById('ownerTitle').textContent = owner.owner_name;
+                // Hide search results completely
+                document.getElementById('resultsSection').style.display = 'none';
+                document.getElementById('resultsContainer').innerHTML = ''; // Clear results
+                document.getElementById('resultsCount').textContent = ''; // Clear count
+                document.getElementById('detailsSection').style.display = 'block';
+                
+                // Show facilities in a polished table (skip portfolio summary - redundant)
+                const facilitiesHtml = owner.facilities.length > 0 ? `
+                    <h3 style="margin-bottom: 1rem;">Providers (${owner.facilities.length})</h3>
+                    <div style="overflow-x: auto;">
+                        <table class="facilities-table">
+                            <thead>
+                                <tr>
+                                    <th>Legal Business Name</th>
+                                    <th>Provider Name</th>
+                                    <th>Location</th>
+                                    <th>CCN</th>
+                                    <th>Rating</th>
+                                    <th>Beds</th>
+                                    <th>HPRD</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${owner.facilities.map(f => {
+                                    // Build dashboard link - ONLY use CCN from provider_info (NOT enrollment_id - they're different!)
+                                    let dashboardLink = '';
+                                    let ccnForLink = '';
+                                    // Only create link if we have a valid CCN from provider_info
+                                    if (f.ccn && String(f.ccn).trim() !== '' && String(f.ccn) !== 'None' && String(f.ccn) !== 'N/A') {
+                                        ccnForLink = String(f.ccn).replace('O', '').replace(/[^0-9]/g, '').padStart(6, '0');
+                                        // Only create link if CCN is valid (6 digits)
+                                        if (ccnForLink.length === 6 && /^\d{6}$/.test(ccnForLink)) {
+                                            dashboardLink = `https://pbjdashboard.com/?facility=${ccnForLink}`;
+                                        }
+                                    }
+                                    
+                                    // Add entity link if available
+                                    let entityLink = '';
+                                    if (f.entity_id) {
+                                        entityLink = `https://pbjdashboard.com/?entity=${f.entity_id}`;
+                                    }
+                                    
+                                    // Format rating badge
+                                    const rating = f.rating ? parseInt(f.rating) : null;
+                                    const ratingBadge = rating ? `<span class="rating-badge rating-${rating}">${rating}★</span>` : 'N/A';
+                                    
+                                    // Format HPRD
+                                    const hprd = f.avg_hprd ? parseFloat(f.avg_hprd).toFixed(2) : 'N/A';
+                                    
+                                    // Format beds
+                                    const beds = f.beds ? Math.round(parseFloat(f.beds)).toLocaleString() : 'N/A';
+                                    
+                                    // Location string
+                                    const location = [f.city, f.state].filter(x => x).join(', ') || 'N/A';
+                                    
+                                    // CCN display - ONLY show CCN from provider_info (NOT enrollment_id - they're different!)
+                                    let ccnDisplay = 'N/A';
+                                    if (f.ccn && String(f.ccn).trim() !== '' && String(f.ccn) !== 'None' && String(f.ccn) !== 'N/A') {
+                                        ccnDisplay = String(f.ccn).replace('O', '').replace(/[^0-9]/g, '').padStart(6, '0');
+                                        // Only show if valid 6-digit CCN
+                                        if (ccnDisplay.length !== 6 || !/^\d{6}$/.test(ccnDisplay)) {
+                                            ccnDisplay = 'N/A';
+                                        }
+                                    }
+                                    
+                                    // Get Legal Business Name and Provider Name
+                                    const legalBusinessName = f.legal_business_name || f.name || 'N/A';
+                                    const providerName = f.provider_name || f.name || 'N/A';
+                                    
+                                    return `
+                                        <tr>
+                                            <td>${escapeHtml(legalBusinessName)}</td>
+                                            <td>${dashboardLink ? `<a href="${dashboardLink}" target="_blank" style="color: #667eea; text-decoration: none;">${escapeHtml(providerName)} <span style="font-size: 0.8em;">↗</span></a>` : escapeHtml(providerName)}${entityLink ? `<br><a href="${entityLink}" target="_blank" style="font-size: 0.8rem; color: rgba(102, 126, 234, 0.7); text-decoration: none;">Entity ${f.entity_id} ↗</a>` : ''}</td>
+                                            <td>${escapeHtml(location)}</td>
+                                            <td>${ccnDisplay}</td>
+                                            <td>${ratingBadge}</td>
+                                            <td>${beds}</td>
+                                            <td>${hprd}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                ` : '<p style="color: rgba(255,255,255,0.7);">No facilities found.</p>';
+                
+                // Display donations FIRST (above facilities)
+                if (owner.donations && owner.donations.length > 0) {
+                    displayDonations(owner.donations, owner.total_donated, owner.donation_count);
+                    // Show note if from pre-processed database
+                    if (owner.has_preprocessed_donations) {
+                        const container = document.getElementById('donationsContainer');
+                        const note = document.createElement('div');
+                        note.style.cssText = 'background: rgba(102, 126, 234, 0.2); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; color: rgba(255,255,255,0.8);';
+                        note.innerHTML = '📊 Showing donations from pre-processed database. <button onclick="queryFecApi()" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">Query FEC API (Live)</button> to search for latest donations.';
+                        container.insertBefore(note, container.firstChild);
+                    }
+                } else {
+                    document.getElementById('donationsContainer').innerHTML = `
+                        <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
+                            <p style="color: rgba(255,255,255,0.7); margin-bottom: 1rem;">No donations found in database.</p>
+                            <button onclick="queryFecApi()" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
+                                🔍 Query FEC API (Live) - Search for Political Donations
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                // Display facilities AFTER donations
+                document.getElementById('facilitiesContainer').innerHTML = facilitiesHtml;
+                
+            } catch (error) {
+                showError('Error loading owner details: ' + error.message);
+            }
+        }
+
+        // Display donations
+        function displayDonations(donations, total = null, count = null) {
+            const container = document.getElementById('donationsContainer');
+            
+            if (!donations || donations.length === 0) {
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+                return;
+            }
+            
+            const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
+            const donationCount = count !== null ? count : donations.length;
+            
+            // Group by recipient for summary
+            const byCommittee = {};
+            const byCandidate = {};
+            donations.forEach(d => {
+                if (d.committee) {
+                    byCommittee[d.committee] = (byCommittee[d.committee] || 0) + d.amount;
+                }
+                if (d.candidate) {
+                    const key = `${d.candidate} (${d.office || 'Unknown'})`;
+                    byCandidate[key] = (byCandidate[key] || 0) + d.amount;
+                }
+            });
+            
+            const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            
+            // Prepare CSV data
+            const csvData = donations.map(d => ({
+                date: d.date || '',
+                amount: d.amount || 0,
+                committee: d.committee || '',
+                candidate: d.candidate || '',
+                office: d.office || '',
+                party: d.party || '',
+                employer: d.employer || '',
+                occupation: d.occupation || '',
+                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : ''
+            }));
+            
+            const csvContent = [
+                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location'],
+                ...csvData.map(d => [
+                    d.date,
+                    d.amount,
+                    d.committee,
+                    d.candidate,
+                    d.office,
+                    d.party,
+                    d.employer,
+                    d.occupation,
+                    d.location
+                ])
+            ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+            
+            const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const csvUrl = URL.createObjectURL(csvBlob);
+            
+            container.innerHTML = `
+                <div style="background: rgba(102, 126, 234, 0.2); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem; color: white;">
+                            Total Donated: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                        <div style="color: rgba(255,255,255,0.7);">
+                            ${donationCount} donation(s) total
+                            ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                        </div>
+                    </div>
+                    <a href="${csvUrl}" download="donations.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
+                        Export donation CSV
+                    </a>
+                </div>
+                
+                ${topCommittees.length > 0 || topCandidates.length > 0 ? `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                        ${topCommittees.length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px;">
+                                <strong>Top Committees</strong>
+                                ${topCommittees.map(([name, amt]) => `
+                                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${topCandidates.length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px;">
+                                <strong>Top Candidates</strong>
+                                ${topCandidates.map(([name, amt]) => `
+                                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">
+                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h4 style="margin: 0;">All Donations (${donationCount})</h4>
+                </div>
+                <div class="donations-grid">
+                    ${donations.map(d => `
+                        <div class="donation-card-grid">
+                            <div style="font-size: 1.2rem; font-weight: 600; color: #667eea; margin-bottom: 0.5rem;">
+                                $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            </div>
+                            <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.6;">
+                                ${d.date ? `<div><strong>Date:</strong> ${d.date}</div>` : ''}
+                                ${d.committee ? `<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>` : ''}
+                                ${d.candidate ? `<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${d.office})` : ''}${d.party ? ` - ${d.party}` : ''}</div>` : ''}
+                                ${d.employer ? `<div><strong>Employer:</strong> ${escapeHtml(d.employer)}${d.occupation ? `, ${escapeHtml(d.occupation)}` : ''}</div>` : ''}
+                                ${d.donor_city && d.donor_state ? `<div><strong>Location:</strong> ${escapeHtml(d.donor_city)}, ${escapeHtml(d.donor_state)}</div>` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        // Query FEC API for owner from search results (without loading full details)
+        async function queryFecApiForOwner(ownerName, ownerType) {
+            const container = document.getElementById('resultsContainer');
+            
+            // Create a temporary donations display area
+            const donationsDiv = document.createElement('div');
+            donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
+            donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
+            donationsDiv.innerHTML = '<div class="loading">Querying FEC API for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+            
+            // Insert at top of results
+            container.insertBefore(donationsDiv, container.firstChild);
+            
+            try {
+                const response = await fetch('/owner/api/query-fec', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        owner_name: ownerName,
+                        owner_type: ownerType
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    donationsDiv.innerHTML = '<div class="error">' + escapeHtml(data.error) + '</div>';
+                    return;
+                }
+                
+                // Display donations in the temp div
+                displayDonationsInContainer(data.donations, data.total, data.count, donationsDiv, ownerName);
+                
+            } catch (error) {
+                donationsDiv.innerHTML = '<div class="error">Error querying FEC API: ' + escapeHtml(error.message) + '</div>';
+            }
+        }
+        
+        // Display donations in a specific container (for search results)
+        function displayDonationsInContainer(donations, total, count, container, ownerName = '') {
+            if (!donations || donations.length === 0) {
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No donations found.</p>';
+                return;
+            }
+            
+            const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
+            const donationCount = count !== null ? count : donations.length;
+            
+            // Group by recipient for summary
+            const byCommittee = {};
+            const byCandidate = {};
+            donations.forEach(d => {
+                if (d.committee) {
+                    byCommittee[d.committee] = (byCommittee[d.committee] || 0) + d.amount;
+                }
+                if (d.candidate) {
+                    const key = `${d.candidate} (${d.office || 'Unknown'})`;
+                    byCandidate[key] = (byCandidate[key] || 0) + d.amount;
+                }
+            });
+            
+            const topCommittees = Object.entries(byCommittee).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            const topCandidates = Object.entries(byCandidate).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            
+            // Prepare CSV data
+            const csvData = donations.map(d => ({
+                date: d.date || '',
+                amount: d.amount || 0,
+                committee: d.committee || '',
+                candidate: d.candidate || '',
+                office: d.office || '',
+                party: d.party || '',
+                employer: d.employer || '',
+                occupation: d.occupation || '',
+                location: d.donor_city && d.donor_state ? `${d.donor_city}, ${d.donor_state}` : ''
+            }));
+            
+            const csvContent = [
+                ['Date', 'Amount', 'Committee', 'Candidate', 'Office', 'Party', 'Employer', 'Occupation', 'Location'],
+                ...csvData.map(d => [
+                    d.date,
+                    d.amount,
+                    d.committee,
+                    d.candidate,
+                    d.office,
+                    d.party,
+                    d.employer,
+                    d.occupation,
+                    d.location
+                ])
+            ].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+            
+            const csvBlob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const csvUrl = URL.createObjectURL(csvBlob);
+            
+            container.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3 style="margin: 0; color: white; font-weight: 600;">Political Donations - ${escapeHtml(ownerName)}</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer;">✕ Close</button>
+                </div>
+                <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                    <div>
+                        <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; color: white;">
+                            Total Donated: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                        </div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                            ${donationCount} donation(s) total
+                            ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                        </div>
+                    </div>
+                    <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
+                        📥 Export CSV
+                    </a>
+                </div>
+                
+                ${topCommittees.length > 0 || topCandidates.length > 0 ? `
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin-bottom: 1rem;">
+                        ${topCommittees.length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 6px;">
+                                <strong style="font-size: 0.9rem;">Top Committees</strong>
+                                ${topCommittees.map(([name, amt]) => `
+                                    <div style="margin-top: 0.4rem; font-size: 0.85rem;">
+                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        ${topCandidates.length > 0 ? `
+                            <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 6px;">
+                                <strong style="font-size: 0.9rem;">Top Candidates</strong>
+                                ${topCandidates.map(([name, amt]) => `
+                                    <div style="margin-top: 0.4rem; font-size: 0.85rem;">
+                                        ${escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">All Donations (${donationCount})</h4>
+                <div style="max-height: 400px; overflow-y: auto;">
+                    ${donations.slice(0, 20).map(d => `
+                        <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
+                            <div style="flex: 1;">
+                                <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
+                                    $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                </div>
+                                <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
+                                    ${d.date ? `Date: ${d.date}` : ''}
+                                    ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
+                                    ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
+                                    ${d.office ? ` (${d.office})` : ''}
+                                    ${d.party ? ` - ${d.party}` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                    ${donations.length > 20 ? `<p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">... and ${donations.length - 20} more donations. <button onclick="showOwnerDetails('${escapeHtml(ownerName).replace(/'/g, "\\'")}')" style="background: none; border: none; color: #667eea; cursor: pointer; text-decoration: underline; font-size: 0.85rem; padding: 0;">View all in details</button></p>` : ''}
+                </div>
+            `;
+        }
+        
+        // Query FEC API (from owner details page)
+        async function queryFecApi() {
+            if (!currentOwner) {
+                // Try to get owner name from title
+                const ownerTitle = document.getElementById('ownerTitle');
+                if (!ownerTitle || !ownerTitle.textContent) {
+                    showError('No owner selected');
+                    return;
+                }
+                // Create a minimal owner object for the API call
+                currentOwner = {
+                    owner_name: ownerTitle.textContent,
+                    owner_type: 'INDIVIDUAL' // Default, will be corrected by backend if needed
+                };
+            }
+            
+            const container = document.getElementById('donationsContainer');
+            container.innerHTML = '<div class="loading">Querying FEC API... This may take a moment.</div>';
+            
+            try {
+                const response = await fetch('/owner/api/query-fec', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        owner_name: currentOwner.owner_name,
+                        owner_type: currentOwner.owner_type
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    showError(data.error);
+                    return;
+                }
+                
+                displayDonations(data.donations, data.total, data.count);
+                
+            } catch (error) {
+                showError('Error querying FEC API: ' + error.message);
+            }
+        }
+
+        function showSearchResults() {
+            document.getElementById('resultsSection').style.display = 'block';
+            document.getElementById('detailsSection').style.display = 'none';
+            currentOwner = null;
+        }
+
+        function showError(message) {
+            const container = document.getElementById('donationsContainer');
+            container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+
+        // Load stats on page load
+        loadStats();
+    </script>
+</body>
+</html>

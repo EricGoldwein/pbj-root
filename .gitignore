@@ -9,6 +9,11 @@ venv/
 ENV/
 .venv
 
+# Environment variables and secrets
+.env
+*.env
+donor/.env
+
 # Large CSV files (converted to JSON in pbj-wrapped/public/data/json/)
 # Exclude large CSVs that have JSON equivalents in pbj-wrapped/public/data/json/
 # These are used for preprocessing but don't need to be in git
@@ -24,7 +29,9 @@ macpac_state_standards_clean.csv
 *_old.csv
 *_latest.csv
 *_updated.csv
+# Exclude provider info files, but allow specific ones needed for owner dashboard
 NH_ProviderInfo_*.csv
+!provider_info/NH_ProviderInfo_Dec2025.csv
 
 # Node modules
 node_modules/

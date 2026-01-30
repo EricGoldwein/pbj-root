@@ -2306,7 +2306,7 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    $${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                                    ${d.fec_link ? `<a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: underline;">$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</a> <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" style="font-size: 0.75rem; color: rgba(255,255,255,0.6); margin-left: 0.25rem;">View on FEC</a>` : `$${d.amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                     ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}

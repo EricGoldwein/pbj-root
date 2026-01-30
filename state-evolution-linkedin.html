@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>US Nursing Home Staffing Evolution (2017-2025) - LinkedIn Video</title>
+  <!-- 
+    IMPORTANT: This file must be served from a web server, not opened directly (file://).
+    Use: python -m http.server 8000
+    Then open: http://localhost:8000/state-evolution-linkedin.html
+  -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: white;
+      overflow: hidden;
+      width: 1920px;
+      height: 1080px;
+      position: relative;
+    }
+    
+    .container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 30px 40px 20px 40px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      z-index: 10;
+    }
+    
+    .header h1 {
+      font-size: 52px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
+    }
+    
+    .header .subtitle {
+      font-size: 26px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 500;
+    }
+    
+    .map-container {
+      width: 100%;
+      height: 800px;
+      position: relative;
+      background: rgba(15, 23, 42, 0.5);
+      border-radius: 12px;
+      padding: 50px 20px 20px 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      margin-bottom: 20px;
+    }
+    
+    #stateMap {
+      width: 100%;
+      height: 100%;
+      margin-top: 20px;
+      margin-left: 20px;
+    }
+    
+    #quarterDisplay {
+      position: absolute;
+      top: 20px;
+      left: calc(50% + 280px);
+      transform: translateX(0);
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #1769aa 0%, #1e88e5 100%);
+      padding: 10px 24px;
+      border-radius: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      box-shadow: 
+        0 6px 20px rgba(23, 105, 170, 0.5),
+        0 3px 10px rgba(0,0,0,0.3);
+      text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+      letter-spacing: 0.5px;
+      z-index: 10;
+      backdrop-filter: blur(10px);
+    }
+    
+    #stateMapLegend {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(30, 41, 59, 0.95);
+      border-radius: 12px;
+      padding: 12px 30px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+    
+    #legendTitle {
+      font-size: 16px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+    
+    #stateMapLegendContent {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    #stateMapLegendGradient {
+      width: 300px;
+      height: 12px;
+      border-radius: 6px;
+    }
+    
+    #stateMapLegendLabels {
+      display: flex;
+      justify-content: space-between;
+      width: 300px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: 600;
+      margin-top: 0;
+    }
+    
+    .footer {
+      position: relative;
+      margin-top: 20px;
+      text-align: center;
+      font-size: 18px;
+      color: rgba(255, 255, 255, 0.7);
+      z-index: 10;
+      width: 100%;
+    }
+    
+    .footer .logo {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    
+    .footer .logo .blue {
+      color: #60a5fa;
+    }
+    
+    .footer .source {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 6px;
+    }
+    
+    .footer .website {
+      font-size: 16px;
+      color: #60a5fa;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+    
+    .stats-panel {
+      position: absolute;
+      left: 20px;
+      top: 140px;
+      background: rgba(30, 41, 59, 0.95);
+      border-radius: 12px;
+      padding: 20px 24px;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255,255,255,0.2);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+      min-width: 340px;
+      max-width: 340px;
+    }
+    
+    .stats-panel h3 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      margin: 0 0 16px 0;
+      text-align: center;
+    }
+    
+    .stats-panel .stat-row {
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 16px;
+      align-items: start;
+    }
+    
+    .stats-panel .stat-label {
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.95);
+      white-space: nowrap;
+      padding-right: 4px;
+    }
+    
+    .stats-panel .stat-value {
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.8);
+      text-align: left;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.5;
+      hyphens: auto;
+    }
+    
+    .stats-panel .stat-note {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.6);
+      font-style: italic;
+      margin-top: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>US Nursing Home Staffing over Time (2017 - 2025)</h1>
+    </div>
+    
+    <div class="map-container">
+      <div id="quarterDisplay">Q1 2017</div>
+      
+      <div class="stats-panel" id="statsPanel">
+        <h3>US Staffing (Q3 2025)</h3>
+        <div class="stat-row">
+          <span class="stat-label">Nursing Homes:</span>
+          <span class="stat-value" id="statNursingHomes">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Residents:</span>
+          <span class="stat-value" id="statResidents">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Total Nurse HPRD:</span>
+          <span class="stat-value" id="statTotalHPRD">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">RN HPRD:</span>
+          <span class="stat-value" id="statRNHPRD">-</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">Contract Staff:</span>
+          <span class="stat-value" id="statContract">-</span>
+        </div>
+        <div class="stat-note">Reporting in CMS Payroll-Based Journal</div>
+      </div>
+      
+      <div id="stateMapLegend">
+        <div id="legendTitle">Total Hours Per Resident Day (HPRD)</div>
+        <div id="stateMapLegendContent">
+          <svg id="stateMapLegendGradient" width="300" height="12" style="border-radius: 6px;">
+            <defs>
+              <linearGradient id="hprdGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:hsl(270, 15%, 85%);stop-opacity:1" />
+                <stop offset="50%" style="stop-color:hsl(270, 45%, 60%);stop-opacity:1" />
+                <stop offset="100%" style="stop-color:hsl(270, 75%, 35%);stop-opacity:1" />
+              </linearGradient>
+            </defs>
+            <rect width="300" height="12" fill="url(#hprdGradient)" id="legendGradient"/>
+          </svg>
+          <div id="stateMapLegendLabels">
+            <span>3.0</span>
+            <span>4.5</span>
+          </div>
+        </div>
+      </div>
+      
+      <div id="stateMap" style="width: 100%; height: 100%;"></div>
+    </div>
+    
+    <div class="footer">
+      <div class="logo">PBJ<span class="blue">320</span></div>
+      <div class="source">Source: CMS Payroll-Based Journal Data • 320 Consulting</div>
+      <div class="website">pbj320.com</div>
+    </div>
+  </div>
+
+  <!-- D3.js and TopoJSON -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://d3js.org/topojson.v3.min.js"></script>
+
+  <script>
+    // State name to abbreviation mapping
+    const stateAbbreviations = {
+      'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+      'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+      'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+      'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+      'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+      'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+      'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+      'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+      'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+      'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY'
+    };
+
+    let stateMap = null;
+    let currentQuarterIndex = 0;
+    let selectedMetric = 'Total_Nurse_HPRD';
+    let quarters = [];
+    let isAnimating = false;
+    let animationInterval = null;
+
+    // Parse CSV - handles quoted fields properly
+    function parseCSV(text) {
+      const lines = text.split('\n').filter(line => line.trim());
+      if (lines.length === 0) return [];
+      
+      // Parse header
+      const headers = parseCSVLine(lines[0]);
+      const data = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = parseCSVLine(lines[i]);
+          const row = {};
+          headers.forEach((header, index) => {
+            row[header.trim()] = values[index] ? values[index].trim().replace(/^"|"$/g, '') : '';
+          });
+          data.push(row);
+        }
+      }
+      
+      return data;
+    }
+    
+    // Parse a single CSV line, handling quoted fields
+    function parseCSVLine(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+        
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            // Escaped quote
+            current += '"';
+            i++; // Skip next quote
+          } else {
+            // Toggle quote state
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          // End of field
+          result.push(current);
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      
+      // Add last field
+      result.push(current);
+      return result;
+    }
+
+    // Get quarters from data
+    function getQuarters() {
+      if (quarters.length > 0) {
+        return quarters;
+      }
+      return [];
+    }
+
+    // Format quarter
+    function formatQuarter(quarterString) {
+      const year = quarterString.substring(0, 4);
+      const quarter = quarterString.substring(4);
+      return `${quarter} ${year}`;
+    }
+
+    // Get color for value
+    function getColorForValue(value) {
+      if (selectedMetric === 'Total_Nurse_HPRD') {
+        const min = 3.0;
+        const max = 4.5;
+        const normalized = Math.max(0, Math.min(1, (value - min) / (max - min)));
+        const hue = 270;
+        const saturation = Math.max(15, normalized * 60 + 15);
+        const lightness = Math.max(25, 85 - (normalized * 50));
+        return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+      }
+      return '#cbd5e1';
+    }
+
+    // Get state value
+    function getStateValue(stateName) {
+      if (!window.stateData) return null;
+      
+      const stateAbbr = stateAbbreviations[stateName];
+      if (stateAbbr && window.stateData[stateAbbr]) {
+        const metricKey = 'hprd';
+        return window.stateData[stateAbbr][metricKey][currentQuarterIndex] || null;
+      }
+      return null;
+    }
+
+    // Update map
+    function updateMap() {
+      if (!stateMap) return;
+      
+      const { statePaths } = stateMap;
+      
+      // Update state colors
+      statePaths.style('fill', function(d) {
+        const stateName = d.properties.name;
+        const value = getStateValue(stateName);
+        if (value !== null) {
+          return getColorForValue(value);
+        }
+        return '#cbd5e1';
+      });
+      
+      // Update quarter display
+      const quarterDisplay = document.getElementById('quarterDisplay');
+      if (quarterDisplay && quarters.length > 0) {
+        quarterDisplay.textContent = formatQuarter(quarters[currentQuarterIndex]);
+      }
+    }
+
+    // Create state map
+    function createStateMap() {
+      const container = d3.select('#stateMap').node();
+      const containerWidth = container ? container.offsetWidth : 1800;
+      // Keep map at 730px height to fit Florida properly
+      const containerHeight = 730;
+      
+      const width = containerWidth;
+      const height = containerHeight;
+      
+      // Create SVG
+      const svg = d3.select('#stateMap')
+        .html('')
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`)
+        .attr('preserveAspectRatio', 'xMidYMid meet');
+      
+      // Load US map data
+      d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json').then(function(us) {
+        const states = topojson.feature(us, us.objects.states);
+        
+        // Create projection with padding to ensure all states fit
+        const padding = 40;
+        const xOffset = 30; // Move map to the right
+        const projection = d3.geoAlbersUsa()
+          .fitSize([width - padding, height - padding], states)
+          .translate([width / 2 + xOffset, height / 2]);
+        
+        const path = d3.geoPath().projection(projection);
+        
+        // Draw states
+        const statePaths = svg.selectAll('.state')
+          .data(states.features)
+          .enter()
+          .append('path')
+          .attr('class', 'state')
+          .attr('d', path)
+          .attr('data-state', d => d.properties.name)
+          .style('fill', function(d) {
+            const stateName = d.properties.name;
+            const value = getStateValue(stateName);
+            if (value !== null) {
+              return getColorForValue(value);
+            }
+            return '#cbd5e1';
+          })
+          .style('stroke', '#ffffff')
+          .style('stroke-width', '2px');
+        
+        stateMap = { svg, statePaths };
+        
+        // Start animation after data is loaded and map is ready
+        if (quarters.length > 0 && window.stateData) {
+          setTimeout(() => {
+            startAnimation();
+          }, 500);
+        }
+      });
+    }
+
+    // Start animation
+    function startAnimation() {
+      if (isAnimating) return;
+      if (!quarters || quarters.length === 0) {
+        console.log('Waiting for quarters data...');
+        setTimeout(() => startAnimation(), 500);
+        return;
+      }
+      if (!window.stateData) {
+        console.log('Waiting for state data...');
+        setTimeout(() => startAnimation(), 500);
+        return;
+      }
+      
+      currentQuarterIndex = 0;
+      updateMap();
+      isAnimating = true;
+      
+      console.log(`Starting animation with ${quarters.length} quarters`);
+      
+      animationInterval = setInterval(() => {
+        const mostRecentIndex = quarters.length - 1;
+        if (currentQuarterIndex < mostRecentIndex) {
+          currentQuarterIndex++;
+          updateMap();
+        } else {
+          // Reached the end, restart from beginning
+          clearInterval(animationInterval);
+          isAnimating = false;
+          setTimeout(() => {
+            currentQuarterIndex = 0;
+            updateMap();
+            startAnimation();
+          }, 2000); // Pause 2 seconds before restarting
+        }
+      }, 200); // 200ms per quarter for smooth animation
+    }
+
+    // Load data
+    async function loadData() {
+      try {
+        const [nationalResponse, stateResponse] = await Promise.all([
+          fetch('national_quarterly_metrics.csv'),
+          fetch('state_quarterly_metrics.csv')
+        ]);
+        
+        if (!nationalResponse.ok || !stateResponse.ok) {
+          throw new Error('Failed to load data files');
+        }
+        
+        const nationalText = await nationalResponse.text();
+        const stateText = await stateResponse.text();
+        
+        const nationalData = parseCSV(nationalText);
+        const stateData = parseCSV(stateText);
+        
+        // Process state data for animation
+        const processedStateData = {};
+        quarters = nationalData.map(row => row.CY_Qtr);
+        
+        const excludedTerritories = ['PR', 'GU'];
+        
+        quarters.forEach((quarter, index) => {
+          const quarterData = stateData.filter(row => row.CY_Qtr === quarter);
+          quarterData.forEach(row => {
+            const stateAbbr = row.STATE;
+            if (excludedTerritories.includes(stateAbbr)) return;
+            
+            if (!processedStateData[stateAbbr]) {
+              processedStateData[stateAbbr] = {
+                hprd: new Array(quarters.length),
+                rn_hprd: new Array(quarters.length),
+                contract: new Array(quarters.length)
+              };
+            }
+            processedStateData[stateAbbr].hprd[index] = parseFloat(row.Total_Nurse_HPRD);
+            processedStateData[stateAbbr].rn_hprd[index] = parseFloat(row.RN_HPRD);
+            processedStateData[stateAbbr].contract[index] = parseFloat(row.Contract_Percentage);
+          });
+        });
+        
+        window.stateData = processedStateData;
+        
+        console.log(`Loaded ${quarters.length} quarters of data`);
+        console.log(`Processed data for ${Object.keys(processedStateData).length} states`);
+        
+        // Update Q3 2025 stats panel
+        updateStatsPanel(nationalData, stateData);
+        
+        // Initialize map - animation will start after map is created
+        createStateMap();
+        
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Show error message on page
+        const mapContainer = document.querySelector('.map-container');
+        if (mapContainer) {
+          mapContainer.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; height: 100%; color: #ef4444; font-size: 24px; text-align: center; padding: 40px;">
+              <div>
+                <div style="font-size: 48px; margin-bottom: 20px;">⚠️</div>
+                <div>Error loading data files</div>
+                <div style="font-size: 16px; margin-top: 10px; color: rgba(255,255,255,0.7);">
+                  Make sure national_quarterly_metrics.csv and state_quarterly_metrics.csv are in the same directory
+                </div>
+                <div style="font-size: 14px; margin-top: 10px; color: rgba(255,255,255,0.5);">
+                  ${error.message}
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    // Update stats panel with Q3 2025 data
+    function updateStatsPanel(nationalData, stateData) {
+      // Find Q3 2025 data
+      const q3_2025 = nationalData.find(row => row.CY_Qtr === '2025Q3');
+      if (!q3_2025) {
+        console.log('Q3 2025 data not found');
+        return;
+      }
+      
+      // Get facility count from national data or sum from state data
+      let facilityCount = parseFloat(q3_2025.facility_count) || 0;
+      if (!facilityCount || facilityCount === 0) {
+        // Fallback: count unique states with data
+        const q3StateData = stateData.filter(row => row.CY_Qtr === '2025Q3');
+        facilityCount = q3StateData.length;
+      }
+      
+      // Format numbers
+      const formatNumber = (num) => {
+        if (num === null || num === undefined || isNaN(num) || num === 0) return '-';
+        return parseFloat(num).toLocaleString('en-US', { maximumFractionDigits: 0 });
+      };
+      
+      const formatDecimal = (num, decimals = 2) => {
+        if (num === null || num === undefined || isNaN(num)) return '-';
+        return parseFloat(num).toFixed(decimals);
+      };
+      
+      const formatPercent = (num, decimals = 1) => {
+        if (num === null || num === undefined || isNaN(num)) return '-';
+        return parseFloat(num).toFixed(decimals) + '%';
+      };
+      
+      // Update DOM elements
+      document.getElementById('statNursingHomes').textContent = formatNumber(facilityCount);
+      
+      // Residents should be nationwide total - use MDScensus if available, otherwise avg_daily_census
+      const totalResidents = parseFloat(q3_2025.MDScensus) || parseFloat(q3_2025.avg_daily_census);
+      document.getElementById('statResidents').textContent = formatNumber(totalResidents);
+      
+      const totalHPRD = parseFloat(q3_2025.Total_Nurse_HPRD);
+      const directCareHPRD = parseFloat(q3_2025.Nurse_Care_HPRD);
+      document.getElementById('statTotalHPRD').innerHTML = 
+        `${formatDecimal(totalHPRD)}<br><span style="font-size: 12px; opacity: 0.85; white-space: nowrap;">(incl.&nbsp;${formatDecimal(directCareHPRD)}&nbsp;Direct&nbsp;Care)</span>`;
+      
+      const rnHPRD = parseFloat(q3_2025.RN_HPRD);
+      const rnCareHPRD = parseFloat(q3_2025.RN_Care_HPRD);
+      document.getElementById('statRNHPRD').innerHTML = 
+        `${formatDecimal(rnHPRD)}<br><span style="font-size: 12px; opacity: 0.85; white-space: nowrap;">(incl.&nbsp;${formatDecimal(rnCareHPRD)}&nbsp;Direct&nbsp;RN)</span>`;
+      
+      const contractPct = parseFloat(q3_2025.Contract_Percentage);
+      document.getElementById('statContract').textContent = formatPercent(contractPct);
+    }
+
+    // Load data when page loads
+    loadData();
+  </script>
+</body>
+</html>

@@ -157,16 +157,16 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
     # Contributor is substring of owner - allow
     if contrib_norm in owner_norm:
         return True
-    # For organizations: require owner's first 2 significant words to appear in contributor.
-    # Only filter legal entity suffixes - keep SERVICES/CONSULTING (part of names like "Ensign Services")
+    # For organizations: require enough of the name to avoid matching unrelated entities.
+    # e.g. "NORTH POINT WELLNESS" vs "NORTH POINT RENTALS" - need 3+ words when available
     LEGAL_SUFFIXES = {'LLC', 'INC', 'CORP', 'LP', 'LTD', 'L.L.C.', 'INC.', 'CORP.', 'THE'}
     owner_words = [w for w in owner_norm.split() if w and w not in LEGAL_SUFFIXES]
     if len(owner_words) >= 2 and owner_type.upper() == "ORGANIZATION":
-        phrase = f"{owner_words[0]} {owner_words[1]}"
+        # Use first 3 words if available (excludes NORTH POINT RENTALS when searching NORTH POINT WELLNESS)
+        n_words = min(3, len(owner_words)) if len(owner_words) >= 3 else 2
+        phrase = " ".join(owner_words[:n_words])
         if phrase in contrib_norm:
             return True
-        # First word alone can match too many (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
-        # Require at least the 2-word phrase for orgs
         return False
     # For individuals: require BOTH first and last name (FEC uses LAST, FIRST format).
     # First name alone matches too many; last name alone could match other family members.

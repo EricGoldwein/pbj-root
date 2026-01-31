@@ -168,18 +168,26 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
         # First word alone can match too many (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
         # Require at least the 2-word phrase for orgs
         return False
+    # For individuals: require LAST name (FEC uses LAST, FIRST format). First name alone
+    # matches too many people (e.g. MIRIAM matches JACKSON MIRIAM, SHEEHAN MIRIAM, etc.)
+    if owner_type.upper() == "INDIVIDUAL" and len(owner_words) >= 2:
+        last_name = owner_words[-1]
+        if last_name in contrib_norm:
+            return True
+        return False
     if owner_words and owner_words[0] in contrib_norm:
         return True
     return False
 
 
-def normalize_name_for_search(name):
+def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
     """Normalize name and generate variations for flexible matching"""
     if pd.isna(name) or not name:
         return []
     
     name_upper = str(name).upper().strip()
     variations = [name_upper]
+    is_individual = owner_type.upper() == "INDIVIDUAL"
     
     # Split into parts
     parts = name_upper.split()
@@ -187,11 +195,11 @@ def normalize_name_for_search(name):
         first = parts[0]
         last = parts[-1]
         
-        # Add first word alone if it's substantial - BUT skip overly broad org terms that cause
-        # false positives (e.g. "CORPORATE" matches "CAPITAL ONE SERVICES LLC CORPORATE")
+        # Add first word alone - BUT skip for individuals (e.g. "MIRIAM" matches hundreds of people)
+        # and skip overly broad org terms (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
         OVERLY_BROAD_ORG_WORDS = {'THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD',
                                   'CORPORATE', 'SERVICES', 'CONSULTING', 'INTERFACE'}
-        if len(first) >= 3 and first not in OVERLY_BROAD_ORG_WORDS:
+        if not is_individual and len(first) >= 3 and first not in OVERLY_BROAD_ORG_WORDS:
             variations.append(first)
         
         # Add nickname variations
@@ -202,8 +210,9 @@ def normalize_name_for_search(name):
                     # Handle middle names/initials
                     variations.append(f"{nickname} {parts[1]} {last}")
         
-        # Add last name only (if substantial)
-        if len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
+        # Add last name only - skip for individuals (e.g. "ZUPNICK" could match other Zupnicks)
+        # For individuals we need first+last; last-only is OK for orgs
+        if not is_individual and len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
             variations.append(last)
         
         # Add "First Last" (without middle)
@@ -2004,7 +2013,7 @@ def query_fec():
         all_donations = []
         
         # Generate name variations for comprehensive search
-        name_variations = normalize_name_for_search(owner_name)
+        name_variations = normalize_name_for_search(owner_name, owner_type)
         name_variations.append(owner_name.upper())  # Add original
         
         # Determine FEC API contributor type

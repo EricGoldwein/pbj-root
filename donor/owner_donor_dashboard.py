@@ -168,11 +168,12 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
         # First word alone can match too many (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
         # Require at least the 2-word phrase for orgs
         return False
-    # For individuals: require LAST name (FEC uses LAST, FIRST format). First name alone
-    # matches too many people (e.g. MIRIAM matches JACKSON MIRIAM, SHEEHAN MIRIAM, etc.)
+    # For individuals: require BOTH first and last name (FEC uses LAST, FIRST format).
+    # First name alone matches too many; last name alone could match other family members.
     if owner_type.upper() == "INDIVIDUAL" and len(owner_words) >= 2:
+        first_name = owner_words[0]
         last_name = owner_words[-1]
-        if last_name in contrib_norm:
+        if first_name in contrib_norm and last_name in contrib_norm:
             return True
         return False
     if owner_words and owner_words[0] in contrib_norm:

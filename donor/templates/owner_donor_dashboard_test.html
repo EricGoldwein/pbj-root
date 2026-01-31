@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nursing Home Owner Political Contributions Search | PBJ320</title>
+    <title>Nursing Home Owner Political Contributions Search (Test) | PBJ320</title>
     <meta name="description" content="Search nursing home owners and view their political contributions. Explore ownership data and campaign contributions from nursing home operators.">
     <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
     <link rel="canonical" href="https://pbj320.com/owners">
@@ -824,7 +824,8 @@
                 <a href="/insights" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Insights</a>
                 <a href="/report" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Report</a>
                 <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Phoebe J</a>
-                <a href="/owners" class="nav-link active" style="color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership</a>
+                <a href="/owners" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership</a>
+                <a href="/owners-test" class="nav-link active" style="color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership (Test)</a>
             </div>
             <div class="nav-toggle" id="navToggle">
                 <span></span>
@@ -836,10 +837,17 @@
 
     <div class="container" style="padding: 20px;">
         <div class="header">
+            <div style="background: rgba(234, 179, 8, 0.25); border: 2px solid #eab308; border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1rem; text-align: center;">
+                <strong style="color: #eab308;">TEST PAGE</strong> — Search by Committee mode (committee → donors → owners → facilities). 
+                <a href="/owners" style="color: #60a5fa; margin-left: 0.5rem;">← Back to production</a>
+            </div>
+            <div style="background: rgba(255, 255, 255, 0.08); border-left: 4px solid #667eea; padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 0.9rem; color: rgba(255,255,255,0.9);">
+                <strong>Disclaimer:</strong> This view displays public FEC and CMS data. Committee groupings are based on committee names and filings. No ideological classification is assigned.
+            </div>
             <h1 class="page-title">Nursing Home Owner Political Contributions</h1>
             <div style="margin-top: 0.5rem; font-size: 0.9rem; color: rgba(255,255,255,0.7);">
                 A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: rgba(255,255,255,0.7); text-decoration: none; font-weight: normal;">320 Consulting</a>
-                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #eab308;">BETA</span>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.75rem; font-weight: 600; color: #eab308;">BETA • TEST</span>
             </div>
         </div>
 
@@ -881,11 +889,12 @@
                 <select id="searchType" class="search-type">
                     <option value="all">Search Owners</option>
                     <option value="provider">Search by Provider</option>
+                    <option value="committee">Search by Committee</option>
                 </select>
                 <button id="searchBtn" class="search-btn" onclick="performSearch()">Search</button>
             </div>
-            <div class="suggestions">
-                Search by owner name, organization, or provider name/CCN.
+            <div class="suggestions" id="suggestionsText">
+                Search by owner name, organization, provider name/CCN, or committee name.
             </div>
         </div>
 
@@ -1156,6 +1165,8 @@
             const isMobile = window.innerWidth <= 768;
             if (type === 'provider') {
                 searchInput.placeholder = isMobile ? 'e.g., Seagate or 335513' : 'e.g., Seagate or 335513';
+            } else if (type === 'committee') {
+                searchInput.placeholder = 'Search by committee name (e.g. MAGA Inc.)';
             } else {
                 searchInput.placeholder = isMobile ? 'e.g., Joe Smith or Saber Healthcare' : 'e.g., Joe Smith or Saber Healthcare';
             }
@@ -1167,27 +1178,22 @@
         // Listen for search type changes
         searchType.addEventListener('change', function() {
             updatePlaceholder();
-            // Hide donations container when provider search is selected
             const donationsContainer = document.getElementById('donationsContainer');
             if (donationsContainer) {
-                if (this.value === 'provider') {
+                if (this.value === 'provider' || this.value === 'committee') {
                     donationsContainer.style.display = 'none';
                 } else {
                     donationsContainer.style.display = 'block';
                 }
             }
-            // Clear autocomplete when switching types
             autocomplete.style.display = 'none';
             searchInput.value = '';
         });
         
-        // Set initial placeholder and hide donations if provider is selected
         updatePlaceholder();
-        if (searchType.value === 'provider') {
+        if (searchType.value === 'provider' || searchType.value === 'committee') {
             const donationsContainer = document.getElementById('donationsContainer');
-            if (donationsContainer) {
-                donationsContainer.style.display = 'none';
-            }
+            if (donationsContainer) donationsContainer.style.display = 'none';
         }
 
         searchInput.addEventListener('input', function() {
@@ -1203,7 +1209,10 @@
 
             autocompleteTimeout = setTimeout(async () => {
                 try {
-                    const response = await fetch(`/owners/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`);
+                    const apiUrl = type === 'committee' 
+                        ? `/owners/api/autocomplete/committee?q=${encodeURIComponent(query)}`
+                        : `/owners/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`;
+                    const response = await fetch(apiUrl);
                     const data = await response.json();
                     
                     if (data.suggestions && data.suggestions.length > 0) {
@@ -1235,8 +1244,10 @@
                     const item = items[selectedAutocompleteIndex];
                     const name = item.querySelector('.autocomplete-item-name').textContent;
                     const searchType = document.getElementById('searchType').value;
-                    if (searchType === 'provider') {
-                        // Extract provider name and CCN from the item
+                    if (searchType === 'committee') {
+                        const committeeId = item.getAttribute('data-committee-id') || '';
+                        selectAutocompleteCommittee(name, committeeId);
+                    } else if (searchType === 'provider') {
                         const ccn = item.getAttribute('data-ccn') || '';
                         const providerName = item.getAttribute('data-provider-name') || name;
                         selectAutocomplete(name, ccn, providerName);
@@ -1259,7 +1270,14 @@
         function displayAutocomplete(suggestions) {
             const searchType = document.getElementById('searchType').value;
             autocomplete.innerHTML = suggestions.slice(0, 10).map((item, index) => {
-                if (searchType === 'provider' && item.type === 'PROVIDER') {
+                if (searchType === 'committee' && item.id) {
+                    return `
+                        <div class="autocomplete-item" data-index="${index}" data-committee-id="${escapeHtml(item.id)}" data-committee-name="${escapeHtml(item.name)}" onclick="selectAutocompleteCommittee('${escapeHtml(item.name).replace(/'/g, "\\'")}', '${escapeHtml(item.id)}')">
+                            <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
+                            <div class="autocomplete-item-details">${item.type || 'Committee'} • ${item.id || ''}</div>
+                        </div>
+                    `;
+                } else if (searchType === 'provider' && item.type === 'PROVIDER') {
                     // For provider search, show provider name and CCN
                     const ccn = item.ccn || '';
                     const providerNameRaw = item.provider_name || item.name.replace(/\s*\(\d+\)$/, ''); // Remove CCN from name if present
@@ -1299,17 +1317,20 @@
         function selectAutocomplete(name, ccn = '', providerName = '') {
             const searchType = document.getElementById('searchType').value;
             if (searchType === 'provider' && ccn) {
-                // For provider search, use the provider name or CCN for searching
                 searchInput.value = providerName || ccn || name;
             } else {
-            searchInput.value = name;
+                searchInput.value = name;
             }
             autocomplete.style.display = 'none';
             selectedAutocompleteIndex = -1;
-            // Trigger search
-            setTimeout(() => {
-                performSearch();
-            }, 100);
+            setTimeout(() => performSearch(), 100);
+        }
+
+        function selectAutocompleteCommittee(name, committeeId) {
+            searchInput.value = committeeId ? `${name} (${committeeId})` : name;
+            autocomplete.style.display = 'none';
+            selectedAutocompleteIndex = -1;
+            setTimeout(() => performSearch(), 100);
         }
 
         // Perform search
@@ -1328,6 +1349,23 @@
             btn.textContent = 'Searching...';
             
             try {
+                // Committee search: use dedicated endpoint
+                if (type === 'committee') {
+                    const committeeIdMatch = query.match(/\(?(C\d{8,9})\)?/);
+                    const committeeQuery = committeeIdMatch ? committeeIdMatch[1] : query.replace(/\s*\(C\d+\)\s*$/, '').trim() || query;
+                    const response = await fetch(`/owners/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
+                    const data = await response.json();
+                    if (data.error && response.status !== 200) {
+                        showError(data.error + (data.message ? ': ' + data.message : ''));
+                        return;
+                    }
+                    displayCommitteeResults(data);
+                    document.getElementById('resultsCount').textContent = data.committee ? 
+                        `Committee: ${data.committee.name} (${data.committee.id})` : 'Committee results';
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('detailsSection').style.display = 'none';
+                    return;
+                }
                 // Check if query is a numeric entity ID (but NOT if provider search is selected)
                 const entityIdMatch = query.match(/^(\d+)$/);
                 if (entityIdMatch && type !== 'provider') {
@@ -1373,6 +1411,135 @@
             }
         }
         
+        let currentCommitteeData = null;
+
+        function formatCommitteeAmount(amt) {
+            const n = Number(amt);
+            if (isNaN(n)) return '$0';
+            if (n < 100) return '$' + n.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            return '$' + Math.round(n).toLocaleString();
+        }
+
+        function displayCommitteeResults(data) {
+            currentCommitteeData = data;
+            const container = document.getElementById('resultsContainer');
+            const committee = data.committee || {};
+            const owners = data.owners || [];
+            const rawContributions = data.raw_contributions || [];
+            const rawTotal = data.raw_contributions_total || rawContributions.length;
+
+            let html = `
+                <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid rgba(102, 126, 234, 0.3);">
+                    <h2 style="margin: 0 0 0.5rem 0;">
+                        <a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.id || '')}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">
+                            ${escapeHtml(committee.name || 'Committee')} <span style="font-size: 0.8rem;">↗</span>
+                        </a>
+                    </h2>
+                    <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                        Committee ID: ${escapeHtml(committee.id || '')} | Type: ${escapeHtml(committee.type || 'Committee')}
+                        ${committee.total_fec_contributions != null ? ` | ${committee.total_fec_contributions.toLocaleString()} total contributions from ${(committee.total_fec_donors || 0).toLocaleString()} donors` : ''}
+                        ${committee.total_nursing_home_linked > 0 ? ` | $${committee.total_nursing_home_linked.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} from nursing home–linked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
+                    </div>
+                </div>
+            `;
+
+            // Section A: Owners who donated
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section A — Owners who donated</h3>`;
+            if (owners.length === 0) {
+                html += `<p style="color: rgba(255,255,255,0.7);">No nursing home owners found among contributors to this committee.</p>`;
+            } else {
+                const ownersCsvHeader = ['Owner/Entity Name', 'Total Amount', 'Number of Contributions', 'Linked Providers', 'Committee ID', 'Committee Name'];
+                const ownersCsv = [ownersCsvHeader].concat(owners.map(o => [
+                    o.owner_name, Math.round(Number(o.total_contributed) || 0), o.num_contributions, o.linked_providers_count,
+                    committee.id || '', committee.name || ''
+                ]));
+                const ownersCsvBlob = new Blob([ownersCsv.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
+                const ownersCsvUrl = URL.createObjectURL(ownersCsvBlob);
+                html += `<a href="${ownersCsvUrl}" download="committee_owners.csv" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem;">Export Owners CSV</a>`;
+                html += `<table class="facilities-table" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th style="padding: 0.75rem; text-align: left;">Owner / Entity Name</th><th style="padding: 0.75rem; text-align: right;">Total Contributed</th><th style="padding: 0.75rem; text-align: right;"># Contributions</th><th style="padding: 0.75rem; text-align: right;">Linked Providers</th><th style="padding: 0.75rem;"></th></tr></thead><tbody>`;
+                owners.forEach(o => {
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${escapeHtml(o.owner_name)}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(o.total_contributed)}</td><td style="padding: 0.75rem; text-align: right;">${o.num_contributions}</td><td style="padding: 0.75rem; text-align: right;">${o.linked_providers_count}</td><td style="padding: 0.75rem;"><a href="#" onclick="showOwnerDetails('${String(o.owner_name).replace(/'/g, "\\'")}'); return false;" style="color: #667eea;">View Owner</a></td></tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+
+            // Section B: Raw contributions (second - above Providers)
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section B — Raw contributions <button id="toggleRawContrib" onclick="toggleRawContributions()" style="margin-left: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(102, 126, 234, 0.3); border: none; border-radius: 4px; color: white; cursor: pointer;">Hide</button></h3>`;
+            const rawCsvHeader = ['Donor Name', 'Amount', 'Date', 'Committee Name', 'Committee ID', 'Employer', 'Occupation', 'City', 'State', 'FEC Source Link'];
+            const rawCsv = [rawCsvHeader].concat(rawContributions.slice(0, 500).map(r => [
+                r.donor_name, r.amount, r.date, r.committee_name, r.committee_id || committee.id || '',
+                r.employer || '', r.occupation || '', r.donor_city || '', r.donor_state || '', r.fec_link || ''
+            ]));
+            const rawCsvBlob = new Blob([rawCsv.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
+            const rawCsvUrl = URL.createObjectURL(rawCsvBlob);
+            html += `<a href="${rawCsvUrl}" download="committee_raw_contributions.csv" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem;">Export Raw Contributions CSV</a>`;
+            html += `<div id="rawContributionsDiv"><table class="facilities-table" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th style="padding: 0.75rem; text-align: left;">Donor Name</th><th style="padding: 0.75rem; text-align: right;">Amount</th><th style="padding: 0.75rem;">Date</th><th style="padding: 0.75rem; text-align: left;">Committee</th><th style="padding: 0.75rem;">Source</th></tr></thead><tbody>`;
+            rawContributions.slice(0, 200).forEach(r => {
+                const linkHtml = r.fec_link ? `<a href="${escapeHtml(r.fec_link)}" target="_blank" rel="noopener" style="color: #667eea;">FEC</a>` : '-';
+                html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${escapeHtml(r.donor_name || '')}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(r.amount)}</td><td style="padding: 0.75rem;">${escapeHtml(r.date || '')}</td><td style="padding: 0.75rem;">${escapeHtml(r.committee_name || '')}</td><td style="padding: 0.75rem;">${linkHtml}</td></tr>`;
+            });
+            html += `</tbody></table><p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">Showing up to 200 of ${rawTotal} nursing home–linked contributions.</p></div>`;
+
+            // Section C: Providers (lazy - View Providers button)
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section C — Provider impact</h3>`;
+            html += `<button id="viewProvidersBtn" onclick="loadCommitteeProviders()" style="padding: 0.5rem 1rem; background: rgba(102, 126, 234, 0.3); border: 1px solid #667eea; border-radius: 6px; color: white; cursor: pointer;">View Providers</button>`;
+            html += `<div id="providersContainer" style="margin-top: 1rem;"></div>`;
+
+            container.innerHTML = html;
+        }
+
+        async function loadCommitteeProviders() {
+            const btn = document.getElementById('viewProvidersBtn');
+            const div = document.getElementById('providersContainer');
+            if (!currentCommitteeData || !currentCommitteeData.owners || !btn || !div) return;
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            try {
+                const res = await fetch('/owners/api/committee/providers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ owners: currentCommitteeData.owners, committee_id: currentCommitteeData.committee?.id })
+                });
+                const data = await res.json();
+                const providers = data.providers || [];
+                if (providers.length === 0) {
+                    div.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No provider impact data.</p>';
+                } else {
+                    const provCsvHeader = ['Provider Name', 'State', 'Ownership Entity', 'Total Amount', 'HPRD', 'CCN', 'Committee ID', 'Committee Name'];
+                    const provCsv = [provCsvHeader].concat(providers.map(p => [
+                        p.provider_name, p.state, p.ownership_entity, p.total_amount, p.avg_hprd !== '' ? p.avg_hprd : '', p.ccn || '',
+                        currentCommitteeData.committee?.id || '', currentCommitteeData.committee?.name || ''
+                    ]));
+                    const provCsvBlob = new Blob([provCsv.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
+                    const provCsvUrl = URL.createObjectURL(provCsvBlob);
+                    div.innerHTML = `<a href="${provCsvUrl}" download="committee_providers.csv" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem;">Export Providers CSV</a>` +
+                        `<table class="facilities-table" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th style="padding: 0.75rem; text-align: left;">Provider Name</th><th style="padding: 0.75rem;">State</th><th style="padding: 0.75rem; text-align: left;">Ownership Entity</th><th style="padding: 0.75rem; text-align: right;">Total Amount</th><th style="padding: 0.75rem;">HPRD</th></tr></thead><tbody>` +
+                        providers.map(p => {
+                            const dashboardLink = p.ccn ? `<a href="https://pbjdashboard.com/?facility=${p.ccn}" target="_blank" rel="noopener" style="color: #667eea;">${escapeHtml(p.provider_name || p.ownership_entity)}</a>` : escapeHtml(p.provider_name || p.ownership_entity);
+                            const hprd = p.avg_hprd !== '' && p.avg_hprd != null ? Number(p.avg_hprd).toFixed(2) : '-';
+                            return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${dashboardLink}</td><td style="padding: 0.75rem;">${escapeHtml(p.state || '')}</td><td style="padding: 0.75rem;">${escapeHtml(p.ownership_entity || '')}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(p.total_amount)}</td><td style="padding: 0.75rem;">${hprd}</td></tr>`;
+                        }).join('') + `</tbody></table>`;
+                }
+            } catch (e) {
+                div.innerHTML = '<p style="color: #eab308;">Error loading providers: ' + escapeHtml(String(e)) + '</p>';
+            }
+            btn.style.display = 'none';
+        }
+
+        function toggleRawContributions() {
+            const div = document.getElementById('rawContributionsDiv');
+            const btn = document.getElementById('toggleRawContrib');
+            if (div && btn) {
+                if (div.style.display === 'none') {
+                    div.style.display = 'block';
+                    btn.textContent = 'Hide';
+                } else {
+                    div.style.display = 'none';
+                    btn.textContent = 'Show';
+                }
+            }
+        }
+
         function displayEntityResults(data) {
             const container = document.getElementById('resultsContainer');
             const countEl = document.getElementById('resultsCount');

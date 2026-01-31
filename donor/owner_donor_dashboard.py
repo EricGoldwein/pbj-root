@@ -18,6 +18,7 @@ if str(donor_dir) not in sys.path:
 
 from fec_api_client import (
     query_donations_by_name,
+    query_donations_by_committee,
     normalize_fec_donation,
     build_schedule_a_docquery_link,
     is_valid_docquery_schedule_a_url,
@@ -44,12 +45,18 @@ FEC_COMMITTEE_MASTER_FILES = [
     "cm26_2025_2026.csv", "cm24_2023_2024.csv", "cm22_2021_2022.csv",
     "cm20_2019_2020.csv", "cm18_2017_2018.csv", "cm16_2015_2016.csv", "cm14_2013_2014.csv",
 ]
+# Committee search: only load cycles since 2020 (cm20+) for autocomplete
+FEC_COMMITTEE_MASTER_FILES_RECENT = [
+    "cm26_2025_2026.csv", "cm24_2023_2024.csv", "cm22_2021_2022.csv", "cm20_2019_2020.csv",
+]
+FEC_CM_FALLBACK_RECENT = ["cm26.csv", "cm24.csv", "cm22.csv", "cm20.csv"]
 # Fallback: donor/cm26.csv, donor/cm24.csv, etc. (same cycle naming)
 DONOR_DIR = BASE_DIR / "donor"
 FEC_CM_FALLBACK = ["cm26.csv", "cm24.csv", "cm22.csv", "cm20.csv", "cm18.csv", "cm16.csv", "cm14.csv"]
 
 # Cache data
 committee_master = None  # dict CMTE_ID -> CMTE_NM, loaded at startup for fast lookup
+committee_master_extended = None  # list of {id, name, type, dsgn} for committee search autocomplete (test page)
 owners_df = None
 ownership_df = None
 ownership_raw_df = None  # Raw ownership file for provider matching
@@ -132,6 +139,40 @@ NAME_VARIATIONS = {
 }
 
 
+def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner_type: str) -> bool:
+    """
+    Check if FEC contributor_name plausibly matches the owner we searched for.
+    Prevents false attribution when FEC fuzzy matching returns similar but different entities
+    (e.g. CAPITAL ONE when searching CORPORATE INTERFACE).
+    """
+    if not contributor_name or not owner_name:
+        return True  # Don't filter if missing
+    contrib_norm = normalize_name_for_matching(contributor_name)
+    owner_norm = normalize_name_for_matching(owner_name)
+    if not contrib_norm or not owner_norm:
+        return True
+    # Owner name is substring of contributor (exact match) - always allow
+    if owner_norm in contrib_norm:
+        return True
+    # Contributor is substring of owner - allow
+    if contrib_norm in owner_norm:
+        return True
+    # For organizations: require owner's first 2 significant words to appear in contributor
+    # This excludes "CAPITAL ONE SERVICES LLC CORPORATE" when owner is "CORPORATE INTERFACE"
+    SUFFIXES = {'LLC', 'INC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING', 'THE'}
+    owner_words = [w for w in owner_norm.split() if w and w not in SUFFIXES]
+    if len(owner_words) >= 2 and owner_type.upper() == "ORGANIZATION":
+        phrase = f"{owner_words[0]} {owner_words[1]}"
+        if phrase in contrib_norm:
+            return True
+        # First word alone can match too many (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
+        # Require at least the 2-word phrase for orgs
+        return False
+    if owner_words and owner_words[0] in contrib_norm:
+        return True
+    return False
+
+
 def normalize_name_for_search(name):
     """Normalize name and generate variations for flexible matching"""
     if pd.isna(name) or not name:
@@ -146,8 +187,11 @@ def normalize_name_for_search(name):
         first = parts[0]
         last = parts[-1]
         
-        # Add first word alone if it's substantial (3+ chars, not common suffixes)
-        if len(first) >= 3 and first not in ['THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD']:
+        # Add first word alone if it's substantial - BUT skip overly broad org terms that cause
+        # false positives (e.g. "CORPORATE" matches "CAPITAL ONE SERVICES LLC CORPORATE")
+        OVERLY_BROAD_ORG_WORDS = {'THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD',
+                                  'CORPORATE', 'SERVICES', 'CONSULTING', 'INTERFACE'}
+        if len(first) >= 3 and first not in OVERLY_BROAD_ORG_WORDS:
             variations.append(first)
         
         # Add nickname variations
@@ -227,6 +271,74 @@ def get_committee_display_name(committee_id, fallback=""):
     if not cid:
         return fallback or ""
     return committee_master.get(cid) or fallback or ""
+
+
+def _load_committee_master_extended():
+    """
+    Load extended committee master (id, name, type) for committee search autocomplete.
+    Only cycles since 2020 (cm20+) for smaller, more relevant set.
+    CMTE_TP: Q/N=PAC, O=Super PAC, J (via CMTE_DSGN)=JFC, etc.
+    """
+    by_id = {}  # CMTE_ID -> {id, name, type}; newer files override
+    cols = ["CMTE_ID", "CMTE_NM", "CMTE_TP", "CMTE_DSGN"]
+    for fname in reversed(FEC_COMMITTEE_MASTER_FILES_RECENT):  # cm20 first, cm26 last (newer wins)
+        path = FEC_COMMITTEE_MASTER_DIR / fname
+        if not path.exists():
+            continue
+        try:
+            df = pd.read_csv(path, dtype=str, usecols=cols, encoding="utf-8", on_bad_lines="skip")
+        except (TypeError, ValueError, KeyError):
+            try:
+                df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8", on_bad_lines="skip")
+                df["CMTE_TP"] = ""
+                df["CMTE_DSGN"] = ""
+            except Exception:
+                continue
+        for _, row in df.iterrows():
+            cid = str(row.get("CMTE_ID") or "").strip()
+            if not cid or cid == "nan":
+                continue
+            nm = str(row.get("CMTE_NM") or "").strip()
+            tp = str(row.get("CMTE_TP") or "").strip().upper()
+            dsgn = str(row.get("CMTE_DSGN") or "").strip().upper()
+            type_label = "Committee"
+            if dsgn == "J":
+                type_label = "JFC"
+            elif tp == "O":
+                type_label = "Super PAC"
+            elif tp in ("Q", "N", "V"):
+                type_label = "PAC"
+            by_id[cid] = {"id": cid, "name": nm, "type": type_label}
+    if not by_id:
+        for fname in reversed(FEC_CM_FALLBACK_RECENT):
+            path = DONOR_DIR / fname
+            if not path.exists():
+                continue
+            try:
+                df = pd.read_csv(path, dtype=str, usecols=cols, encoding="utf-8", on_bad_lines="skip")
+            except (TypeError, ValueError, KeyError):
+                try:
+                    df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8", on_bad_lines="skip")
+                    df["CMTE_TP"] = ""
+                    df["CMTE_DSGN"] = ""
+                except Exception:
+                    continue
+            for _, row in df.iterrows():
+                cid = str(row.get("CMTE_ID") or "").strip()
+                if not cid or cid == "nan":
+                    continue
+                nm = str(row.get("CMTE_NM") or "").strip()
+                tp = str(row.get("CMTE_TP") or "").strip().upper()
+                dsgn = str(row.get("CMTE_DSGN") or "").strip().upper()
+                type_label = "Committee"
+                if dsgn == "J":
+                    type_label = "JFC"
+                elif tp == "O":
+                    type_label = "Super PAC"
+                elif tp in ("Q", "N", "V"):
+                    type_label = "PAC"
+                by_id[cid] = {"id": cid, "name": nm, "type": type_label}
+    return list(by_id.values())
 
 
 def load_data():
@@ -519,6 +631,12 @@ def load_data():
 def index():
     """Main dashboard page"""
     return render_template('owner_donor_dashboard.html')
+
+
+@app.route('/test')
+def index_test():
+    """Test page with Committee search mode (additive, isolated)"""
+    return render_template('owner_donor_dashboard_test.html')
 
 
 @app.route('/api/autocomplete')
@@ -836,6 +954,325 @@ def search():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+
+def _ensure_committee_master_extended():
+    """Lazy-load committee_master_extended for committee search (test page only)."""
+    global committee_master_extended
+    if committee_master_extended is None:
+        committee_master_extended = _load_committee_master_extended()
+    return committee_master_extended
+
+
+@app.route('/api/autocomplete/committee')
+def autocomplete_committee():
+    """Autocomplete for committee search (test page only)."""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query or len(query) < 2:
+            return jsonify({'suggestions': []})
+        committees = _ensure_committee_master_extended()
+        if not committees:
+            return jsonify({'suggestions': []})
+        query_upper = query.upper()
+        suggestions = []
+        for c in committees:
+            if query_upper in c['name'].upper() or query_upper in c.get('id', '').upper():
+                suggestions.append({
+                    'name': c['name'],
+                    'id': c['id'],
+                    'type': c.get('type', 'Committee'),
+                })
+                if len(suggestions) >= 10:
+                    break
+        return jsonify({'suggestions': suggestions})
+    except Exception as e:
+        print(f"Error in autocomplete_committee: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'suggestions': []})
+
+
+@app.route('/api/committee/providers', methods=['POST'])
+def committee_providers_endpoint():
+    """Lazy-load providers for committee search (test page). Accepts {owners: [...], committee_id}."""
+    try:
+        data = request.get_json() or {}
+        owners = data.get('owners', [])
+        if not owners:
+            return jsonify({'providers': []})
+        return jsonify({'providers': _compute_providers_from_owners(owners)})
+    except Exception as e:
+        print(f"Error in committee_providers_endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e), 'providers': []}), 500
+
+
+def _compute_providers_from_owners(owners_deduped):
+    """Compute provider list from owners (extracted for lazy loading)."""
+    global owners_df, facility_name_mapping_df, provider_info_latest_df, facility_metrics_df
+    providers_result = []
+    prov_key_to_data = {}
+    for o in owners_deduped:
+        owner_matches = owners_df[owners_df['owner_name'] == o.get('owner_name_normalized', '')] if owners_df is not None and not owners_df.empty else pd.DataFrame()
+        if owner_matches.empty:
+            continue
+        owner_row = owner_matches.iloc[0]
+        facilities_str = owner_row.get('facilities', '') or ''
+        facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
+        amt = float(o.get('total_contributed', 0))
+        for fac_name in facilities:
+            ccn = None
+            prov_name = fac_name
+            state = ''
+            if facility_name_mapping_df is not None and not facility_name_mapping_df.empty and 'ORGANIZATION NAME' in facility_name_mapping_df.columns:
+                norm_fac = str(fac_name).upper().strip()
+                mapping_match = facility_name_mapping_df[
+                    facility_name_mapping_df['ORGANIZATION NAME'].astype(str).str.upper().str.strip() == norm_fac
+                ]
+                if not mapping_match.empty and 'CCN' in mapping_match.columns:
+                    ccn_val = str(mapping_match.iloc[0].get('CCN', '')).strip().replace('O', '').replace(' ', '').replace('-', '')
+                    if ccn_val and ccn_val.isdigit() and len(ccn_val) <= 6:
+                        ccn = ccn_val.zfill(6)
+            if not ccn and provider_info_latest_df is not None and not provider_info_latest_df.empty and 'Legal Business Name' in provider_info_latest_df.columns:
+                norm_fac = str(fac_name).upper().strip()
+                match = provider_info_latest_df[
+                    provider_info_latest_df['Legal Business Name'].astype(str).str.upper().str.strip() == norm_fac
+                ]
+                if not match.empty:
+                    r = match.iloc[0]
+                    prov_name = r.get('Provider Name', r.get('Legal Business Name', fac_name))
+                    for state_col in ['State', 'STATE', 'state']:
+                        if state_col in r.index and pd.notna(r.get(state_col)):
+                            state = str(r.get(state_col)).strip()
+                            break
+                    for col in ['CMS Certification Number (CCN)', 'ccn', 'CCN', 'PROVNUM']:
+                        if col in r.index and pd.notna(r.get(col)):
+                            ccn_val = str(r.get(col)).strip().replace('O', '').replace(' ', '').replace('-', '')
+                            if ccn_val and ccn_val.isdigit() and len(ccn_val) <= 6:
+                                ccn = ccn_val.zfill(6)
+                                break
+            if ccn and provider_info_latest_df is not None and not provider_info_latest_df.empty:
+                ccn_col = 'CMS Certification Number (CCN)' if 'CMS Certification Number (CCN)' in provider_info_latest_df.columns else 'ccn'
+                if ccn_col not in provider_info_latest_df.columns:
+                    ccn_col = 'CCN' if 'CCN' in provider_info_latest_df.columns else 'PROVNUM'
+                if ccn_col in provider_info_latest_df.columns:
+                    match = provider_info_latest_df[
+                        provider_info_latest_df[ccn_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn
+                    ]
+                    if not match.empty:
+                        r = match.iloc[0]
+                        prov_name = r.get('Provider Name', r.get('Legal Business Name', fac_name))
+                        if not state:
+                            for state_col in ['State', 'STATE', 'state']:
+                                if state_col in r.index and pd.notna(r.get(state_col)):
+                                    state = str(r.get(state_col)).strip()
+                                    break
+            prov_key = (fac_name, ccn or '') if ccn else (fac_name, fac_name)
+            if prov_key not in prov_key_to_data:
+                avg_hprd = ''
+                if ccn and facility_metrics_df is not None and not facility_metrics_df.empty and 'PROVNUM' in facility_metrics_df.columns:
+                    m = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.zfill(6) == ccn]
+                    if not m.empty:
+                        try:
+                            h = float(m.iloc[-1].get('Total_Nurse_HPRD', 0) or 0)
+                            avg_hprd = round(h, 2) if h else ''
+                        except (ValueError, TypeError):
+                            pass
+                prov_key_to_data[prov_key] = {
+                    'provider_name': prov_name, 'state': state, 'ownership_entity': fac_name,
+                    'total_amount': 0, 'ccn': ccn, 'avg_hprd': avg_hprd,
+                }
+            prov_key_to_data[prov_key]['total_amount'] += amt
+    for pv in prov_key_to_data.values():
+        pv['total_amount'] = round(pv['total_amount'], 0)  # round to dollar
+        providers_result.append(pv)
+    providers_result.sort(key=lambda x: -x['total_amount'])
+    return providers_result
+
+
+@app.route('/api/search/committee')
+def search_by_committee_endpoint():
+    """Search by committee: committee -> donors -> owners (providers lazy-loaded)."""
+    try:
+        query = request.args.get('q', '').strip()
+        if not query or len(query) < 2:
+            return jsonify({'error': 'Please enter at least 2 characters'}), 400
+        include_providers = request.args.get('include_providers', '0').lower() in ('1', 'true', 'yes')
+        return search_by_committee(query, include_providers=include_providers)
+    except Exception as e:
+        print(f"Error in search_by_committee_endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+
+def search_by_committee(query, include_providers=False):
+    """
+    Reverse lookup: committee -> donors -> nursing home owners -> facilities.
+    Returns: committee_info, owners, providers (if include_providers), raw_contributions.
+    Providers are expensive; fetch on demand via include_providers=1.
+    """
+    global committee_master, owners_df, ownership_raw_df, provider_info_latest_df, facility_metrics_df
+    if owners_df is None or owners_df.empty:
+        return jsonify({'error': 'Owners database not loaded'}), 500
+    # Resolve query to committee_id
+    committees = _ensure_committee_master_extended()
+    committee_id = None
+    committee_name = None
+    committee_type = "Committee"
+    query_upper = query.upper().strip()
+    if query_upper.startswith("C") and len(query_upper) >= 9 and query_upper[1:].isdigit():
+        committee_id = query_upper[:9] if len(query_upper) >= 9 else query_upper
+        for c in committees:
+            if c.get('id', '').upper() == committee_id:
+                committee_name = c.get('name', '')
+                committee_type = c.get('type', 'Committee')
+                break
+        if not committee_name and committee_master:
+            committee_name = committee_master.get(committee_id, '')
+    else:
+        for c in committees:
+            if c['name'].upper() == query_upper or query_upper in c['name'].upper():
+                committee_id = c.get('id', '')
+                committee_name = c.get('name', '')
+                committee_type = c.get('type', 'Committee')
+                break
+    if not committee_id:
+        return jsonify({
+            'error': 'Committee not found',
+            'message': f'No committee found matching "{query}". Try searching by committee name (e.g., MAGA Inc.) or committee ID (C########).'
+        }), 404
+    try:
+        raw_donations = query_donations_by_committee(committee_id)
+    except Exception as e:
+        print(f"FEC API error for committee {committee_id}: {e}")
+        return jsonify({'error': f'Could not fetch contributions: {str(e)}'}), 500
+    if not raw_donations:
+        return jsonify({
+            'committee': {
+                'name': committee_name or committee_id,
+                'id': committee_id,
+                'type': committee_type,
+                'election_cycles': [],
+                'total_nursing_home_linked': 0,
+                'total_fec_contributions': 0,
+                'total_fec_donors': 0,
+            },
+            'owners': [],
+            'providers': [],
+            'raw_contributions': [],
+        })
+    normalized_list = [normalize_fec_donation(r) for r in raw_donations]
+    donor_to_amounts = {}
+    donor_to_records = {}
+    for d in normalized_list:
+        name = (d.get('donor_name') or '').strip()
+        if not name:
+            continue
+        amt = float(d.get('donation_amount') or 0)
+        donor_norm = normalize_name_for_matching(name)
+        if donor_norm not in donor_to_amounts:
+            donor_to_amounts[donor_norm] = 0
+            donor_to_records[donor_norm] = []
+        donor_to_amounts[donor_norm] += amt
+        donor_to_records[donor_norm].append({
+            'donor_name': name,
+            'amount': amt,
+            'date': d.get('donation_date', ''),
+            'committee_name': committee_name or committee_id,
+            'committee_id': committee_id,
+            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?committee_id={committee_id}" if committee_id else ''),
+            'employer': d.get('employer', ''),
+            'occupation': d.get('occupation', ''),
+            'donor_city': d.get('donor_city', ''),
+            'donor_state': d.get('donor_state', ''),
+        })
+    def _find_owner_row(donor_norm, lookup):
+        """Match donor to owner; try name-order variants (FEC LAST,FIRST vs CMS FIRST LAST)."""
+        row = lookup.get(donor_norm)
+        if row is not None:
+            return row
+        if not donor_norm or len(donor_norm) < 4:
+            return None
+        parts = donor_norm.split()
+        if len(parts) == 2:
+            row = lookup.get(f"{parts[1]} {parts[0]}")
+            if row is not None:
+                return row
+        if len(parts) >= 3:
+            row = lookup.get(f"{parts[0]} {parts[-1]}") or lookup.get(f"{parts[-1]} {parts[0]}")
+            if row is not None:
+                return row
+        return None
+
+    owner_name_norm_to_row = {}
+    for _, row in owners_df.iterrows():
+        onorm = normalize_name_for_matching(row.get('owner_name', ''))
+        oorig = normalize_name_for_matching(str(row.get('owner_name_original', '')))
+        if onorm:
+            owner_name_norm_to_row[onorm] = row
+        if oorig and oorig != onorm:
+            owner_name_norm_to_row[oorig] = row
+    owner_to_total = {}
+    owner_to_count = {}
+    owner_to_providers = {}
+    owner_to_display = {}
+    for donor_norm, total in donor_to_amounts.items():
+        owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+        if owner_row is None:
+            continue
+        facilities_str = owner_row.get('facilities', '') or ''
+        facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
+        display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
+        key = owner_row.get('owner_name', '')
+        if key not in owner_to_total:
+            owner_to_total[key] = 0
+            owner_to_count[key] = 0
+            owner_to_providers[key] = set()
+            owner_to_display[key] = display_name
+        owner_to_total[key] += total
+        owner_to_count[key] += len(donor_to_records.get(donor_norm, []))
+        for fac in facilities:
+            owner_to_providers[key].add(fac)
+    owners_deduped = [
+        {
+            'owner_name': owner_to_display[k],
+            'owner_name_normalized': k,
+            'total_contributed': owner_to_total[k],
+            'num_contributions': owner_to_count[k],
+            'linked_providers_count': len(owner_to_providers[k]),
+        }
+        for k in owner_to_total
+    ]
+    owners_deduped.sort(key=lambda x: -x['total_contributed'])
+    providers_result = _compute_providers_from_owners(owners_deduped) if include_providers else []
+    raw_contributions = []
+    for donor_norm, recs in donor_to_records.items():
+        if _find_owner_row(donor_norm, owner_name_norm_to_row) is None:
+            continue
+        for r in recs:
+            raw_contributions.append(r)
+    raw_contributions.sort(key=lambda x: (x.get('date', ''), -(x.get('amount', 0))), reverse=True)
+    total_nursing_linked = sum(o['total_contributed'] for o in owners_deduped)
+    total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
+    return jsonify({
+        'committee': {
+            'name': committee_name or committee_id,
+            'id': committee_id,
+            'type': committee_type,
+            'election_cycles': [],
+            'total_nursing_home_linked': round(total_nursing_linked, 2),
+            'total_fec_contributions': len(normalized_list),
+            'total_fec_donors': len(donor_to_amounts),
+            'total_fec_amount': round(total_fec, 2),
+        },
+        'owners': owners_deduped,
+        'providers': providers_result,
+        'raw_contributions': raw_contributions[:500],
+        'raw_contributions_total': len(raw_contributions),
+    })
 
 
 def search_by_provider(query):
@@ -1605,7 +2042,7 @@ def query_fec():
             except:
                 pass
         
-        # Normalize all donations
+        # Normalize all donations; filter out FEC fuzzy-match false positives
         normalized = []
         for donation in all_donations:
             if not donation or not isinstance(donation, dict):
@@ -1614,6 +2051,11 @@ def query_fec():
                 norm = normalize_fec_donation(donation)
                 if not norm or not isinstance(norm, dict):
                     continue  # Skip if normalization failed
+                # Exclude false positives: FEC fuzzy matching can return CAPITAL ONE when
+                # searching CORPORATE INTERFACE; require contributor to plausibly match owner
+                donor_name_fec = norm.get('donor_name', '') or donation.get('contributor_name', '')
+                if not _fec_contributor_matches_owner(donor_name_fec, owner_name, owner_type):
+                    continue  # Skip - likely wrong entity
                 # Get and validate date
                 date_str = str(norm.get('donation_date', '') or '').strip()
                 # Check for corrupted dates (2030-2040 range - likely should be 2020-2030)
@@ -1650,6 +2092,7 @@ def query_fec():
                     'donor_city': norm.get('donor_city', '') or '',
                     'donor_state': norm.get('donor_state', '') or '',
                     'fec_link': fec_link,
+                    'donor_name': norm.get('donor_name', '') or '',  # Actual FEC contributor - critical for verification
                 })
             except Exception as e:
                 print(f"[WARNING] Error normalizing donation: {e}")

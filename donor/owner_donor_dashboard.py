@@ -157,10 +157,10 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
     # Contributor is substring of owner - allow
     if contrib_norm in owner_norm:
         return True
-    # For organizations: require owner's first 2 significant words to appear in contributor
-    # This excludes "CAPITAL ONE SERVICES LLC CORPORATE" when owner is "CORPORATE INTERFACE"
-    SUFFIXES = {'LLC', 'INC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING', 'THE'}
-    owner_words = [w for w in owner_norm.split() if w and w not in SUFFIXES]
+    # For organizations: require owner's first 2 significant words to appear in contributor.
+    # Only filter legal entity suffixes - keep SERVICES/CONSULTING (part of names like "Ensign Services")
+    LEGAL_SUFFIXES = {'LLC', 'INC', 'CORP', 'LP', 'LTD', 'L.L.C.', 'INC.', 'CORP.', 'THE'}
+    owner_words = [w for w in owner_norm.split() if w and w not in LEGAL_SUFFIXES]
     if len(owner_words) >= 2 and owner_type.upper() == "ORGANIZATION":
         phrase = f"{owner_words[0]} {owner_words[1]}"
         if phrase in contrib_norm:

@@ -168,12 +168,16 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
         if phrase in contrib_norm:
             return True
         return False
-    # For individuals: require BOTH first and last name (FEC uses LAST, FIRST format).
-    # First name alone matches too many; last name alone could match other family members.
+    # For individuals: require BOTH first and last name as exact words (FEC uses LAST, FIRST).
+    # Surnames must match exactly - "STROLL" must NOT match "STROLLO" (substring match is wrong).
+    NAME_SUFFIXES = {'JR', 'SR', 'II', 'III', 'IV', '2ND', '3RD', 'JR.', 'SR.'}
     if owner_type.upper() == "INDIVIDUAL" and len(owner_words) >= 2:
         first_name = owner_words[0]
         last_name = owner_words[-1]
-        if first_name in contrib_norm and last_name in contrib_norm:
+        if last_name in NAME_SUFFIXES and len(owner_words) >= 3:
+            last_name = owner_words[-2]  # "Steven Stroll Jr" -> surname is Stroll
+        contrib_words = set(contrib_norm.split())
+        if first_name in contrib_words and last_name in contrib_words:
             return True
         return False
     if owner_words and owner_words[0] in contrib_norm:
@@ -689,7 +693,10 @@ def autocomplete():
             org_match = filtered_df['owner_org_name'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False)
             name_matches = name_matches | org_match
         
-        results = filtered_df[name_matches].head(10)
+        results = filtered_df[name_matches].copy()
+        # Deduplicate by display name (same org can appear under multiple associate IDs)
+        results['_n_fac'] = results['facilities'].fillna('').str.split(',').map(lambda x: len([f for f in x if str(f).strip()]))
+        results = results.sort_values('_n_fac', ascending=False).drop_duplicates(subset=['owner_name_original'], keep='first').drop(columns=['_n_fac'], errors='ignore').head(10)
         
         suggestions = []
         for _, row in results.iterrows():
@@ -818,6 +825,29 @@ def search():
         if search_type == 'provider':
             return search_by_provider(query)
         
+        # Search by associate_id_owner (PAC ID) - 10-digit numeric. Internal ID, soft connect.
+        if 'associate_id_owner' in owners_df.columns:
+            query_stripped = query.strip().replace('O', '').replace('o', '')  # Allow O-prefixed
+            if query_stripped.isdigit() and len(query_stripped) == 10:
+                pac_match = owners_df[owners_df['associate_id_owner'].astype(str).str.strip() == query_stripped]
+                if not pac_match.empty:
+                    row = pac_match.iloc[0]
+                    facilities = [f.strip() for f in str(row.get('facilities', '')).split(',') if f.strip()]
+                    enrollment_ids = [e.strip() for e in str(row.get('enrollment_ids', '')).split(',') if e.strip()]
+                    display_name = row.get('owner_name_original', row.get('owner_name', '')) or row.get('owner_name', '')
+                    return jsonify({
+                        'results': [{
+                            'owner_name': display_name,
+                            'owner_name_normalized': row.get('owner_name', ''),
+                            'owner_type': row.get('owner_type', 'UNKNOWN'),
+                            'associate_id_owner': str(row.get('associate_id_owner', '')).strip(),
+                            'facilities': facilities,
+                            'num_facilities': len(facilities),
+                            'enrollment_ids': enrollment_ids,
+                        }],
+                        'count': 1
+                    })
+        
         # Generate name variations for flexible matching
         query_variations = normalize_name_for_search(query)
         query_upper = query.upper()
@@ -906,10 +936,10 @@ def search():
         # If there's an exact match, ONLY show exact matches (relevance >= 1000)
         exact_matches = results[results['_relevance_score'] >= 1000]
         if not exact_matches.empty:
-            # Only show exact matches - deduplicate by owner_name to avoid showing multiple records for same owner
+            # Only show exact matches - deduplicate by associate_id_owner (PAC) if available, else owner_name
             results = exact_matches.sort_values(['_relevance_score', 'owner_name'], ascending=[False, True])
-            # Keep only first record per unique owner_name (normalized)
-            results = results.drop_duplicates(subset=['owner_name'], keep='first')
+            dedup_col = 'associate_id_owner' if 'associate_id_owner' in results.columns else 'owner_name'
+            results = results.drop_duplicates(subset=[dedup_col], keep='first')
             # Limit to max 10 exact matches (should usually be just 1)
             results = results.head(10)
         else:
@@ -946,7 +976,7 @@ def search():
                 # Prefer owner_name_original if it exists and looks valid, otherwise use owner_name
                 display_name = owner_name_orig if owner_name_orig and owner_name_orig.strip() else owner_name_display
             
-            formatted.append({
+            result = {
                 'owner_name': display_name,
                 'owner_name_normalized': owner_name_display,  # Keep normalized for API lookups
                 'owner_type': row.get('owner_type', 'UNKNOWN'),
@@ -956,7 +986,12 @@ def search():
                 'is_equity_owner': row.get('is_equity_owner', False) if 'is_equity_owner' in row else False,
                 'is_officer': row.get('is_officer', False) if 'is_officer' in row else False,
                 'earliest_association': row.get('earliest_association', '') if 'earliest_association' in row else ''
-            })
+            }
+            if 'associate_id_owner' in row.index and pd.notna(row.get('associate_id_owner')):
+                result['associate_id_owner'] = str(row.get('associate_id_owner', '')).strip()
+            if 'dba_name_owner' in row.index and pd.notna(row.get('dba_name_owner')) and str(row.get('dba_name_owner', '')).strip():
+                result['dba_name_owner'] = str(row.get('dba_name_owner', '')).strip()
+            formatted.append(result)
         
         return jsonify({'results': formatted, 'count': len(formatted)})
     except Exception as e:
@@ -1229,6 +1264,8 @@ def search_by_committee(query, include_providers=False):
     owner_to_count = {}
     owner_to_providers = {}
     owner_to_display = {}
+    owner_to_name_norm = {}
+    owner_to_pac = {}
     for donor_norm, total in donor_to_amounts.items():
         owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
         if owner_row is None:
@@ -1236,12 +1273,16 @@ def search_by_committee(query, include_providers=False):
         facilities_str = owner_row.get('facilities', '') or ''
         facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
         display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
-        key = owner_row.get('owner_name', '')
+        # Use associate_id_owner (PAC) as key when available - internal ID for reliable deduplication
+        pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
+        key = pac if pac else owner_row.get('owner_name', '')
         if key not in owner_to_total:
             owner_to_total[key] = 0
             owner_to_count[key] = 0
             owner_to_providers[key] = set()
             owner_to_display[key] = display_name
+            owner_to_name_norm[key] = owner_row.get('owner_name', '')  # For API lookups (showOwnerDetails)
+            owner_to_pac[key] = pac  # associate_id_owner for soft connecting
         owner_to_total[key] += total
         owner_to_count[key] += len(donor_to_records.get(donor_norm, []))
         for fac in facilities:
@@ -1249,10 +1290,11 @@ def search_by_committee(query, include_providers=False):
     owners_deduped = [
         {
             'owner_name': owner_to_display[k],
-            'owner_name_normalized': k,
+            'owner_name_normalized': owner_to_name_norm.get(k, k),
             'total_contributed': owner_to_total[k],
             'num_contributions': owner_to_count[k],
             'linked_providers_count': len(owner_to_providers[k]),
+            'associate_id_owner': owner_to_pac.get(k, '') or '',
         }
         for k in owner_to_total
     ]
@@ -1517,6 +1559,9 @@ def search_by_provider(query):
         if not matched_providers.empty:
             first_provider = matched_providers.iloc[0]
             provider_name = first_provider.get('Provider Name', '')
+            legal_business_name = ''
+            if 'Legal Business Name' in first_provider.index and pd.notna(first_provider.get('Legal Business Name')):
+                legal_business_name = str(first_provider.get('Legal Business Name', '')).strip()
             ccn = None
             state = None
             for col in ['CMS Certification Number (CCN)', 'ccn', 'CCN', 'PROVNUM']:
@@ -1552,11 +1597,11 @@ def search_by_provider(query):
                     ]
                 
                 if not enrollment_matches.empty:
-                    # Get ALL owners (not just 5%+)
-                    # Filter for direct ownership (ROLE CODE 34 or similar)
+                    # Get ALL owners: direct ownership (ROLE 34) and corporate officers (so names appear in list)
                     direct_ownership = enrollment_matches[
                         (enrollment_matches['ROLE CODE - OWNER'].astype(str) == '34') |
-                        (enrollment_matches['ROLE TEXT - OWNER'].astype(str).str.contains('DIRECT OWNERSHIP', na=False, case=False))
+                        (enrollment_matches['ROLE TEXT - OWNER'].astype(str).str.contains('DIRECT OWNERSHIP', na=False, case=False)) |
+                        (enrollment_matches['ROLE TEXT - OWNER'].astype(str).str.contains('OFFICER', na=False, case=False))
                     ]
                     
                     if not direct_ownership.empty:
@@ -1576,14 +1621,14 @@ def search_by_provider(query):
                             name_parts = [first_name, middle_name, last_name]
                             full_name = ' '.join([p for p in name_parts if p and p != 'nan']).strip().upper()
                             
-                            # Get percentage
+                            # Get percentage (officers may have 0% but we still show them)
                             try:
                                 percentage = float(row.get('PERCENTAGE OWNERSHIP', 0) or 0)
                             except (ValueError, TypeError):
                                 percentage = 0
-                            
-                            # Skip if percentage is 0 or missing
-                            if percentage <= 0:
+                            role_text = str(row.get('ROLE TEXT - OWNER', '') or '')
+                            is_officer_row = 'OFFICER' in role_text.upper()
+                            if percentage <= 0 and not is_officer_row:
                                 continue
                             
                             # Get association date
@@ -1616,9 +1661,10 @@ def search_by_provider(query):
             
             provider_info = {
                 'provider_name': provider_name if pd.notna(provider_name) else '',
+                'legal_business_name': legal_business_name,
                 'ccn': ccn,
                 'state': state,
-                'direct_owners': direct_owners  # List of {name, percentage, date}
+                'direct_owners': direct_owners  # List of {name, percentage, date} (includes officers)
             }
         
         # Format results
@@ -1659,13 +1705,31 @@ def search_by_provider(query):
 
 @app.route('/api/owner/<owner_name>')
 def get_owner_details(owner_name):
-    """Get detailed information about a specific owner"""
+    """Get detailed information about a specific owner. Lookup by name or associate_id_owner (PAC ID)."""
     if owners_df is None:
         return jsonify({'error': 'Owners database not loaded'}), 500
     
     query_upper = owner_name.upper().strip()
-    # Find owner - prioritize normalized name (more reliable)
-    owner = owners_df[owners_df['owner_name'].str.upper().str.strip() == query_upper]
+    
+    # Lookup by associate_id_owner (PAC ID) - 10-digit numeric. Internal use, soft connect.
+    if 'associate_id_owner' in owners_df.columns:
+        query_stripped = owner_name.strip().replace('O', '').replace('o', '')
+        if query_stripped.isdigit() and len(query_stripped) == 10:
+            owner = owners_df[owners_df['associate_id_owner'].astype(str).str.strip() == query_stripped]
+            if not owner.empty:
+                owner_row = owner.iloc[0]
+                display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', '')) or owner_row.get('owner_name', '')
+                # Fall through to facilities/donations logic below - we have owner_row
+            else:
+                owner = pd.DataFrame()  # Not found
+        else:
+            owner = pd.DataFrame()
+    else:
+        owner = pd.DataFrame()
+    
+    if owner.empty:
+        # Find owner - prioritize normalized name (more reliable)
+        owner = owners_df[owners_df['owner_name'].str.upper().str.strip() == query_upper]
     if owner.empty:
         owner = owners_df[owners_df['owner_name_original'].astype(str).str.upper().str.strip() == query_upper]
     
@@ -1973,6 +2037,10 @@ def get_owner_details(owner_name):
         'is_officer': owner_row.get('is_officer', False) if 'is_officer' in owner_row else False,
         'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else ''
     }
+    if 'associate_id_owner' in owner_row.index and pd.notna(owner_row.get('associate_id_owner')):
+        response_data['associate_id_owner'] = str(owner_row.get('associate_id_owner', '')).strip()
+    if 'dba_name_owner' in owner_row.index and pd.notna(owner_row.get('dba_name_owner')) and str(owner_row.get('dba_name_owner', '')).strip():
+        response_data['dba_name_owner'] = str(owner_row.get('dba_name_owner', '')).strip()
     return jsonify(sanitize_for_json(response_data))
 
 
@@ -2101,6 +2169,7 @@ def query_fec():
                     'occupation': norm.get('occupation', '') or '',
                     'donor_city': norm.get('donor_city', '') or '',
                     'donor_state': norm.get('donor_state', '') or '',
+                    'donor_zip': norm.get('donor_zip', '') or '',
                     'fec_link': fec_link,
                     'donor_name': norm.get('donor_name', '') or '',  # Actual FEC contributor - critical for verification
                 })

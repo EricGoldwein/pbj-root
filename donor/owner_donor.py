@@ -167,14 +167,13 @@ conn.register('ownership', ownership)
 conn.register('ownership_norm', ownership_norm)
 
 print("Step 2: Extracting unique individual owners (SQL query)...")
-# Extract individual owners with SQL - aggregates everything in one query!
-# Much faster than row-by-row pandas processing!
+# Extract individual owners - GROUP BY ASSOCIATE ID - OWNER (PAC ID) for canonical deduplication.
+# One PAC ID = one person. Names can vary; PAC ID is the reliable identifier.
 individuals_query = """
 SELECT 
-    norm.owner_full_name as owner_name,
-    COALESCE(norm.owner_org_name, '') as owner_org_name,
-    -- Get original name (use the FIRST matching row's original name)
-    -- Since we're joining on ASSOCIATE ID - OWNER, this should be exact match
+    norm."ASSOCIATE ID - OWNER" as associate_id_owner,
+    MIN(norm.owner_full_name) as owner_name,
+    COALESCE(MIN(NULLIF(TRIM(norm.owner_org_name), '')), '') as owner_org_name,
     COALESCE(
         MIN(TRIM(CONCAT(
             COALESCE(own."FIRST NAME - OWNER", ''),
@@ -183,9 +182,8 @@ SELECT
             CASE WHEN own."LAST NAME - OWNER" IS NOT NULL AND own."LAST NAME - OWNER" != '' 
                  THEN ' ' || own."LAST NAME - OWNER" ELSE '' END
         ))),
-        norm.owner_full_name
+        MIN(norm.owner_full_name)
     ) as owner_name_original,
-    -- Aggregate facilities
     STRING_AGG(DISTINCT norm.facility_name, ', ') as facilities,
     STRING_AGG(DISTINCT norm."ENROLLMENT ID", ', ') as enrollment_ids,
     MAX(CASE WHEN norm.is_equity_owner THEN 1 ELSE 0 END) = 1 as is_equity_owner,
@@ -196,28 +194,29 @@ LEFT JOIN ownership own ON
     norm."ENROLLMENT ID" = own."ENROLLMENT ID"
     AND norm."ASSOCIATE ID - OWNER" = own."ASSOCIATE ID - OWNER"
 WHERE norm.owner_full_name IS NOT NULL AND norm.owner_full_name != ''
-GROUP BY norm.owner_full_name, norm.owner_org_name
+GROUP BY norm."ASSOCIATE ID - OWNER"
 """
 
 individual_owners_df = conn.execute(individuals_query).df()
-print(f"  ✓ Found {len(individual_owners_df)} unique individuals")
+print(f"  [OK] Found {len(individual_owners_df)} unique individuals")
 
 print("Step 3: Extracting unique organization owners (SQL query)...")
-# Extract organization owners with SQL
+# Extract org owners - GROUP BY ASSOCIATE ID - OWNER (PAC ID). One PAC = one org.
+# Include ORGANIZATION NAME - OWNER and DOING BUSINESS AS NAME - OWNER for display.
 orgs_query = """
 SELECT 
-    norm.owner_org_name as owner_name,
+    norm."ASSOCIATE ID - OWNER" as associate_id_owner,
+    MIN(norm.owner_org_name) as owner_name,
     '' as owner_org_name,
-    -- Get original name (use first non-empty from ownership table)
     COALESCE(
         MIN(CASE 
             WHEN own."ORGANIZATION NAME - OWNER" IS NOT NULL AND own."ORGANIZATION NAME - OWNER" != ''
             THEN own."ORGANIZATION NAME - OWNER"
             ELSE NULL
         END),
-        norm.owner_org_name
+        MIN(norm.owner_org_name)
     ) as owner_name_original,
-    -- Aggregate facilities
+    MIN(NULLIF(TRIM(own."DOING BUSINESS AS NAME - OWNER"), '')) as dba_name_owner,
     STRING_AGG(DISTINCT norm.facility_name, ', ') as facilities,
     STRING_AGG(DISTINCT norm."ENROLLMENT ID", ', ') as enrollment_ids,
     false as is_equity_owner,
@@ -228,26 +227,30 @@ LEFT JOIN ownership own ON
     norm."ENROLLMENT ID" = own."ENROLLMENT ID"
     AND norm."ASSOCIATE ID - OWNER" = own."ASSOCIATE ID - OWNER"
 WHERE norm.owner_org_name IS NOT NULL AND norm.owner_org_name != ''
-GROUP BY norm.owner_org_name
+GROUP BY norm."ASSOCIATE ID - OWNER"
 """
 
 org_owners_df = conn.execute(orgs_query).df()
-print(f"  ✓ Found {len(org_owners_df)} unique organizations")
+print(f"  [OK] Found {len(org_owners_df)} unique organizations")
 
 print("Step 4: Combining and deduplicating...")
 # Combine and add owner_type
 individual_owners_df['owner_type'] = 'INDIVIDUAL'
 org_owners_df['owner_type'] = 'ORGANIZATION'
 
+# Add empty dba_name_owner for individuals (only orgs have it)
+if 'dba_name_owner' not in individual_owners_df.columns:
+    individual_owners_df['dba_name_owner'] = ''
+
 # Combine
 owners_df = pd.concat([individual_owners_df, org_owners_df], ignore_index=True)
 
-# Remove duplicates
-owners_df = owners_df.drop_duplicates(subset=['owner_name', 'owner_type'])
+# Deduplicate by associate_id_owner (PAC ID) - canonical identifier. Names for display only.
+owners_df = owners_df.drop_duplicates(subset=['associate_id_owner'], keep='first')
 
-# Reorder columns to match expected format
-column_order = ['owner_name', 'owner_name_original', 'owner_type', 'owner_org_name', 
-                'facilities', 'enrollment_ids', 'is_equity_owner', 'is_officer', 'earliest_association']
+# Reorder columns - associate_id_owner first for internal use; names for external display
+column_order = ['associate_id_owner', 'owner_name', 'owner_name_original', 'owner_type', 'owner_org_name',
+                'dba_name_owner', 'facilities', 'enrollment_ids', 'is_equity_owner', 'is_officer', 'earliest_association']
 owners_df = owners_df[[col for col in column_order if col in owners_df.columns]]
 
 # Convert boolean columns to proper format
@@ -256,7 +259,7 @@ if 'is_equity_owner' in owners_df.columns:
 if 'is_officer' in owners_df.columns:
     owners_df['is_officer'] = owners_df['is_officer'].astype(bool)
 
-print(f"\n✓ Found {len(owners_df)} unique owners:")
+print(f"\n[OK] Found {len(owners_df)} unique owners:")
 print(f"  - {len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])} individuals")
 print(f"  - {len(owners_df[owners_df['owner_type'] == 'ORGANIZATION'])} organizations")
 
@@ -268,18 +271,18 @@ if FILTER_LIMIT > 0 and len(owners_df) > FILTER_LIMIT:
 # Save owners database
 print("Step 5: Saving to file...")
 owners_df.to_csv(OUT_OWNERS_DB, index=False)
-print(f"\n✓ [OK] Owners database saved to: {OUT_OWNERS_DB}")
+print(f"\n[OK] Owners database saved to: {OUT_OWNERS_DB}")
 
 # If mode is "extract" only, stop here (RECOMMENDED - fast!)
 if MODE.lower() == "extract":
     print("\n" + "="*60)
-    print("✓ Extraction complete! Owners saved to database.")
-    print(f"✓ Found {len(owners_df)} unique owners ready for search.")
-    print("\n💡 Next steps:")
+    print("[OK] Extraction complete! Owners saved to database.")
+    print(f"[OK] Found {len(owners_df)} unique owners ready for search.")
+    print("\nNext steps:")
     print("   1. Start the dashboard: python donor/owner_donor_dashboard.py")
     print("   2. Search for owners in the web interface")
     print("   3. Click 'Query FEC API (Live)' to get donations on-demand")
-    print("\n⚠️  NOTE: Don't run MODE=query unless you want to pre-process")
+    print("\nNOTE: Don't run MODE=query unless you want to pre-process")
     print("   donations for ALL owners (takes hours). The dashboard queries")
     print("   the FEC API on-demand when you search, which is much faster!")
     print("="*60)

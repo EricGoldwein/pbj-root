@@ -670,6 +670,42 @@
             color: #fff;
         }
         
+        .donor-info-trigger {
+            position: relative;
+            text-decoration: none;
+            border-bottom: 1px dashed rgba(102, 126, 234, 0.5);
+            transition: border-color 0.2s ease;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .donor-info-trigger:hover {
+            border-bottom-color: rgba(102, 126, 234, 0.9);
+        }
+        .donor-info-icon {
+            font-size: 0.75em; opacity: 0.85; margin-left: 0.15rem; vertical-align: middle;
+        }
+        .donor-popup {
+            display: none;
+            position: absolute;
+            left: 0;
+            top: 100%;
+            margin-top: 4px;
+            padding: 0.75rem 1rem;
+            background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: rgba(255,255,255,0.95);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+            min-width: 220px;
+            max-width: 320px;
+        }
+        .donor-popup.show {
+            display: block;
+        }
+        
         .facility-link-icon {
             margin-left: 0.3rem;
             font-size: 0.8rem;
@@ -849,10 +885,10 @@
 
         <div id="setupWarning" class="setup-warning" style="display: none;">
             <div class="warning-content">
-                <h3>⚠️ Setup Required</h3>
+                <h3 id="setupWarningTitle"></h3>
                 <p id="setupMessage"></p>
-                <div class="setup-instructions">
-                    <p><strong>📋 Simple Setup (One-Time):</strong></p>
+                <div id="setupInstructions" class="setup-instructions" style="display: none;">
+                    <p><strong>Simple Setup (One-Time):</strong></p>
                     <div style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 6px; margin: 15px 0;">
                         <p style="margin-bottom: 10px;"><strong>Step 1:</strong> Open terminal/command prompt in this project folder</p>
                         <p style="margin-bottom: 10px;"><strong>Step 2:</strong> Copy and paste this command:</p>
@@ -863,7 +899,7 @@
                         <p style="margin-top: 10px;"><strong>Step 4:</strong> Refresh this page</p>
                     </div>
                     <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 15px;">
-                        <em>💡 This extracts all unique owners from the 250k nursing home ownership dataset. You only need to do this once (or when you want to update the data).</em>
+                        <em>This extracts all unique owners from the 250k nursing home ownership dataset. Run once or when you want to update the data.</em>
                     </p>
                 </div>
             </div>
@@ -1093,6 +1129,35 @@
             return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
+        // Format FEC contributor: inline "Name (City, State)" with click/hover popup for full demog info
+        function formatFecContributor(d) {
+            if (!d || !d.donor_name) return '';
+            const name = escapeHtml(d.donor_name);
+            const loc = (d.donor_city && d.donor_state) ? ` (${escapeHtml(d.donor_city)}, ${escapeHtml(d.donor_state)})` : '';
+            const inlineText = name + loc;
+            const hasPopup = (d.donor_city || d.donor_state || d.donor_zip || d.employer || d.occupation || d.committee || d.candidate);
+            if (!hasPopup) return `<strong>FEC contributor:</strong> ${inlineText}`;
+            const addrParts = [d.donor_city, d.donor_state].filter(Boolean).join(', ');
+            const fullAddr = addrParts && d.donor_zip ? `${addrParts} ${d.donor_zip}` : (addrParts || (d.donor_zip || ''));
+            const popupParts = [];
+            if (name) popupParts.push(`<strong>${name}</strong>`);
+            if (fullAddr) popupParts.push(`<div><strong>Address:</strong> ${escapeHtml(fullAddr)}</div>`);
+            if (d.employer || d.occupation) popupParts.push(`<div><strong>Employer/Occupation:</strong> ${escapeHtml([d.employer, d.occupation].filter(Boolean).join(' — '))}</div>`);
+            if (d.committee) popupParts.push(`<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>`);
+            if (d.candidate) popupParts.push(`<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${escapeHtml(d.office)})` : ''}</div>`);
+            if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
+            const popupHtml = popupParts.join('');
+            const uid = 'popup-' + Math.random().toString(36).slice(2);
+            return `<strong>FEC contributor:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); document.getElementById('${uid}').classList.toggle('show')" onmouseenter="document.getElementById('${uid}').classList.add('show')" onmouseleave="document.getElementById('${uid}').classList.remove('show')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); document.getElementById('${uid}').classList.toggle('show'); }">${inlineText}<span class="donor-info-icon" aria-hidden="true">&#9432;</span></span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
+        }
+
+        // Close donor popups when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.donor-info-wrap')) {
+                document.querySelectorAll('.donor-popup.show').forEach(p => p.classList.remove('show'));
+            }
+        });
+
         // Mobile menu toggle
         const navToggle = document.getElementById('navToggle');
         const navMenu = document.getElementById('navMenu');
@@ -1124,16 +1189,17 @@
                 const response = await fetch('/owners/api/stats');
                 const stats = await response.json();
                 
-                // Show setup warning if database is incomplete
+                // Show setup warning only if database is empty
                 const setupWarning = document.getElementById('setupWarning');
                 const setupMessage = document.getElementById('setupMessage');
-                
+                const setupTitle = document.getElementById('setupWarningTitle');
+                const setupInstructions = document.getElementById('setupInstructions');
+                // Only show setup warning when database is completely empty
                 if (stats.total_owners === 0) {
                     setupWarning.style.display = 'block';
+                    if (setupTitle) { setupTitle.textContent = 'Setup Required'; setupTitle.style.display = ''; }
                     setupMessage.textContent = 'No owners database found. You need to create it first.';
-                } else if (stats.total_owners < 1000) {
-                    setupWarning.style.display = 'block';
-                    setupMessage.textContent = `Only ${stats.total_owners} owners loaded. This seems incomplete - the database was likely created with a filter. To load ALL owners from the full 250k dataset, regenerate it.`;
+                    if (setupInstructions) setupInstructions.style.display = 'block';
                 } else {
                     setupWarning.style.display = 'none';
                 }
@@ -1560,7 +1626,7 @@
                                             ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                            ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
+                                            ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
                                             ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
                                             ${d.owner_name ? ` • From: ${escapeHtml(d.owner_name)}` : ''}
                                             ${d.office ? ` • ${d.office}` : ''}
@@ -1642,6 +1708,24 @@
                 return word;
             }).join(' ');
         }
+        // FEC individual-contributions contributor_name: for individuals "first last", for orgs the name (spaces as +)
+        function fecContributorQuery(ownerName, ownerType) {
+            if (!ownerName) return '';
+            const n = String(ownerName).trim();
+            if (ownerType === 'INDIVIDUAL' && n.includes(',')) {
+                const parts = n.split(',');
+                const last = (parts[0] || '').trim();
+                const first = (parts[1] || '').trim();
+                return (first + ' ' + last).trim().toLowerCase().replace(/\s+/g, ' ');
+            }
+            return n.toLowerCase().replace(/\s+/g, ' ');
+        }
+        function fecIndividualContributionsUrl(ownerName, ownerType) {
+            if (ownerType === 'ORGANIZATION') return 'https://www.fec.gov/data/receipts/individual-contributions/';
+            const q = fecContributorQuery(ownerName, ownerType);
+            if (!q) return 'https://www.fec.gov/data/receipts/individual-contributions/';
+            return 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' + encodeURIComponent(q).replace(/%20/g, '+');
+        }
         
         function displayResults(results, providerInfo = null, searchType = 'all') {
             const container = document.getElementById('resultsContainer');
@@ -1657,6 +1741,7 @@
             if (searchType === 'provider' && providerInfo && providerInfo.provider_name) {
                 const providerNameRaw = providerInfo.provider_name;
                 const providerName = toTitleCase(providerNameRaw);
+                const legalBusinessName = providerInfo.legal_business_name ? toTitleCase(String(providerInfo.legal_business_name).trim()) : '';
                 const ccn = providerInfo.ccn || '';
                 const state = providerInfo.state || '';
                 const directOwners = providerInfo.direct_owners || [];
@@ -1765,7 +1850,7 @@
                         <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea; position: relative;">
                             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: ${directOwners.length > 0 ? '0' : '0'};">
                                 <div style="flex: 1;">
-                                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}</h3>
+                                    <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}${legalBusinessName ? ' (' + escapeHtml(legalBusinessName) + ')' : ''}</h3>
                                     ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` • ${state}` : ''}</div>` : ''}
                                 </div>
                                 <a href="https://pbjdashboard.com/?facility=${ccn}" 
@@ -1791,7 +1876,7 @@
                 } else {
                     providerHeader = `
                         <div style="margin-bottom: 1.5rem; padding: 1rem; background: rgba(102, 126, 234, 0.1); border-radius: 8px; border-left: 4px solid #667eea;">
-                            <h3 style="margin: 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}</h3>
+                            <h3 style="margin: 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}${legalBusinessName ? ' (' + escapeHtml(legalBusinessName) + ')' : ''}</h3>
                             ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.5rem;">CCN: ${ccn}</div>` : ''}
                             ${ownersListHtml}
                         </div>
@@ -1817,7 +1902,7 @@
                     </div>
                     ${result.facilities.length > 0 ? `
                         <div class="facilities-list">
-                            <strong>Facilities:</strong> ${result.facilities.slice(0, 3).map(f => escapeHtml(f)).join(', ')}
+                            <strong>Providers (legal names):</strong> ${result.facilities.slice(0, 3).map(f => escapeHtml(toTitleCase(f))).join(', ')}
                             ${result.facilities.length > 3 ? ` and ${result.facilities.length - 3} more` : ''}
                         </div>
                     ` : ''}
@@ -1921,8 +2006,10 @@
                                     // Format beds
                                     const beds = f.beds ? Math.round(parseFloat(f.beds)).toLocaleString() : 'N/A';
                                     
-                                    // Location string
-                                    const location = [f.city, f.state].filter(x => x).join(', ') || 'N/A';
+                                    // Location: city title case, state 2-letter uppercase (e.g. Hannibal, MO)
+                                    const cityPart = f.city ? toTitleCase(String(f.city).trim()) : '';
+                                    const statePart = f.state ? String(f.state).trim().toUpperCase().slice(0, 2) : '';
+                                    const location = [cityPart, statePart].filter(x => x).join(', ') || 'N/A';
                                     
                                     // CCN display - ONLY show CCN from provider_info (NOT enrollment_id - they're different!)
                                     let ccnDisplay = 'N/A';
@@ -1941,7 +2028,7 @@
                                     // Apply title case for display
                                     const legalBusinessNameDisplay = legalBusinessName !== 'N/A' ? toTitleCase(legalBusinessName) : 'N/A';
                                     const providerNameDisplay = providerName !== 'N/A' ? toTitleCase(providerName) : 'N/A';
-                                    const locationDisplay = location !== 'N/A' ? toTitleCase(location) : 'N/A';
+                                    const locationDisplay = location;
                                     
                                     // Format HPRD - check if it's a valid number
                                     let hprdDisplay = 'N/A';
@@ -2104,7 +2191,7 @@
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem; color: white;">
-                            Total Donated: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            Estimated Total: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </div>
                         <div style="color: rgba(255,255,255,0.7);">
                             ${donationCount} ${donationCount === 1 ? 'donation' : 'donations'} total
@@ -2113,6 +2200,7 @@
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
                             ${yearBreakdown}
                         </div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">Estimates based on donations matched from owner names/orgs.</div>
                     </div>
                     <a href="${csvUrl}" download="donations.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
                         Export CSV
@@ -2124,11 +2212,11 @@
                         ${topCommittees.length > 0 ? `
                             <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px;">
                                 <strong>Top Committees</strong>
-                                ${topCommittees.map(([name, amt]) => `
-                                    <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                                    </div>
-                                `).join('')}
+                                ${topCommittees.map(([name, amt], idx) => {
+                                    const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
+                                    const popupHtml = '<strong>' + escapeHtml(name) + '</strong>' + (committeeIds[name] ? '<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>' : '') + '<div><strong>Total:</strong> $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' + (committeeIds[name] ? '<div style="margin-top: 0.5rem;"><a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" style="color: #8b9aff;">View on FEC</a></div>' : '');
+                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Committee details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none;"><span class="donor-info-icon" aria-hidden="true">&#9432;</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                }).join('')}
                             </div>
                         ` : ''}
                         ${topCandidates.length > 0 ? `
@@ -2157,6 +2245,7 @@
                                 ${d.date ? `<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>` : ''}
                                 ${d.committee ? `<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>` : ''}
                                 ${d.candidate ? `<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${d.office})` : ''}${d.party ? ` - ${d.party}` : ''}</div>` : ''}
+                                ${d.donor_name ? `<div>${formatFecContributor(d)}</div>` : ''}
                                 ${d.employer ? `<div><strong>Employer:</strong> ${escapeHtml(d.employer)}${d.occupation ? `, ${escapeHtml(d.occupation)}` : ''}</div>` : ''}
                                 ${d.donor_city && d.donor_state ? `<div><strong>Location:</strong> ${escapeHtml(d.donor_city)}, ${escapeHtml(d.donor_state)}</div>` : ''}
                             </div>
@@ -2176,14 +2265,14 @@
                             </ol>
                             <p style="margin-bottom: 0.5rem;"><strong>Verify on FEC Website:</strong></p>
                             <ul style="margin-left: 1.5rem; margin-bottom: 0.75rem;">
-                                <li style="margin-bottom: 0.5rem;"><a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: underline;">FEC Receipts Database</a> - Search manually by contributor name</li>
+                                <li style="margin-bottom: 0.5rem;"><a href="${fecIndividualContributionsUrl(ownerName, ownerType)}" target="_blank" style="color: #667eea; text-decoration: underline;">FEC Individual contributions</a> - Search by contributor name</li>
                                 <li style="margin-bottom: 0.5rem;"><a href="${fecApiSearchUrl}" target="_blank" style="color: #667eea; text-decoration: underline;">Direct FEC API Query</a> (requires API key) - Shows exact API call used</li>
                             </ul>
                             <p style="margin-bottom: 0; font-size: 0.8rem; color: rgba(255,255,255,0.6);"><strong>Note:</strong> The FEC API uses fuzzy matching, so results may include contributions from similar names. Always verify independently.</p>
                         </div>
                     </details>
                     <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0; text-align: center;">
-                        Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                        Source: <a href="${fecIndividualContributionsUrl(ownerName, ownerType)}" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
                     </p>
                 </div>
             `;
@@ -2338,7 +2427,7 @@
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; color: white;">
-                            Total Contributed: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                            Estimated Total: $${totalAmount.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                             ${donationCount} ${donationCount === 1 ? 'donation' : 'donations'} total
@@ -2347,6 +2436,7 @@
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
                             ${yearBreakdown}
                         </div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">Estimates based on donations matched from owner names/orgs.</div>
                     </div>
                     <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
                         Export CSV
@@ -2358,11 +2448,11 @@
                         ${topCommittees.length > 0 ? `
                             <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 6px;">
                                 <strong style="font-size: 0.9rem;">Top Committees</strong>
-                                ${topCommittees.map(([name, amt]) => `
-                                    <div style="margin-top: 0.4rem; font-size: 0.85rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
-                                    </div>
-                                `).join('')}
+                                ${topCommittees.map(([name, amt]) => {
+                                    const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
+                                    const popupHtml = '<strong>' + escapeHtml(name) + '</strong>' + (committeeIds[name] ? '<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>' : '') + '<div><strong>Total:</strong> $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' + (committeeIds[name] ? '<div style="margin-top: 0.5rem;"><a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" style="color: #8b9aff;">View on FEC</a></div>' : '');
+                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Committee details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none;"><span class="donor-info-icon" aria-hidden="true">&#9432;</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                }).join('')}
                             </div>
                         ` : ''}
                         ${topCandidates.length > 0 ? `
@@ -2387,10 +2477,10 @@
                                     ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                    ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
-                                    ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                    ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
-                                    ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
+                                ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
+                                ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
+                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
+                                ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
                                     ${d.office ? ` (${d.office})` : ''}
                                     ${d.party ? ` - ${d.party}` : ''}
                                 </div>
@@ -2408,7 +2498,7 @@
                 </div>
                 <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
                     <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
-                        Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
+                        Source: <a href="${fecIndividualContributionsUrl(ownerName, ownerType)}" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
                     </p>
                 </div>
             `;
@@ -2432,7 +2522,7 @@
                                 ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
+                                ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
                                 ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
                                 ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
                                 ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}

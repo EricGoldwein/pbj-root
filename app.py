@@ -184,6 +184,13 @@ try:
     
     app.register_blueprint(owner_bp)
     
+    # Test page: /owners-test and /owners/test (Committee search mode, isolated)
+    @app.route('/owners-test')
+    @app.route('/owners-test/')
+    def owners_test_redirect():
+        """Redirect to test page with Committee search mode"""
+        return redirect('/owners/test', code=302)
+
     # Also register aliases for /owner and /ownership
     @app.route('/owner', defaults={'path': ''})
     @app.route('/owner/', defaults={'path': ''})

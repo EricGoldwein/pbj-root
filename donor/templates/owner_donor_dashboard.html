@@ -1162,10 +1162,10 @@
             const isMobile = window.innerWidth <= 768;
             
             if (isMobile) {
-                // Mobile: show directly below the trigger, centered horizontally on screen
+                // Mobile: center in viewport (avoids scroll container issues)
                 el.style.left = '50%';
-                el.style.top = (r.bottom + pad) + 'px';
-                el.style.transform = 'translateX(-50%)';
+                el.style.top = '50%';
+                el.style.transform = 'translate(-50%, -50%)';
             } else {
                 // Desktop: show above trigger, anchored to trigger position
                 el.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left + r.width / 2)) + 'px';

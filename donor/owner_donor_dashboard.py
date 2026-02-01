@@ -574,6 +574,16 @@ def load_data():
                 except UnicodeDecodeError:
                     provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='latin-1')
             print(f"✓ Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
+            # Validate expected columns so renames/missing columns fail fast
+            if not provider_info_latest_df.empty:
+                required = ['Legal Business Name']
+                state_cols = ['State', 'STATE', 'state', 'Provider State']
+                missing = [c for c in required if c not in provider_info_latest_df.columns]
+                has_state = any(c in provider_info_latest_df.columns for c in state_cols)
+                if missing:
+                    print(f"⚠ Provider info CSV missing expected column(s): {missing}. Legal business name and matching may be wrong.")
+                if not has_state:
+                    print(f"⚠ Provider info CSV has no state column (tried {state_cols}). Location state may be wrong.")
         except Exception as e:
             print(f"✗ Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()

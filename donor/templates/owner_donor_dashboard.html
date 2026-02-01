@@ -936,7 +936,7 @@
         <div id="detailsSection" class="details-section" style="display: none;">
             <div class="details-header">
                 <h2 id="ownerTitle"></h2>
-                <button class="back-btn" onclick="showSearchResults()">← Back</button>
+                <button class="back-btn" onclick="showSearchResults()">Back</button>
             </div>
             <div id="donationsContainer"></div>
             <div id="facilitiesContainer"></div>
@@ -1130,19 +1130,26 @@
         }
 
         // Format FEC contributor: inline "Name (City, State)" with click/hover popup for full demog info
+        // Title case for names: "PRUITT, NEIL L JR." -> "Pruitt, Neil L Jr."
+        function toTitleCaseName(str) {
+            if (!str) return '';
+            return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        }
         function formatFecContributor(d) {
             if (!d || !d.donor_name) return '';
-            const name = escapeHtml(d.donor_name);
-            const loc = (d.donor_city && d.donor_state) ? ` (${escapeHtml(d.donor_city)}, ${escapeHtml(d.donor_state)})` : '';
+            const name = escapeHtml(toTitleCaseName(d.donor_name));
+            const cityDisplay = d.donor_city ? toTitleCaseName(d.donor_city) : '';
+            const stateDisplay = d.donor_state ? d.donor_state.toUpperCase() : '';
+            const loc = (cityDisplay && stateDisplay) ? ` (${escapeHtml(cityDisplay)}, ${escapeHtml(stateDisplay)})` : '';
             const inlineText = name + loc;
             const hasPopup = (d.donor_city || d.donor_state || d.donor_zip || d.employer || d.occupation || d.committee || d.candidate);
             if (!hasPopup) return `<strong>FEC contributor:</strong> ${inlineText}`;
-            const addrParts = [d.donor_city, d.donor_state].filter(Boolean).join(', ');
+            const addrParts = [cityDisplay, stateDisplay].filter(Boolean).join(', ');
             const fullAddr = addrParts && d.donor_zip ? `${addrParts} ${d.donor_zip}` : (addrParts || (d.donor_zip || ''));
             const popupParts = [];
             if (name) popupParts.push(`<strong>${name}</strong>`);
             if (fullAddr) popupParts.push(`<div><strong>Address:</strong> ${escapeHtml(fullAddr)}</div>`);
-            if (d.employer || d.occupation) popupParts.push(`<div><strong>Employer/Occupation:</strong> ${escapeHtml([d.employer, d.occupation].filter(Boolean).join(' — '))}</div>`);
+            if (d.employer || d.occupation) popupParts.push(`<div><strong>Employer/Occupation:</strong> ${escapeHtml([d.employer, d.occupation].filter(Boolean).map(s => toTitleCaseName(s)).join(' — '))}</div>`);
             if (d.committee) popupParts.push(`<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>`);
             if (d.candidate) popupParts.push(`<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${escapeHtml(d.office)})` : ''}</div>`);
             if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
@@ -2216,13 +2223,34 @@
                                 <strong>Top Committees</strong>
                                 ${topCommittees.map(([name, amt], idx) => {
                                     const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
-                                    // Get contributors to this committee from donations
+                                    // Get contributors to this committee from donations with their details
                                     const committeeDonations = donations.filter(d => d.committee === name);
-                                    const contributorSet = new Set();
-                                    committeeDonations.forEach(d => { if (d.donor_name) contributorSet.add(d.donor_name); });
-                                    const contributors = Array.from(contributorSet).slice(0, 5);
-                                    const contributorsHtml = contributors.length > 0 ? '<div style="margin-top: 0.5rem;"><strong>Contributors:</strong><div style="font-size: 0.85em; margin-top: 0.25rem;">' + contributors.map(c => escapeHtml(c)).join(', ') + (contributorSet.size > 5 ? ' and ' + (contributorSet.size - 5) + ' more' : '') + '</div></div>' : '';
-                                    const popupHtml = '<strong>' + escapeHtml(name) + '</strong>' + (committeeIds[name] ? '<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>' : '') + '<div><strong>Total:</strong> $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' + contributorsHtml + (committeeIds[name] ? '<div style="margin-top: 0.5rem;"><a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" style="color: #8b9aff;">View on FEC</a></div>' : '');
+                                    const contributorMap = {};
+                                    committeeDonations.forEach(d => {
+                                        if (d.donor_name && !contributorMap[d.donor_name]) {
+                                            contributorMap[d.donor_name] = {
+                                                name: d.donor_name,
+                                                city: d.donor_city,
+                                                state: d.donor_state,
+                                                employer: d.employer,
+                                                occupation: d.occupation
+                                            };
+                                        }
+                                    });
+                                    const contributors = Object.values(contributorMap).slice(0, 5);
+                                    // Build popup: FEC ID + contributor with address/employer
+                                    let popupParts = [];
+                                    if (committeeIds[name]) popupParts.push('<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>');
+                                    contributors.forEach(c => {
+                                        const cName = toTitleCaseName(c.name);
+                                        const cCity = c.city ? toTitleCaseName(c.city) : '';
+                                        const cState = c.state ? c.state.toUpperCase() : '';
+                                        const cLoc = [cCity, cState].filter(Boolean).join(', ');
+                                        const cEmpOcc = [c.employer, c.occupation].filter(Boolean).map(s => toTitleCaseName(s)).join(' — ');
+                                        popupParts.push('<div style="margin-top: 0.5rem;"><strong>' + escapeHtml(cName) + '</strong>' + (cLoc ? '<br>' + escapeHtml(cLoc) : '') + (cEmpOcc ? '<br><span style="font-size: 0.9em; color: rgba(255,255,255,0.7);">' + escapeHtml(cEmpOcc) + '</span>' : '') + '</div>');
+                                    });
+                                    if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
+                                    const popupHtml = popupParts.join('');
                                     return '<div style="margin-top: 0.5rem; font-size: 0.9rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none; display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; background: rgba(102, 126, 234, 0.3); border-radius: 50%; font-size: 0.7em; margin-left: 0.25rem; vertical-align: middle;"><span style="display: inline-block; transform: translateY(-1px);">i</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
@@ -2458,13 +2486,34 @@
                                 <strong style="font-size: 0.9rem;">Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => {
                                     const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
-                                    // Get contributors to this committee from donations
+                                    // Get contributors to this committee from donations with their details
                                     const committeeDonations = donations.filter(d => d.committee === name);
-                                    const contributorSet = new Set();
-                                    committeeDonations.forEach(d => { if (d.donor_name) contributorSet.add(d.donor_name); });
-                                    const contributors = Array.from(contributorSet).slice(0, 5);
-                                    const contributorsHtml = contributors.length > 0 ? '<div style="margin-top: 0.5rem;"><strong>Contributors:</strong><div style="font-size: 0.85em; margin-top: 0.25rem;">' + contributors.map(c => escapeHtml(c)).join(', ') + (contributorSet.size > 5 ? ' and ' + (contributorSet.size - 5) + ' more' : '') + '</div></div>' : '';
-                                    const popupHtml = '<strong>' + escapeHtml(name) + '</strong>' + (committeeIds[name] ? '<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>' : '') + '<div><strong>Total:</strong> $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' + contributorsHtml + (committeeIds[name] ? '<div style="margin-top: 0.5rem;"><a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" style="color: #8b9aff;">View on FEC</a></div>' : '');
+                                    const contributorMap = {};
+                                    committeeDonations.forEach(d => {
+                                        if (d.donor_name && !contributorMap[d.donor_name]) {
+                                            contributorMap[d.donor_name] = {
+                                                name: d.donor_name,
+                                                city: d.donor_city,
+                                                state: d.donor_state,
+                                                employer: d.employer,
+                                                occupation: d.occupation
+                                            };
+                                        }
+                                    });
+                                    const contributors = Object.values(contributorMap).slice(0, 5);
+                                    // Build popup: FEC ID + contributor with address/employer
+                                    let popupParts = [];
+                                    if (committeeIds[name]) popupParts.push('<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>');
+                                    contributors.forEach(c => {
+                                        const cName = toTitleCaseName(c.name);
+                                        const cCity = c.city ? toTitleCaseName(c.city) : '';
+                                        const cState = c.state ? c.state.toUpperCase() : '';
+                                        const cLoc = [cCity, cState].filter(Boolean).join(', ');
+                                        const cEmpOcc = [c.employer, c.occupation].filter(Boolean).map(s => toTitleCaseName(s)).join(' — ');
+                                        popupParts.push('<div style="margin-top: 0.5rem;"><strong>' + escapeHtml(cName) + '</strong>' + (cLoc ? '<br>' + escapeHtml(cLoc) : '') + (cEmpOcc ? '<br><span style="font-size: 0.9em; color: rgba(255,255,255,0.7);">' + escapeHtml(cEmpOcc) + '</span>' : '') + '</div>');
+                                    });
+                                    if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
+                                    const popupHtml = popupParts.join('');
                                     return '<div style="margin-top: 0.4rem; font-size: 0.85rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none; display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; background: rgba(102, 126, 234, 0.3); border-radius: 50%; font-size: 0.7em; margin-left: 0.25rem; vertical-align: middle;"><span style="display: inline-block; transform: translateY(-1px);">i</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>

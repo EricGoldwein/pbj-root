@@ -703,9 +703,8 @@
                 background: #0f172a;
                 border: 2px solid rgba(102, 126, 234, 0.6);
                 box-shadow: 0 8px 32px rgba(0,0,0,0.7);
-                z-index: 2147483647;
+                z-index: 99999;
                 max-width: calc(100vw - 3rem);
-                isolation: isolate;
             }
         }
         
@@ -1164,20 +1163,16 @@
         }
 
         var hideDonorPopupTimer = null;
-        function positionDonorPopup(el) {
-            const wrap = el.closest('.donor-info-wrap');
-            if (!wrap) return;
-            const r = wrap.getBoundingClientRect();
+        var isMobile = function() { return window.innerWidth <= 768; };
+        
+        function positionDonorPopup(el, wrap) {
             const pad = 8;
-            const isMobile = window.innerWidth <= 768;
-            
-            if (isMobile) {
-                // Mobile: center in viewport (avoids scroll container issues)
+            if (isMobile()) {
                 el.style.left = '50%';
                 el.style.top = '50%';
                 el.style.transform = 'translate(-50%, -50%)';
             } else {
-                // Desktop: show above trigger, anchored to trigger position
+                const r = wrap.getBoundingClientRect();
                 el.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left + r.width / 2)) + 'px';
                 const aboveTop = r.top - pad;
                 if (aboveTop < 60) {
@@ -1189,37 +1184,67 @@
                 }
             }
         }
+        
         function showDonorPopup(uid) {
             if (hideDonorPopupTimer) { clearTimeout(hideDonorPopupTimer); hideDonorPopupTimer = null; }
             const el = document.getElementById(uid);
             if (!el) return;
-            positionDonorPopup(el);
+            const wrap = el.closest('.donor-info-wrap');
+            if (!wrap) return;
+            positionDonorPopup(el, wrap);
             el.classList.add('show');
         }
         function hideDonorPopup(uid) {
             hideDonorPopupTimer = setTimeout(function() {
                 hideDonorPopupTimer = null;
                 const el = document.getElementById(uid);
-                if (el) el.classList.remove('show');
+                if (el) {
+                    el.classList.remove('show');
+                    if (el._donorPopupParent) {
+                        el._donorPopupParent.appendChild(el);
+                        el._donorPopupParent = null;
+                    }
+                }
             }, 80);
         }
         function toggleDonorPopup(uid) {
             const el = document.getElementById(uid);
             if (!el) return;
+            const wrap = el.closest('.donor-info-wrap');
+            if (!wrap) return;
             const isShown = el.classList.contains('show');
-            // Close all other popups first
-            document.querySelectorAll('.donor-popup.show').forEach(p => {
-                if (p.id !== uid) p.classList.remove('show');
+            document.querySelectorAll('.donor-popup.show').forEach(function(p) {
+                if (p.id !== uid) {
+                    p.classList.remove('show');
+                    if (p._donorPopupParent) {
+                        p._donorPopupParent.appendChild(p);
+                        p._donorPopupParent = null;
+                    }
+                }
             });
             if (isShown) {
                 el.classList.remove('show');
+                if (el._donorPopupParent) {
+                    el._donorPopupParent.appendChild(el);
+                    el._donorPopupParent = null;
+                }
             } else {
-                positionDonorPopup(el);
+                if (isMobile()) {
+                    el._donorPopupParent = wrap;
+                    document.body.appendChild(el);
+                }
+                positionDonorPopup(el, wrap);
                 el.classList.add('show');
             }
         }
         function closeAllDonorPopups() {
-            document.querySelectorAll('.donor-popup.show').forEach(p => p.classList.remove('show'));
+            document.querySelectorAll('.donor-popup.show').forEach(function(p) {
+                p.classList.remove('show');
+                if (p._donorPopupParent) {
+                    p._donorPopupParent.appendChild(p);
+                    p._donorPopupParent = null;
+                }
+            });
         }
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.donor-info-wrap')) closeAllDonorPopups();

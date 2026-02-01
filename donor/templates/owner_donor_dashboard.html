@@ -1153,21 +1153,30 @@
             return `<strong>FEC listing:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOn}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uid}')}">${inlineText}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
         }
 
-        var lastDonorPopupOpenAt = 0;
         var hideDonorPopupTimer = null;
         function positionDonorPopup(el) {
             const wrap = el.closest('.donor-info-wrap');
             if (!wrap) return;
             const r = wrap.getBoundingClientRect();
             const pad = 8;
-            el.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left + r.width / 2)) + 'px';
-            const aboveTop = r.top - pad;
-            if (aboveTop < 60) {
+            const isMobile = window.innerWidth <= 768;
+            
+            if (isMobile) {
+                // Mobile: show directly below the trigger, centered horizontally on screen
+                el.style.left = '50%';
                 el.style.top = (r.bottom + pad) + 'px';
-                el.style.transform = 'translate(-50%, 0)';
+                el.style.transform = 'translateX(-50%)';
             } else {
-                el.style.top = (r.top - pad) + 'px';
-                el.style.transform = 'translate(-50%, -100%)';
+                // Desktop: show above trigger, anchored to trigger position
+                el.style.left = Math.max(10, Math.min(window.innerWidth - 10, r.left + r.width / 2)) + 'px';
+                const aboveTop = r.top - pad;
+                if (aboveTop < 60) {
+                    el.style.top = (r.bottom + pad) + 'px';
+                    el.style.transform = 'translate(-50%, 0)';
+                } else {
+                    el.style.top = (r.top - pad) + 'px';
+                    el.style.transform = 'translate(-50%, -100%)';
+                }
             }
         }
         function showDonorPopup(uid) {
@@ -1188,11 +1197,13 @@
             const el = document.getElementById(uid);
             if (!el) return;
             const isShown = el.classList.contains('show');
+            // Close all other popups first
+            document.querySelectorAll('.donor-popup.show').forEach(p => {
+                if (p.id !== uid) p.classList.remove('show');
+            });
             if (isShown) {
-                if (Date.now() - lastDonorPopupOpenAt < 350 && 'ontouchstart' in window) return;
                 el.classList.remove('show');
             } else {
-                lastDonorPopupOpenAt = Date.now();
                 positionDonorPopup(el);
                 el.classList.add('show');
             }
@@ -1201,6 +1212,9 @@
             document.querySelectorAll('.donor-popup.show').forEach(p => p.classList.remove('show'));
         }
         document.addEventListener('click', function(e) {
+            if (!e.target.closest('.donor-info-wrap')) closeAllDonorPopups();
+        });
+        document.addEventListener('touchend', function(e) {
             if (!e.target.closest('.donor-info-wrap')) closeAllDonorPopups();
         });
 

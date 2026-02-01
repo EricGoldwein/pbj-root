@@ -698,6 +698,15 @@
         .donor-popup.show {
             display: block;
         }
+        @media (max-width: 768px) {
+            .donor-popup {
+                background: #0f172a;
+                border: 2px solid rgba(102, 126, 234, 0.6);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.7);
+                z-index: 100001;
+                max-width: calc(100vw - 3rem);
+            }
+        }
         
         .facility-link-icon {
             margin-left: 0.3rem;

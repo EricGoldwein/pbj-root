@@ -681,15 +681,12 @@
         .donor-info-trigger:hover {
             border-bottom-color: rgba(102, 126, 234, 0.9);
         }
-        .donor-info-icon {
-            font-size: 0.75em; opacity: 0.85; margin-left: 0.15rem; vertical-align: middle;
-        }
         .donor-popup {
             display: none;
             position: absolute;
             left: 0;
-            top: 100%;
-            margin-top: 4px;
+            bottom: 100%;
+            margin-bottom: 4px;
             padding: 0.75rem 1rem;
             background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
             border: 1px solid rgba(102, 126, 234, 0.4);
@@ -1155,7 +1152,7 @@
             if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
             const popupHtml = popupParts.join('');
             const uid = 'popup-' + Math.random().toString(36).slice(2);
-            return `<strong>FEC contributor:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); document.getElementById('${uid}').classList.toggle('show')" onmouseenter="document.getElementById('${uid}').classList.add('show')" onmouseleave="document.getElementById('${uid}').classList.remove('show')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); document.getElementById('${uid}').classList.toggle('show'); }">${inlineText}<span class="donor-info-icon" aria-hidden="true">&#9432;</span></span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
+            return `<strong>FEC contributor:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); document.getElementById('${uid}').classList.toggle('show')" onmouseenter="document.getElementById('${uid}').classList.add('show')" onmouseleave="document.getElementById('${uid}').classList.remove('show')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); document.getElementById('${uid}').classList.toggle('show'); }" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">${inlineText}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
         }
 
         // Close donor popups when clicking outside
@@ -1905,7 +1902,6 @@
                             <div class="owner-name">${escapeHtml(result.owner_name)}</div>
                             <span class="owner-type ${result.owner_type.toLowerCase()}">${result.owner_type}</span>
                         </div>
-                        <div class="facilities-count">${result.num_facilities} ${result.num_facilities === 1 ? 'Provider' : 'Providers'}</div>
                     </div>
                     ${result.facilities.length > 0 ? `
                         <div class="facilities-list">
@@ -1927,7 +1923,7 @@
                             data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}"
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
-                            Providers
+                            Providers (${result.num_facilities})
                         </button>
                     </div>
                 </div>
@@ -2251,7 +2247,7 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none; display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; background: rgba(102, 126, 234, 0.3); border-radius: 50%; font-size: 0.7em; margin-left: 0.25rem; vertical-align: middle;"><span style="display: inline-block; transform: translateY(-1px);">i</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -2457,7 +2453,7 @@
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
                     ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕'}</button>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: -0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕'}</button>
                     ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -2514,7 +2510,7 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': $' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' <span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: none; display: inline-block; width: 14px; height: 14px; line-height: 14px; text-align: center; background: rgba(102, 126, 234, 0.3); border-radius: 50%; font-size: 0.7em; margin-left: 0.25rem; vertical-align: middle;"><span style="display: inline-block; transform: translateY(-1px);">i</span></span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}

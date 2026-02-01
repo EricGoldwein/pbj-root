@@ -1128,8 +1128,12 @@ def _compute_providers_from_owners(owners_deduped):
             if prov_key not in prov_key_to_data:
                 avg_hprd = ''
                 if ccn and facility_metrics_df is not None and not facility_metrics_df.empty and 'PROVNUM' in facility_metrics_df.columns:
-                    m = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.zfill(6) == ccn]
+                    ccn_norm = str(ccn).strip().zfill(6)
+                    m = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.strip().str.zfill(6) == ccn_norm].copy()
                     if not m.empty:
+                        qtr_col = 'CY_Qtr' if 'CY_Qtr' in m.columns else 'CY_QTR'
+                        if qtr_col in m.columns:
+                            m = m.sort_values(qtr_col, ascending=True)
                         try:
                             h = float(m.iloc[-1].get('Total_Nurse_HPRD', 0) or 0)
                             avg_hprd = round(h, 2) if h else ''
@@ -1921,28 +1925,27 @@ def get_owner_details(owner_name):
                 # Leave other fields empty (state, city, beds, rating, etc.) - no match means no data
             
             # Get performance metrics if available (use CCN from provider_info, not enrollment ID)
+            facility_info['avg_hprd'] = ''
             global facility_metrics_df
             if facility_metrics_df is not None and not facility_metrics_df.empty and facility_info.get('ccn'):
-                provnum = facility_info['ccn']
+                provnum = str(facility_info['ccn']).strip().zfill(6)
                 if 'PROVNUM' in facility_metrics_df.columns:
-                    metrics = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.zfill(6) == provnum.zfill(6)]
+                    metrics = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.strip().str.zfill(6) == provnum].copy()
                     if not metrics.empty:
-                        # Get latest quarter data
-                        latest = metrics.iloc[-1] if len(metrics) > 0 else None
-                        if latest is not None:
-                            # Handle both CY_QTR and CY_Qtr column names
-                            facility_info['latest_quarter'] = latest.get('CY_Qtr', latest.get('CY_QTR', ''))
-                            # Get HPRD - handle both string and numeric types
-                            hprd_val = latest.get('Total_Nurse_HPRD', '')
-                            if pd.notna(hprd_val) and hprd_val != '':
-                                try:
-                                    facility_info['avg_hprd'] = float(hprd_val)
-                                except (ValueError, TypeError):
-                                    facility_info['avg_hprd'] = ''
-                            else:
-                                facility_info['avg_hprd'] = ''
-                            facility_info['contract_pct'] = latest.get('Contract_Percentage', '')
-                            facility_info['avg_census'] = latest.get('Census', '')
+                        # Sort by quarter so we get the latest (CY_Qtr like 2025Q3)
+                        qtr_col = 'CY_Qtr' if 'CY_Qtr' in metrics.columns else 'CY_QTR'
+                        if qtr_col in metrics.columns:
+                            metrics = metrics.sort_values(qtr_col, ascending=True)
+                        latest = metrics.iloc[-1]
+                        facility_info['latest_quarter'] = latest.get('CY_Qtr', latest.get('CY_QTR', ''))
+                        hprd_val = latest.get('Total_Nurse_HPRD', '')
+                        if pd.notna(hprd_val) and str(hprd_val).strip() != '':
+                            try:
+                                facility_info['avg_hprd'] = round(float(hprd_val), 2)
+                            except (ValueError, TypeError):
+                                pass
+                        facility_info['contract_pct'] = latest.get('Contract_Percentage', '')
+                        facility_info['avg_census'] = latest.get('Census', '')
             
             facilities.append(facility_info)
     

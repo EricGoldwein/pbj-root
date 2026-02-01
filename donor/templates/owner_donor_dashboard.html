@@ -703,8 +703,9 @@
                 background: #0f172a;
                 border: 2px solid rgba(102, 126, 234, 0.6);
                 box-shadow: 0 8px 32px rgba(0,0,0,0.7);
-                z-index: 100001;
+                z-index: 2147483647;
                 max-width: calc(100vw - 3rem);
+                isolation: isolate;
             }
         }
         
@@ -2101,7 +2102,7 @@
                                     let hprdDisplay = 'N/A';
                                     if (f.avg_hprd !== undefined && f.avg_hprd !== null && f.avg_hprd !== '' && f.avg_hprd !== 'N/A' && f.avg_hprd !== 'None') {
                                         const hprdVal = parseFloat(f.avg_hprd);
-                                        if (!isNaN(hprdVal) && isFinite(hprdVal) && hprdVal > 0) {
+                                        if (!isNaN(hprdVal) && isFinite(hprdVal) && hprdVal >= 0) {
                                             hprdDisplay = hprdVal.toFixed(2);
                                         }
                                     }

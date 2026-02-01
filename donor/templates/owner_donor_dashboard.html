@@ -673,47 +673,62 @@
         .donor-info-trigger {
             position: relative;
             text-decoration: none;
-            border-bottom: 1px dashed rgba(102, 126, 234, 0.5);
-            transition: border-color 0.2s ease;
+            border-bottom: 2px solid rgba(102, 126, 234, 0.7);
+            transition: border-color 0.2s ease, background 0.2s ease;
             cursor: pointer;
             touch-action: manipulation;
+            padding: 0.05em 0.1em;
+            border-radius: 2px;
         }
         .donor-info-trigger:hover {
-            border-bottom-color: rgba(102, 126, 234, 0.9);
+            border-bottom-color: rgba(102, 126, 234, 1);
+            background: rgba(102, 126, 234, 0.15);
         }
         .donor-popup {
             display: none;
-            position: absolute;
+            position: fixed;
+            top: 50%;
             left: 50%;
-            transform: translateX(-50%);
-            bottom: 100%;
-            margin-bottom: 4px;
-            padding: 0.75rem 1rem;
-            background: linear-gradient(135deg, #1e3a8a 0%, #1e293b 100%);
-            border: 1px solid rgba(102, 126, 234, 0.4);
-            border-radius: 6px;
-            font-size: 0.85rem;
+            transform: translate(-50%, -50%);
+            padding: 1rem 1.25rem;
+            background: #1e2a4a;
+            background: linear-gradient(160deg, #1e3a8a 0%, #1e293b 100%);
+            border: 2px solid rgba(102, 126, 234, 0.5);
+            border-radius: 8px;
+            font-size: 0.9rem;
             line-height: 1.5;
-            color: rgba(255,255,255,0.95);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            z-index: 1000;
-            min-width: 220px;
-            max-width: min(320px, calc(100vw - 2rem));
+            color: rgba(255,255,255,0.98);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            z-index: 100001;
+            min-width: 260px;
+            max-width: min(360px, calc(100vw - 2.5rem));
             word-wrap: break-word;
+            box-sizing: border-box;
         }
         .donor-popup.show {
             display: block;
         }
+        .donor-popup-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 100000;
+        }
+        .donor-popup-backdrop.show {
+            display: block;
+        }
         @media (max-width: 768px) {
             .donor-popup {
-                position: fixed;
                 left: 1rem;
                 right: 1rem;
-                bottom: auto;
                 top: 50%;
-                transform: translateY(-50%);
-                max-width: none;
                 width: calc(100vw - 2rem);
+                max-width: none;
+                transform: translateY(-50%);
+                padding: 1.25rem 1.25rem;
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
             }
         }
         
@@ -856,6 +871,7 @@
     </style>
 </head>
 <body>
+    <div id="donor-popup-backdrop" class="donor-popup-backdrop" onclick="closeAllDonorPopups();"></div>
     <!-- Navigation -->
     <nav class="navbar" style="background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #1e40af; margin: 0;">
         <div class="nav-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px;">
@@ -1154,7 +1170,7 @@
             const loc = (cityDisplay && stateDisplay) ? ` (${escapeHtml(cityDisplay)}, ${escapeHtml(stateDisplay)})` : '';
             const inlineText = name + loc;
             const hasPopup = (d.donor_city || d.donor_state || d.donor_zip || d.employer || d.occupation || d.committee || d.candidate);
-            if (!hasPopup) return `<strong>FEC contributor:</strong> ${inlineText}`;
+            if (!hasPopup) return `<strong>FEC listing:</strong> ${inlineText}`;
             const addrParts = [cityDisplay, stateDisplay].filter(Boolean).join(', ');
             const fullAddr = addrParts && d.donor_zip ? `${addrParts} ${d.donor_zip}` : (addrParts || (d.donor_zip || ''));
             const popupParts = [];
@@ -1166,14 +1182,25 @@
             if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
             const popupHtml = popupParts.join('');
             const uid = 'popup-' + Math.random().toString(36).slice(2);
-            return `<strong>FEC contributor:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); document.getElementById('${uid}').classList.toggle('show')" onmouseenter="document.getElementById('${uid}').classList.add('show')" onmouseleave="document.getElementById('${uid}').classList.remove('show')" onkeydown="if(event.key==='Enter'||event.key===' ') { event.preventDefault(); document.getElementById('${uid}').classList.toggle('show'); }" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">${inlineText}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
+            const touch = 'ontouchstart' in window;
+            const hoverOn = touch ? '' : ` onmouseenter="document.getElementById('${uid}').classList.add('show'); document.getElementById('donor-popup-backdrop')?.classList.add('show')" onmouseleave="document.getElementById('${uid}').classList.remove('show'); document.getElementById('donor-popup-backdrop')?.classList.remove('show')"`;
+            return `<strong>FEC listing:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uid}')"${hoverOn} onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uid}')}">${inlineText}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>`;
         }
 
-        // Close donor popups when clicking outside
+        function toggleDonorPopup(uid) {
+            const el = document.getElementById(uid);
+            const backdrop = document.getElementById('donor-popup-backdrop');
+            if (!el) return;
+            const isNowShow = el.classList.toggle('show');
+            if (backdrop) backdrop.classList.toggle('show', isNowShow);
+        }
+        function closeAllDonorPopups() {
+            document.querySelectorAll('.donor-popup.show').forEach(p => p.classList.remove('show'));
+            const b = document.getElementById('donor-popup-backdrop');
+            if (b) b.classList.remove('show');
+        }
         document.addEventListener('click', function(e) {
-            if (!e.target.closest('.donor-info-wrap')) {
-                document.querySelectorAll('.donor-popup.show').forEach(p => p.classList.remove('show'));
-            }
+            if (!e.target.closest('.donor-info-wrap')) closeAllDonorPopups();
         });
 
         // Mobile menu toggle
@@ -2230,7 +2257,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
                         ${topCommittees.length > 0 ? `
                             <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px;">
-                                <strong>Top Committees</strong>
+                                <strong>Top Committee Recipients</strong>
                                 ${topCommittees.map(([name, amt], idx) => {
                                     const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
                                     // Get contributors to this committee from donations with their details
@@ -2248,9 +2275,12 @@
                                         }
                                     });
                                     const contributors = Object.values(contributorMap).slice(0, 5);
-                                    // Build popup: FEC ID + contributor with address/employer
+                                    const datesWithVal = committeeDonations.filter(d => d.date && d.date !== 'nan' && d.date !== '').map(d => d.date);
+                                    const mostRecentDate = datesWithVal.length ? datesWithVal.sort().reverse()[0] : null;
+                                    // Build popup: FEC ID + most recent date + contributor with address/employer
                                     let popupParts = [];
                                     if (committeeIds[name]) popupParts.push('<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>');
+                                    if (mostRecentDate) popupParts.push('<div><strong>Most recent:</strong> ' + formatDonationDate(mostRecentDate) + '</div>');
                                     contributors.forEach(c => {
                                         const cName = toTitleCaseName(c.name);
                                         const cCity = c.city ? toTitleCaseName(c.city) : '';
@@ -2261,7 +2291,9 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    const touch = 'ontouchstart' in window;
+                                    const hoverOn = touch ? '' : (' onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\'); document.getElementById(\'donor-popup-backdrop\')?.classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\'); document.getElementById(\'donor-popup-backdrop\')?.classList.remove(\'show\')"');
+                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')"' + hoverOn + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -2493,7 +2525,7 @@
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.8rem; margin-bottom: 1rem;">
                         ${topCommittees.length > 0 ? `
                             <div style="background: rgba(255,255,255,0.05); padding: 0.8rem; border-radius: 6px;">
-                                <strong style="font-size: 0.9rem;">Top Committees</strong>
+                                <strong style="font-size: 0.9rem;">Top Committee Recipients</strong>
                                 ${topCommittees.map(([name, amt]) => {
                                     const uid = 'committee-popup-' + Math.random().toString(36).slice(2);
                                     // Get contributors to this committee from donations with their details
@@ -2511,9 +2543,12 @@
                                         }
                                     });
                                     const contributors = Object.values(contributorMap).slice(0, 5);
-                                    // Build popup: FEC ID + contributor with address/employer
+                                    const datesWithVal = committeeDonations.filter(d => d.date && d.date !== 'nan' && d.date !== '').map(d => d.date);
+                                    const mostRecentDate = datesWithVal.length ? datesWithVal.sort().reverse()[0] : null;
+                                    // Build popup: FEC ID + most recent date + contributor with address/employer
                                     let popupParts = [];
                                     if (committeeIds[name]) popupParts.push('<div><strong>FEC ID:</strong> ' + escapeHtml(committeeIds[name]) + '</div>');
+                                    if (mostRecentDate) popupParts.push('<div><strong>Most recent:</strong> ' + formatDonationDate(mostRecentDate) + '</div>');
                                     contributors.forEach(c => {
                                         const cName = toTitleCaseName(c.name);
                                         const cCity = c.city ? toTitleCaseName(c.city) : '';
@@ -2524,7 +2559,9 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    const touch = 'ontouchstart' in window;
+                                    const hoverOn = touch ? '' : (' onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\'); document.getElementById(\'donor-popup-backdrop\')?.classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\'); document.getElementById(\'donor-popup-backdrop\')?.classList.remove(\'show\')"');
+                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')"' + hoverOn + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}

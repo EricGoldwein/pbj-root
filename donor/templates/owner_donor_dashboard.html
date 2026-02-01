@@ -684,7 +684,8 @@
         .donor-popup {
             display: none;
             position: absolute;
-            left: 0;
+            left: 50%;
+            transform: translateX(-50%);
             bottom: 100%;
             margin-bottom: 4px;
             padding: 0.75rem 1rem;
@@ -697,10 +698,23 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.4);
             z-index: 1000;
             min-width: 220px;
-            max-width: 320px;
+            max-width: min(320px, calc(100vw - 2rem));
+            word-wrap: break-word;
         }
         .donor-popup.show {
             display: block;
+        }
+        @media (max-width: 768px) {
+            .donor-popup {
+                position: fixed;
+                left: 1rem;
+                right: 1rem;
+                bottom: auto;
+                top: 50%;
+                transform: translateY(-50%);
+                max-width: none;
+                width: calc(100vw - 2rem);
+            }
         }
         
         .facility-link-icon {
@@ -2247,7 +2261,7 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -2510,7 +2524,7 @@
                                     });
                                     if (Object.keys(contributorMap).length > 5) popupParts.push('<div style="margin-top: 0.3rem; font-size: 0.85em; color: rgba(255,255,255,0.6);">and ' + (Object.keys(contributorMap).length - 5) + ' more</div>');
                                     const popupHtml = popupParts.join('');
-                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + (committeeIds[name] ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[name]) + '" target="_blank" rel="noopener" class="donor-committee-link">' + escapeHtml(name) + '</a>' : escapeHtml(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\')" onmouseenter="document.getElementById(\'' + uid + '\').classList.add(\'show\')" onmouseleave="document.getElementById(\'' + uid + '\').classList.remove(\'show\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault(); document.getElementById(\'' + uid + '\').classList.toggle(\'show\');}" style="border-bottom: 1px dotted rgba(102, 126, 234, 0.6); cursor: help;">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}

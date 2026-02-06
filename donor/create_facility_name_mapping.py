@@ -10,7 +10,7 @@ import sys
 BASE_DIR = Path(__file__).parent.parent
 
 # Paths
-PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Dec2025.csv"
+PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"
 OWNERSHIP_FILE = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"
 OUTPUT_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"
 

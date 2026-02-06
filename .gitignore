@@ -31,7 +31,7 @@ macpac_state_standards_clean.csv
 *_updated.csv
 # Exclude provider info files, but allow specific ones needed for owner dashboard
 NH_ProviderInfo_*.csv
-!provider_info/NH_ProviderInfo_Dec2025.csv
+!provider_info/NH_ProviderInfo_Jan2026.csv
 
 # FEC committee master CSVs: committed and used by donor dashboard (do not ignore)
 !donor/data/fec_committee_master/*.csv

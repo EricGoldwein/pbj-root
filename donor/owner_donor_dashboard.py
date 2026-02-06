@@ -35,7 +35,7 @@ OWNERS_DB = BASE_DIR / "donor" / "output" / "owners_database.csv"
 OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Full 250k CSV
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
-PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Dec2025.csv"  # Has Legal Business Name
+PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"  # Has Legal Business Name
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
 DONATIONS_DB = BASE_DIR / "donor" / "output" / "owner_donations_database.csv"
@@ -1127,18 +1127,22 @@ def _compute_providers_from_owners(owners_deduped):
             prov_key = (fac_name, ccn or '') if ccn else (fac_name, fac_name)
             if prov_key not in prov_key_to_data:
                 avg_hprd = ''
-                if ccn and facility_metrics_df is not None and not facility_metrics_df.empty and 'PROVNUM' in facility_metrics_df.columns:
-                    ccn_norm = str(ccn).strip().zfill(6)
-                    m = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.strip().str.zfill(6) == ccn_norm].copy()
-                    if not m.empty:
-                        qtr_col = 'CY_Qtr' if 'CY_Qtr' in m.columns else 'CY_QTR'
-                        if qtr_col in m.columns:
-                            m = m.sort_values(qtr_col, ascending=True)
-                        try:
-                            h = float(m.iloc[-1].get('Total_Nurse_HPRD', 0) or 0)
-                            avg_hprd = round(h, 2) if h else ''
-                        except (ValueError, TypeError):
-                            pass
+                if ccn and provider_info_latest_df is not None and not provider_info_latest_df.empty:
+                    ccn_col = 'CMS Certification Number (CCN)' if 'CMS Certification Number (CCN)' in provider_info_latest_df.columns else 'ccn'
+                    if ccn_col not in provider_info_latest_df.columns:
+                        ccn_col = 'CCN' if 'CCN' in provider_info_latest_df.columns else 'PROVNUM'
+                    if ccn_col in provider_info_latest_df.columns:
+                        match = provider_info_latest_df[
+                            provider_info_latest_df[ccn_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == str(ccn).strip().zfill(6)
+                        ]
+                        if not match.empty:
+                            r0 = match.iloc[0]
+                            hcol = 'Reported Total Nurse Staffing Hours per Resident per Day'
+                            if hcol in r0.index and pd.notna(r0.get(hcol)) and str(r0.get(hcol)).strip() != '':
+                                try:
+                                    avg_hprd = round(float(r0.get(hcol)), 2)
+                                except (ValueError, TypeError):
+                                    pass
                 prov_key_to_data[prov_key] = {
                     'provider_name': prov_name, 'state': state, 'ownership_entity': fac_name,
                     'total_amount': 0, 'ccn': ccn, 'avg_hprd': avg_hprd,
@@ -1873,7 +1877,7 @@ def get_owner_details(owner_name):
                         print(f"[WARNING] Invalid row from prov_info for facility {name}")
                         matched = False
                     else:
-                        # Get state/city - handle both provider_info_combined.csv and NH_ProviderInfo_Dec2025.csv column names
+                        # Get state/city - handle both provider_info_combined.csv and NH_ProviderInfo_Jan2026.csv column names
                         facility_info['state'] = row.get('State', row.get('state', '')) if 'State' in row.index or 'state' in row.index else ''
                         facility_info['city'] = row.get('City/Town', row.get('City', row.get('city', ''))) if any(col in row.index for col in ['City/Town', 'City', 'city']) else ''
                         facility_info['beds'] = row.get('Average Number of Residents per Day', row.get('Number of Certified Beds', row.get('avg_residents_per_day', ''))) if any(col in row.index for col in ['Average Number of Residents per Day', 'Number of Certified Beds', 'avg_residents_per_day']) else ''
@@ -1915,6 +1919,14 @@ def get_owner_details(owner_name):
                         except (ValueError, TypeError):
                             continue
                 facility_info['entity_id'] = entity_id
+                # HPRD from provider info (most recent provider info = NH_ProviderInfo)
+                facility_info['avg_hprd'] = ''
+                hcol = 'Reported Total Nurse Staffing Hours per Resident per Day'
+                if hcol in row.index and pd.notna(row.get(hcol)) and str(row.get(hcol)).strip() != '':
+                    try:
+                        facility_info['avg_hprd'] = round(float(row.get(hcol)), 2)
+                    except (ValueError, TypeError):
+                        pass
             else:
                 # NO MATCH FOUND - Only use what we have from ownership file
                 # DO NOT default to Legal Business Name or enrollment ID
@@ -1922,30 +1934,8 @@ def get_owner_details(owner_name):
                 facility_info['provider_name'] = name.strip()  # This is the ORGANIZATION NAME from ownership file
                 facility_info['ccn'] = None  # No CCN - no match found
                 facility_info['entity_id'] = None
+                facility_info['avg_hprd'] = ''
                 # Leave other fields empty (state, city, beds, rating, etc.) - no match means no data
-            
-            # Get performance metrics if available (use CCN from provider_info, not enrollment ID)
-            facility_info['avg_hprd'] = ''
-            global facility_metrics_df
-            if facility_metrics_df is not None and not facility_metrics_df.empty and facility_info.get('ccn'):
-                provnum = str(facility_info['ccn']).strip().zfill(6)
-                if 'PROVNUM' in facility_metrics_df.columns:
-                    metrics = facility_metrics_df[facility_metrics_df['PROVNUM'].astype(str).str.strip().str.zfill(6) == provnum].copy()
-                    if not metrics.empty:
-                        # Sort by quarter so we get the latest (CY_Qtr like 2025Q3)
-                        qtr_col = 'CY_Qtr' if 'CY_Qtr' in metrics.columns else 'CY_QTR'
-                        if qtr_col in metrics.columns:
-                            metrics = metrics.sort_values(qtr_col, ascending=True)
-                        latest = metrics.iloc[-1]
-                        facility_info['latest_quarter'] = latest.get('CY_Qtr', latest.get('CY_QTR', ''))
-                        hprd_val = latest.get('Total_Nurse_HPRD', '')
-                        if pd.notna(hprd_val) and str(hprd_val).strip() != '':
-                            try:
-                                facility_info['avg_hprd'] = round(float(hprd_val), 2)
-                            except (ValueError, TypeError):
-                                pass
-                        facility_info['contract_pct'] = latest.get('Contract_Percentage', '')
-                        facility_info['avg_census'] = latest.get('Census', '')
             
             facilities.append(facility_info)
     

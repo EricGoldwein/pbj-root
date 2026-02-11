@@ -1243,8 +1243,12 @@ def _ensure_committee_master_extended():
     """Lazy-load committee_master_extended for committee search (test page only)."""
     global committee_master_extended
     if committee_master_extended is None:
-        committee_master_extended = _load_committee_master_extended()
-    return committee_master_extended
+        try:
+            committee_master_extended = _load_committee_master_extended()
+        except Exception as e:
+            print(f"[WARN] Could not load committee master: {e}")
+            committee_master_extended = []
+    return committee_master_extended or []
 
 
 @app.route('/api/autocomplete/committee')
@@ -1391,12 +1395,16 @@ def search_by_committee_endpoint():
         if not query or len(query) < 2:
             return jsonify({'error': 'Please enter at least 2 characters'}), 400
         include_providers = request.args.get('include_providers', '0').lower() in ('1', 'true', 'yes')
-        return search_by_committee(query, include_providers=include_providers)
+        result = search_by_committee(query, include_providers=include_providers)
+        return result
     except Exception as e:
         print(f"Error in search_by_committee_endpoint: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        err_msg = str(e)
+        if 'timeout' in err_msg.lower() or 'timed out' in err_msg.lower():
+            return jsonify({'error': 'The FEC API took too long to respond. Please try again.'}), 500
+        return jsonify({'error': f'Search failed: {err_msg}'}), 500
 
 
 def search_by_committee(query, include_providers=False):
@@ -1410,6 +1418,8 @@ def search_by_committee(query, include_providers=False):
         return jsonify({'error': 'Owners database not loaded'}), 500
     # Resolve query to committee_id
     committees = _ensure_committee_master_extended()
+    if not isinstance(committees, list):
+        committees = []
     committee_id = None
     committee_name = None
     committee_type = "Committee"
@@ -1437,8 +1447,13 @@ def search_by_committee(query, include_providers=False):
         }), 404
     try:
         raw_donations = query_donations_by_committee(committee_id)
+    except requests.exceptions.Timeout:
+        print(f"FEC API timeout for committee {committee_id}")
+        return jsonify({'error': 'The FEC API took too long to respond. Please try again.'}), 500
     except Exception as e:
         print(f"FEC API error for committee {committee_id}: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': f'Could not fetch contributions: {str(e)}'}), 500
     if not raw_donations:
         return jsonify({

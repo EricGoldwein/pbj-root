@@ -2007,9 +2007,15 @@
                     const committeeIdMatch = query.match(/\(?(C\d{8,9})\)?/);
                     const committeeQuery = committeeIdMatch ? committeeIdMatch[1] : query.replace(/\s*\(C\d+\)\s*$/, '').trim() || query;
                     const response = await fetch(`/owners/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
-                    const data = await response.json();
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (parseErr) {
+                        showSearchError(response.status === 500 ? 'Server error. The FEC API may have timed out—please try again.' : 'Invalid response from server.');
+                        return;
+                    }
                     if (data.error && response.status !== 200) {
-                        showError(data.error + (data.message ? ': ' + data.message : ''));
+                        showSearchError(data.error + (data.message ? ': ' + data.message : ''));
                         return;
                     }
                     displayCommitteeResults(data);
@@ -2025,10 +2031,10 @@
                     // Search by entity ID (only for non-provider searches)
                     const entityId = entityIdMatch[1];
                     const response = await fetch(`/owners/api/entity/${entityId}`);
-                    const data = await response.json();
-                    
+                    let data;
+                    try { data = await response.json(); } catch (_) { showSearchError('Invalid server response.'); return; }
                     if (data.error) {
-                        showError(data.error);
+                        showSearchError(data.error);
                         return;
                     }
                     
@@ -2043,10 +2049,10 @@
                     }
                     
                     const response = await fetch(`/owners/api/search?q=${encodeURIComponent(query)}&type=${type}`);
-                    const data = await response.json();
-                    
+                    let data;
+                    try { data = await response.json(); } catch (_) { showSearchError('Invalid server response.'); return; }
                     if (data.error) {
-                        showError(data.error);
+                        showSearchError(data.error);
                         return;
                     }
                     
@@ -2057,7 +2063,7 @@
                 }
                 
             } catch (error) {
-                showError('Error performing search: ' + error.message);
+                showSearchError('Error performing search: ' + error.message);
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Search';
@@ -3295,6 +3301,14 @@
         function showError(message) {
             const container = document.getElementById('donationsContainer');
             container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+        }
+        function showSearchError(message) {
+            const container = document.getElementById('resultsContainer');
+            if (container) container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
+            const resultsSection = document.getElementById('resultsSection');
+            if (resultsSection) resultsSection.style.display = 'block';
+            const detailsSection = document.getElementById('detailsSection');
+            if (detailsSection) detailsSection.style.display = 'none';
         }
 
         // Delegated click handler for "Providers" buttons (search result cards) - avoids onclick escaping issues

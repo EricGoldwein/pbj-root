@@ -9,9 +9,8 @@ export default defineConfig({
     host: true, // Allow external connections for debugging
   },
   build: {
-    // Show detailed build errors
-    minify: false,
-    sourcemap: true,
+    minify: true,
+    sourcemap: false, // smaller upload, faster Render deploy
   },
   // Better error overlay
   clearScreen: false,

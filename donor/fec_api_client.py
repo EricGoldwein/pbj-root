@@ -148,7 +148,7 @@ def query_donations_by_name(
             params["max_date"] = max_date
         
         try:
-            response = requests.get(endpoint, params=params, timeout=30)
+            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
             
             # Check for errors and show details
             if response.status_code != 200:
@@ -172,7 +172,7 @@ def query_donations_by_name(
                     # Retry without contributor_type filter
                     params_no_type = params.copy()
                     params_no_type.pop("contributor_type", None)
-                    retry_response = requests.get(endpoint, params=params_no_type, timeout=30)
+                    retry_response = requests.get(endpoint, params=params_no_type, timeout=FEC_API_TIMEOUT)
                     if retry_response.status_code == 200:
                         response = retry_response
                     else:
@@ -271,7 +271,7 @@ def query_donations_by_committee(
             params["max_date"] = max_date
         
         try:
-            response = requests.get(endpoint, params=params, timeout=30)
+            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
             response.raise_for_status()
             
             data = response.json()
@@ -348,7 +348,7 @@ def query_filings_by_committee(
             params["max_receipt_date"] = max_date
 
         try:
-            response = requests.get(endpoint, params=params, timeout=30)
+            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
             response.raise_for_status()
             data = response.json()
             results = data.get("results", [])

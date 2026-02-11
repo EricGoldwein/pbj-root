@@ -1537,7 +1537,7 @@
         const placeholderExamplesByType = {
             all: ['Joe Smith', 'PruittHealth', 'Jane Jones', 'Ensign Services'],
             provider: ['Seagate Rehab', '335513', 'Hammonton Center', '315209'],
-            committee: ['MAGA Inc.', 'ActBlue', 'WinRed', 'Future Forward']
+            committee: ['MAGA Inc.', 'ActBlue', 'WinRed', 'House Majority PAC']
         };
         let typingPlaceholderState = { exampleIndex: 0, phase: 'typing', charIndex: 0, pauseUntil: 0 };
         let typingPlaceholderInterval = null;
@@ -2948,13 +2948,13 @@
             
             if (isDetailsView) {
                 targetContainer = document.getElementById('donationsContainer');
-                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... (The FEC API can take 30–90 seconds; please wait.)</div>';
             } else {
                 const resultsContainer = document.getElementById('resultsContainer');
                 const donationsDiv = document.createElement('div');
                 donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
                 donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
-                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... This may take a moment.</div>';
+                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... (The FEC API can take 30–90 seconds; please wait.)</div>';
                 resultsContainer.insertBefore(donationsDiv, resultsContainer.firstChild);
                 targetContainer = donationsDiv;
             }
@@ -3260,7 +3260,7 @@
             }
             
             const container = document.getElementById('donationsContainer');
-            container.innerHTML = '<div class="loading">Searching for political contributions... This may take a moment.</div>';
+            container.innerHTML = '<div class="loading">Searching for political contributions... (The FEC API can take 30–90 seconds; please wait.)</div>';
             
             try {
                 const response = await fetch('/owners/api/query-fec', {

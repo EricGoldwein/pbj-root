@@ -2546,6 +2546,7 @@ def query_fec():
         
         # Query with each name variation
         seen_ids = set()
+        fec_timed_out = False
         for name_var in name_variations[:5]:  # Limit to 5 variations to avoid rate limits
             try:
                 donations = query_donations_by_name(
@@ -2562,6 +2563,9 @@ def query_fec():
                             if record_id and record_id not in seen_ids:
                                 seen_ids.add(record_id)
                                 all_donations.append(donation)
+            except requests.exceptions.Timeout:
+                fec_timed_out = True
+                continue
             except Exception as e:
                 # Continue with next variation if one fails
                 continue
@@ -2639,13 +2643,18 @@ def query_fec():
         # Names actually queried (for display: "Showing FEC results for X, Y, ...")
         names_queried = name_variations[:5]
         
-        return jsonify({
+        resp = {
             'donations': normalized,
             'total': sum(d['amount'] for d in normalized),
             'count': len(normalized),
             'searches_performed': len(name_variations),
             'names_searched': names_queried,
-        })
+        }
+        if fec_timed_out:
+            resp['fec_timeout'] = True
+            if not normalized:
+                resp['error'] = 'The FEC API took too long to respond. Please try again.'
+        return jsonify(resp)
     
     except Exception as e:
         print(f"[ERROR] Error in query_fec: {e}")

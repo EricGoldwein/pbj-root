@@ -69,6 +69,21 @@ entity_lookup_df = None
 donations_df = None
 facility_metrics_df = None
 
+def _display_na(val):
+    """Return 'N/A' when value is missing, nan, or placeholder; else return string value for display."""
+    if val is None:
+        return "N/A"
+    try:
+        if pd.isna(val):
+            return "N/A"
+    except (TypeError, ValueError):
+        pass
+    s = str(val).strip()
+    if not s or s.upper() in ("NAN", "NONE", "N/A"):
+        return "N/A"
+    return s
+
+
 # JSON-serializable sanitizer: NaN/Inf/pd.NA are not valid JSON; replace with None
 def sanitize_for_json(obj):
     """Recursively replace NaN, Inf, and pd.NA with None so jsonify() produces valid JSON."""
@@ -198,13 +213,21 @@ def _names_same_person(fec_name: str, cms_name: str) -> bool:
     return len(a) >= 2 and a == b
 
 
+def _empty_loc(val) -> bool:
+    """True when location value is missing, nan, or placeholder (treat as no data)."""
+    if val is None or (isinstance(val, float) and (val != val or val == float('inf'))):
+        return True
+    s = (str(val).strip().upper() if val is not None else '') or ''
+    return s in ('', 'NAN', 'NONE', 'N/A')
+
+
 def _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state) -> float:
     """Derive 0–100 similarity from name + location (for scoring layer only; does not change matching)."""
     name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
-    fc = (fec_city or '').strip().upper()
-    fs = (fec_state or '').strip().upper()[:2]
-    cc = (cms_city or '').strip().upper()
-    cs = (cms_state or '').strip().upper()[:2]
+    fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
+    fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
+    cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
+    cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
     same_city_state = bool(fc == cc and fs == cs and (fc or fs))
     same_state = bool(fs and cs and fs == cs)
     has_fec = bool(fc or fs)
@@ -235,10 +258,10 @@ def _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cm
 
 def _geo_score(fec_city, fec_state, cms_city, cms_state) -> int:
     """0–25 from FEC/CMS city+state. Same city+state=25, same state=20, only CMS missing=15, only FEC missing=5, both missing or diff state=0."""
-    fc = (fec_city or '').strip().upper()
-    fs = (fec_state or '').strip().upper()[:2]
-    cc = (cms_city or '').strip().upper()
-    cs = (cms_state or '').strip().upper()[:2]
+    fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
+    fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
+    cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
+    cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
     if not fc and not fs and not cc and not cs:
         return 0
     if not fc and not fs:
@@ -294,14 +317,22 @@ def _match_band(score: float, similarity: float) -> str:
 
 def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state) -> dict:
     """Scoring layer on top of existing match. Returns match_score, match_band, name_score, geo_score, exact_bonus."""
-    similarity = _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state)
-    geo_score = _geo_score(fec_city, fec_state, cms_city, cms_state)
+    # Treat nan/none/empty CMS location as no data (less punitive when owner file has no location)
+    cms_c = '' if _empty_loc(cms_city) else (cms_city or '').strip()
+    cms_s = '' if _empty_loc(cms_state) else (cms_state or '').strip()
+    similarity = _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_c, cms_s)
+    # Same-person name with no CMS location: avoid Very Low (location diff is unknown; e.g. STANBRIDGE, NORMA / NORMA STANBRIDGE)
+    if not cms_c and not cms_s and _names_same_person(fec_name or '', cms_name or ''):
+        similarity = max(similarity, 75.0)
+    geo_score = _geo_score(fec_city, fec_state, cms_c, cms_s)
     name_score = _name_score_from_similarity(similarity)
     exact_bonus = 5 if (_normalized_for_exact(fec_name or '') == _normalized_for_exact(cms_name or '')) else 0
     score = min(100, name_score + geo_score + exact_bonus)
     band = _match_band(score, similarity)
     if _is_pruitthealth_match(fec_name or '', cms_name or ''):
         band = "High"  # manual write-off: same state / diff city still High, not Very High
+    if band == "Very Low" and _names_same_person(fec_name or '', cms_name or '') and not cms_c and not cms_s:
+        band = "Moderate"
     return {
         'match_score': round(score, 1),
         'match_band': band,
@@ -1643,8 +1674,9 @@ def search_by_committee(query, include_providers=False):
             for _, r in matches.iterrows():
                 city = str(r.get('CITY - OWNER', r.get('City - Owner', '')) or '').strip()
                 state = str(r.get('STATE - OWNER', r.get('State - Owner', '')) or '').strip()
-                if city or state:
-                    return city, state
+                if _empty_loc(city) and _empty_loc(state):
+                    continue
+                return (city if not _empty_loc(city) else '', state if not _empty_loc(state) else '')
         return '', ''
 
     owner_to_total = {}
@@ -1725,8 +1757,8 @@ def search_by_committee(query, include_providers=False):
             'cms_owner_type': owner_to_type.get(k, '') or '',
             'contributor_name_fec': (owner_to_first_record.get(k) or {}).get('donor_name', '') or '',
             'contributions_list': owner_to_contributions.get(k, []),
-            'cms_owner_city': owner_to_cms_city.get(k, ''),
-            'cms_owner_state': owner_to_cms_state.get(k, ''),
+            'cms_owner_city': _display_na(owner_to_cms_city.get(k, '')),
+            'cms_owner_state': _display_na(owner_to_cms_state.get(k, '')),
             'match_transparency': _match_transparency_label(
                 (owner_to_first_record.get(k) or {}).get('donor_name', ''),
                 owner_to_display[k],

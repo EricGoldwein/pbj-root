@@ -263,14 +263,21 @@
         }
 
         .search-type {
-            padding: 15px 20px;
+            padding: 15px 40px 15px 20px;
             font-size: 1rem;
-            background: rgba(26, 31, 46, 0.95);
+            background-color: rgba(26, 31, 46, 0.95);
             border: 2px solid rgba(102, 126, 234, 0.5);
             border-radius: 8px;
             color: white;
             cursor: pointer;
             transition: all 0.3s;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fff' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 12px;
         }
         
         .search-type option {
@@ -596,12 +603,19 @@
                 padding: 1.25rem 1rem;
             }
             .header {
-                margin-bottom: 1.5rem;
-                padding: 1.25rem 0;
+                margin-bottom: 0.5rem;
+                padding: 1.25rem 0 0.5rem;
+            }
+            .header p:last-of-type {
+                margin-bottom: 0.25rem;
             }
             .search-section {
-                padding: 1.25rem 1rem;
+                padding: 0.75rem 1rem 1.25rem;
+                margin-top: 0;
                 margin-bottom: 1.5rem;
+            }
+            .suggestions {
+                display: none;
             }
             .search-box {
                 gap: 0.75rem;
@@ -1792,7 +1806,7 @@
                         Committee ID: ${escapeHtml(committee.id || '')} | Type: ${escapeHtml(committee.type || 'Committee')}
                         ${committee.total_nursing_home_linked > 0 ? ` | Estimated $${Math.round(Number(committee.total_nursing_home_linked)).toLocaleString()} from nursing home–linked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
                     </div>
-                    <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0.75rem 0 0 0;">Contributors include individuals and organizations from FEC filings matched to names in CMS nursing home ownership dataset. The table may omit relevant contributors and may include incorrect matches due to name-matching limitations. Matches based on names only and not independently verified.</p>
+                    <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0.75rem 0 0 0;">Contributors include individuals and organizations from FEC filings matched to names in CMS nursing home ownership dataset. The table may omit relevant contributors and may include incorrect matches due to name-matching limitations. Matches not independently verified.</p>
                 </div>
             `;
 
@@ -1809,7 +1823,7 @@
                 };
                 // Same format as formatAddress: "Blue Ash, OH" (consistent in FEC and CMS)
                 const formatAddressShort = (city, state) => formatAddress(city, state) === '—' ? '' : formatAddress(city, state);
-                const ownersCsvHeader = ['FEC Contributor', 'Owner (ownership file)', 'Address (FEC)', 'Match (transparency)', 'Match score', 'Match band', 'Name score', 'Geo score', 'Exact bonus', 'Total Amount', 'Number of Contributions', 'Linked Providers', 'Providers URL', 'Committee ID', 'Committee Name', 'Employer', 'Occupation', 'CMS owner type', 'FEC link'];
+                const ownersCsvHeader = ['FEC Contributor', 'Owner (CMS)', 'Address (FEC)', 'Match (transparency)', 'Match score', 'Match band', 'Name score', 'Geo score', 'Exact bonus', 'Total Amount', 'Number of Contributions', 'Linked Providers', 'Providers URL', 'Committee ID', 'Committee Name', 'Employer', 'Occupation', 'CMS owner type', 'FEC link'];
                 const ownersCsv = [ownersCsvHeader].concat(owners.map(o => {
                     const addr = formatAddress(o.contributor_city, o.contributor_state);
                     const fecName = ((o.contributor_name_fec || '').trim()) || '';
@@ -2006,6 +2020,10 @@
                 if (type === 'committee') {
                     const committeeIdMatch = query.match(/\(?(C\d{8,9})\)?/);
                     const committeeQuery = committeeIdMatch ? committeeIdMatch[1] : query.replace(/\s*\(C\d+\)\s*$/, '').trim() || query;
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('detailsSection').style.display = 'none';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="loading">Searching committee... This may take up to 20 seconds.</div>';
+                    document.getElementById('resultsCount').textContent = 'Searching...';
                     const response = await fetch(`/owners/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
                     let data;
                     try {

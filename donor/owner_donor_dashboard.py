@@ -429,6 +429,15 @@ def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
         # Add "First Last" (without middle)
         if len(parts) > 2:
             variations.append(f"{first} {last}")
+            # Add "First X." when middle is single letter (e.g. MOSHE A. STERN for FEC)
+            mid = parts[1].rstrip('.')
+            if len(mid) == 1 and mid.isalpha():
+                variations.append(f"{first} {mid}. {last}")
+        # FEC often uses "Last, First" or "Last, First Middle" for individuals
+        if is_individual and len(parts) >= 2:
+            variations.append(f"{last}, {first}")
+            if len(parts) > 2:
+                variations.append(f"{last}, {first} {parts[1]}")
     
     return list(set(variations))
 

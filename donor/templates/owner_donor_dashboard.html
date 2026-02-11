@@ -1535,7 +1535,7 @@
 
         // Animated typing placeholder (when idle and not focused; on focus show static placeholder)
         const placeholderExamplesByType = {
-            all: ['Joe Smith', 'PruittHealth', 'Jane Jones', 'Ensign Services'],
+            all: ['PruittHealth', 'Joe Smith', 'Ensign Services'],
             provider: ['Seagate Rehab', '335513', 'Hammonton Center', '315209'],
             committee: ['MAGA Inc.', 'ActBlue', 'WinRed', 'House Majority PAC']
         };
@@ -2954,13 +2954,13 @@
             
             if (isDetailsView) {
                 targetContainer = document.getElementById('donationsContainer');
-                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... (The FEC API can take 30–90 seconds; please wait.)</div>';
+                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations such as with/without middle initial). The FEC API can take 30–90 seconds; please wait.</div>';
             } else {
                 const resultsContainer = document.getElementById('resultsContainer');
                 const donationsDiv = document.createElement('div');
                 donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
                 donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
-                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + '... (The FEC API can take 30–90 seconds; please wait.)</div>';
+                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations such as with/without middle initial). The FEC API can take 30–90 seconds; please wait.</div>';
                 resultsContainer.insertBefore(donationsDiv, resultsContainer.firstChild);
                 targetContainer = donationsDiv;
             }
@@ -2992,7 +2992,10 @@
         // Display donations in a specific container (for search results)
         function displayDonationsInContainer(donations, total, count, container, ownerName = '', ownerType = 'ORGANIZATION', namesSearched = null) {
             if (!donations || donations.length === 0) {
-                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
+                const searchedLine = (namesSearched && namesSearched.length > 0)
+                    ? ' <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">(Searched: ' + namesSearched.map(n => escapeHtml(String(n).replace(/\s+/g, ' ').trim())).join(', ') + '.)</span>'
+                    : '';
+                container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.' + searchedLine + '</p>';
                 return;
             }
             

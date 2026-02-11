@@ -10,7 +10,6 @@ import re
 from pathlib import Path
 import json
 import sys
-from pathlib import Path
 # Add donor directory to path for imports
 donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
@@ -26,6 +25,9 @@ from fec_api_client import (
     FEC_API_BASE_URL,
 )
 import requests
+
+# Set DONOR_DEBUG=1 to enable [DEBUG] prints (autocomplete/search); off by default
+_DEBUG = os.environ.get("DONOR_DEBUG", "").strip() in ("1", "true", "yes")
 
 app = Flask(__name__, template_folder='templates')
 
@@ -103,6 +105,210 @@ def normalize_name_for_matching(s):
     s = re.sub(r"[^A-Z ]", "", s)  # Remove all non-alphabetic characters (keep only A-Z and spaces)
     s = re.sub(r"\s+", " ", s).strip()  # Normalize whitespace
     return s
+
+
+def _name_collapse_middle_initials(name):
+    """Collapse middle initial(s) so 'MOSHE A STERN' -> 'MOSHE STERN' for search matching.
+    Drops single-letter tokens and 'X.' style initials. Used so 'moshe stern' matches 'moshe a stern'."""
+    if pd.isna(name) or not name:
+        return ""
+    s = str(name).upper().strip()
+    parts = s.split()
+    kept = []
+    for p in parts:
+        # Drop single letter, or "X." (initial with period)
+        clean = p.rstrip(".")
+        if len(clean) <= 1:
+            continue
+        kept.append(clean)
+    return " ".join(kept) if kept else s
+
+
+# Legal suffixes to strip for org stem matching (e.g. PRUITTHEALTH CORPORATION -> PRUITTHEALTH, PRUITTHEALTH INC -> PRUITTHEALTH)
+_LEGAL_SUFFIXES = frozenset({'INC', 'CORP', 'LLC', 'LTD', 'CO', 'CORPORATION', 'LP', 'THE'})
+
+# Generic terms: do not use as stem or substring key (avoids 603 Healthcare = Northshore, P20 = ERP)
+# Also do not add no-space keys for names whose stem is in this set (e.g. "HEALTHCARE LLC" -> HEALTHCARELLC)
+_SUBSTRING_BLOCKLIST = frozenset({
+    'HEALTHCARE', 'HEALTH', 'SERVICES', 'SERVICE', 'CONSULTING', 'MANAGEMENT', 'CARE', 'MEDICAL',
+    'NURSING', 'LIVING', 'CENTER', 'CENTERS', 'OPERATIONS', 'HOLDINGS', 'PROPERTY', 'REALTY',
+    'GROUP', 'SOLUTIONS', 'INVESTMENT', 'COMPANY', 'CORPORATION', 'CORP', 'LLC', 'INC',
+})
+
+
+def _stem_org_name(norm_str: str, min_len: int = 6) -> str:
+    """Strip trailing legal suffixes from normalized name for matching (e.g. PRUITTHEALTH INC -> PRUITTHEALTH)."""
+    if not norm_str or not isinstance(norm_str, str):
+        return ""
+    words = norm_str.split()
+    while words:
+        if words[-1] in _LEGAL_SUFFIXES:
+            words.pop()
+        else:
+            break
+    stem = " ".join(words).strip()
+    if len(stem) < min_len:
+        return ""
+    # Don't use generic words as stem key (avoids false matches like HEALTHCARE matching many)
+    if stem in _SUBSTRING_BLOCKLIST:
+        return ""
+    return stem
+
+
+def _org_name_identifier(norm_str: str) -> str:
+    """First word or first non-generic token (e.g. P20 from 'p20 holdings llc', ERP from 'erp holdings llc').
+    Used to require substring matches to share the same identifier so ERP HOLDINGS does not match P20 HOLDINGS."""
+    if not norm_str or not isinstance(norm_str, str):
+        return ""
+    words = norm_str.split()
+    for w in words:
+        if w and w not in _SUBSTRING_BLOCKLIST and w not in _LEGAL_SUFFIXES:
+            return w
+    return words[0] if words else ""
+
+
+def _identifier_appears_as_word(identifier: str, norm_str: str) -> bool:
+    """True only if identifier appears as a whole word in norm_str (not inside another word).
+    So 'care' in 'healthcare management' is False; 'care' in 'care management' is True."""
+    if not identifier or not norm_str:
+        return False
+    pattern = r"(^|\s)" + re.escape(identifier) + r"(\s|$)"
+    return bool(re.search(pattern, norm_str))
+
+
+def _normalized_for_exact(s: str) -> str:
+    """Lowercase, no punctuation, no spaces, strip common suffixes — for exact_bonus comparison only."""
+    if not s or not isinstance(s, str):
+        return ""
+    s = re.sub(r"[^\w\s]", " ", s.lower()).strip()
+    words = s.split()
+    while words and words[-1] in _LEGAL_SUFFIXES:
+        words.pop()
+    return "".join(words)
+
+
+def _names_same_person(fec_name: str, cms_name: str) -> bool:
+    """True if names are same words (e.g. CARR, RANDI vs RANDI CARR) — for scoring when CMS has no loc."""
+    if not fec_name or not cms_name:
+        return False
+    a = set(re.sub(r"[^\w\s]", " ", (fec_name or "").lower()).split())
+    b = set(re.sub(r"[^\w\s]", " ", (cms_name or "").lower()).split())
+    a.discard("")
+    b.discard("")
+    return len(a) >= 2 and a == b
+
+
+def _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state) -> float:
+    """Derive 0–100 similarity from name + location (for scoring layer only; does not change matching)."""
+    name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
+    fc = (fec_city or '').strip().upper()
+    fs = (fec_state or '').strip().upper()[:2]
+    cc = (cms_city or '').strip().upper()
+    cs = (cms_state or '').strip().upper()[:2]
+    same_city_state = bool(fc == cc and fs == cs and (fc or fs))
+    same_state = bool(fs and cs and fs == cs)
+    has_fec = bool(fc or fs)
+    has_cms = bool(cc or cs)
+    same_person_no_cms = not has_cms and _names_same_person(fec_name or '', cms_name or '')
+    if name_exact and same_city_state:
+        return 100.0
+    if name_exact and same_state:
+        return 95.0
+    if name_exact and has_cms and (fc != cc or fs != cs):
+        return 90.0
+    if name_exact and not has_cms:
+        return 92.0  # CMS often missing loc; don't over-penalize
+    if name_exact and not has_fec:
+        return 85.0
+    if not name_exact and same_city_state:
+        return 85.0
+    if not name_exact and same_state:
+        return 80.0
+    if not name_exact and has_cms and (fc != cc or fs != cs):
+        return 75.0
+    if not name_exact and not has_cms:
+        return 92.0 if same_person_no_cms else 70.0  # e.g. CARR, RANDI / RANDI CARR → High
+    if not name_exact and not has_fec:
+        return 68.0
+    return 65.0
+
+
+def _geo_score(fec_city, fec_state, cms_city, cms_state) -> int:
+    """0–25 from FEC/CMS city+state. Same city+state=25, same state=20, only CMS missing=15, only FEC missing=5, both missing or diff state=0."""
+    fc = (fec_city or '').strip().upper()
+    fs = (fec_state or '').strip().upper()[:2]
+    cc = (cms_city or '').strip().upper()
+    cs = (cms_state or '').strip().upper()[:2]
+    if not fc and not fs and not cc and not cs:
+        return 0
+    if not fc and not fs:
+        return 5
+    if not cc and not cs:
+        return 15  # CMS often has no loc; don't over-penalize
+    if fs != cs:
+        return 0
+    if fc == cc and fs == cs:
+        return 25
+    return 20  # same state only → Moderate when combined with name
+
+
+def _is_pruitthealth_match(fec_name: str, cms_name: str) -> bool:
+    """Manual write-off: treat PRUITTHEALTH CORP / PRUITTHEALTH INC as High (not Very High)."""
+    if not fec_name or not cms_name:
+        return False
+    key = "prutithealth"
+    return key in (fec_name or "").lower() and key in (cms_name or "").lower()
+
+
+def _name_score_from_similarity(similarity: float) -> int:
+    """Map similarity 0–100 to name_score 0–70. Do not change how similarity is produced."""
+    if similarity >= 95:
+        return 70
+    if similarity >= 90:
+        return 60
+    if similarity >= 85:
+        return 50
+    if similarity >= 80:
+        return 40
+    if similarity >= 75:
+        return 30
+    if similarity >= 70:
+        return 20
+    return 0
+
+
+def _match_band(score: float, similarity: float) -> str:
+    """Band from score. Guardrail: if similarity < 70, force Very Low."""
+    if similarity < 70:
+        return "Very Low"
+    if score >= 90:
+        return "Very High"
+    if score >= 75:
+        return "High"
+    if score >= 60:
+        return "Moderate"
+    if score >= 40:
+        return "Low"
+    return "Very Low"
+
+
+def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state) -> dict:
+    """Scoring layer on top of existing match. Returns match_score, match_band, name_score, geo_score, exact_bonus."""
+    similarity = _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state)
+    geo_score = _geo_score(fec_city, fec_state, cms_city, cms_state)
+    name_score = _name_score_from_similarity(similarity)
+    exact_bonus = 5 if (_normalized_for_exact(fec_name or '') == _normalized_for_exact(cms_name or '')) else 0
+    score = min(100, name_score + geo_score + exact_bonus)
+    band = _match_band(score, similarity)
+    if _is_pruitthealth_match(fec_name or '', cms_name or ''):
+        band = "High"  # manual write-off: same state / diff city still High, not Very High
+    return {
+        'match_score': round(score, 1),
+        'match_band': band,
+        'name_score': name_score,
+        'geo_score': geo_score,
+        'exact_bonus': exact_bonus,
+    }
 
 # Name variation mapping (common nicknames)
 NAME_VARIATIONS = {
@@ -697,7 +903,14 @@ def autocomplete():
             filtered_df['owner_name_original'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False) |
             filtered_df['owner_name'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False)
         )
-        
+        # Also match when query is contained in name with middle initials collapsed (e.g. "moshe stern" matches "moshe a stern")
+        collapsed_orig = filtered_df['owner_name_original'].astype(str).apply(_name_collapse_middle_initials)
+        collapsed_norm = filtered_df['owner_name'].astype(str).apply(_name_collapse_middle_initials)
+        name_matches = (
+            name_matches |
+            collapsed_orig.str.contains(query_upper, na=False, regex=False) |
+            collapsed_norm.str.contains(query_upper, na=False, regex=False)
+        )
         # Also check org_name if it exists
         if 'owner_org_name' in filtered_df.columns:
             org_match = filtered_df['owner_org_name'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False)
@@ -729,11 +942,13 @@ def autocomplete():
 def autocomplete_provider_search(query):
     """Autocomplete for provider search - searches providers and returns matching owners"""
     try:
-        print(f"[DEBUG] autocomplete_provider_search: query='{query}'")
+        if _DEBUG:
+            print(f"[DEBUG] autocomplete_provider_search: query='{query}'")
         query_upper = query.upper().strip()
         query_clean = query.replace('O', '').replace('o', '').replace(' ', '').replace('-', '').strip()
         is_ccn_search = query_clean.isdigit() and len(query_clean) <= 6
-        print(f"[DEBUG] is_ccn_search={is_ccn_search}, query_clean='{query_clean}'")
+        if _DEBUG:
+            print(f"[DEBUG] is_ccn_search={is_ccn_search}, query_clean='{query_clean}'")
         
         matched_providers = pd.DataFrame()
         matched_org_names = set()
@@ -753,14 +968,16 @@ def autocomplete_provider_search(query):
                     matched_providers = provider_info_latest_df[
                         provider_info_latest_df[ccn_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn_normalized
                     ].head(5)
-                    print(f"[DEBUG] CCN search found {len(matched_providers)} providers")
+                    if _DEBUG:
+                        print(f"[DEBUG] CCN search found {len(matched_providers)} providers")
             
             # Search by Provider Name
             if matched_providers.empty and 'Provider Name' in provider_info_latest_df.columns:
                 matched_providers = provider_info_latest_df[
                     provider_info_latest_df['Provider Name'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False)
                 ].head(5)
-                print(f"[DEBUG] Provider Name search found {len(matched_providers)} providers")
+                if _DEBUG:
+                    print(f"[DEBUG] Provider Name search found {len(matched_providers)} providers")
             
             # Also search Legal Business Name
             if 'Legal Business Name' in provider_info_latest_df.columns:
@@ -768,13 +985,16 @@ def autocomplete_provider_search(query):
                     provider_info_latest_df['Legal Business Name'].astype(str).str.upper().str.contains(query_upper, na=False, regex=False)
                 ].head(5)
                 matched_providers = pd.concat([matched_providers, legal_name_matches]).drop_duplicates()
-                print(f"[DEBUG] Legal Business Name search found {len(legal_name_matches)} providers, total after merge: {len(matched_providers)}")
+                if _DEBUG:
+                    print(f"[DEBUG] Legal Business Name search found {len(legal_name_matches)} providers, total after merge: {len(matched_providers)}")
         
         if matched_providers.empty:
-            print(f"[DEBUG] No providers found, returning empty suggestions")
+            if _DEBUG:
+                print(f"[DEBUG] No providers found, returning empty suggestions")
             return jsonify({'suggestions': []})
         
-        print(f"[DEBUG] Found {len(matched_providers)} matched providers")
+        if _DEBUG:
+            print(f"[DEBUG] Found {len(matched_providers)} matched providers")
         
         # For autocomplete, return provider suggestions (not owners)
         suggestions = []
@@ -809,7 +1029,8 @@ def autocomplete_provider_search(query):
                         'ccn': ccn
                     })
         
-        print(f"[DEBUG] Returning {len(suggestions)} provider suggestions")
+        if _DEBUG:
+            print(f"[DEBUG] Returning {len(suggestions)} provider suggestions")
         return jsonify({'suggestions': suggestions})
     except Exception as e:
         print(f"Error in autocomplete_provider_search: {e}")
@@ -886,7 +1107,14 @@ def search():
         owners_df.loc[exact_match_normalized, '_match_type'] = 'exact'
         owners_df.loc[exact_match_original & ~exact_match_normalized, '_relevance_score'] = 950
         owners_df.loc[exact_match_original & ~exact_match_normalized, '_match_type'] = 'exact_original'
-        
+        # First+last match (e.g. "moshe stern" matches "moshe a stern" when middle initial collapsed)
+        query_collapsed = _name_collapse_middle_initials(query_upper)
+        if query_collapsed and is_multi_word:
+            collapsed_norm = owners_df['owner_name'].astype(str).apply(_name_collapse_middle_initials)
+            collapsed_orig = owners_df['owner_name_original'].astype(str).apply(_name_collapse_middle_initials)
+            first_last_match = (collapsed_norm == query_collapsed) | (collapsed_orig == query_collapsed)
+            owners_df.loc[first_last_match & (owners_df['_relevance_score'] == 0), '_relevance_score'] = 900
+            owners_df.loc[first_last_match & (owners_df['_relevance_score'] == 0), '_match_type'] = 'first_last'
         # For multi-word queries: require ALL words to be present (not just any word)
         if is_multi_word:
             # Check if ALL words are present in the name
@@ -1226,6 +1454,8 @@ def search_by_committee(query, include_providers=False):
             'owners': [],
             'providers': [],
             'raw_contributions': [],
+            'all_contributions': [],
+            'all_contributions_total': 0,
         })
     normalized_list = [normalize_fec_donation(r) for r in raw_donations]
     donor_to_amounts = {}
@@ -1253,7 +1483,8 @@ def search_by_committee(query, include_providers=False):
             'donor_state': d.get('donor_state', ''),
         })
     def _find_owner_row(donor_norm, lookup):
-        """Match donor to owner; try name-order variants (FEC LAST,FIRST vs CMS FIRST LAST)."""
+        """Match donor to owner; try exact, name-order variants (FEC LAST,FIRST vs CMS FIRST LAST), then substring.
+        lookup.get() returns a pandas Series (row); never use 'or' with it (ambiguous truth value)."""
         row = lookup.get(donor_norm)
         if row is not None:
             return row
@@ -1265,25 +1496,142 @@ def search_by_committee(query, include_providers=False):
             if row is not None:
                 return row
         if len(parts) >= 3:
-            row = lookup.get(f"{parts[0]} {parts[-1]}") or lookup.get(f"{parts[-1]} {parts[0]}")
+            row = lookup.get(f"{parts[0]} {parts[-1]}")
             if row is not None:
                 return row
-        return None
+            row = lookup.get(f"{parts[-1]} {parts[0]}")
+            if row is not None:
+                return row
+            # "First Middle Last" / "Last First Middle" (e.g. J Norman Estes: FEC "ESTES, J NORMAN" -> try "J NORMAN ESTES", "NORMAN ESTES")
+            row = lookup.get(f"{parts[1]} {parts[0]}")
+            if row is not None:
+                return row
+            row = lookup.get(f"{parts[0]} {parts[1]}")
+            if row is not None:
+                return row
+            row = lookup.get(f"{parts[1]} {parts[-1]}")
+            if row is not None:
+                return row
+            row = lookup.get(f"{parts[-1]} {parts[1]}")
+            if row is not None:
+                return row
+            # "Middle Last First" / "First Middle Last" for 3 parts (e.g. "J NORMAN ESTES", "NORMAN ESTES" from "ESTES J NORMAN")
+            if len(parts) == 3:
+                row = lookup.get(f"{parts[1]} {parts[2]} {parts[0]}")
+                if row is not None:
+                    return row
+                row = lookup.get(f"{parts[2]} {parts[1]} {parts[0]}")
+                if row is not None:
+                    return row
+            # Middle + Last (e.g. "NORMAN ESTES" from "ESTES J NORMAN")
+            if len(parts) >= 3:
+                row = lookup.get(f"{parts[2]} {parts[0]}")
+                if row is not None:
+                    return row
+                row = lookup.get(f"{parts[0]} {parts[2]}")
+                if row is not None:
+                    return row
+        # Stem match: PRUITTHEALTH CORPORATION (FEC) -> stem PRUITTHEALTH matches CMS "PruittHealth Inc" (stem PRUITTHEALTH)
+        donor_stem = _stem_org_name(donor_norm)
+        donor_id_for_stem = _org_name_identifier(donor_norm)
+        if donor_stem:
+            row = lookup.get(donor_stem)
+            if row is not None:
+                # Guard: row must be same entity (same identifier) so stem key collision never returns wrong row (e.g. ERP vs P20)
+                row_onorm = normalize_name_for_matching(row.get('owner_name', ''))
+                row_id = _org_name_identifier(row_onorm)
+                if donor_id_for_stem and row_id:
+                    if donor_id_for_stem != row_id:
+                        row = None  # wrong row for this stem key
+                if row is not None:
+                    return row
+        # Substring fallback: match if owner name is contained in donor name or vice versa (e.g. PRUITTHEALTH in PRUITTHEALTH CORPORATION)
+        # Require longer keys; skip keys whose stem is generic; require shared identifier so ERP HOLDINGS does not match P20 HOLDINGS
+        MIN_SUBSTRING_LEN = 12
+        donor_id = _org_name_identifier(donor_norm)
+        best_row = None
+        best_len = 0
+        for onorm, r in lookup.items():
+            if not onorm or len(onorm) < MIN_SUBSTRING_LEN:
+                continue
+            if onorm in _SUBSTRING_BLOCKLIST:
+                continue
+            key_stem = _stem_org_name(onorm)
+            # Skip when stem is blocklisted OR when stem is "" (empty = stem was blocklisted, e.g. "HEALTHCARE LLC" -> "")
+            if not key_stem or key_stem in _SUBSTRING_BLOCKLIST:
+                continue  # "HEALTHCARE LLC" matches both 603 and Northshore; stem HEALTHCARE is blocklisted so we skip
+            if onorm in donor_norm or donor_norm in onorm:
+                # Require shared identifier as whole words so ERP≠P20 and CARE≠CARESPRING
+                key_id = _org_name_identifier(onorm)
+                if not donor_id or not key_id:
+                    continue
+                if not _identifier_appears_as_word(donor_id, onorm) or not _identifier_appears_as_word(key_id, donor_norm):
+                    continue
+                # Identifiers must be equal or one a prefix of the other (min len 5 for prefix) so ERP≠P20, CARE≠CARESPRING
+                if donor_id != key_id:
+                    lo, hi = (donor_id, key_id) if len(donor_id) <= len(key_id) else (key_id, donor_id)
+                    if len(lo) < 5 or not hi.startswith(lo):
+                        continue
+                if len(onorm) > best_len:
+                    best_len = len(onorm)
+                    best_row = r
+        return best_row
 
     owner_name_norm_to_row = {}
     for _, row in owners_df.iterrows():
         onorm = normalize_name_for_matching(row.get('owner_name', ''))
         oorig = normalize_name_for_matching(str(row.get('owner_name_original', '')))
+        stem = _stem_org_name(onorm) or (_stem_org_name(oorig) if oorig else "")
+        if not stem:
+            continue  # Exclude only when stem is empty (e.g. blocklisted "HEALTHCARE LLC"); do not exclude owners by generic stems
         if onorm:
             owner_name_norm_to_row[onorm] = row
+            # Space-stripped key so "PRUITT HEALTH" matches "PRUITTHEALTH CORPORATION" — skip if stem is generic or empty (HEALTHCARE LLC -> HEALTHCARELLC would match 603 and Northshore)
+            onorm_no_space = onorm.replace(' ', '')
+            if onorm_no_space and onorm_no_space != onorm and len(onorm_no_space) >= 6:
+                stem = _stem_org_name(onorm)
+                if stem and stem not in _SUBSTRING_BLOCKLIST:
+                    owner_name_norm_to_row[onorm_no_space] = row
         if oorig and oorig != onorm:
             owner_name_norm_to_row[oorig] = row
+            oorig_no_space = oorig.replace(' ', '')
+            if oorig_no_space and oorig_no_space != oorig and len(oorig_no_space) >= 6:
+                stem = _stem_org_name(oorig)
+                if stem and stem not in _SUBSTRING_BLOCKLIST:
+                    owner_name_norm_to_row[oorig_no_space] = row
+        # Stem keys: PRUITTHEALTH INC / PRUITTHEALTH CORPORATION -> PRUITTHEALTH so FEC "PRUITTHEALTH CORPORATION" matches CMS "PruittHealth Inc"
+        for n in (onorm, oorig):
+            if n:
+                stem = _stem_org_name(n)
+                if stem and stem not in owner_name_norm_to_row:
+                    owner_name_norm_to_row[stem] = row
+    def _get_cms_owner_location(associate_id_owner):
+        """Get first non-empty CITY - OWNER, STATE - OWNER from raw ownership for transparency comparison."""
+        if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:
+            return '', ''
+        pac = str(associate_id_owner).strip()
+        for col_id in ('ASSOCIATE ID - OWNER', 'Associate Id - Owner'):
+            if col_id not in ownership_raw_df.columns:
+                continue
+            matches = ownership_raw_df[ownership_raw_df[col_id].astype(str).str.strip() == pac]
+            for _, r in matches.iterrows():
+                city = str(r.get('CITY - OWNER', r.get('City - Owner', '')) or '').strip()
+                state = str(r.get('STATE - OWNER', r.get('State - Owner', '')) or '').strip()
+                if city or state:
+                    return city, state
+        return '', ''
+
     owner_to_total = {}
     owner_to_count = {}
     owner_to_providers = {}
     owner_to_display = {}
     owner_to_name_norm = {}
     owner_to_pac = {}
+    owner_to_type = {}
+    owner_to_first_record = {}
+    owner_to_contributions = {}  # key -> list of {amount, date} for hover
+    owner_to_cms_city = {}
+    owner_to_cms_state = {}
     for donor_norm, total in donor_to_amounts.items():
         owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
         if owner_row is None:
@@ -1294,6 +1642,7 @@ def search_by_committee(query, include_providers=False):
         # Use associate_id_owner (PAC) as key when available - internal ID for reliable deduplication
         pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
         key = pac if pac else owner_row.get('owner_name', '')
+        recs = donor_to_records.get(donor_norm, [])
         if key not in owner_to_total:
             owner_to_total[key] = 0
             owner_to_count[key] = 0
@@ -1301,10 +1650,38 @@ def search_by_committee(query, include_providers=False):
             owner_to_display[key] = display_name
             owner_to_name_norm[key] = owner_row.get('owner_name', '')  # For API lookups (showOwnerDetails)
             owner_to_pac[key] = pac  # associate_id_owner for soft connecting
+            owner_to_first_record[key] = recs[0] if recs else {}
+            owner_to_type[key] = str(owner_row.get('owner_type', '') or '').strip()
+            owner_to_contributions[key] = []
+            cms_c, cms_s = _get_cms_owner_location(pac)
+            owner_to_cms_city[key] = cms_c
+            owner_to_cms_state[key] = cms_s
         owner_to_total[key] += total
-        owner_to_count[key] += len(donor_to_records.get(donor_norm, []))
+        owner_to_count[key] += len(recs)
+        for r in recs:
+            owner_to_contributions[key].append({'amount': r.get('amount', 0), 'date': r.get('date', '')})
         for fac in facilities:
             owner_to_providers[key].add(fac)
+    def _match_transparency_label(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state):
+        """Descriptive transparency label (name + location). Not a quality score—for user transparency only."""
+        name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
+        name_label = 'Exact name' if name_exact else 'Similar name'
+        fc = (fec_city or '').strip().upper()
+        fs = (fec_state or '').strip().upper()[:2]
+        cc = (cms_city or '').strip().upper()
+        cs = (cms_state or '').strip().upper()[:2]
+        if not cc and not cs:
+            return f'{name_label}, loc not in file'
+        if not fc and not fs:
+            return f'{name_label}, no FEC loc'
+        if fc == cc and fs == cs:
+            return 'Exact' if name_exact else f'{name_label}, same loc'
+        if fc == cc and fs != cs:
+            return f'{name_label}, diff state'
+        if fc != cc and fs == cs:
+            return f'{name_label}, diff city'
+        return f'{name_label}, diff loc'
+
     owners_deduped = [
         {
             'owner_name': owner_to_display[k],
@@ -1313,6 +1690,33 @@ def search_by_committee(query, include_providers=False):
             'num_contributions': owner_to_count[k],
             'linked_providers_count': len(owner_to_providers[k]),
             'associate_id_owner': owner_to_pac.get(k, '') or '',
+            'contributor_city': (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+            'contributor_state': (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+            'contributor_employer': (owner_to_first_record.get(k) or {}).get('employer', ''),
+            'contributor_occupation': (owner_to_first_record.get(k) or {}).get('occupation', ''),
+            'ownership_facilities_preview': ', '.join(sorted(owner_to_providers[k])[:8]) if owner_to_providers[k] else '',
+            'contributor_fec_link': (owner_to_first_record.get(k) or {}).get('fec_link', ''),
+            'cms_owner_type': owner_to_type.get(k, '') or '',
+            'contributor_name_fec': (owner_to_first_record.get(k) or {}).get('donor_name', '') or '',
+            'contributions_list': owner_to_contributions.get(k, []),
+            'cms_owner_city': owner_to_cms_city.get(k, ''),
+            'cms_owner_state': owner_to_cms_state.get(k, ''),
+            'match_transparency': _match_transparency_label(
+                (owner_to_first_record.get(k) or {}).get('donor_name', ''),
+                owner_to_display[k],
+                (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+                (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+                owner_to_cms_city.get(k, ''),
+                owner_to_cms_state.get(k, ''),
+            ),
+            **_compute_match_score(
+                (owner_to_first_record.get(k) or {}).get('donor_name', ''),
+                owner_to_display[k],
+                (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+                (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+                owner_to_cms_city.get(k, ''),
+                owner_to_cms_state.get(k, ''),
+            ),
         }
         for k in owner_to_total
     ]
@@ -1325,6 +1729,45 @@ def search_by_committee(query, include_providers=False):
         for r in recs:
             raw_contributions.append(r)
     raw_contributions.sort(key=lambda x: (x.get('date', ''), -(x.get('amount', 0))), reverse=True)
+    # All contributions (nursing home and not) with flag for "likely nursing home–linked" (name match) and match score when linked
+    all_contributions = []
+    for d in normalized_list:
+        name = (d.get('donor_name') or '').strip()
+        if not name:
+            continue
+        donor_norm = normalize_name_for_matching(name)
+        owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+        matched = owner_row is not None
+        rec = {
+            'donor_name': name,
+            'amount': float(d.get('donation_amount') or 0),
+            'date': d.get('donation_date', ''),
+            'committee_name': committee_name or committee_id,
+            'committee_id': committee_id,
+            'employer': d.get('employer', ''),
+            'occupation': d.get('occupation', ''),
+            'donor_city': d.get('donor_city', ''),
+            'donor_state': d.get('donor_state', ''),
+            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?committee_id={committee_id}" if committee_id else ''),
+            'likely_nursing_home_linked': matched,
+            'owner_name': '',
+            'linked_providers_count': 0,
+        }
+        if matched and owner_row is not None:
+            pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
+            key = pac or owner_row.get('owner_name', '')
+            cms_name = owner_to_display.get(key, '')
+            cms_city = owner_to_cms_city.get(key, '')
+            cms_state = owner_to_cms_state.get(key, '')
+            rec['owner_name'] = cms_name
+            rec['linked_providers_count'] = len(owner_to_providers.get(key, set()))
+            rec.update(_compute_match_score(
+                name, cms_name,
+                d.get('donor_city', ''), d.get('donor_state', ''),
+                cms_city, cms_state,
+            ))
+        all_contributions.append(rec)
+    all_contributions.sort(key=lambda x: (x.get('date', ''), -(x.get('amount', 0))), reverse=True)
     total_nursing_linked = sum(o['total_contributed'] for o in owners_deduped)
     total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
     return jsonify({
@@ -1342,19 +1785,23 @@ def search_by_committee(query, include_providers=False):
         'providers': providers_result,
         'raw_contributions': raw_contributions[:500],
         'raw_contributions_total': len(raw_contributions),
+        'all_contributions': all_contributions[:2000],
+        'all_contributions_total': len(all_contributions),
     })
 
 
 def search_by_provider(query):
     """Search for owners by provider name, CCN, or Legal Business Name"""
     try:
-        print(f"[DEBUG] search_by_provider: query='{query}'")
+        if _DEBUG:
+            print(f"[DEBUG] search_by_provider: query='{query}'")
         query_upper = query.upper().strip()
         
         # Check if query is a CCN (6 digits, possibly with leading zeros or 'O' prefix)
         query_clean = query.replace('O', '').replace('o', '').replace(' ', '').replace('-', '').strip()
         is_ccn_search = query_clean.isdigit() and len(query_clean) <= 6
-        print(f"[DEBUG] is_ccn_search={is_ccn_search}, query_clean='{query_clean}'")
+        if _DEBUG:
+            print(f"[DEBUG] is_ccn_search={is_ccn_search}, query_clean='{query_clean}'")
         
         matched_providers = pd.DataFrame()
         matched_org_names = set()
@@ -1412,15 +1859,18 @@ def search_by_provider(query):
                 matched_providers = pd.concat([matched_providers, legal_name_matches]).drop_duplicates()
         
         if matched_providers.empty:
-            print(f"[DEBUG] No providers found for query '{query}'")
+            if _DEBUG:
+                print(f"[DEBUG] No providers found for query '{query}'")
             return jsonify({'results': [], 'count': 0, 'message': 'No provider found matching the search query'})
         
-        print(f"[DEBUG] Found {len(matched_providers)} matched providers")
+        if _DEBUG:
+            print(f"[DEBUG] Found {len(matched_providers)} matched providers")
         
         # Get Legal Business Names from matched providers
         if 'Legal Business Name' in matched_providers.columns:
             legal_business_names = matched_providers['Legal Business Name'].dropna().unique()
-            print(f"[DEBUG] Legal Business Names found: {list(legal_business_names)[:3]}")
+            if _DEBUG:
+                print(f"[DEBUG] Legal Business Names found: {list(legal_business_names)[:3]}")
             for lbn in legal_business_names:
                 if pd.notna(lbn) and str(lbn).strip():
                     matched_org_names.add(str(lbn).strip().upper())
@@ -1512,18 +1962,20 @@ def search_by_provider(query):
                                         if pd.notna(org_name) and str(org_name).strip():
                                             matched_org_names.add(str(org_name).strip().upper())
         
-        print(f"[DEBUG] Final matched org names: {list(matched_org_names)[:5]}")
+        if _DEBUG:
+            print(f"[DEBUG] Final matched org names: {list(matched_org_names)[:5]}")
         
         # Find owners that have these organization names in their facilities
         if not matched_org_names:
-            print(f"[DEBUG] No matched org names found")
+            if _DEBUG:
+                print(f"[DEBUG] No matched org names found")
             return jsonify({'results': [], 'count': 0, 'message': 'Found provider but could not match to organization name'})
         
         # Normalize matched org names for comparison (facilities field uses normalized names)
         normalized_matched_org_names = {normalize_name_for_matching(org_name) for org_name in matched_org_names}
-        print(f"[DEBUG] Normalized matched org names: {list(normalized_matched_org_names)[:5]}")
-        
-        print(f"[DEBUG] Searching {len(owners_df)} owners for facilities matching org names")
+        if _DEBUG:
+            print(f"[DEBUG] Normalized matched org names: {list(normalized_matched_org_names)[:5]}")
+            print(f"[DEBUG] Searching {len(owners_df)} owners for facilities matching org names")
         
         # Search owners_df for owners with matching facilities
         matching_owners = []
@@ -1675,7 +2127,8 @@ def search_by_provider(query):
                         
                         # Combine: 5%+ first, then <5%
                         direct_owners = owners_5plus + owners_under5
-                        print(f"[DEBUG] Found {len(direct_owners)} direct owners for CCN {ccn} ({len(owners_5plus)} >=5%, {len(owners_under5)} <5%)")
+                        if _DEBUG:
+                            print(f"[DEBUG] Found {len(direct_owners)} direct owners for CCN {ccn} ({len(owners_5plus)} >=5%, {len(owners_under5)} <5%)")
             
             provider_info = {
                 'provider_name': provider_name if pd.notna(provider_name) else '',
@@ -2183,11 +2636,15 @@ def query_fec():
         # Sort by date (most recent first)
         normalized.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
         
+        # Names actually queried (for display: "Showing FEC results for X, Y, ...")
+        names_queried = name_variations[:5]
+        
         return jsonify({
             'donations': normalized,
             'total': sum(d['amount'] for d in normalized),
             'count': len(normalized),
-            'searches_performed': len(name_variations)
+            'searches_performed': len(name_variations),
+            'names_searched': names_queried,
         })
     
     except Exception as e:
@@ -2201,7 +2658,8 @@ def query_fec():
 def get_entity_owners(entity_id):
     """Get all owners affiliated with an entity and their donations"""
     try:
-        print(f"[DEBUG] get_entity_owners: entity_id='{entity_id}'")
+        if _DEBUG:
+            print(f"[DEBUG] get_entity_owners: entity_id='{entity_id}'")
         if owners_df is None or owners_df.empty:
             return jsonify({'error': 'Owners database not loaded'}), 500
         

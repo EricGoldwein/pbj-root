@@ -54,6 +54,9 @@ load_env_file()
 # The .env file is gitignored and won't be committed
 FEC_API_KEY = os.getenv("FEC_API_KEY", "YOUR_API_KEY_HERE")
 
+# Timeout in seconds for FEC API requests (env FEC_API_TIMEOUT)
+FEC_API_TIMEOUT = int(os.getenv("FEC_API_TIMEOUT", "90"))
+
 # FEC API Base URL
 FEC_API_BASE_URL = "https://api.open.fec.gov/v1"
 

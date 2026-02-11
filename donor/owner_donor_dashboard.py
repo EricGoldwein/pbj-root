@@ -397,49 +397,51 @@ def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
         return []
     
     name_upper = str(name).upper().strip()
-    variations = [name_upper]
     is_individual = owner_type.upper() == "INDIVIDUAL"
-    
-    # Split into parts
     parts = name_upper.split()
+    
+    # Build in order so we try FEC-best variants first (API returns well for "First Last" and "Last, First")
+    variations = []
     if len(parts) >= 2:
         first = parts[0]
         last = parts[-1]
-        
-        # Add first word alone - BUT skip for individuals (e.g. "MIRIAM" matches hundreds of people)
-        # and skip overly broad org terms (e.g. "CORPORATE" matches CAPITAL ONE... CORPORATE)
+        # 1) Full name as given
+        variations.append(name_upper)
+        # 2) "First Last" and "Last, First" first (FEC returns well for these)
+        if len(parts) > 2:
+            variations.append(f"{first} {last}")
+        if is_individual:
+            variations.append(f"{last}, {first}")
+            if len(parts) > 2:
+                variations.append(f"{last}, {first} {parts[1]}")
+        if len(parts) > 2:
+            mid = parts[1].rstrip('.')
+            if len(mid) == 1 and mid.isalpha():
+                variations.append(f"{first} {mid}. {last}")
+        # 3) Org-only: first/last alone
         OVERLY_BROAD_ORG_WORDS = {'THE', 'AND', 'OF', 'FOR', 'INC', 'LLC', 'CORP', 'LP', 'LTD',
                                   'CORPORATE', 'SERVICES', 'CONSULTING', 'INTERFACE'}
         if not is_individual and len(first) >= 3 and first not in OVERLY_BROAD_ORG_WORDS:
             variations.append(first)
-        
-        # Add nickname variations
+        if not is_individual and len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
+            variations.append(last)
+        # 4) Nickname variations
         if first in NAME_VARIATIONS:
             for nickname in NAME_VARIATIONS[first]:
                 variations.append(f"{nickname} {last}")
                 if len(parts) > 2:
-                    # Handle middle names/initials
                     variations.append(f"{nickname} {parts[1]} {last}")
-        
-        # Add last name only - skip for individuals (e.g. "ZUPNICK" could match other Zupnicks)
-        # For individuals we need first+last; last-only is OK for orgs
-        if not is_individual and len(last) >= 3 and last not in ['INC', 'LLC', 'CORP', 'LP', 'LTD', 'SERVICES', 'CONSULTING']:
-            variations.append(last)
-        
-        # Add "First Last" (without middle)
-        if len(parts) > 2:
-            variations.append(f"{first} {last}")
-            # Add "First X." when middle is single letter (e.g. MOSHE A. STERN for FEC)
-            mid = parts[1].rstrip('.')
-            if len(mid) == 1 and mid.isalpha():
-                variations.append(f"{first} {mid}. {last}")
-        # FEC often uses "Last, First" or "Last, First Middle" for individuals
-        if is_individual and len(parts) >= 2:
-            variations.append(f"{last}, {first}")
-            if len(parts) > 2:
-                variations.append(f"{last}, {first} {parts[1]}")
+    else:
+        variations = [name_upper] if name_upper else []
     
-    return list(set(variations))
+    # Dedupe while preserving order
+    seen = set()
+    ordered = []
+    for v in variations:
+        if v and v not in seen:
+            seen.add(v)
+            ordered.append(v)
+    return ordered
 
 
 def _load_committee_master():
@@ -2568,10 +2570,12 @@ def query_fec():
         # Determine FEC API contributor type
         fec_type = "individual" if owner_type == "INDIVIDUAL" else None
         
-        # Query with each name variation
+        # Query with each name variation; stop as soon as we get results (avoids 5× slow calls)
         seen_ids = set()
         fec_timed_out = False
+        names_tried = []
         for name_var in name_variations[:5]:  # Limit to 5 variations to avoid rate limits
+            names_tried.append(name_var)
             try:
                 donations = query_donations_by_name(
                     contributor_name=name_var,
@@ -2587,11 +2591,14 @@ def query_fec():
                             if record_id and record_id not in seen_ids:
                                 seen_ids.add(record_id)
                                 all_donations.append(donation)
+                    # Early exit: we have results, skip remaining variations (saves 30–90s)
+                    if all_donations:
+                        break
             except requests.exceptions.Timeout:
                 fec_timed_out = True
                 continue
             except Exception as e:
-                # Continue with next variation if one fails
+                print(f"[WARNING] query_fec name_var={name_var!r}: {type(e).__name__}: {e}")
                 continue
         
         # Also try by employer/occupation if individual
@@ -2664,8 +2671,8 @@ def query_fec():
         # Sort by date (most recent first)
         normalized.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
         
-        # Names actually queried (for display: "Showing FEC results for X, Y, ...")
-        names_queried = name_variations[:5]
+        # Names actually queried (for display; only those we tried before early exit)
+        names_queried = names_tried if names_tried else name_variations[:5]
         
         resp = {
             'donations': normalized,

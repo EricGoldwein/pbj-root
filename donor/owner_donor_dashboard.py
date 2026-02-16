@@ -327,8 +327,10 @@ def _names_very_close(fec_name: str, cms_name: str) -> bool:
         return True
     a = set(re.sub(r"[^\w\s]", " ", fec.lower()).split())
     b = set(re.sub(r"[^\w\s]", " ", cms.lower()).split())
-    a -= _LEGAL_SUFFIXES
-    b -= _LEGAL_SUFFIXES
+    legal_lower = {s.lower() for s in _LEGAL_SUFFIXES}
+    blocklist_lower = {s.lower() for s in _SUBSTRING_BLOCKLIST}
+    a -= legal_lower
+    b -= legal_lower
     a.discard("")
     b.discard("")
     # Same org stem (e.g. PRUITTHEALTH CORPORATION vs PRUITTHEALTH INC)
@@ -339,11 +341,19 @@ def _names_very_close(fec_name: str, cms_name: str) -> bool:
     if stem_fec and stem_cms and stem_fec == stem_cms:
         return True
     # One name's content words are a subset of the other (e.g. CENTRAL MANAGEMENT COMPANY vs CENTRAL MANAGEMENT COMPANY, LLC)
+    # Require at least one non-generic word in the smaller set so "HEALTHCARE SERVICES" vs "HEALTHCARE SERVICES X" stays Low
     if len(a) >= 2 and len(b) >= 2 and (a <= b or b <= a):
-        return True
+        smaller = a if len(a) <= len(b) else b
+        if any(w and w not in blocklist_lower for w in smaller):
+            return True
     # Two or more shared meaningful words (e.g. PAULSON, JOHN ALFRED vs JOHN PAULSON; not RIVERSIDE IMMOVABLES vs 282 RIVERSIDE)
     if len(a) >= 2 and len(b) >= 2 and len(a & b) >= 2:
         return True
+    # Same single content word (e.g. ACME INC vs ACME LLC) — require non-generic and at least one letter (not "282" vs "282")
+    if len(a) == 1 and len(b) == 1 and a == b:
+        word = next(iter(a), '')
+        if len(word) >= 3 and word not in blocklist_lower and re.search(r'[a-zA-Z]', word):
+            return True
     return False
 
 
@@ -492,8 +502,8 @@ def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_
     exact_bonus = 5 if (_normalized_for_exact(fec_name or '') == _normalized_for_exact(cms_name or '')) else 0
     score = min(100, name_score + geo_score + exact_bonus)
     band = _match_band(score, similarity)
-    # Missing location on one or both sides = not actually distinct; if names are very close, don't leave as Low/Very Low
-    if band in ("Low", "Very Low") and _names_very_close(fec_name or '', cms_name or '') and (not has_fec or not has_cms):
+    # Same-entity names (very close) → Moderate so we don't leave PRUITTHEALTH CORP/INC, QP HEALTH CARE SERVICES LLC (punctuation) as Low/Very Low (bulk and API). RIVERSIDE IMMOVABLES vs 282 RIVERSIDE stays Low (_names_very_close False).
+    if band in ("Low", "Very Low") and _names_very_close(fec_name or '', cms_name or ''):
         band = "Moderate"
     elif band == "Very Low" and _names_same_person(fec_name or '', cms_name or '') and not has_cms:
         band = "Moderate"
@@ -1738,14 +1748,17 @@ def search_by_committee(query, include_providers=False):
             'message': f'No committee found matching "{query}". Try searching by committee name (e.g., MAGA Inc.) or committee ID (C########).'
         }), 404
     CONDUIT_OR_MAJOR_COMMITTEES = {"C00401224", "C00694323"}  # ActBlue, WinRed — chunked, no page cap
+    # Use bulk only for these committees (conduits + massive); everyone else uses API. Keeps API as default for small/medium committees.
+    COMMITTEES_USE_BULK = CONDUIT_OR_MAJOR_COMMITTEES | MASSIVE_COMMITTEES
     cid_upper = (committee_id or "").strip().upper()
     is_massive = cid_upper in MASSIVE_COMMITTEES
     bulk_max_year = BULK_MASSIVE_COMMITTEE_MAX_YEAR if is_massive else None
-    # Prefer local bulk data (indiv*.parquet) when available for fast committee search; else use FEC API.
-    # For massive committees: only use bulk through BULK_MASSIVE_COMMITTEE_MAX_YEAR (e.g. 2024).
-    raw_donations, years_included, used_bulk = get_contributions_by_committee_from_bulk(
-        committee_id, data_dir=FEC_DATA_DIR, year_from=FEC_DATA_YEAR_FROM, bulk_max_year=bulk_max_year
-    )
+    if cid_upper in COMMITTEES_USE_BULK:
+        raw_donations, years_included, used_bulk = get_contributions_by_committee_from_bulk(
+            committee_id, data_dir=FEC_DATA_DIR, year_from=FEC_DATA_YEAR_FROM, bulk_max_year=bulk_max_year
+        )
+    else:
+        raw_donations, years_included, used_bulk = None, [], False
     data_source = "bulk" if used_bulk else "api"
     bulk_last_updated = None
     if used_bulk:

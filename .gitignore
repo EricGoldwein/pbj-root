@@ -42,12 +42,10 @@ donor/FEC data/*.zip
 # Optional: pre-exported committee CSVs (ActBlue, WinRed) – uncomment to push, or leave ignored and serve from server only
 donor/FEC data/committee_*.csv
 donor/FEC data/bulk_manifest.json
-# Top contributors CSV: commit if you have it so /owners/top works on deploy (page is hidden from nav)
-# donor/FEC data/top_nursing_home_contributors_2026.csv  — uncomment to ignore; leave commented to allow commit
-
-# Top page code: tracked so /owners/top works when accessed by URL (nav link is hidden)
-# donor/routes_top.py
-# donor/templates/owner_donor_dashboard_top.html
+# Top contributors page: not published; add CSV + routes/template on server for internal viewing (ENABLE_TOP_PAGE=1)
+donor/FEC data/top_nursing_home_contributors_2026.csv
+donor/routes_top.py
+donor/templates/owner_donor_dashboard_top.html
 
 # Node modules
 node_modules/

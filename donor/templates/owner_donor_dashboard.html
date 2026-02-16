@@ -1109,7 +1109,7 @@
                 <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA</span>
             </div>
             <p style="margin: 0.5rem auto 0; font-size: 0.8rem; font-weight: 400; color: rgba(255,255,255,0.55); max-width: 700px; line-height: 1.4; text-align: center;">
-                Note: This tool is in beta and may contain matching errors or incomplete data. Click <strong>View original on FEC</strong> or <strong>Search on FEC</strong> next to each donation to verify on the official FEC source.
+                Note: This tool is in beta and may contain matching errors or incomplete data. Click <strong>View on FEC</strong> next to each donation to verify on the official FEC source.
             </p>
             <p style="margin: 0.5rem auto 0; font-size: 0.9rem; font-weight: 500; text-align: center;">
                 <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #60a5fa; text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 4px; border: 1px solid rgba(102,126,234,0.5); background: rgba(102,126,234,0.15);">Verify on FEC →</a>
@@ -1393,7 +1393,7 @@
 
         // FEC link for a donation: direct filing when available, else search by contributor name
         function fecLinkHtml(d) {
-            if (d.fec_link) return ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn" title="View original FEC filing">View original on FEC</a>`;
+            if (d.fec_link) return ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn" title="View FEC filing">View on FEC</a>`;
             if (d.donor_name) {
                 const url = 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' + encodeURIComponent(d.donor_name).replace(/%20/g, '+');
                 return ` <a href="${url}" target="_blank" rel="noopener" class="donor-source-btn" title="Search contributor on FEC">Search on FEC</a>`;
@@ -1625,9 +1625,9 @@
 
         // Animated typing placeholder (when idle and not focused; on focus show static placeholder)
         const placeholderExamplesByType = {
-            all: ['PruittHealth', 'Joe Smith', 'Ensign Services'],
-            provider: ['Seagate Rehab', '335513', 'Hammonton Center', '315209'],
-            committee: ['MAGA Inc.', 'ActBlue', 'WinRed', 'House Majority PAC']
+            all: ['PruittHealth', 'Ensign Services'],
+            provider: ['Hammonton Center', '315209'],
+            committee: ['MAGA Inc.', 'C00409730']
         };
         let typingPlaceholderState = { exampleIndex: 0, phase: 'typing', charIndex: 0, pauseUntil: 0 };
         let typingPlaceholderInterval = null;

@@ -295,10 +295,14 @@ def query_donations_by_committee(
 
             all_results.extend(results)
 
-            pagination = data.get("pagination", {})
-            total_pages = pagination.get("pages", 0)
+            pagination = data.get("pagination") or {}
+            if not isinstance(pagination, dict):
+                break
+            total_pages = pagination.get("pages", 0) or 0
             has_more = pagination.get("has_more_pages", False)
-            last_indexes = pagination.get("last_indexes") or {}
+            last_indexes = pagination.get("last_indexes")
+            if not isinstance(last_indexes, dict):
+                last_indexes = {}
             next_last = last_indexes.get("last_index")
             next_date = last_indexes.get("last_contribution_receipt_date")
 
@@ -316,8 +320,13 @@ def query_donations_by_committee(
             if not last_index:
                 break
 
+        except requests.exceptions.Timeout:
+            raise
         except requests.exceptions.RequestException as e:
             print(f"Error querying FEC API for committee '{committee_id}': {e}")
+            break
+        except Exception as e:
+            print(f"Unexpected error parsing FEC API response for committee '{committee_id}': {e}")
             break
 
     return all_results

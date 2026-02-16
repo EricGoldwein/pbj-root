@@ -1640,7 +1640,9 @@ def search_by_committee(query, include_providers=False):
             if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
                 raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
             else:
-                raw_donations = query_donations_by_committee(committee_id)
+                # Multi-page fetch; use longer timeout per request so FEC has time to respond (avoids 500/timeout)
+                committee_timeout = int(os.environ.get("FEC_COMMITTEE_TIMEOUT", "120"))
+                raw_donations = query_donations_by_committee(committee_id, timeout=committee_timeout)
                 years_included = []
         except requests.exceptions.Timeout:
             print(f"FEC API timeout for committee {committee_id}")

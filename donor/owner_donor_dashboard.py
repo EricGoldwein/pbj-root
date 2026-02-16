@@ -320,6 +320,17 @@ def _is_maga_inc(committee_name: str, committee_id: str = "") -> bool:
     return cid == "C00892471"
 
 
+def _is_excluded_different_person(owner_display_name: str, committee_name: str, committee_id: str = "") -> bool:
+    """True when this owner match should be excluded to avoid mixing with a different person (e.g. tech Gregory Brockman vs nursing home Gregory Brockman)."""
+    if not owner_display_name:
+        return False
+    onorm = (owner_display_name or "").upper().strip()
+    # MAGA Inc.: BROCKMAN, GREG $12.5M is Greg Brockman (OpenAI), not the CMS Gregory Brockman (County of Throckmorton).
+    if _is_maga_inc(committee_name, committee_id) and "GREGORY" in onorm and "BROCKMAN" in onorm:
+        return True
+    return False
+
+
 def _name_score_from_similarity(similarity: float) -> int:
     """Map similarity 0–100 to name_score 0–70. Do not change how similarity is produced."""
     if similarity >= 95:
@@ -1955,7 +1966,26 @@ def search_by_committee(query, include_providers=False):
             row['match_band'] = 'High'
         owners_deduped.append(row)
     owners_deduped.sort(key=lambda x: -x['total_contributed'])
-    providers_result = _compute_providers_from_owners(owners_deduped) if include_providers else []
+    # Split: high-confidence (included in total) vs low-match (separate table, not in total). Exclude known different-person matches (e.g. tech Gregory Brockman for MAGA Inc.).
+    LOW_BANDS = frozenset({'Low', 'Very Low'})
+    owners_high = []
+    owners_low = []
+    excluded_brockman_note = None
+    for o in owners_deduped:
+        display = (o.get('owner_name') or '').strip()
+        if _is_excluded_different_person(display, committee_name, committee_id):
+            if excluded_brockman_note is None:
+                excluded_brockman_note = (
+                    "A different Gregory Brockman (e.g. tech executive) also contributes to this committee; "
+                    "that match was excluded to avoid mixing with the nursing home–linked owner."
+                )
+            continue
+        band = (o.get('match_band') or '').strip()
+        if band in LOW_BANDS:
+            owners_low.append(o)
+        else:
+            owners_high.append(o)
+    providers_result = _compute_providers_from_owners(owners_high) if include_providers else []
     raw_contributions = []
     for donor_norm, recs in donor_to_records.items():
         if _find_owner_row(donor_norm, owner_name_norm_to_row) is None:
@@ -2005,7 +2035,7 @@ def search_by_committee(query, include_providers=False):
             ))
         all_contributions.append(rec)
     all_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
-    total_nursing_linked = sum(o['total_contributed'] for o in owners_deduped)
+    total_nursing_linked = sum(o['total_contributed'] for o in owners_high)
     total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
     return jsonify({
         'committee': {
@@ -2025,9 +2055,11 @@ def search_by_committee(query, include_providers=False):
             'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
             'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
             'scope_note': None,
+            'excluded_brockman_note': excluded_brockman_note,
             'conduit_diagnostics': conduit_diagnostics,
         },
-        'owners': owners_deduped,
+        'owners': owners_high,
+        'owners_low': owners_low,
         'providers': providers_result,
         'raw_contributions': raw_contributions[:500],
         'raw_contributions_total': len(raw_contributions),

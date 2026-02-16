@@ -254,52 +254,72 @@ def query_donations_by_committee(
     
     all_results = []
     page = 1
-    
+    last_index = None
+    last_contribution_receipt_date = None
+
     while True:
         _rate_limit()
-        
+
         endpoint = f"{FEC_API_BASE_URL}/schedules/schedule_a"
-        
+
         params = {
             "api_key": FEC_API_KEY,
             "committee_id": committee_id,
             "per_page": min(per_page, 100),
-            "page": page,
             "sort": "-contribution_receipt_date"
         }
-        
+        # OpenFEC: first request uses page=1; subsequent pages use last_index (cursor), not page
+        if last_index is not None:
+            params["last_index"] = last_index
+            if last_contribution_receipt_date:
+                params["last_contribution_receipt_date"] = last_contribution_receipt_date
+        else:
+            params["page"] = page
+
         if min_date:
             params["min_date"] = min_date
-        
+
         if max_date:
             params["max_date"] = max_date
-        
+
         timeout_sec = timeout if timeout is not None else FEC_API_TIMEOUT
         try:
             response = requests.get(endpoint, params=params, timeout=timeout_sec)
             response.raise_for_status()
-            
+
             data = response.json()
             results = data.get("results", [])
-            
+
             if not results:
                 break
-            
+
             all_results.extend(results)
-            
+
             pagination = data.get("pagination", {})
-            if not pagination.get("has_more_pages", False):
+            total_pages = pagination.get("pages", 0)
+            has_more = pagination.get("has_more_pages", False)
+            last_indexes = pagination.get("last_indexes") or {}
+            next_last = last_indexes.get("last_index")
+            next_date = last_indexes.get("last_contribution_receipt_date")
+
+            if not has_more and (total_pages == 0 or page >= total_pages):
                 break
-            
+            if not next_last and page >= total_pages:
+                break
+
             if max_pages and page >= max_pages:
                 break
-            
+
             page += 1
-            
+            last_index = next_last
+            last_contribution_receipt_date = next_date
+            if not last_index:
+                break
+
         except requests.exceptions.RequestException as e:
             print(f"Error querying FEC API for committee '{committee_id}': {e}")
             break
-    
+
     return all_results
 
 

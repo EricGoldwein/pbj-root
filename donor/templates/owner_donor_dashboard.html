@@ -1888,9 +1888,11 @@
                         ${committee.data_source === 'bulk' ? '<div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 0.35rem;">Years: <strong>' + (committee.years_included && committee.years_included.length ? escapeHtml(committee.years_included.slice().sort((a,b)=>a-b).join(', ')) : '—') + '</strong>' + (committee.bulk_capped_through_year ? ' (large committees capped through ' + escapeHtml(String(committee.bulk_capped_through_year)) + ')' : '') + '.</div>' + (committee.bulk_last_updated ? '<div style="color: rgba(255,255,255,0.8); font-size: 0.8rem; margin-top: 0.25rem;">Data file updated: ' + escapeHtml(formatBulkDate(committee.bulk_last_updated)) + '</div>' : '') : '<div style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-top: 0.35rem;">Data for this committee is from the FEC API; a local data file was not available for this committee.</div>' + ((committee.years_included && committee.years_included.length) ? '<div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 0.35rem;">Years returned: ' + escapeHtml(committee.years_included.slice().sort((a,b)=>a-b).join(', ')) + '</div>' : '')}
                     </div>
                     <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0.75rem 0 0 0;">Contributors are drawn from FEC filings and matched by name to the CMS nursing home ownership dataset. Years included depend on data source (see above). Results may omit relevant donors or include incorrect matches due to name-based limitations. Matches are not independently verified. Only matched names appear as nursing home–linked.</p>
+                    ${committee.excluded_brockman_note ? '<p style="color: rgba(255,200,100,0.95); font-size: 0.85rem; margin: 0.75rem 0 0 0; padding: 0.5rem 0.75rem; background: rgba(255,180,0,0.12); border-radius: 6px; border-left: 3px solid rgba(255,180,0,0.6);"><strong>Note:</strong> ' + escapeHtml(committee.excluded_brockman_note) + '</p>' : ''}
                 </div>
             `;
 
+            const ownersLow = data.owners_low || [];
             if (owners.length === 0) {
                 html += `<p style="color: rgba(255,255,255,0.7);">No nursing home owners found among contributors to this committee.</p>`;
             } else {
@@ -1972,6 +1974,33 @@
                     cardsHtml += `<div class="committee-card" data-amount="${Number(o.total_contributed) || 0}" data-count="${o.num_contributions}" data-providers="${o.linked_providers_count}"><div class="committee-card-name"><span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOnM}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uidM}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uidM}')}" style="cursor: pointer;">${escapeHtml(fecName || '—')}</span><div id="${uidM}" class="donor-popup">${popupHtml}</div></span></div><div class="committee-card-meta">Owner: ${escapeHtml(cmsName || '—')}${addr ? ' · ' + escapeHtml(addr) : ''}</div><div class="committee-card-row2"><span class="committee-card-match">${matchCellContent}</span><span>${formatCommitteeAmount(o.total_contributed)}</span><span>${o.num_contributions} contrib</span><span>${provLink}</span></div></div>`;
                 });
                 html += `</tbody></table><div id="committeeContributorsCards" class="committee-mobile-cards">${cardsHtml}</div></div>`;
+            }
+            if (ownersLow.length > 0) {
+                const titleCase = (s) => { if (!s || typeof s !== 'string') return ''; return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); };
+                const formatAddress = (city, state) => {
+                    const na = (v) => !v || String(v).trim() === '' || String(v).toLowerCase() === 'nan' || String(v).toLowerCase() === 'none';
+                    if (na(city) && na(state)) return 'N/A';
+                    const c = city && !na(city) ? titleCase(String(city).trim()) : '';
+                    const s = state && !na(state) ? (String(state).trim().length === 2 ? String(state).trim().toUpperCase() : titleCase(String(state).trim())) : '';
+                    return [c, s].filter(Boolean).join(', ') || 'N/A';
+                };
+                html += `<h3 style="margin: 2rem 0 0.75rem 0; color: rgba(255,255,255,0.9); font-size: 1.05rem;">Low-match contributions (not included in total)</h3>`;
+                html += `<p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0 0 0.5rem 0;">These name matches have low confidence and are not counted in the nursing home–linked total above.</p>`;
+                html += `<div class="committee-contributors-wrap"><table class="facilities-table committee-table-desktop" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(255,255,255,0.08);"><th style="padding: 0.75rem; text-align: left;">FEC Contributor</th><th style="padding: 0.75rem; text-align: left;">Owner (CMS)</th><th style="padding: 0.75rem; text-align: left;">Address (FEC)</th><th style="padding: 0.75rem; text-align: left;">Match</th><th style="padding: 0.75rem; text-align: right;">Total Contributed</th><th style="padding: 0.75rem; text-align: right;"># Contributions</th><th style="padding: 0.75rem; text-align: right;">Linked Providers</th></tr></thead><tbody>`;
+                ownersLow.forEach(o => {
+                    const addr = formatAddress(o.contributor_city, o.contributor_state);
+                    const fecName = (o.contributor_name_fec || '').trim();
+                    const cmsNameRaw = (o.owner_name || '').trim();
+                    const cmsName = (!cmsNameRaw || String(cmsNameRaw).toLowerCase() === 'nan') ? 'N/A' : cmsNameRaw;
+                    const matchLabel = (o.match_transparency || '').trim() || '—';
+                    const bandLabel = (o.match_band || '').trim();
+                    const bandClass = bandLabel ? ('band-' + bandLabel.toLowerCase().replace(/\s+/g, '-')) : '';
+                    const matchPill = bandLabel ? ('<span class="match-band-pill ' + bandClass + '">' + escapeHtml(bandLabel) + '</span>') : escapeHtml(matchLabel || '—');
+                    const providersUrl = cmsName !== 'N/A' ? ('/owners?owner=' + encodeURIComponent(o.owner_name || '')) : '';
+                    const providersCell = (o.linked_providers_count > 0 && providersUrl) ? '<a href="' + escapeHtml(providersUrl) + '" target="_blank" rel="noopener" style="color: #667eea;">' + o.linked_providers_count + '</a>' : String(o.linked_providers_count);
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.08);"><td style="padding: 0.75rem;">${escapeHtml(fecName || '—')}</td><td style="padding: 0.75rem; color: rgba(255,255,255,0.9);">${escapeHtml(cmsName || '—')}</td><td style="padding: 0.75rem; color: rgba(255,255,255,0.8);">${escapeHtml(addr)}</td><td style="padding: 0.75rem;">${matchPill}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(o.total_contributed)}</td><td style="padding: 0.75rem; text-align: right;">${o.num_contributions}</td><td style="padding: 0.75rem; text-align: right;">${providersCell}</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
             }
 
             const allContributions = data.all_contributions || [];

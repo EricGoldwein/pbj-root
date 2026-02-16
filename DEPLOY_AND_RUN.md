@@ -56,6 +56,7 @@ In the Render dashboard for this service:
 - **FEC_API_KEY** = your FEC API key (required for “View Political Contributions” and FEC docquery links to work).
 - **FEC_COMMITTEE_TIMEOUT** (optional) = seconds per request when loading committee contributions via API (default 120). If you see “FEC API may have timed out”, try `180` or higher.
 - **FEC_API_TIMEOUT** (optional) = seconds for other FEC API requests (default 90). Set in env or `donor/.env`.
+- **FEC_SEARCH_MAX_PAGES** (optional) = max API pages per name when searching by contributor (default 5 ≈ 500 results). Lower this if the FEC search request times out on your host (e.g. Render 30s); raise for more results.
 
 Add any other env vars your app or data paths expect (e.g. if you load files from env).
 

@@ -40,6 +40,9 @@ import requests
 # Set DONOR_DEBUG=1 to enable [DEBUG] prints (autocomplete/search); off by default
 _DEBUG = os.environ.get("DONOR_DEBUG", "").strip() in ("1", "true", "yes")
 
+# Cap pages per name search so the request doesn't exceed server timeout (e.g. Render 30–60s)
+FEC_SEARCH_MAX_PAGES = int(os.environ.get("FEC_SEARCH_MAX_PAGES", "5"))
+
 app = Flask(__name__, template_folder='templates')
 
 # Data paths
@@ -2802,12 +2805,20 @@ def query_fec():
         
         if not data:
             return jsonify({'error': 'Request body required'}), 400
-            
-        owner_name = data.get('owner_name', '').strip()
-        owner_type = data.get('owner_type', 'ORGANIZATION')
-        
+
+        # Defensive: JSON null or missing keys must not become None (avoids AttributeError)
+        owner_name = (data.get('owner_name') or '').strip()
+        owner_type = (data.get('owner_type') or 'ORGANIZATION')
+        if isinstance(owner_type, str):
+            owner_type = owner_type.strip() or 'ORGANIZATION'
+        else:
+            owner_type = 'ORGANIZATION'
+
         if not owner_name:
             return jsonify({'error': 'Owner name required'}), 400
+
+        if not FEC_API_KEY or FEC_API_KEY == "YOUR_API_KEY_HERE":
+            return jsonify({'error': 'FEC API key is not configured. Set FEC_API_KEY in the server environment.'}), 503
     except Exception as e:
         print(f"Error parsing request in query_fec: {e}")
         import traceback
@@ -2834,7 +2845,8 @@ def query_fec():
                 donations = query_donations_by_name(
                     contributor_name=name_var,
                     contributor_type=fec_type,
-                    per_page=100
+                    per_page=100,
+                    max_pages=FEC_SEARCH_MAX_PAGES,
                 )
                 
                 # Deduplicate by sub_id
@@ -2945,7 +2957,7 @@ def query_fec():
         print(f"[ERROR] Error in query_fec: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'FEC search failed. Please try again. If it persists, check server logs.'}), 500
 
 
 @app.route('/api/entity/<entity_id>')

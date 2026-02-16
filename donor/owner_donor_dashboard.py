@@ -191,7 +191,12 @@ _SUBSTRING_BLOCKLIST = frozenset({
 
 def _stem_org_name(norm_str: str, min_len: int = 6) -> str:
     """Strip trailing legal suffixes from normalized name for matching (e.g. PRUITTHEALTH INC -> PRUITTHEALTH)."""
-    if not norm_str or not isinstance(norm_str, str):
+    if norm_str is None or (hasattr(norm_str, "__float__") and pd.isna(norm_str)):
+        return ""
+    if not isinstance(norm_str, str):
+        norm_str = str(norm_str)
+    norm_str = (norm_str or "").strip()
+    if not norm_str:
         return ""
     words = norm_str.split()
     while words:
@@ -720,7 +725,7 @@ def load_data():
                     owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"✓ Loaded {len(owners_df)} owners from database (FAST)")
+            print(f"[OK] Loaded {len(owners_df)} owners from database (FAST)")
             if 'owner_type' in owners_df.columns:
                 individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])
                 orgs = len(owners_df[owners_df['owner_type'] == 'ORGANIZATION'])
@@ -735,7 +740,7 @@ def load_data():
                 print("    python donor/owner_donor.py MODE=extract")
                 print("  (Make sure FILTER_STATE and FILTER_LIMIT are not set)")
         except Exception as e:
-            print(f"✗ Error loading owners database: {e}")
+            print(f"[FAIL] Error loading owners database: {e}")
             owners_df = pd.DataFrame()
     else:
         print(f"⚠ Owners database not found: {OWNERS_DB}")
@@ -756,9 +761,9 @@ def load_data():
                     donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"✓ Loaded {len(donations_df)} donation records (FAST - pre-processed)")
+            print(f"[OK] Loaded {len(donations_df)} donation records (FAST - pre-processed)")
         except Exception as e:
-            print(f"✗ Error loading donations: {e}")
+            print(f"[FAIL] Error loading donations: {e}")
             donations_df = pd.DataFrame()
     else:
         print(f"⚠ Donations database not found: {DONATIONS_DB}")
@@ -770,7 +775,7 @@ def load_data():
     try:
         committee_master = _load_committee_master()
         if committee_master:
-            print(f"✓ Loaded FEC committee master: {len(committee_master)} committees (for display/verification)")
+            print(f"[OK] Loaded FEC committee master: {len(committee_master)} committees (for display/verification)")
         else:
             print("  (No FEC committee master CSVs found; committee names from API/CSV only)")
     except Exception as e:
@@ -787,9 +792,9 @@ def load_data():
                     ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"✓ Loaded {len(ownership_df)} ownership records for facility details")
+            print(f"[OK] Loaded {len(ownership_df)} ownership records for facility details")
         except Exception as e:
-            print(f"✗ Error loading ownership: {e}")
+            print(f"[FAIL] Error loading ownership: {e}")
             ownership_df = pd.DataFrame()
     else:
         ownership_df = pd.DataFrame()
@@ -822,13 +827,13 @@ def load_data():
                         ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
                     except UnicodeDecodeError:
                         ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
-            print(f"✓ Loaded {len(ownership_raw_df)} raw ownership records for provider matching")
+            print(f"[OK] Loaded {len(ownership_raw_df)} raw ownership records for provider matching")
         except MemoryError as e:
-            print(f"✗ Memory error loading raw ownership file: {e}")
+            print(f"[FAIL] Memory error loading raw ownership file: {e}")
             print("  The file is very large. Consider using a smaller subset or increasing server memory.")
             ownership_raw_df = pd.DataFrame()
         except Exception as e:
-            print(f"✗ Error loading raw ownership file: {e}")
+            print(f"[FAIL] Error loading raw ownership file: {e}")
             import traceback
             traceback.print_exc()
             ownership_raw_df = pd.DataFrame()
@@ -884,9 +889,9 @@ def load_data():
             provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, 
                                           usecols=usecols_list,  # type: ignore
                                           nrows=None, encoding=encoding)
-            print(f"✓ Loaded {len(provider_info_df)} provider records")
+            print(f"[OK] Loaded {len(provider_info_df)} provider records")
         except Exception as e:
-            print(f"✗ Error loading provider info (trying full load): {e}")
+            print(f"[FAIL] Error loading provider info (trying full load): {e}")
             try:
                 try:
                     provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, encoding='utf-8')
@@ -895,9 +900,9 @@ def load_data():
                         provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, encoding='utf-8-sig')
                     except UnicodeDecodeError:
                         provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, encoding='latin-1')
-                print(f"✓ Loaded {len(provider_info_df)} provider records (full)")
+                print(f"[OK] Loaded {len(provider_info_df)} provider records (full)")
             except Exception as e2:
-                print(f"✗ Error loading provider info: {e2}")
+                print(f"[FAIL] Error loading provider info: {e2}")
                 provider_info_df = pd.DataFrame()
     
     # Load latest provider info with Legal Business Name (for facility matching)
@@ -912,7 +917,7 @@ def load_data():
                     provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"✓ Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
+            print(f"[OK] Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
             # Validate expected columns so renames/missing columns fail fast
             if not provider_info_latest_df.empty:
                 required = ['Legal Business Name']
@@ -924,7 +929,7 @@ def load_data():
                 if not has_state:
                     print(f"⚠ Provider info CSV has no state column (tried {state_cols}). Location state may be wrong.")
         except Exception as e:
-            print(f"✗ Error loading latest provider info: {e}")
+            print(f"[FAIL] Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()
     else:
         print(f"⚠ Latest provider info not found: {PROVIDER_INFO_LATEST}")
@@ -942,9 +947,9 @@ def load_data():
                     facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"✓ Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
+            print(f"[OK] Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
         except Exception as e:
-            print(f"✗ Error loading facility name mapping: {e}")
+            print(f"[FAIL] Error loading facility name mapping: {e}")
             facility_name_mapping_df = pd.DataFrame()
     else:
         print(f"⚠ Facility name mapping not found: {FACILITY_NAME_MAPPING}")
@@ -1694,17 +1699,32 @@ def search_by_committee(query, include_providers=False):
             'all_contributions': [],
             'all_contributions_total': 0,
         })
-    normalized_list = [normalize_fec_donation(r) for r in raw_donations]
+    try:
+        normalized_list = [normalize_fec_donation(r) for r in raw_donations]
+    except Exception as e:
+        print(f"[ERROR] normalize_fec_donation for committee {committee_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Could not process FEC data. Check server logs.'}), 500
     # Conduit layer: flag earmarked/conduit rows and attribute to ultimate recipient when possible
-    normalized_list = [add_conduit_attribution(d) for d in normalized_list]
-    conduit_diagnostics = compute_conduit_diagnostics(normalized_list)
+    try:
+        normalized_list = [add_conduit_attribution(d) for d in normalized_list]
+        conduit_diagnostics = compute_conduit_diagnostics(normalized_list)
+    except Exception as e:
+        print(f"[ERROR] conduit attribution for committee {committee_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': 'Could not process FEC data. Check server logs.'}), 500
     donor_to_amounts = {}
     donor_to_records = {}
     for d in normalized_list:
         name = (d.get('donor_name') or '').strip()
         if not name:
             continue
-        amt = float(d.get('donation_amount') or 0)
+        try:
+            amt = float(d.get('donation_amount') or 0)
+        except (TypeError, ValueError):
+            amt = 0
         donor_norm = normalize_name_for_matching(name)
         if donor_norm not in donor_to_amounts:
             donor_to_amounts[donor_norm] = 0
@@ -1795,6 +1815,11 @@ def search_by_committee(query, include_providers=False):
         best_row = None
         best_len = 0
         for onorm, r in lookup.items():
+            # Keys can be non-str from pandas (e.g. nan); coerce so _stem_org_name and len() don't crash
+            if onorm is None or (hasattr(onorm, "__float__") and pd.isna(onorm)):
+                continue
+            if not isinstance(onorm, str):
+                onorm = str(onorm).strip() or ""
             if not onorm or len(onorm) < MIN_SUBSTRING_LEN:
                 continue
             if onorm in _SUBSTRING_BLOCKLIST:
@@ -1820,260 +1845,270 @@ def search_by_committee(query, include_providers=False):
                     best_row = r
         return best_row
 
-    owner_name_norm_to_row = {}
-    for _, row in owners_df.iterrows():
-        onorm = normalize_name_for_matching(row.get('owner_name', ''))
-        oorig = normalize_name_for_matching(str(row.get('owner_name_original', '')))
-        stem = _stem_org_name(onorm) or (_stem_org_name(oorig) if oorig else "")
-        if not stem:
-            continue  # Exclude only when stem is empty (e.g. blocklisted "HEALTHCARE LLC"); do not exclude owners by generic stems
-        if onorm:
-            owner_name_norm_to_row[onorm] = row
-            # Space-stripped key so "PRUITT HEALTH" matches "PRUITTHEALTH CORPORATION" — skip if stem is generic or empty (HEALTHCARE LLC -> HEALTHCARELLC would match 603 and Northshore)
-            onorm_no_space = onorm.replace(' ', '')
-            if onorm_no_space and onorm_no_space != onorm and len(onorm_no_space) >= 6:
-                stem = _stem_org_name(onorm)
-                if stem and stem not in _SUBSTRING_BLOCKLIST:
-                    owner_name_norm_to_row[onorm_no_space] = row
-        if oorig and oorig != onorm:
-            owner_name_norm_to_row[oorig] = row
-            oorig_no_space = oorig.replace(' ', '')
-            if oorig_no_space and oorig_no_space != oorig and len(oorig_no_space) >= 6:
-                stem = _stem_org_name(oorig)
-                if stem and stem not in _SUBSTRING_BLOCKLIST:
-                    owner_name_norm_to_row[oorig_no_space] = row
-        # Stem keys: PRUITTHEALTH INC / PRUITTHEALTH CORPORATION -> PRUITTHEALTH so FEC "PRUITTHEALTH CORPORATION" matches CMS "PruittHealth Inc"
-        for n in (onorm, oorig):
-            if n:
-                stem = _stem_org_name(n)
-                if stem and stem not in owner_name_norm_to_row:
-                    owner_name_norm_to_row[stem] = row
-        # FEC uses "LAST, FIRST" -> normalized "LAST FIRST". For individuals with 2-word names, add that variant so direct lookup finds them (e.g. LANDA BENJAMIN -> Benjamin Landa).
-        owner_type = (row.get('owner_type') or '').strip().upper()
-        if owner_type == 'INDIVIDUAL' and onorm:
-            parts = onorm.split()
-            if len(parts) == 2:
-                last_first = f"{parts[1]} {parts[0]}"
-                if last_first != onorm:
-                    owner_name_norm_to_row[last_first] = row
-    def _get_cms_owner_location(associate_id_owner):
-        """Get first non-empty CITY - OWNER, STATE - OWNER from raw ownership for transparency comparison."""
-        if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:
-            return '', ''
-        pac = str(associate_id_owner).strip()
-        for col_id in ('ASSOCIATE ID - OWNER', 'Associate Id - Owner'):
-            if col_id not in ownership_raw_df.columns:
-                continue
-            matches = ownership_raw_df[ownership_raw_df[col_id].astype(str).str.strip() == pac]
-            for _, r in matches.iterrows():
-                city = str(r.get('CITY - OWNER', r.get('City - Owner', '')) or '').strip()
-                state = str(r.get('STATE - OWNER', r.get('State - Owner', '')) or '').strip()
-                if _empty_loc(city) and _empty_loc(state):
+    try:
+        owner_name_norm_to_row = {}
+        for _, row in owners_df.iterrows():
+            onorm = normalize_name_for_matching(row.get('owner_name', ''))
+            oorig = normalize_name_for_matching(str(row.get('owner_name_original', '')))
+            stem = _stem_org_name(onorm) or (_stem_org_name(oorig) if oorig else "")
+            if not stem:
+                continue  # Exclude only when stem is empty (e.g. blocklisted "HEALTHCARE LLC"); do not exclude owners by generic stems
+            if onorm:
+                owner_name_norm_to_row[onorm] = row
+                # Space-stripped key so "PRUITT HEALTH" matches "PRUITTHEALTH CORPORATION" — skip if stem is generic or empty (HEALTHCARE LLC -> HEALTHCARELLC would match 603 and Northshore)
+                onorm_no_space = onorm.replace(' ', '')
+                if onorm_no_space and onorm_no_space != onorm and len(onorm_no_space) >= 6:
+                    stem = _stem_org_name(onorm)
+                    if stem and stem not in _SUBSTRING_BLOCKLIST:
+                        owner_name_norm_to_row[onorm_no_space] = row
+            if oorig and oorig != onorm:
+                owner_name_norm_to_row[oorig] = row
+                oorig_no_space = oorig.replace(' ', '')
+                if oorig_no_space and oorig_no_space != oorig and len(oorig_no_space) >= 6:
+                    stem = _stem_org_name(oorig)
+                    if stem and stem not in _SUBSTRING_BLOCKLIST:
+                        owner_name_norm_to_row[oorig_no_space] = row
+            # Stem keys: PRUITTHEALTH INC / PRUITTHEALTH CORPORATION -> PRUITTHEALTH so FEC "PRUITTHEALTH CORPORATION" matches CMS "PruittHealth Inc"
+            for n in (onorm, oorig):
+                if n:
+                    stem = _stem_org_name(n)
+                    if stem and stem not in owner_name_norm_to_row:
+                        owner_name_norm_to_row[stem] = row
+            # FEC uses "LAST, FIRST" -> normalized "LAST FIRST". For individuals with 2-word names, add that variant so direct lookup finds them (e.g. LANDA BENJAMIN -> Benjamin Landa).
+            owner_type = (row.get('owner_type') or '').strip().upper()
+            if owner_type == 'INDIVIDUAL' and onorm:
+                parts = onorm.split()
+                if len(parts) == 2:
+                    last_first = f"{parts[1]} {parts[0]}"
+                    if last_first != onorm:
+                        owner_name_norm_to_row[last_first] = row
+        def _get_cms_owner_location(associate_id_owner):
+            """Get first non-empty CITY - OWNER, STATE - OWNER from raw ownership for transparency comparison."""
+            if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:
+                return '', ''
+            pac = str(associate_id_owner).strip()
+            for col_id in ('ASSOCIATE ID - OWNER', 'Associate Id - Owner'):
+                if col_id not in ownership_raw_df.columns:
                     continue
-                return (city if not _empty_loc(city) else '', state if not _empty_loc(state) else '')
-        return '', ''
+                matches = ownership_raw_df[ownership_raw_df[col_id].astype(str).str.strip() == pac]
+                for _, r in matches.iterrows():
+                    city = str(r.get('CITY - OWNER', r.get('City - Owner', '')) or '').strip()
+                    state = str(r.get('STATE - OWNER', r.get('State - Owner', '')) or '').strip()
+                    if _empty_loc(city) and _empty_loc(state):
+                        continue
+                    return (city if not _empty_loc(city) else '', state if not _empty_loc(state) else '')
+            return '', ''
 
-    owner_to_total = {}
-    owner_to_count = {}
-    owner_to_providers = {}
-    owner_to_display = {}
-    owner_to_name_norm = {}
-    owner_to_pac = {}
-    owner_to_type = {}
-    owner_to_first_record = {}
-    owner_to_contributions = {}  # key -> list of {amount, date} for hover
-    owner_to_cms_city = {}
-    owner_to_cms_state = {}
-    for donor_norm, total in donor_to_amounts.items():
-        owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
-        if owner_row is None:
-            continue
-        facilities_str = owner_row.get('facilities', '') or ''
-        facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
-        display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
-        # Use associate_id_owner (PAC) as key when available - internal ID for reliable deduplication
-        pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
-        key = pac if pac else owner_row.get('owner_name', '')
-        recs = donor_to_records.get(donor_norm, [])
-        if key not in owner_to_total:
-            owner_to_total[key] = 0
-            owner_to_count[key] = 0
-            owner_to_providers[key] = set()
-            owner_to_display[key] = display_name
-            owner_to_name_norm[key] = owner_row.get('owner_name', '')  # For API lookups (showOwnerDetails)
-            owner_to_pac[key] = pac  # associate_id_owner for soft connecting
-            owner_to_first_record[key] = recs[0] if recs else {}
-            owner_to_type[key] = str(owner_row.get('owner_type', '') or '').strip()
-            owner_to_contributions[key] = []
-            cms_c, cms_s = _get_cms_owner_location(pac)
-            owner_to_cms_city[key] = cms_c
-            owner_to_cms_state[key] = cms_s
-        owner_to_total[key] += total
-        owner_to_count[key] += len(recs)
-        for r in recs:
-            owner_to_contributions[key].append({'amount': r.get('amount', 0), 'date': r.get('date', '')})
-        for fac in facilities:
-            owner_to_providers[key].add(fac)
-    def _match_transparency_label(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state):
-        """Descriptive transparency label (name + location). Not a quality score—for user transparency only."""
-        name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
-        name_label = 'Exact name' if name_exact else 'Similar name'
-        fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
-        fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
-        cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
-        cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
-        # No CMS location data (empty, NAN, NA) ≠ "loc not in file"; treat as distinct for transparency
-        if not cc and not cs:
-            if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name or '', cms_name or ''):
-                return name_label  # MAGA Inc. only: Pruitt Health has loc in file; show name only
-            return f'{name_label}, no CMS loc'
-        if not fc and not fs:
-            return f'{name_label}, no FEC loc'
-        if fc == cc and fs == cs:
-            return 'Exact' if name_exact else f'{name_label}, same loc'
-        if fc == cc and fs != cs:
-            return f'{name_label}, diff state'
-        if fc != cc and fs == cs:
-            return f'{name_label}, diff city'
-        return f'{name_label}, diff loc'
-
-    owners_deduped = []
-    for k in owner_to_total:
-        fec_name = (owner_to_first_record.get(k) or {}).get('donor_name', '')
-        owner_display = owner_to_display[k]
-        row = {
-            'owner_name': owner_display,
-            'owner_name_normalized': owner_to_name_norm.get(k, k),
-            'total_contributed': owner_to_total[k],
-            'num_contributions': owner_to_count[k],
-            'linked_providers_count': len(owner_to_providers[k]),
-            'associate_id_owner': owner_to_pac.get(k, '') or '',
-            'contributor_city': (owner_to_first_record.get(k) or {}).get('donor_city', ''),
-            'contributor_state': (owner_to_first_record.get(k) or {}).get('donor_state', ''),
-            'contributor_employer': (owner_to_first_record.get(k) or {}).get('employer', ''),
-            'contributor_occupation': (owner_to_first_record.get(k) or {}).get('occupation', ''),
-            'ownership_facilities_preview': ', '.join(sorted(owner_to_providers[k])[:8]) if owner_to_providers[k] else '',
-            'contributor_fec_link': (owner_to_first_record.get(k) or {}).get('fec_link', ''),
-            'cms_owner_type': owner_to_type.get(k, '') or '',
-            'contributor_name_fec': fec_name or '',
-            'contributions_list': owner_to_contributions.get(k, []),
-            'cms_owner_city': _display_na(owner_to_cms_city.get(k, '')),
-            'cms_owner_state': _display_na(owner_to_cms_state.get(k, '')),
-            'match_transparency': _match_transparency_label(
-                fec_name,
-                owner_display,
-                (owner_to_first_record.get(k) or {}).get('donor_city', ''),
-                (owner_to_first_record.get(k) or {}).get('donor_state', ''),
-                owner_to_cms_city.get(k, ''),
-                owner_to_cms_state.get(k, ''),
-            ),
-            **_compute_match_score(
-                fec_name,
-                owner_display,
-                (owner_to_first_record.get(k) or {}).get('donor_city', ''),
-                (owner_to_first_record.get(k) or {}).get('donor_state', ''),
-                owner_to_cms_city.get(k, ''),
-                owner_to_cms_state.get(k, ''),
-            ),
-        }
-        if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name, owner_display):
-            row['match_band'] = 'High'
-        owners_deduped.append(row)
-    owners_deduped.sort(key=lambda x: -x['total_contributed'])
-    # Split: high-confidence (included in total) vs low-match (separate table, not in total). Exclude known different-person matches (e.g. tech Gregory Brockman for MAGA Inc.).
-    LOW_BANDS = frozenset({'Low', 'Very Low'})
-    owners_high = []
-    owners_low = []
-    for o in owners_deduped:
-        display = (o.get('owner_name') or '').strip()
-        if _is_excluded_different_person(display, committee_name, committee_id):
-            continue
-        band = (o.get('match_band') or '').strip()
-        if band in LOW_BANDS:
-            owners_low.append(o)
-        else:
-            owners_high.append(o)
-    providers_result = _compute_providers_from_owners(owners_high) if include_providers else []
-    raw_contributions = []
-    for donor_norm, recs in donor_to_records.items():
-        if _find_owner_row(donor_norm, owner_name_norm_to_row) is None:
-            continue
-        for r in recs:
-            raw_contributions.append(r)
-    raw_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
-    # All contributions (nursing home and not) with flag for "likely nursing home–linked" (name match) and match score when linked
-    all_contributions = []
-    for d in normalized_list:
-        name = (d.get('donor_name') or '').strip()
-        if not name:
-            continue
-        donor_norm = normalize_name_for_matching(name)
-        owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
-        matched = owner_row is not None
-        rec = {
-            'donor_name': name,
-            'amount': float(d.get('donation_amount') or 0),
-            'date': d.get('donation_date', ''),
-            'committee_name': committee_name or committee_id,
-            'committee_id': committee_id,
-            'employer': d.get('employer', ''),
-            'occupation': d.get('occupation', ''),
-            'donor_city': d.get('donor_city', ''),
-            'donor_state': d.get('donor_state', ''),
-            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
-            'likely_nursing_home_linked': matched,
-            'owner_name': '',
-            'linked_providers_count': 0,
-            'donation_attribution_type': d.get('donation_attribution_type', 'direct'),
-            'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
-            'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
-        }
-        if matched and owner_row is not None:
+        owner_to_total = {}
+        owner_to_count = {}
+        owner_to_providers = {}
+        owner_to_display = {}
+        owner_to_name_norm = {}
+        owner_to_pac = {}
+        owner_to_type = {}
+        owner_to_first_record = {}
+        owner_to_contributions = {}  # key -> list of {amount, date} for hover
+        owner_to_cms_city = {}
+        owner_to_cms_state = {}
+        for donor_norm, total in donor_to_amounts.items():
+            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+            if owner_row is None:
+                continue
+            facilities_str = owner_row.get('facilities', '') or ''
+            facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
+            display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
+            # Use associate_id_owner (PAC) as key when available - internal ID for reliable deduplication
             pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
-            key = pac or owner_row.get('owner_name', '')
-            cms_name = owner_to_display.get(key, '')
-            cms_city = owner_to_cms_city.get(key, '')
-            cms_state = owner_to_cms_state.get(key, '')
-            rec['owner_name'] = cms_name
-            rec['linked_providers_count'] = len(owner_to_providers.get(key, set()))
-            rec.update(_compute_match_score(
-                name, cms_name,
-                d.get('donor_city', ''), d.get('donor_state', ''),
-                cms_city, cms_state,
-            ))
-        all_contributions.append(rec)
-    all_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
-    total_nursing_linked = sum(o['total_contributed'] for o in owners_high)
-    total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
-    return jsonify({
-        'committee': {
-            'name': committee_name or committee_id,
-            'id': committee_id,
-            'type': committee_type,
-            'election_cycles': [],
-            'total_nursing_home_linked': round(total_nursing_linked, 2),
-            'total_fec_contributions': len(normalized_list),
-            'total_fec_donors': len(donor_to_amounts),
-            'total_fec_amount': round(total_fec, 2),
-            'years_included': years_included,
-            'data_source': data_source,
-            'data_source_label': 'FEC Bulk Data' if data_source == 'bulk' else 'FEC API',
-            'bulk_last_updated': bulk_last_updated,
-            'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
-            'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
-            'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
-            'scope_note': None,
-            'excluded_brockman_note': None,
-            'conduit_diagnostics': conduit_diagnostics,
-        },
-        'owners': owners_high,
-        'owners_low': owners_low,
-        'providers': providers_result,
-        'raw_contributions': raw_contributions[:500],
-        'raw_contributions_total': len(raw_contributions),
-        'all_contributions': all_contributions[:2000],
-        'all_contributions_total': len(all_contributions),
-    })
+            key = pac if pac else owner_row.get('owner_name', '')
+            recs = donor_to_records.get(donor_norm, [])
+            if key not in owner_to_total:
+                owner_to_total[key] = 0
+                owner_to_count[key] = 0
+                owner_to_providers[key] = set()
+                owner_to_display[key] = display_name
+                owner_to_name_norm[key] = owner_row.get('owner_name', '')  # For API lookups (showOwnerDetails)
+                owner_to_pac[key] = pac  # associate_id_owner for soft connecting
+                owner_to_first_record[key] = recs[0] if recs else {}
+                owner_to_type[key] = str(owner_row.get('owner_type', '') or '').strip()
+                owner_to_contributions[key] = []
+                cms_c, cms_s = _get_cms_owner_location(pac)
+                owner_to_cms_city[key] = cms_c
+                owner_to_cms_state[key] = cms_s
+            owner_to_total[key] += total
+            owner_to_count[key] += len(recs)
+            for r in recs:
+                owner_to_contributions[key].append({'amount': r.get('amount', 0), 'date': r.get('date', '')})
+            for fac in facilities:
+                owner_to_providers[key].add(fac)
+        def _match_transparency_label(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state):
+            """Descriptive transparency label (name + location). Not a quality score—for user transparency only."""
+            name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
+            name_label = 'Exact name' if name_exact else 'Similar name'
+            fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
+            fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
+            cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
+            cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
+            # No CMS location data (empty, NAN, NA) ≠ "loc not in file"; treat as distinct for transparency
+            if not cc and not cs:
+                if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name or '', cms_name or ''):
+                    return name_label  # MAGA Inc. only: Pruitt Health has loc in file; show name only
+                return f'{name_label}, no CMS loc'
+            if not fc and not fs:
+                return f'{name_label}, no FEC loc'
+            if fc == cc and fs == cs:
+                return 'Exact' if name_exact else f'{name_label}, same loc'
+            if fc == cc and fs != cs:
+                return f'{name_label}, diff state'
+            if fc != cc and fs == cs:
+                return f'{name_label}, diff city'
+            return f'{name_label}, diff loc'
+
+        owners_deduped = []
+        for k in owner_to_total:
+            fec_name = (owner_to_first_record.get(k) or {}).get('donor_name', '')
+            owner_display = owner_to_display[k]
+            row = {
+                'owner_name': owner_display,
+                'owner_name_normalized': owner_to_name_norm.get(k, k),
+                'total_contributed': owner_to_total[k],
+                'num_contributions': owner_to_count[k],
+                'linked_providers_count': len(owner_to_providers[k]),
+                'associate_id_owner': owner_to_pac.get(k, '') or '',
+                'contributor_city': (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+                'contributor_state': (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+                'contributor_employer': (owner_to_first_record.get(k) or {}).get('employer', ''),
+                'contributor_occupation': (owner_to_first_record.get(k) or {}).get('occupation', ''),
+                'ownership_facilities_preview': ', '.join(sorted(owner_to_providers[k])[:8]) if owner_to_providers[k] else '',
+                'contributor_fec_link': (owner_to_first_record.get(k) or {}).get('fec_link', ''),
+                'cms_owner_type': owner_to_type.get(k, '') or '',
+                'contributor_name_fec': fec_name or '',
+                'contributions_list': owner_to_contributions.get(k, []),
+                'cms_owner_city': _display_na(owner_to_cms_city.get(k, '')),
+                'cms_owner_state': _display_na(owner_to_cms_state.get(k, '')),
+                'match_transparency': _match_transparency_label(
+                    fec_name,
+                    owner_display,
+                    (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+                    (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+                    owner_to_cms_city.get(k, ''),
+                    owner_to_cms_state.get(k, ''),
+                ),
+                **_compute_match_score(
+                    fec_name,
+                    owner_display,
+                    (owner_to_first_record.get(k) or {}).get('donor_city', ''),
+                    (owner_to_first_record.get(k) or {}).get('donor_state', ''),
+                    owner_to_cms_city.get(k, ''),
+                    owner_to_cms_state.get(k, ''),
+                ),
+            }
+            if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name, owner_display):
+                row['match_band'] = 'High'
+            owners_deduped.append(row)
+        owners_deduped.sort(key=lambda x: -x['total_contributed'])
+        # Split: high-confidence (included in total) vs low-match (separate table, not in total). Exclude known different-person matches (e.g. tech Gregory Brockman for MAGA Inc.).
+        LOW_BANDS = frozenset({'Low', 'Very Low'})
+        owners_high = []
+        owners_low = []
+        for o in owners_deduped:
+            display = (o.get('owner_name') or '').strip()
+            if _is_excluded_different_person(display, committee_name, committee_id):
+                continue
+            band = (o.get('match_band') or '').strip()
+            if band in LOW_BANDS:
+                owners_low.append(o)
+            else:
+                owners_high.append(o)
+        providers_result = _compute_providers_from_owners(owners_high) if include_providers else []
+        raw_contributions = []
+        for donor_norm, recs in donor_to_records.items():
+            if _find_owner_row(donor_norm, owner_name_norm_to_row) is None:
+                continue
+            for r in recs:
+                raw_contributions.append(r)
+        raw_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
+        # All contributions (nursing home and not) with flag for "likely nursing home–linked" (name match) and match score when linked
+        all_contributions = []
+        for d in normalized_list:
+            name = (d.get('donor_name') or '').strip()
+            if not name:
+                continue
+            donor_norm = normalize_name_for_matching(name)
+            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+            matched = owner_row is not None
+            try:
+                amount_val = float(d.get('donation_amount') or 0)
+            except (TypeError, ValueError):
+                amount_val = 0
+            rec = {
+                'donor_name': name,
+                'amount': amount_val,
+                'date': d.get('donation_date', ''),
+                'committee_name': committee_name or committee_id,
+                'committee_id': committee_id,
+                'employer': d.get('employer', ''),
+                'occupation': d.get('occupation', ''),
+                'donor_city': d.get('donor_city', ''),
+                'donor_state': d.get('donor_state', ''),
+                'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
+                'likely_nursing_home_linked': matched,
+                'owner_name': '',
+                'linked_providers_count': 0,
+                'donation_attribution_type': d.get('donation_attribution_type', 'direct'),
+                'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
+                'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
+            }
+            if matched and owner_row is not None:
+                pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
+                key = pac or owner_row.get('owner_name', '')
+                cms_name = owner_to_display.get(key, '')
+                cms_city = owner_to_cms_city.get(key, '')
+                cms_state = owner_to_cms_state.get(key, '')
+                rec['owner_name'] = cms_name
+                rec['linked_providers_count'] = len(owner_to_providers.get(key, set()))
+                rec.update(_compute_match_score(
+                    name, cms_name,
+                    d.get('donor_city', ''), d.get('donor_state', ''),
+                    cms_city, cms_state,
+                ))
+            all_contributions.append(rec)
+        all_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
+        total_nursing_linked = sum(o['total_contributed'] for o in owners_high)
+        total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
+        return jsonify({
+            'committee': {
+                'name': committee_name or committee_id,
+                'id': committee_id,
+                'type': committee_type,
+                'election_cycles': [],
+                'total_nursing_home_linked': round(total_nursing_linked, 2),
+                'total_fec_contributions': len(normalized_list),
+                'total_fec_donors': len(donor_to_amounts),
+                'total_fec_amount': round(total_fec, 2),
+                'years_included': years_included,
+                'data_source': data_source,
+                'data_source_label': 'FEC Bulk Data' if data_source == 'bulk' else 'FEC API',
+                'bulk_last_updated': bulk_last_updated,
+                'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
+                'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
+                'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
+                'scope_note': None,
+                'excluded_brockman_note': None,
+                'conduit_diagnostics': conduit_diagnostics,
+            },
+            'owners': owners_high,
+            'owners_low': owners_low,
+            'providers': providers_result,
+            'raw_contributions': raw_contributions[:500],
+            'raw_contributions_total': len(raw_contributions),
+            'all_contributions': all_contributions[:2000],
+            'all_contributions_total': len(all_contributions),
+        })
+    except Exception as e:
+        print(f"[ERROR] committee response build for {committee_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Could not build committee results: {str(e)}. Check server logs.'}), 500
 
 
 def search_by_provider(query):

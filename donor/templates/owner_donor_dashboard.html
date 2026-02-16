@@ -718,6 +718,12 @@
             border-color: rgba(102,126,234,0.7);
             color: #fff;
         }
+        .fec-source-link .fec-source-desktop { display: none; }
+        .fec-source-link .fec-source-mobile { display: inline; }
+        @media (min-width: 769px) {
+            .fec-source-link .fec-source-desktop { display: inline; }
+            .fec-source-link .fec-source-mobile { display: none; }
+        }
         
         .donor-info-trigger {
             cursor: pointer;
@@ -814,9 +820,6 @@
             }
             #committeeContributorsTable thead tr th.committee-col-fec {
                 background: rgba(102, 126, 234, 0.25);
-            }
-            .committee-col-count {
-                display: none !important;
             }
             .committee-mobile-cards {
                 display: none !important;
@@ -1449,6 +1452,7 @@
         
         function positionDonorPopup(el, wrap) {
             const pad = 8;
+            const margin = 10;
             if (isMobile()) {
                 el.style.left = '50%';
                 el.style.top = '50%';
@@ -1459,7 +1463,7 @@
                 const viewportBottom = window.innerHeight - 20;
                 const spaceAbove = r.top - 20;
                 const spaceBelow = viewportBottom - r.bottom;
-                const centerX = Math.max(10, Math.min(window.innerWidth - 10, r.left + r.width / 2));
+                let centerX = r.left + r.width / 2;
                 el.style.left = centerX + 'px';
                 if (spaceBelow >= popupHeight + pad || spaceBelow >= spaceAbove) {
                     el.style.top = (r.bottom + pad) + 'px';
@@ -1467,6 +1471,17 @@
                 } else {
                     el.style.top = (r.top - pad) + 'px';
                     el.style.transform = 'translate(-50%, -100%)';
+                }
+                el.classList.add('show');
+                const pr = el.getBoundingClientRect();
+                el.classList.remove('show');
+                let leftPx = centerX;
+                if (pr.left < margin) {
+                    leftPx = margin + (el.offsetWidth || pr.width) / 2;
+                    el.style.left = leftPx + 'px';
+                } else if (pr.right > window.innerWidth - margin) {
+                    leftPx = window.innerWidth - margin - (el.offsetWidth || pr.width) / 2;
+                    el.style.left = leftPx + 'px';
                 }
             }
         }
@@ -1627,7 +1642,7 @@
         const placeholderExamplesByType = {
             all: ['PruittHealth', 'Ensign Services'],
             provider: ['Hammonton Center', '315209'],
-            committee: ['MAGA Inc.', 'C00409730']
+            committee: ['MAGA Inc.', 'Schumer Majority Committee']
         };
         let typingPlaceholderState = { exampleIndex: 0, phase: 'typing', charIndex: 0, pauseUntil: 0 };
         let typingPlaceholderInterval = null;
@@ -1906,14 +1921,15 @@
                 };
                 // Same format as formatAddress: "Blue Ash, OH" (consistent in FEC and CMS)
                 const formatAddressShort = (city, state) => formatAddress(city, state) === '—' ? '' : formatAddress(city, state);
-                const ownersCsvHeader = ['FEC Contributor', 'Owner (CMS)', 'Address (FEC)', 'Match (transparency)', 'Match score', 'Match band', 'Name score', 'Geo score', 'Exact bonus', 'Total Amount', 'Number of Contributions', 'Linked Providers', 'Providers URL', 'Committee ID', 'Committee Name', 'Employer', 'Occupation', 'CMS owner type', 'FEC link'];
+                const ownersCsvHeader = ['FEC Contributor', 'Owner (CMS)', 'Match (transparency)', 'Match score', 'Match band', 'Name score', 'Geo score', 'Exact bonus', 'Total Amount', 'Linked Providers', 'Providers URL', 'Committee ID', 'Committee Name', 'Employer', 'Occupation', 'CMS owner type', 'FEC link'];
                 const ownersCsv = [ownersCsvHeader].concat(owners.map(o => {
                     const addr = formatAddress(o.contributor_city, o.contributor_state);
                     const fecName = ((o.contributor_name_fec || '').trim()) || '';
+                    const fecContributorCsv = (addr && addr !== 'N/A') ? (fecName + ' (' + addr + ')') : fecName;
                     const ownerNameRaw = (o.owner_name || '').trim() || '';
                     const ownerName = (!ownerNameRaw || String(ownerNameRaw).toLowerCase() === 'nan') ? 'N/A' : ownerNameRaw;
                     const providersUrl = (o.linked_providers_count > 0 && ownerName !== 'N/A') ? (window.location.origin + '/owners?owner=' + encodeURIComponent(ownerName)) : '';
-                    return [fecName, ownerName, addr || '', o.match_transparency || '', o.match_score ?? '', o.match_band || '', o.name_score ?? '', o.geo_score ?? '', o.exact_bonus ?? '', Math.round(Number(o.total_contributed) || 0), o.num_contributions, o.linked_providers_count, providersUrl, committee.id || '', committee.name || '', o.contributor_employer || '', o.contributor_occupation || '', (o.cms_owner_type && String(o.cms_owner_type).toLowerCase() !== 'nan' ? o.cms_owner_type : '') || '', o.contributor_fec_link || ''];
+                    return [fecContributorCsv, ownerName, o.match_transparency || '', o.match_score ?? '', o.match_band || '', o.name_score ?? '', o.geo_score ?? '', o.exact_bonus ?? '', Math.round(Number(o.total_contributed) || 0), o.linked_providers_count, providersUrl, committee.id || '', committee.name || '', o.contributor_employer || '', o.contributor_occupation || '', (o.cms_owner_type && String(o.cms_owner_type).toLowerCase() !== 'nan' ? o.cms_owner_type : '') || '', o.contributor_fec_link || ''];
                 }));
                 const ownersCsvBlob = new Blob([ownersCsv.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
                 const ownersCsvUrl = URL.createObjectURL(ownersCsvBlob);
@@ -1922,7 +1938,7 @@
                 html += `<a href="${fecReceiptsUrlForTable}" target="_blank" rel="noopener" class="committee-export-desktop" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem; margin-right: 1rem;">View committee receipts on FEC</a>`;
                 html += `<div class="committee-export-mobile-wrap"><a href="${ownersCsvUrl}" download="committee_contributors.csv" class="committee-export-mobile">Export contributors CSV</a>`;
                 html += `<a href="${fecReceiptsUrlForTable}" target="_blank" rel="noopener" class="committee-export-mobile">View receipts on FEC</a></div>`;
-                html += `<div class="committee-contributors-wrap"><table id="committeeContributorsTable" class="facilities-table committee-sortable-table committee-table-desktop" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th class="committee-sort committee-col-fec" data-sort="name" style="padding: 0.75rem; text-align: left; cursor: pointer; user-select: none;"><span class="committee-th-name-desktop">FEC Contributor</span><span class="committee-th-name-mobile">Contributor (FEC)</span></th><th style="padding: 0.75rem; text-align: left;">Owner (CMS)</th><th style="padding: 0.75rem; text-align: left;">Address (FEC)</th><th style="padding: 0.75rem; text-align: left;">Match</th><th class="committee-sort" data-sort="amount" style="padding: 0.75rem; text-align: right; cursor: pointer; user-select: none;">Total Contributed</th><th class="committee-sort committee-col-count" data-sort="count" style="padding: 0.75rem; text-align: right; cursor: pointer; user-select: none;"># Contributions</th><th class="committee-sort" data-sort="providers" style="padding: 0.75rem; text-align: right; cursor: pointer; user-select: none;">Linked Providers</th></tr></thead><tbody>`;
+                html += `<div class="committee-contributors-wrap"><table id="committeeContributorsTable" class="facilities-table committee-sortable-table committee-table-desktop" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th class="committee-sort committee-col-fec" data-sort="name" style="padding: 0.75rem; text-align: left; cursor: pointer; user-select: none;"><span class="committee-th-name-desktop">FEC Contributor</span><span class="committee-th-name-mobile">Contributor (FEC)</span></th><th style="padding: 0.75rem; text-align: left;">Owner (CMS)</th><th style="padding: 0.75rem; text-align: left;">Match</th><th class="committee-sort" data-sort="amount" style="padding: 0.75rem; text-align: right; cursor: pointer; user-select: none;">Total Contributed</th><th class="committee-sort" data-sort="providers" style="padding: 0.75rem; text-align: right; cursor: pointer; user-select: none;">Linked Providers</th></tr></thead><tbody>`;
                 let cardsHtml = '';
                 owners.forEach(o => {
                     const touch = 'ontouchstart' in window;
@@ -1964,13 +1980,16 @@
                     const amountUid = 'amount-popup-' + Math.random().toString(36).slice(2);
                     const amountPopupHtml = contribs.length ? '<div style="font-size: 0.85rem; line-height: 1.4;">' + contribs.map(c => '$' + Number(c.amount || 0).toLocaleString(undefined, {maximumFractionDigits: 0}) + (c.date ? ' (' + c.date + ')' : '')).join('<br>') + '</div>' : '';
                     const amountHoverOn = contribs.length && !touch ? (' onmouseenter="showDonorPopup(\'' + amountUid + '\')" onmouseleave="hideDonorPopup(\'' + amountUid + '\')"') : '';
-                    const amountCell = contribs.length ? '<span class="donor-info-wrap" style="position:relative;display:inline-block;"' + amountHoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contribution details" onclick="event.stopPropagation(); toggleDonorPopup(\'' + amountUid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + amountUid + '\')}" style="cursor: pointer;">' + formatCommitteeAmount(o.total_contributed) + '</span><div id="' + amountUid + '" class="donor-popup">' + amountPopupHtml + '</div></span>' : formatCommitteeAmount(o.total_contributed);
+                    const amountDisplay = formatCommitteeAmount(o.total_contributed) + (contribs.length > 1 ? ' (' + contribs.length + ')' : '');
+                    const amountCell = contribs.length ? '<span class="donor-info-wrap" style="position:relative;display:inline-block;"' + amountHoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contribution details" onclick="event.stopPropagation(); toggleDonorPopup(\'' + amountUid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + amountUid + '\')}" style="cursor: pointer;">' + amountDisplay + '</span><div id="' + amountUid + '" class="donor-popup">' + amountPopupHtml + '</div></span>' : amountDisplay;
                     const providersUrl = cmsName !== 'N/A' ? ('/owners?owner=' + encodeURIComponent(o.owner_name || '')) : '';
                     const providersCell = (o.linked_providers_count > 0 && providersUrl) ? '<a href="' + escapeHtml(providersUrl) + '" target="_blank" rel="noopener" style="color: #667eea; font-weight: 500;" title="Open providers in new tab">' + o.linked_providers_count + '</a>' : String(o.linked_providers_count);
-                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td class="committee-col-fec" style="padding: 0.75rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOn}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uid}')}" style="cursor: pointer;">${escapeHtml(fecName || '—')}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span></td><td style="padding: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.9);">${escapeHtml(cmsName || '—')}</td><td style="padding: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.8);">${escapeHtml(addr)}</td><td style="padding: 0.75rem; font-size: 0.8rem; color: rgba(255,255,255,0.85);" data-transparency="${escapeHtml(matchLabel)}">${matchCellContent}</td><td style="padding: 0.75rem; text-align: right;" data-amount="${Number(o.total_contributed) || 0}">${amountCell}</td><td class="committee-col-count" style="padding: 0.75rem; text-align: right;" data-count="${o.num_contributions}">${o.num_contributions}</td><td style="padding: 0.75rem; text-align: right;" data-providers="${o.linked_providers_count}">${providersCell}</td></tr>`;
+                    const fecSourceLink = (o.contributor_fec_link && o.contributor_fec_link.trim()) ? ' <a href="' + escapeHtml(o.contributor_fec_link.trim()) + '" target="_blank" rel="noopener" class="donor-source-btn fec-source-link" title="View FEC filing"><span class="fec-source-desktop">View on FEC</span><span class="fec-source-mobile">Source</span></a>' : '';
+                    const fecDisplay = (addr && addr !== 'N/A') ? (fecName + ' (' + addr + ')') : (fecName || '—');
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td class="committee-col-fec" style="padding: 0.75rem;"><span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOn}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uid}')}" style="cursor: pointer;">${escapeHtml(fecDisplay)}</span><div id="${uid}" class="donor-popup">${popupHtml}</div></span>${fecSourceLink}</td><td style="padding: 0.75rem; font-size: 0.9rem; color: rgba(255,255,255,0.9);">${escapeHtml(cmsName || '—')}</td><td style="padding: 0.75rem; font-size: 0.8rem; color: rgba(255,255,255,0.85);" data-transparency="${escapeHtml(matchLabel)}">${matchCellContent}</td><td style="padding: 0.75rem; text-align: right;" data-amount="${Number(o.total_contributed) || 0}">${amountCell}</td><td style="padding: 0.75rem; text-align: right;" data-providers="${o.linked_providers_count}">${providersCell}</td></tr>`;
                     const hoverOnM = touch ? '' : (' onmouseenter="showDonorPopup(\'' + uidM + '\')" onmouseleave="hideDonorPopup(\'' + uidM + '\')"');
                     const provLink = (o.linked_providers_count > 0 && providersUrl) ? '<a href="' + escapeHtml(providersUrl) + '" target="_blank" rel="noopener" style="color: #667eea;">' + o.linked_providers_count + ' prov</a>' : (o.linked_providers_count + ' prov');
-                    cardsHtml += `<div class="committee-card" data-amount="${Number(o.total_contributed) || 0}" data-count="${o.num_contributions}" data-providers="${o.linked_providers_count}"><div class="committee-card-name"><span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOnM}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uidM}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uidM}')}" style="cursor: pointer;">${escapeHtml(fecName || '—')}</span><div id="${uidM}" class="donor-popup">${popupHtml}</div></span></div><div class="committee-card-meta">Owner: ${escapeHtml(cmsName || '—')}${addr ? ' · ' + escapeHtml(addr) : ''}</div><div class="committee-card-row2"><span class="committee-card-match">${matchCellContent}</span><span>${formatCommitteeAmount(o.total_contributed)}</span><span>${o.num_contributions} contrib</span><span>${provLink}</span></div></div>`;
+                    cardsHtml += `<div class="committee-card" data-amount="${Number(o.total_contributed) || 0}" data-count="${o.num_contributions}" data-providers="${o.linked_providers_count}"><div class="committee-card-name"><span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOnM}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup('${uidM}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${uidM}')}" style="cursor: pointer;">${escapeHtml(fecDisplay)}</span><div id="${uidM}" class="donor-popup">${popupHtml}</div></span>${fecSourceLink}</div><div class="committee-card-meta">Owner: ${escapeHtml(cmsName || '—')}</div><div class="committee-card-row2"><span class="committee-card-match">${matchCellContent}</span><span>${amountDisplay}</span><span>${provLink}</span></div></div>`;
                 });
                 html += `</tbody></table><div id="committeeContributorsCards" class="committee-mobile-cards">${cardsHtml}</div></div>`;
             }
@@ -1986,7 +2005,7 @@
                 html += `<h3 style="margin: 2rem 0 0.75rem 0; color: rgba(255,255,255,0.9); font-size: 1.05rem;">Low-match contributions (not included in total)</h3>`;
                 html += `<p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0 0 0.5rem 0;">These name matches have low confidence and are not counted in the nursing home–linked total above.</p>`;
                 const formatAddressShortLow = (city, state) => { const a = formatAddress(city, state); return a === 'N/A' ? '' : a; };
-                html += `<div class="committee-contributors-wrap"><table class="facilities-table committee-table-desktop" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(255,255,255,0.08);"><th style="padding: 0.75rem; text-align: left;">FEC Contributor</th><th style="padding: 0.75rem; text-align: left;">Owner (CMS)</th><th style="padding: 0.75rem; text-align: left;">Address (FEC)</th><th style="padding: 0.75rem; text-align: left;">Match</th><th style="padding: 0.75rem; text-align: right;">Total Contributed</th><th style="padding: 0.75rem; text-align: right;"># Contributions</th><th style="padding: 0.75rem; text-align: right;">Linked Providers</th></tr></thead><tbody>`;
+                html += `<div class="committee-contributors-wrap"><table class="facilities-table committee-table-desktop" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(255,255,255,0.08);"><th style="padding: 0.75rem; text-align: left;">FEC Contributor</th><th style="padding: 0.75rem; text-align: left;">Owner (CMS)</th><th style="padding: 0.75rem; text-align: left;">Match</th><th style="padding: 0.75rem; text-align: right;">Total Contributed</th><th style="padding: 0.75rem; text-align: right;">Linked Providers</th></tr></thead><tbody>`;
                 ownersLow.forEach(o => {
                     const touch = 'ontouchstart' in window;
                     const addr = formatAddress(o.contributor_city, o.contributor_state);
@@ -2015,8 +2034,11 @@
                     if (o.linked_providers_count > 0) popupHtmlLow += '<br><span style="color: rgba(255,255,255,0.75); font-size: 0.8rem;">' + o.linked_providers_count + ' provider(s)</span>';
                     popupHtmlLow += '</div>';
                     const hoverOnLow = touch ? '' : (' onmouseenter="showDonorPopup(\'' + uidLow + '\')" onmouseleave="hideDonorPopup(\'' + uidLow + '\')"');
-                    const fecCellLow = '<span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOnLow + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup(\'' + uidLow + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uidLow + '\')}" style="cursor: pointer;">' + escapeHtml(fecName || '—') + '</span><div id="' + uidLow + '" class="donor-popup">' + popupHtmlLow + '</div></span>';
-                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.08);"><td class="committee-col-fec" style="padding: 0.75rem;">${fecCellLow}</td><td style="padding: 0.75rem; color: rgba(255,255,255,0.9);">${escapeHtml(cmsName || '—')}</td><td style="padding: 0.75rem; color: rgba(255,255,255,0.8);">${escapeHtml(addr)}</td><td style="padding: 0.75rem;">${matchPill}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(o.total_contributed)}</td><td style="padding: 0.75rem; text-align: right;">${o.num_contributions}</td><td style="padding: 0.75rem; text-align: right;">${providersCell}</td></tr>`;
+                    const fecDisplayLow = fecLoc ? (fecName + ' (' + fecLoc + ')') : (fecName || '—');
+                    const fecCellLow = '<span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOnLow + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation(); toggleDonorPopup(\'' + uidLow + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uidLow + '\')}" style="cursor: pointer;">' + escapeHtml(fecDisplayLow) + '</span><div id="' + uidLow + '" class="donor-popup">' + popupHtmlLow + '</div></span>';
+                    const fecSourceLinkLow = (o.contributor_fec_link && o.contributor_fec_link.trim()) ? ' <a href="' + escapeHtml(o.contributor_fec_link.trim()) + '" target="_blank" rel="noopener" class="donor-source-btn fec-source-link" title="View FEC filing"><span class="fec-source-desktop">View on FEC</span><span class="fec-source-mobile">Source</span></a>' : '';
+                    const amountDisplayLow = formatCommitteeAmount(o.total_contributed) + (o.num_contributions > 1 ? ' (' + o.num_contributions + ')' : '');
+                    html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.08);"><td class="committee-col-fec" style="padding: 0.75rem;">${fecCellLow}${fecSourceLinkLow}</td><td style="padding: 0.75rem; color: rgba(255,255,255,0.9);">${escapeHtml(cmsName || '—')}</td><td style="padding: 0.75rem;">${matchPill}</td><td style="padding: 0.75rem; text-align: right;">${amountDisplayLow}</td><td style="padding: 0.75rem; text-align: right;">${providersCell}</td></tr>`;
                 });
                 html += `</tbody></table></div>`;
             }
@@ -2508,7 +2530,7 @@
                 return word;
             }).join(' ');
         }
-        // Committee/recipient title case: WinRed/ActBlue as-is; acronyms (NRSC, DSCC, PAC, MAGA, HMP) stay all caps
+        // Committee/recipient title case: WinRed/ActBlue as-is; acronyms (NRSC, USA, etc.) and state abbrevs (NY, CA) stay all caps
         function toTitleCaseCommittee(str) {
             if (!str) return '';
             const s = String(str).trim();
@@ -2516,7 +2538,10 @@
             if (lower === 'winred') return 'WinRed';
             if (lower === 'actblue') return 'ActBlue';
             if (['nrsc','dscc','pac','maga','dnc','rnc','hmp'].includes(lower) && s.length <= 6) return s.toUpperCase();
-            return toTitleCase(s);
+            const stateAbbrevs = 'al,ak,az,ar,ca,co,ct,de,fl,ga,hi,id,il,in,ia,ks,ky,la,me,md,ma,mi,mn,ms,mo,mt,ne,nv,nh,nj,nm,ny,nc,nd,oh,ok,or,pa,ri,sc,sd,tn,tx,ut,vt,va,wa,wv,wi,wy,dc'.split(',');
+            let r = toTitleCase(s).replace(/\busa\b/gi, 'USA');
+            stateAbbrevs.forEach(ab => { r = r.replace(new RegExp('\\b' + ab + '\\b', 'gi'), ab.toUpperCase()); });
+            return r;
         }
         // FEC individual-contributions contributor_name: for individuals "first last", for orgs the name (spaces as +)
         function fecContributorQuery(ownerName, ownerType) {

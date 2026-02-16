@@ -191,11 +191,19 @@ _SUBSTRING_BLOCKLIST = frozenset({
 
 def _stem_org_name(norm_str: str, min_len: int = 6) -> str:
     """Strip trailing legal suffixes from normalized name for matching (e.g. PRUITTHEALTH INC -> PRUITTHEALTH)."""
-    if norm_str is None or (hasattr(norm_str, "__float__") and pd.isna(norm_str)):
+    if norm_str is None:
         return ""
+    try:
+        if pd.isna(norm_str):
+            return ""
+    except (TypeError, ValueError):
+        pass
     if not isinstance(norm_str, str):
-        norm_str = str(norm_str)
-    norm_str = (norm_str or "").strip()
+        try:
+            norm_str = str(norm_str)
+        except Exception:
+            return ""
+    norm_str = norm_str.strip()
     if not norm_str:
         return ""
     words = norm_str.split()
@@ -216,7 +224,19 @@ def _stem_org_name(norm_str: str, min_len: int = 6) -> str:
 def _org_name_identifier(norm_str: str) -> str:
     """First word or first non-generic token (e.g. P20 from 'p20 holdings llc', ERP from 'erp holdings llc').
     Used to require substring matches to share the same identifier so ERP HOLDINGS does not match P20 HOLDINGS."""
-    if not norm_str or not isinstance(norm_str, str):
+    if norm_str is None:
+        return ""
+    try:
+        if pd.isna(norm_str):
+            return ""
+    except (TypeError, ValueError):
+        pass
+    if not isinstance(norm_str, str):
+        try:
+            norm_str = str(norm_str)
+        except Exception:
+            return ""
+    if not norm_str:
         return ""
     words = norm_str.split()
     for w in words:
@@ -308,7 +328,7 @@ def _geo_score(fec_city, fec_state, cms_city, cms_state) -> int:
         return 0
     if fc == cc and fs == cs:
         return 25
-    return 20  # same state only → Moderate when combined with name
+    return 20  # same state only -> Moderate when combined with name
 
 
 def _is_pruitthealth_match(fec_name: str, cms_name: str) -> bool:
@@ -734,7 +754,7 @@ def load_data():
             
             # Warn if database seems incomplete (likely filtered)
             if len(owners_df) < 1000:
-                print(f"\n⚠ WARNING: Only {len(owners_df)} owners loaded. This database appears incomplete.")
+                print(f"\n[WARN] WARNING: Only {len(owners_df)} owners loaded. This database appears incomplete.")
                 print("  It was likely created with a filter (e.g., FILTER_STATE=DE or FILTER_LIMIT).")
                 print("  To load ALL owners from the full 250k dataset, run:")
                 print("    python donor/owner_donor.py MODE=extract")
@@ -743,7 +763,7 @@ def load_data():
             print(f"[FAIL] Error loading owners database: {e}")
             owners_df = pd.DataFrame()
     else:
-        print(f"⚠ Owners database not found: {OWNERS_DB}")
+        print(f"[WARN] Owners database not found: {OWNERS_DB}")
         print("  Run 'python donor/owner_donor.py MODE=extract' to create it")
         owners_df = pd.DataFrame()
     
@@ -766,7 +786,7 @@ def load_data():
             print(f"[FAIL] Error loading donations: {e}")
             donations_df = pd.DataFrame()
     else:
-        print(f"⚠ Donations database not found: {DONATIONS_DB}")
+        print(f"[WARN] Donations database not found: {DONATIONS_DB}")
         print("  (Optional) Run 'python donor/owner_donor.py MODE=query' to pre-process donations")
         print("  Or use 'Query FEC API (Live)' button to query on-demand")
         donations_df = pd.DataFrame()
@@ -802,7 +822,7 @@ def load_data():
     # Warn if owners database seems incomplete
     if owners_df is not None and not owners_df.empty:
         if len(owners_df) < 1000:
-            print(f"\n⚠ WARNING: Only {len(owners_df)} owners loaded. This seems incomplete.")
+            print(f"\n[WARN] WARNING: Only {len(owners_df)} owners loaded. This seems incomplete.")
             print("  The owners database was likely created with a filter (e.g., FILTER_STATE=DE or FILTER_LIMIT).")
             print("  To load all owners, run: python donor/owner_donor.py MODE=extract (without filters)")
     
@@ -838,7 +858,7 @@ def load_data():
             traceback.print_exc()
             ownership_raw_df = pd.DataFrame()
     else:
-        print(f"⚠ Raw ownership file not found: {OWNERSHIP_RAW}")
+        print(f"[WARN] Raw ownership file not found: {OWNERSHIP_RAW}")
         print("  Provider search by name/CCN will have limited functionality")
         ownership_raw_df = pd.DataFrame()
     
@@ -925,14 +945,14 @@ def load_data():
                 missing = [c for c in required if c not in provider_info_latest_df.columns]
                 has_state = any(c in provider_info_latest_df.columns for c in state_cols)
                 if missing:
-                    print(f"⚠ Provider info CSV missing expected column(s): {missing}. Legal business name and matching may be wrong.")
+                    print(f"[WARN] Provider info CSV missing expected column(s): {missing}. Legal business name and matching may be wrong.")
                 if not has_state:
-                    print(f"⚠ Provider info CSV has no state column (tried {state_cols}). Location state may be wrong.")
+                    print(f"[WARN] Provider info CSV has no state column (tried {state_cols}). Location state may be wrong.")
         except Exception as e:
             print(f"[FAIL] Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()
     else:
-        print(f"⚠ Latest provider info not found: {PROVIDER_INFO_LATEST}")
+        print(f"[WARN] Latest provider info not found: {PROVIDER_INFO_LATEST}")
         provider_info_latest_df = pd.DataFrame()
     
     # Load pre-computed facility name mapping (if exists - speeds up matching)
@@ -952,7 +972,7 @@ def load_data():
             print(f"[FAIL] Error loading facility name mapping: {e}")
             facility_name_mapping_df = pd.DataFrame()
     else:
-        print(f"⚠ Facility name mapping not found: {FACILITY_NAME_MAPPING}")
+        print(f"[WARN] Facility name mapping not found: {FACILITY_NAME_MAPPING}")
         print("  Run 'python donor/create_facility_name_mapping.py' to create it (speeds up matching)")
         facility_name_mapping_df = pd.DataFrame()
     
@@ -1850,6 +1870,17 @@ def search_by_committee(query, include_providers=False):
         for _, row in owners_df.iterrows():
             onorm = normalize_name_for_matching(row.get('owner_name', ''))
             oorig = normalize_name_for_matching(str(row.get('owner_name_original', '')))
+            try:
+                if pd.isna(onorm) or pd.isna(oorig):
+                    continue
+            except Exception:
+                pass
+            if not isinstance(onorm, str):
+                onorm = str(onorm) if onorm is not None else ""
+            if not isinstance(oorig, str):
+                oorig = str(oorig) if oorig is not None else ""
+            if not onorm and not oorig:
+                continue
             stem = _stem_org_name(onorm) or (_stem_org_name(oorig) if oorig else "")
             if not stem:
                 continue  # Exclude only when stem is empty (e.g. blocklisted "HEALTHCARE LLC"); do not exclude owners by generic stems

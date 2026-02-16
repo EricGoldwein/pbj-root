@@ -1721,9 +1721,9 @@ def search_by_committee(query, include_providers=False):
             if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
                 raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
             elif cid_upper == MAGA_INC_ID:
-                # MAGA Inc.: fetch by year (3 pages/year) so we get Landa and stay under host timeout
+                # MAGA Inc.: fetch by year (2 pages/year) so we get Landa and stay under worker timeout on Render
                 raw_donations, years_included = query_donations_by_committee_chunked(
-                    committee_id, max_pages_per_period=3, years=[2026, 2025, 2024]
+                    committee_id, max_pages_per_period=2, years=[2026, 2025, 2024]
                 )
             else:
                 # Multi-page fetch; cap pages so total time stays under host timeout (~60s)
@@ -1894,15 +1894,13 @@ def search_by_committee(query, include_providers=False):
         donor_id = _org_name_identifier(donor_norm)
         best_row = None
         best_len = 0
-        for onorm, r in lookup.items():
-            # Skip NA/non-str keys so _stem_org_name and string ops never see pd.NA
+        # Cap iteration to avoid timeout: substring fallback is O(donors * keys); limit keys when huge
+        items_to_scan = list(lookup.items())
+        if len(items_to_scan) > 4000:
+            items_to_scan = items_to_scan[:4000]
+        for onorm, r in items_to_scan:
             if onorm is None:
                 continue
-            try:
-                if pd.isna(onorm):
-                    continue
-            except Exception:
-                pass
             if not isinstance(onorm, str):
                 try:
                     onorm = str(onorm).strip() if onorm is not None else ""

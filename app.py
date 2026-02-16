@@ -150,23 +150,11 @@ def report():
 # Owner Donor Dashboard - import and mount the app
 try:
     sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'donor'))
-    from owner_donor_dashboard import app as owner_app, load_data as load_owner_data  # type: ignore
+    from owner_donor_dashboard import app as owner_app  # type: ignore
     
-    # Load owner dashboard data on startup
-    # Wrap in try-except to prevent startup failure if data loading has issues
-    try:
-        print("Loading owner dashboard data (this may take a moment for large files)...")
-        load_owner_data()
-        print("✓ Owner donor dashboard data loaded")
-    except MemoryError as e:
-        print(f"⚠ Memory warning: Could not load all owner dashboard data: {e}")
-        print("  The app will still work but some features may be limited.")
-        print("  Consider using smaller data files or increasing server memory.")
-    except Exception as e:
-        print(f"⚠ Warning: Could not load owner dashboard data: {e}")
-        import traceback
-        traceback.print_exc()
-        print("  The app will still start but owner dashboard features may not work.")
+    # Owner dashboard data is loaded lazily on first /owners request (ensure_load_data)
+    # so gunicorn can bind and respond quickly for Render's port check; cm26 + FEC data
+    # can be heavy and was causing "No open ports" / slow startup.
     
     # Register owner app routes with /owner prefix using blueprint approach
     from flask import Blueprint

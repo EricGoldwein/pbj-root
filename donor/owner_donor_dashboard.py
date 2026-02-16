@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 import json
 import sys
+import threading
 # Add donor directory to path for imports
 donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
@@ -82,6 +83,26 @@ facility_name_mapping_df = None  # Pre-computed mapping
 entity_lookup_df = None
 donations_df = None
 facility_metrics_df = None
+
+# Lazy load: avoid blocking gunicorn startup (cm26 + FEC data can be heavy on Render)
+_owner_data_loaded = False
+_owner_data_lock = threading.Lock()
+
+
+def ensure_load_data():
+    """Load owner dashboard data once on first request. Keeps startup fast so Render detects the port."""
+    global _owner_data_loaded
+    with _owner_data_lock:
+        if _owner_data_loaded:
+            return
+        try:
+            load_data()
+            _owner_data_loaded = True
+        except Exception as e:
+            print(f"ensure_load_data failed: {e}")
+            import traceback
+            traceback.print_exc()
+
 
 def _display_na(val):
     """Return 'N/A' when value is missing, nan, or placeholder; else return string value for display."""
@@ -950,6 +971,12 @@ def load_data():
     else:
         print("No facility metrics file found. Performance data will not be available.")
         facility_metrics_df = pd.DataFrame()
+
+
+@app.before_request
+def _before_request_ensure_data():
+    """Lazy-load owner data on first request so gunicorn can bind and respond quickly (Render port check)."""
+    ensure_load_data()
 
 
 @app.route('/')

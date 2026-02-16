@@ -1,0 +1,8 @@
+# Render Blueprint: ensures the web service binds to PORT so Render detects the port.
+# See https://render.com/docs/web-services#port-binding
+services:
+  - type: web
+    name: pbj
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120

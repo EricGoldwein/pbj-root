@@ -150,8 +150,20 @@ def sanitize_for_json(obj):
 
 # Normalize name function (matches owner_donor.py)
 def normalize_name_for_matching(s):
-    """Normalize name for matching - same as owner_donor.py normalize_name"""
-    if pd.isna(s) or not s:
+    """Normalize name for matching - same as owner_donor.py normalize_name. Safe for pd.NA (never use 'not s' on NA)."""
+    if s is None:
+        return ""
+    try:
+        if pd.isna(s):
+            return ""
+    except Exception:
+        pass
+    if not isinstance(s, str):
+        try:
+            s = str(s)
+        except Exception:
+            return ""
+    if not s:
         return ""
     import re
     s = str(s).upper()
@@ -163,7 +175,19 @@ def normalize_name_for_matching(s):
 def _name_collapse_middle_initials(name):
     """Collapse middle initial(s) so 'MOSHE A STERN' -> 'MOSHE STERN' for search matching.
     Drops single-letter tokens and 'X.' style initials. Used so 'moshe stern' matches 'moshe a stern'."""
-    if pd.isna(name) or not name:
+    if name is None:
+        return ""
+    try:
+        if pd.isna(name):
+            return ""
+    except Exception:
+        pass
+    if not isinstance(name, str):
+        try:
+            name = str(name)
+        except Exception:
+            return ""
+    if not name:
         return ""
     s = str(name).upper().strip()
     parts = s.split()
@@ -247,7 +271,17 @@ def _org_name_identifier(norm_str: str) -> str:
 
 def _identifier_appears_as_word(identifier: str, norm_str: str) -> bool:
     """True only if identifier appears as a whole word in norm_str (not inside another word).
-    So 'care' in 'healthcare management' is False; 'care' in 'care management' is True."""
+    So 'care' in 'healthcare management' is False; 'care' in 'care management' is True.
+    Safe for pd.NA: never use 'not x' on values that might be NA."""
+    if identifier is None or norm_str is None:
+        return False
+    try:
+        if pd.isna(identifier) or pd.isna(norm_str):
+            return False
+    except Exception:
+        pass
+    if not isinstance(identifier, str) or not isinstance(norm_str, str):
+        return False
     if not identifier or not norm_str:
         return False
     pattern = r"(^|\s)" + re.escape(identifier) + r"(\s|$)"
@@ -1584,14 +1618,15 @@ def search_by_committee_endpoint():
     """Search by committee: committee -> donors -> owners (providers lazy-loaded)."""
     try:
         query = request.args.get('q', '').strip()
+        print("[COMMITTEE_SEARCH] q=%r" % (query,))
         if not query or len(query) < 2:
             return jsonify({'error': 'Please enter at least 2 characters'}), 400
         include_providers = request.args.get('include_providers', '0').lower() in ('1', 'true', 'yes')
         result = search_by_committee(query, include_providers=include_providers)
         return result
     except Exception as e:
-        print(f"Error in search_by_committee_endpoint: {e}")
         import traceback
+        print("[COMMITTEE_SEARCH_500] %s" % e)
         traceback.print_exc()
         err_msg = str(e)
         if 'timeout' in err_msg.lower() or 'timed out' in err_msg.lower():
@@ -1767,11 +1802,19 @@ def search_by_committee(query, include_providers=False):
         })
     def _find_owner_row(donor_norm, lookup):
         """Match donor to owner; try exact, name-order variants (FEC LAST,FIRST vs CMS FIRST LAST), then substring.
-        lookup.get() returns a pandas Series (row); never use 'or' with it (ambiguous truth value)."""
+        lookup.get() returns a pandas Series (row); never use 'or' with it (ambiguous truth value).
+        Safe for pd.NA: donor_norm is always str from normalize_name_for_matching; skip NA keys when iterating."""
         row = lookup.get(donor_norm)
         if row is not None:
             return row
-        if not donor_norm or len(donor_norm) < 4:
+        if donor_norm is None:
+            return None
+        try:
+            if pd.isna(donor_norm):
+                return None
+        except Exception:
+            pass
+        if not isinstance(donor_norm, str) or len(donor_norm) < 4:
             return None
         parts = donor_norm.split()
         if len(parts) == 2:
@@ -1835,11 +1878,19 @@ def search_by_committee(query, include_providers=False):
         best_row = None
         best_len = 0
         for onorm, r in lookup.items():
-            # Keys can be non-str from pandas (e.g. nan); coerce so _stem_org_name and len() don't crash
-            if onorm is None or (hasattr(onorm, "__float__") and pd.isna(onorm)):
+            # Skip NA/non-str keys so _stem_org_name and string ops never see pd.NA
+            if onorm is None:
                 continue
+            try:
+                if pd.isna(onorm):
+                    continue
+            except Exception:
+                pass
             if not isinstance(onorm, str):
-                onorm = str(onorm).strip() or ""
+                try:
+                    onorm = str(onorm).strip() if onorm is not None else ""
+                except Exception:
+                    continue
             if not onorm or len(onorm) < MIN_SUBSTRING_LEN:
                 continue
             if onorm in _SUBSTRING_BLOCKLIST:
@@ -2136,10 +2187,69 @@ def search_by_committee(query, include_providers=False):
             'all_contributions_total': len(all_contributions),
         })
     except Exception as e:
-        print(f"[ERROR] committee response build for {committee_id}: {e}")
         import traceback
+        print(f"[ERROR] committee response build for {committee_id}: {e}")
         traceback.print_exc()
-        return jsonify({'error': f'Could not build committee results: {str(e)}. Check server logs.'}), 500
+        # Fallback: return 200 with committee + all FEC contributions (including Landa), no owner matching.
+        # Page loads; "Nursing home linked" table empty; "All contributions" shows full list.
+        total_fec_fallback = sum(donor_to_amounts.values()) if donor_to_amounts else 0
+        all_fallback = []
+        for d in normalized_list:
+            name = (d.get('donor_name') or '').strip()
+            if not name:
+                continue
+            try:
+                amt = float(d.get('donation_amount') or 0)
+            except (TypeError, ValueError):
+                amt = 0
+            all_fallback.append({
+                'donor_name': name,
+                'amount': amt,
+                'date': d.get('donation_date', ''),
+                'committee_name': committee_name or committee_id,
+                'committee_id': committee_id,
+                'employer': d.get('employer', ''),
+                'occupation': d.get('occupation', ''),
+                'donor_city': d.get('donor_city', ''),
+                'donor_state': d.get('donor_state', ''),
+                'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
+                'likely_nursing_home_linked': False,
+                'owner_name': '',
+                'linked_providers_count': 0,
+                'donation_attribution_type': d.get('donation_attribution_type', 'direct'),
+                'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
+                'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
+            })
+        all_fallback.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
+        return jsonify({
+            'committee': {
+                'name': committee_name or committee_id,
+                'id': committee_id,
+                'type': committee_type,
+                'election_cycles': [],
+                'total_nursing_home_linked': 0,
+                'total_fec_contributions': len(normalized_list),
+                'total_fec_donors': len(donor_to_amounts),
+                'total_fec_amount': round(total_fec_fallback, 2),
+                'years_included': years_included,
+                'data_source': data_source,
+                'data_source_label': 'FEC Bulk Data' if data_source == 'bulk' else 'FEC API',
+                'bulk_last_updated': bulk_last_updated,
+                'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
+                'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
+                'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
+                'scope_note': None,
+                'excluded_brockman_note': None,
+                'conduit_diagnostics': conduit_diagnostics,
+            },
+            'owners': [],
+            'owners_low': [],
+            'providers': [],
+            'raw_contributions': [],
+            'raw_contributions_total': 0,
+            'all_contributions': all_fallback[:2000],
+            'all_contributions_total': len(all_fallback),
+        })
 
 
 def search_by_provider(query):

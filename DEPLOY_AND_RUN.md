@@ -44,8 +44,8 @@ Without the key, the contributions search will return an error when you click �
 - **Build command:**  
   `pip install -r requirements.txt`
 - **Start command (required so Render detects the port):**  
-  `gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120`  
-  The repo has a `Procfile` and `render.yaml` with this. If you created the service before adding them, set **Start Command** in the Render dashboard. Owner data loads on first `/owners` visit (lazy) so the app can bind quickly. **Two workers** keep the site responsive: one can load owner data while the other serves `/`, JSON, and static files (otherwise all requests queue behind the long load and get 10+ minute response times). **Health check (optional):** In Render → Settings → Health Check Path, set `/health` for a lightweight check that does not trigger owner data load.
+  `gunicorn app:app -c gunicorn_config.py`  
+  The config file reads `PORT` from the environment and binds to `0.0.0.0:PORT` (avoids shell `$PORT` expansion issues that can cause "No open HTTP ports" on Render). The repo has `Procfile` and `render.yaml` with this. **Health check (required on Render):** In Render → Settings → Health Check Path, set **`/health`** so Render pings HTTP instead of port-scan only; otherwise Render may report "No open HTTP ports" and kill the service. Owner data loads on first `/owners` visit (lazy). Two workers keep the site responsive.
 
 Render will install deps, then run that one command. That starts the same Flask app that includes the owner dashboard; no separate “backend” to run.
 

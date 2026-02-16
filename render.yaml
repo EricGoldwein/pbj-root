@@ -1,8 +1,9 @@
-# Render Blueprint: ensures the web service binds to PORT so Render detects the port.
-# See https://render.com/docs/web-services#port-binding
+# Render Blueprint: bind 0.0.0.0:$PORT; use /health so Render pings HTTP instead of port-scan only.
+# See https://render.com/docs/web-services#port-binding and https://render.com/docs/health-checks
 services:
   - type: web
     name: pbj
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
+    startCommand: gunicorn app:app -c gunicorn_config.py
+    healthCheckPath: /health

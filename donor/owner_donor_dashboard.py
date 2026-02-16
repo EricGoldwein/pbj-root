@@ -212,6 +212,11 @@ _SUBSTRING_BLOCKLIST = frozenset({
     'GROUP', 'SOLUTIONS', 'INVESTMENT', 'COMPANY', 'CORPORATION', 'CORP', 'LLC', 'INC',
 })
 
+# Root cause of committee-search WORKER TIMEOUT: substring fallback is O(num_donors × num_lookup_keys)
+# with no bound. Each donor scans the full lookup; total iterations can be millions and exceed gunicorn timeout.
+# Fix: cap total substring-loop iterations across all donors (see _find_owner_row substring section).
+MAX_SUBSTRING_FALLBACK_ITERATIONS = 200_000
+
 
 def _stem_org_name(norm_str: str, min_len: int = 6) -> str:
     """Strip trailing legal suffixes from normalized name for matching (e.g. PRUITTHEALTH INC -> PRUITTHEALTH)."""
@@ -1817,10 +1822,11 @@ def search_by_committee(query, include_providers=False):
             'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
             'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
         })
-    def _find_owner_row(donor_norm, lookup):
+    def _find_owner_row(donor_norm, lookup, substring_budget=None):
         """Match donor to owner; try exact, name-order variants (FEC LAST,FIRST vs CMS FIRST LAST), then substring.
         lookup.get() returns a pandas Series (row); never use 'or' with it (ambiguous truth value).
-        Safe for pd.NA: donor_norm is always str from normalize_name_for_matching; skip NA keys when iterating."""
+        Safe for pd.NA: donor_norm is always str from normalize_name_for_matching; skip NA keys when iterating.
+        substring_budget: optional mutable list [int] — decremented each substring-loop iteration; when <= 0 we stop (root-cause fix for timeout)."""
         row = lookup.get(donor_norm)
         if row is not None:
             return row
@@ -1890,14 +1896,16 @@ def search_by_committee(query, include_providers=False):
                     return row
         # Substring fallback: match if owner name is contained in donor name or vice versa (e.g. PRUITTHEALTH in PRUITTHEALTH CORPORATION)
         # Require longer keys; skip keys whose stem is generic; require shared identifier so ERP HOLDINGS does not match P20 HOLDINGS
+        # Root cause: this loop is O(donors × keys) with no bound → worker timeout. Fix: substring_budget caps total iterations.
         MIN_SUBSTRING_LEN = 12
         donor_id = _org_name_identifier(donor_norm)
         best_row = None
         best_len = 0
-        # Substring fallback is O(donors * keys) and causes worker timeout on Render when lookup is huge.
-        # Skip it entirely when > 1500 keys so request finishes; rely on exact + stem match only.
-        items_to_scan = list(lookup.items()) if len(lookup) <= 1500 else []
-        for onorm, r in items_to_scan:
+        for onorm, r in lookup.items():
+            if substring_budget is not None:
+                if substring_budget[0] <= 0:
+                    break
+                substring_budget[0] -= 1
             if onorm is None:
                 continue
             if not isinstance(onorm, str):
@@ -2009,8 +2017,10 @@ def search_by_committee(query, include_providers=False):
         owner_to_contributions = {}  # key -> list of {amount, date} for hover
         owner_to_cms_city = {}
         owner_to_cms_state = {}
+        # Cap total substring-loop iterations (root cause of timeout: O(donors × keys) was unbounded)
+        substring_budget = [MAX_SUBSTRING_FALLBACK_ITERATIONS]
         for donor_norm, total in donor_to_amounts.items():
-            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row, substring_budget)
             if owner_row is None:
                 continue
             # Safe get: row.get() can return pd.NA; never use "x or ''" (bool(pd.NA) raises)
@@ -2066,8 +2076,6 @@ def search_by_committee(query, include_providers=False):
             cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
             # No CMS location data (empty, NAN, NA) ≠ "loc not in file"; treat as distinct for transparency
             if not cc and not cs:
-                if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name or '', cms_name or ''):
-                    return name_label  # MAGA Inc. only: Pruitt Health has loc in file; show name only
                 return f'{name_label}, no CMS loc'
             if not fc and not fs:
                 return f'{name_label}, no FEC loc'
@@ -2118,8 +2126,6 @@ def search_by_committee(query, include_providers=False):
                     owner_to_cms_state.get(k, ''),
                 ),
             }
-            if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name, owner_display):
-                row['match_band'] = 'High'
             owners_deduped.append(row)
         owners_deduped.sort(key=lambda x: -x['total_contributed'])
         # Split: high-confidence (included in total) vs low-match (separate table, not in total). Exclude known different-person matches (e.g. tech Gregory Brockman for MAGA Inc.).
@@ -2138,7 +2144,7 @@ def search_by_committee(query, include_providers=False):
         providers_result = _compute_providers_from_owners(owners_high) if include_providers else []
         raw_contributions = []
         for donor_norm, recs in donor_to_records.items():
-            if _find_owner_row(donor_norm, owner_name_norm_to_row) is None:
+            if _find_owner_row(donor_norm, owner_name_norm_to_row, substring_budget) is None:
                 continue
             for r in recs:
                 raw_contributions.append(r)
@@ -2150,7 +2156,7 @@ def search_by_committee(query, include_providers=False):
             if not name:
                 continue
             donor_norm = normalize_name_for_matching(name)
-            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
+            owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row, substring_budget)
             matched = owner_row is not None
             try:
                 amount_val = float(d.get('donation_amount') or 0)

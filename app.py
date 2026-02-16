@@ -261,6 +261,7 @@ try:
             return jsonify({'error': f'Proxy error: {str(e)}'}), 500
     
     print("✓ Owner donor dashboard mounted at /owners (aliases: /owner, /ownership)")
+    print("✓ App ready — owner data loads on first /owners visit (lazy); / and /health respond immediately")
 except Exception as e:
     print(f"⚠ Warning: Could not load owner donor dashboard: {e}")
     import traceback

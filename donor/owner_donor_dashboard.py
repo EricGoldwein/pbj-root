@@ -1894,10 +1894,9 @@ def search_by_committee(query, include_providers=False):
         donor_id = _org_name_identifier(donor_norm)
         best_row = None
         best_len = 0
-        # Cap iteration to avoid timeout: substring fallback is O(donors * keys); limit keys when huge
-        items_to_scan = list(lookup.items())
-        if len(items_to_scan) > 4000:
-            items_to_scan = items_to_scan[:4000]
+        # Substring fallback is O(donors * keys) and causes worker timeout on Render when lookup is huge.
+        # Skip it entirely when > 1500 keys so request finishes; rely on exact + stem match only.
+        items_to_scan = list(lookup.items()) if len(lookup) <= 1500 else []
         for onorm, r in items_to_scan:
             if onorm is None:
                 continue

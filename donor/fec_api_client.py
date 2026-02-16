@@ -306,19 +306,21 @@ def query_donations_by_committee(
             next_last = last_indexes.get("last_index")
             next_date = last_indexes.get("last_contribution_receipt_date")
 
-            if not has_more and (total_pages == 0 or page >= total_pages):
-                break
-            if not next_last and page >= total_pages:
+            if not has_more or (total_pages and page >= total_pages):
                 break
 
             if max_pages and page >= max_pages:
                 break
 
             page += 1
-            last_index = next_last
-            last_contribution_receipt_date = next_date
-            if not last_index:
-                break
+            # Use cursor when API provides it; otherwise fall back to page-based (so we still get page 2, 3, …)
+            if next_last:
+                last_index = next_last
+                last_contribution_receipt_date = next_date
+            else:
+                # Pagination bug: API sometimes has_more but no last_indexes; continue with page=2,3,...
+                last_index = None
+                last_contribution_receipt_date = None
 
         except requests.exceptions.Timeout:
             raise

@@ -1823,6 +1823,14 @@ def search_by_committee(query, include_providers=False):
                 stem = _stem_org_name(n)
                 if stem and stem not in owner_name_norm_to_row:
                     owner_name_norm_to_row[stem] = row
+        # FEC uses "LAST, FIRST" -> normalized "LAST FIRST". For individuals with 2-word names, add that variant so direct lookup finds them (e.g. LANDA BENJAMIN -> Benjamin Landa).
+        owner_type = (row.get('owner_type') or '').strip().upper()
+        if owner_type == 'INDIVIDUAL' and onorm:
+            parts = onorm.split()
+            if len(parts) == 2:
+                last_first = f"{parts[1]} {parts[0]}"
+                if last_first != onorm:
+                    owner_name_norm_to_row[last_first] = row
     def _get_cms_owner_location(associate_id_owner):
         """Get first non-empty CITY - OWNER, STATE - OWNER from raw ownership for transparency comparison."""
         if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:

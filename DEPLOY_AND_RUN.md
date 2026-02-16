@@ -54,6 +54,8 @@ Render will install deps, then run that one command. That starts the same Flask 
 In the Render dashboard for this service:
 
 - **FEC_API_KEY** = your FEC API key (required for “View Political Contributions” and FEC docquery links to work).
+- **FEC_COMMITTEE_TIMEOUT** (optional) = seconds per request when loading committee contributions via API (default 120). If you see “FEC API may have timed out”, try `180` or higher.
+- **FEC_API_TIMEOUT** (optional) = seconds for other FEC API requests (default 90). Set in env or `donor/.env`.
 
 Add any other env vars your app or data paths expect (e.g. if you load files from env).
 

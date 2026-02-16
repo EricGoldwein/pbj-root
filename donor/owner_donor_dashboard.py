@@ -1698,8 +1698,7 @@ def search_by_committee(query, include_providers=False):
             'error': 'Committee not found',
             'message': f'No committee found matching "{query}". Try searching by committee name (e.g., MAGA Inc.) or committee ID (C########).'
         }), 404
-    CONDUIT_OR_MAJOR_COMMITTEES = {"C00401224", "C00694323"}  # ActBlue, WinRed
-    MAGA_INC_ID = "C00892471"  # Use chunked by-year so we get Landa and avoid one long timeout
+    CONDUIT_OR_MAJOR_COMMITTEES = {"C00401224", "C00694323"}  # ActBlue, WinRed — chunked, no page cap
     cid_upper = (committee_id or "").strip().upper()
     is_massive = cid_upper in MASSIVE_COMMITTEES
     bulk_max_year = BULK_MASSIVE_COMMITTEE_MAX_YEAR if is_massive else None
@@ -1723,21 +1722,17 @@ def search_by_committee(query, include_providers=False):
                 'message': f'This committee has too many contributions for the FEC API. We only serve it from local bulk data through {BULK_MASSIVE_COMMITTEE_MAX_YEAR}. Ensure indiv24.parquet (or indiv24_conduits.parquet) or older cycles are in donor/FEC data/. Run: python -m donor.analyze_indiv_parquet to identify massive committees.'
             }), 503
         try:
-            if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
+            # Chunked by year for all committees; FEC schedule_a requires last_index + last_contribution_receipt_date for pagination.
+            # Conduits: no page cap. Others: cap pages per year to stay under worker timeout.
+            if committee_id and cid_upper in CONDUIT_OR_MAJOR_COMMITTEES:
                 raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
-            elif cid_upper == MAGA_INC_ID:
-                # MAGA Inc.: fetch by year (2 pages/year) so we get Landa and stay under worker timeout on Render
-                raw_donations, years_included = query_donations_by_committee_chunked(
-                    committee_id, max_pages_per_period=2, years=[2026, 2025, 2024]
-                )
             else:
-                # Multi-page fetch; cap pages so total time stays under host timeout (~60s)
-                committee_timeout = int(os.environ.get("FEC_COMMITTEE_TIMEOUT", "120"))
-                committee_max_pages = int(os.environ.get("FEC_COMMITTEE_MAX_PAGES", "10"))
-                raw_donations = query_donations_by_committee(
-                    committee_id, timeout=committee_timeout, max_pages=committee_max_pages
+                max_pages_per_period = int(os.environ.get("FEC_COMMITTEE_MAX_PAGES_PER_PERIOD", "20"))
+                raw_donations, years_included = query_donations_by_committee_chunked(
+                    committee_id,
+                    max_pages_per_period=max_pages_per_period,
+                    per_page=100,
                 )
-                years_included = []
         except requests.exceptions.Timeout:
             print(f"FEC API timeout for committee {committee_id}")
             return jsonify({'error': 'The FEC API took too long to respond. Please try again.'}), 500

@@ -17,6 +17,10 @@ Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
 The path segment is file_number from OpenFEC: Schedule A returns file_number (e.g. 1930534); /filings/ returns file_number. Do NOT use image_number (long page id) or sub_id (long line-item id) from Schedule A.
 
 FEC API Documentation: https://api.open.fec.gov/developers/
+
+Schedule A pagination: This endpoint is NOT paginated by page number. You must use last_index AND
+last_contribution_receipt_date for each subsequent page (see https://github.com/fecgov/openFEC/issues/3396).
+Omitting last_contribution_receipt_date can drop pages and records.
 """
 
 import requests
@@ -268,11 +272,15 @@ def query_donations_by_committee(
             "per_page": min(per_page, 100),
             "sort": "-contribution_receipt_date"
         }
-        # OpenFEC: first request uses page=1; subsequent pages use last_index (cursor), not page. API expects string.
+        # OpenFEC schedule_a: NOT paginated by page number. Next page MUST use last_index AND last_contribution_receipt_date
+        # (see https://github.com/fecgov/openFEC/issues/3396). Omitting the date can drop pages/records (e.g. Landa).
         if last_index is not None:
             params["last_index"] = str(last_index)
-            if last_contribution_receipt_date:
-                params["last_contribution_receipt_date"] = str(last_contribution_receipt_date)
+            date_val = last_contribution_receipt_date or ""
+            if isinstance(date_val, str) and "T" in date_val:
+                date_val = date_val[:10]  # YYYY-MM-DD
+            if date_val:
+                params["last_contribution_receipt_date"] = str(date_val)
         else:
             params["page"] = page
 
@@ -328,10 +336,21 @@ def query_donations_by_committee(
                 break
 
             page += 1
-            # Use cursor when API provides it; otherwise fall back to page-based (so we still get page 2, 3, …)
+            # Use cursor when API provides it. FEC requires last_contribution_receipt_date with last_index; if API omits it, derive from last record.
             if next_last:
                 last_index = next_last
-                last_contribution_receipt_date = next_date
+                if next_date is not None and str(next_date).strip():
+                    last_contribution_receipt_date = str(next_date).strip()
+                    if "T" in last_contribution_receipt_date:
+                        last_contribution_receipt_date = last_contribution_receipt_date[:10]
+                else:
+                    last_rec = results[-1] if results else {}
+                    last_contribution_receipt_date = (last_rec.get("contribution_receipt_date") or "").strip()
+                    if last_contribution_receipt_date and "T" in last_contribution_receipt_date:
+                        last_contribution_receipt_date = last_contribution_receipt_date[:10]
+                    if not last_contribution_receipt_date:
+                        print(f"[FEC] committee {committee_id}: no last_contribution_receipt_date from API or last record; stopping pagination to avoid incomplete results")
+                        break
             else:
                 # API says has_more but no cursor; log once per committee so we can debug
                 if has_more and page == 1:

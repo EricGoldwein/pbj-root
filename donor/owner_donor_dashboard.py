@@ -384,9 +384,21 @@ def _is_maga_inc(committee_name: str, committee_id: str = "") -> bool:
 
 def _is_excluded_different_person(owner_display_name: str, committee_name: str, committee_id: str = "") -> bool:
     """True when this owner match should be excluded to avoid mixing with a different person (e.g. tech Gregory Brockman vs nursing home Gregory Brockman)."""
-    if not owner_display_name:
+    if owner_display_name is None:
         return False
-    onorm = (owner_display_name or "").upper().strip()
+    try:
+        if pd.isna(owner_display_name):
+            return False
+    except Exception:
+        pass
+    if not isinstance(owner_display_name, str):
+        try:
+            owner_display_name = str(owner_display_name)
+        except Exception:
+            return False
+    onorm = owner_display_name.upper().strip()
+    if not onorm:
+        return False
     # MAGA Inc.: BROCKMAN, GREG $12.5M is Greg Brockman (OpenAI), not the CMS Gregory Brockman (County of Throckmorton).
     if _is_maga_inc(committee_name, committee_id) and "GREGORY" in onorm and "BROCKMAN" in onorm:
         return True
@@ -1899,6 +1911,9 @@ def search_by_committee(query, include_providers=False):
             # Skip when stem is blocklisted OR when stem is "" (empty = stem was blocklisted, e.g. "HEALTHCARE LLC" -> "")
             if not key_stem or key_stem in _SUBSTRING_BLOCKLIST:
                 continue  # "HEALTHCARE LLC" matches both 603 and Northshore; stem HEALTHCARE is blocklisted so we skip
+            # Both must be str: "x in y" raises if y is pd.NA or other non-string (e.g. Render traceback line 1902)
+            if not isinstance(onorm, str) or not isinstance(donor_norm, str):
+                continue
             if onorm in donor_norm or donor_norm in onorm:
                 # Require shared identifier as whole words so ERP≠P20 and CARE≠CARESPRING
                 key_id = _org_name_identifier(onorm)

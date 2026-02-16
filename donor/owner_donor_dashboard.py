@@ -788,9 +788,12 @@ def load_data():
             print("  To load all owners, run: python donor/owner_donor.py MODE=extract (without filters)")
     
     # Load raw ownership file for provider matching (needed for ORGANIZATION NAME matching)
-    # This is a large file (55MB+) - load with error handling and memory management
+    # This is a large file (55MB+) - skip on Render to avoid OOM; owner search still works
     global ownership_raw_df
-    if OWNERSHIP_RAW.exists():
+    if os.environ.get("RENDER") == "true":
+        print("  (Skipping raw ownership on Render to save memory; provider name matching limited)")
+        ownership_raw_df = pd.DataFrame()
+    elif OWNERSHIP_RAW.exists():
         try:
             print(f"Loading raw ownership file for provider matching: {OWNERSHIP_RAW}")
             print("  (This is a large file and may take a moment...)")
@@ -971,6 +974,19 @@ def load_data():
     else:
         print("No facility metrics file found. Performance data will not be available.")
         facility_metrics_df = pd.DataFrame()
+
+    # Preload committee list for autocomplete (MAGA, etc.) in background so first committee search is fast
+    def _preload_committee_autocomplete():
+        global committee_master_extended
+        try:
+            _ensure_committee_master_extended()
+            n = len(committee_master_extended or [])
+            if n:
+                print(f"  [Background] Committee autocomplete ready ({n:,} committees)")
+        except Exception as e:
+            print(f"  [Background] Committee autocomplete preload: {e}")
+    t = threading.Thread(target=_preload_committee_autocomplete, daemon=True)
+    t.start()
 
 
 @app.before_request

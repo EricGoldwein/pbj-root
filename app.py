@@ -124,6 +124,11 @@ def search_index():
         return send_file(path, mimetype='application/json')
     return jsonify({'f': [], 'e': [], 's': []})
 
+@app.route('/health')
+def health():
+    """Lightweight health check for Render; does not trigger owner data load."""
+    return 'ok', 200
+
 @app.route('/')
 def index():
     return send_file('index.html', mimetype='text/html')

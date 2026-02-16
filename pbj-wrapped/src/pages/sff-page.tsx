@@ -93,6 +93,7 @@ export default function SFFPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sourceDates, setSourceDates] = useState<{ pbjQuarter: string; sffPosting: string } | null>(null);
   const itemsPerPage = 50;
 
   // Helper function for state names (needed for SEO)
@@ -122,37 +123,54 @@ export default function SFFPage() {
   };
 
   // Update SEO/OG tags based on page scope
+  // Fetch dynamic source dates (PBJ quarter, SFF posting) from main site API
+  useEffect(() => {
+    const apiBase = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.pbj320.com';
+    fetch(`${apiBase}/api/dates`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && data.pbj_quarter_display != null && data.sff_posting != null) {
+          setSourceDates({
+            pbjQuarter: data.pbj_quarter_display,
+            sffPosting: data.sff_posting,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     const baseUrl = 'https://pbj320.com';
     const currentPath = scope === 'usa' ? '/sff/usa' : scope ? `/sff/${scope}` : '/sff';
     const fullUrl = `${baseUrl}${currentPath}`;
+    const qLabel = sourceDates?.pbjQuarter ?? 'Q3 2025';
     
     let title = 'Special Focus Facilities Program | PBJ320';
-    let description = 'Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting Dec. 2025; CMS PBJ (Q2 2025).';
+    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'Dec. 2025'}; CMS PBJ (${qLabel}).`;
     
     if (scope === 'usa') {
       title = 'Special Focus Facilities Program — United States | PBJ320';
-      description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+      description = `United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ${qLabel}.`;
     } else if (scope && scope.startsWith('region')) {
       const regionNum = parseInt(scope.replace(/^region-?/, ''));
       title = `SFF Program: CMS Region ${regionNum} | PBJ320`;
-      description = `CMS Region ${regionNum} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
+      description = `CMS Region ${regionNum} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ${qLabel}.`;
     } else if (scope) {
       const stateName = getStateName(scope.toUpperCase());
       title = `${stateName} Special Focus Facilities | PBJ320`;
-      description = `${stateName} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.`;
+      description = `${stateName} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ${qLabel}.`;
     }
     
     updateSEO({
       title,
       description,
-      keywords: 'special focus facilities, SFF, nursing home staffing, CMS PBJ, Q2 2025, nursing home quality, long-term care',
+      keywords: `special focus facilities, SFF, nursing home staffing, CMS PBJ, ${qLabel}, nursing home quality, long-term care`,
       ogTitle: title.replace(' | PBJ320', ''),
       ogDescription: description,
       ogUrl: fullUrl,
       canonical: fullUrl,
     });
-  }, [scope]);
+  }, [scope, sourceDates]);
 
   useEffect(() => {
     async function loadData() {
@@ -1184,7 +1202,7 @@ export default function SFFPage() {
             )}
           </div>
             <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
-              Source: CMS SFF Posting (Dec. 2025); CMS PBJ (Q2 2025)
+              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'Dec. 2025'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
           </div>
         </div>
@@ -1508,7 +1526,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> (Dec. 2025); CMS PBJ (Q2 2025)
+              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Dec. 2025'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">
@@ -1544,7 +1562,7 @@ export default function SFFPage() {
                   <strong className="text-blue-300">Multi-Category Facilities:</strong> Some facilities appear in multiple CMS SFF categories (e.g., Graduate and Candidate, or Candidate and SFF) due to status changes over time (e.g., Candidate → SFF → Graduate). For clarity, facilities are shown once using the highest priority category: SFF {'>'} Candidate {'>'} Graduate {'>'} Decertified.
                 </div>
                 <div className="pt-2 border-t border-gray-700">
-                  <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have Q2 2025 PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.
+                  <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have {sourceDates?.pbjQuarter ?? 'Q3 2025'} PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.
                 </div>
               </div>
             )}

@@ -36,6 +36,18 @@ NH_ProviderInfo_*.csv
 # FEC committee master CSVs: committed and used by donor dashboard (do not ignore)
 !donor/data/fec_committee_master/*.csv
 
+# FEC bulk data: parquet and zips are built locally / on server; do not push (too large)
+donor/FEC data/*.parquet
+donor/FEC data/*.zip
+# Optional: pre-exported committee CSVs (ActBlue, WinRed) – uncomment to push, or leave ignored and serve from server only
+donor/FEC data/committee_*.csv
+donor/FEC data/bulk_manifest.json
+donor/FEC data/top_nursing_home_contributors_2026.csv
+
+# Top contributors page — not public yet
+donor/routes_top.py
+donor/templates/owner_donor_dashboard_top.html
+
 # Node modules
 node_modules/
 pbj-wrapped/node_modules/

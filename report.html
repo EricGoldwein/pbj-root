@@ -5139,7 +5139,7 @@
             if (stateName && stateData[stateName]) {
               const facility = {
                 ccn: row.ccn.trim(),
-                name: row.provider_name || 'Unknown Facility',
+                name: row.provider_name || 'Unknown provider',
                 city: row.city || '',
                 state: row.state ? row.state.trim() : '',
                 overall_rating: row.overall_rating || '',
@@ -6560,8 +6560,9 @@
       });
     }
     
-    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '') {
-      const city = f.city && f.state ? ` (${f.city}, ${f.state})` : f.city ? ` (${f.city})` : '';
+    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
+      const inStateView = stateAbbrForModal && f.state === stateAbbrForModal;
+      const city = inStateView ? (f.city ? ` (${f.city})` : '') : (f.city && f.state ? ` (${f.city}, ${f.state})` : f.city ? ` (${f.city})` : '');
       const overallRating = f.overall_rating ? `Overall: ${parseInt(f.overall_rating)}★` : '';
       const staffingRating = f.staffing_rating ? `Staffing: ${parseInt(f.staffing_rating)}★` : '';
       const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');
@@ -6624,7 +6625,7 @@
           ${multipleCriteriaNote}
           ${staffingText}
           <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">View PBJ Dashboard</a>
+            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">Dashboard</a>
             <a href="${cmsLink}" target="_blank" style="font-size: 0.75rem; font-style: italic; color: rgba(255,255,255,0.7); text-decoration: underline;">View on CMS Care Compare</a>
           </div>
         </li>
@@ -6681,7 +6682,7 @@
               <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -6702,7 +6703,7 @@
               <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -6723,7 +6724,7 @@
               <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -6744,7 +6745,7 @@
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -6766,7 +6767,7 @@
             </h4>
             <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -7679,7 +7680,7 @@
               <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -7700,7 +7701,7 @@
               <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -7721,7 +7722,7 @@
               <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -7742,7 +7743,7 @@
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', stateAbbr)).join('')}
             </ul>
           </div>
         `;
@@ -7764,7 +7765,7 @@
             </h4>
             <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', stateAbbr)).join('')}
             </ul>
           </div>
         `;

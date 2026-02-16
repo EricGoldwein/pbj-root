@@ -702,20 +702,20 @@
         
         .donor-source-btn {
             display: inline-block;
-            padding: 0.25rem 0.55rem;
+            padding: 0.35rem 0.65rem;
             border-radius: 4px;
-            border: 1px solid rgba(102,126,234,0.45);
-            color: rgba(200,210,255,0.95);
-            font-size: 0.7rem;
-            font-weight: 500;
+            border: 1px solid rgba(102,126,234,0.5);
+            color: #60a5fa;
+            font-size: 0.85rem;
+            font-weight: 600;
             text-decoration: none;
-            margin-left: 0.4rem;
-            background: rgba(102,126,234,0.12);
+            margin-left: 0.5rem;
+            background: rgba(102,126,234,0.18);
             transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
         }
         .donor-source-btn:hover {
-            background: rgba(102,126,234,0.2);
-            border-color: rgba(102,126,234,0.6);
+            background: rgba(102,126,234,0.3);
+            border-color: rgba(102,126,234,0.7);
             color: #fff;
         }
         
@@ -1092,6 +1092,7 @@
                 <a href="/report" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Report</a>
                 <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Phoebe J</a>
                 <a href="/owners" class="nav-link active" style="color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership</a>
+                <a href="/owners/top" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Top Contributors</a>
             </div>
             <div class="nav-toggle" id="navToggle">
                 <span></span>
@@ -1109,7 +1110,10 @@
                 <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA</span>
             </div>
             <p style="margin: 0.5rem auto 0; font-size: 0.8rem; font-weight: 400; color: rgba(255,255,255,0.55); max-width: 700px; line-height: 1.4; text-align: center;">
-                Note: This tool is in beta and may contain matching errors or incomplete data. Click Source link next to any donation to view original FEC filing and confirm details.
+                Note: This tool is in beta and may contain matching errors or incomplete data. Click <strong>View original on FEC</strong> or <strong>Search on FEC</strong> next to each donation to verify on the official FEC source.
+            </p>
+            <p style="margin: 0.5rem auto 0; font-size: 0.9rem; font-weight: 500; text-align: center;">
+                <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #60a5fa; text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 4px; border: 1px solid rgba(102,126,234,0.5); background: rgba(102,126,234,0.15);">Verify on FEC →</a>
             </p>
         </div>
 
@@ -1182,9 +1186,13 @@
             <h3 style="color: white; font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; padding: 0.75rem 0; text-align: center;">
                 Sources and Methodology
             </h3>
-            <p style="margin-bottom: 1rem;">
-                This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political contributions of individuals and organizations that own or operate skilled nursing facilities in the United States. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
+            <p style="margin-bottom: 1.25rem;">
+                This dashboard connects nursing home ownership data from the Centers for Medicare & Medicaid Services (CMS) with political contribution records from the Federal Election Commission (FEC). It allows journalists, researchers, and the public to explore the political contributions of individuals and organizations that own or operate skilled nursing facilities in the United States. Contribution data may cover 2019–2026 depending on source; each result page shows the exact date range. <strong style="color: rgba(255,255,255,0.9);">This tool is currently in beta and may contain matching errors or incomplete data.</strong>
             </p>
+            <div style="background: rgba(102, 126, 234, 0.12); border: 1px solid rgba(102, 126, 234, 0.35); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.25rem;">
+                <div style="font-size: 0.9rem; color: white;"><strong>Verify with original sources:</strong> <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">FEC</a> · <a href="https://www.fec.gov/data/browse-data/?tab=bulk-data" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">FEC bulk</a> · <a href="https://api.open.fec.gov/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">FEC API</a> · <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">CMS SNF Owners</a></div>
+                <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 0.5rem;">Jan 2026 · Owner search: FEC API · Committee: local bulk when available</div>
+            </div>
             
             <details>
                 <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-top: 1rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
@@ -1192,9 +1200,9 @@
                     <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
             </summary>
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching Methodology</h3>
+                    <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching methodology</h3>
                 <p style="margin-bottom: 1rem;">
-                        When you view political contributions for an owner, we match that owner's name to FEC records using the following process:
+                        We match owner names to FEC records as follows:
                     </p>
                     <ol style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: decimal;">
                         <li style="margin-bottom: 0.5rem;"><strong>Name variations:</strong> We build multiple search variants from the owner name (e.g., full name in uppercase, &quot;First Last&quot; without middle name for individuals, and for organizations we may also search by first or last significant word). The original name is always included; we use up to five variants to allow for different spellings and formats in FEC filings.</li>
@@ -1207,31 +1215,50 @@
                 </p>
                     <p style="margin-bottom: 1rem; font-size: 0.95rem;">
                         <strong>FEC match score:</strong> For committee search results we layer a quantitative match score (0–100) and band (e.g. Very High, High, Moderate) on top of the name match. The score combines name similarity, geographic agreement (FEC vs CMS ownership data city/state), and an exact-normalized-name bonus. It is for internal transparency and does not change who is matched; low scores indicate weaker name/location agreement.
-                </p>
+                    </p>
+                    <p style="margin-bottom: 1rem; font-size: 0.95rem;">
+                        <strong>Major conduit committees (ActBlue, WinRed):</strong> When served from local bulk, we use data <strong>through 2024 only</strong>—2025–2026 is not included. The result page shows the exact years. If local bulk is unavailable, we fall back to the FEC API (searches may take 60–90+ seconds). Conduit/earmark attribution (direct vs resolved to ultimate recipient) is applied for transparency.
+                    </p>
+                    <p style="margin-bottom: 1rem; font-size: 0.95rem;">
+                        <strong>FEC data coverage:</strong> We aim to cover 2020 through present. <em>Which</em> years appear depends on the data source: bulk only includes years we have parquet for (currently 2023–2026); API returns what it provides. The result page shows the actual years included.
+                    </p>
+                    <p style="margin-bottom: 1rem; font-size: 0.95rem;">
+                        <strong>Committee search data source:</strong> Each search uses <strong>either bulk or API—never both</strong>. <strong>Bulk:</strong> Data from local parquet (indiv24, indiv22, indiv20, etc.). For large committees (ActBlue, WinRed, and others with ≥50k contributions): we cap at <strong>through 2024</strong>; indiv26 (2025–2026) is not used. The FEC API would timeout for these; bulk parquet is required. The result page shows the exact years included. <strong>API:</strong> No local bulk; we fetch from the FEC API. The result page always states the source and date range.
+                    </p>
                 
-                <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources</h3>
+                <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Data Sources (details)</h3>
                 <ul style="margin-left: 1.5rem; margin-bottom: 1rem; list-style: disc;">
                     <li style="margin-bottom: 0.5rem;">
-                        <strong>CMS Ownership Data:</strong> 
-                        <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
-                        — Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
-                    </li>
-                    <li style="margin-bottom: 0.5rem;">
-                        <strong>CMS Provider Information:</strong> 
-                        <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
-                        — Contains facility details including ratings, staffing levels, and operational information.
+                        <strong>FEC Individual Contributions:</strong> 
+                        <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">fec.gov/data/receipts/individual-contributions</a> 
+                        — Search by contributor name. Links to original filings. Primary source for contribution data.
                     </li>
                     <li style="margin-bottom: 0.5rem;">
                         <strong>FEC API:</strong> 
-                        <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
-                        — Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
+                        <a href="https://api.open.fec.gov/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">api.open.fec.gov</a> 
+                        — Real-time access to federal campaign finance data.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>FEC bulk data:</strong> 
+                        <a href="https://www.fec.gov/data/browse-data/?tab=bulk-data" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">fec.gov/data/browse-data</a> 
+                        — Downloadable bulk files (indiv24, indiv26, etc.) used for committee search when available.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Ownership:</strong> 
+                        <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
+                        — Ownership information for Medicare/Medicaid-certified SNFs.
+                    </li>
+                    <li style="margin-bottom: 0.5rem;">
+                        <strong>CMS Provider Data:</strong> 
+                        <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
+                        — Facility details including ratings and staffing.
                     </li>
                 </ul>
                 
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Disclaimers</h3>
                 <div style="background: rgba(234, 179, 8, 0.15); border-left: 3px solid #eab308; padding: 1rem; margin-bottom: 1rem; border-radius: 4px;">
                     <p style="margin-bottom: 0.75rem; font-weight: 500;">
-                        <strong>Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Facility name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
+                        <strong>Beta Status:</strong> This tool is in beta and may contain matching errors or incomplete data. Provider name matching between CMS datasets is not perfect, and some facilities may not be matched correctly. Always verify information independently.
                     </p>
                     <p style="margin-bottom: 0.75rem;">
                             <strong>Name Matching Limitations:</strong> Political contribution matching relies on name similarity and may include contributions from individuals or organizations with similar names. Review results carefully to ensure accuracy.
@@ -1321,6 +1348,15 @@
             div.textContent = text;
             return div.innerHTML;
         }
+        /** Format YYYY-MM-DD as M/D/YYYY for display (e.g. 2026-02-13 → 2/13/2026). */
+        function formatBulkDate(isoDate) {
+            if (!isoDate || typeof isoDate !== 'string') return isoDate || '';
+            const parts = isoDate.trim().split(/[-/]/);
+            if (parts.length !== 3) return isoDate;
+            const y = parts[0], m = parseInt(parts[1], 10), d = parseInt(parts[2], 10);
+            if (isNaN(m) || isNaN(d)) return isoDate;
+            return m + '/' + d + '/' + y;
+        }
 
         // Format donation date (handles YYYY-MM-DD format and validates dates)
         function formatDonationDate(dateStr) {
@@ -1356,6 +1392,16 @@
             }
         }
 
+        // FEC link for a donation: direct filing when available, else search by contributor name
+        function fecLinkHtml(d) {
+            if (d.fec_link) return ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn" title="View original FEC filing">View original on FEC</a>`;
+            if (d.donor_name) {
+                const url = 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' + encodeURIComponent(d.donor_name).replace(/%20/g, '+');
+                return ` <a href="${url}" target="_blank" rel="noopener" class="donor-source-btn" title="Search contributor on FEC">Search on FEC</a>`;
+            }
+            return '';
+        }
+
         // Format individual contribution amount: on mobile round to nearest dollar; desktop show 2 decimals
         function formatContributionAmount(amount) {
             const n = Number(amount);
@@ -1378,17 +1424,20 @@
             const stateDisplay = d.donor_state ? d.donor_state.toUpperCase() : '';
             const loc = (cityDisplay && stateDisplay) ? ` (${escapeHtml(cityDisplay)}, ${escapeHtml(stateDisplay)})` : '';
             const inlineText = name + loc;
+            const fecSearchUrl = 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' + encodeURIComponent(d.donor_name).replace(/%20/g, '+');
+            const fecLink = `<a href="${fecSearchUrl}" target="_blank" rel="noopener" style="color: #667eea; font-size: 0.85rem;">View on FEC</a>`;
             const hasPopup = (d.donor_city || d.donor_state || d.donor_zip || d.employer || d.occupation || d.committee || d.candidate);
-            if (!hasPopup) return `<strong>FEC listing:</strong> ${inlineText}`;
+            if (!hasPopup) return `<strong>FEC listing:</strong> ${inlineText} ${fecLink}`;
             const addrParts = [cityDisplay, stateDisplay].filter(Boolean).join(', ');
             const fullAddr = addrParts && d.donor_zip ? `${addrParts} ${d.donor_zip}` : (addrParts || (d.donor_zip || ''));
             const popupParts = [];
             if (name) popupParts.push(`<strong>${name}</strong>`);
             if (fullAddr) popupParts.push(`<div><strong>Address:</strong> ${escapeHtml(fullAddr)}</div>`);
             if (d.employer || d.occupation) popupParts.push(`<div><strong>Employer/Occupation:</strong> ${escapeHtml([d.employer, d.occupation].filter(Boolean).map(s => toTitleCaseName(s)).join(' — '))}</div>`);
-            if (d.committee) popupParts.push(`<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>`);
+            if (d.committee) popupParts.push(`<div><strong>Committee:</strong> ${escapeHtml(toTitleCaseCommittee(d.committee))}</div>`);
             if (d.candidate) popupParts.push(`<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${escapeHtml(d.office)})` : ''}</div>`);
             if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
+            popupParts.push(`<div style="margin-top: 0.5rem;">${fecLink}</div>`);
             const popupHtml = popupParts.join('');
             const uid = 'popup-' + Math.random().toString(36).slice(2);
             const touch = 'ontouchstart' in window;
@@ -1823,25 +1872,30 @@
             const rawContributions = data.raw_contributions || [];
             const rawTotal = data.raw_contributions_total || rawContributions.length;
 
-            const committeeNameTitleCase = (committee.name || 'Committee').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+            const committeeNameTitleCase = toTitleCaseCommittee(committee.name || 'Committee');
             let html = `
                 <div class="committee-header-box" style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; border: 2px solid rgba(102, 126, 234, 0.3);">
                     <h2 style="margin: 0 0 0.5rem 0;">
-                        <a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.id || '')}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">
+                        <a href="https://www.fec.gov/data/receipts/?data_type=efiling&committee_id=${encodeURIComponent(committee.id || '')}" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">
                             ${escapeHtml(committeeNameTitleCase)} <span style="font-size: 0.8rem;">↗</span>
                     </h2>
                     <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                         Committee ID: ${escapeHtml(committee.id || '')} | Type: ${escapeHtml(committee.type || 'Committee')}
-                        ${committee.total_nursing_home_linked > 0 ? ` | Estimated $${Math.round(Number(committee.total_nursing_home_linked)).toLocaleString()} from nursing home–linked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
+                        ${committee.total_nursing_home_linked > 0 ? ` | Found estimated $${Math.round(Number(committee.total_nursing_home_linked)).toLocaleString()} from nursing home–linked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
                     </div>
-                    <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0.75rem 0 0 0;">Contributors include individuals and organizations from FEC filings matched to names in CMS nursing home ownership dataset. The table may omit relevant contributors and may include incorrect matches due to name-matching limitations. Matches not independently verified.</p>
+                    ${committee.is_major_conduit ? (committee.data_source === 'api' ? '<div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin: 0.35rem 0 0 0;">Local bulk data not found; we fetched by year via FEC API so results can take 60–90 seconds (even longer).</div>' : '<div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin: 0.35rem 0 0 0;">Major national conduit; data served from local bulk (no API wait).</div>') : ''}
+                    <div class="committee-data-source-box" style="margin: 0.75rem 0 0 0; padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border-radius: 6px; border-left: 4px solid ${committee.data_source === 'bulk' ? '#22c55e' : 'rgba(102, 126, 234, 0.6)'};">
+                        <div style="font-weight: 600; color: rgba(255,255,255,0.95); font-size: 0.9rem;">${committee.data_source === 'bulk' ? '✓ Local bulk (parquet)' : 'FEC API (local bulk not available)'}</div>
+                        ${committee.data_source === 'bulk' ? '<div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 0.35rem;">Years: <strong>' + (committee.years_included && committee.years_included.length ? escapeHtml(committee.years_included.slice().sort((a,b)=>a-b).join(', ')) : '—') + '</strong>' + (committee.bulk_capped_through_year ? ' (large committees capped through ' + escapeHtml(String(committee.bulk_capped_through_year)) + ')' : '') + '.</div>' + (committee.bulk_last_updated ? '<div style="color: rgba(255,255,255,0.8); font-size: 0.8rem; margin-top: 0.25rem;">Parquet updated: ' + escapeHtml(formatBulkDate(committee.bulk_last_updated)) + '</div>' : '') : '<div style="color: rgba(255,255,255,0.8); font-size: 0.85rem; margin-top: 0.35rem;">No parquet in donor/FEC data/ or empty for this committee.</div>' + ((committee.years_included && committee.years_included.length) ? '<div style="color: rgba(255,255,255,0.85); font-size: 0.85rem; margin-top: 0.35rem;">Years returned: ' + escapeHtml(committee.years_included.slice().sort((a,b)=>a-b).join(', ')) + '</div>' : '')}
+                    </div>
+                    <p style="color: rgba(255,255,255,0.65); font-size: 0.8rem; margin: 0.75rem 0 0 0;">Contributors are drawn from FEC filings and matched by name to the CMS nursing home ownership dataset. Years included depend on data source (see above). Results may omit relevant donors or include incorrect matches due to name-based limitations. Matches are not independently verified. Only matched names appear as nursing home–linked.</p>
                 </div>
             `;
 
             if (owners.length === 0) {
                 html += `<p style="color: rgba(255,255,255,0.7);">No nursing home owners found among contributors to this committee.</p>`;
             } else {
-                html += `<h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.1rem;">Nursing home-linked contributions to ${escapeHtml(committee.name || 'Committee')}</h3>`;
+                html += `<h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.1rem;">Nursing home-linked contributions to ${escapeHtml(toTitleCaseCommittee(committee.name || 'Committee'))}</h3>`;
                 const titleCase = (s) => { if (!s || typeof s !== 'string') return ''; return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()); };
                 const formatAddress = (city, state) => {
                     const na = (v) => !v || String(v).trim() === '' || String(v).toLowerCase() === 'nan' || String(v).toLowerCase() === 'none';
@@ -1863,7 +1917,7 @@
                 }));
                 const ownersCsvBlob = new Blob([ownersCsv.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
                 const ownersCsvUrl = URL.createObjectURL(ownersCsvBlob);
-                const fecReceiptsUrlForTable = committee.id ? ('https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committee.id)) : '#';
+                const fecReceiptsUrlForTable = committee.id ? ('https://www.fec.gov/data/receipts/?data_type=efiling&committee_id=' + encodeURIComponent(committee.id)) : '#';
                 html += `<a href="${ownersCsvUrl}" download="committee_contributors.csv" class="committee-export-desktop" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem;">Export Contributors CSV</a>`;
                 html += `<a href="${fecReceiptsUrlForTable}" target="_blank" rel="noopener" class="committee-export-desktop" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem; margin-right: 1rem;">View committee receipts on FEC</a>`;
                 html += `<div class="committee-export-mobile-wrap"><a href="${ownersCsvUrl}" download="committee_contributors.csv" class="committee-export-mobile">Export contributors CSV</a>`;
@@ -1937,10 +1991,11 @@
                 ];
             }));
             const allCsvBlob = new Blob([allCsv.map(row => row.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')], { type: 'text/csv;charset=utf-8;' });
-            const allCsvUrl = URL.createObjectURL(allCsvBlob);
-            const fecReceiptsUrl = committee.id ? `https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.id)}` : '#';
-            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">All ${escapeHtml(committee.name || 'Committee')} contributors</h3>`;
-            html += `<p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 0.75rem;">Download CSV of all contributors (nursing home–linked and not). Column &quot;Likely nursing home–linked&quot; indicates a name match to the CMS ownership file; matching is not independently verified.</p>`;
+            const allCsvBlobUrl = URL.createObjectURL(allCsvBlob);
+            const allCsvUrl = committee.export_csv_url ? (window.location.pathname.replace(/\/[^/]*$/, '') + '/' + committee.export_csv_url) : allCsvBlobUrl;
+            const fecReceiptsUrl = committee.id ? `https://www.fec.gov/data/receipts/?data_type=efiling&committee_id=${encodeURIComponent(committee.id)}` : '#';
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">All ${escapeHtml(toTitleCaseCommittee(committee.name || 'Committee'))} contributors</h3>`;
+            html += `<p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-bottom: 0.75rem;">Download CSV of all contributors (nursing home–linked and not). Column &quot;Likely nursing home–linked&quot; indicates a name match to the CMS ownership file; matching is not independently verified.${committee.export_csv_url ? ' Full dataset from our server.' : ''}</p>`;
             html += `<div class="committee-all-btns" style="display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;"><a href="${allCsvUrl}" download="committee_all_contributors.csv" style="background: #667eea; color: white; padding: 0.6rem 1.2rem; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 0.9rem;">Download all contributors CSV</a><a href="${fecReceiptsUrl}" target="_blank" rel="noopener" style="color: #667eea; font-size: 0.9rem;">View committee receipts on FEC</a></div>`;
 
             container.innerHTML = html;
@@ -2052,9 +2107,14 @@
                 if (type === 'committee') {
                     const committeeIdMatch = query.match(/\(?(C\d{8,9})\)?/);
                     const committeeQuery = committeeIdMatch ? committeeIdMatch[1] : query.replace(/\s*\(C\d+\)\s*$/, '').trim() || query;
+                    const committeeDisplay = /^C\d{8,9}$/.test(String(committeeQuery).trim()) ? committeeQuery : (committeeQuery ? committeeQuery.trim().replace(/\b\w/g, c => c.toUpperCase()) : 'committee');
+                    const isMajorConduitQuery = /^(C00401224|C00694323|actblue|winred)$/i.test(String(committeeQuery).trim());
+                    const loadingMsg = isMajorConduitQuery
+                        ? 'Searching ' + committeeDisplay + '... Large committees use local bulk through 2024; if unavailable we use the FEC API (60–90+ sec).'
+                        : 'Searching ' + committeeDisplay + '... May take 30–60 seconds.';
                     document.getElementById('resultsSection').style.display = 'block';
                     document.getElementById('detailsSection').style.display = 'none';
-                    document.getElementById('resultsContainer').innerHTML = '<div class="loading">Searching committee... May take 30–60 seconds.</div>';
+                    document.getElementById('resultsContainer').innerHTML = '<div class="loading">' + loadingMsg + '</div>';
                     document.getElementById('resultsCount').textContent = 'Searching...';
                     const response = await fetch(`/owners/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
                     let data;
@@ -2070,7 +2130,7 @@
                     }
                     displayCommitteeResults(data);
                     document.getElementById('resultsCount').textContent = data.committee ?
-                        `Committee: ${data.committee.name} (${data.committee.id})` : 'Committee results';
+                        `Committee: ${toTitleCaseCommittee(data.committee.name)} (${data.committee.id})` : 'Committee results';
                     document.getElementById('resultsSection').style.display = 'block';
                     document.getElementById('detailsSection').style.display = 'none';
                     return;
@@ -2191,7 +2251,7 @@
                                          onclick="filterByRecipient('${escapeHtml(committee.name).replace(/'/g, "\\'")}')"
                                          onmouseover="this.style.background='rgba(102, 126, 234, 0.2)'"
                                          onmouseout="this.style.background='rgba(102, 126, 234, 0.1)'">
-                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${committee.committee_id ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committee.committee_id)}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(committee.name)}</a>` : escapeHtml(committee.name)}</div>
+                                        <div style="font-weight: 600; color: #667eea; margin-bottom: 0.2rem;">${committee.committee_id ? `<a href="https://www.fec.gov/data/receipts/?data_type=efiling&committee_id=${encodeURIComponent(committee.committee_id)}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(toTitleCaseCommittee(committee.name))}</a>` : escapeHtml(toTitleCaseCommittee(committee.name))}</div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">$${committee.total.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</div>
                                     </div>
                                 `).join('')}
@@ -2291,7 +2351,7 @@
                 html += `
                     <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border-left: 4px solid #667eea;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <h4 style="margin: 0; color: #667eea; font-size: 1rem;">${escapeHtml(recipient)}</h4>
+                            <h4 style="margin: 0; color: #667eea; font-size: 1rem;">${escapeHtml(toTitleCaseCommittee(recipient))}</h4>
                             <div style="font-weight: 600; color: white;">
                                 $${total.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} (${recipientDonations.length} donation${recipientDonations.length !== 1 ? 's' : ''})
                             </div>
@@ -2301,7 +2361,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
                                     <div style="flex: 1;">
                                         <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                            ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
+                                            ${formatContributionAmount(d.amount)}${fecLinkHtml(d)}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                             ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
@@ -2385,6 +2445,16 @@
                 }
                 return word;
             }).join(' ');
+        }
+        // Committee/recipient title case: WinRed/ActBlue as-is; acronyms (NRSC, DSCC, PAC, MAGA, HMP) stay all caps
+        function toTitleCaseCommittee(str) {
+            if (!str) return '';
+            const s = String(str).trim();
+            const lower = s.toLowerCase();
+            if (lower === 'winred') return 'WinRed';
+            if (lower === 'actblue') return 'ActBlue';
+            if (['nrsc','dscc','pac','maga','dnc','rnc','hmp'].includes(lower) && s.length <= 6) return s.toUpperCase();
+            return toTitleCase(s);
         }
         // FEC individual-contributions contributor_name: for individuals "first last", for orgs the name (spaces as +)
         function fecContributorQuery(ownerName, ownerType) {
@@ -2521,7 +2591,7 @@
                     `;
                 }
                 
-                // Build PBJ Dashboard link
+                // Build Dashboard link
                 let providerHeader = '';
                 if (ccn) {
                     providerHeader = `
@@ -2536,7 +2606,7 @@
                                    style="padding: 0.6rem 1.2rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: background 0.3s; white-space: nowrap;"
                                    onmouseover="this.style.background='#5568d3'"
                                    onmouseout="this.style.background='#667eea'">
-                                    PBJ Dashboard
+                                    Dashboard
                                 </a>
                             </div>
                             ${ownersListHtml}
@@ -2879,12 +2949,12 @@
                         </div>
                         <div style="color: rgba(255,255,255,0.7);">
                             ${donationCount} ${donationCount === 1 ? 'contribution' : 'contributions'} found
-                            ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                            ${topCommittees.length > 0 ? ` | Top recipient: ${toTitleCaseCommittee(topCommittees[0][0])} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
                             ${yearBreakdown}
                         </div>
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">Estimates based on contributions matched to names of individuals and organizations in FEC records.</div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">${namesSearched && namesSearched.length ? 'FEC API (full history). ' : ''}Estimates based on contributions matched to names in FEC records.</div>
                     </div>
                     <div style="text-align: center; margin-top: 1rem;">
                         <a href="${csvUrl}" download="donations.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
@@ -2933,7 +3003,7 @@
                                     const popupHtml = popupParts.join('');
                                     const touch = 'ontouchstart' in window;
                                     const hoverOn = touch ? '' : (' onmouseenter="showDonorPopup(\'' + uid + '\')" onmouseleave="hideDonorPopup(\'' + uid + '\')"');
-                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.5rem; font-size: 0.9rem;">' + escapeHtml(toTitleCaseCommittee(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -2961,7 +3031,7 @@
                             </div>
                             <div style="color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 1.6;">
                                 ${d.date ? `<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>` : ''}
-                                ${d.committee ? `<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>` : ''}
+                                ${d.committee ? `<div><strong>Committee:</strong> ${escapeHtml(toTitleCaseCommittee(d.committee))}</div>` : ''}
                                 ${d.candidate ? `<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${d.office})` : ''}${d.party ? ` - ${d.party}` : ''}</div>` : ''}
                                 ${d.donor_name ? `<div>${formatFecContributor(d)}</div>` : ''}
                                 ${d.employer ? `<div><strong>Employer:</strong> ${escapeHtml(d.employer)}${d.occupation ? `, ${escapeHtml(d.occupation)}` : ''}</div>` : ''}
@@ -3156,12 +3226,12 @@
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                             ${donationCount} ${donationCount === 1 ? 'contribution' : 'contributions'} found
-                            ${topCommittees.length > 0 ? ` | Top recipient: ${topCommittees[0][0]} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
+                            ${topCommittees.length > 0 ? ` | Top recipient: ${toTitleCaseCommittee(topCommittees[0][0])} ($${topCommittees[0][1].toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})})` : ''}
                         </div>
                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-top: 0.3rem;">
                             ${yearBreakdown}
                         </div>
-                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">Estimates based on contributions matched to names of individuals and organizations in FEC records.</div>
+                        <div style="color: rgba(255,255,255,0.5); font-size: 0.8rem; margin-top: 0.25rem;">FEC API (full history). Estimates based on contributions matched to names in FEC records.</div>
                     </div>
                     <div style="text-align: center; margin-top: 1rem;">
                         <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="background: #667eea; color: white; padding: 0.7rem 1.5rem; border-radius: 6px; text-decoration: none; font-weight: 600; transition: all 0.3s; display: inline-block;">
@@ -3210,7 +3280,7 @@
                                     const popupHtml = popupParts.join('');
                                     const touch = 'ontouchstart' in window;
                                     const hoverOn = touch ? '' : (' onmouseenter="showDonorPopup(\'' + uid + '\')" onmouseleave="hideDonorPopup(\'' + uid + '\')"');
-                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + escapeHtml(name) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
+                                    return '<div style="margin-top: 0.4rem; font-size: 0.85rem;">' + escapeHtml(toTitleCaseCommittee(name)) + ': <span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOn + '><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Contributor details" onclick="event.preventDefault();event.stopPropagation(); toggleDonorPopup(\'' + uid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span><div id="' + uid + '" class="donor-popup">' + popupHtml + '</div></span></div>';
                                 }).join('')}
                             </div>
                         ` : ''}
@@ -3233,12 +3303,12 @@
                         <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                             <div style="flex: 1;">
                                 <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
+                                    ${formatContributionAmount(d.amount)}${fecLinkHtml(d)}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                 ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
                                 ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
+                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(toTitleCaseCommittee(d.committee))}` : ''}
                                 ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
                                     ${d.office ? ` (${d.office})` : ''}
                                     ${d.party ? ` - ${d.party}` : ''}
@@ -3278,12 +3348,12 @@
                     <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
                         <div style="flex: 1;">
                             <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
+                                ${formatContributionAmount(d.amount)}${fecLinkHtml(d)}
                             </div>
                             <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                 ${d.donor_name ? formatFecContributor(d) + '<br>' : ''}
                                 ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
+                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(toTitleCaseCommittee(d.committee))}` : ''}
                                 ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
                                 ${d.office ? ` (${d.office})` : ''}
                                 ${d.party ? ` - ${d.party}` : ''}

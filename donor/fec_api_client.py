@@ -22,7 +22,7 @@ FEC API Documentation: https://api.open.fec.gov/developers/
 import requests
 import time
 import os
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
@@ -230,7 +230,8 @@ def query_donations_by_committee(
     min_date: Optional[str] = None,
     max_date: Optional[str] = None,
     per_page: int = 100,
-    max_pages: Optional[int] = None
+    max_pages: Optional[int] = None,
+    timeout: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
     """
     Query FEC API for donations to a specific committee.
@@ -273,8 +274,9 @@ def query_donations_by_committee(
         if max_date:
             params["max_date"] = max_date
         
+        timeout_sec = timeout if timeout is not None else FEC_API_TIMEOUT
         try:
-            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
+            response = requests.get(endpoint, params=params, timeout=timeout_sec)
             response.raise_for_status()
             
             data = response.json()
@@ -299,6 +301,64 @@ def query_donations_by_committee(
             break
     
     return all_results
+
+
+# Longer timeout for chunked committee fetch (major conduits); single request can be slow
+FEC_CHUNKED_TIMEOUT = int(os.getenv("FEC_CHUNKED_TIMEOUT", "180"))
+
+
+def query_donations_by_committee_chunked(
+    committee_id: str,
+    max_pages_per_period: Optional[int] = None,
+    years: Optional[List[int]] = None,
+    per_page: int = 100,
+) -> Tuple[List[Dict[str, Any]], List[int]]:
+    """
+    Fetch committee donations in year-sized chunks (newest year first).
+    Fetches all pages per year (no cap) until the API has no more or a request times out.
+    Caller can show years_included so users know what's in the data.
+
+    Args:
+        committee_id: FEC committee ID (e.g. "C00401224").
+        max_pages_per_period: Max pages per year (None = fetch all pages per year).
+        years: List of years to fetch (default last 5 calendar years, newest first).
+        per_page: Results per page (max 100).
+
+    Returns:
+        (merged list of donation records deduplicated by sub_id, list of years we got data for)
+    """
+    from datetime import date
+    current_year = date.today().year
+    if years is None:
+        years = [current_year, current_year - 1, current_year - 2, current_year - 3, current_year - 4]
+    seen_sub_ids = set()
+    merged = []
+    years_included = []
+    for y in years:
+        min_date = f"{y}-01-01"
+        max_date = f"{y}-12-31"
+        try:
+            chunk = query_donations_by_committee(
+                committee_id,
+                min_date=min_date,
+                max_date=max_date,
+                per_page=per_page,
+                max_pages=max_pages_per_period,
+                timeout=FEC_CHUNKED_TIMEOUT,
+            )
+        except requests.exceptions.Timeout:
+            print(f"FEC API timeout for committee {committee_id} year {y}, skipping year")
+            continue
+        if chunk:
+            years_included.append(y)
+        for r in chunk:
+            sub_id = r.get("sub_id")
+            if sub_id is not None and sub_id != "":
+                if sub_id in seen_sub_ids:
+                    continue
+                seen_sub_ids.add(sub_id)
+            merged.append(r)
+    return merged, years_included
 
 
 def query_filings_by_committee(
@@ -477,7 +537,7 @@ def build_schedule_a_docquery_link(
     if resolved_image_number:
         url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/sa/ALL"
     else:
-        url = f"https://www.fec.gov/data/receipts/?committee_id={committee_id}"
+        url = f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
 
     out = {
         "url": url,
@@ -559,7 +619,134 @@ def _build_docquery_url(committee_id: str, image_number: Any) -> str:
             raw = raw[4:].strip()
         if raw:
             return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/sa/ALL"
-    return f"https://www.fec.gov/data/receipts/?committee_id={committee_id}"
+    return f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
+
+
+# ---------------------------------------------------------------------------
+# Conduit committee handling: national fundraising platforms (ActBlue, WinRed)
+# that route donations to ultimate recipients. We flag earmarked/conduit rows
+# and attribute to ultimate recipient when possible for aggregation/reporting.
+# ---------------------------------------------------------------------------
+
+CONDUIT_COMMITTEES = (
+    {"committee_id": "C00401224", "committee_name": "ActBlue", "conduit_flag": True},
+    {"committee_id": "C00694323", "committee_name": "WinRed", "conduit_flag": True},
+)
+CONDUIT_COMMITTEE_IDS = {c["committee_id"] for c in CONDUIT_COMMITTEES}
+
+# Earmark/conduit keywords in memo_text (case-insensitive)
+_EARMARK_MEMO_KEYWORDS = ("earmark", "via", "processed by")
+
+
+def is_earmarked_transaction(record: Dict[str, Any]) -> bool:
+    """
+    True if this Schedule A row is conduit-related: memo_code 'X' (earmark)
+    or memo_text contains earmark/via/processed by. Used for attribution.
+    """
+    if not record or not isinstance(record, dict):
+        return False
+    memo_code = (record.get("memo_code") or "").strip().upper()
+    if memo_code == "X":
+        return True
+    memo_text = (record.get("memo_text") or "").strip().lower()
+    if not memo_text:
+        return False
+    return any(kw in memo_text for kw in _EARMARK_MEMO_KEYWORDS)
+
+
+def add_conduit_attribution(record: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Add conduit/attribution fields to a normalized donation record.
+    Preserves committee_id, committee_name for audit.
+    Adds: is_earmarked_transaction, donation_attribution_type,
+    ultimate_recipient_id, ultimate_recipient_name.
+    """
+    if not record or not isinstance(record, dict):
+        return record
+    out = dict(record)
+    recipient_id = (out.get("committee_id") or "").strip()
+    recipient_is_conduit = recipient_id in CONDUIT_COMMITTEE_IDS
+    earmarked = is_earmarked_transaction(out)
+
+    # Direct: not conduit and not earmarked
+    if not recipient_is_conduit and not earmarked:
+        out["is_earmarked_transaction"] = False
+        out["donation_attribution_type"] = "direct"
+        out["ultimate_recipient_id"] = recipient_id
+        out["ultimate_recipient_name"] = (out.get("committee_name") or "").strip()
+        return out
+
+    # Conduit or earmarked: try to resolve ultimate recipient from linked candidate
+    out["is_earmarked_transaction"] = earmarked
+    cand_id = (out.get("candidate_id") or "").strip()
+    cand_name = (out.get("candidate_name") or "").strip()
+    if cand_id or cand_name:
+        out["donation_attribution_type"] = "conduit_resolved"
+        out["ultimate_recipient_id"] = cand_id
+        out["ultimate_recipient_name"] = cand_name
+    else:
+        out["donation_attribution_type"] = "conduit_unresolved"
+        out["ultimate_recipient_id"] = ""
+        out["ultimate_recipient_name"] = ""
+    return out
+
+
+def compute_conduit_diagnostics(
+    records: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """
+    From a list of normalized + conduit-attributed records, return diagnostics:
+    total donations, % via conduit, % resolved vs unresolved, top 10 ultimate recipients.
+    """
+    total_amt = sum(float(r.get("donation_amount") or 0) for r in records)
+    n = len(records)
+    conduit_count = 0
+    conduit_amt = 0.0
+    resolved_count = 0
+    resolved_amt = 0.0
+    unresolved_count = 0
+    unresolved_amt = 0.0
+    # Aggregate by ultimate recipient (id or name) for top 10
+    by_recipient: Dict[str, float] = {}
+
+    for r in records:
+        amt = float(r.get("donation_amount") or 0)
+        att = (r.get("donation_attribution_type") or "direct").strip()
+        rid = (r.get("ultimate_recipient_id") or "").strip()
+        rname = (r.get("ultimate_recipient_name") or "").strip()
+        key = rid or rname or "(direct)"
+        by_recipient[key] = by_recipient.get(key, 0) + amt
+
+        if att == "direct":
+            continue
+        conduit_count += 1
+        conduit_amt += amt
+        if att == "conduit_resolved":
+            resolved_count += 1
+            resolved_amt += amt
+        else:
+            unresolved_count += 1
+            unresolved_amt += amt
+
+    top_recipients = sorted(
+        [{"id_or_name": k, "total": round(v, 2)} for k, v in by_recipient.items()],
+        key=lambda x: -x["total"],
+    )[:10]
+
+    return {
+        "total_donations": n,
+        "total_amount": round(total_amt, 2),
+        "conduit_count": conduit_count,
+        "conduit_amount": round(conduit_amt, 2),
+        "pct_via_conduit": round(100.0 * conduit_count / n, 1) if n else 0,
+        "conduit_resolved_count": resolved_count,
+        "conduit_resolved_amount": round(resolved_amt, 2),
+        "pct_resolved": round(100.0 * resolved_count / conduit_count, 1) if conduit_count else 0,
+        "conduit_unresolved_count": unresolved_count,
+        "conduit_unresolved_amount": round(unresolved_amt, 2),
+        "pct_unresolved": round(100.0 * unresolved_count / conduit_count, 1) if conduit_count else 0,
+        "top_ultimate_recipients": top_recipients,
+    }
 
 
 def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -608,8 +795,8 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "donor_zip": record.get("contributor_zip", ""),
         "employer": record.get("contributor_employer", ""),
         "occupation": record.get("contributor_occupation", ""),
-        "donation_amount": record.get("contribution_receipt_amount", 0),
-        "donation_date": record.get("contribution_receipt_date", ""),
+        "donation_amount": record.get("contribution_receipt_amount") or 0,
+        "donation_date": record.get("contribution_receipt_date") or "",
         "committee_id": committee_id,
         "committee_name": committee.get("name", "") if isinstance(committee, dict) else "",
         "committee_type": committee.get("committee_type", "") if isinstance(committee, dict) else "",

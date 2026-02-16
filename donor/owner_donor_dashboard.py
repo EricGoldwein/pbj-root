@@ -18,11 +18,21 @@ if str(donor_dir) not in sys.path:
 from fec_api_client import (
     query_donations_by_name,
     query_donations_by_committee,
+    query_donations_by_committee_chunked,
     normalize_fec_donation,
+    add_conduit_attribution,
+    compute_conduit_diagnostics,
     build_schedule_a_docquery_link,
     is_valid_docquery_schedule_a_url,
     FEC_API_KEY,
     FEC_API_BASE_URL,
+)
+from fec_indiv_bulk import (
+    get_contributions_by_committee_from_bulk,
+    get_bulk_manifest,
+    get_committee_csv_path,
+    MASSIVE_COMMITTEES,
+    BULK_MASSIVE_COMMITTEE_MAX_YEAR,
 )
 import requests
 
@@ -42,11 +52,15 @@ FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.c
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
 DONATIONS_DB = BASE_DIR / "donor" / "output" / "owner_donations_database.csv"
 # FEC committee master: CMTE_ID -> CMTE_NM (cm26=2025-2026, cm24=2023-2024, etc.)
+# Try donor/data/fec_committee_master first, then donor/FEC data (user may place cm*.csv there)
 FEC_COMMITTEE_MASTER_DIR = BASE_DIR / "donor" / "data" / "fec_committee_master"
+FEC_DATA_DIR = BASE_DIR / "donor" / "FEC data"
 FEC_COMMITTEE_MASTER_FILES = [
     "cm26_2025_2026.csv", "cm24_2023_2024.csv", "cm22_2021_2022.csv",
     "cm20_2019_2020.csv", "cm18_2017_2018.csv", "cm16_2015_2016.csv", "cm14_2013_2014.csv",
 ]
+# FEC committee/contribution data: we use 2020 through present (transparent in UI/methodology)
+FEC_DATA_YEAR_FROM = 2020
 # Committee search: only load cycles since 2020 (cm20+) for autocomplete
 FEC_COMMITTEE_MASTER_FILES_RECENT = [
     "cm26_2025_2026.csv", "cm24_2023_2024.csv", "cm22_2021_2022.csv", "cm20_2019_2020.csv",
@@ -478,13 +492,18 @@ def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
 def _load_committee_master():
     """
     Load FEC committee master (CMTE_ID -> CMTE_NM) from CSVs.
-    Tries donor/data/fec_committee_master/*.csv first, then donor/cm*.csv.
+    Tries donor/data/fec_committee_master/*.csv first, then donor/FEC data/*.csv, then donor/cm*.csv.
     Newer cycles override older so we have one in-memory lookup for display/verification.
     """
     out = {}
     # Prefer data/fec_committee_master (named by cycle). Load oldest first so newer cycle wins.
     for fname in reversed(FEC_COMMITTEE_MASTER_FILES):
         path = FEC_COMMITTEE_MASTER_DIR / fname
+        if not path.exists() and FEC_DATA_DIR.exists():
+            path = FEC_DATA_DIR / fname
+        if not path.exists() and FEC_DATA_DIR.exists():
+            short = fname.split("_")[0] + ".csv" if "_" in fname else fname
+            path = FEC_DATA_DIR / short
         if not path.exists():
             continue
         try:
@@ -500,7 +519,24 @@ def _load_committee_master():
                     out[cid] = nm
         except Exception as e:
             print(f"  [WARN] Could not load {path}: {e}")
-    # Fallback: donor/cm26.csv, donor/cm24.csv, etc.
+    # Fallback: donor/FEC data/cm*.csv then donor/cm*.csv
+    if not out and FEC_DATA_DIR.exists():
+        for fname in reversed(FEC_CM_FALLBACK_RECENT):
+            path = FEC_DATA_DIR / fname
+            if not path.exists():
+                continue
+            try:
+                try:
+                    df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8", on_bad_lines="skip")
+                except TypeError:
+                    df = pd.read_csv(path, dtype=str, usecols=["CMTE_ID", "CMTE_NM"], encoding="utf-8")
+                for _, row in df.iterrows():
+                    cid = str(row.get("CMTE_ID") or "").strip()
+                    nm = str(row.get("CMTE_NM") or "").strip()
+                    if cid and cid != "nan":
+                        out[cid] = nm
+            except Exception as e:
+                print(f"  [WARN] Could not load {path}: {e}")
     if not out:
         for fname in reversed(FEC_CM_FALLBACK):
             path = DONOR_DIR / fname
@@ -521,18 +557,30 @@ def _load_committee_master():
     return out
 
 
+from display_utils import title_case_committee
+
+
+def _committee_display_name(name):
+    """Title-case committee name: WinRed/ActBlue as-is; the/and/at/of lowercase when not first word."""
+    if not name:
+        return name
+    return title_case_committee(str(name))
+
+
 def get_committee_display_name(committee_id, fallback=""):
     """
     Return committee name from master (CMTE_NM) for verification/display.
     Uses in-memory committee_master loaded at startup; O(1) lookup.
+    Applies one-off display overrides (e.g. ActBlue, WinRed).
     """
     global committee_master
     if committee_master is None:
-        return fallback or ""
+        return _committee_display_name(fallback or "")
     cid = (committee_id or "").strip()
     if not cid:
-        return fallback or ""
-    return committee_master.get(cid) or fallback or ""
+        return _committee_display_name(fallback or "")
+    name = committee_master.get(cid) or fallback or ""
+    return _committee_display_name(name) if name else ""
 
 
 def _load_committee_master_extended():
@@ -545,6 +593,11 @@ def _load_committee_master_extended():
     cols = ["CMTE_ID", "CMTE_NM", "CMTE_TP", "CMTE_DSGN"]
     for fname in reversed(FEC_COMMITTEE_MASTER_FILES_RECENT):  # cm20 first, cm26 last (newer wins)
         path = FEC_COMMITTEE_MASTER_DIR / fname
+        if not path.exists() and FEC_DATA_DIR.exists():
+            path = FEC_DATA_DIR / fname
+        if not path.exists() and FEC_DATA_DIR.exists():
+            short = fname.split("_")[0] + ".csv" if "_" in fname else fname
+            path = FEC_DATA_DIR / short
         if not path.exists():
             continue
         try:
@@ -1308,7 +1361,7 @@ def autocomplete_committee():
         for c in committees:
             if query_upper in c['name'].upper() or query_upper in c.get('id', '').upper():
                 suggestions.append({
-                    'name': c['name'],
+                    'name': _committee_display_name(c['name']),
                     'id': c['id'],
                     'type': c.get('type', 'Committee'),
                 })
@@ -1429,6 +1482,21 @@ def _compute_providers_from_owners(owners_deduped):
     return providers_result
 
 
+@app.route('/api/committee/<committee_id>/export')
+def committee_export_csv(committee_id):
+    """Stream pre-built committee contributions CSV when available (e.g. ActBlue/WinRed)."""
+    csv_path = get_committee_csv_path(committee_id, FEC_DATA_DIR)
+    if not csv_path or not csv_path.exists():
+        return jsonify({'error': 'No pre-built export for this committee'}), 404
+    from flask import send_file
+    return send_file(
+        csv_path,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'committee_{committee_id}_contributors.csv',
+    )
+
+
 @app.route('/api/search/committee')
 def search_by_committee_endpoint():
     """Search by committee: committee -> donors -> owners (providers lazy-loaded)."""
@@ -1470,34 +1538,72 @@ def search_by_committee(query, include_providers=False):
         committee_id = query_upper[:9] if len(query_upper) >= 9 else query_upper
         for c in committees:
             if c.get('id', '').upper() == committee_id:
-                committee_name = c.get('name', '')
+                committee_name = _committee_display_name(c.get('name', ''))
                 committee_type = c.get('type', 'Committee')
                 break
         if not committee_name and committee_master:
-            committee_name = committee_master.get(committee_id, '')
+            committee_name = _committee_display_name(committee_master.get(committee_id, ''))
     else:
         for c in committees:
             if c['name'].upper() == query_upper or query_upper in c['name'].upper():
                 committee_id = c.get('id', '')
-                committee_name = c.get('name', '')
+                committee_name = _committee_display_name(c.get('name', ''))
                 committee_type = c.get('type', 'Committee')
                 break
+    # Fallback: ActBlue/WinRed by name if committee master didn't resolve (e.g. CSV missing)
+    if not committee_id and query_upper in ("ACTBLUE", "WINRED"):
+        fallback_map = {"ACTBLUE": ("C00401224", "ActBlue", "PAC"), "WINRED": ("C00694323", "WinRed", "PAC")}
+        committee_id, committee_name, committee_type = fallback_map[query_upper]
     if not committee_id:
         return jsonify({
             'error': 'Committee not found',
             'message': f'No committee found matching "{query}". Try searching by committee name (e.g., MAGA Inc.) or committee ID (C########).'
         }), 404
-    try:
-        raw_donations = query_donations_by_committee(committee_id)
-    except requests.exceptions.Timeout:
-        print(f"FEC API timeout for committee {committee_id}")
-        return jsonify({'error': 'The FEC API took too long to respond. Please try again.'}), 500
-    except Exception as e:
-        print(f"FEC API error for committee {committee_id}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Could not fetch contributions: {str(e)}'}), 500
+    CONDUIT_OR_MAJOR_COMMITTEES = {"C00401224", "C00694323"}  # ActBlue, WinRed
+    cid_upper = (committee_id or "").strip().upper()
+    is_massive = cid_upper in MASSIVE_COMMITTEES
+    bulk_max_year = BULK_MASSIVE_COMMITTEE_MAX_YEAR if is_massive else None
+    # Prefer local bulk data (indiv*.parquet) when available for fast committee search; else use FEC API.
+    # For massive committees: only use bulk through BULK_MASSIVE_COMMITTEE_MAX_YEAR (e.g. 2024).
+    raw_donations, years_included, used_bulk = get_contributions_by_committee_from_bulk(
+        committee_id, data_dir=FEC_DATA_DIR, year_from=FEC_DATA_YEAR_FROM, bulk_max_year=bulk_max_year
+    )
+    data_source = "bulk" if used_bulk else "api"
+    bulk_last_updated = None
+    if used_bulk:
+        try:
+            manifest = get_bulk_manifest(FEC_DATA_DIR)
+            bulk_last_updated = manifest.get("last_updated") or (list(manifest.get("parquet", {}).values())[0].get("last_updated") if manifest.get("parquet") else None)
+        except Exception:
+            pass
+    if not used_bulk or raw_donations is None:
+        if is_massive:
+            return jsonify({
+                'error': 'Local bulk data required',
+                'message': f'This committee has too many contributions for the FEC API. We only serve it from local bulk data through {BULK_MASSIVE_COMMITTEE_MAX_YEAR}. Ensure indiv24.parquet (or indiv24_conduits.parquet) or older cycles are in donor/FEC data/. Run: python -m donor.analyze_indiv_parquet to identify massive committees.'
+            }), 503
+        try:
+            if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
+                raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
+            else:
+                raw_donations = query_donations_by_committee(committee_id)
+                years_included = []
+        except requests.exceptions.Timeout:
+            print(f"FEC API timeout for committee {committee_id}")
+            return jsonify({'error': 'The FEC API took too long to respond. Please try again.'}), 500
+        except Exception as e:
+            print(f"FEC API error for committee {committee_id}: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'error': f'Could not fetch contributions: {str(e)}'}), 500
+        data_source = "api"
     if not raw_donations:
+        empty_conduit_diagnostics = {
+            'total_donations': 0, 'total_amount': 0, 'conduit_count': 0, 'conduit_amount': 0,
+            'pct_via_conduit': 0, 'conduit_resolved_count': 0, 'conduit_resolved_amount': 0,
+            'pct_resolved': 0, 'conduit_unresolved_count': 0, 'conduit_unresolved_amount': 0,
+            'pct_unresolved': 0, 'top_ultimate_recipients': [],
+        }
         return jsonify({
             'committee': {
                 'name': committee_name or committee_id,
@@ -1507,6 +1613,12 @@ def search_by_committee(query, include_providers=False):
                 'total_nursing_home_linked': 0,
                 'total_fec_contributions': 0,
                 'total_fec_donors': 0,
+                'years_included': years_included,
+                'data_source': 'api',
+                'data_source_label': 'FEC API',
+                'bulk_last_updated': None,
+                'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
+                'conduit_diagnostics': empty_conduit_diagnostics,
             },
             'owners': [],
             'providers': [],
@@ -1515,6 +1627,9 @@ def search_by_committee(query, include_providers=False):
             'all_contributions_total': 0,
         })
     normalized_list = [normalize_fec_donation(r) for r in raw_donations]
+    # Conduit layer: flag earmarked/conduit rows and attribute to ultimate recipient when possible
+    normalized_list = [add_conduit_attribution(d) for d in normalized_list]
+    conduit_diagnostics = compute_conduit_diagnostics(normalized_list)
     donor_to_amounts = {}
     donor_to_records = {}
     for d in normalized_list:
@@ -1533,11 +1648,14 @@ def search_by_committee(query, include_providers=False):
             'date': d.get('donation_date', ''),
             'committee_name': committee_name or committee_id,
             'committee_id': committee_id,
-            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?committee_id={committee_id}" if committee_id else ''),
+            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
             'employer': d.get('employer', ''),
             'occupation': d.get('occupation', ''),
             'donor_city': d.get('donor_city', ''),
             'donor_state': d.get('donor_state', ''),
+            'donation_attribution_type': d.get('donation_attribution_type', 'direct'),
+            'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
+            'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
         })
     def _find_owner_row(donor_norm, lookup):
         """Match donor to owner; try exact, name-order variants (FEC LAST,FIRST vs CMS FIRST LAST), then substring.
@@ -1786,7 +1904,7 @@ def search_by_committee(query, include_providers=False):
             continue
         for r in recs:
             raw_contributions.append(r)
-    raw_contributions.sort(key=lambda x: (x.get('date', ''), -(x.get('amount', 0))), reverse=True)
+    raw_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
     # All contributions (nursing home and not) with flag for "likely nursing home–linked" (name match) and match score when linked
     all_contributions = []
     for d in normalized_list:
@@ -1806,10 +1924,13 @@ def search_by_committee(query, include_providers=False):
             'occupation': d.get('occupation', ''),
             'donor_city': d.get('donor_city', ''),
             'donor_state': d.get('donor_state', ''),
-            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?committee_id={committee_id}" if committee_id else ''),
+            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
             'likely_nursing_home_linked': matched,
             'owner_name': '',
             'linked_providers_count': 0,
+            'donation_attribution_type': d.get('donation_attribution_type', 'direct'),
+            'ultimate_recipient_id': d.get('ultimate_recipient_id', ''),
+            'ultimate_recipient_name': title_case_committee(d.get('ultimate_recipient_name', '') or ''),
         }
         if matched and owner_row is not None:
             pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
@@ -1825,7 +1946,7 @@ def search_by_committee(query, include_providers=False):
                 cms_city, cms_state,
             ))
         all_contributions.append(rec)
-    all_contributions.sort(key=lambda x: (x.get('date', ''), -(x.get('amount', 0))), reverse=True)
+    all_contributions.sort(key=lambda x: ((x.get('date') or ''), -(x.get('amount') or 0)), reverse=True)
     total_nursing_linked = sum(o['total_contributed'] for o in owners_deduped)
     total_fec = sum(donor_to_amounts.values()) if donor_to_amounts else 0
     return jsonify({
@@ -1838,6 +1959,15 @@ def search_by_committee(query, include_providers=False):
             'total_fec_contributions': len(normalized_list),
             'total_fec_donors': len(donor_to_amounts),
             'total_fec_amount': round(total_fec, 2),
+            'years_included': years_included,
+            'data_source': data_source,
+            'data_source_label': 'Local bulk (parquet)' if data_source == 'bulk' else 'FEC API (local bulk not available)',
+            'bulk_last_updated': bulk_last_updated,
+            'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
+            'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
+            'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
+            'scope_note': None,
+            'conduit_diagnostics': conduit_diagnostics,
         },
         'owners': owners_deduped,
         'providers': providers_result,
@@ -3006,6 +3136,13 @@ def get_stats():
     }
     return jsonify(stats)
 
+
+# Top contributors page (/top) — git-ignored; register if module exists
+try:
+    from routes_top import register_top_routes
+    register_top_routes(app)
+except ImportError:
+    pass
 
 if __name__ == '__main__':
     import logging

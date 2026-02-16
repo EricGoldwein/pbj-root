@@ -100,8 +100,29 @@ def get_dynamic_dates():
 
 @app.route('/api/dates')
 def api_dates():
-    """API endpoint to get dynamic date information"""
-    return jsonify(get_dynamic_dates())
+    """API endpoint to get dynamic date information (used by SFF page for source text)"""
+    data = get_dynamic_dates()
+    # Add PBJ quarter and SFF posting for SFF page source line
+    try:
+        quarter_path = os.path.join(os.path.dirname(__file__), 'latest_quarter_data.json')
+        if os.path.exists(quarter_path):
+            with open(quarter_path, 'r', encoding='utf-8') as f:
+                q = json.load(f)
+            data['pbj_quarter_display'] = q.get('quarter_display', 'Q3 2025')
+        else:
+            data['pbj_quarter_display'] = 'Q3 2025'
+    except Exception:
+        data['pbj_quarter_display'] = 'Q3 2025'
+    data['sff_posting'] = 'Dec. 2025'  # CMS SFF posting date; update when new list is published
+    return jsonify(data)
+
+@app.route('/search_index.json')
+def search_index():
+    """Serve search index for home page autocomplete (facility, entity, state)"""
+    path = os.path.join(os.path.dirname(__file__), 'search_index.json')
+    if os.path.isfile(path):
+        return send_file(path, mimetype='application/json')
+    return jsonify({'f': [], 'e': [], 's': []})
 
 @app.route('/')
 def index():
@@ -153,6 +174,7 @@ try:
     # Create a blueprint that proxies to the owner app - main route is /owners
     owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
     
+    @owner_bp.route('', defaults={'path': ''})
     @owner_bp.route('/', defaults={'path': ''})
     @owner_bp.route('/<path:path>')
     def owner_proxy(path):
@@ -184,6 +206,12 @@ try:
     
     app.register_blueprint(owner_bp)
     
+    # Redirect /top to /owners/top (Top Contributors is under owners)
+    @app.route('/top')
+    @app.route('/top/')
+    def top_redirect():
+        return redirect('/owners/top', code=302)
+
     # Test page: /owners-test and /owners/test (Committee search mode, isolated)
     @app.route('/owners-test')
     @app.route('/owners-test/')

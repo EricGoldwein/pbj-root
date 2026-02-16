@@ -791,6 +791,11 @@ def load_data():
                     owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='latin-1')
+            # Root fix: no pd.NA in columns used by committee matching. row.get('owner_name', '') can still
+            # return NA from CSV empty cells; fillna('') so the rest of the code never sees NA.
+            for col in ['owner_name', 'owner_name_original', 'owner_type', 'facilities', 'associate_id_owner']:
+                if col in owners_df.columns:
+                    owners_df[col] = owners_df[col].fillna('').astype(str)
             print(f"[OK] Loaded {len(owners_df)} owners from database (FAST)")
             if 'owner_type' in owners_df.columns:
                 individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])
@@ -2011,19 +2016,29 @@ def search_by_committee(query, include_providers=False):
             owner_row = _find_owner_row(donor_norm, owner_name_norm_to_row)
             if owner_row is None:
                 continue
-            facilities_str = owner_row.get('facilities', '') or ''
+            # Safe get: row.get() can return pd.NA; never use "x or ''" (bool(pd.NA) raises)
+            def _safe_str(x):
+                if x is None:
+                    return ''
+                try:
+                    if pd.isna(x):
+                        return ''
+                except Exception:
+                    pass
+                return str(x) if not isinstance(x, str) else x
+            facilities_str = _safe_str(owner_row.get('facilities', ''))
             facilities = [f.strip() for f in facilities_str.split(',') if f.strip()]
-            display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
+            display_name = _safe_str(owner_row.get('owner_name_original', owner_row.get('owner_name', '')))
             # Use associate_id_owner (PAC) as key when available - internal ID for reliable deduplication
             pac = str(owner_row.get('associate_id_owner', '')).strip() if pd.notna(owner_row.get('associate_id_owner')) and str(owner_row.get('associate_id_owner', '')).strip() else ''
-            key = pac if pac else owner_row.get('owner_name', '')
+            key = pac if pac else _safe_str(owner_row.get('owner_name', ''))
             recs = donor_to_records.get(donor_norm, [])
             if key not in owner_to_total:
                 owner_to_total[key] = 0
                 owner_to_count[key] = 0
                 owner_to_providers[key] = set()
                 owner_to_display[key] = display_name
-                owner_to_name_norm[key] = owner_row.get('owner_name', '')  # For API lookups (showOwnerDetails)
+                owner_to_name_norm[key] = _safe_str(owner_row.get('owner_name', ''))  # For API lookups (showOwnerDetails)
                 owner_to_pac[key] = pac  # associate_id_owner for soft connecting
                 owner_to_first_record[key] = recs[0] if recs else {}
                 owner_to_type[key] = str(owner_row.get('owner_type', '') or '').strip()
@@ -2038,7 +2053,14 @@ def search_by_committee(query, include_providers=False):
             for fac in facilities:
                 owner_to_providers[key].add(fac)
         def _match_transparency_label(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state):
-            """Descriptive transparency label (name + location). Not a quality score—for user transparency only."""
+            """Descriptive transparency label (name + location). Not a quality score—for user transparency only.
+            Coerce args to str so pd.NA never reaches .strip() or 'x and y' (bool(NA) raises)."""
+            fec_name = _safe_str(fec_name)
+            cms_name = _safe_str(cms_name)
+            fec_city = _safe_str(fec_city)
+            fec_state = _safe_str(fec_state)
+            cms_city = _safe_str(cms_city)
+            cms_state = _safe_str(cms_state)
             name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
             name_label = 'Exact name' if name_exact else 'Similar name'
             fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''

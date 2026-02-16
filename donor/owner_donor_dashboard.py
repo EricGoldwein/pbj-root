@@ -2004,7 +2004,7 @@ def search_by_committee(query, include_providers=False):
             'total_fec_amount': round(total_fec, 2),
             'years_included': years_included,
             'data_source': data_source,
-            'data_source_label': 'Local bulk (parquet)' if data_source == 'bulk' else 'FEC API (local bulk not available)',
+            'data_source_label': 'Local data file' if data_source == 'bulk' else 'FEC API',
             'bulk_last_updated': bulk_last_updated,
             'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
             'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,

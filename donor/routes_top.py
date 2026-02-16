@@ -1,12 +1,13 @@
 """
 Top nursing home owner contributors page — /owners/top.
-Hidden from nav; reachable at /owners/top. Needs donor/FEC data/top_nursing_home_contributors_2026.csv
+NOT public: returns 404 unless ENABLE_TOP_PAGE=1 is set. Needs donor/FEC data/top_nursing_home_contributors_2026.csv
 (generate with: python -m donor.top_nursing_home_contributors_2026 --top 500).
 """
 
+import os
 from pathlib import Path
 
-from flask import render_template, send_file
+from flask import abort, render_template, send_file
 
 
 def _fec_name_display(raw: str) -> str:
@@ -67,11 +68,12 @@ def register_top_routes(app):
 
     @app.route('/top.csv')
     def top_csv():
-        """Serve full top contributors CSV for download."""
+        """Serve full top contributors CSV for download. 404 unless ENABLE_TOP_PAGE=1."""
+        if os.environ.get("ENABLE_TOP_PAGE") != "1":
+            abort(404)
         base = Path(__file__).resolve().parent
         csv_path = base / "FEC data" / "top_nursing_home_contributors_2026.csv"
         if not csv_path.exists():
-            from flask import abort
             abort(404)
         return send_file(
             csv_path,
@@ -82,6 +84,9 @@ def register_top_routes(app):
 
     @app.route('/top')
     def top_contributors():
+        """Top contributors page. 404 unless ENABLE_TOP_PAGE=1 (not public)."""
+        if os.environ.get("ENABLE_TOP_PAGE") != "1":
+            abort(404)
         base = Path(__file__).resolve().parent
         csv_path = base / "FEC data" / "top_nursing_home_contributors_2026.csv"
         rows = []

@@ -178,8 +178,9 @@
         .owner-cell .owner-main { display: block; }
         .owner-cell .owner-meta { font-size: 0.85rem; opacity: 0.85; margin-top: 0.15rem; }
         .owner-row-2 { margin-top: 0.25rem; }
-        .cms-hover-btn { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(102,126,234,0.25); border: 1px solid rgba(102,126,234,0.4); color: #93c5fd; cursor: help; }
+        .cms-hover-btn { font-size: 0.7rem; padding: 0.15rem 0.4rem; border-radius: 4px; background: rgba(102,126,234,0.25); border: 1px solid rgba(102,126,234,0.4); color: #93c5fd; cursor: help; position: relative; }
         .cms-hover-btn:hover { background: rgba(102,126,234,0.4); color: white; }
+        .cms-hover-btn[data-tooltip]:hover::after { content: attr(data-tooltip); position: absolute; left: 0; bottom: 100%; margin-bottom: 4px; padding: 0.5rem 0.75rem; background: #1e293b; border: 1px solid rgba(102,126,234,0.5); border-radius: 6px; font-size: 0.8rem; white-space: normal; max-width: 320px; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.4); pointer-events: none; }
         .fec-contributor-cell { cursor: help; }
         .common-name-warn { color: #fbbf24; font-size: 0.85rem; margin-right: 0.25rem; cursor: help; }
         .conflated-warn { color: #f59e0b; font-weight: bold; }
@@ -274,7 +275,7 @@
                         {% if row.likely_conflated %}<span class="common-name-warn conflated-warn" title="Common name + many contributions—likely conflates multiple people. Verify on FEC." aria-label="Likely conflated">⚠</span>{% elif row.is_common_name %}<span class="common-name-warn" title="Common name—verify identity on FEC" aria-label="Common name">⚠</span>{% endif %}
                         <a href="/owners?owner={{ (row.owner_cms or '')|urlencode }}" class="owner-link">{{ row.owner_cms_display or row.owner_cms }}</a>
                         <div class="owner-row-2">
-                            <button type="button" class="cms-hover-btn" title="Exact CMS name: {{ row.owner_cms|e }}{% if row.owner_type %} · Type: {{ row.owner_type|e }}{% endif %}{% if row.num_facilities %} · See Profile for address and full CMS details{% endif %}">CMS</button>
+                            <button type="button" class="cms-hover-btn" data-tooltip="Exact CMS name: {{ row.owner_cms|e }}{% if row.owner_type %} · Type: {{ row.owner_type|e }}{% endif %}{% if row.num_facilities %} · {{ row.num_facilities }} provider(s). See Profile for address and full CMS details.{% else %} · See Profile for address and full CMS details.{% endif %}" title="CMS details">CMS</button>
                         </div>
                     </td>
                     <td class="fec-contributor-cell" title="FEC filing name: {{ row.fec_name|e }}{% if row.likely_conflated %} — Common name + many contributions, verify on FEC{% elif row.is_common_name %} — Common name, verify identity on FEC{% endif %}">{% if row.likely_conflated %}<span class="common-name-warn conflated-warn" title="Common name + many contributions—likely conflates multiple people">⚠</span>{% elif row.is_common_name %}<span class="common-name-warn" title="Common name—verify identity on FEC">⚠</span>{% endif %}{{ row.fec_name_display or row.fec_name }}</td>

@@ -315,6 +315,38 @@ def _names_same_person(fec_name: str, cms_name: str) -> bool:
     return len(a) >= 2 and a == b
 
 
+def _names_very_close(fec_name: str, cms_name: str) -> bool:
+    """True when FEC and CMS names are the same entity: same word set, same org stem, one name contains the other, or 2+ shared meaningful words (e.g. PRUITTHEALTH CORP/INC, JOHN PAULSON/PAULSON JOHN ALFRED). Used to avoid Low when location is missing (nan vs diff = not actually distinct)."""
+    if not fec_name or not cms_name:
+        return False
+    fec = (fec_name or "").strip()
+    cms = (cms_name or "").strip()
+    if not fec or not cms:
+        return False
+    if _names_same_person(fec_name, cms_name):
+        return True
+    a = set(re.sub(r"[^\w\s]", " ", fec.lower()).split())
+    b = set(re.sub(r"[^\w\s]", " ", cms.lower()).split())
+    a -= _LEGAL_SUFFIXES
+    b -= _LEGAL_SUFFIXES
+    a.discard("")
+    b.discard("")
+    # Same org stem (e.g. PRUITTHEALTH CORPORATION vs PRUITTHEALTH INC)
+    norm_fec = fec.upper().strip()
+    norm_cms = cms.upper().strip()
+    stem_fec = _stem_org_name(norm_fec)
+    stem_cms = _stem_org_name(norm_cms)
+    if stem_fec and stem_cms and stem_fec == stem_cms:
+        return True
+    # One name's content words are a subset of the other (e.g. CENTRAL MANAGEMENT COMPANY vs CENTRAL MANAGEMENT COMPANY, LLC)
+    if len(a) >= 2 and len(b) >= 2 and (a <= b or b <= a):
+        return True
+    # Two or more shared meaningful words (e.g. PAULSON, JOHN ALFRED vs JOHN PAULSON; not RIVERSIDE IMMOVABLES vs 282 RIVERSIDE)
+    if len(a) >= 2 and len(b) >= 2 and len(a & b) >= 2:
+        return True
+    return False
+
+
 def _empty_loc(val) -> bool:
     """True when location value is missing, nan, or placeholder (treat as no data)."""
     if val is None or (isinstance(val, float) and (val != val or val == float('inf'))):
@@ -447,6 +479,10 @@ def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_
     # Treat nan/none/empty CMS location as no data (less punitive when owner file has no location)
     cms_c = '' if _empty_loc(cms_city) else (cms_city or '').strip()
     cms_s = '' if _empty_loc(cms_state) else (cms_state or '').strip()
+    fc = '' if _empty_loc(fec_city) else (fec_city or '').strip()
+    fs = '' if _empty_loc(fec_state) else (fec_state or '').strip()[:2]
+    has_cms = bool(cms_c or cms_s)
+    has_fec = bool(fc or fs)
     similarity = _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_c, cms_s)
     # Same-person name with no CMS location: avoid Very Low (location diff is unknown; e.g. STANBRIDGE, NORMA / NORMA STANBRIDGE)
     if not cms_c and not cms_s and _names_same_person(fec_name or '', cms_name or ''):
@@ -456,7 +492,10 @@ def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_
     exact_bonus = 5 if (_normalized_for_exact(fec_name or '') == _normalized_for_exact(cms_name or '')) else 0
     score = min(100, name_score + geo_score + exact_bonus)
     band = _match_band(score, similarity)
-    if band == "Very Low" and _names_same_person(fec_name or '', cms_name or '') and not cms_c and not cms_s:
+    # Missing location on one or both sides = not actually distinct; if names are very close, don't leave as Low/Very Low
+    if band in ("Low", "Very Low") and _names_very_close(fec_name or '', cms_name or '') and (not has_fec or not has_cms):
+        band = "Moderate"
+    elif band == "Very Low" and _names_same_person(fec_name or '', cms_name or '') and not has_cms:
         band = "Moderate"
     return {
         'match_score': round(score, 1),

@@ -3490,7 +3490,7 @@
                 if (options && options.link) {
                     const href = escapeHtml(options.link.href || '#');
                     const text = escapeHtml(options.link.text || 'link');
-                    container.innerHTML = `<div class="error">${escapeHtml(message)} <a href="${href}" target="_blank" rel="noopener">${text}</a>.</div>`;
+                    container.innerHTML = `<div class="error">${escapeHtml(message)} <a href="${href}" target="_blank" rel="noopener" style="color: white; text-decoration: underline;">${text}</a>.</div>`;
                 } else {
                     container.innerHTML = `<div class="error">${escapeHtml(message)}</div>`;
                 }

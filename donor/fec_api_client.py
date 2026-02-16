@@ -268,11 +268,11 @@ def query_donations_by_committee(
             "per_page": min(per_page, 100),
             "sort": "-contribution_receipt_date"
         }
-        # OpenFEC: first request uses page=1; subsequent pages use last_index (cursor), not page
+        # OpenFEC: first request uses page=1; subsequent pages use last_index (cursor), not page. API expects string.
         if last_index is not None:
-            params["last_index"] = last_index
+            params["last_index"] = str(last_index)
             if last_contribution_receipt_date:
-                params["last_contribution_receipt_date"] = last_contribution_receipt_date
+                params["last_contribution_receipt_date"] = str(last_contribution_receipt_date)
         else:
             params["page"] = page
 
@@ -306,12 +306,20 @@ def query_donations_by_committee(
             if not isinstance(pagination, dict):
                 break
             total_pages = pagination.get("pages", 0) or 0
-            has_more = pagination.get("has_more_pages", False)
+            # API sometimes omits has_more_pages; infer from total_pages so we don't stop after page 1
+            has_more = pagination.get("has_more_pages")
+            if has_more is None or has_more is False:
+                has_more = bool(total_pages and page < total_pages)
             last_indexes = pagination.get("last_indexes")
             if not isinstance(last_indexes, dict):
                 last_indexes = {}
-            next_last = last_indexes.get("last_index")
+            # Cursor: API may return last_index as number or string; try multiple keys
+            next_last = last_indexes.get("last_index") or last_indexes.get("index") or pagination.get("last_index")
             next_date = last_indexes.get("last_contribution_receipt_date")
+            if next_last is not None and next_last != "":
+                next_last = str(next_last)
+            else:
+                next_last = None
 
             if not has_more or (total_pages and page >= total_pages):
                 break
@@ -325,7 +333,9 @@ def query_donations_by_committee(
                 last_index = next_last
                 last_contribution_receipt_date = next_date
             else:
-                # Pagination bug: API sometimes has_more but no last_indexes; continue with page=2,3,...
+                # API says has_more but no cursor; log once per committee so we can debug
+                if has_more and page == 1:
+                    print(f"[FEC] committee {committee_id}: has_more=True but no last_indexes; pagination keys={list(pagination.keys())!r}")
                 last_index = None
                 last_contribution_receipt_date = None
 

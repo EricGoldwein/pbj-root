@@ -1617,6 +1617,7 @@ def search_by_committee(query, include_providers=False):
             'message': f'No committee found matching "{query}". Try searching by committee name (e.g., MAGA Inc.) or committee ID (C########).'
         }), 404
     CONDUIT_OR_MAJOR_COMMITTEES = {"C00401224", "C00694323"}  # ActBlue, WinRed
+    MAGA_INC_ID = "C00892471"  # Use chunked by-year so we get Landa and avoid one long timeout
     cid_upper = (committee_id or "").strip().upper()
     is_massive = cid_upper in MASSIVE_COMMITTEES
     bulk_max_year = BULK_MASSIVE_COMMITTEE_MAX_YEAR if is_massive else None
@@ -1642,9 +1643,13 @@ def search_by_committee(query, include_providers=False):
         try:
             if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
                 raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
+            elif cid_upper == MAGA_INC_ID:
+                # MAGA Inc.: fetch by year (3 pages/year) so we get Landa and stay under host timeout
+                raw_donations, years_included = query_donations_by_committee_chunked(
+                    committee_id, max_pages_per_period=3, years=[2026, 2025, 2024]
+                )
             else:
-                # Multi-page fetch; use longer timeout per request so FEC has time to respond (avoids 500/timeout).
-                # Cap pages so total time stays under typical host timeout (~60s): ~10 pages × ~6s ≈ 60s.
+                # Multi-page fetch; cap pages so total time stays under host timeout (~60s)
                 committee_timeout = int(os.environ.get("FEC_COMMITTEE_TIMEOUT", "120"))
                 committee_max_pages = int(os.environ.get("FEC_COMMITTEE_MAX_PAGES", "10"))
                 raw_donations = query_donations_by_committee(

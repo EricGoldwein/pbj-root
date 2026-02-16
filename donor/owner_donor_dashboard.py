@@ -1643,9 +1643,13 @@ def search_by_committee(query, include_providers=False):
             if committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES:
                 raw_donations, years_included = query_donations_by_committee_chunked(committee_id)
             else:
-                # Multi-page fetch; use longer timeout per request so FEC has time to respond (avoids 500/timeout)
+                # Multi-page fetch; use longer timeout per request so FEC has time to respond (avoids 500/timeout).
+                # Cap pages so total time stays under typical host timeout (~60s): ~10 pages × ~6s ≈ 60s.
                 committee_timeout = int(os.environ.get("FEC_COMMITTEE_TIMEOUT", "120"))
-                raw_donations = query_donations_by_committee(committee_id, timeout=committee_timeout)
+                committee_max_pages = int(os.environ.get("FEC_COMMITTEE_MAX_PAGES", "10"))
+                raw_donations = query_donations_by_committee(
+                    committee_id, timeout=committee_timeout, max_pages=committee_max_pages
+                )
                 years_included = []
         except requests.exceptions.Timeout:
             print(f"FEC API timeout for committee {committee_id}")
@@ -1975,15 +1979,9 @@ def search_by_committee(query, include_providers=False):
     LOW_BANDS = frozenset({'Low', 'Very Low'})
     owners_high = []
     owners_low = []
-    excluded_brockman_note = None
     for o in owners_deduped:
         display = (o.get('owner_name') or '').strip()
         if _is_excluded_different_person(display, committee_name, committee_id):
-            if excluded_brockman_note is None:
-                excluded_brockman_note = (
-                    "A different Gregory Brockman (e.g. tech executive) also contributes to this committee; "
-                    "that match was excluded to avoid mixing with the nursing home–linked owner."
-                )
             continue
         band = (o.get('match_band') or '').strip()
         if band in LOW_BANDS:
@@ -2054,13 +2052,13 @@ def search_by_committee(query, include_providers=False):
             'total_fec_amount': round(total_fec, 2),
             'years_included': years_included,
             'data_source': data_source,
-            'data_source_label': 'Local data file' if data_source == 'bulk' else 'FEC API',
+            'data_source_label': 'FEC Bulk Data' if data_source == 'bulk' else 'FEC API',
             'bulk_last_updated': bulk_last_updated,
             'bulk_capped_through_year': BULK_MASSIVE_COMMITTEE_MAX_YEAR if (data_source == 'bulk' and is_massive) else None,
             'export_csv_url': ('api/committee/' + committee_id + '/export') if get_committee_csv_path(committee_id, FEC_DATA_DIR) else None,
             'is_major_conduit': committee_id and committee_id.upper() in CONDUIT_OR_MAJOR_COMMITTEES,
             'scope_note': None,
-            'excluded_brockman_note': excluded_brockman_note,
+            'excluded_brockman_note': None,
             'conduit_diagnostics': conduit_diagnostics,
         },
         'owners': owners_high,

@@ -293,6 +293,13 @@ def query_donations_by_committee(
             if not results:
                 break
 
+            # Safety: when using page fallback, if this batch's first record matches previous batch's first, API may be returning same page — stop
+            if last_index is None and page > 1 and all_results and len(all_results) >= len(results):
+                this_first_id = (results[0].get("sub_id") if results else None)
+                prev_batch_start = len(all_results) - len(results)
+                prev_first_id = all_results[prev_batch_start].get("sub_id") if prev_batch_start >= 0 else None
+                if this_first_id is not None and this_first_id == prev_first_id:
+                    break
             all_results.extend(results)
 
             pagination = data.get("pagination") or {}

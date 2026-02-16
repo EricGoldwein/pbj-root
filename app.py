@@ -126,7 +126,7 @@ def search_index():
 
 @app.route('/health')
 def health():
-    """Lightweight health check for Render; does not trigger owner data load."""
+    """Lightweight health check for Render. Side-effect free (best practice for public sites)."""
     return 'ok', 200
 
 @app.route('/')

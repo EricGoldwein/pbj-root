@@ -257,38 +257,31 @@ def _empty_loc(val) -> bool:
 
 
 def _similarity_from_match(fec_name, cms_name, fec_city, fec_state, cms_city, cms_state) -> float:
-    """Derive 0–100 similarity from name + location (for scoring layer only; does not change matching)."""
+    """Derive 0–100 similarity. Hierarchy: match (same loc) > no data > distinct city > distinct state."""
     name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
     fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
     fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
     cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
     cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
     same_city_state = bool(fc == cc and fs == cs and (fc or fs))
-    same_state = bool(fs and cs and fs == cs)
     has_fec = bool(fc or fs)
     has_cms = bool(cc or cs)
     same_person_no_cms = not has_cms and _names_same_person(fec_name or '', cms_name or '')
+    # 1. Match (same loc) – best
     if name_exact and same_city_state:
         return 100.0
-    if name_exact and same_state:
-        return 95.0
-    if name_exact and has_cms and (fc != cc or fs != cs):
-        return 90.0
-    if name_exact and not has_cms:
-        return 92.0  # CMS often missing loc; don't over-penalize
-    if name_exact and not has_fec:
-        return 85.0
     if not name_exact and same_city_state:
-        return 85.0
-    if not name_exact and same_state:
-        return 80.0
-    if not name_exact and has_cms and (fc != cc or fs != cs):
-        return 75.0
-    if not name_exact and not has_cms:
-        return 92.0 if same_person_no_cms else 70.0  # e.g. CARR, RANDI / RANDI CARR → High
-    if not name_exact and not has_fec:
-        return 68.0
-    return 65.0
+        return 88.0
+    # 2. No match – missing data (worse than match, better than distinct city/state)
+    if not has_cms:
+        return 92.0 if same_person_no_cms else 76.0
+    if not has_fec:
+        return 85.0 if name_exact else 72.0
+    # 3. No match – distinct city (same state)
+    if fs == cs:
+        return 62.0 if name_exact else 55.0
+    # 4. No match – distinct state (and city) – worst
+    return 50.0 if name_exact else 45.0
 
 
 def _geo_score(fec_city, fec_state, cms_city, cms_state) -> int:
@@ -311,11 +304,20 @@ def _geo_score(fec_city, fec_state, cms_city, cms_state) -> int:
 
 
 def _is_pruitthealth_match(fec_name: str, cms_name: str) -> bool:
-    """Manual write-off: treat PRUITTHEALTH CORP / PRUITTHEALTH INC as High (not Very High)."""
+    """True when FEC and CMS names are Pruitt Health (for MAGA Inc.–only override)."""
     if not fec_name or not cms_name:
         return False
-    key = "prutithealth"
+    key = "pruitthealth"
     return key in (fec_name or "").lower() and key in (cms_name or "").lower()
+
+
+def _is_maga_inc(committee_name: str, committee_id: str = "") -> bool:
+    """True when committee is MAGA Inc. (for Pruitt Health override only)."""
+    n = (committee_name or "").upper()
+    cid = (committee_id or "").strip().upper()
+    if "MAGA" in n and "INC" in n:
+        return True
+    return cid == "C00892471"
 
 
 def _name_score_from_similarity(similarity: float) -> int:
@@ -364,8 +366,6 @@ def _compute_match_score(fec_name, cms_name, fec_city, fec_state, cms_city, cms_
     exact_bonus = 5 if (_normalized_for_exact(fec_name or '') == _normalized_for_exact(cms_name or '')) else 0
     score = min(100, name_score + geo_score + exact_bonus)
     band = _match_band(score, similarity)
-    if _is_pruitthealth_match(fec_name or '', cms_name or ''):
-        band = "High"  # manual write-off: same state / diff city still High, not Very High
     if band == "Very Low" and _names_same_person(fec_name or '', cms_name or '') and not cms_c and not cms_s:
         band = "Moderate"
     return {
@@ -1885,12 +1885,15 @@ def search_by_committee(query, include_providers=False):
         """Descriptive transparency label (name + location). Not a quality score—for user transparency only."""
         name_exact = bool(fec_name and cms_name and fec_name.strip().lower() == cms_name.strip().lower())
         name_label = 'Exact name' if name_exact else 'Similar name'
-        fc = (fec_city or '').strip().upper()
-        fs = (fec_state or '').strip().upper()[:2]
-        cc = (cms_city or '').strip().upper()
-        cs = (cms_state or '').strip().upper()[:2]
+        fc = (fec_city or '').strip().upper() if not _empty_loc(fec_city) else ''
+        fs = (fec_state or '').strip().upper()[:2] if not _empty_loc(fec_state) else ''
+        cc = (cms_city or '').strip().upper() if not _empty_loc(cms_city) else ''
+        cs = (cms_state or '').strip().upper()[:2] if not _empty_loc(cms_state) else ''
+        # No CMS location data (empty, NAN, NA) ≠ "loc not in file"; treat as distinct for transparency
         if not cc and not cs:
-            return f'{name_label}, loc not in file'
+            if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name or '', cms_name or ''):
+                return name_label  # MAGA Inc. only: Pruitt Health has loc in file; show name only
+            return f'{name_label}, no CMS loc'
         if not fc and not fs:
             return f'{name_label}, no FEC loc'
         if fc == cc and fs == cs:
@@ -1901,9 +1904,12 @@ def search_by_committee(query, include_providers=False):
             return f'{name_label}, diff city'
         return f'{name_label}, diff loc'
 
-    owners_deduped = [
-        {
-            'owner_name': owner_to_display[k],
+    owners_deduped = []
+    for k in owner_to_total:
+        fec_name = (owner_to_first_record.get(k) or {}).get('donor_name', '')
+        owner_display = owner_to_display[k]
+        row = {
+            'owner_name': owner_display,
             'owner_name_normalized': owner_to_name_norm.get(k, k),
             'total_contributed': owner_to_total[k],
             'num_contributions': owner_to_count[k],
@@ -1916,29 +1922,30 @@ def search_by_committee(query, include_providers=False):
             'ownership_facilities_preview': ', '.join(sorted(owner_to_providers[k])[:8]) if owner_to_providers[k] else '',
             'contributor_fec_link': (owner_to_first_record.get(k) or {}).get('fec_link', ''),
             'cms_owner_type': owner_to_type.get(k, '') or '',
-            'contributor_name_fec': (owner_to_first_record.get(k) or {}).get('donor_name', '') or '',
+            'contributor_name_fec': fec_name or '',
             'contributions_list': owner_to_contributions.get(k, []),
             'cms_owner_city': _display_na(owner_to_cms_city.get(k, '')),
             'cms_owner_state': _display_na(owner_to_cms_state.get(k, '')),
             'match_transparency': _match_transparency_label(
-                (owner_to_first_record.get(k) or {}).get('donor_name', ''),
-                owner_to_display[k],
+                fec_name,
+                owner_display,
                 (owner_to_first_record.get(k) or {}).get('donor_city', ''),
                 (owner_to_first_record.get(k) or {}).get('donor_state', ''),
                 owner_to_cms_city.get(k, ''),
                 owner_to_cms_state.get(k, ''),
             ),
             **_compute_match_score(
-                (owner_to_first_record.get(k) or {}).get('donor_name', ''),
-                owner_to_display[k],
+                fec_name,
+                owner_display,
                 (owner_to_first_record.get(k) or {}).get('donor_city', ''),
                 (owner_to_first_record.get(k) or {}).get('donor_state', ''),
                 owner_to_cms_city.get(k, ''),
                 owner_to_cms_state.get(k, ''),
             ),
         }
-        for k in owner_to_total
-    ]
+        if _is_maga_inc(committee_name, committee_id) and _is_pruitthealth_match(fec_name, owner_display):
+            row['match_band'] = 'High'
+        owners_deduped.append(row)
     owners_deduped.sort(key=lambda x: -x['total_contributed'])
     providers_result = _compute_providers_from_owners(owners_deduped) if include_providers else []
     raw_contributions = []

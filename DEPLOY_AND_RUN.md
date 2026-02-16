@@ -5,7 +5,7 @@
 - **Local:** Run `app.py` — that’s the whole backend. You do **not** run `owner_donor_dashboard.py` by itself.
 - **Production (e.g. Render):** The start command runs `app.py` via Gunicorn. Same single app.
 
-The owner dashboard (Political Contributions, `/owners`) is built into `app.py` and loaded when the app starts.
+The owner dashboard (Political Contributions, `/owners`) is built into `app.py` and **loaded on first `/owners` visit** (lazy) so the app can bind quickly for Render’s port check. For production, warm the owner dashboard after deploy (see "After deploy" below) so the first user doesn't wait.
 
 ---
 
@@ -61,6 +61,7 @@ Add any other env vars your app or data paths expect (e.g. if you load files fro
 
 - Your site URL will be something like `https://your-service.onrender.com`.
 - Owners / Political Contributions: **https://your-service.onrender.com/owners**
+- **Warm-up (recommended):** After deploy, open or curl `https://your-service.onrender.com/owners` once so the owner dashboard is loaded. Otherwise the first visitor to `/owners` may see a slow response while the app loads. The `/health` check is side-effect free and does not trigger this load.
 - When a user clicks **“View Political Contributions”**, the app calls the FEC API and shows contributions; each row that has FEC data will show a **“View on FEC”** link to the FEC docquery page.
 
 ---

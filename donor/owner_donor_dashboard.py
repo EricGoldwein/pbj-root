@@ -1322,7 +1322,7 @@ def search():
             return jsonify({'results': [], 'count': 0})
         
         if owners_df is None or owners_df.empty:
-            return jsonify({'error': 'Owners database not loaded'}), 500
+            return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
         
         # Handle provider search (search by provider name/CCN, then find owners)
         if search_type == 'provider':
@@ -1703,7 +1703,7 @@ def search_by_committee(query, include_providers=False):
     """
     global committee_master, owners_df, ownership_raw_df, provider_info_latest_df, facility_metrics_df
     if owners_df is None or owners_df.empty:
-        return jsonify({'error': 'Owners database not loaded'}), 500
+        return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
     # Resolve query to committee_id
     committees = _ensure_committee_master_extended()
     if not isinstance(committees, list):
@@ -1756,9 +1756,11 @@ def search_by_committee(query, include_providers=False):
             pass
     if not used_bulk or raw_donations is None:
         if is_massive:
+            fec_committee_url = f'https://www.fec.gov/data/committee/{committee_id}/' if committee_id else None
             return jsonify({
-                'error': 'Local bulk data required',
-                'message': f'This committee has too many contributions for the FEC API. We only serve it from local bulk data through {BULK_MASSIVE_COMMITTEE_MAX_YEAR}. Ensure indiv24.parquet (or indiv24_conduits.parquet) or older cycles are in donor/FEC data/. Run: python -m donor.analyze_indiv_parquet to identify massive committees.'
+                'error': 'Data not available',
+                'message': 'This committee has too many contributions to load from our data source.',
+                'fec_committee_url': fec_committee_url,
             }), 503
         try:
             # Chunked by year for all committees; FEC schedule_a requires last_index + last_contribution_receipt_date for pagination.
@@ -1816,7 +1818,7 @@ def search_by_committee(query, include_providers=False):
         print(f"[ERROR] normalize_fec_donation for committee {committee_id}: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'Could not process FEC data. Check server logs.'}), 500
+        return jsonify({'error': 'We couldn\'t process the contribution data. Please try again later.'}), 500
     # Conduit layer: flag earmarked/conduit rows and attribute to ultimate recipient when possible
     try:
         normalized_list = [add_conduit_attribution(d) for d in normalized_list]
@@ -1825,7 +1827,7 @@ def search_by_committee(query, include_providers=False):
         print(f"[ERROR] conduit attribution for committee {committee_id}: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'Could not process FEC data. Check server logs.'}), 500
+        return jsonify({'error': 'We couldn\'t process the contribution data. Please try again later.'}), 500
     donor_to_amounts = {}
     donor_to_records = {}
     for d in normalized_list:
@@ -2714,7 +2716,7 @@ def search_by_provider(query):
 def get_owner_details(owner_name):
     """Get detailed information about a specific owner. Lookup by name or associate_id_owner (PAC ID)."""
     if owners_df is None:
-        return jsonify({'error': 'Owners database not loaded'}), 500
+        return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
     
     query_upper = owner_name.upper().strip()
     
@@ -3071,7 +3073,7 @@ def query_fec():
             return jsonify({'error': 'Owner name required'}), 400
 
         if not FEC_API_KEY or FEC_API_KEY == "YOUR_API_KEY_HERE":
-            return jsonify({'error': 'FEC API key is not configured. Set FEC_API_KEY in the server environment.'}), 503
+            return jsonify({'error': 'Search is temporarily unavailable.'}), 503
     except Exception as e:
         print(f"Error parsing request in query_fec: {e}")
         import traceback
@@ -3210,7 +3212,7 @@ def query_fec():
         print(f"[ERROR] Error in query_fec: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': 'FEC search failed. Please try again. If it persists, check server logs.'}), 500
+        return jsonify({'error': 'FEC search failed. Please try again.'}), 500
 
 
 @app.route('/api/entity/<entity_id>')
@@ -3220,13 +3222,13 @@ def get_entity_owners(entity_id):
         if _DEBUG:
             print(f"[DEBUG] get_entity_owners: entity_id='{entity_id}'")
         if owners_df is None or owners_df.empty:
-            return jsonify({'error': 'Owners database not loaded'}), 500
+            return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
         
         if provider_info_df is None or provider_info_df.empty:
-            return jsonify({'error': 'Provider info not loaded'}), 500
+            return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
         
         if ownership_df is None or ownership_df.empty:
-            return jsonify({'error': 'Ownership data not loaded'}), 500
+            return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
         
         # Find entity ID column in provider info
         entity_id_col = None
@@ -3236,7 +3238,7 @@ def get_entity_owners(entity_id):
                 break
         
         if not entity_id_col:
-            return jsonify({'error': 'Entity ID column not found in provider info'}), 500
+            return jsonify({'error': 'Something went wrong. Please try again.'}), 500
         
         # Convert entity_id to float for comparison
         try:
@@ -3269,7 +3271,7 @@ def get_entity_owners(entity_id):
                 break
         
         if not ccn_col:
-            return jsonify({'error': 'CCN column not found in provider info'}), 500
+            return jsonify({'error': 'Something went wrong. Please try again.'}), 500
         
         # Get all CCNs (normalize to 6 digits)
         facility_ccns = []

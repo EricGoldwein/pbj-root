@@ -2178,10 +2178,13 @@
                     }
                     if (data.error && response.status !== 200) {
                         const isTimeout = response.status === 500 && (data.error || '').toLowerCase().includes('timeout');
+                        const isDataNotAvailable = response.status === 503 && data.fec_committee_url;
                         if (isTimeout) {
                             const cid = (/^C\d{8,9}$/i.test(String(committeeQuery).trim()) ? String(committeeQuery).trim().toUpperCase() : null);
                             const fecUrl = cid ? ('https://www.fec.gov/data/receipts/?data_type=efiling&committee_id=' + encodeURIComponent(cid)) : 'https://www.fec.gov/data/receipts/?data_type=efiling';
                             showSearchError('Server error. FEC API may have timed out. Please see ', { link: { href: fecUrl, text: 'FEC source' } });
+                        } else if (isDataNotAvailable) {
+                            showSearchError((data.message || data.error) + ' See ', { link: { href: data.fec_committee_url, text: 'FEC data for this committee' } });
                         } else {
                             showSearchError(data.error + (data.message ? ': ' + data.message : ''));
                         }

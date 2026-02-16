@@ -994,12 +994,14 @@
     .home-search-info-body a:hover { text-decoration: underline; }
     .home-search-info-body .info-footer { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.12); font-size: 0.8rem; color: rgba(255,255,255,0.65); }
     @media (max-width: 768px) {
-      .home-search-wrap { padding: 0 4px; max-width: 100%; }
+      .home-search-wrap { padding: 0 2px; max-width: 100%; }
       .home-search-label { font-size: 0.9rem; margin-bottom: 10px; }
+      .home-search-label .home-label-bullet { display: none; }
       .home-search-input {
         padding: 14px 16px 14px 44px;
         font-size: 16px;
         min-height: 48px;
+        min-width: 220px;
       }
       .search-mode-tabs { margin-bottom: 12px; }
       .search-mode-tab {
@@ -1075,7 +1077,7 @@
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
           
           <div class="home-search-wrap" role="search">
-            <p class="home-search-label">A free public resource by 320 Consulting <span style="color: rgba(255,255,255,0.5);">·</span> <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20demo%20request" style="color: #93c5fd; text-decoration: none; font-size: 0.85rem; font-weight: 500;">Request custom report</a></p>
+            <p class="home-search-label">A free public resource by 320 Consulting <span class="home-label-bullet" style="color: rgba(255,255,255,0.5);">·</span> <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20demo%20request" style="color: #93c5fd; text-decoration: none; font-size: 0.85rem; font-weight: 500;">Request custom report</a></p>
             <div class="search-mode-tabs" role="tablist" aria-label="Search type">
               <button type="button" role="tab" id="searchTabFacility" aria-selected="true" aria-controls="homeSearchInput" class="search-mode-tab active">Provider</button>
               <button type="button" role="tab" id="searchTabChain" aria-selected="false" aria-controls="homeSearchInput" class="search-mode-tab">Chain</button>
@@ -1493,7 +1495,8 @@
           if (tabChain) tabChain.setAttribute('aria-selected', mode === 'chain');
           if (tabState) tabState.setAttribute('aria-selected', mode === 'state');
           stateFilterWrap.classList.toggle('inline', mode === 'facility');
-          input.placeholder = mode === 'facility' ? 'Provider name or 6-digit ID' : mode === 'chain' ? 'Chain name or ID' : 'State name or abbreviation';
+          var isMobile = window.innerWidth <= 768;
+          input.placeholder = mode === 'facility' ? (isMobile ? 'Provider name / CCN' : 'Provider name or 6-digit ID') : mode === 'chain' ? 'Chain name or ID' : 'State name or abbreviation';
           renderResults(input.value);
         }
         function renderResults(query) {

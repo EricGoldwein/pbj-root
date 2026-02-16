@@ -152,127 +152,118 @@ def pbj_sample():
 def report():
     return send_file('report.html', mimetype='text/html')
 
-# Owner Donor Dashboard - import and mount the app
-try:
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'donor'))
-    from owner_donor_dashboard import app as owner_app  # type: ignore
-    
-    # Owner dashboard data is loaded lazily on first /owners request (ensure_load_data)
-    # so gunicorn can bind and respond quickly for Render's port check; cm26 + FEC data
-    # can be heavy and was causing "No open ports" / slow startup.
-    
-    # Register owner app routes with /owner prefix using blueprint approach
-    from flask import Blueprint
-    
-    # Create a blueprint that proxies to the owner app - main route is /owners
-    owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
-    
-    @owner_bp.route('', defaults={'path': ''})
-    @owner_bp.route('/', defaults={'path': ''})
-    @owner_bp.route('/<path:path>')
-    def owner_proxy(path):
-        """Proxy requests to the owner donor dashboard app"""
-        # Reconstruct the path for the owner app
-        if path.startswith('api/'):
-            # API routes - forward to owner app's /api routes
-            api_path = path[4:]  # Remove 'api/'
-            with owner_app.test_request_context(f'/api/{api_path}', 
-                                                 method=request.method,
-                                                 query_string=request.query_string.decode(),
-                                                 data=request.get_data(),
-                                                 content_type=request.content_type,
-                                                 headers=list(request.headers)):
-                return owner_app.full_dispatch_request()
-        elif path == '':
-            # Root route
-            with owner_app.test_request_context('/', method=request.method):
-                return owner_app.full_dispatch_request()
-        else:
-            # Other routes
-            with owner_app.test_request_context(f'/{path}', 
-                                                 method=request.method,
-                                                 query_string=request.query_string.decode(),
-                                                 data=request.get_data(),
-                                                 content_type=request.content_type,
-                                                 headers=list(request.headers)):
-                return owner_app.full_dispatch_request()
-    
-    app.register_blueprint(owner_bp)
-    
-    # Redirect /top to /owners/top (Top Contributors is under owners)
-    @app.route('/top')
-    @app.route('/top/')
-    def top_redirect():
-        return redirect('/owners/top', code=302)
+# Owner Donor Dashboard - LAZY import on first /owners request (keeps startup fast for Render port check)
+# Importing owner_donor_dashboard pulls in pandas, FEC modules, etc. and was causing "No open ports" / slow startup.
+_owner_app = None
+_owner_app_error = None
 
-    # Test page: /owners-test and /owners/test (Committee search mode, isolated)
-    @app.route('/owners-test')
-    @app.route('/owners-test/')
-    def owners_test_redirect():
-        """Redirect to test page with Committee search mode"""
-        return redirect('/owners/test', code=302)
+def get_owner_app():
+    """Import owner dashboard on first request; cache result. Keeps app startup fast."""
+    global _owner_app, _owner_app_error
+    if _owner_app is not None:
+        return _owner_app
+    if _owner_app_error is not None:
+        raise _owner_app_error
+    try:
+        sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'donor'))
+        from owner_donor_dashboard import app as owner_app  # type: ignore
+        _owner_app = owner_app
+        return _owner_app
+    except Exception as e:
+        _owner_app_error = e
+        import traceback
+        traceback.print_exc()
+        raise
 
-    # Also register aliases for /owner and /ownership
-    @app.route('/owner', defaults={'path': ''})
-    @app.route('/owner/', defaults={'path': ''})
-    @app.route('/owner/<path:path>')
-    @app.route('/ownership', defaults={'path': ''})
-    @app.route('/ownership/', defaults={'path': ''})
-    @app.route('/ownership/<path:path>')
-    def owner_alias(path=''):
-        """Alias routes for /owner and /ownership - redirect to /owners"""
-        from flask import redirect, url_for
-        if path:
-            return redirect(f'/owners/{path}', code=301)
-        return redirect('/owners', code=301)
-    
-    # Also register API routes directly at /owners/api/*, /owner/api/*, and /ownership/api/* for easier access
-    @app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-    @app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-    @app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-    def owner_api_proxy(api_path):
-        """Direct proxy for owner API routes"""
-        try:
-            # Get request data properly for POST/PUT requests
-            request_data = None
-            if request.method in ['POST', 'PUT']:
-                if request.is_json:
-                    request_data = request.get_json()
-                else:
-                    request_data = request.get_data()
-            
-            # Build headers dict (exclude Host header which can cause issues)
-            headers = {k: v for k, v in request.headers if k.lower() != 'host'}
-            
-            with owner_app.test_request_context(
-                f'/api/{api_path}',
-                method=request.method,
-                query_string=request.query_string.decode() if request.query_string else '',
-                json=request_data if request.is_json and request_data else None,
-                data=request_data if not request.is_json and request_data else None,
-                content_type=request.content_type,
-                headers=headers
-            ):
-                return owner_app.full_dispatch_request()
-        except Exception as e:
-            print(f"Error in owner_api_proxy for {api_path}: {e}")
-            import traceback
-            traceback.print_exc()
-            return jsonify({'error': f'Proxy error: {str(e)}'}), 500
-    
-    print("✓ Owner donor dashboard mounted at /owners (aliases: /owner, /ownership)")
-    print("✓ App ready — owner data loads on first /owners visit (lazy); / and /health respond immediately")
-except Exception as e:
-    print(f"⚠ Warning: Could not load owner donor dashboard: {e}")
-    import traceback
-    traceback.print_exc()
-    
-    # Fallback route
-    @app.route('/owner')
-    @app.route('/owner/')
-    @app.route('/owner/<path:path>')
-    def owner_fallback(path=''):
+from flask import Blueprint
+owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
+
+@owner_bp.route('', defaults={'path': ''})
+@owner_bp.route('/', defaults={'path': ''})
+@owner_bp.route('/<path:path>')
+def owner_proxy(path):
+    """Proxy requests to the owner donor dashboard app (lazy-loaded on first request)."""
+    try:
+        owner_app = get_owner_app()
+    except Exception:
         return "Owner dashboard unavailable. Please check server logs.", 503
+    if path.startswith('api/'):
+        api_path = path[4:]
+        with owner_app.test_request_context(f'/api/{api_path}',
+                                             method=request.method,
+                                             query_string=request.query_string.decode(),
+                                             data=request.get_data(),
+                                             content_type=request.content_type,
+                                             headers=list(request.headers)):
+            return owner_app.full_dispatch_request()
+    elif path == '':
+        with owner_app.test_request_context('/', method=request.method):
+            return owner_app.full_dispatch_request()
+    else:
+        with owner_app.test_request_context(f'/{path}',
+                                             method=request.method,
+                                             query_string=request.query_string.decode(),
+                                             data=request.get_data(),
+                                             content_type=request.content_type,
+                                             headers=list(request.headers)):
+            return owner_app.full_dispatch_request()
+
+app.register_blueprint(owner_bp)
+
+@app.route('/top')
+@app.route('/top/')
+def top_redirect():
+    return redirect('/owners/top', code=302)
+
+@app.route('/owners-test')
+@app.route('/owners-test/')
+def owners_test_redirect():
+    return redirect('/owners/test', code=302)
+
+@app.route('/owner', defaults={'path': ''})
+@app.route('/owner/', defaults={'path': ''})
+@app.route('/owner/<path:path>')
+@app.route('/ownership', defaults={'path': ''})
+@app.route('/ownership/', defaults={'path': ''})
+@app.route('/ownership/<path:path>')
+def owner_alias(path=''):
+    if path:
+        return redirect(f'/owners/{path}', code=301)
+    return redirect('/owners', code=301)
+
+@app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def owner_api_proxy(api_path):
+    try:
+        owner_app = get_owner_app()
+    except Exception:
+        return jsonify({'error': 'Owner dashboard unavailable'}), 503
+    try:
+        request_data = None
+        if request.method in ['POST', 'PUT']:
+            if request.is_json:
+                request_data = request.get_json()
+            else:
+                request_data = request.get_data()
+        headers = {k: v for k, v in request.headers if k.lower() != 'host'}
+        with owner_app.test_request_context(
+            f'/api/{api_path}',
+            method=request.method,
+            query_string=request.query_string.decode() if request.query_string else '',
+            json=request_data if request.is_json and request_data else None,
+            data=request_data if not request.is_json and request_data else None,
+            content_type=request.content_type,
+            headers=headers
+        ):
+            return owner_app.full_dispatch_request()
+    except Exception as e:
+        print(f"Error in owner_api_proxy for {api_path}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Proxy error: {str(e)}'}), 500
+
+print("✓ Owner donor dashboard will load on first /owners visit (lazy); / and /health respond immediately")
 
 @app.route('/sitemap.xml')
 def sitemap():

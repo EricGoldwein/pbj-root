@@ -100,12 +100,11 @@ def docquery_path_for_form_type(form_type: Optional[str]) -> str:
     return DOCQUERY_PATH_SCHEDULE_A
 
 
-def correct_docquery_url_for_form_type(url: str) -> Optional[str]:
+def correct_docquery_url_for_form_type(url: str, form_type_known: Optional[str] = None) -> Optional[str]:
     """
-    If url is a docquery URL ending with /sa/ALL, look up the filing's form_type via the API.
-    If the filing is Form 13 (e.g. Trump Vance Inaugural C00894162), return the correct .../f132 URL
-    so the link works (sa/ALL returns "Invalid Page Number" for Form 13). Otherwise return None (keep url).
-    Used to fix stored fec_docquery_url that were saved as sa/ALL for Form 13 committees.
+    If url is a docquery URL ending with /sa/ALL, return the correct .../f132 URL when the filing is Form 13
+    (e.g. Trump Vance Inaugural C00894162) so the link works. Uses form_type_known when provided (no API);
+    otherwise looks up form_type via the API. When API fails or form_type is not F13, returns None (keep url).
     """
     if not url or not isinstance(url, str) or "docquery.fec.gov" not in url or "/sa/ALL" not in url:
         return None
@@ -118,7 +117,12 @@ def correct_docquery_url_for_form_type(url: str) -> Optional[str]:
         file_number = (parts[idx + 2] or "").strip()
         if not committee_id or not _is_valid_filing_image_id(file_number):
             return None
-        form_type = get_form_type_for_filing(committee_id, file_number)
+        form_type = (form_type_known or "").strip() or None
+        if not form_type or str(form_type).strip().upper() not in FORM_TYPES_USE_SCHEDULE_13A:
+            form_type = get_form_type_for_filing(committee_id, file_number)
+        if not form_type and committee_id and str(committee_id).strip().upper() == "C00894162":
+            # Trump Vance Inaugural: known Form 13; fix even when API fails or record has no form_type (e.g. Landa link)
+            form_type = "F13"
         if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
             path = docquery_path_for_form_type(form_type)
             return f"{DOCQUERY_BASE_URL}/{committee_id}/{file_number}/{path}"

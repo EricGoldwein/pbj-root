@@ -24,6 +24,7 @@ from fec_api_client import (
     add_conduit_attribution,
     compute_conduit_diagnostics,
     build_schedule_a_docquery_link,
+    correct_docquery_url_for_form_type,
     is_valid_docquery_schedule_a_url,
     FEC_API_KEY,
     FEC_API_BASE_URL,
@@ -1856,13 +1857,18 @@ def search_by_committee(query, include_providers=False):
             donor_to_amounts[donor_norm] = 0
             donor_to_records[donor_norm] = []
         donor_to_amounts[donor_norm] += amt
+        _fec = d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else '')
+        if _fec and "/sa/ALL" in _fec:
+            _corrected = correct_docquery_url_for_form_type(_fec, form_type_known=d.get('form_type'))
+            if _corrected:
+                _fec = _corrected
         donor_to_records[donor_norm].append({
             'donor_name': name,
             'amount': amt,
             'date': d.get('donation_date', ''),
             'committee_name': committee_name or committee_id,
             'committee_id': committee_id,
-            'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
+            'fec_link': _fec,
             'employer': d.get('employer', ''),
             'occupation': d.get('occupation', ''),
             'donor_city': d.get('donor_city', ''),
@@ -2211,6 +2217,8 @@ def search_by_committee(query, include_providers=False):
                 amount_val = float(d.get('donation_amount') or 0)
             except (TypeError, ValueError):
                 amount_val = 0
+            _fec_url = d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else '')
+            _fec_link = (correct_docquery_url_for_form_type(_fec_url, form_type_known=d.get('form_type')) or _fec_url) if (_fec_url and "/sa/ALL" in _fec_url) else _fec_url
             rec = {
                 'donor_name': name,
                 'amount': amount_val,
@@ -2221,7 +2229,7 @@ def search_by_committee(query, include_providers=False):
                 'occupation': d.get('occupation', ''),
                 'donor_city': d.get('donor_city', ''),
                 'donor_state': d.get('donor_state', ''),
-                'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
+                'fec_link': _fec_link,
                 'likely_nursing_home_linked': matched,
                 'owner_name': '',
                 'linked_providers_count': 0,
@@ -2291,6 +2299,8 @@ def search_by_committee(query, include_providers=False):
                 amt = float(d.get('donation_amount') or 0)
             except (TypeError, ValueError):
                 amt = 0
+            _fec_url = d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else '')
+            _fec_link = (correct_docquery_url_for_form_type(_fec_url, form_type_known=d.get('form_type')) or _fec_url) if (_fec_url and "/sa/ALL" in _fec_url) else _fec_url
             all_fallback.append({
                 'donor_name': name,
                 'amount': amt,
@@ -2301,7 +2311,7 @@ def search_by_committee(query, include_providers=False):
                 'occupation': d.get('occupation', ''),
                 'donor_city': d.get('donor_city', ''),
                 'donor_state': d.get('donor_state', ''),
-                'fec_link': d.get('fec_docquery_url', '') or (f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}" if committee_id else ''),
+                'fec_link': _fec_link,
                 'likely_nursing_home_linked': False,
                 'owner_name': '',
                 'linked_providers_count': 0,
@@ -2981,6 +2991,11 @@ def get_owner_details(owner_name):
                 
                 # FEC docquery link: use file_number (e.g. 1930534) from Schedule A. Stored or from /filings/.
                 fec_link = (d.get('fec_docquery_url') or '').strip()
+                # Fix stored sa/ALL URLs for Form 13 (e.g. Landa/Vance C00894162): use record form_type so no API needed
+                if fec_link and "/sa/ALL" in fec_link:
+                    corrected = correct_docquery_url_for_form_type(fec_link, form_type_known=d.get('form_type'))
+                    if corrected:
+                        fec_link = corrected
                 if fec_link and not is_valid_docquery_schedule_a_url(fec_link):
                     fec_link = ""
                 if not fec_link and d.get('committee_id'):
@@ -3177,6 +3192,10 @@ def query_fec():
                 
                 committee_display = get_committee_display_name(norm.get('committee_id'), norm.get('committee_name', '') or '') or norm.get('committee_name', '') or ''
                 fec_link = norm.get('fec_docquery_url', '') or ''
+                if fec_link and "/sa/ALL" in fec_link:
+                    corrected = correct_docquery_url_for_form_type(fec_link, form_type_known=norm.get('form_type'))
+                    if corrected:
+                        fec_link = corrected
                 if (not fec_link or fec_link.startswith("https://www.fec.gov/data/receipts")) and norm.get("committee_id") and date_str:
                     result = build_schedule_a_docquery_link(
                         committee_id=norm.get("committee_id"),
@@ -3367,6 +3386,10 @@ def get_entity_owners(entity_id):
                     
                     # FEC docquery link: use file_number from Schedule A; else get from /filings/.
                     fec_link = (d.get('fec_docquery_url') or '').strip()
+                    if fec_link and "/sa/ALL" in fec_link:
+                        corrected = correct_docquery_url_for_form_type(fec_link, form_type_known=d.get('form_type'))
+                        if corrected:
+                            fec_link = corrected
                     if fec_link and not is_valid_docquery_schedule_a_url(fec_link):
                         fec_link = ""
                     if not fec_link and d.get('committee_id'):

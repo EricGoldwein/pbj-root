@@ -651,9 +651,9 @@
       font-style: italic;
     }
     
-    /* Mobile Chart Styles */
+    /* Chart: desktop only (hidden on mobile home) */
     .mobile-chart {
-      display: none;
+      display: block;
       background: rgba(255,255,255,0.1);
       border-radius: 12px;
       padding: 20px;
@@ -764,7 +764,7 @@
       .map-subtitle { font-size: 0.9rem; }
       .mobile-break { display: inline; }
       .state-map { display: none; }
-      .mobile-chart { display: block; }
+      .mobile-chart { display: none !important; }
       .map-legend { display: none; }
       .legend-gradient { width: 180px; }
       .legend-labels { width: 180px; }

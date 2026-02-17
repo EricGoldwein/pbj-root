@@ -38,6 +38,8 @@ if not os.environ.get("FEC_API_KEY") or os.environ.get("FEC_API_KEY") == "YOUR_A
 
 from fec_api_client import (
     build_schedule_a_docquery_link,
+    correct_docquery_url_for_form_type,
+    docquery_path_for_form_type,
     query_donations_by_name,
     query_filings_by_committee,
 )
@@ -63,13 +65,13 @@ def main():
     assert result["url"] == expected_url, f"Expected {expected_url!r}, got {result['url']!r}"
     print("   (URL matches verified example.)")
 
-    # 2) From Schedule A record that has image_number / sub_id
-    print("\n2. From Schedule A record with image_number (or sub_id)")
+    # 2) From Schedule A record that has file_number (docquery uses file_number, not sub_id)
+    print("\n2. From Schedule A record with file_number")
     print("-" * 50)
     schedule_a_with_id = {
         "committee_id": "C00892471",
         "committee": {"committee_id": "C00892471", "name": "MAGA INC."},
-        "sub_id": "1930534",
+        "file_number": "1930534",
         "contribution_receipt_date": "2025-08-20",
         "contribution_receipt_amount": 750000,
     }
@@ -121,6 +123,43 @@ def main():
             print("   No Schedule A results (API empty or rate limit).")
     except Exception as e:
         print(f"   API or link error: {e}")
+
+    # 5) Form 13 (inaugural): C00894162, 1910509 -> f132 (e.g. Benjamin Landa / Trump Vance Inaugural)
+    #    Pass form_type="F13" so path is a deterministic formula (no API); FEC docquery uses f132 for Form 13.
+    print("\n5. Form 13 (inaugural) -> f132 (C00894162, 1910509)")
+    print("-" * 50)
+    result5 = build_schedule_a_docquery_link(
+        committee_id="C00894162",
+        image_number="1910509",
+        form_type="F13",
+        verify_link=False,
+    )
+    _print_result(result5)
+    assert result5["url"].endswith("/f132"), f"Form 13 should produce .../f132, got {result5['url']!r}"
+    print("   (Formula: form_type F13 -> path f132; no API, no fuzzy matching.)")
+
+    # 6) correct_docquery_url_for_form_type: wrong sa/ALL -> corrected f132 (Landa example)
+    #    Requires API to look up form_type for the filing; skip assertion if offline.
+    print("\n6. correct_docquery_url_for_form_type (sa/ALL -> f132 for Form 13)")
+    print("-" * 50)
+    wrong_url = "https://docquery.fec.gov/cgi-bin/forms/C00894162/1910509/sa/ALL"
+    corrected = correct_docquery_url_for_form_type(wrong_url)
+    print(f"   Input:  {wrong_url}")
+    print(f"   Output: {corrected or '(unchanged)'}")
+    if corrected:
+        assert corrected.endswith("/f132"), f"Expected .../f132, got {corrected!r}"
+        print("   (Stored sa/ALL URL corrected to f132 so Landa link works.)")
+    else:
+        print("   (API unavailable or filing not F13; correction skipped. Formula test in #5 and #7.)")
+
+    # 7) docquery_path_for_form_type (no API)
+    print("\n7. docquery_path_for_form_type (F13 -> f132, other -> sa/ALL)")
+    print("-" * 50)
+    assert docquery_path_for_form_type("F13") == "f132"
+    assert docquery_path_for_form_type("F3") == "sa/ALL"
+    assert docquery_path_for_form_type("F3X") == "sa/ALL"
+    assert docquery_path_for_form_type(None) == "sa/ALL"
+    print("   F13 -> f132, F3/F3X/None -> sa/ALL (OK)")
 
     print("\n" + "=" * 70)
     print("Done.")

@@ -71,9 +71,12 @@ FEC_API_BASE_URL = "https://api.open.fec.gov/v1"
 # Docquery base URL for Schedule A receipt viewer (no trailing slash)
 DOCQUERY_BASE_URL = "https://docquery.fec.gov/cgi-bin/forms"
 
-# Docquery path by form type (FEC convention; only F13 uses a different schedule path).
-# Form 13 = "Report of Donations Accepted for Inaugural Committee" -> Schedule 13-A = f132.
-# All other forms (F3, F3P, F3X, F3L, etc.) use Schedule A for itemized contributions = sa/ALL.
+# Docquery path by form type. Deterministic formula only (no fuzzy matching).
+# Source: FEC docquery itself uses path "f132" for Form 13 Schedule 13-A (e.g. inaugural committees).
+# Example: https://docquery.fec.gov/cgi-bin/forms/C00894162/1889684/f132 shows "SCHEDULE 13-A".
+# Form 13 = Report of Donations Accepted for Inaugural Committee -> Schedule 13-A -> path "f132".
+# All other forms (F3, F3P, F3X, F3L, etc.) use Schedule A for itemized contributions -> path "sa/ALL".
+# Rule: form_type string exactly "F13" (case-normalized) -> "f132"; else -> "sa/ALL".
 FORM_TYPES_USE_SCHEDULE_13A = frozenset({"F13"})
 DOCQUERY_PATH_SCHEDULE_13A = "f132"
 DOCQUERY_PATH_SCHEDULE_A = "sa/ALL"
@@ -81,13 +84,39 @@ DOCQUERY_PATH_SCHEDULE_A = "sa/ALL"
 
 def docquery_path_for_form_type(form_type: Optional[str]) -> str:
     """
-    Return the docquery schedule path for the given form_type (from OpenFEC filings API).
-    F13 -> f132 (Form 13 Schedule 13-A). All other form types (F3, F3P, F3X, etc.) -> sa/ALL (Schedule A).
-    When form_type is unknown/empty, default to sa/ALL (covers all non-inaugural itemized contributions).
+    Return the docquery schedule path for the given form_type. Pure formula: no API, no fuzzy match.
+    F13 (exact, case-normalized) -> f132. Any other or missing form_type -> sa/ALL.
     """
     if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
         return DOCQUERY_PATH_SCHEDULE_13A
     return DOCQUERY_PATH_SCHEDULE_A
+
+
+def correct_docquery_url_for_form_type(url: str) -> Optional[str]:
+    """
+    If url is a docquery URL ending with /sa/ALL, look up the filing's form_type via the API.
+    If the filing is Form 13 (e.g. Trump Vance Inaugural C00894162), return the correct .../f132 URL
+    so the link works (sa/ALL returns "Invalid Page Number" for Form 13). Otherwise return None (keep url).
+    Used to fix stored fec_docquery_url that were saved as sa/ALL for Form 13 committees.
+    """
+    if not url or not isinstance(url, str) or "docquery.fec.gov" not in url or "/sa/ALL" not in url:
+        return None
+    parts = url.rstrip("/").split("/")
+    try:
+        idx = parts.index("forms")
+        if idx + 2 >= len(parts):
+            return None
+        committee_id = (parts[idx + 1] or "").strip()
+        file_number = (parts[idx + 2] or "").strip()
+        if not committee_id or not _is_valid_filing_image_id(file_number):
+            return None
+        form_type = get_form_type_for_filing(committee_id, file_number)
+        if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
+            path = docquery_path_for_form_type(form_type)
+            return f"{DOCQUERY_BASE_URL}/{committee_id}/{file_number}/{path}"
+    except (ValueError, IndexError):
+        pass
+    return None
 
 # Rate limiting: FEC API allows 120 requests per minute
 REQUESTS_PER_MINUTE = 120
@@ -455,6 +484,7 @@ def query_filings_by_committee(
     min_date: Optional[str] = None,
     max_date: Optional[str] = None,
     form_type: Optional[str] = None,
+    file_number: Optional[Any] = None,
     per_page: int = 100,
     max_pages: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
@@ -470,6 +500,7 @@ def query_filings_by_committee(
         min_date: Optional minimum filing date (YYYY-MM-DD).
         max_date: Optional maximum filing date (YYYY-MM-DD).
         form_type: Optional form type filter (e.g. "F13" for Form 13 / inaugural).
+        file_number: Optional file number to filter (if API supports it).
         per_page: Results per page (max 100).
         max_pages: Max pages to fetch (None for all).
 
@@ -502,6 +533,12 @@ def query_filings_by_committee(
             params["max_receipt_date"] = max_date
         if form_type:
             params["form_type"] = form_type
+        if file_number is not None:
+            fn = str(file_number).strip()
+            if fn.upper().startswith("FEC-"):
+                fn = fn[4:].strip()
+            if fn:
+                params["file_number"] = fn
 
         try:
             response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
@@ -534,8 +571,10 @@ def get_form_type_for_filing(committee_id: str, file_number: Any) -> Optional[st
     if raw.upper().startswith("FEC-"):
         raw = raw[4:].strip()
     try:
+        # Try with file_number first if API supports it (returns that filing directly)
         filings = query_filings_by_committee(
             committee_id,
+            file_number=raw,
             per_page=100,
             max_pages=2,
         )

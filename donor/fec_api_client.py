@@ -12,8 +12,9 @@ USAGE:
    image_number from Schedule A when present, else fetches from /filings/ for the same committee/period)
 4. The module handles rate limiting and API response parsing
 
-Docquery URL for Schedule A: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{file_number}/sa/ALL
-Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
+Docquery URL for Schedule A: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{file_number}/sa
+Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa
+(Using /sa instead of /sa/ALL so links load for all filings; some FEC filings return "Invalid Page Number" for /sa/ALL.)
 The path segment is file_number from OpenFEC: Schedule A returns file_number (e.g. 1930534); /filings/ returns file_number. Do NOT use image_number (long page id) or sub_id (long line-item id) from Schedule A.
 
 FEC API Documentation: https://api.open.fec.gov/developers/
@@ -508,9 +509,10 @@ def build_schedule_a_docquery_link(
     """
     Reliably construct the FEC docquery URL for Schedule A receipts.
 
-    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa/ALL
-    Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
+    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa
+    Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa
     The path segment must be the filing image number (e.g. 1930534 from /filings/ file_number).
+    We use /sa (not /sa/ALL) so links load for all filings; some return "Invalid Page Number" for /sa/ALL.
     Do not substitute sub_id or any other id—only the real filing image number.
 
     If image_number is not provided, use schedule_a_record.image_number only when it is the
@@ -602,7 +604,7 @@ def build_schedule_a_docquery_link(
 
     # Build URL
     if resolved_image_number:
-        url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/sa/ALL"
+        url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/sa"
     else:
         url = f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
 
@@ -640,10 +642,13 @@ def is_valid_docquery_schedule_a_url(url: str) -> bool:
     """
     Return True only if the URL looks like a valid Schedule A docquery link (short
     filing image number in path). Rejects URLs built with long line-item sub_ids.
+    Accepts both /sa and /sa/ALL paths.
     """
-    if not url or not isinstance(url, str) or "docquery.fec.gov" not in url or "/sa/ALL" not in url:
+    if not url or not isinstance(url, str) or "docquery.fec.gov" not in url:
         return False
-    # .../forms/{committee_id}/{image_number}/sa/ALL -> image_number must be 4-12 digits
+    if "/sa/ALL" not in url and not url.rstrip("/").endswith("/sa"):
+        return False
+    # .../forms/{committee_id}/{image_number}/sa -> image_number must be 4-12 digits
     parts = url.rstrip("/").split("/")
     if len(parts) < 2:
         return False
@@ -673,7 +678,7 @@ def _verify_docquery_link(url: str, timeout: int = 5) -> bool:
 def _build_docquery_url(committee_id: str, image_number: Any) -> str:
     """
     Build FEC docquery URL only when we have the real filing image number (e.g. 1930534).
-    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa/ALL
+    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa
     Do not substitute sub_id or any other id—only the filing image number from /filings/ file_number
     or Schedule A image_number when it is that short format.
     """
@@ -685,7 +690,7 @@ def _build_docquery_url(committee_id: str, image_number: Any) -> str:
         if raw.upper().startswith("FEC-"):
             raw = raw[4:].strip()
         if raw:
-            return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/sa/ALL"
+            return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/sa"
     return f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
 
 

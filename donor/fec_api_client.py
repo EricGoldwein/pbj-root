@@ -120,9 +120,6 @@ def correct_docquery_url_for_form_type(url: str, form_type_known: Optional[str] 
         form_type = (form_type_known or "").strip() or None
         if not form_type or str(form_type).strip().upper() not in FORM_TYPES_USE_SCHEDULE_13A:
             form_type = get_form_type_for_filing(committee_id, file_number)
-        if not form_type and committee_id and str(committee_id).strip().upper() == "C00894162":
-            # Trump Vance Inaugural: known Form 13; fix even when API fails or record has no form_type (e.g. Landa link)
-            form_type = "F13"
         if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
             path = docquery_path_for_form_type(form_type)
             return f"{DOCQUERY_BASE_URL}/{committee_id}/{file_number}/{path}"

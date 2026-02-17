@@ -13,6 +13,8 @@ All F13 → f132 / other → sa/ALL logic lives in **`donor/fec_api_client.py`**
 
 - **How we know F13 → f132:** FEC’s own docquery site uses path `f132` for Form 13 Schedule 13-A. Example: `https://docquery.fec.gov/cgi-bin/forms/C00894162/1889684/f132` shows “SCHEDULE 13-A”. So the mapping is from FEC’s URL convention, not guesswork.
 - **No fuzzy matching:** The rule is a basic formula: if `form_type` (from OpenFEC) is exactly `"F13"` (case-normalized), path = `f132`; otherwise path = `sa/ALL`. No similarity or partial matching.
+- **What else besides F13?** For **itemized contributions (receipts)** we use: F13 → `f132`, everything else → `sa/ALL`. Form 13 is the only one we know of that uses a different docquery path for receipts (Schedule 13-A → f132); we confirmed that sa/ALL fails for Form 13 (“Invalid Page Number”) and f132 works.
+- **Why we’re confident non-F13 use sa/ALL:** (1) **Verified live:** `https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL` (MAGA Inc., Form 3X) returns “SCHEDULE A - ITEMIZED RECEIPTS”. (2) Other committees’ Schedule A pages use the same `.../sa/ALL` pattern and load (e.g. C00828541/1700115/sa/ALL). (3) FEC docquery uses “sa” for Schedule A; only Form 13 has a differently named schedule (13-A) and path (f132). We don’t have an official FEC document that lists docquery paths by form type; this is based on observed docquery behavior. If you ever see a non-F13 filing where sa/ALL fails, add that form type in `fec_api_client.py`.
 
 ## Hyperlinking each donation (View on FEC)
 

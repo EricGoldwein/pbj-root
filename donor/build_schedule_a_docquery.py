@@ -152,14 +152,13 @@ def main():
     else:
         print("   (API unavailable or filing not F13; correction skipped. Formula test in #5 and #7.)")
 
-    # 7) docquery_path_for_form_type (no API)
-    print("\n7. docquery_path_for_form_type (F13 -> f132, other -> sa/ALL)")
+    # 7) docquery_path_for_form_type (no API) — full coverage: only F13 uses f132; all others sa/ALL
+    print("\n7. docquery_path_for_form_type (F13 -> f132, all other form types -> sa/ALL)")
     print("-" * 50)
     assert docquery_path_for_form_type("F13") == "f132"
-    assert docquery_path_for_form_type("F3") == "sa/ALL"
-    assert docquery_path_for_form_type("F3X") == "sa/ALL"
-    assert docquery_path_for_form_type(None) == "sa/ALL"
-    print("   F13 -> f132, F3/F3X/None -> sa/ALL (OK)")
+    for ft in ("F3", "F3P", "F3X", "F3L", "f3", "F3x", None, ""):
+        assert docquery_path_for_form_type(ft) == "sa/ALL", f"form_type {ft!r} should map to sa/ALL"
+    print("   F13 -> f132; F3, F3P, F3X, F3L, None, empty -> sa/ALL (link logic coverage OK)")
 
     print("\n" + "=" * 70)
     print("Done.")

@@ -77,6 +77,14 @@ DOCQUERY_BASE_URL = "https://docquery.fec.gov/cgi-bin/forms"
 # Form 13 = Report of Donations Accepted for Inaugural Committee -> Schedule 13-A -> path "f132".
 # All other forms (F3, F3P, F3X, F3L, etc.) use Schedule A for itemized contributions -> path "sa/ALL".
 # Rule: form_type string exactly "F13" (case-normalized) -> "f132"; else -> "sa/ALL".
+#
+# Coverage (itemized contributions / receipts only): F13 -> f132; all other form types -> sa/ALL.
+# Why we use sa/ALL for non-F13: (1) Live docquery URLs use .../sa/ALL for Schedule A and return
+# "SCHEDULE A - ITEMIZED RECEIPTS" (e.g. C00892471/1930534/sa/ALL = MAGA Inc. Form 3X;
+# C00828541/1700115/sa/ALL = other committee). (2) Only Form 13 uses a different schedule name (13-A)
+# and docquery path (f132); sa/ALL fails for Form 13 with "Invalid Page Number". We have no official
+# FEC spec listing docquery paths by form type; this is based on observed docquery behavior.
+# If a non-F13 filing ever fails with sa/ALL, add that form type to a separate path set here.
 FORM_TYPES_USE_SCHEDULE_13A = frozenset({"F13"})
 DOCQUERY_PATH_SCHEDULE_13A = "f132"
 DOCQUERY_PATH_SCHEDULE_A = "sa/ALL"

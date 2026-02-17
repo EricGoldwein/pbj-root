@@ -30,6 +30,7 @@ Omitting last_contribution_receipt_date can drop pages and records.
 import requests
 import time
 import os
+from functools import lru_cache
 from typing import Dict, List, Optional, Any, Tuple
 from datetime import datetime
 from pathlib import Path
@@ -569,31 +570,39 @@ def query_filings_by_committee(
     return all_filings
 
 
+@lru_cache(maxsize=500)
+def _get_form_type_for_filing_impl(committee_id: str, file_number_str: str) -> Optional[str]:
+    """Cached lookup by (committee_id, file_number). One API call per unique filing per process."""
+    try:
+        filings = query_filings_by_committee(
+            committee_id,
+            file_number=file_number_str,
+            per_page=100,
+            max_pages=2,
+        )
+        for f in filings:
+            im = f.get("file_number") or f.get("image_number")
+            if im is not None and str(im).strip() == file_number_str:
+                return (f.get("form_type") or "").strip() or None
+    except Exception:
+        pass
+    return None
+
+
 def get_form_type_for_filing(committee_id: str, file_number: Any) -> Optional[str]:
     """
     Look up the form_type for a given filing (e.g. F13, F3X) from the OpenFEC filings API.
-    Used to build the correct docquery path (f132 vs sa/ALL). Returns None if not found or on error.
+    Used to build the correct docquery path (f132 vs sa/ALL). Results are cached by (committee_id, file_number)
+    so one request with many donations from the same filing only hits the API once.
     """
     if not committee_id or not _is_valid_filing_image_id(file_number):
         return None
     raw = str(file_number).strip()
     if raw.upper().startswith("FEC-"):
         raw = raw[4:].strip()
-    try:
-        # Try with file_number first if API supports it (returns that filing directly)
-        filings = query_filings_by_committee(
-            committee_id,
-            file_number=raw,
-            per_page=100,
-            max_pages=2,
-        )
-        for f in filings:
-            im = f.get("file_number") or f.get("image_number")
-            if im is not None and str(im).strip() == raw:
-                return (f.get("form_type") or "").strip() or None
-    except Exception:
-        pass
-    return None
+    if not raw:
+        return None
+    return _get_form_type_for_filing_impl(committee_id, raw)
 
 
 def build_schedule_a_docquery_link(
@@ -959,13 +968,12 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     
     # Committee ID: API can return in committee object or at top level
     committee_id = (committee.get("committee_id", "") or record.get("committee_id", "")) if isinstance(committee, dict) else (record.get("committee_id", "") or "")
-    # Docquery URL: need form_type so Form 13 -> f132, else sa/ALL. Resolve once here so we never store wrong URL.
+    # Docquery URL uses file_number; use form_type when present (F13 -> f132). Do NOT call get_form_type_for_filing
+    # here for every record or search will timeout (N API calls). Dashboard corrects sa/ALL -> f132 when needed.
     file_num = record.get("file_number")
     url_id = file_num if _is_valid_filing_image_id(file_num) else None
     fec_record_id = record.get("sub_id") or record.get("image_number") or ""
     form_type = (record.get("form_type") or "").strip() or None
-    if not form_type and committee_id and url_id:
-        form_type = get_form_type_for_filing(committee_id, url_id)
 
     return {
         "donor_name": record.get("contributor_name", ""),

@@ -959,11 +959,13 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     
     # Committee ID: API can return in committee object or at top level
     committee_id = (committee.get("committee_id", "") or record.get("committee_id", "")) if isinstance(committee, dict) else (record.get("committee_id", "") or "")
-    # Docquery URL uses file_number from Schedule A (e.g. 1930534). Use form_type when present (F13 -> f132).
+    # Docquery URL: need form_type so Form 13 -> f132, else sa/ALL. Resolve once here so we never store wrong URL.
     file_num = record.get("file_number")
     url_id = file_num if _is_valid_filing_image_id(file_num) else None
     fec_record_id = record.get("sub_id") or record.get("image_number") or ""
     form_type = (record.get("form_type") or "").strip() or None
+    if not form_type and committee_id and url_id:
+        form_type = get_form_type_for_filing(committee_id, url_id)
 
     return {
         "donor_name": record.get("contributor_name", ""),

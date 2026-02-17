@@ -41,6 +41,9 @@ Without the key, the contributions search will return an error when you click �
 
 ### 2. Render: create/use a Web Service
 
+**If deploy fails with "No open HTTP ports" or "Port scan timeout":**  
+Go to **Render Dashboard → your web service (pbj) → Settings → Health Check**. Set **Health Check Path** to **`/health`** and save. Redeploy. Render will then use HTTP requests to `/health` instead of port-scan only; the app responds on `/health` as soon as Gunicorn is listening, so the deploy can succeed. If you created the service from this repo’s **Blueprint** (`render.yaml`), `healthCheckPath: /health` is already set; if you created the service manually, you must set it in the dashboard.
+
 - **Build command:**  
   `pip install -r requirements.txt`
 - **Start command (required so Render detects the port):**  

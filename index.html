@@ -752,13 +752,14 @@
     
     @media (max-width: 768px) {
       .container { padding: 0 10px; }
-      .map-container { padding: 15px 10px; }
+      .map-container { padding: 15px 10px 8px 10px; }
       .map-title { font-size: 1.8rem; line-height: 1.4; }
       .map-title img { display: none; }
-      .cta-favicon { 
-        display: inline; 
-        height: 1.5em; 
-        vertical-align: middle; 
+      .cta-primary { margin-bottom: 6px; }
+      .cta-favicon {
+        display: inline;
+        height: 1.5em;
+        vertical-align: middle;
         margin-right: 4px;
       }
       .map-subtitle { font-size: 0.9rem; }
@@ -769,9 +770,10 @@
       .legend-gradient { width: 180px; }
       .legend-labels { width: 180px; }
       .map-legend { padding: 12px; margin-top: 15px; }
-      .map-header { margin-bottom: 15px; }
+      .map-header { margin-bottom: 8px; }
       .chart-source { margin-top: 5px; margin-bottom: 0; }
       .mobile-chart { padding: 20px 20px 10px 20px; }
+      .credibility-section { margin-top: 16px !important; margin-bottom: 24px !important; }
     }
     
     /* Home page search (facility / chain / state) */
@@ -1218,7 +1220,7 @@
     </article>
 
     <!-- Context / credibility - moved above footer -->
-    <section style="
+    <section class="credibility-section" style="
       background: rgba(255,255,255,0.05);
       padding: 30px 20px;
       margin: 40px auto 30px;
@@ -1234,7 +1236,7 @@
         max-width: 720px;
         font-size: 0.9rem;
       ">
-        <strong>The PBJ Dashboard</strong> a free public resource providing longitudinal staffing data for ~15,000 U.S. nursing homes.
+        <strong>The PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data for ~15,000 U.S. nursing homes.
         As seen in
         <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards"
            target="_blank"

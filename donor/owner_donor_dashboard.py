@@ -2985,13 +2985,15 @@ def get_owner_details(owner_name):
                     fec_link = ""
                 if not fec_link and d.get('committee_id'):
                     file_num = d.get('fec_file_number') or None
+                    form_typ = d.get('form_type') or None
                     if file_num:
-                        result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num)
+                        result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num, form_type=form_typ)
                         fec_link = result.get('url', '').strip() if result.get('image_number') else ""
                     elif d.get('donation_date'):
                         result = build_schedule_a_docquery_link(
                             committee_id=d.get('committee_id'),
-                            schedule_a_record={"contribution_receipt_date": d.get('donation_date')},
+                            schedule_a_record={"contribution_receipt_date": d.get('donation_date'), "form_type": form_typ},
+                            form_type=form_typ,
                         )
                         fec_link = result.get('url', '').strip() if result.get('image_number') else ""
                 committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')
@@ -3178,7 +3180,8 @@ def query_fec():
                 if (not fec_link or fec_link.startswith("https://www.fec.gov/data/receipts")) and norm.get("committee_id") and date_str:
                     result = build_schedule_a_docquery_link(
                         committee_id=norm.get("committee_id"),
-                        schedule_a_record={"contribution_receipt_date": date_str, "committee_id": norm.get("committee_id")},
+                        schedule_a_record={"contribution_receipt_date": date_str, "committee_id": norm.get("committee_id"), "form_type": norm.get("form_type")},
+                        form_type=norm.get("form_type"),
                     )
                     if result.get("image_number"):
                         fec_link = result.get("url", "")
@@ -3368,13 +3371,15 @@ def get_entity_owners(entity_id):
                         fec_link = ""
                     if not fec_link and d.get('committee_id'):
                         file_num = d.get('fec_file_number') or None
+                        form_typ = d.get('form_type') or None
                         if file_num:
-                            result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num)
+                            result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num, form_type=form_typ)
                             fec_link = result.get('url', '').strip() if result.get('image_number') else ""
                         elif d.get('donation_date'):
                             result = build_schedule_a_docquery_link(
                                 committee_id=d.get('committee_id'),
-                                schedule_a_record={"contribution_receipt_date": d.get('donation_date')},
+                                schedule_a_record={"contribution_receipt_date": d.get('donation_date'), "form_type": form_typ},
+                                form_type=form_typ,
                             )
                             fec_link = result.get('url', '').strip() if result.get('image_number') else ""
                     committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')

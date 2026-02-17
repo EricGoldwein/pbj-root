@@ -12,10 +12,13 @@ USAGE:
    image_number from Schedule A when present, else fetches from /filings/ for the same committee/period)
 4. The module handles rate limiting and API response parsing
 
-Docquery URL for Schedule A: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{file_number}/sa
-Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa
-(Using /sa instead of /sa/ALL so links load for all filings; some FEC filings return "Invalid Page Number" for /sa/ALL.)
-The path segment is file_number from OpenFEC: Schedule A returns file_number (e.g. 1930534); /filings/ returns file_number. Do NOT use image_number (long page id) or sub_id (long line-item id) from Schedule A.
+Docquery path by form type (from FEC convention; no guesswork):
+- F13 (Form 13 - Inaugural Committee): itemized donations on Schedule 13-A -> path "f132".
+- All other forms with itemized contributions (F3, F3P, F3X, etc.): Schedule A -> path "sa/ALL".
+See FORM_TYPES_USE_SCHEDULE_13A and docquery_path_for_form_type() below.
+Example Schedule A: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
+Example Form 13: https://docquery.fec.gov/cgi-bin/forms/C00894162/1889684/f132
+Path segment is file_number from OpenFEC. Do NOT use image_number (long page id) or sub_id from Schedule A.
 
 FEC API Documentation: https://api.open.fec.gov/developers/
 
@@ -67,6 +70,24 @@ FEC_API_BASE_URL = "https://api.open.fec.gov/v1"
 
 # Docquery base URL for Schedule A receipt viewer (no trailing slash)
 DOCQUERY_BASE_URL = "https://docquery.fec.gov/cgi-bin/forms"
+
+# Docquery path by form type (FEC convention; only F13 uses a different schedule path).
+# Form 13 = "Report of Donations Accepted for Inaugural Committee" -> Schedule 13-A = f132.
+# All other forms (F3, F3P, F3X, F3L, etc.) use Schedule A for itemized contributions = sa/ALL.
+FORM_TYPES_USE_SCHEDULE_13A = frozenset({"F13"})
+DOCQUERY_PATH_SCHEDULE_13A = "f132"
+DOCQUERY_PATH_SCHEDULE_A = "sa/ALL"
+
+
+def docquery_path_for_form_type(form_type: Optional[str]) -> str:
+    """
+    Return the docquery schedule path for the given form_type (from OpenFEC filings API).
+    F13 -> f132 (Form 13 Schedule 13-A). All other form types (F3, F3P, F3X, etc.) -> sa/ALL (Schedule A).
+    When form_type is unknown/empty, default to sa/ALL (covers all non-inaugural itemized contributions).
+    """
+    if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
+        return DOCQUERY_PATH_SCHEDULE_13A
+    return DOCQUERY_PATH_SCHEDULE_A
 
 # Rate limiting: FEC API allows 120 requests per minute
 REQUESTS_PER_MINUTE = 120
@@ -433,6 +454,7 @@ def query_filings_by_committee(
     committee_id: str,
     min_date: Optional[str] = None,
     max_date: Optional[str] = None,
+    form_type: Optional[str] = None,
     per_page: int = 100,
     max_pages: Optional[int] = None,
 ) -> List[Dict[str, Any]]:
@@ -441,12 +463,13 @@ def query_filings_by_committee(
 
     Use this when a Schedule A record does not include image_number: call this with the same
     committee_id and period (min_date/max_date) to get the filing's image_number for building
-    the docquery URL.
+    the docquery URL. For inaugural committees pass form_type="F13" to get Form 13 filings.
 
     Args:
         committee_id: FEC committee ID (e.g. "C00892471").
         min_date: Optional minimum filing date (YYYY-MM-DD).
         max_date: Optional maximum filing date (YYYY-MM-DD).
+        form_type: Optional form type filter (e.g. "F13" for Form 13 / inaugural).
         per_page: Results per page (max 100).
         max_pages: Max pages to fetch (None for all).
 
@@ -477,6 +500,8 @@ def query_filings_by_committee(
             params["min_receipt_date"] = min_date
         if max_date:
             params["max_receipt_date"] = max_date
+        if form_type:
+            params["form_type"] = form_type
 
         try:
             response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
@@ -498,35 +523,53 @@ def query_filings_by_committee(
     return all_filings
 
 
+def get_form_type_for_filing(committee_id: str, file_number: Any) -> Optional[str]:
+    """
+    Look up the form_type for a given filing (e.g. F13, F3X) from the OpenFEC filings API.
+    Used to build the correct docquery path (f132 vs sa/ALL). Returns None if not found or on error.
+    """
+    if not committee_id or not _is_valid_filing_image_id(file_number):
+        return None
+    raw = str(file_number).strip()
+    if raw.upper().startswith("FEC-"):
+        raw = raw[4:].strip()
+    try:
+        filings = query_filings_by_committee(
+            committee_id,
+            per_page=100,
+            max_pages=2,
+        )
+        for f in filings:
+            im = f.get("file_number") or f.get("image_number")
+            if im is not None and str(im).strip() == raw:
+                return (f.get("form_type") or "").strip() or None
+    except Exception:
+        pass
+    return None
+
+
 def build_schedule_a_docquery_link(
     committee_id: str,
     image_number: Optional[str] = None,
     schedule_a_record: Optional[Dict[str, Any]] = None,
     min_date: Optional[str] = None,
     max_date: Optional[str] = None,
+    form_type: Optional[str] = None,
     verify_link: bool = False,
 ) -> Dict[str, Any]:
     """
-    Reliably construct the FEC docquery URL for Schedule A receipts.
+    Reliably construct the FEC docquery URL for itemized contributions (Schedule A or Form 13 Schedule 13-A).
 
-    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa
-    Example: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa
-    The path segment must be the filing image number (e.g. 1930534 from /filings/ file_number).
-    We use /sa (not /sa/ALL) so links load for all filings; some return "Invalid Page Number" for /sa/ALL.
-    Do not substitute sub_id or any other id—only the real filing image number.
-
-    If image_number is not provided, use schedule_a_record.image_number only when it is the
-    short format (4–12 digits). Otherwise fetch via OpenFEC /filings/ for the same committee
-    and period and use that filing's file_number.
+    Path is determined by form_type from the filing/record: F13 -> .../f132; all other form types -> .../sa/ALL.
+    See docquery_path_for_form_type() and FORM_TYPES_USE_SCHEDULE_13A. Path segment is file_number from OpenFEC.
 
     Args:
         committee_id: FEC committee identifier (e.g. "C00892471").
         image_number: Optional numeric filing ID; if set, used directly.
-        schedule_a_record: Optional Schedule A record from /schedules/schedule_a/; used for
-            image_number (sub_id or image_number) and, if missing, for period (contribution_receipt_date).
-        min_date: Optional min date for filings fallback (YYYY-MM-DD).
-        max_date: Optional max date for filings fallback (YYYY-MM-DD).
-        verify_link: If True, perform a HEAD request to confirm the URL loads.
+        schedule_a_record: Optional Schedule A record; used for file_number and contribution_receipt_date.
+        min_date, max_date: Optional date range for filings fallback.
+        form_type: Optional form type (e.g. "F13") when known; avoids extra API call.
+        verify_link: If True, perform HEAD request to confirm the URL loads.
 
     Returns:
         Dict with:
@@ -547,40 +590,48 @@ def build_schedule_a_docquery_link(
             "api_endpoint_used": "",
         }
 
-    # Resolve image_number: explicit arg > schedule_a record > filings API
     resolved_image_number = None
     source = "none"
     api_endpoint_used = ""
 
-    # Only use the real filing image number (short, e.g. 1930534). Never use sub_id.
-    if image_number and _is_valid_filing_image_id(image_number):
-        raw = str(image_number).strip()
+    def norm_filing_id(val: Any) -> Optional[str]:
+        if not val or not _is_valid_filing_image_id(val):
+            return None
+        raw = str(val).strip()
         if raw.upper().startswith("FEC-"):
             raw = raw[4:].strip()
+        return raw if raw else None
+
+    period_min = min_date
+    period_max = max_date
+    if not (period_min or period_max) and schedule_a_record and isinstance(schedule_a_record, dict) and schedule_a_record.get("contribution_receipt_date"):
+        rd = schedule_a_record.get("contribution_receipt_date")
+        if rd:
+            period_min = rd
+            period_max = rd
+
+    resolved_form_type = (form_type or "").strip() or None
+
+    # 1. Explicit image_number
+    if image_number:
+        raw = norm_filing_id(image_number)
         if raw:
             resolved_image_number = raw
             source = "argument"
-    elif schedule_a_record and isinstance(schedule_a_record, dict):
-        # Schedule A returns file_number (e.g. 1930534) — that's the docquery URL number
-        candidate = schedule_a_record.get("file_number")
-        if candidate and _is_valid_filing_image_id(candidate):
-            raw = str(candidate).strip()
-            if raw.upper().startswith("FEC-"):
-                raw = raw[4:].strip()
-            if raw:
-                resolved_image_number = raw
-                source = "schedule_a"
-                api_endpoint_used = "/schedules/schedule_a/"
 
-    if resolved_image_number is None and (min_date or max_date or (schedule_a_record and schedule_a_record.get("contribution_receipt_date"))):
-        # No guess: fetch filings for this committee and period
-        period_min = min_date
-        period_max = max_date
-        if not (period_min or period_max) and schedule_a_record and schedule_a_record.get("contribution_receipt_date"):
-            rd = schedule_a_record.get("contribution_receipt_date")
-            if rd:
-                period_min = rd
-                period_max = rd
+    # 2. Schedule A record file_number (and form_type from record if API returns it)
+    if resolved_image_number is None and schedule_a_record and isinstance(schedule_a_record, dict):
+        candidate = schedule_a_record.get("file_number")
+        raw = norm_filing_id(candidate)
+        if raw:
+            resolved_image_number = raw
+            source = "schedule_a"
+            api_endpoint_used = "/schedules/schedule_a/"
+            if not resolved_form_type:
+                resolved_form_type = (schedule_a_record.get("form_type") or "").strip() or None
+
+    # 3. Fallback: fetch filings for committee/period (we get form_type from the filing)
+    if resolved_image_number is None and (period_min or period_max):
         try:
             filings = query_filings_by_committee(
                 committee_id,
@@ -590,21 +641,24 @@ def build_schedule_a_docquery_link(
                 max_pages=1,
             )
             for f in filings:
-                # OpenFEC filings return file_number (numeric filing ID); some docs say image_number
                 im = f.get("file_number") or f.get("image_number")
-                if im is not None:
-                    raw = str(im).strip()
-                    if raw:
-                        resolved_image_number = raw
-                        source = "filings"
-                        api_endpoint_used = "/filings/"
-                        break
+                raw = norm_filing_id(im) if im is not None else None
+                if raw:
+                    resolved_image_number = raw
+                    resolved_form_type = (f.get("form_type") or "").strip() or resolved_form_type
+                    source = "filings"
+                    api_endpoint_used = "/filings/"
+                    break
         except Exception:
             pass
 
-    # Build URL
+    # Resolve form_type when we have file_number but no form_type (so we pick correct path)
+    if resolved_image_number and not resolved_form_type:
+        resolved_form_type = get_form_type_for_filing(committee_id, resolved_image_number)
+
+    form_path = docquery_path_for_form_type(resolved_form_type)
     if resolved_image_number:
-        url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/sa"
+        url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/{form_path}"
     else:
         url = f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
 
@@ -640,27 +694,30 @@ def _is_valid_filing_image_id(val: Any) -> bool:
 
 def is_valid_docquery_schedule_a_url(url: str) -> bool:
     """
-    Return True only if the URL looks like a valid Schedule A docquery link (short
-    filing image number in path). Rejects URLs built with long line-item sub_ids.
-    Accepts both /sa and /sa/ALL paths.
+    Return True only if the URL looks like a valid Schedule A (or Form 13 Schedule 13-A)
+    docquery link (short filing image number in path). Rejects URLs built with long line-item sub_ids.
+    Accepts /sa, /sa/ALL, and /f132 (Form 13 Schedule 13-A for inaugural committees).
     """
     if not url or not isinstance(url, str) or "docquery.fec.gov" not in url:
         return False
-    if "/sa/ALL" not in url and not url.rstrip("/").endswith("/sa"):
+    u = url.rstrip("/")
+    # Accept .../sa, .../sa/ALL, or .../f132
+    if not (u.endswith("/sa") or "/sa/ALL" in url or u.endswith("/f132")):
         return False
-    # .../forms/{committee_id}/{image_number}/sa -> image_number must be 4-12 digits
-    parts = url.rstrip("/").split("/")
+    parts = u.split("/")
     if len(parts) < 2:
         return False
-    # image_number is the last part before "sa"
-    try:
-        idx = parts.index("sa")
-        if idx < 1:
-            return False
-        image_part = parts[idx - 1]
-        return _is_valid_filing_image_id(image_part)
-    except ValueError:
-        return False
+    # Form path is last segment; image_number is the one before it
+    for form_name in ("sa", "f132"):
+        try:
+            idx = parts.index(form_name)
+            if idx >= 1:
+                image_part = parts[idx - 1]
+                if _is_valid_filing_image_id(image_part):
+                    return True
+        except ValueError:
+            continue
+    return False
 
 
 def _verify_docquery_link(url: str, timeout: int = 5) -> bool:
@@ -675,22 +732,22 @@ def _verify_docquery_link(url: str, timeout: int = 5) -> bool:
         return False
 
 
-def _build_docquery_url(committee_id: str, image_number: Any) -> str:
+def _build_docquery_url(committee_id: str, image_number: Any, form_type: Optional[str] = None) -> str:
     """
-    Build FEC docquery URL only when we have the real filing image number (e.g. 1930534).
-    URL format: https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa
-    Do not substitute sub_id or any other id—only the filing image number from /filings/ file_number
-    or Schedule A image_number when it is that short format.
+    Build FEC docquery URL when we have the real filing image number (e.g. 1930534).
+    Form type from data: F13 -> .../f132 (Form 13 Schedule 13-A); else -> .../sa/ALL (Schedule A).
+    When form_type is unknown, defaults to sa/ALL.
     """
     committee_id = str(committee_id).strip() if committee_id else ""
     if not committee_id:
         return ""
+    form_path = docquery_path_for_form_type(form_type)
     if image_number and _is_valid_filing_image_id(image_number):
         raw = str(image_number).strip()
         if raw.upper().startswith("FEC-"):
             raw = raw[4:].strip()
         if raw:
-            return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/sa"
+            return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/{form_path}"
     return f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
 
 
@@ -838,7 +895,8 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
             "employer": "", "occupation": "", "donation_amount": 0, "donation_date": "",
             "committee_id": "", "committee_name": "", "committee_type": "",
             "candidate_id": "", "candidate_name": "", "candidate_office": "", "candidate_party": "",
-            "fec_record_id": "", "fec_file_number": "", "fec_docquery_url": "", "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
+            "fec_record_id": "", "fec_file_number": "", "fec_docquery_url": "", "form_type": "",
+            "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
         }
     
     # Safely get nested objects (committee and candidate can be None)
@@ -853,12 +911,12 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     
     # Committee ID: API can return in committee object or at top level
     committee_id = (committee.get("committee_id", "") or record.get("committee_id", "")) if isinstance(committee, dict) else (record.get("committee_id", "") or "")
-    # Docquery URL uses file_number from Schedule A (e.g. 1930534). Live API returns it.
-    # Do NOT use image_number (long page id) or sub_id (long line-item id).
+    # Docquery URL uses file_number from Schedule A (e.g. 1930534). Use form_type when present (F13 -> f132).
     file_num = record.get("file_number")
     url_id = file_num if _is_valid_filing_image_id(file_num) else None
     fec_record_id = record.get("sub_id") or record.get("image_number") or ""
-    
+    form_type = (record.get("form_type") or "").strip() or None
+
     return {
         "donor_name": record.get("contributor_name", ""),
         "donor_type": record.get("contributor_type", ""),
@@ -878,7 +936,8 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "candidate_party": candidate.get("party", "") if isinstance(candidate, dict) else "",
         "fec_record_id": fec_record_id,
         "fec_file_number": str(file_num) if file_num is not None else "",
-        "fec_docquery_url": _build_docquery_url(committee_id, url_id),
+        "fec_docquery_url": _build_docquery_url(committee_id, url_id, form_type=form_type),
+        "form_type": form_type or "",
         "memo_code": record.get("memo_code", ""),
         "memo_text": record.get("memo_text", ""),
         "receipt_type": record.get("receipt_type", ""),

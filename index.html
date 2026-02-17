@@ -1004,8 +1004,18 @@
     @media (max-width: 768px) {
       .home-search-wrap { padding: 0 2px; max-width: 100%; }
       .home-search-label { font-size: 0.9rem; margin-bottom: 10px; }
+      .home-search-label .home-label-tagline {
+        display: inline-block;
+        padding: 0.35rem 0.7rem;
+        border-radius: 6px;
+        background: rgba(96, 165, 250, 0.12);
+        border: 1px solid rgba(96, 165, 250, 0.28);
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: rgba(255,255,255,0.95);
+      }
       .home-search-label .home-label-bullet { display: none; }
-      .home-search-label .home-label-second { display: block; margin-top: 0.35rem; }
+      .home-search-label .home-label-second { display: block; margin-top: 0.5rem; }
       .home-search-input {
         padding: 14px 16px 14px 44px;
         font-size: 16px;
@@ -1086,7 +1096,7 @@
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;">PBJ Nursing Home Staffing Dashboard</h1>
           
           <div class="home-search-wrap" role="search">
-            <p class="home-search-label">A free public resource by 320 Consulting <span class="home-label-bullet" style="color: rgba(255,255,255,0.5);">·</span> <span class="home-label-second">Search PBJ data below or <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20demo%20request" class="home-label-request-link" style="color: #93c5fd; text-decoration: none; font-weight: 500;">request custom report</a>.</span></p>
+            <p class="home-search-label"><span class="home-label-tagline">A free public resource by 320 Consulting</span> <span class="home-label-bullet" style="color: rgba(255,255,255,0.5);">·</span> <span class="home-label-second">Search PBJ data below or <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20demo%20request" class="home-label-request-link" style="color: #93c5fd; text-decoration: none; font-weight: 500;">request custom report</a>.</span></p>
             <div class="search-mode-tabs" role="tablist" aria-label="Search type">
               <button type="button" role="tab" id="searchTabFacility" aria-selected="true" aria-controls="homeSearchInput" class="search-mode-tab active">Provider</button>
               <button type="button" role="tab" id="searchTabChain" aria-selected="false" aria-controls="homeSearchInput" class="search-mode-tab">Chain</button>

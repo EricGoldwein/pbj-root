@@ -2531,15 +2531,17 @@
             }).join(' ');
         }
         // Committee/recipient title case: WinRed/ActBlue as-is; acronyms (NRSC, USA, etc.) and state abbrevs (NY, CA) stay all caps
+        var committeeAcronymWords = ['maga','rnc','dnc','dscc','nrcc','dccc','nrsc','hmp','pac'];
         function toTitleCaseCommittee(str) {
             if (!str) return '';
             const s = String(str).trim();
             const lower = s.toLowerCase();
             if (lower === 'winred') return 'WinRed';
             if (lower === 'actblue') return 'ActBlue';
-            if (['nrsc','dscc','pac','maga','dnc','rnc','hmp'].includes(lower) && s.length <= 6) return s.toUpperCase();
+            if (committeeAcronymWords.includes(lower)) return s.toUpperCase();
             const stateAbbrevs = 'al,ak,az,ar,ca,co,ct,de,fl,ga,hi,id,il,in,ia,ks,ky,la,me,md,ma,mi,mn,ms,mo,mt,ne,nv,nh,nj,nm,ny,nc,nd,oh,ok,or,pa,ri,sc,sd,tn,tx,ut,vt,va,wa,wv,wi,wy,dc'.split(',');
             let r = toTitleCase(s).replace(/\busa\b/gi, 'USA');
+            committeeAcronymWords.forEach(ac => { r = r.replace(new RegExp('\\b' + ac + '\\b', 'gi'), ac.toUpperCase()); });
             stateAbbrevs.forEach(ab => { r = r.replace(new RegExp('\\b' + ab + '\\b', 'gi'), ab.toUpperCase()); });
             return r;
         }

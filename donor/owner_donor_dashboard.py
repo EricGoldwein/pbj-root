@@ -11,6 +11,7 @@ from pathlib import Path
 import json
 import sys
 import threading
+from concurrent.futures import ThreadPoolExecutor
 # Add donor directory to path for imports
 donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
@@ -832,71 +833,68 @@ def load_data():
     print("="*60)
     print("NOTE: This does NOT call FEC API. FEC API is called on-demand when viewing owner details.")
     print("="*60)
-    
-    # PART 1: Load pre-processed owners database (FAST - for search only)
-    # This should be created by running: python donor/owner_donor.py MODE=extract
-    # NO FEC API CALLS HERE - just owner names for search
-    if OWNERS_DB.exists():
+
+    def _read_csv(path):
         try:
-            print(f"Loading pre-processed owners database: {OWNERS_DB}")
+            return pd.read_csv(path, dtype=str, low_memory=False, encoding='utf-8')
+        except UnicodeDecodeError:
             try:
-                owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='utf-8')
+                return pd.read_csv(path, dtype=str, low_memory=False, encoding='utf-8-sig')
             except UnicodeDecodeError:
-                try:
-                    owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='utf-8-sig')
-                except UnicodeDecodeError:
-                    owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False, encoding='latin-1')
-            # Root fix: no pd.NA in columns used by committee matching. row.get('owner_name', '') can still
-            # return NA from CSV empty cells; fillna('') so the rest of the code never sees NA.
-            for col in ['owner_name', 'owner_name_original', 'owner_type', 'facilities', 'associate_id_owner']:
-                if col in owners_df.columns:
-                    owners_df[col] = owners_df[col].fillna('').astype(str)
-            print(f"[OK] Loaded {len(owners_df)} owners from database (FAST)")
-            if 'owner_type' in owners_df.columns:
-                individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])
-                orgs = len(owners_df[owners_df['owner_type'] == 'ORGANIZATION'])
-                print(f"  - {individuals} individuals")
-                print(f"  - {orgs} organizations")
-            
-            # Warn if database seems incomplete (likely filtered)
-            if len(owners_df) < 1000:
-                print(f"\n[WARN] WARNING: Only {len(owners_df)} owners loaded. This database appears incomplete.")
-                print("  It was likely created with a filter (e.g., FILTER_STATE=DE or FILTER_LIMIT).")
-                print("  To load ALL owners from the full 250k dataset, run:")
-                print("    python donor/owner_donor.py MODE=extract")
-                print("  (Make sure FILTER_STATE and FILTER_LIMIT are not set)")
+                return pd.read_csv(path, dtype=str, low_memory=False, encoding='latin-1')
+
+    # Load heaviest files in parallel to reduce first-request time (e.g. avoid Render timeout)
+    owners_df = pd.DataFrame()
+    donations_df = pd.DataFrame()
+    ownership_df = pd.DataFrame()
+    with ThreadPoolExecutor(max_workers=3) as ex:
+        fut_own = ex.submit(_read_csv, OWNERS_DB) if OWNERS_DB.exists() else None
+        fut_don = ex.submit(_read_csv, DONATIONS_DB) if DONATIONS_DB.exists() else None
+        fut_norm = ex.submit(_read_csv, OWNERSHIP_NORM) if OWNERSHIP_NORM.exists() else None
+        try:
+            if fut_own:
+                owners_df = fut_own.result()
         except Exception as e:
             print(f"[FAIL] Error loading owners database: {e}")
-            owners_df = pd.DataFrame()
+        try:
+            if fut_don:
+                donations_df = fut_don.result()
+        except Exception as e:
+            print(f"[FAIL] Error loading donations: {e}")
+        try:
+            if fut_norm:
+                ownership_df = fut_norm.result()
+        except Exception as e:
+            print(f"[FAIL] Error loading ownership: {e}")
+
+    if not owners_df.empty:
+        print(f"Loading pre-processed owners database: {OWNERS_DB}")
+        for col in ['owner_name', 'owner_name_original', 'owner_type', 'facilities', 'associate_id_owner']:
+            if col in owners_df.columns:
+                owners_df[col] = owners_df[col].fillna('').astype(str)
+        print(f"[OK] Loaded {len(owners_df)} owners from database (FAST)")
+        if 'owner_type' in owners_df.columns:
+            individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])
+            orgs = len(owners_df[owners_df['owner_type'] == 'ORGANIZATION'])
+            print(f"  - {individuals} individuals")
+            print(f"  - {orgs} organizations")
+        if len(owners_df) < 1000:
+            print(f"\n[WARN] WARNING: Only {len(owners_df)} owners loaded. This database appears incomplete.")
+    elif OWNERS_DB.exists():
+        print(f"[FAIL] Error loading owners database")
     else:
         print(f"[WARN] Owners database not found: {OWNERS_DB}")
         print("  Run 'python donor/owner_donor.py MODE=extract' to create it")
-        owners_df = pd.DataFrame()
-    
-    # PART 2: Load pre-processed donations database (FAST - for display)
-    # This is OPTIONAL - pre-processed donations from previous FEC API queries
-    # If not available, user can still query FEC API live via the button
-    # NO FEC API CALLS HERE - just loading previously queried data
-    if DONATIONS_DB.exists():
-        try:
-            print(f"Loading pre-processed donations database: {DONATIONS_DB}")
-            try:
-                donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False, encoding='utf-8')
-            except UnicodeDecodeError:
-                try:
-                    donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False, encoding='utf-8-sig')
-                except UnicodeDecodeError:
-                    donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"[OK] Loaded {len(donations_df)} donation records (FAST - pre-processed)")
-        except Exception as e:
-            print(f"[FAIL] Error loading donations: {e}")
-            donations_df = pd.DataFrame()
+    if not donations_df.empty:
+        print(f"Loading pre-processed donations database: {DONATIONS_DB}")
+        print(f"[OK] Loaded {len(donations_df)} donation records (FAST - pre-processed)")
+    elif DONATIONS_DB.exists():
+        pass
     else:
         print(f"[WARN] Donations database not found: {DONATIONS_DB}")
-        print("  (Optional) Run 'python donor/owner_donor.py MODE=query' to pre-process donations")
-        print("  Or use 'Query FEC API (Live)' button to query on-demand")
-        donations_df = pd.DataFrame()
-    
+    if not ownership_df.empty:
+        print(f"[OK] Loaded {len(ownership_df)} ownership records for facility details")
+
     # PART 3: Load FEC committee master (CMTE_ID -> CMTE_NM) for fast committee name lookup/verification
     try:
         committee_master = _load_committee_master()
@@ -908,23 +906,8 @@ def load_data():
         print(f"  [WARN] FEC committee master: {e}")
         committee_master = {}
     
-    # Load normalized ownership for facility details (if available)
-    if OWNERSHIP_NORM.exists():
-        try:
-            try:
-                ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False, encoding='utf-8')
-            except UnicodeDecodeError:
-                try:
-                    ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False, encoding='utf-8-sig')
-                except UnicodeDecodeError:
-                    ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"[OK] Loaded {len(ownership_df)} ownership records for facility details")
-        except Exception as e:
-            print(f"[FAIL] Error loading ownership: {e}")
-            ownership_df = pd.DataFrame()
-    else:
-        ownership_df = pd.DataFrame()
-    
+    # (ownership_df already loaded in parallel above)
+
     # Warn if owners database seems incomplete
     if owners_df is not None and not owners_df.empty:
         if len(owners_df) < 1000:
@@ -2482,12 +2465,13 @@ def search_by_provider(query):
                             break
             
             # Find organization names in ownership data by CCN (enrollment ID)
+            # ENROLLMENT ID is like O20020801000000 (14 digits); CCN is 6 digits - match last 6 of enrollment to CCN
             enroll_col = 'ENROLLMENT ID' if 'ENROLLMENT ID' in ownership_data_to_search.columns else None
             if matched_ccns and enroll_col:
                 for ccn in matched_ccns:
-                    ownership_matches = ownership_data_to_search[
-                        ownership_data_to_search[enroll_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn.zfill(6)
-                    ]
+                    ccn_6 = ccn.zfill(6)
+                    enroll_clean = ownership_data_to_search[enroll_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip()
+                    ownership_matches = ownership_data_to_search[enroll_clean.str[-6:] == ccn_6]
                     if not ownership_matches.empty and org_name_col and org_name_col in ownership_matches.columns:
                         org_names = ownership_matches[org_name_col].dropna().unique()
                         for org_name in org_names:

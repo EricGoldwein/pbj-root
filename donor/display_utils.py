@@ -4,9 +4,15 @@ Title-case for committee names, recipient names, etc.
 """
 
 
+# Acronyms that display all caps when they appear as words (e.g. MAGA Inc. not Maga Inc.; RNC, DNC, DSCC)
+ACRONYM_WORDS = frozenset(
+    "maga rnc dnc dscc nrcc dccc nrsc hmp pac".split()
+)
+
+
 def title_case_committee(name: str) -> str:
     """
-    First letter cap; WinRed/ActBlue as-is; the/and/at/of lowercase when not first word.
+    First letter cap; WinRed/ActBlue as-is; MAGA/RNC/DNC/DSCC etc. as all caps; the/and/at/of lowercase when not first word.
     Used for FEC committee names, recipient names, etc. across top page and ownership search.
     """
     if not name or not isinstance(name, str):
@@ -17,8 +23,8 @@ def title_case_committee(name: str) -> str:
         return "WinRed"
     if lower == "actblue":
         return "ActBlue"
-    # Acronyms that stay all caps
-    if lower in ("nrsc", "dscc", "pac", "maga", "dnc", "rnc", "hmp"):
+    # Whole string is a single acronym -> all caps
+    if lower in ACRONYM_WORDS:
         return s.upper()
     small = {"the", "and", "at", "of", "a", "an", "in", "on", "for", "to", "with"}
     acronym_words = {"usa"}  # words that stay all caps (e.g. "usa" or "u.s.a." -> USA)
@@ -31,11 +37,13 @@ def title_case_committee(name: str) -> str:
         w = w.strip()
         if not w:
             continue
-        w_lower = w.lower().replace(".", "")
-        if w_lower in acronym_words:
+        w_clean = w.lower().replace(".", "")
+        if w_clean in ACRONYM_WORDS:
+            out.append(w_clean.upper())
+        elif w_clean in acronym_words:
             out.append("USA")
-        elif len(w_lower) == 2 and w_lower in state_abbrevs:
-            out.append(w_lower.upper())
+        elif len(w_clean) == 2 and w_clean in state_abbrevs:
+            out.append(w_clean.upper())
         elif "-" in w:
             out.append("-".join(p.capitalize() for p in w.split("-")))
         elif i == 0 or w.lower() not in small:

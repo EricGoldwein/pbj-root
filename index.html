@@ -793,7 +793,7 @@
       .map-subtitle { font-size: 0.9rem; }
       .mobile-break { display: inline; }
       .state-map { display: none; }
-      .mobile-chart { display: block !important; }
+      .mobile-chart { display: none !important; }
       .map-legend { display: none; }
       .legend-gradient { width: 180px; }
       .legend-labels { width: 180px; }
@@ -801,7 +801,7 @@
       .map-header { margin-bottom: 8px; }
       .chart-source { margin-top: 5px; margin-bottom: 0; }
       .mobile-chart { padding: 20px 20px 10px 20px; }
-      .credibility-section { margin-top: 16px !important; margin-bottom: 24px !important; }
+      .credibility-section { margin-top: 16px !important; margin-bottom: 24px !important; padding-left: 8px !important; padding-right: 8px !important; }
     }
     
     /* Home page search (facility / chain / state) */
@@ -1226,22 +1226,6 @@
               </div>
             </div>
           </div>
-        </section>
-        
-        <section class="mobile-chart" id="mobileChart" aria-label="Nursing home staffing trends chart">
-          <div class="chart-header">
-            <h3>Nursing Home Staffing Trends</h3>
-            <select id="stateSelect" class="state-select" aria-label="Select state to view staffing trends">
-              <option value="">Select State</option>
-            </select>
-          </div>
-          <div class="chart-container">
-            <canvas id="staffingChart" width="360" height="250" aria-label="Staffing trends line chart"></canvas>
-          </div>
-          <div class="chart-footer" id="chartFooter" style="display: none;">
-            <div class="explore-link" id="exploreLink"></div>
-          </div>
-          <div class="chart-source">Source: CMS Payroll-Based Journal Data • 320 Consulting</div>
         </section>
         
       </div>

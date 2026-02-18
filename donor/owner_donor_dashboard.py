@@ -2460,8 +2460,15 @@ def search_by_provider(query):
                                 matched_org_names.add(str(org_name).strip().upper())
         
         # Also try to get organization names from ownership data if available
-        # Use raw ownership file for better matching
+        # Use raw ownership file for better matching; fallback to normalized (has facility_name, not ORGANIZATION NAME)
         ownership_data_to_search = ownership_raw_df if ownership_raw_df is not None and not ownership_raw_df.empty else ownership_df
+        # Column for facility/org name: raw file has 'ORGANIZATION NAME', normalized has 'facility_name'
+        org_name_col = None
+        if ownership_data_to_search is not None and not ownership_data_to_search.empty:
+            if 'ORGANIZATION NAME' in ownership_data_to_search.columns:
+                org_name_col = 'ORGANIZATION NAME'
+            elif 'facility_name' in ownership_data_to_search.columns:
+                org_name_col = 'facility_name'
         
         if ownership_data_to_search is not None and not ownership_data_to_search.empty:
             # Get CCNs from matched providers
@@ -2475,29 +2482,30 @@ def search_by_provider(query):
                             break
             
             # Find organization names in ownership data by CCN (enrollment ID)
-            if matched_ccns and 'ENROLLMENT ID' in ownership_data_to_search.columns:
+            enroll_col = 'ENROLLMENT ID' if 'ENROLLMENT ID' in ownership_data_to_search.columns else None
+            if matched_ccns and enroll_col:
                 for ccn in matched_ccns:
                     ownership_matches = ownership_data_to_search[
-                        ownership_data_to_search['ENROLLMENT ID'].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn.zfill(6)
+                        ownership_data_to_search[enroll_col].astype(str).str.replace('O', '').str.replace(' ', '').str.replace('-', '').str.strip().str.zfill(6) == ccn.zfill(6)
                     ]
-                    if not ownership_matches.empty and 'ORGANIZATION NAME' in ownership_matches.columns:
-                        org_names = ownership_matches['ORGANIZATION NAME'].dropna().unique()
+                    if not ownership_matches.empty and org_name_col and org_name_col in ownership_matches.columns:
+                        org_names = ownership_matches[org_name_col].dropna().unique()
                         for org_name in org_names:
                             if pd.notna(org_name) and str(org_name).strip():
                                 matched_org_names.add(str(org_name).strip().upper())
             
-            # Also match Legal Business Name directly to ORGANIZATION NAME (case-insensitive, with fuzzy matching)
-            if 'Legal Business Name' in matched_providers.columns:
+            # Also match Legal Business Name directly to org/facility name (case-insensitive, with fuzzy matching)
+            if org_name_col and 'Legal Business Name' in matched_providers.columns:
                 for _, provider_row in matched_providers.iterrows():
                     legal_business_name = provider_row.get('Legal Business Name', '')
                     if pd.notna(legal_business_name) and str(legal_business_name).strip():
                         lbn_upper = str(legal_business_name).strip().upper()
                         # Try exact match
                         org_matches = ownership_data_to_search[
-                            ownership_data_to_search['ORGANIZATION NAME'].astype(str).str.upper().str.strip() == lbn_upper
+                            ownership_data_to_search[org_name_col].astype(str).str.upper().str.strip() == lbn_upper
                         ]
                         if not org_matches.empty:
-                            org_names = org_matches['ORGANIZATION NAME'].dropna().unique()
+                            org_names = org_matches[org_name_col].dropna().unique()
                             for org_name in org_names:
                                 if pd.notna(org_name) and str(org_name).strip():
                                     matched_org_names.add(str(org_name).strip().upper())
@@ -2505,20 +2513,20 @@ def search_by_provider(query):
                             # Try fuzzy match (remove common suffixes)
                             lbn_clean = lbn_upper.replace(' LLC', '').replace(' INC', '').replace(' CORP', '').replace(' LP', '').replace(' L.L.C.', '').replace(' INC.', '').strip()
                             org_matches = ownership_data_to_search[
-                                ownership_data_to_search['ORGANIZATION NAME'].astype(str).str.upper().str.strip().str.replace(' LLC', '').str.replace(' INC', '').str.replace(' CORP', '').str.replace(' LP', '').str.replace(' L.L.C.', '').str.replace(' INC.', '').str.strip() == lbn_clean
+                                ownership_data_to_search[org_name_col].astype(str).str.upper().str.strip().str.replace(' LLC', '').str.replace(' INC', '').str.replace(' CORP', '').str.replace(' LP', '').str.replace(' L.L.C.', '').str.replace(' INC.', '').str.strip() == lbn_clean
                             ]
                             if not org_matches.empty:
-                                org_names = org_matches['ORGANIZATION NAME'].dropna().unique()
+                                org_names = org_matches[org_name_col].dropna().unique()
                                 for org_name in org_names:
                                     if pd.notna(org_name) and str(org_name).strip():
                                         matched_org_names.add(str(org_name).strip().upper())
                             else:
                                 # Try contains match
                                 org_matches = ownership_data_to_search[
-                                    ownership_data_to_search['ORGANIZATION NAME'].astype(str).str.upper().str.contains(lbn_upper, na=False, regex=False)
+                                    ownership_data_to_search[org_name_col].astype(str).str.upper().str.contains(lbn_upper, na=False, regex=False)
                                 ]
                                 if not org_matches.empty:
-                                    org_names = org_matches['ORGANIZATION NAME'].dropna().unique()
+                                    org_names = org_matches[org_name_col].dropna().unique()
                                     for org_name in org_names:
                                         if pd.notna(org_name) and str(org_name).strip():
                                             matched_org_names.add(str(org_name).strip().upper())
@@ -2607,9 +2615,10 @@ def search_by_provider(query):
                     if state:
                         break
             
-            # Get direct ownership information from ownership_raw_df
+            # Get direct ownership information from ownership_raw_df (only raw has full owner columns)
             # Match by ORGANIZATION NAME (which we already found in matched_org_names)
-            if ownership_raw_df is not None and not ownership_raw_df.empty and matched_org_names:
+            if (ownership_raw_df is not None and not ownership_raw_df.empty and matched_org_names
+                    and 'ORGANIZATION NAME' in ownership_raw_df.columns):
                 # Find ENROLLMENT IDs for the matched organization names
                 enrollment_matches = pd.DataFrame()
                 for org_name in matched_org_names:
@@ -2722,11 +2731,12 @@ def search_by_provider(query):
                 'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else ''
             })
         
-        return jsonify({
-            'results': formatted, 
+        payload = {
+            'results': formatted,
             'count': len(formatted),
-            'provider_info': provider_info  # Include provider info for display
-        })
+            'provider_info': provider_info,
+        }
+        return jsonify(sanitize_for_json(payload))
     
     except Exception as e:
         print(f"Error in search_by_provider: {e}")

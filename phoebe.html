@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PBJ Explained | Nursing Home Staffing Data in Plain Language</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A simple explanation of PBJ nursing home staffing data: what it is, why it matters, and how to use it. Brought to you by 320 Consulting.">
+  <meta name="keywords" content="PBJ, nursing home staffing, payroll-based journal, HPRD, hours per resident day, CMS, 320 consulting">
+  <link rel="canonical" href="https://pbj320.com/phoebe">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NDPVY6TWBK');
+  </script>
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pbj320.com/phoebe">
+  <meta property="og:title" content="PBJ Explained | Nursing Home Staffing Data in Plain Language">
+  <meta property="og:description" content="A simple explanation of PBJ nursing home staffing data: what it is, why it matters, and how to use it.">
+  <meta property="og:image" content="https://pbj320.com/phoebe.png">
+  <meta name="theme-color" content="#1e40af">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1e293b;
+      color: white;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .navbar {
+      background: #0f172a;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-bottom: 2px solid #1e40af;
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    .nav-brand { display: flex; align-items: center; color: white; font-size: 1.2rem; font-weight: 700; }
+    .nav-menu { display: flex; gap: 30px; align-items: center; }
+    .nav-link { color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0; }
+    .nav-link:hover, .nav-link.active { color: #60a5fa; }
+    .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; }
+    .nav-toggle span { width: 25px; height: 3px; background: white; transition: all 0.3s ease; }
+    .phoebe-main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 48px 24px 60px;
+    }
+    .phoebe-card {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 48px 56px;
+      backdrop-filter: blur(10px);
+    }
+    .phoebe-hero {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      padding-bottom: 28px;
+      margin-bottom: 28px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      text-align: left;
+    }
+    .phoebe-avatar-wrap {
+      position: relative;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .phoebe-hero img {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid rgba(255,255,255,0.15);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      display: block;
+    }
+    .phoebe-hero-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+    }
+    .phoebe-hero .title-mobile { display: none; }
+    .phoebe-hero .title-desktop { display: inline; }
+    .phoebe-hero .title-break { display: none; }
+    .phoebe-hero h1 {
+      font-size: 1.75rem;
+      color: white;
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.3;
+    }
+    .phoebe-who-btn {
+      display: inline-block;
+      padding: 0.2rem 0.4rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(96, 165, 250, 0.25);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .phoebe-who-btn:hover {
+      color: #93c5fd;
+      background: rgba(96, 165, 250, 0.08);
+      border-color: rgba(96, 165, 250, 0.4);
+    }
+    .phoebe-who-pop {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.5rem;
+      padding: 0.6rem 0.85rem;
+      background: #0f172a;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.9);
+      width: 220px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      z-index: 10;
+    }
+    .phoebe-who-pop[hidden] { display: none; }
+    .phoebe-card h2 {
+      font-size: 1.35rem;
+      color: #60a5fa;
+      margin-top: 0;
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    .phoebe-card h2:not(:first-of-type) {
+      margin-top: 2.5rem;
+    }
+    .phoebe-card p {
+      color: rgba(255,255,255,0.85);
+      font-size: 1.05rem;
+      line-height: 1.75;
+      margin-bottom: 1.25rem;
+    }
+    .phoebe-card p:last-of-type { margin-bottom: 0; }
+    .phoebe-card a {
+      color: #93c5fd;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .phoebe-card a:hover { text-decoration: underline; color: #bae6fd; }
+    .phoebe-card strong { color: rgba(255,255,255,0.95); }
+    .phoebe-card em { color: rgba(255,255,255,0.75); font-style: italic; }
+    .cta-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+      color: white !important;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-weight: 600;
+      text-decoration: none !important;
+      font-size: 1rem;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
+    }
+    .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
+    }
+    .cta-btn.secondary {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      box-shadow: none;
+    }
+    .cta-btn.secondary:hover {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.3);
+    }
+    .footer {
+      text-align: center;
+      padding: 1.5rem 1rem;
+      color: rgba(255,255,255,0.55);
+      font-size: 0.8rem;
+    }
+    .footer p { margin: 0 0 0.5rem 0; }
+    .footer a { color: #93c5fd; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    .footer-icons {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+      margin-top: 0.75rem;
+    }
+    .footer-icons a { opacity: 0.7; transition: opacity 0.3s; }
+    .footer-icons a:hover { opacity: 1; }
+    @media (max-width: 768px) {
+      .nav-menu {
+        position: fixed;
+        top: 60px;
+        left: -100%;
+        width: 100%;
+        height: calc(100vh - 60px);
+        background: #0f172a;
+        flex-direction: column;
+        padding: 20px;
+        gap: 0;
+        transition: left 0.3s;
+        border-top: 1px solid rgba(255,255,255,0.1);
+      }
+      .nav-menu.active { left: 0; }
+      .nav-link { padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; }
+      .nav-link:hover, .nav-link.active { background: rgba(96, 165, 250, 0.1); border-left: 3px solid #60a5fa; }
+      .nav-toggle { display: flex; }
+      .nav-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
+      .nav-toggle.active span:nth-child(2) { opacity: 0; }
+      .nav-toggle.active span:nth-child(3) { transform: rotate(-45deg) translate(7px, -6px); }
+      .phoebe-main { padding: 32px 16px 48px; }
+      .phoebe-card { padding: 32px 24px; }
+      .phoebe-hero { flex-direction: row; text-align: left; padding-bottom: 20px; margin-bottom: 24px; gap: 1rem; align-items: center; }
+      .phoebe-hero-text { order: 1; flex: 1; min-width: 0; }
+      .phoebe-avatar-wrap { order: 2; flex-direction: column; flex-shrink: 0; align-items: center; gap: 0.4rem; }
+      .phoebe-hero img { width: 72px; height: 72px; }
+      .phoebe-hero .title-desktop { display: none; }
+      .phoebe-hero .title-mobile { display: inline; }
+      .phoebe-hero .title-break { display: block; }
+      .phoebe-hero h1 { font-size: 1.25rem; line-height: 1.4; margin: 0; }
+      .phoebe-who-pop { left: auto; right: 0; transform: none; }
+      .phoebe-card h2:not(:first-of-type) { margin-top: 2rem; }
+      .cta-row { margin-top: 1.5rem; padding-top: 1.5rem; grid-template-columns: 1fr; }
+      .cta-btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center;">
+          <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; margin-right: 8px;">
+          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
+        <a href="/insights" class="nav-link">Insights</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/phoebe" class="nav-link active">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Ownership</a>
+      </div>
+      <div class="nav-toggle" id="navToggle"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+
+  <main class="phoebe-main">
+    <div class="phoebe-card">
+      <div class="phoebe-hero">
+        <div class="phoebe-avatar-wrap">
+          <img src="/phoebe.png" alt="Phoebe J" width="80" height="80" loading="eager">
+          <button type="button" class="phoebe-who-btn" id="phoebeWhoBtn" aria-expanded="false" aria-controls="phoebeWhoPop" aria-haspopup="true">Phoebe J</button>
+          <div class="phoebe-who-pop" id="phoebeWhoPop" role="tooltip" hidden>Phoebe J is your nursing home payroll-based journal (PBJ) staffing data assistant.</div>
+        </div>
+        <div class="phoebe-hero-text">
+          <h1><span class="title-desktop">Phoebe J's Guide to PBJ Nursing Home Staffing Data</span><span class="title-mobile">Phoebe J's PBJ Nursing<span class="title-break"> </span>Home Staffing Guide</span></h1>
+        </div>
+      </div>
+
+      <h2>What is PBJ?</h2>
+      <p><strong>PBJ</strong> (Payroll-Based Journal) is the <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">federal system that tracks staffing</a> in U.S. nursing homes. Medicare- and Medicaid-certified facilities must report who worked, what they did, and how many hours—using payroll records—each quarter. The data is public and covers more than 15,000 nursing homes.</p>
+
+      <h2>Why does it matter?</h2>
+      <p>Staffing levels are one of the strongest predictors of nursing home quality. More staff per resident generally means more time for care.</p>
+
+      <h2>What is HPRD?</h2>
+      <p><strong>HPRD</strong> (hours per resident day) is the standard metric. It answers: <em>On average, how many hours of nursing staff time did each resident get per day?</em> For example, 4.0 HPRD means each resident had the equivalent of 4 hours of nursing care per day. Higher numbers usually mean more staffing; benchmarks often cite around 4.1 HPRD as a recommended minimum for direct care.</p>
+
+      <h2>Key positions in PBJ</h2>
+      <p>PBJ tracks several nursing roles:</p>
+      <ul style="margin: 0.75rem 0 1.25rem 1.5rem; color: rgba(255,255,255,0.85); line-height: 1.7;">
+        <li><strong>RN</strong> (Registered Nurse) — Registered nurses; includes administrative and direct-care hours.</li>
+        <li><strong>LPN/LVN</strong> — Licensed practical or vocational nurses.</li>
+        <li><strong>CNA</strong> — Certified nurse aides; hands-on daily care.</li>
+        <li><strong>Director of nursing (DON)</strong> — Manages nursing operations; hours count in total nurse staffing.</li>
+      </ul>
+      <p>PBJ also records non-nursing roles (administrators, medical directors, therapists, dietary, housekeeping, etc.) and whether hours are from facility employees or contract staff.</p>
+
+      <h2>What PBJ doesn't tell you</h2>
+      <p>PBJ counts paid hours only—no wages, no volunteer time, no quality outcomes. It doesn't show whether a facility is meeting clinical rules or how sick residents are. I think of it as a powerful lens on staffing patterns; just pair it with other info when you're making decisions.</p>
+
+      <h2>Next steps</h2>
+      <div class="cta-row">
+        <a href="https://pbjdashboard.com/" class="cta-btn secondary">Explore the PBJ Dashboard</a>
+        <a href="/insights" class="cta-btn secondary">Phoebe J's Insights</a>
+        <a href="https://www.320insight.com/phoebe" class="cta-btn secondary" target="_blank" rel="noopener">Try Phoebe J (AI)</a>
+        <a href="/about" class="cta-btn secondary">About</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p><strong>320 Consulting</strong> — Turning Spreadsheets into Stories</p>
+    <div class="footer-icons">
+      <a href="mailto:eric@320insight.com" title="Email" style="display: inline-block; opacity: 0.7;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
+      <a href="sms:+19298084996" title="SMS" style="display: inline-block; opacity: 0.7;"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
+      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener" title="LinkedIn" style="display: inline-block; opacity: 0.7;"><img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain;"></a>
+      <a href="https://320insight.substack.com/" target="_blank" rel="noopener" title="The 320 Newsletter" style="display: inline-block; opacity: 0.7;"><img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain;"></a>
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const navToggle = document.getElementById('navToggle');
+      const navMenu = document.getElementById('navMenu');
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+          navMenu.classList.toggle('active');
+          navToggle.classList.toggle('active');
+        });
+      }
+      const phoebeBtn = document.getElementById('phoebeWhoBtn');
+      const phoebePop = document.getElementById('phoebeWhoPop');
+      if (phoebeBtn && phoebePop) {
+        phoebeBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          const isOpen = !phoebePop.hidden;
+          phoebePop.hidden = isOpen;
+          phoebeBtn.setAttribute('aria-expanded', !isOpen);
+        });
+        document.addEventListener('click', function() {
+          phoebePop.hidden = true;
+          phoebeBtn.setAttribute('aria-expanded', 'false');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

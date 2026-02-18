@@ -519,6 +519,34 @@
       background: #b91c1c;
       transform: translateY(-1px);
     }
+    /* Phoebe J mini explainer - credibility section. Avatar best practice: circular crop, explicit size, lazy load. */
+    .phoebe-explainer-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      margin-top: 1.25rem;
+      padding: 0.5rem 0.85rem;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 999px;
+      text-decoration: none;
+      color: #93c5fd;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .phoebe-explainer-mini:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.18);
+      color: #bae6fd;
+    }
+    .phoebe-explainer-mini img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+    }
     
     /* Professional D3 Map Styles */
     .state-map {
@@ -651,9 +679,9 @@
       font-style: italic;
     }
     
-    /* Chart: desktop only (hidden on mobile home) */
+    /* Chart: mobile only (hidden on desktop). Desktop shows map; mobile shows chart. */
     .mobile-chart {
-      display: block;
+      display: none;
       background: rgba(255,255,255,0.1);
       border-radius: 12px;
       padding: 20px;
@@ -765,7 +793,7 @@
       .map-subtitle { font-size: 0.9rem; }
       .mobile-break { display: inline; }
       .state-map { display: none; }
-      .mobile-chart { display: none !important; }
+      .mobile-chart { display: block !important; }
       .map-legend { display: none; }
       .legend-gradient { width: 180px; }
       .legend-labels { width: 180px; }
@@ -1079,7 +1107,7 @@
         <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link">Report</a>
-        <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
       <div class="nav-toggle" id="navToggle">
@@ -1262,6 +1290,10 @@
           Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
         </a>
       </p>
+      <a href="/phoebe" class="phoebe-explainer-mini" title="PBJ explained">
+        <img src="/phoebe.png" alt="Phoebe J" width="40" height="40" loading="lazy">
+        PBJ explained
+      </a>
     </section>
 
   </main>

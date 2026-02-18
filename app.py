@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: basic, reportGeneralTypeIssues=false, reportArgumentType=false, reportOptionalMemberAccess=false, reportOptionalSubscript=false, reportCallIssue=false, reportAttributeAccessIssue=false, reportOperatorIssue=false
 """
 Simple Flask app to serve static files with proper headers for Facebook scraper
 Now with dynamic date support
@@ -29,11 +30,12 @@ except ImportError:
     print("Warning: pandas module not found. Dynamic PBJpedia pages will not be available.")
     print("Install with: pip install pandas")
 
-# Import date utilities from local utils package
-from utils.date_utils import get_latest_data_periods, get_latest_update_month_year
-from utils.seo_utils import get_seo_metadata
+# Import date utilities from local utils package (run from pbj-root so utils is on path)
+from utils.date_utils import get_latest_data_periods, get_latest_update_month_year  # type: ignore[reportMissingImports]
+from utils.seo_utils import get_seo_metadata  # type: ignore[reportMissingImports]
 
 app = Flask(__name__)
+APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Cache for built assets (cleared on app start)
 _built_assets_cache = None
@@ -151,6 +153,53 @@ def pbj_sample():
 @app.route('/report/')
 def report():
     return send_file('report.html', mimetype='text/html')
+
+
+@app.route('/press')
+@app.route('/press/')
+def press():
+    return send_file('press.html', mimetype='text/html')
+
+
+@app.route('/attorneys')
+@app.route('/attorneys/')
+def attorneys():
+    return send_file('attorneys.html', mimetype='text/html')
+
+
+@app.route('/phoebe')
+@app.route('/phoebe/')
+def phoebe():
+    return send_file('phoebe.html', mimetype='text/html')
+
+
+@app.route('/LI-In-Bug.png')
+def serve_li_bug():
+    return send_from_directory(APP_ROOT, 'LI-In-Bug.png', mimetype='image/png')
+
+
+@app.route('/substack.png')
+def serve_substack():
+    return send_from_directory(APP_ROOT, 'substack.png', mimetype='image/png')
+
+
+@app.route('/press/wtvr-twin-lakes-clip.mp4')
+def serve_wtvr_video():
+    path = os.path.join(APP_ROOT, 'press', 'wtvr-twin-lakes-clip.mp4')
+    if os.path.isfile(path):
+        return send_file(path, mimetype='video/mp4')
+    from flask import abort
+    abort(404)
+
+
+@app.route('/press/wtvr-thumbnail.jpg')
+def serve_wtvr_thumbnail():
+    path = os.path.join(APP_ROOT, 'press', 'wtvr-thumbnail.jpg')
+    if os.path.isfile(path):
+        return send_file(path, mimetype='image/jpeg')
+    from flask import abort
+    abort(404)
+
 
 # Owner Donor Dashboard - LAZY import on first /owners request (keeps startup fast for Render port check)
 # Importing owner_donor_dashboard pulls in pandas, FEC modules, etc. and was causing "No open ports" / slow startup.
@@ -1421,7 +1470,7 @@ def get_pbjpedia_sidebar():
                         <ul>
                             <li><a href="/">Dashboard</a></li>
                             <li><a href="/insights">Insights</a></li>
-                            <li><a href="https://www.320insight.com/phoebe" target="_blank" class="external-link">Phoebe J</a></li>
+                            <li><a href="/phoebe" class="external-link">PBJ Explained</a></li>
                         </ul>
                     </div>
                 </div>
@@ -2134,7 +2183,7 @@ def canonical_state_page(state_slug):
     """Canonical state page route (e.g., /tn, /new-york)"""
     # Handle JSON files first - serve them directly
     if state_slug.endswith('.json'):
-        json_path = os.path.join('.', state_slug)
+        json_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(json_path):
             return send_file(json_path, mimetype='application/json')
         from flask import abort
@@ -2142,7 +2191,7 @@ def canonical_state_page(state_slug):
     
     # Handle image files - serve them directly
     if state_slug.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.svg')):
-        image_path = os.path.join('.', state_slug)
+        image_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(image_path):
             mimetype = 'image/png' if state_slug.endswith('.png') else 'image/jpeg' if state_slug.endswith(('.jpg', '.jpeg')) else 'image/gif' if state_slug.endswith('.gif') else 'image/webp' if state_slug.endswith('.webp') else 'image/svg+xml' if state_slug.endswith('.svg') else 'image/x-icon'
             return send_file(image_path, mimetype=mimetype)
@@ -2151,7 +2200,7 @@ def canonical_state_page(state_slug):
     
     # Handle CSV files - serve them directly
     if state_slug.endswith('.csv'):
-        csv_path = os.path.join('.', state_slug)
+        csv_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(csv_path):
             return send_file(csv_path, mimetype='text/csv')
         from flask import abort
@@ -3754,7 +3803,7 @@ def static_files(filename):
     
     # Handle images with proper headers (including favicon)
     if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico')):
-        response = send_from_directory('.', filename, mimetype='image/png' if filename.endswith('.ico') else 'image/png')
+        response = send_from_directory(APP_ROOT, filename, mimetype='image/png' if filename.endswith('.ico') else 'image/png')
         # Add cache-control headers for favicon to ensure updates are visible
         if filename.endswith('.ico') or 'favicon' in filename.lower():
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
@@ -3769,7 +3818,7 @@ def static_files(filename):
         return send_from_directory('.', filename, mimetype='application/javascript')
     # Handle JSON files
     elif filename.endswith('.json'):
-        json_path = os.path.join('.', filename)
+        json_path = os.path.join(APP_ROOT, filename)
         if os.path.isfile(json_path):
             return send_file(json_path, mimetype='application/json')
         from flask import abort
@@ -3781,9 +3830,16 @@ def static_files(filename):
             return send_file(csv_path, mimetype='text/csv')
         from flask import abort
         abort(404)
+    # Handle video files (e.g. press/wtvr-twin-lakes-clip.mp4)
+    elif filename.endswith('.mp4'):
+        video_path = os.path.join(APP_ROOT, filename)
+        if os.path.isfile(video_path):
+            return send_file(video_path, mimetype='video/mp4')
+        from flask import abort
+        abort(404)
     # Handle other static files
     else:
-        return send_from_directory('.', filename)
+        return send_from_directory(APP_ROOT, filename)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

@@ -414,7 +414,8 @@
       margin-bottom: 0.8rem;
     }
     
-    /* Phoebe J section styling */
+    /* Phoebe J section styling - ALLOWED: About page PBJ explainer/educational section.
+       See phoebe-usage-rules.js. Phoebe J = optional translation aid, consumer-facing only. */
     .phoebe-section {
       background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
       border: 1px solid #e2e8f0;
@@ -465,8 +466,9 @@
     }
     
     .phoebe-img {
-      width: 180px;
-      height: 180px;
+      width: 160px;
+      height: 160px;
+      max-width: 160px;
       object-fit: cover;
       border-radius: 50%;
       border: 4px solid #e2e8f0;
@@ -497,7 +499,7 @@
       gap: 0.5rem;
       background: linear-gradient(135deg, #1e40af, #3b82f6);
       color: white !important;
-      padding: 0.75rem 2rem;
+      padding: 0.75rem 2.25rem;
       border-radius: 12px;
       text-decoration: none !important;
       font-weight: 700;
@@ -542,8 +544,8 @@
     
     .content-box:last-of-type p {
       font-size: 1.1rem;
-      line-height: 1.8;
-      text-align: justify;
+      line-height: 1.75;
+      text-align: left;
     }
     
     /* Quick Tour section styling */
@@ -1081,8 +1083,9 @@
       }
       
       .phoebe-img {
-        width: 120px !important;
-        height: 120px !important;
+        width: 100px !important;
+        height: 100px !important;
+        max-width: 100px !important;
       }
       
       .phoebe-text p {
@@ -1111,7 +1114,7 @@
         <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link">Report</a>
-        <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank">Phoebe J</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
       <div class="nav-toggle" id="navToggle">
@@ -1232,17 +1235,18 @@
       <p>Either way, I want to be the first to know. If you spot something that looks off, please let me know so I can squash the bug and set things right.</p>
     </div>
     
+    <!-- Phoebe J: ALLOWED - About page PBJ explainer/educational. Optional translation aid only. Never on Press/Attorneys. -->
     <div class="content-box phoebe-section">
       <div class="phoebe-content">
         <div class="phoebe-image">
-          <a href="https://www.320insight.com/phoebe" target="_blank" class="phoebe-avatar-link">
-            <img src="/phoebe.png" alt="Phoebe J" class="phoebe-img">
+          <a href="/phoebe" class="phoebe-avatar-link">
+            <img src="/phoebe.png" alt="Phoebe J, optional explainer character for PBJ nursing home staffing concepts" class="phoebe-img">
           </a>
         </div>
         <div class="phoebe-text">
-          <h2>Phoebe J, the PBJ nursing home data assistant</h2>
-          <p>Phoebe slices through nursing home payroll-based journal (PBJ) staffing data and serves it up in plain language, whether you want the scoop on staffing levels in your state or your facility.</p>
-          <a href="https://www.320insight.com/phoebe" target="_blank" class="phoebe-link">Try Phoebe J</a>
+          <h2>Phoebe J's PBJ Guide</h2>
+          <p>Plain-language explainer of nursing home payroll-based journal (PBJ) staffing data—what it is, why it matters, and how to use it.</p>
+          <a href="/phoebe" class="phoebe-link">PBJ explained</a>
         </div>
       </div>
     </div>

@@ -537,7 +537,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     console.log('⚠️ JSON files not found, falling back to CSV parsing (this will be slower)...');
     console.log('💡 Tip: Run "preprocess-data.bat" to create JSON files for faster loading');
     
-    // Load all CSV files in parallel (excluding optional state standards CSV to avoid 404 errors)
+    // Load all CSV files in parallel; use absolute /data/ path for fallback so it works from /sff/* and /wrapped/*
+    const dataFallback = '/data';
     const [
       stateCsv,
       regionCsv,
@@ -546,23 +547,23 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       providerInfoCsv,
       regionMappingCsv,
     ] = await Promise.all([
-      loadCSV(`${basePath}/state_quarterly_metrics.csv`).catch(() => 
-        loadCSV('../state_quarterly_metrics.csv')
+      loadCSV(`${basePath}/state_quarterly_metrics.csv`).catch(() =>
+        loadCSV(`${dataFallback}/state_quarterly_metrics.csv`)
       ),
-      loadCSV(`${basePath}/cms_region_quarterly_metrics.csv`).catch(() => 
-        loadCSV('../cms_region_quarterly_metrics.csv')
+      loadCSV(`${basePath}/cms_region_quarterly_metrics.csv`).catch(() =>
+        loadCSV(`${dataFallback}/cms_region_quarterly_metrics.csv`)
       ),
-      loadCSV(`${basePath}/national_quarterly_metrics.csv`).catch(() => 
-        loadCSV('../national_quarterly_metrics.csv')
+      loadCSV(`${basePath}/national_quarterly_metrics.csv`).catch(() =>
+        loadCSV(`${dataFallback}/national_quarterly_metrics.csv`)
       ),
-      loadCSV(`${basePath}/facility_quarterly_metrics.csv`).catch(() => 
-        loadCSV('../facility_quarterly_metrics.csv')
+      loadCSV(`${basePath}/facility_quarterly_metrics.csv`).catch(() =>
+        loadCSV(`${dataFallback}/facility_quarterly_metrics.csv`)
       ),
-      loadCSV(`${basePath}/provider_info_combined.csv`).catch(() => 
-        loadCSV('../provider_info_combined.csv')
+      loadCSV(`${basePath}/provider_info_combined.csv`).catch(() =>
+        loadCSV(`${dataFallback}/provider_info_combined.csv`)
       ),
-      loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() => 
-        loadCSV('../cms_region_state_mapping.csv').catch(() => '')
+      loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() =>
+        loadCSV(`${dataFallback}/cms_region_state_mapping.csv`).catch(() => '')
       ),
     ]);
 

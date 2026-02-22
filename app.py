@@ -674,10 +674,16 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url):
 <meta name="theme-color" content="#1e40af">
 <title>{page_title}</title>
 <meta name="description" content="{meta_description}">
-<meta property="og:title" content="{page_title}">
-<meta property="og:description" content="{meta_description}">
+<meta property="og:title" content="{html.escape(page_title)}">
+<meta property="og:description" content="{html.escape(meta_description)}">
 <meta property="og:url" content="{canon}">
 <meta property="og:type" content="website">
+<meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+<meta property="og:site_name" content="PBJ320">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{html.escape(page_title)}">
+<meta name="twitter:description" content="{html.escape(meta_description)}">
+<meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
 <link rel="canonical" href="{canon}">
 <link rel="icon" type="image/png" href="/pbj_favicon.png">
 <style>
@@ -2147,6 +2153,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 _SFF_CACHE = None
 _SFF_CACHE_AT = 0
 _SFF_CACHE_TTL = 120
+# CMS SFF posting PDF; update when a new list is published (e.g. sff-posting-candidate-list-july-2026.pdf)
+SFF_SOURCE_URL = 'https://www.cms.gov/files/document/sff-posting-candidate-list-january-2026.pdf'
 
 def load_sff_facilities():
     """Load Special Focus Facilities (SFF) data. Cached 2 min."""
@@ -2702,56 +2710,113 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             return "Government"
         return ownership
     
-    # SFF facilities section (collapsible)
+    # SFF facilities section: tabbed table (Current SFF, Candidates, Graduates, No longer in program)
     sff_section = ""
     if sff_facilities:
-        sff_count = len(sff_facilities)
-        facility_word = "facility" if sff_count == 1 else "facilities"
+        by_cat = {'SFF': [], 'Candidate': [], 'Graduate': [], 'Terminated': []}
+        for f in sff_facilities:
+            cat = f.get('category') or 'SFF'
+            if cat in by_cat:
+                by_cat[cat].append(f)
+        total_sff = len(sff_facilities)
         sff_section = f"""
     <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Special Focus Facilities (SFF) — {sff_count} {facility_word}</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Special Focus Facilities (SFF) — {total_sff} total</summary>
     <div class="pbj-details-content">
-    <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.5rem 0;">{state_name} has <strong>{sff_count}</strong> {facility_word} in the Special Focus Facility program:</p>
-    <ul class="sff-facilities-list" style="color: rgba(226,232,240,0.95); margin: 0.5rem 0 0 0;">
+    <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">{state_name} has facilities in the Special Focus Facility program. Select a tab to view Current SFFs, Candidates, Graduates, or facilities no longer in Medicare/Medicaid.</p>
+    <div class="sff-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
     """
-        for facility in sff_facilities:  # List ALL facilities
-            facility_name = facility.get('facility_name', 'Unknown')
-            provider_number = facility.get('provider_number', '')
-            months_sff = facility.get('months_as_sff', 0)
-            city = facility.get('city', '')
-            
-            # Get provider info
-            prov_info = provider_info.get(provider_number, {})
-            if not city:
-                city = prov_info.get('city', '')
-            residents = prov_info.get('avg_residents_per_day', '')
-            ownership = format_ownership_type(prov_info.get('ownership_type', ''))
-            entity = prov_info.get('entity_name', '')
-            
-            # Capitalize properly
-            facility_name_cap = capitalize_facility_name(facility_name)
-            city_cap = capitalize_city_name(city) if city else ''
-            # Create link to PBJ Dashboard
-            dashboard_link = f'/test/provider/{provider_number}'
-            
-            # Build facility line (polished format)
-            facility_line = f'<li><a href="{dashboard_link}">{facility_name_cap}</a>'
-            if city_cap:
-                facility_line += f' ({city_cap})'
-            facility_line += f' – {months_sff} months as SFF'
-            if residents:
-                try:
-                    residents_int = int(float(residents))
-                    facility_line += f' - {residents_int} residents'
-                except:
-                    pass
-            if ownership:
-                facility_line += f', {ownership}'
-            if entity:
-                facility_line += f': {capitalize_entity_name(entity)}'
-            facility_line += '</li>'
-            sff_section += facility_line
-        sff_section += """</ul><p style="margin-top: 0.75rem; font-size: 0.85rem;"><a href="https://www.cms.gov/medicare/enforcement/special-focus-facility" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p></div></details>"""
+        tab_id_prefix = "sff-tab-"
+        panel_id_prefix = "sff-panel-"
+        categories_order = [('SFF', 'Current SFF', 'months as SFF'), ('Candidate', 'Candidates', 'months as candidate'), ('Graduate', 'Graduates', 'months as SFF'), ('Terminated', 'No longer in program', 'months as SFF')]
+        first_selected = next((k for k, _, _ in categories_order if by_cat.get(k)), 'SFF')
+        for cat_key, tab_label, months_label in categories_order:
+            lst = by_cat.get(cat_key) or []
+            count = len(lst)
+            tid = tab_id_prefix + cat_key.lower()
+            pid = panel_id_prefix + cat_key.lower()
+            selected = (cat_key == first_selected)
+            sff_section += f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" aria-selected="{"true" if selected else "false"}" class="sff-tab-btn" data-panel="{pid}" style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(30,64,175,0.3); color:#93c5fd; border:1px solid rgba(59,130,246,0.4); border-radius:6px; cursor:pointer;">{tab_label} ({count})</button>'
+        sff_section += '</div>'
+        for cat_key, tab_label, months_label in categories_order:
+            lst = by_cat.get(cat_key) or []
+            pid = panel_id_prefix + cat_key.lower()
+            tid = tab_id_prefix + cat_key.lower()
+            is_first = (cat_key == first_selected)
+            panel_style = 'display:block;' if is_first else 'display:none;'
+            sff_section += f'<div role="tabpanel" id="{pid}" aria-labelledby="{tid}" class="sff-panel" style="{panel_style}">'
+            if not lst:
+                sff_section += f'<p style="color:rgba(226,232,240,0.8); font-size:0.9rem;">No {tab_label.lower()} in this state.</p>'
+            else:
+                # Table: Facility (name, city), Months, Residents, Ownership; Graduate/Terminated add date column
+                extra_col = ''
+                if cat_key == 'Graduate':
+                    extra_col = '<th scope="col">Graduation</th>'
+                elif cat_key == 'Terminated':
+                    extra_col = '<th scope="col">Termination</th>'
+                sff_section += f'''
+    <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
+    <table class="sff-facilities-table" style="width:100%; min-width:320px; border-collapse:collapse; font-size:0.875rem;">
+    <thead><tr><th scope="col">Facility</th><th scope="col">Months</th><th scope="col">Residents</th><th scope="col">Ownership</th>{extra_col}</tr></thead>
+    <tbody>'''
+                for facility in lst:
+                    facility_name = facility.get('facility_name', 'Unknown')
+                    provider_number = facility.get('provider_number', '')
+                    months_val = facility.get('months_as_sff')
+                    city = facility.get('city', '')
+                    prov_info = provider_info.get(provider_number, {})
+                    if not city:
+                        city = prov_info.get('city', '')
+                    residents = prov_info.get('avg_residents_per_day', '')
+                    ownership = format_ownership_type(prov_info.get('ownership_type', ''))
+                    facility_name_cap = capitalize_facility_name(facility_name)
+                    city_cap = capitalize_city_name(city) if city else ''
+                    dashboard_link = f'/test/provider/{provider_number}'
+                    facility_cell = f'<a href="{dashboard_link}">{html.escape(facility_name_cap)}</a>' + (f' <span style="color:rgba(226,232,240,0.75);">({html.escape(city_cap)})</span>' if city_cap else '')
+                    months_cell = str(months_val) if months_val is not None else '—'
+                    residents_cell = str(int(float(residents))) if residents and str(residents).strip() else '—'
+                    try:
+                        if residents and str(residents).strip():
+                            residents_cell = str(int(float(residents)))
+                    except (ValueError, TypeError):
+                        residents_cell = '—'
+                    ownership_cell = ownership or '—'
+                    extra_cell = ''
+                    if cat_key == 'Graduate':
+                        d = facility.get('date_of_graduation') or ''
+                        extra_cell = f'<td>{html.escape(d) if d else "—"}</td>'
+                    elif cat_key == 'Terminated':
+                        d = facility.get('date_of_termination') or ''
+                        extra_cell = f'<td>{html.escape(d) if d else "—"}</td>'
+                    sff_section += f'<tr><td>{facility_cell}</td><td>{months_cell}</td><td>{residents_cell}</td><td>{ownership_cell}</td>{extra_cell}</tr>'
+                sff_section += '</tbody></table></div>'
+            sff_section += '</div>'
+        sff_section += f'''
+    <style>
+    .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.5rem 0.4rem; border: 1px solid rgba(59,130,246,0.25); text-align:left; }}
+    .sff-facilities-table th {{ background: rgba(30,64,175,0.2); color: #93c5fd; font-weight:600; }}
+    .sff-facilities-table tbody tr:nth-child(even) {{ background: rgba(15,23,42,0.4); }}
+    .sff-tab-btn[aria-selected="true"] {{ background: rgba(59,130,246,0.5); border-color: #60a5fa; }}
+    @media (max-width: 640px) {{ .sff-facilities-table {{ font-size: 0.8rem; }} .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.35rem 0.25rem; }} }}
+    </style>
+    <p style="margin-top:0.75rem; font-size:0.85rem;"><a href="{html.escape(SFF_SOURCE_URL)}" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p>
+    <script>
+    (function(){{
+      var tabs = document.querySelectorAll(".sff-tab-btn");
+      var panels = document.querySelectorAll(".sff-panel");
+      tabs.forEach(function(btn){{
+        btn.addEventListener("click", function(){{
+          var panelId = btn.getAttribute("data-panel");
+          tabs.forEach(function(t){{ t.setAttribute("aria-selected", "false"); }});
+          panels.forEach(function(p){{ p.style.display = "none"; }});
+          btn.setAttribute("aria-selected", "true");
+          var p = document.getElementById(panelId);
+          if(p) p.style.display = "block";
+        }});
+      }});
+    }})();
+    </script>
+    </div></details>'''
     
     # Ranking info removed - already shown in overview table
     ranking_info = ""
@@ -5428,6 +5493,14 @@ def data_files(path):
 
     from flask import abort
     abort(404)
+
+# Serve data for SFF app: /sff/data/... same as /data/... (SPA may request from either)
+@app.route('/sff/data', defaults={'path': ''})
+@app.route('/sff/data/', defaults={'path': ''})
+@app.route('/sff/data/<path:path>')
+def sff_data_files(path):
+    """Serve data files for SFF route; same as data_files() so /sff/data/json/... works."""
+    return data_files(path)
 
 # Serve SFF routes at /sff (for pbj320.com/sff/)
 @app.route('/sff')

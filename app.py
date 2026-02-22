@@ -534,6 +534,42 @@ def format_quarter(quarter_str):
         return f"Q{match.group(2)} {match.group(1)}"
     return str(quarter_str)
 
+
+def format_percentile_phrase(percentile, state_name):
+    """Format facility state percentile as a single phrase for narrative use.
+    percentile: 0-100 (higher = better staffing). Rounded to nearest whole number.
+    Returns e.g. 'in the top 5% of nursing homes in New York'. No trailing punctuation.
+    Only ordinal format (e.g. 45th percentile) in the 30-70 middle band; top/bottom use cardinal %."""
+    if percentile is None or state_name is None or state_name == '':
+        return ''
+    try:
+        p = int(round(float(percentile)))
+    except (TypeError, ValueError):
+        return ''
+    p = max(0, min(100, p))
+
+    def _ordinal(n):
+        n = int(n)
+        if 11 <= n % 100 <= 13:
+            return f'{n}th'
+        return f'{n}' + ({1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th'))
+
+    if p >= 95:
+        return f'in the top 5% of nursing homes in {state_name}'
+    if p >= 90:
+        return f'in the top 10% of nursing homes in {state_name}'
+    if p >= 71:
+        top_rank = 100 - p
+        return f'in the top {top_rank}% of nursing homes in {state_name}'
+    if 30 <= p <= 70:
+        return f'in the {_ordinal(p)} percentile of nursing homes in {state_name}'
+    if p >= 11:
+        return f'in the bottom {p}% of nursing homes in {state_name}'
+    if p > 5:
+        return f'in the bottom 10% of nursing homes in {state_name}'
+    return f'in the bottom 5% of nursing homes in {state_name}'
+
+
 _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
 _LOAD_PROVIDER_INFO_TTL = 120
@@ -1148,9 +1184,14 @@ def _provider_charts_html(chart_data, facility_name=''):
             title: function(context) {
               if (quarters && context[0] && context[0].dataIndex < quarters.length) {
                 var q = quarters[context[0].dataIndex];
-                if (q && q.length >= 6) return q.substring(5) + ' ' + q.substring(0,4);
+                if (q && q.length >= 6) return q.substring(0,4) + ' Q' + (q.substring(5) || '').replace(/^Q?/i,'');
               }
               return context[0].label || '';
+            },
+            label: function(context) {
+              var v = context.parsed.y;
+              if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + v.toFixed(2);
+              return context.dataset.label + ': ' + (v != null ? v : '');
             }
           }
         }
@@ -1352,11 +1393,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     contract_badge_text = f'{contract_pct}% contract staff'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
-    if state_percentile_total is not None:
-        if state_percentile_total <= 50:
-            percentile_line = f'<div class="pbj-percentile">State percentile (Total Nurse): Bottom {state_percentile_total}%</div>'
-        else:
-            percentile_line = f'<div class="pbj-percentile">State percentile (Total Nurse): Top {100 - state_percentile_total}%</div>'
+    state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
+    if state_pct_phrase:
+        state_ratio_str = f' (state ratio: {state_hprd_placeholder} HPRD)' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
+        narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + state_ratio_str + '.'
     yoy_line = ''
     if facility_df is not None and not facility_df.empty and raw_quarter and reported_total is not None:
         try:

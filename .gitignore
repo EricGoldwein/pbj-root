@@ -76,3 +76,7 @@ CALCULATION_ANALYSIS.md
 CALCULATION_DOCUMENTATION.md
 FIXES_SUMMARY.md
 
+# Allow quarterly CSVs and press video (track in repo for test provider/state pages)
+!facility_quarterly_metrics.csv
+!state_quarterly_metrics.csv
+

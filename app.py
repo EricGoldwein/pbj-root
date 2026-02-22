@@ -579,6 +579,8 @@ def load_provider_info():
                                 'case_mix_total_nurse_hrs_per_resident_per_day': row.get('case_mix_total_nurse_hrs_per_resident_per_day'),
                                 'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
                                 'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
+                                'overall_rating': row.get('overall_rating'),
+                                'staffing_rating': row.get('staffing_rating'),
                             }
                 _LOAD_PROVIDER_INFO_CACHE = provider_dict
                 _LOAD_PROVIDER_INFO_AT = time.time()
@@ -1319,6 +1321,20 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "— residents"
     total_direct_badge = f"Total HPRD: {hprd_val} ({direct_hprd_val} Direct)"
+    # CMS star ratings (1-5) from provider info
+    def _star(val):
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return "—"
+        try:
+            n = int(round(float(val)))
+            if 1 <= n <= 5:
+                return str(n)
+        except (TypeError, ValueError):
+            pass
+        return "—"
+    overall_star = _star((provider_info_row or {}).get('overall_rating'))
+    staffing_star = _star((provider_info_row or {}).get('staffing_rating'))
+    ratings_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">Ratings: {overall_star} Overall, {staffing_star} Staffing</span>'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     if state_percentile_total is not None:
@@ -1424,7 +1440,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway: {facility_name}</div>
 </div>
-<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="/test/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
+<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}{ratings_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="/test/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
 {percentile_line}
 {entity_summary_html}
 <p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>

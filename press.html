@@ -81,8 +81,22 @@
     .content-box header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(148, 163, 184, 0.3); }
     .content-box header h1 { font-size: 2.5rem; color: #1e40af; margin-bottom: 0.5rem; font-weight: 700; }
     .content-box header .subtitle { color: #475569; font-size: 1.15rem; font-weight: 500; }
-    .content-box header .featured-in { color: #64748b; font-size: 0.95rem; }
-    .content-box header .featured-in a { color: #1e40af; }
+    .featured-in-block {
+      margin-top: 2.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.35);
+      color: #64748b;
+      font-size: 0.9rem;
+    }
+    .featured-in-block .label { font-weight: 600; color: #475569; margin-bottom: 0.35rem; letter-spacing: 0.02em; }
+    .featured-in-block a { color: #1e40af; }
+    .featured-in-block .and-desktop { display: inline; }
+    .featured-in-block .and-mobile { display: none; }
+    @media (max-width: 768px) {
+      .featured-in-block { font-size: 0.85rem; margin-top: 2rem; padding-top: 1.25rem; }
+      .featured-in-block .and-desktop { display: none; }
+      .featured-in-block .and-mobile { display: inline; }
+    }
     .content-box h2 { font-size: 1.6rem; color: #1e40af; margin-top: 1.8rem; margin-bottom: 1rem; font-weight: 600; }
     .content-box h3 { font-size: 1.4rem; color: #3b82f6; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }
     .content-box h3:first-of-type { margin-top: 0; }
@@ -175,7 +189,6 @@
       <header>
         <h1>Press</h1>
         <p class="subtitle">For journalists and editors covering nursing home stories</p>
-        <p class="featured-in" style="margin-top: 0.75rem;">As seen in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener">Columbia Public Health</a>, <a href="https://www.wtvr.com/" target="_blank" rel="noopener">WTVR CBS</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener">Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener">Aging in America News</a>.</p>
       </header>
 
       <!-- Experience: PBJ fluency, media work, briefings, deadline responsiveness -->
@@ -214,6 +227,11 @@
 
       <h2>Get Started on Your Own</h2>
       <p>The <a href="https://pbjdashboard.com/" target="_blank">PBJ Dashboard</a> lets you explore staffing data for ~15,000 U.S. nursing homes—by state, facility, or ownership group. You can start there for self-serve exploration, or email me if you need help interpreting what you find.</p>
+
+      <div class="featured-in-block">
+        <div class="label">As seen in</div>
+        <p style="margin: 0;"><a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener">Columbia Public Health</a>, <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026" target="_blank" rel="noopener">WTVR CBS</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener">Positive Aging</a>,<span class="and-desktop"> and </span><span class="and-mobile"> &amp; </span><a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener">Aging in America News</a>.</p>
+      </div>
     </div>
   </div>
 

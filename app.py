@@ -1229,10 +1229,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     ownership_short = abbreviate_ownership(ownership_raw) or '—'
     base_url = 'https://pbj320.com'
     state_link = f'<a href="/test/state/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
-    entity_link = f'<a href="/test/entity/{entity_id}">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
-    location_subtitle = f"{city}, {state_link} &bull; {ownership_short}" if city else f"{state_link} &bull; {ownership_short}"
-    meta_parts = [p for p in [f'Operator: {entity_link}' if entity_id and entity_name else None] if p and p != '—']
-    meta_line = ' &bull; '.join(meta_parts) if meta_parts else ''
+    # Entity link to pbj320.com entity page (only show when entity exists)
+    entity_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
+    # Residents count for subtitle (census_int set later; we need it here for location line)
     # Case-mix and reported from most recent provider info only (no provider_info_combined for this public tool)
     pi = provider_info_row or {}
     def _safe(v):
@@ -1440,7 +1439,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway: {facility_name}</div>
 </div>
-<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}{ratings_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="/test/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
+<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}{ratings_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="' + base_url + '/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
 {percentile_line}
 {entity_summary_html}
 <p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>
@@ -1453,7 +1452,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     facility_page_url = f"{base_url}/test/provider/{prov}"
     care_compare_facility_url = f'https://www.medicare.gov/care-compare/details/nursing-home/{prov}/view-all/?state={state_code}' if state_code else ''
     custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
-    subtitle_one_line = f"{location_subtitle}{' • ' + meta_line if meta_line else ''}"
+    _residents_sub = f"{census_int:,} residents" if census_int else "— residents"
+    _loc_sub = f"{city}, {state_link} &bull; {ownership_short} &bull; {_residents_sub}" if city else f"{state_link} &bull; {ownership_short} &bull; {_residents_sub}"
+    subtitle_one_line = _loc_sub + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle">{subtitle_one_line}</p>

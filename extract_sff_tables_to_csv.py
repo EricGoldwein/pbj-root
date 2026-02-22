@@ -383,17 +383,24 @@ def parse_text_row(line: str, ccn: str, table_type: str) -> Optional[List[str]]:
     return row
 
 def main():
-    pdf_path = Path('pbj-wrapped/public/sff-posting-with-candidate-list-november-2025.pdf')
-    
+    # Default: January 2026 posting; override with CLI arg: python extract_sff_tables_to_csv.py path/to/other.pdf
+    default_name = 'sff-posting-with-candidate-list-january-2026_0.pdf'
+    if len(sys.argv) > 1:
+        pdf_path = Path(sys.argv[1]).resolve()
+    else:
+        repo_root = Path(__file__).resolve().parent
+        pdf_path = repo_root / 'pbj-wrapped' / 'public' / default_name
+
     if not pdf_path.exists():
         print(f"Error: PDF file not found at {pdf_path}")
+        print("Usage: python extract_sff_tables_to_csv.py [path/to/sff-posting.pdf]")
         sys.exit(1)
     
     print(f"Extracting tables from {pdf_path.name}...")
     tables = extract_tables_from_pdf(pdf_path)
     
-    # Write CSV files
-    output_dir = Path('pbj-wrapped/public')
+    # Write CSV files next to the PDF (or repo pbj-wrapped/public)
+    output_dir = pdf_path.parent if pdf_path.parent.name == 'public' else Path(__file__).resolve().parent / 'pbj-wrapped' / 'public'
     output_dir.mkdir(parents=True, exist_ok=True)
     
     for table_type, rows in tables.items():

@@ -118,7 +118,7 @@ def api_dates():
             data['pbj_quarter_display'] = 'Q3 2025'
     except Exception:
         data['pbj_quarter_display'] = 'Q3 2025'
-    data['sff_posting'] = 'Dec. 2025'  # CMS SFF posting date; update when new list is published
+    data['sff_posting'] = 'Jan. 2026'  # CMS SFF posting date; update when new list is published
     return jsonify(data)
 
 @app.route('/search_index.json')

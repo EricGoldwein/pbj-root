@@ -532,7 +532,7 @@ def extract_table_data(pages: List[Dict]) -> Dict:
     }
 
 def main():
-    pdf_path = Path(__file__).parent.parent / 'public' / 'sff-posting-with-candidate-list-november-2025.pdf'
+    pdf_path = Path(__file__).parent.parent / 'public' / 'sff-posting-with-candidate-list-january-2026_0.pdf'
     
     if not pdf_path.exists():
         print(f"Error: PDF file not found at {pdf_path}")

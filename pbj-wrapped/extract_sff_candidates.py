@@ -34,7 +34,7 @@ def extract_text_from_pdf(pdf_path):
         return None
 
 if __name__ == "__main__":
-    pdf_path = os.path.join("public", "sff-posting-with-candidate-list-november-2025.pdf")
+    pdf_path = os.path.join("public", "sff-posting-with-candidate-list-january-2026_0.pdf")
     
     if not os.path.exists(pdf_path):
         print(f"ERROR: PDF file not found at {pdf_path}")

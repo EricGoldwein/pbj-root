@@ -104,9 +104,9 @@ def main():
     # Create combined JSON structure
     output_data = {
         'document_date': {
-            'month': 12,
-            'year': 2025,
-            'month_name': 'December'
+            'month': 1,
+            'year': 2026,
+            'month_name': 'January'
         },
         'facilities': all_facilities,
         'summary': {

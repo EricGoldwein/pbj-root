@@ -208,14 +208,15 @@ function parseNationalRow(row) {
 }
 
 function parseFacilityRow(row) {
+  // Support facility_quarterly_metrics.csv columns (RN_HPRD, RN_Care_HPRD, avg_daily_census) and legacy names
   return {
     ...row,
     Total_Nurse_HPRD: parseNumeric(row.Total_Nurse_HPRD),
     Nurse_Care_HPRD: parseNumeric(row.Nurse_Care_HPRD),
-    Total_RN_HPRD: parseNumeric(row.Total_RN_HPRD),
-    Direct_Care_RN_HPRD: parseNumeric(row.Direct_Care_RN_HPRD),
+    Total_RN_HPRD: parseNumeric(row.Total_RN_HPRD ?? row.RN_HPRD),
+    Direct_Care_RN_HPRD: parseNumeric(row.Direct_Care_RN_HPRD ?? row.RN_Care_HPRD),
     Contract_Percentage: parseNumeric(row.Contract_Percentage),
-    Census: parseNumeric(row.Census),
+    Census: parseNumeric(row.Census ?? row.avg_daily_census),
   };
 }
 
@@ -541,7 +542,7 @@ async function runPreprocessing() {
 
     // Process facility data (only Q1 and Q2)
     console.log('Processing facility data (this may take a while)...');
-    const facilityRows = parseCSV(join(DATA_DIR, 'facility_lite_metrics.csv')).map(parseFacilityRow);
+    const facilityRows = parseCSV(join(DATA_DIR, 'facility_quarterly_metrics.csv')).map(parseFacilityRow);
     const facilityQ1 = filterByQuarter(facilityRows, ['2025Q1']);
     const facilityQ2 = filterByQuarter(facilityRows, ['2025Q2']);
     writeFileSync(join(OUTPUT_DIR, 'facility_q1.json'), JSON.stringify(facilityQ1));

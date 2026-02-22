@@ -263,11 +263,10 @@ function parseNationalRow(row: any): NationalQuarterlyRow {
 }
 
 function parseFacilityRow(row: any): FacilityLiteRow {
-  // Parse numeric fields - handle both string and number types
-  // Use more defensive parsing to catch CSV misalignment issues
+  // Parse numeric fields - handle both facility_quarterly_metrics and legacy facility_lite column names
   const totalHPRD = parseFloat(String(row.Total_Nurse_HPRD || row['Total_Nurse_HPRD'] || 0)) || 0;
   const directCareHPRD = parseFloat(String(row.Nurse_Care_HPRD || row['Nurse_Care_HPRD'] || 0)) || 0;
-  const rnHPRD = parseFloat(String(row.Total_RN_HPRD || row['Total_RN_HPRD'] || 0)) || 0;
+  const rnHPRD = parseFloat(String(row.Total_RN_HPRD || row['Total_RN_HPRD'] || row.RN_HPRD || row['RN_HPRD'] || 0)) || 0;
   
   // Log potential misalignment during parsing (only for specific problematic CCNs for debugging)
   const provNum = String(row.PROVNUM || row['PROVNUM'] || '').trim();
@@ -287,9 +286,9 @@ function parseFacilityRow(row: any): FacilityLiteRow {
     Total_Nurse_HPRD: totalHPRD,
     Nurse_Care_HPRD: directCareHPRD,
     Total_RN_HPRD: rnHPRD,
-    Direct_Care_RN_HPRD: parseFloat(String(row.Direct_Care_RN_HPRD || row['Direct_Care_RN_HPRD'] || 0)) || 0,
+    Direct_Care_RN_HPRD: parseFloat(String(row.Direct_Care_RN_HPRD || row['Direct_Care_RN_HPRD'] || row.RN_Care_HPRD || row['RN_Care_HPRD'] || 0)) || 0,
     Contract_Percentage: parseFloat(String(row.Contract_Percentage || row['Contract_Percentage'] || 0)) || 0,
-    Census: parseFloat(String(row.Census || row['Census'] || 0)) || 0,
+    Census: parseFloat(String(row.Census || row['Census'] || row.avg_daily_census || row['avg_daily_census'] || 0)) || 0,
   };
 }
 
@@ -556,8 +555,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       loadCSV(`${basePath}/national_quarterly_metrics.csv`).catch(() => 
         loadCSV('../national_quarterly_metrics.csv')
       ),
-      loadCSV(`${basePath}/facility_lite_metrics.csv`).catch(() => 
-        loadCSV('../facility_lite_metrics.csv')
+      loadCSV(`${basePath}/facility_quarterly_metrics.csv`).catch(() => 
+        loadCSV('../facility_quarterly_metrics.csv')
       ),
       loadCSV(`${basePath}/provider_info_combined.csv`).catch(() => 
         loadCSV('../provider_info_combined.csv')

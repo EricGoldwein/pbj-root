@@ -11,7 +11,7 @@
    - `state_quarterly_metrics.csv`
    - `cms_region_quarterly_metrics.csv`
    - `national_quarterly_metrics.csv`
-   - `facility_lite_metrics.csv`
+   - `facility_quarterly_metrics.csv`
    - `provider_info_combined.csv`
    - `cms_region_state_mapping.csv` (already copied)
 

@@ -648,7 +648,7 @@ export default function SFFPage() {
               }) : undefined;
               
               // CRITICAL FIX: Try to find facility data from Q2 FIRST (even if no provider found)
-              // Facility data exists in facility_lite_metrics.csv even if provider info doesn't exist
+              // Facility data exists in facility_quarterly_metrics.csv even if provider info doesn't exist
               let facility = findFacilityByCCN(ccn);
               
               // If not found in Q2, try Q1 facility data (if provider found in Q1) - STRICT matching

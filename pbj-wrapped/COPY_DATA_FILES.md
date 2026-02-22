@@ -7,7 +7,7 @@ The following CSV files need to be in `pbj-wrapped/public/data/`:
 1. ✅ `state_quarterly_metrics.csv` - Already copied
 2. ✅ `cms_region_quarterly_metrics.csv` - Already copied  
 3. ✅ `national_quarterly_metrics.csv` - Already copied
-4. ✅ `facility_lite_metrics.csv` - Already copied
+4. ✅ `facility_quarterly_metrics.csv` - Already copied
 5. ✅ `cms_region_state_mapping.csv` - Already copied
 6. ⚠️ `provider_info_combined.csv` - **TOO LARGE - Must copy manually**
 7. ✅ `macpac_state_standards_clean.csv` - **Already copied** (for state minimum staffing requirements)

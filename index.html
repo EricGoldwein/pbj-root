@@ -962,6 +962,28 @@
     .home-search-results a:hover { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
     .home-search-results a.high-risk { color: #fca5a5; }
     .home-search-results a.high-risk:hover { color: #fecaca; }
+    .home-search-nav-loading {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(15, 23, 42, 0.85);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .home-search-nav-loading[data-active="true"] { display: flex; }
+    .home-search-nav-loading .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(96, 165, 250, 0.3);
+      border-top-color: #60a5fa;
+      border-radius: 50%;
+      animation: home-search-spin 0.8s linear infinite;
+    }
+    @keyframes home-search-spin { to { transform: rotate(360deg); } }
+    .home-search-nav-loading .text { color: rgba(255,255,255,0.9); font-size: 0.95rem; }
     /* Info popup */
     .home-search-info-popup {
       display: none;
@@ -1149,6 +1171,10 @@
               </button>
             </div>
             <div id="homeSearchResults" class="home-search-results" role="listbox" aria-label="Search results"></div>
+            <div id="homeSearchNavLoading" class="home-search-nav-loading" aria-live="polite" aria-busy="false">
+              <div class="spinner" aria-hidden="true"></div>
+              <span class="text">Loading…</span>
+            </div>
           </div>
           
           <div id="homeSearchInfoPopup" class="home-search-info-popup" role="dialog" aria-label="Search help" aria-hidden="true">
@@ -1166,7 +1192,7 @@
                 </div>
                 <div class="info-section">
                   <p class="info-section-title">Sources</p>
-                  <p><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a>, <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">Provider Info</a>, and <a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener">Chain data</a>. Results link to the <a href="https://pbjdashboard.com/" target="_blank" rel="noopener">PBJ Dashboard</a> (PBJ staffing).</p>
+                  <p><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a>, <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">Provider Info</a>, and <a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener">Chain data</a>. Results link to facility, state, and entity pages on this site.</p>
                 </div>
                 <div class="info-section">
                   <p class="info-section-title">High-risk</p>
@@ -1480,6 +1506,18 @@
       (function() {
         const input = document.getElementById('homeSearchInput');
         const resultsEl = document.getElementById('homeSearchResults');
+        const navLoadingEl = document.getElementById('homeSearchNavLoading');
+        var prefetchedUrls = {};
+        function prefetchUrl(url) {
+          if (!url || prefetchedUrls[url]) return;
+          prefetchedUrls[url] = true;
+          try {
+            var link = document.createElement('link');
+            link.rel = 'prefetch';
+            link.href = url;
+            document.head.appendChild(link);
+          } catch (err) {}
+        }
         const stateFilterWrap = document.getElementById('homeSearchStateFilterWrap');
         const stateFilter = document.getElementById('homeSearchStateFilter');
         const tabFacility = document.getElementById('searchTabFacility');
@@ -1489,7 +1527,7 @@
         const infoPopup = document.getElementById('homeSearchInfoPopup');
         const infoClose = infoPopup ? infoPopup.querySelector('.home-search-info-close') : null;
         if (!input || !resultsEl) return;
-        const DASHBOARD_BASE = 'https://pbjdashboard.com';
+        const DASHBOARD_BASE = 'https://pbjdashboard.com'; // home search links to dashboard; test pages at /test/provider, /test/state, /test/entity
         let searchIndex = { f: [], e: [], s: [] };
         let stateHprdData = null;
         let indexReady = false;
@@ -1605,7 +1643,7 @@
               const matchAbbr = matchQuery(row.abbr, q);
               if (!matchName && !matchAbbr) continue;
               count++;
-              const url = DASHBOARD_BASE + '/?state=' + encodeURIComponent(row.abbr);
+              const url = DASHBOARD_BASE + '/?state=' + encodeURIComponent(row.abbr || '');
               var nhCount = searchIndex.f.filter(function(r) { return (r.s || '') === row.abbr; }).length;
               var hprdArr = stateHprdData && stateHprdData[row.abbr];
               var hprd = (hprdArr && hprdArr.length) ? hprdArr[hprdArr.length - 1] : null;
@@ -1619,7 +1657,7 @@
           } else {
             resultsEl.innerHTML = out.map(function(r) {
               var cls = r.highRisk ? 'high-risk' : '';
-              return '<a href="' + escapeHtml(r.url) + '" role="option" target="_blank" rel="noopener"' + (cls ? ' class="' + cls + '"' : '') + '>' + escapeHtml(r.label) + '</a>';
+              return '<a href="' + escapeHtml(r.url) + '" role="option"' + (cls ? ' class="' + cls + '"' : '') + '>' + escapeHtml(r.label) + '</a>';
             }).join('');
           }
           resultsEl.setAttribute('data-open', 'true');
@@ -1649,7 +1687,17 @@
         });
         resultsEl.addEventListener('click', function(e) {
           const a = e.target.closest('a[href]');
-          if (a) return;
+          if (a) {
+            e.preventDefault();
+            resultsEl.removeAttribute('data-open');
+            input.setAttribute('aria-expanded', 'false');
+            if (navLoadingEl) {
+              navLoadingEl.setAttribute('data-active', 'true');
+              navLoadingEl.setAttribute('aria-busy', 'true');
+            }
+            window.location.href = a.href;
+            return;
+          }
           e.preventDefault();
         });
         document.addEventListener('click', function(e) {
@@ -2010,7 +2058,7 @@
               .on('click', function(event, d) {
                 const stateName = d.properties.name;
                 const stateAbbr = stateAbbreviations[stateName];
-                window.location.href = `https://pbjdashboard.com/?state=${stateAbbr}`;
+                window.location.href = 'https://pbjdashboard.com/?state=' + encodeURIComponent(stateAbbr || '');
               })
               .on('mouseover', function(event, d) {
                 const stateName = d.properties.name;

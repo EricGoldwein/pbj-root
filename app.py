@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import quote
+import html
 import time
 
 try:
@@ -366,11 +367,10 @@ def sitemap():
         ('/pbj-sample', '0.6', 'monthly'),
     ]:
         urls.append(f'  <url><loc>{base}{path}</loc><lastmod>{today}</lastmod><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>')
-    # State pages: canonical is /<slug>, but we list /state/<slug> so crawlers find them (redirect to canonical)
+    # Test state/provider/entity pages only (non-test routes 404)
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
-        urls.append(f'  <url><loc>{base}/state/{slug}</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.7</priority></url>')
-    # Provider and entity URLs from search_index.json (subset to keep sitemap reasonable)
+        urls.append(f'  <url><loc>{base}/test/state/{slug}</loc><lastmod>{today}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>')
     search_path = os.path.join(APP_ROOT, 'search_index.json')
     if os.path.isfile(search_path):
         try:
@@ -378,10 +378,10 @@ def sitemap():
                 data = json.load(f)
             for fac in (data.get('f') or [])[:10000]:
                 if fac and fac.get('c'):
-                    urls.append(f'  <url><loc>{base}/provider/{fac.get("c")}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
+                    urls.append(f'  <url><loc>{base}/test/provider/{fac.get("c")}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
             for ent in (data.get('e') or [])[:2000]:
                 if ent and ent.get('id') is not None:
-                    urls.append(f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
+                    urls.append(f'  <url><loc>{base}/test/entity/{ent.get("id")}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
         except Exception as e:
             print(f"Sitemap: could not load search_index: {e}")
     xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + '\n'.join(urls) + '\n</urlset>'
@@ -484,6 +484,7 @@ def load_csv_data(filename):
             return data
     possible_paths = [
         filename,
+        os.path.join(APP_ROOT, filename),
         os.path.join('pbj-wrapped', 'public', 'data', filename),
         os.path.join('pbj-wrapped', 'dist', 'data', filename),
         os.path.join('data', filename),
@@ -657,12 +658,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .custom-report-cta .custom-report-cta-header {{ margin: 0; font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }}
 .custom-report-cta .custom-report-cta-sub {{ margin: 0.35rem 0 0.6rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.8); }}
 .custom-report-cta .custom-report-cta-links {{ margin: 0.4rem 0; font-size: 0.85rem; }}
-.custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
-.custom-report-cta .custom-report-cta-links a:hover {{ text-decoration: underline; color: #bfdbfe; }}
+.custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }}
+.custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; }}
 .custom-report-cta .custom-report-cta-dot {{ color: rgba(226,232,240,0.5); margin: 0 0.2rem; font-weight: 400; }}
 .custom-report-cta .custom-report-cta-footer {{ margin: 0.5rem 0 0 0; font-size: 0.75rem; color: rgba(226,232,240,0.6); }}
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
-.custom-report-cta .custom-report-cta-sms a {{ color: #93c5fd; font-weight: 500; }}
+.custom-report-cta .custom-report-cta-sms a {{ color: #93c5fd; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }}
+.custom-report-cta .custom-report-cta-sms a:hover {{ color: #bfdbfe; }}
 .navbar {{ background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); border-bottom: 2px solid #1e40af; }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }}
 .nav-brand {{ display: flex; align-items: center; color: white; font-size: 1.2rem; font-weight: 700; }}
@@ -823,7 +825,8 @@ Thank you,"""
         link_att = mailto(subj_att, body_att)
         link_media = mailto(subj_media, body_media)
         link_adv = mailto(subj_adv, body_adv)
-        sms_href = None
+        sms_body = f"I'm reviewing nursing home staffing in {state_name} and would like to connect. {page_url}"
+        sms_href = f"sms:+19298044996?body={quote(sms_body)}"
         show_email_text_row = True
 
     elif context == 'entity':
@@ -856,25 +859,25 @@ Thank you,"""
         link_att = mailto(subj_att, body_att)
         link_media = mailto(subj_media, body_media)
         link_adv = mailto(subj_adv, body_adv)
-        sms_href = None
+        sms_body = f"I'm reviewing {entity_name} and would like to connect regarding staffing. {page_url}"
+        sms_href = f"sms:+19298044996?body={quote(sms_body)}"
         show_email_text_row = True
 
     else:
         return ''
 
-    links_html = f'<a href="{link_att}">Attorney</a><span class="custom-report-cta-dot"> · </span><a href="{link_media}">Media</a><span class="custom-report-cta-dot"> · </span><a href="{link_adv}">Advocate</a>'
+    # Single row: Email and Text only (Attorney/Media/Advocate removed per user request)
     email_text_row = ''
     if show_email_text_row:
         if sms_href:
-            email_text_row = f'<div class="custom-report-cta-sms"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span><a href="{sms_href}">Text</a></div>'
+            email_text_row = f'<div class="custom-report-cta-links"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span><a href="{sms_href}">Text</a></div>'
         else:
-            email_text_row = f'<div class="custom-report-cta-sms"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span>Text</div>'
+            email_text_row = f'<div class="custom-report-cta-links"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span>Text</div>'
 
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     return f'''<div class="custom-report-cta">
 <p class="custom-report-cta-header">{header_text}</p>
 <p class="custom-report-cta-sub">{sub_text}</p>
-<div class="custom-report-cta-links">{links_html}</div>
 {email_text_row}
 {footer_block}</div>'''
 
@@ -1061,25 +1064,29 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
     return out
 
 def _provider_charts_html(chart_data, facility_name=''):
-    """Render all provider charts with Chart.js: bar (Reported vs Case-Mix) + 4 line charts. Facility name in titles for screenshot/share."""
+    """Render all provider charts with Chart.js: bar (Reported vs Case-Mix) + 4 line charts. Title: metric name centered, facility name smaller below."""
     import json
     try:
         data_esc = json.dumps(chart_data).replace('<', '\\u003c').replace('>', '\\u003e').replace('&', '\\u0026')
     except Exception:
         data_esc = '{}'
-    title_prefix = (facility_name + ' – ') if facility_name else ''
+    # Centered title block: main title + facility name below in smaller text (one row)
+    facility_esc = html.escape(str(facility_name)) if facility_name else ''
+    facility_sub = ('<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 1rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + facility_esc + '</p>') if facility_esc else ''
+    def chart_header(main_title):
+        return '<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;"><div class="section-header" style="margin-bottom:0;">' + main_title + '</div>' + facility_sub + '</div>'
     return '''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><canvas id="chartReportedCaseMix" height="260"></canvas></div>
-<div class="section-header">''' + title_prefix + '''Total staffing over time</div>
+''' + chart_header('Total Staffing') + '''
 <p class="pbj-subtitle">Total and direct care hours per resident day.</p>
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><canvas id="chartTotalHprd" height="260"></canvas></div>
-<div class="section-header">''' + title_prefix + '''RN staffing over time</div>
+''' + chart_header('RN Staffing') + '''
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><canvas id="chartRN" height="260"></canvas></div>
-<div class="section-header">''' + title_prefix + '''Census over time</div>
+''' + chart_header('Census') + '''
 <p class="pbj-subtitle">Average daily census by quarter.</p>
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><canvas id="chartCensus" height="260"></canvas></div>
-<div class="section-header">''' + title_prefix + '''Contract staff % over time</div>
+''' + chart_header('Contract staff %') + '''
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><canvas id="chartContract" height="260"></canvas></div>
 <script>
 (function(){
@@ -1219,8 +1226,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         return ot
     ownership_short = abbreviate_ownership(ownership_raw) or '—'
     base_url = 'https://pbj320.com'
-    state_link = f'<a href="/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
-    entity_link = f'<a href="/entity/{entity_id}">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
+    state_link = f'<a href="/test/state/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
+    entity_link = f'<a href="/test/entity/{entity_id}">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
     location_subtitle = f"{city}, {state_link} &bull; {ownership_short}" if city else f"{state_link} &bull; {ownership_short}"
     meta_parts = [p for p in [f'Operator: {entity_link}' if entity_id and entity_name else None] if p and p != '—']
     meta_line = ' &bull; '.join(meta_parts) if meta_parts else ''
@@ -1309,7 +1316,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         risk_badge_label = ''
     risk_badge = ('<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);">' + risk_badge_label + '</span>') if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
-    residents_str = f"{census_int} Residents" if census_int else "— Residents"
+    direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
+    residents_str = f"{census_int:,} residents" if census_int else "— residents"
+    total_direct_badge = f"Total HPRD: {hprd_val} ({direct_hprd_val} Direct)"
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     if state_percentile_total is not None:
@@ -1415,7 +1424,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway: {facility_name}</div>
 </div>
-<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{hprd_val} HPRD</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{state_code}: {state_hprd_placeholder} HPRD</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.2);"><a href="/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
+<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="/test/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
 {percentile_line}
 {entity_summary_html}
 <p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>
@@ -1424,8 +1433,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 </div>'''
     seo_desc = f"{facility_name} nursing home staffing: {format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')} HPRD total nurse staffing in {quarter_display}."
     page_title = f"{facility_name} | Nursing Home Staffing | PBJ320"
-    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/provider/{prov}")
-    facility_page_url = f"{base_url}/provider/{prov}"
+    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/test/provider/{prov}")
+    facility_page_url = f"{base_url}/test/provider/{prov}"
     care_compare_facility_url = f'https://www.medicare.gov/care-compare/details/nursing-home/{prov}/view-all/?state={state_code}' if state_code else ''
     custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
     subtitle_one_line = f"{location_subtitle}{' • ' + meta_line if meta_line else ''}"
@@ -1443,8 +1452,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 {render_methodology_block()}
 
-<p style="margin-top: 1.5rem; color: rgba(226,232,240,0.85);"><a href="/">Home</a> &middot; <a href="/{canonical_slug}">{state_name} staffing</a>{(' &middot; ' + entity_link) if entity_id and entity_name else ''}</p>
-<p style="margin-top: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.6);">Staffing from CMS payroll-based journal (PBJ) data.{' <a href="' + care_compare_facility_url + '" target="_blank" rel="noopener" style="color: rgba(148,163,184,0.95);">View on Medicare Care Compare</a>' if care_compare_facility_url else ''}</p>"""
+<p style="margin-top: 1.5rem; color: rgba(226,232,240,0.85);"><a href="/">Home</a> &middot; <a href="/test/state/{canonical_slug}">{state_name} staffing</a>{(' &middot; ' + entity_link) if entity_id and entity_name else ''}</p>
+<p style="margin-top: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.6);">Source: CMS Payroll-Based Journal (PBJ) data.{' <a href="' + care_compare_facility_url + '" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a>' if care_compare_facility_url else ''}</p>"""
     return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
 
 def load_entity_facilities(entity_id):
@@ -1501,6 +1510,7 @@ def load_entity_facilities(entity_id):
                 latest_q = fq['CY_Qtr'].max() if 'CY_Qtr' in fq.columns else None
                 if latest_q:
                     fq_latest = fq[fq['CY_Qtr'] == latest_q]
+                    census_col = 'avg_daily_census' if 'avg_daily_census' in fq_latest.columns else 'Avg_Daily_Census'
                     for fac in facilities:
                         row = fq_latest[fq_latest['PROVNUM'] == fac['ccn']]
                         if not row.empty:
@@ -1508,6 +1518,8 @@ def load_entity_facilities(entity_id):
                             fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
                             fac['RN_HPRD'] = r.get('RN_HPRD')
                             fac['Contract_Percentage'] = r.get('Contract_Percentage')
+                            if census_col in fq_latest.columns:
+                                fac['avg_daily_census'] = r.get(census_col)
                             fac['quarter'] = latest_q
             return entity_name, facilities
         except Exception as e:
@@ -1525,19 +1537,74 @@ def generate_entity_page_html(entity_id, entity_name, facilities):
     base_url = 'https://pbj320.com'
     n = len(facilities)
     subtitle = f"{n} nursing home{'s' if n != 1 else ''}"
+
+    # Chain-level metrics from latest quarter (aggregate across facilities)
+    states_set = set()
+    total_hprd_vals = []
+    rn_hprd_vals = []
+    contract_vals = []
+    total_residents = 0
+    quarter_display = ''
+    for fac in facilities:
+        st = (fac.get('state') or '').strip().upper()[:2]
+        if st:
+            states_set.add(st)
+        tn = fac.get('Total_Nurse_HPRD')
+        if tn is not None and not (isinstance(tn, float) and pd.isna(tn)):
+            total_hprd_vals.append(float(tn))
+        rn = fac.get('RN_HPRD')
+        if rn is not None and not (isinstance(rn, float) and pd.isna(rn)):
+            rn_hprd_vals.append(float(rn))
+        c = fac.get('Contract_Percentage')
+        if c is not None and not (isinstance(c, float) and pd.isna(c)):
+            contract_vals.append(float(c))
+        census = fac.get('avg_daily_census')
+        if census is not None and not (isinstance(census, float) and pd.isna(census)):
+            try:
+                total_residents += int(round(float(census)))
+            except (TypeError, ValueError):
+                pass
+        if not quarter_display and fac.get('quarter'):
+            raw_q = fac['quarter']
+            match = re.match(r'(\d{4})Q(\d)', str(raw_q))
+            quarter_display = f"Q{match.group(2)} {match.group(1)}" if match else str(raw_q)
+    num_states = len(states_set)
+    avg_total = sum(total_hprd_vals) / len(total_hprd_vals) if total_hprd_vals else None
+    avg_rn = sum(rn_hprd_vals) / len(rn_hprd_vals) if rn_hprd_vals else None
+    avg_contract = sum(contract_vals) / len(contract_vals) if contract_vals else None
+    chain_metrics_html = ''
+    if quarter_display or avg_total is not None or total_residents or avg_contract is not None:
+        chain_metrics_html = '<div class="section-header">Key metrics' + (f' ({quarter_display})' if quarter_display else '') + '</div>'
+        chain_metrics_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin:1rem 0;">'
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Facilities</div><div class="value">{n:,}</div></div>'
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">States</div><div class="value">{num_states}</div></div>'
+        if total_residents:
+            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Residents (approx.)</div><div class="value">{total_residents:,}</div></div>'
+        if avg_total is not None:
+            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg Total HPRD</div><div class="value">{format_metric_value(avg_total, "Total_Nurse_HPRD")}</div></div>'
+        if avg_contract is not None:
+            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg Contract %</div><div class="value">{format_metric_value(avg_contract, "Contract_Percentage")}%</div></div>'
+        chain_metrics_html += '</div>'
+
+    PAGE_SIZE = 50
     rows = []
     for fac in facilities:
         ccn = fac.get('ccn', '')
-        name = (fac.get('name') or '').strip() or f"Facility {ccn}"
-        city = (fac.get('city') or '').strip()
+        name_raw = (fac.get('name') or '').strip() or f"Facility {ccn}"
+        name = capitalize_facility_name(name_raw)
+        city_raw = (fac.get('city') or '').strip()
+        city = capitalize_facility_name(city_raw) if city_raw else ''
         state = (fac.get('state') or '').strip().upper()[:2]
         state_name = STATE_CODE_TO_NAME.get(state, state)
         canonical_slug = get_canonical_slug(state) if state else ''
-        state_cell = f'<a href="/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
+        state_cell = f'<a href="/test/state/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
         tn = fac.get('Total_Nurse_HPRD')
         rn = fac.get('RN_HPRD')
         contract = fac.get('Contract_Percentage')
-        cells = [f'<a href="/provider/{ccn}">{name}</a>', city or '—', state_cell, ccn]
+        tn_num = float(tn) if tn is not None and not (isinstance(tn, float) and pd.isna(tn)) else None
+        rn_num = float(rn) if rn is not None and not (isinstance(rn, float) and pd.isna(rn)) else None
+        contract_num = float(contract) if contract is not None and not (isinstance(contract, float) and pd.isna(contract)) else None
+        cells = [f'<a href="/test/provider/{ccn}">{name}</a>', city or '—', state_cell, ccn]
         if tn is not None:
             cells.append(format_metric_value(tn, 'Total_Nurse_HPRD'))
         else:
@@ -1550,34 +1617,88 @@ def generate_entity_page_html(entity_id, entity_name, facilities):
             cells.append(format_metric_value(contract, 'Contract_Percentage') + '%')
         else:
             cells.append('—')
-        rows.append('<tr><td>' + '</td><td>'.join(cells) + '</td></tr>')
-    thead = '<tr><th>Facility</th><th>City</th><th>State</th><th>CCN</th><th>Total Nurse HPRD</th><th>RN HPRD</th><th>Contract %</th></tr>'
+        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state_name}" data-ccn="{ccn}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-contract="{contract_num if contract_num is not None else ""}"'
+        rows.append('<tr class="entity-facility-row"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
+    thead = '<tr><th scope="col" data-sort="facility">Facility</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="state">State</th><th scope="col" data-sort="ccn">CCN</th><th scope="col" data-sort="total-hprd">Total Nurse HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="contract">Contract %</th></tr>'
     tbody = '\n'.join(rows)
+    show_more_btn = ''
+    if n > PAGE_SIZE:
+        show_more_btn = f'<p class="entity-table-more" style="margin-top:0.75rem;"><button type="button" id="entity-view-more" class="pbj-button" style="padding:0.4rem 0.8rem;font-size:0.875rem;">View next {PAGE_SIZE}</button> <span id="entity-showing">Showing 1–{PAGE_SIZE} of {n}</span></p>'
+    table_script = '''
+<script>
+(function(){
+  var PAGE = 50;
+  var rows = document.querySelectorAll(".entity-facility-row");
+  var tbody = rows[0] && rows[0].parentNode;
+  if (!tbody || !rows.length) return;
+  var total = rows.length;
+  for (var i = PAGE; i < rows.length; i++) rows[i].style.display = "none";
+  var showing = PAGE;
+  function updateLabel(){ var el = document.getElementById("entity-showing"); if(el) el.textContent = "Showing 1–" + Math.min(showing, total) + " of " + total; }
+  var btn = document.getElementById("entity-view-more");
+  if (btn) {
+    btn.onclick = function(){
+      for (var i = showing; i < Math.min(showing + PAGE, total); i++) rows[i].style.display = "";
+      showing = Math.min(showing + PAGE, total);
+      updateLabel();
+      if (showing >= total) btn.style.display = "none";
+    };
+  }
+  updateLabel();
+  var headers = tbody.parentNode.querySelectorAll("th[data-sort]");
+  headers.forEach(function(th){
+    th.style.cursor = "pointer";
+    th.setAttribute("title", "Sort by this column");
+    th.addEventListener("click", function(){
+      var key = th.getAttribute("data-sort");
+      var dir = th.getAttribute("data-dir") === "asc" ? "desc" : "asc";
+      th.parentNode.querySelectorAll("th[data-sort]").forEach(function(h){ h.removeAttribute("data-dir"); });
+      th.setAttribute("data-dir", dir);
+      var arr = [].slice.call(rows);
+      arr.sort(function(a, b){
+        var av = a.getAttribute("data-" + key) || "";
+        var bv = b.getAttribute("data-" + key) || "";
+        var an = parseFloat(av), bn = parseFloat(bv);
+        if (!isNaN(an) && !isNaN(bn)) return dir === "asc" ? an - bn : bn - an;
+        var as = (av || "").toString().toLowerCase(), bs = (bv || "").toString().toLowerCase();
+        var c = as.localeCompare(bs);
+        return dir === "asc" ? c : -c;
+      });
+      arr.forEach(function(r){ tbody.appendChild(r); });
+      var children = tbody.children;
+      for (var i = 0; i < children.length; i++) children[i].style.display = i < showing ? "" : "none";
+    });
+  });
+})();
+</script>'''
     seo_desc = f"{entity_name} operates {subtitle}. PBJ staffing data for affiliated nursing homes."
     page_title = f"{entity_name} | Nursing Home Staffing | PBJ320"
-    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}")
-    entity_page_url = f"{base_url}/entity/{entity_id}"
+    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/test/entity/{entity_id}")
+    entity_page_url = f"{base_url}/test/entity/{entity_id}"
     care_compare_entity_url = f'https://www.medicare.gov/care-compare/details/chains/{entity_id}'
     custom_report_cta_html = render_custom_report_cta('entity', entity_page_url, entity_name=entity_name)
     inner = f"""
 <h1>{entity_name}</h1>
 <p class="pbj-subtitle">{subtitle}</p>
+{chain_metrics_html}
 
 <div class="section-header">Facilities</div>
-<p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing metrics.</p>
-<table>
+<p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
+<div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>
 {tbody}
 </tbody>
-</table>
+</table></div>
+{show_more_btn}
+{table_script}
 
 {render_methodology_block()}
 
 {custom_report_cta_html}
 
 <p style="margin-top: 1.5rem;"><a href="/">Home</a></p>
-<p style="margin-top: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.6);">Data from CMS payroll-based journal (PBJ). <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: rgba(148,163,184,0.95);">View on Medicare Care Compare</a></p>"""
+<p style="margin-top: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.6);">Source: CMS Payroll-Based Journal (PBJ) data. <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>"""
     return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
 
 _SFF_CACHE = None
@@ -1624,6 +1745,7 @@ def get_state_historical_data(state_code):
         total_data = []
         direct_data = []
         rn_data = []
+        rn_care_data = []
         census_data = []
         contract_data = []
         cols = state_rows.columns
@@ -1633,6 +1755,7 @@ def get_state_historical_data(state_code):
             total_data.append(round(float(row['Total_Nurse_HPRD']) if pd.notna(row.get('Total_Nurse_HPRD')) else 0, 3))
             direct_data.append(round(float(row['Nurse_Care_HPRD']) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else 0, 3))
             rn_data.append(round(float(row['RN_HPRD']) if pd.notna(row.get('RN_HPRD')) else 0, 3))
+            rn_care_data.append(round(float(row['RN_Care_HPRD']) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else 0, 3))
             census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
             census_data.append(round(float(row[census_col]) if census_col in cols and pd.notna(row.get(census_col)) else 0, 1))
             contract_data.append(round(float(row['Contract_Percentage']) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else 0, 2))
@@ -1641,6 +1764,7 @@ def get_state_historical_data(state_code):
             'total': total_data,
             'direct': direct_data,
             'rn': rn_data,
+            'rn_care': rn_care_data,
             'census': census_data,
             'contract': contract_data,
         }
@@ -1926,7 +2050,11 @@ def generate_state_chart_html(state_name, state_code):
     var ds = [{{ label: 'Total HPRD', data: d.total, borderColor: '#1e40af', tension: 0.3, fill: false }}, {{ label: 'Direct care HPRD', data: d.direct || [], borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false }}];
     makeLine('stateChartTotal', labels, ds, 'Hours per resident day');
   }}
-  if (d.rn && d.rn.length) makeLine('stateChartRN', labels, [{{ label: 'RN HPRD', data: d.rn, borderColor: '#1e40af', tension: 0.3, fill: false }}], 'Hours per resident day');
+  if (d.rn && d.rn.length) {{
+    var rnDs = [{{ label: 'RN HPRD', data: d.rn, borderColor: '#1e40af', tension: 0.3, fill: false }}];
+    if (d.rn_care && d.rn_care.length) rnDs.push({{ label: 'RN direct care HPRD', data: d.rn_care, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false }});
+    makeLine('stateChartRN', labels, rnDs, 'Hours per resident day');
+  }}
   if (d.census && d.census.length) makeLine('stateChartCensus', labels, [{{ label: 'Avg daily census', data: d.census, borderColor: '#1e40af', tension: 0.3, fill: false }}], 'Census');
   if (d.contract && d.contract.length) makeLine('stateChartContract', labels, [{{ label: 'Contract %', data: d.contract, borderColor: '#1e40af', tension: 0.3, fill: false }}], 'Contract %');
 }})();
@@ -1977,34 +2105,44 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Region link removed per user request
     region_link = ""
     
-    # State standard (MACPAC) folded into takeaway footnote when present — no standalone section
-    state_standard_line = ""
+    # State standard (MACPAC) as badge only when relevant (> 1.5 HPRD)
+    state_standard_badge = ""
+    state_standard_footer = ""
     if macpac_standard is not None:
         try:
             min_staffing_raw = macpac_standard.get('Min_Staffing', '') if isinstance(macpac_standard, dict) else getattr(macpac_standard, 'Min_Staffing', '')
             min_staffing_val = str(min_staffing_raw).replace(' HPRD', '').strip()
             try:
                 min_staffing_num = float(min_staffing_val)
-                state_standard_line = f"State standard: {fmt(min_staffing_num, 2)} HPRD (MACPAC)."
+                if min_staffing_num > 1.5:
+                    state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">State standard: {fmt(min_staffing_num, 2)} HPRD (MACPAC)</span>'
             except (TypeError, ValueError):
                 pass
         except Exception:
             pass
 
-    # Get basics: prefer facility count from facility_quarterly (state_quarterly can be wrong e.g. PA)
+    # Get basics: prefer facility count from facility_quarterly; fall back to state_quarterly when 0/None
     _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
-    facility_count = int(_fcount) if _fcount is not None else int(float(get_val('facility_count', 0)))
+    facility_count = int(_fcount) if (_fcount is not None and _fcount > 0) else int(float(get_val('facility_count', 0)))
     avg_daily_census_val = get_val('avg_daily_census', 0)
     try:
-        avg_daily_census_float = float(avg_daily_census_val) if avg_daily_census_val != 'N/A' else 0
-    except:
+        avg_daily_census_float = float(avg_daily_census_val) if avg_daily_census_val not in ('N/A', None, '') else 0
+    except (TypeError, ValueError):
         avg_daily_census_float = 0
     
-    # Calculate total residents: nursing homes × average daily census
-    total_residents = int(facility_count * avg_daily_census_float) if avg_daily_census_float > 0 and facility_count > 0 else 0
-    total_residents_display = f"{total_residents:,}" if total_residents > 0 else "N/A"
-    
+    # Total residents: facility_count × avg_daily_census, or total_resident_days/90 from state data
     total_resident_days = get_val('total_resident_days', 0)
+    try:
+        trd = float(total_resident_days) if total_resident_days not in ('N/A', None, '') else 0
+    except (TypeError, ValueError):
+        trd = 0
+    if facility_count > 0 and avg_daily_census_float > 0:
+        total_residents = int(round(facility_count * avg_daily_census_float))
+    elif trd > 0:
+        total_residents = int(round(trd / 90))
+    else:
+        total_residents = 0
+    total_residents_display = f"{total_residents:,}" if total_residents > 0 else "N/A"
     try:
         resident_count = int(float(total_resident_days) / 90) if total_resident_days != 'N/A' else 'N/A'
     except:
@@ -2138,7 +2276,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             facility_name_cap = capitalize_facility_name(facility_name)
             city_cap = capitalize_city_name(city) if city else ''
             # Create link to PBJ Dashboard
-            dashboard_link = f'/provider/{provider_number}'
+            dashboard_link = f'/test/provider/{provider_number}'
             
             # Build facility line (polished format)
             facility_line = f'<li><a href="{dashboard_link}">{facility_name_cap}</a>'
@@ -2157,7 +2295,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                 facility_line += f': {entity}'
             facility_line += '</li>'
             sff_section += facility_line
-        sff_section += "</ul></div></details>"
+        sff_section += """</ul><p style="margin-top: 0.75rem; font-size: 0.85rem;"><a href="https://www.cms.gov/medicare/enforcement/special-focus-facility" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p></div></details>"""
     
     # Ranking info removed - already shown in overview table
     ranking_info = ""
@@ -2165,9 +2303,9 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Generate chart HTML (with dynamic state name in heading)
     chart_html = generate_state_chart_html(state_name, state_code)
     
-    # Generate contact/complaint section (Wikipedia-style, factual)
+    # Contact/complaint section removed per user request
     contact_section = ""
-    if contact_info:
+    if False and contact_info:  # disabled
         phone_html = ""
         if contact_info.get('phone'):
             phones = contact_info['phone']
@@ -2199,15 +2337,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {notes_html}
     <p style="font-size: 0.9em; color: rgba(226,232,240,0.75);">Contact information is provided for reference. For current information, consult the state agency website.</p>
     """
-    elif macpac_standard is None:
-        contact_section = """
-    <div class="section-header">Filing Complaints & Contact Information</div>
-    <p style="color: rgba(226,232,240,0.95);">To file a complaint about a nursing home, contact your state's health department or the <a href="https://www.medicare.gov/care-compare/" target="_blank" rel="noopener">Medicare Care Compare</a> complaint system.</p>
-    """
+    elif False and macpac_standard is None:  # contact section removed per user request
+        contact_section = ""
     
     # CustomReportCTA for state page
     _canonical_slug = get_canonical_slug(state_code)
-    _state_page_url = f"https://pbj320.com/{_canonical_slug}"
+    _state_page_url = f"https://pbj320.com/test/state/{_canonical_slug}"
     _region_str = ''
     if region_info is not None and hasattr(region_info, 'get'):
         _region_str = str(region_info.get('CMS_Region_Number', '') or region_info.get('Region_Number', '') or '')
@@ -2281,18 +2416,16 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             state_put_another_way += f" For the entire {avg_facility_census}-resident facility ({state_name} average), that's about {fac_staff} total staff, including ~{fac_aides} nurse aides."
         state_put_another_way = '<p style="margin: 0.5rem 0 0 0; color: #e2e8f0;"><strong>Put another way…</strong> ' + state_put_another_way + '</p>'
     state_note_line = '<p style="margin: 0.5rem 0 0 0; font-size: 0.85rem; color: rgba(226,232,240,0.7);">Note: staffing varies by day and shift, with the lowest levels typically on nights and weekends.</p>'
-    state_standard_footer = f'<p style="margin: 0.35rem 0 0 0; font-size: 0.8rem; color: rgba(226,232,240,0.6);">{state_standard_line}</p>' if state_standard_line else ''
     state_takeaway_card = f'''
 <div id="pbj-takeaway" class="pbj-content-box" style="margin: 1rem 0; padding: 1rem; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;">
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway: {state_name}</div>
 </div>
-<p style="margin: 0.5rem 0 0.5rem 0;"><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_hprd_val} HPRD (rank: {rank_total_nurse or '—'})</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{fmt(get_val('Contract_Percentage'))}% contract</span></p>
+<p style="margin: 0.5rem 0 0.5rem 0;">{state_standard_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_hprd_val} HPRD (rank: {rank_total_nurse or '—'})</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{fmt(get_val('Contract_Percentage'))}% contract</span></p>
 {state_narrative}
 {state_put_another_way}
 {state_note_line}
-{state_standard_footer}
 <div style="margin-top: 0.35rem; margin-bottom: 0.15rem; display: flex; justify-content: flex-end;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.4);">320 Consulting</span></div>
 </div>'''
     # State page content: H1, subtitle (context first), Phoebe takeaway, chart, collapsible table, SFF, Explore, CTA, contact
@@ -2312,22 +2445,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         <tr><td>RN Direct Care HPRD</td><td>{fmt(get_val('RN_Care_HPRD'))}</td><td>#{rank_rn_care} of {total_states if rank_rn_care and total_states else 'N/A'}</td></tr>
         <tr><td>Nurse Aide HPRD</td><td>{fmt(get_val('Nurse_Assistant_HPRD'))}</td><td>#{rank_nurse_aide} of {total_states if rank_nurse_aide and total_states else 'N/A'}</td></tr>
         <tr><td>Contract Staff Percentage</td><td>{fmt(get_val('Contract_Percentage'))}%</td><td>—</td></tr>
-        <tr><td>Direct Care Percentage</td><td>{fmt(get_val('Direct_Care_Percentage'))}%</td><td>—</td></tr>
-        <tr><td>Total RN Percentage</td><td>{fmt(get_val('Total_RN_Percentage'))}%</td><td>—</td></tr>
-        <tr><td>Nurse Aide Percentage</td><td>{fmt(get_val('Nurse_Aide_Percentage'))}%</td><td>—</td></tr>
     </table></div>
     </div>
     </details>
     {sff_section}
-    <div class="section-header">Explore {state_name} Data</div>
-    <p style="color: rgba(226,232,240,0.95);">
-        <a href="https://pbjdashboard.com/?state={state_code}" target="_blank" rel="noopener">PBJ Dashboard</a> &middot;
-        <a href="https://www.pbj320.com/sff/{state_code.lower()}" target="_blank" rel="noopener">Special Focus</a> &middot;
-        <a href="https://www.pbj320.com/wrapped/{state_code.lower()}" target="_blank" rel="noopener">PBJ Wrapped</a>
-    </p>
     {render_methodology_block()}
     {cta_section}
-    {contact_section}
     """
     
     # Wikipedia-style title (state name with context)
@@ -2362,7 +2485,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     
     # Canonical slug for URL (state page has its own URL, not under /pbjpedia)
     canonical_slug = get_canonical_slug(state_code)
-    canonical_url = f"https://pbj320.com/{canonical_slug}"
+    canonical_url = f"https://pbj320.com/test/state/{canonical_slug}"
     
     # Return content and metadata so caller can render state page with its own layout (separate from PBJpedia)
     return (content, page_title, seo_description, canonical_url)
@@ -3266,10 +3389,25 @@ def pbjpedia_index():
     return redirect('/pbjpedia/overview')
 
 
-# Provider (facility), state alias, and entity pages - before catch-all <state_slug>
+# Non-test /provider, /state, /entity are 404 — only /test/... pages are live
 @app.route('/provider/<ccn>')
-def provider_page(ccn):
-    """Facility (provider) page at /provider/<ccn>. CCN normalized to 6 digits."""
+def provider_page_404(ccn):
+    from flask import abort
+    abort(404)
+
+@app.route('/state/<state_slug>')
+def state_alias_404(state_slug):
+    from flask import abort
+    abort(404)
+
+@app.route('/entity/<int:entity_id>')
+def entity_page_404(entity_id):
+    from flask import abort
+    abort(404)
+
+
+# Test pages: only these serve provider/state/entity content
+def _provider_page_impl(ccn):
     from flask import abort
     if not HAS_PANDAS:
         return "Pandas not available. Provider pages require pandas.", 503
@@ -3284,18 +3422,14 @@ def provider_page(ccn):
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
-@app.route('/state/<state_slug>')
-def state_alias_page(state_slug):
-    """Serve state page at /state/<slug> (same content as canonical state page, not PBJpedia)."""
+def _state_page_impl(state_slug):
     canonical_slug, state_code = resolve_state_slug(state_slug)
     if not canonical_slug or not state_code:
         from flask import abort
         abort(404)
     return generate_state_page(state_code)
 
-@app.route('/entity/<int:entity_id>')
-def entity_page(entity_id):
-    """Entity (chain) page at /entity/<id>. Lists facilities and latest-quarter metrics."""
+def _entity_page_impl(entity_id):
     from flask import abort
     if not HAS_PANDAS:
         return "Pandas not available. Entity pages require pandas.", 503
@@ -3305,22 +3439,17 @@ def entity_page(entity_id):
     html = generate_entity_page_html(entity_id, entity_name, facilities)
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
-
-# Test pages: same content at /test/provider, /test/state, /test/entity
 @app.route('/test/provider/<ccn>')
 def test_provider_page(ccn):
-    """Test facility page at /test/provider/<ccn>."""
-    return provider_page(ccn)
+    return _provider_page_impl(ccn)
 
 @app.route('/test/state/<state_slug>')
 def test_state_page(state_slug):
-    """Test state page at /test/state/<slug> (e.g. /test/state/ny)."""
-    return state_alias_page(state_slug)
+    return _state_page_impl(state_slug)
 
 @app.route('/test/entity/<int:entity_id>')
 def test_entity_page(entity_id):
-    """Test entity page at /test/entity/<id>."""
-    return entity_page(entity_id)
+    return _entity_page_impl(entity_id)
 
 
 # Dynamic state and region pages - must come before catch-all route

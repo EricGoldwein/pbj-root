@@ -5,7 +5,7 @@
  * Note: This uses dynamic import for ES modules
  */
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, createReadStream } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import Papa from 'papaparse';
@@ -42,6 +42,30 @@ for (const dir of [
 }
 
 const TARGET_QUARTERS = ['2025Q1', '2025Q2'];
+
+/** Normalize quarter from provider_info_combined.csv to YYYYQn (e.g. 2025Q1). Handles empty, "2025Q1", "2025 Q1", "Q1 2025", "2025-Q1", or date "2025-03-31". */
+function normalizeQuarterForProvider(raw) {
+  const s = (raw ?? '').toString().trim();
+  if (!s) return '';
+  const upper = s.toUpperCase().replace(/\s+/g, '');
+  // Already YYYYQn
+  if (/^\d{4}Q[1-4]$/.test(upper)) return upper;
+  // "2025-Q1" style
+  const dashMatch = upper.match(/^(\d{4})-?Q([1-4])$/);
+  if (dashMatch) return `${dashMatch[1]}Q${dashMatch[2]}`;
+  // "Q1 2025" or "Q12025"
+  const qFirstMatch = upper.match(/^Q([1-4])\s*(\d{4})$/);
+  if (qFirstMatch) return `${qFirstMatch[2]}Q${qFirstMatch[1]}`;
+  // Date: YYYY-MM-DD -> quarter from month
+  const dateMatch = s.match(/^(\d{4})-(\d{2})/);
+  if (dateMatch) {
+    const y = dateMatch[1];
+    const m = parseInt(dateMatch[2], 10);
+    const q = m <= 3 ? 1 : m <= 6 ? 2 : m <= 9 ? 3 : 4;
+    return `${y}Q${q}`;
+  }
+  return upper;
+}
 
 function parseCSV(filePath) {
   const csv = readFileSync(filePath, 'utf-8');
@@ -221,9 +245,9 @@ function parseFacilityRow(row) {
 }
 
 function parseProviderInfoRow(row) {
-  // Map lowercase CSV column names to our interface names
-  const quarter = (row.quarter || row.CY_Qtr || '').trim().toUpperCase().replace(/\s+/g, '');
-  
+  const rawQuarter = row.quarter ?? row.CY_Qtr ?? row.CY_QTR ?? row.cy_qtr ?? '';
+  const quarter = normalizeQuarterForProvider(rawQuarter);
+
   return {
     PROVNUM: (row.ccn || row.PROVNUM || '').toString().trim(),
     PROVNAME: (row.provider_name || row.PROVNAME || '').trim(),
@@ -247,46 +271,43 @@ function parseProviderInfoRow(row) {
   };
 }
 
-// Process provider info using streaming to avoid memory issues
+// Process provider info using stream to avoid loading huge file into memory
 function processProviderInfo() {
   return new Promise((resolve, reject) => {
-    console.log('Processing provider info (this may take a while - large file)...');
-    console.log('  Loading and filtering data in streaming mode...');
-    
+    console.log('Processing provider info (streaming - large file)...');
+    const providerPath = join(DATA_DIR, 'provider_info_combined.csv');
+    if (!existsSync(providerPath)) {
+      console.warn('  provider_info_combined.csv not found, skipping provider JSON');
+      return resolve({ providerQ1: [], providerQ2: [] });
+    }
     const providerQ1 = [];
     const providerQ2 = [];
-    
-    const csv = readFileSync(join(DATA_DIR, 'provider_info_combined.csv'), 'utf-8');
     let processedRows = 0;
-    
-    Papa.parse(csv, {
+    const sampleRawQuarters = new Set();
+    const PRECHECK_SAMPLE = 150000;
+    const stream = createReadStream(providerPath, { encoding: 'utf8' });
+    Papa.parse(stream, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
       fastMode: true,
       step: (result) => {
-        const row = parseProviderInfoRow(result.data);
-        processedRows++;
-        
-        // Only keep rows for Q1 and Q2
-        // Use the parseProviderInfoRow function which handles column mapping
-        const parsedRow = parseProviderInfoRow(result.data);
-        
-        // Only keep rows for Q1 and Q2
-        if (parsedRow.CY_Qtr === '2025Q1' || parsedRow.CY_Qtr === '2025Q2') {
-          if (parsedRow.CY_Qtr === '2025Q1') {
-            providerQ1.push(parsedRow);
-          } else if (parsedRow.CY_Qtr === '2025Q2') {
-            providerQ2.push(parsedRow);
-          }
+        const raw = result.data;
+        if (processedRows < PRECHECK_SAMPLE) {
+          const q = (raw.quarter ?? raw.CY_Qtr ?? '').toString().trim();
+          if (q) sampleRawQuarters.add(q);
         }
-        
-        // Progress indicator
+        const parsedRow = parseProviderInfoRow(raw);
+        processedRows++;
+        if (parsedRow.CY_Qtr === '2025Q1') providerQ1.push(parsedRow);
+        else if (parsedRow.CY_Qtr === '2025Q2') providerQ2.push(parsedRow);
         if (processedRows % 100000 === 0) {
           console.log(`  Processed ${processedRows.toLocaleString()} rows... (Q1: ${providerQ1.length}, Q2: ${providerQ2.length})`);
         }
       },
       complete: () => {
+        const sampleList = [...sampleRawQuarters].sort().slice(0, 25);
+        console.log(`  Precheck: sample raw "quarter" values (first ${PRECHECK_SAMPLE} rows): ${sampleList.length ? sampleList.join(', ') : '(none non-empty)'}`);
         console.log(`  Total processed: ${processedRows.toLocaleString()} rows`);
         writeFileSync(join(OUTPUT_DIR, 'provider_q1.json'), JSON.stringify(providerQ1));
         writeFileSync(join(OUTPUT_DIR, 'provider_q2.json'), JSON.stringify(providerQ2));

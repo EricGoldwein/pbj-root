@@ -101,7 +101,7 @@ const Index: React.FC = () => {
                 Report
               </a>
               <a 
-                href="https://www.320insight.com/phoebe" 
+                href="/phoebe" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
@@ -162,7 +162,7 @@ const Index: React.FC = () => {
                 Report
               </a>
               <a 
-                href="https://www.320insight.com/phoebe" 
+                href="/phoebe" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"

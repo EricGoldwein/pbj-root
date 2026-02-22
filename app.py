@@ -671,13 +671,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .custom-report-cta .custom-report-cta-header {{ margin: 0; font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }}
 .custom-report-cta .custom-report-cta-sub {{ margin: 0.35rem 0 0.6rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.8); }}
 .custom-report-cta .custom-report-cta-links {{ margin: 0.4rem 0; font-size: 0.85rem; }}
-.custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }}
-.custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; }}
+.custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
+.custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
 .custom-report-cta .custom-report-cta-dot {{ color: rgba(226,232,240,0.5); margin: 0 0.2rem; font-weight: 400; }}
 .custom-report-cta .custom-report-cta-footer {{ margin: 0.5rem 0 0 0; font-size: 0.75rem; color: rgba(226,232,240,0.6); }}
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
-.custom-report-cta .custom-report-cta-sms a {{ color: #93c5fd; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }}
-.custom-report-cta .custom-report-cta-sms a:hover {{ color: #bfdbfe; }}
+.custom-report-cta .custom-report-cta-sms a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
+.custom-report-cta .custom-report-cta-sms a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
 .navbar {{ background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); border-bottom: 2px solid #1e40af; }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }}
 .nav-brand {{ display: flex; align-items: center; color: white; font-size: 1.2rem; font-weight: 700; }}
@@ -879,13 +879,14 @@ Thank you,"""
     else:
         return ''
 
-    # Single row: Email and Text only (Attorney/Media/Advocate removed per user request)
+    # Email link: use pre-built mailto (subject + body with facility/entity/state name, page url) for facility/state/entity
+    primary_mailto = link_media if context in ('facility', 'state', 'entity') else f"mailto:{email}"
     email_text_row = ''
     if show_email_text_row:
         if sms_href:
-            email_text_row = f'<div class="custom-report-cta-links"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span><a href="{sms_href}">Text</a></div>'
+            email_text_row = f'<div class="custom-report-cta-links"><a href="{primary_mailto}">Email</a><span class="custom-report-cta-dot"> · </span><a href="{sms_href}">Text</a></div>'
         else:
-            email_text_row = f'<div class="custom-report-cta-links"><a href="mailto:{email}">Email</a><span class="custom-report-cta-dot"> · </span>Text</div>'
+            email_text_row = f'<div class="custom-report-cta-links"><a href="{primary_mailto}">Email</a><span class="custom-report-cta-dot"> · </span>Text</div>'
 
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     return f'''<div class="custom-report-cta">
@@ -1242,6 +1243,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     state_link = f'<a href="/test/state/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
     # Entity link to pbj320.com entity page (only show when entity exists)
     entity_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
+    entity_breadcrumb_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name} dashboard</a>' if entity_id and entity_name else ''
     # Residents count for subtitle (census_int set later; we need it here for location line)
     # Case-mix and reported from most recent provider info only (no provider_info_combined for this public tool)
     pi = provider_info_row or {}
@@ -1344,7 +1346,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         return "—"
     overall_star = _star((provider_info_row or {}).get('overall_rating'))
     staffing_star = _star((provider_info_row or {}).get('staffing_rating'))
-    ratings_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">Ratings: {overall_star} Overall, {staffing_star} Staffing</span>'
+    overall_star_label = f'{overall_star}-Star Overall' if overall_star != '—' else '— Overall'
+    staffing_star_label = f'{staffing_star}-Star Staffing' if staffing_star != '—' else '— Staffing'
+    badge_span = 'display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; margin-bottom: 4px; background: rgba(96,165,250,0.15); color: #e2e8f0;'
+    contract_badge_text = f'{contract_pct}% contract staff'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     if state_percentile_total is not None:
@@ -1450,7 +1455,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway: {facility_name}</div>
 </div>
-<p style="margin: 0.5rem 0 0.5rem 0;">{risk_badge}{ratings_badge}<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{total_direct_badge}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{residents_str}</span><span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{contract_pct}% contract</span>{'<span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-weight: 600; font-size: 0.85rem; margin-right: 8px; background: rgba(96,165,250,0.2);"><a href="' + base_url + '/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
+<p style="margin: 0.5rem 0 0.25rem 0;">{risk_badge}<span style="{badge_span}">{total_direct_badge}</span><span style="{badge_span}">{residents_str}</span></p>
+<p style="margin: 0.25rem 0 0.5rem 0;"><span style="{badge_span}">{overall_star_label}</span><span style="{badge_span}">{staffing_star_label}</span><span style="{badge_span}">{contract_badge_text}</span>{'<span style="' + badge_span + ' background: rgba(96,165,250,0.2);"><a href="' + base_url + '/entity/' + str(entity_id) + '" style="color: #93c5fd;">' + (entity_name or 'Entity') + '</a></span>' if entity_id and entity_name else ''}</p>
 {percentile_line}
 {entity_summary_html}
 <p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>
@@ -1480,7 +1486,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 {render_methodology_block()}
 
-<p style="margin-top: 1.5rem; color: rgba(226,232,240,0.85);"><a href="/">Home</a> &middot; <a href="/test/state/{canonical_slug}">{state_name} staffing</a>{(' &middot; ' + entity_link) if entity_id and entity_name else ''}</p>
+<p style="margin-top: 1.5rem; color: rgba(226,232,240,0.85);"><a href="/">Home</a> &middot; <a href="/test/state/{canonical_slug}">{state_name} staffing</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
 <p style="margin-top: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.6);">Source: CMS Payroll-Based Journal (PBJ) data.{' <a href="' + care_compare_facility_url + '" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a>' if care_compare_facility_url else ''}</p>"""
     return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
 
@@ -4976,8 +4982,7 @@ def sff_index():
 def sff_static(path):
     """Serve static files and handle SPA routing for SFF"""
     wrapped_dist = os.path.join('pbj-wrapped', 'dist')
-    
-    # Check if it's a static asset (has extension)
+    wrapped_public = os.path.join('pbj-wrapped', 'public')
     file_path = os.path.join(wrapped_dist, path)
     if os.path.isfile(file_path):
         # Serve the static file with proper MIME types
@@ -4991,21 +4996,22 @@ def sff_static(path):
             return send_file(file_path)
         else:
             return send_from_directory(wrapped_dist, path)
-    else:
-        # For SPA routing, serve index.html for any route with server-rendered SEO metadata
-        # This allows React Router to handle client-side routing
-        seo = get_seo_metadata(request.path)
-        assets = get_built_assets()
-        try:
-            return render_template('wrapped_index.html', seo=seo, assets=assets)
-        except Exception as e:
-            # Fallback to static file if template rendering fails
-            print(f"Warning: Template rendering failed: {e}, falling back to static file")
-        wrapped_index = os.path.join(wrapped_dist, 'index.html')
-        if os.path.exists(wrapped_index):
-            return send_file(wrapped_index, mimetype='text/html')
-        else:
-            return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
+    # SFF JSON: if not in dist, serve from public so updated data works without rebuild
+    if path in ('sff-facilities.json', 'sff-candidate-months.json'):
+        public_path = os.path.join(wrapped_public, path)
+        if os.path.isfile(public_path):
+            return send_file(public_path, mimetype='application/json')
+    # For SPA routing, serve index.html
+    seo = get_seo_metadata(request.path)
+    assets = get_built_assets()
+    try:
+        return render_template('wrapped_index.html', seo=seo, assets=assets)
+    except Exception as e:
+        print(f"Warning: Template rendering failed: {e}, falling back to static file")
+    wrapped_index = os.path.join(wrapped_dist, 'index.html')
+    if os.path.exists(wrapped_index):
+        return send_file(wrapped_index, mimetype='text/html')
+    return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
 
 # Serve wrapped app at /wrapped (for pbj320.com/wrapped/)
 @app.route('/wrapped')
@@ -5029,8 +5035,7 @@ def wrapped_index():
 def wrapped_static(path):
     """Serve static files and handle SPA routing for wrapped"""
     wrapped_dist = os.path.join('pbj-wrapped', 'dist')
-    
-    # Check if it's a static asset (has extension)
+    wrapped_public = os.path.join('pbj-wrapped', 'public')
     file_path = os.path.join(wrapped_dist, path)
     if os.path.isfile(file_path):
         # Serve the static file with proper MIME types
@@ -5044,21 +5049,22 @@ def wrapped_static(path):
             return send_file(file_path)
         else:
             return send_from_directory(wrapped_dist, path)
-    else:
-        # For SPA routing, serve index.html for any route with server-rendered SEO metadata
-        # This allows React Router to handle client-side routing
-        seo = get_seo_metadata(request.path)
-        assets = get_built_assets()
-        try:
-            return render_template('wrapped_index.html', seo=seo, assets=assets)
-        except Exception as e:
-            # Fallback to static file if template rendering fails
-            print(f"Warning: Template rendering failed: {e}, falling back to static file")
-        wrapped_index = os.path.join(wrapped_dist, 'index.html')
-        if os.path.exists(wrapped_index):
-            return send_file(wrapped_index, mimetype='text/html')
-        else:
-            return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
+    # SFF JSON: if not in dist, serve from public so updated data works without rebuild
+    if path in ('sff-facilities.json', 'sff-candidate-months.json'):
+        public_path = os.path.join(wrapped_public, path)
+        if os.path.isfile(public_path):
+            return send_file(public_path, mimetype='application/json')
+    # For SPA routing, serve index.html for any route with server-rendered SEO metadata
+    seo = get_seo_metadata(request.path)
+    assets = get_built_assets()
+    try:
+        return render_template('wrapped_index.html', seo=seo, assets=assets)
+    except Exception as e:
+        print(f"Warning: Template rendering failed: {e}, falling back to static file")
+    wrapped_index = os.path.join(wrapped_dist, 'index.html')
+    if os.path.exists(wrapped_index):
+        return send_file(wrapped_index, mimetype='text/html')
+    return "PBJ Wrapped app not built. Run 'npm run build' in pbj-wrapped directory.", 404
 
 # Legacy route: Serve pbj-wrapped app (for backward compatibility)
 @app.route('/pbj-wrapped')

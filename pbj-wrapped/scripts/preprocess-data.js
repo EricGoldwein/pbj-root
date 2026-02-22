@@ -20,12 +20,25 @@ const DATA_DIR = existsSync(join(PARENT_DIR, 'state_quarterly_metrics.csv'))
   : join(__dirname, '../public/data');
 
 console.log(`Using DATA_DIR: ${DATA_DIR}`);
-// Output to dist/data/json (where the app actually serves from)
+// Output to dist/data/json (where Flask serves from)
 const OUTPUT_DIR = join(__dirname, '../dist/data/json');
+// Also write to public so "npm run build" keeps quarterly data when copying public -> dist
+const PUBLIC_JSON = join(__dirname, '../public/data/json');
+const Q_DIR = join(OUTPUT_DIR, 'quarterly');
+const Q_NATIONAL = join(Q_DIR, 'national');
+const Q_STATE = join(Q_DIR, 'state');
+const Q_REGION = join(Q_DIR, 'region');
+const Q_FACILITY = join(Q_DIR, 'facility');
+const Q_PROVIDER = join(Q_DIR, 'provider');
+const Q_PUBLIC = join(PUBLIC_JSON, 'quarterly');
+const QP = (sub) => join(Q_PUBLIC, sub);
 
-// Create output directory
-if (!existsSync(OUTPUT_DIR)) {
-  mkdirSync(OUTPUT_DIR, { recursive: true });
+// Create output directories (flat + quarterly in dist and public)
+for (const dir of [
+  OUTPUT_DIR, Q_NATIONAL, Q_STATE, Q_REGION, Q_FACILITY, Q_PROVIDER,
+  PUBLIC_JSON, Q_PUBLIC, QP('national'), QP('state'), QP('region'), QP('facility'), QP('provider'),
+]) {
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
 const TARGET_QUARTERS = ['2025Q1', '2025Q2'];
@@ -276,6 +289,10 @@ function processProviderInfo() {
         console.log(`  Total processed: ${processedRows.toLocaleString()} rows`);
         writeFileSync(join(OUTPUT_DIR, 'provider_q1.json'), JSON.stringify(providerQ1));
         writeFileSync(join(OUTPUT_DIR, 'provider_q2.json'), JSON.stringify(providerQ2));
+        writeFileSync(join(Q_PROVIDER, 'provider_q1.json'), JSON.stringify(providerQ1));
+        writeFileSync(join(Q_PROVIDER, 'provider_q2.json'), JSON.stringify(providerQ2));
+        writeFileSync(join(QP('provider'), 'provider_q1.json'), JSON.stringify(providerQ1));
+        writeFileSync(join(QP('provider'), 'provider_q2.json'), JSON.stringify(providerQ2));
         console.log(`  Q1: ${providerQ1.length} rows, Q2: ${providerQ2.length} rows`);
         resolve({ providerQ1, providerQ2 });
       },
@@ -406,11 +423,15 @@ async function runPreprocessing() {
       }
     }
     
-    // Write JSON files
+    // Write JSON files (flat + quarterly subdirs)
     const q1Path = join(OUTPUT_DIR, 'state_q1.json');
     const q2Path = join(OUTPUT_DIR, 'state_q2.json');
     writeFileSync(q1Path, JSON.stringify(stateQ1));
     writeFileSync(q2Path, JSON.stringify(stateQ2));
+    writeFileSync(join(Q_STATE, 'state_q1.json'), JSON.stringify(stateQ1));
+    writeFileSync(join(Q_STATE, 'state_q2.json'), JSON.stringify(stateQ2));
+    writeFileSync(join(QP('state'), 'state_q1.json'), JSON.stringify(stateQ1));
+    writeFileSync(join(QP('state'), 'state_q2.json'), JSON.stringify(stateQ2));
     console.log(`  ✅ Q1: ${stateQ1.length} rows written to state_q1.json`);
     console.log(`  ✅ Q2: ${stateQ2.length} rows written to state_q2.json`);
     
@@ -484,6 +505,10 @@ async function runPreprocessing() {
     
     writeFileSync(join(OUTPUT_DIR, 'region_q1.json'), JSON.stringify(regionQ1));
     writeFileSync(join(OUTPUT_DIR, 'region_q2.json'), JSON.stringify(regionQ2));
+    writeFileSync(join(Q_REGION, 'region_q1.json'), JSON.stringify(regionQ1));
+    writeFileSync(join(Q_REGION, 'region_q2.json'), JSON.stringify(regionQ2));
+    writeFileSync(join(QP('region'), 'region_q1.json'), JSON.stringify(regionQ1));
+    writeFileSync(join(QP('region'), 'region_q2.json'), JSON.stringify(regionQ2));
     console.log(`  ✅ Q1: ${regionQ1.length} rows written to region_q1.json`);
     console.log(`  ✅ Q2: ${regionQ2.length} rows written to region_q2.json`);
     
@@ -508,6 +533,10 @@ async function runPreprocessing() {
     const nationalQ2 = filterByQuarter(nationalRows, ['2025Q2'])[0] || null;
     writeFileSync(join(OUTPUT_DIR, 'national_q1.json'), JSON.stringify(nationalQ1));
     writeFileSync(join(OUTPUT_DIR, 'national_q2.json'), JSON.stringify(nationalQ2));
+    writeFileSync(join(Q_NATIONAL, 'national_q1.json'), JSON.stringify(nationalQ1));
+    writeFileSync(join(Q_NATIONAL, 'national_q2.json'), JSON.stringify(nationalQ2));
+    writeFileSync(join(QP('national'), 'national_q1.json'), JSON.stringify(nationalQ1));
+    writeFileSync(join(QP('national'), 'national_q2.json'), JSON.stringify(nationalQ2));
     console.log(`  Q1: ${nationalQ1 ? 'found' : 'not found'}, Q2: ${nationalQ2 ? 'found' : 'not found'}`);
 
     // Process facility data (only Q1 and Q2)
@@ -517,6 +546,10 @@ async function runPreprocessing() {
     const facilityQ2 = filterByQuarter(facilityRows, ['2025Q2']);
     writeFileSync(join(OUTPUT_DIR, 'facility_q1.json'), JSON.stringify(facilityQ1));
     writeFileSync(join(OUTPUT_DIR, 'facility_q2.json'), JSON.stringify(facilityQ2));
+    writeFileSync(join(Q_FACILITY, 'facility_q1.json'), JSON.stringify(facilityQ1));
+    writeFileSync(join(Q_FACILITY, 'facility_q2.json'), JSON.stringify(facilityQ2));
+    writeFileSync(join(QP('facility'), 'facility_q1.json'), JSON.stringify(facilityQ1));
+    writeFileSync(join(QP('facility'), 'facility_q2.json'), JSON.stringify(facilityQ2));
     console.log(`  Q1: ${facilityQ1.length} rows, Q2: ${facilityQ2.length} rows`);
 
     // Process provider info using streaming (async)
@@ -537,6 +570,8 @@ async function runPreprocessing() {
       }
     }
     writeFileSync(join(OUTPUT_DIR, 'region_state_mapping.json'), JSON.stringify(regionStateMapping));
+    writeFileSync(join(Q_REGION, 'region_state_mapping.json'), JSON.stringify(regionStateMapping));
+    writeFileSync(join(QP('region'), 'region_state_mapping.json'), JSON.stringify(regionStateMapping));
     console.log(`  Mapped ${Object.keys(regionStateMapping).length} regions`);
 
     // Process state standards (macpac data)
@@ -592,6 +627,8 @@ async function runPreprocessing() {
         }
       }
       writeFileSync(join(OUTPUT_DIR, 'state_standards.json'), JSON.stringify(stateStandardsMap));
+      writeFileSync(join(Q_STATE, 'state_standards.json'), JSON.stringify(stateStandardsMap));
+      writeFileSync(join(QP('state'), 'state_standards.json'), JSON.stringify(stateStandardsMap));
       console.log(`  Processed ${Object.keys(stateStandardsMap).length} state standards`);
     } else {
       console.log(`  ⚠️ State standards file not found at ${stateStandardsFilePath}`);
@@ -637,6 +674,14 @@ async function runPreprocessing() {
         writeFileSync(join(OUTPUT_DIR, `facility_${stateCode}_q2.json`), JSON.stringify(stateFacilitiesQ2));
         writeFileSync(join(OUTPUT_DIR, `provider_${stateCode}_q1.json`), JSON.stringify(stateProvidersQ1));
         writeFileSync(join(OUTPUT_DIR, `provider_${stateCode}_q2.json`), JSON.stringify(stateProvidersQ2));
+        writeFileSync(join(Q_FACILITY, `facility_${stateCode}_q1.json`), JSON.stringify(stateFacilitiesQ1));
+        writeFileSync(join(Q_FACILITY, `facility_${stateCode}_q2.json`), JSON.stringify(stateFacilitiesQ2));
+        writeFileSync(join(Q_PROVIDER, `provider_${stateCode}_q1.json`), JSON.stringify(stateProvidersQ1));
+        writeFileSync(join(Q_PROVIDER, `provider_${stateCode}_q2.json`), JSON.stringify(stateProvidersQ2));
+        writeFileSync(join(QP('facility'), `facility_${stateCode}_q1.json`), JSON.stringify(stateFacilitiesQ1));
+        writeFileSync(join(QP('facility'), `facility_${stateCode}_q2.json`), JSON.stringify(stateFacilitiesQ2));
+        writeFileSync(join(QP('provider'), `provider_${stateCode}_q1.json`), JSON.stringify(stateProvidersQ1));
+        writeFileSync(join(QP('provider'), `provider_${stateCode}_q2.json`), JSON.stringify(stateProvidersQ2));
         stateFilesCreated++;
       }
     }
@@ -657,6 +702,14 @@ async function runPreprocessing() {
         writeFileSync(join(OUTPUT_DIR, `facility_region${regionNum}_q2.json`), JSON.stringify(regionFacilitiesQ2));
         writeFileSync(join(OUTPUT_DIR, `provider_region${regionNum}_q1.json`), JSON.stringify(regionProvidersQ1));
         writeFileSync(join(OUTPUT_DIR, `provider_region${regionNum}_q2.json`), JSON.stringify(regionProvidersQ2));
+        writeFileSync(join(Q_FACILITY, `facility_region${regionNum}_q1.json`), JSON.stringify(regionFacilitiesQ1));
+        writeFileSync(join(Q_FACILITY, `facility_region${regionNum}_q2.json`), JSON.stringify(regionFacilitiesQ2));
+        writeFileSync(join(Q_PROVIDER, `provider_region${regionNum}_q1.json`), JSON.stringify(regionProvidersQ1));
+        writeFileSync(join(Q_PROVIDER, `provider_region${regionNum}_q2.json`), JSON.stringify(regionProvidersQ2));
+        writeFileSync(join(QP('facility'), `facility_region${regionNum}_q1.json`), JSON.stringify(regionFacilitiesQ1));
+        writeFileSync(join(QP('facility'), `facility_region${regionNum}_q2.json`), JSON.stringify(regionFacilitiesQ2));
+        writeFileSync(join(QP('provider'), `provider_region${regionNum}_q1.json`), JSON.stringify(regionProvidersQ1));
+        writeFileSync(join(QP('provider'), `provider_region${regionNum}_q2.json`), JSON.stringify(regionProvidersQ2));
         regionFilesCreated++;
       }
     }

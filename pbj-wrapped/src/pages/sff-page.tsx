@@ -146,7 +146,7 @@ export default function SFFPage() {
     const qLabel = sourceDates?.pbjQuarter ?? 'Q3 2025';
     
     let title = 'Special Focus Facilities Program | PBJ320';
-    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'Dec. 2025'}; CMS PBJ (${qLabel}).`;
+    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'Jan. 2026'}; CMS PBJ (${qLabel}).`;
     
     if (scope === 'usa') {
       title = 'Special Focus Facilities Program — United States | PBJ320';
@@ -1092,7 +1092,7 @@ export default function SFFPage() {
                 Report
               </a>
               <a 
-                href="https://www.320insight.com/phoebe" 
+                href="/phoebe" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
@@ -1150,7 +1150,7 @@ export default function SFFPage() {
                   Report
                 </a>
                 <a 
-                  href="https://www.320insight.com/phoebe" 
+                  href="/phoebe" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
@@ -1202,7 +1202,7 @@ export default function SFFPage() {
             )}
           </div>
             <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
-              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'Dec. 2025'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'Jan. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
           </div>
         </div>
@@ -1526,7 +1526,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-november-2025.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Dec. 2025'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-january-2026.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Jan. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">

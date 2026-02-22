@@ -221,7 +221,7 @@ export const KeyTakeawaysCard: React.FC<KeyTakeawaysCardProps> = ({ data }) => {
       <div className="space-y-3">
         <div className="flex items-center justify-center gap-2 mb-3">
           <a 
-            href="https://www.320insight.com/phoebe" 
+            href="/phoebe" 
             target="_blank" 
             rel="noopener noreferrer"
             className="flex-shrink-0"

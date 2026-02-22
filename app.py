@@ -482,13 +482,24 @@ def load_csv_data(filename):
         cached_at, data = _LOAD_CSV_CACHE[filename]
         if now - cached_at < _LOAD_CSV_TTL:
             return data
-    possible_paths = [
-        filename,
-        os.path.join(APP_ROOT, filename),
-        os.path.join('pbj-wrapped', 'public', 'data', filename),
-        os.path.join('pbj-wrapped', 'dist', 'data', filename),
-        os.path.join('data', filename),
-    ]
+    # Prefer APP_ROOT for known large data files so provider pages always use repo data regardless of cwd
+    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv', 'provider_info_combined_latest.csv', 'provider_info_combined.csv')
+    if filename in app_root_first:
+        possible_paths = [
+            os.path.join(APP_ROOT, filename),
+            filename,
+            os.path.join('pbj-wrapped', 'public', 'data', filename),
+            os.path.join('pbj-wrapped', 'dist', 'data', filename),
+            os.path.join('data', filename),
+        ]
+    else:
+        possible_paths = [
+            filename,
+            os.path.join(APP_ROOT, filename),
+            os.path.join('pbj-wrapped', 'public', 'data', filename),
+            os.path.join('pbj-wrapped', 'dist', 'data', filename),
+            os.path.join('data', filename),
+        ]
     for path in possible_paths:
         if os.path.exists(path):
             try:

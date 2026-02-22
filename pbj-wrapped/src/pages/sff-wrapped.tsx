@@ -85,7 +85,7 @@ export default function SFFWrapped() {
               totalHPRD: facility.Total_Nurse_HPRD,
               directCareHPRD: facility.Nurse_Care_HPRD,
               rnHPRD: (facility as any).RN_HPRD || 0,
-              link: `https://pbjdashboard.com/?facility=${provider.PROVNUM}`,
+              link: `https://pbj320.com/provider/${encodeURIComponent(provider.PROVNUM || '')}`,
             };
 
             if (isSFF) {

@@ -397,15 +397,15 @@ animation: slideFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)
 ### Link Generation
 
 **State Links:**
-- Format: `https://pbjdashboard.com/?state=XX`
-- Example: `https://pbjdashboard.com/?state=OR`
+- Format: `https://pbj320.com/?state=XX`
+- Example: `https://pbj320.com/?state=OR`
 
 **Region Links:**
 - Top/Bottom Regions: `https://pbj320.com/report`
-- Movers: `https://pbjdashboard.com/?region=X`
+- Movers: `https://pbj320.com/?region=X`
 
 **Facility Links:**
-- Format: `https://pbjdashboard.com/?facility=XXXXX`
+- Format: `https://pbj320.com/provider/XXXXX`
 
 **Internal Routes:**
 - SFF Wrapped: `/sff` (resolves to `/pbj-wrapped/sff` with basename)

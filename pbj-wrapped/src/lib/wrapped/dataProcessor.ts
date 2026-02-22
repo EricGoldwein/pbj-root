@@ -314,7 +314,7 @@ export function capitalizeCity(city: string | undefined): string | undefined {
  * Create link to facility dashboard
  */
 function createFacilityLink(provnum: string): string {
-  return `https://pbjdashboard.com/?facility=${provnum}`;
+  return `https://pbj320.com/provider/${encodeURIComponent(provnum)}`;
 }
 
 /**

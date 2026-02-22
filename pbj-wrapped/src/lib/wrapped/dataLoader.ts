@@ -1,8 +1,8 @@
 /**
- * Data loading and parsing for PBJ Wrapped
+ * Data loading and parsing for PBJ Wrapped.
+ * No CSV fetches: uses /api/dates for quarter discovery and only requests JSON for those quarters.
  */
 
-import Papa from 'papaparse';
 import type {
   StateQuarterlyRow,
   RegionQuarterlyRow,
@@ -10,6 +10,14 @@ import type {
   FacilityLiteRow,
   ProviderInfoRow,
 } from './wrappedTypes';
+
+const DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
+
+/** Get origin for API calls (same origin in browser) */
+function getApiBase(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
+  return 'https://www.pbj320.com';
+}
 
 export interface RegionStateMapping {
   regionNumber: number;
@@ -85,93 +93,42 @@ export interface LoadedData {
 }
 
 /**
- * Parse CSV file
- */
-function parseCSV<T>(csvText: string): Promise<T[]> {
-  return new Promise((resolve, reject) => {
-    Papa.parse<T>(csvText, {
-      header: true,
-      skipEmptyLines: true,
-      transformHeader: (header) => header.trim(),
-      // Ensure proper handling of quoted fields with commas
-      // PapaParse handles quoted fields automatically, but we can be more explicit
-      complete: (results) => {
-        if (results.errors.length > 0) {
-          console.warn('CSV parsing warnings:', results.errors);
-          // Log first few errors in detail for debugging
-          if (results.errors.length > 0 && results.errors.length <= 10) {
-            results.errors.slice(0, 5).forEach((err, idx) => {
-              console.warn(`  CSV Error ${idx + 1}:`, err);
-            });
-          }
-        }
-        
-        // Log parsing stats for facility CSV to help debug misalignment issues
-        if (results.data.length > 0 && 'PROVNUM' in (results.data[0] as any)) {
-          const problematicCCNs = ['265379', '675595', '195454', '205077', '355031', '305051'];
-          const problematicRows = results.data.filter((row: any) => 
-            problematicCCNs.includes(String(row.PROVNUM || row['PROVNUM'] || '').trim())
-          );
-          if (problematicRows.length > 0) {
-            console.log(`[CSV Parse] Found ${problematicRows.length} problematic facilities in parsed data`);
-            problematicRows.slice(0, 3).forEach((row: any) => {
-              const ccn = String(row.PROVNUM || row['PROVNUM'] || '').trim();
-              console.log(`  CCN=${ccn}: Total_Nurse_HPRD=${row.Total_Nurse_HPRD}, Nurse_Care_HPRD=${row.Nurse_Care_HPRD}`);
-            });
-          }
-        }
-        
-        resolve(results.data);
-      },
-      error: (error: Error) => {
-        reject(error);
-      },
-    });
-  });
-}
-
-/**
- * Load CSV file from path
- */
-async function loadCSV(path: string): Promise<string> {
-  const response = await fetch(path);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.statusText}`);
-  }
-  return response.text();
-}
-
-/**
- * Load JSON file from path (faster than CSV)
+ * Load JSON file from path. Returns null on 404 or non-JSON (no CSV fallback).
  */
 async function loadJSON<T>(path: string): Promise<T | null> {
   try {
     const response = await fetch(path);
-    if (!response.ok || response.status === 404) {
-      // Browser will log 404 - this is unavoidable for HTTP errors
-      // We handle it gracefully by returning null
-      return null;
-    }
+    if (!response.ok || response.status === 404) return null;
     const contentType = response.headers.get('content-type');
-    // Check if response is actually JSON, not HTML (404 page)
-    if (!contentType || !contentType.includes('application/json')) {
-      return null;
-    }
+    if (!contentType || !contentType.includes('application/json')) return null;
     const text = await response.text();
-    // Check if it's HTML (starts with <)
-    if (text.trim().startsWith('<')) {
-      return null;
-    }
-    return JSON.parse(text);
+    if (text.trim().startsWith('<')) return null;
+    return JSON.parse(text) as T;
   } catch {
     return null;
   }
 }
 
+/** Load JSON and return data + byte count (for dev payload logging). */
+async function loadJSONWithSize<T>(path: string): Promise<{ data: T | null; bytes: number }> {
+  try {
+    const response = await fetch(path);
+    const text = await response.text();
+    const bytes = new Blob([text]).size;
+    if (!response.ok || response.status === 404) return { data: null, bytes };
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) return { data: null, bytes };
+    if (text.trim().startsWith('<')) return { data: null, bytes };
+    return { data: JSON.parse(text) as T, bytes };
+  } catch {
+    return { data: null, bytes: 0 };
+  }
+}
+
 /**
- * Filter rows by quarter
+ * Filter rows by quarter (used in CSV fallback path). Exported to satisfy TS noUnusedLocals.
  */
-function filterByQuarter<T extends { CY_Qtr: string }>(
+export function _filterByQuarter<T extends { CY_Qtr: string }>(
   rows: T[],
   quarters: string[]
 ): T[] {
@@ -183,10 +140,8 @@ function filterByQuarter<T extends { CY_Qtr: string }>(
   });
 }
 
-/**
- * Parse numeric fields from CSV rows
- */
-function parseStateRow(row: any): StateQuarterlyRow {
+/** Parse numeric fields from CSV rows. Exported to satisfy TS noUnusedLocals. */
+export function _parseStateRow(row: any): StateQuarterlyRow {
   return {
     ...row,
     facility_count: parseFloat(row.facility_count) || 0,
@@ -212,7 +167,7 @@ function parseStateRow(row: any): StateQuarterlyRow {
   };
 }
 
-function parseRegionRow(row: any): RegionQuarterlyRow {
+export function _parseRegionRow(row: any): RegionQuarterlyRow {
   return {
     ...row,
     REGION_NUMBER: parseInt(row.REGION_NUMBER, 10) || 0,
@@ -239,7 +194,7 @@ function parseRegionRow(row: any): RegionQuarterlyRow {
   };
 }
 
-function parseNationalRow(row: any): NationalQuarterlyRow {
+export function _parseNationalRow(row: any): NationalQuarterlyRow {
   return {
     ...row,
     facility_count: parseFloat(row.facility_count) || 0,
@@ -262,7 +217,7 @@ function parseNationalRow(row: any): NationalQuarterlyRow {
   };
 }
 
-function parseFacilityRow(row: any): FacilityLiteRow {
+export function _parseFacilityRow(row: any): FacilityLiteRow {
   // Parse numeric fields - handle both facility_quarterly_metrics and legacy facility_lite column names
   const totalHPRD = parseFloat(String(row.Total_Nurse_HPRD || row['Total_Nurse_HPRD'] || 0)) || 0;
   const directCareHPRD = parseFloat(String(row.Nurse_Care_HPRD || row['Nurse_Care_HPRD'] || 0)) || 0;
@@ -292,7 +247,7 @@ function parseFacilityRow(row: any): FacilityLiteRow {
   };
 }
 
-function parseProviderInfoRow(row: any): ProviderInfoRow {
+export function _parseProviderInfoRow(row: any): ProviderInfoRow {
   // Map lowercase CSV column names to uppercase interface names
   // Quarter is already in format '2025Q2', just normalize it
   let quarter = (row.quarter || row.CY_Qtr || '').trim().toUpperCase();
@@ -328,338 +283,214 @@ function parseProviderInfoRow(row: any): ProviderInfoRow {
 }
 
 /**
- * Load data files optimized by scope (only loads what's needed)
+ * Load data via JSON only. Uses /api/dates to discover quarters; requests only those JSON files.
+ * No CSV fetches. State/region scope loads only state/region + mapping (and scope-filtered facility/provider).
  */
 export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 'state' | 'region', identifier?: string): Promise<LoadedData> {
   try {
-    // Load from organized quarterly subdirs: .../json/quarterly/{national,state,region,facility,provider}
+    const apiBase = getApiBase();
+    const datesRes = await fetch(`${apiBase}/api/dates`);
+    const datesData = (datesRes.ok ? await datesRes.json() : null) as { quarters?: string[] } | null;
+    const quarters: string[] = Array.isArray(datesData?.quarters) && datesData.quarters.length > 0
+      ? datesData.quarters
+      : ['2025Q1', '2025Q2'];
+
+    if (DEV) {
+      console.log('[Data] Quarters from API:', quarters, '→ using fixed q1/q2 files (most recent = q2)');
+    }
+
     const q = `${basePath}/json/quarterly`;
     const qNational = `${q}/national`;
     const qState = `${q}/state`;
     const qRegion = `${q}/region`;
     const qFacility = `${q}/facility`;
     const qProvider = `${q}/provider`;
-    const [
-      stateQ1Json,
-      stateQ2Json,
-      regionQ1Json,
-      regionQ2Json,
-      nationalQ1Json,
-      nationalQ2Json,
-      facilityQ1Json,
-      facilityQ2Json,
-      providerQ1Json,
-      providerQ2Json,
-      regionMappingJson,
-    ] = await Promise.all([
-      loadJSON<StateQuarterlyRow[]>(`${qState}/state_q1.json`),
-      loadJSON<StateQuarterlyRow[]>(`${qState}/state_q2.json`),
-      loadJSON<RegionQuarterlyRow[]>(`${qRegion}/region_q1.json`),
-      loadJSON<RegionQuarterlyRow[]>(`${qRegion}/region_q2.json`),
-      loadJSON<NationalQuarterlyRow>(`${qNational}/national_q1.json`),
-      loadJSON<NationalQuarterlyRow>(`${qNational}/national_q2.json`),
-      loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_q1.json`),
-      loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_q2.json`),
-      loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_q1.json`),
-      loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_q2.json`),
-      loadJSON<Record<number, string[]>>(`${qRegion}/region_state_mapping.json`),
-    ]);
-    
-    // Load state standards for state and USA scope (needed for USA takeaway about states with min >= 2.00 HPRD)
-    const stateStandardsJson = (scope === 'state' || scope === 'usa')
-      ? await loadJSON<Record<string, StateStandardRow>>(`${qState}/state_standards.json`)
-      : null;
-    
-    // Load SFF data separately to avoid redeclaration
-    // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
-    // SFF data is optional - don't fail if it's missing
-    const sffDataJson = await loadJSON<SFFData>('/wrapped/sff-facilities.json').catch(() => {
-      console.warn('[SFF Data] sff-facilities.json not found - SFF features will be disabled');
-      return null;
-    });
 
-    // If we got JSON data, use it (much faster!)
-    // Check if we have the essential JSON files
-    // Note: Empty arrays are still valid JSON, so check for null/undefined, not just truthiness
-    // Match old behavior: hasJsonData only checks state/region/national files
-    // Facility/provider JSON is loaded but not required for hasJsonData check
-    // They'll default to empty arrays if missing (old behavior)
-    const hasJsonData = stateQ1Json !== null && stateQ1Json !== undefined && 
-                        stateQ2Json !== null && stateQ2Json !== undefined &&
-                        regionQ1Json !== null && regionQ1Json !== undefined &&
-                        regionQ2Json !== null && regionQ2Json !== undefined &&
-                        nationalQ1Json !== null && nationalQ1Json !== undefined &&
-                        nationalQ2Json !== null && nationalQ2Json !== undefined;
-    
-    // Log Q1 data status with detailed debugging
-    console.log('Q1 Data Status:', {
-      stateQ1: stateQ1Json ? `${stateQ1Json.length} rows` : 'missing',
-      regionQ1: regionQ1Json ? `${regionQ1Json.length} rows` : 'missing',
-      nationalQ1: nationalQ1Json ? 'found' : 'missing',
-    });
-    
-    // Detailed Q1 debugging
-    if (stateQ1Json && stateQ1Json.length > 0) {
-      const sampleStates = [...new Set(stateQ1Json.slice(0, 10).map(s => s.STATE))];
-      console.log(`Q1 State data sample: ${sampleStates.join(', ')}`);
-      const nyQ1 = stateQ1Json.find(s => s.STATE === 'NY');
-      if (nyQ1) {
-        console.log(`✅ NY Q1 found in JSON: Total HPRD = ${nyQ1.Total_Nurse_HPRD}`);
-      } else {
-        console.warn(`❌ NY Q1 NOT found in JSON file!`);
+    let totalBytes = 0;
+    const r = (path: string) => {
+      if (DEV) {
+        return loadJSONWithSize<unknown>(path).then(({ data, bytes }) => {
+          totalBytes += bytes;
+          return data;
+        });
       }
-    } else if (stateQ1Json && stateQ1Json.length === 0) {
-      console.error('❌ CRITICAL: state_q1.json exists but is EMPTY! Preprocessing did not find Q1 data. Regenerate JSON files.');
-    } else {
-      console.error('❌ CRITICAL: state_q1.json is missing! Run preprocessing.');
+      return loadJSON(path);
+    };
+
+    const stateBySuffix: Record<string, StateQuarterlyRow[]> = {};
+    const regionBySuffix: Record<string, RegionQuarterlyRow[]> = {};
+    const nationalBySuffix: Record<string, NationalQuarterlyRow | null> = {};
+    const facilityBySuffix: Record<string, FacilityLiteRow[]> = {};
+    const providerBySuffix: Record<string, ProviderInfoRow[]> = {};
+
+    const isUSA = scope === 'usa';
+    const isState = scope === 'state' && identifier && identifier.length === 2 && !identifier.toLowerCase().startsWith('region');
+    const isRegion = scope === 'region' && identifier && /^region?\d*$|^\d+$/.test(identifier.toLowerCase().replace(/-/g, ''));
+    const stateCode = isState ? identifier!.toUpperCase() : '';
+    const regionNum = isRegion ? identifier!.toLowerCase().replace(/^region-?/, '') : '';
+
+    // Preprocess always writes two quarters: q1 = previous, q2 = most recent. We load only those; "current" = q2 only (no fallbacks). Replicable when preprocess adds next quarter (q1/q2 roll forward).
+    const FILE_SUFFIXES = ['q1', 'q2'] as const;
+    const REGIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
+    const statePromises = FILE_SUFFIXES.map((suf) => r(`${qState}/state_${suf}.json`) as Promise<StateQuarterlyRow[] | null>);
+    const mappingPromise = r(`${qRegion}/region_state_mapping.json`) as Promise<Record<number, string[]> | null>;
+    const standardsPromise = (scope === 'state' || scope === 'usa')
+      ? (r(`${qState}/state_standards.json`) as Promise<Record<string, StateStandardRow> | null>)
+      : Promise.resolve(null);
+
+    const sffPromise = loadJSON<SFFData>('/wrapped/sff-facilities.json').catch(() => null);
+
+    let regionPromises: Promise<RegionQuarterlyRow[] | null>[] = [];
+    let nationalPromises: Promise<NationalQuarterlyRow | null>[] = [];
+    let facilityPromises: Promise<FacilityLiteRow[] | null>[] = [];
+    let providerPromises: Promise<ProviderInfoRow[] | null>[] = [];
+
+    if (isUSA) {
+      regionPromises = FILE_SUFFIXES.map((suf) => r(`${qRegion}/region_${suf}.json`) as Promise<RegionQuarterlyRow[] | null>);
+      nationalPromises = FILE_SUFFIXES.map((suf) => r(`${qNational}/national_${suf}.json`) as Promise<NationalQuarterlyRow | null>);
+      // USA: load facility/provider by fixed q1/q2 (most recent quarter = q2), same as state/region
+      facilityPromises = FILE_SUFFIXES.flatMap((suf) =>
+        REGIONS.map((reg) =>
+          r(`${qFacility}/facility_region${reg}_${suf}.json`) as Promise<FacilityLiteRow[] | null>
+        )
+      );
+      providerPromises = FILE_SUFFIXES.flatMap((suf) =>
+        REGIONS.map((reg) =>
+          r(`${qProvider}/provider_region${reg}_${suf}.json`) as Promise<ProviderInfoRow[] | null>
+        )
+      );
+    } else if (isState) {
+      facilityPromises = FILE_SUFFIXES.map((suf) => r(`${qFacility}/facility_${stateCode}_${suf}.json`) as Promise<FacilityLiteRow[] | null>);
+      providerPromises = FILE_SUFFIXES.map((suf) => r(`${qProvider}/provider_${stateCode}_${suf}.json`) as Promise<ProviderInfoRow[] | null>);
+    } else if (isRegion) {
+      regionPromises = FILE_SUFFIXES.map((suf) => r(`${qRegion}/region_${suf}.json`) as Promise<RegionQuarterlyRow[] | null>);
+      facilityPromises = FILE_SUFFIXES.map((suf) => r(`${qFacility}/facility_region${regionNum}_${suf}.json`) as Promise<FacilityLiteRow[] | null>);
+      providerPromises = FILE_SUFFIXES.map((suf) => r(`${qProvider}/provider_region${regionNum}_${suf}.json`) as Promise<ProviderInfoRow[] | null>);
     }
-    
-    if (hasJsonData) {
-      const regionStateMapping = new Map<number, Set<string>>();
-      if (regionMappingJson) {
-        for (const [regionNum, stateCodes] of Object.entries(regionMappingJson)) {
-          regionStateMapping.set(parseInt(regionNum, 10), new Set(stateCodes));
+
+    const all = await Promise.all([
+      ...statePromises,
+      mappingPromise,
+      standardsPromise,
+      sffPromise,
+      ...regionPromises,
+      ...nationalPromises,
+      ...facilityPromises,
+      ...providerPromises,
+    ]);
+
+    const n = statePromises.length;
+    statePromises.forEach((_, i) => {
+      const val = all[i];
+      stateBySuffix[FILE_SUFFIXES[i]] = Array.isArray(val) ? (val as StateQuarterlyRow[]) : [];
+    });
+    const regionMapping = all[n] as Record<number, string[]> | null;
+    const stateStandardsJson = all[n + 1];
+    const sffDataJson = all[n + 2] as SFFData | null;
+    let off = n + 3;
+    regionPromises.forEach((_, i) => {
+      const val = all[off + i];
+      regionBySuffix[FILE_SUFFIXES[i]] = Array.isArray(val) ? (val as RegionQuarterlyRow[]) : [];
+    });
+    off += regionPromises.length;
+    nationalPromises.forEach((_, i) => {
+      nationalBySuffix[FILE_SUFFIXES[i]] = (all[off + i] as NationalQuarterlyRow | null) ?? null;
+    });
+    off += nationalPromises.length;
+    // All scopes use q1/q2 file names. q2 = most recent quarter (e.g. 2025Q3). No fallbacks to prior quarters.
+    const regionsPerQuarter = REGIONS.length;
+    if (facilityPromises.length === FILE_SUFFIXES.length * regionsPerQuarter) {
+      // USA: 20 files = 10 regions × q1, 10 regions × q2
+      FILE_SUFFIXES.forEach((suf, sufIdx) => {
+        const start = sufIdx * regionsPerQuarter;
+        let merged: FacilityLiteRow[] = [];
+        for (let i = 0; i < regionsPerQuarter; i++) {
+          const val = all[off + start + i];
+          const arr = Array.isArray(val) ? (val as FacilityLiteRow[]) : [];
+          merged = merged.concat(arr);
         }
-      }
-
-      // Optimize: Try to load pre-filtered data first (much smaller files!)
-      let facilityQ1 = facilityQ1Json || [];
-      let facilityQ2 = facilityQ2Json || [];
-      let providerQ1 = providerQ1Json || [];
-      let providerQ2 = providerQ2Json || [];
-      let usingFilteredData = false;
-
-      // For state scope, try to load pre-filtered data first
-      if (scope === 'state' && identifier) {
-        const stateCode = identifier.toUpperCase();
-        // Ensure identifier is a valid 2-letter state code, not a region
-        if (stateCode.length === 2 && !stateCode.startsWith('REGION')) {
-          const [stateFacilityQ1, stateFacilityQ2, stateProviderQ1, stateProviderQ2] = await Promise.all([
-            loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_${stateCode}_q1.json`),
-            loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_${stateCode}_q2.json`),
-            loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_${stateCode}_q1.json`),
-            loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_${stateCode}_q2.json`),
-          ]);
-          
-          if (stateFacilityQ1 && stateFacilityQ2 && stateProviderQ1 && stateProviderQ2) {
-            console.log(`✅ Using pre-filtered state data for ${stateCode} (${stateFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
-            console.log(`Provider info for ${stateCode} - Q1: ${stateProviderQ1.length}, Q2: ${stateProviderQ2.length}`);
-            if (stateProviderQ2.length > 0) {
-              console.log(`Sample pre-filtered Q2: CCN=${stateProviderQ2[0].PROVNUM}, Ownership=${stateProviderQ2[0].ownership_type}, SFF=${stateProviderQ2[0].sff_status}`);
-            }
-            facilityQ1 = stateFacilityQ1;
-            facilityQ2 = stateFacilityQ2;
-            providerQ1 = stateProviderQ1;
-            providerQ2 = stateProviderQ2;
-            usingFilteredData = true;
-          }
-        }
-      }
-
-      // For region scope, try to load pre-filtered data first
-      // Only check if scope is explicitly 'region' and we haven't already loaded filtered data
-      // Double-check that identifier actually looks like a region (starts with "region" or is just a number)
-      if (scope === 'region' && identifier && !usingFilteredData) {
-        const identifierLower = identifier.toLowerCase();
-        // Only proceed if identifier is clearly a region (starts with "region" or is just digits)
-        if (identifierLower.startsWith('region') || /^\d+$/.test(identifierLower)) {
-          // Extract region number - handle both "region1" and "1" formats
-          const regionNum = identifierLower.replace(/^region/, '');
-          if (regionNum && /^\d+$/.test(regionNum)) {
-            const [regionFacilityQ1, regionFacilityQ2, regionProviderQ1, regionProviderQ2] = await Promise.all([
-              loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_region${regionNum}_q1.json`),
-              loadJSON<FacilityLiteRow[]>(`${qFacility}/facility_region${regionNum}_q2.json`),
-              loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_region${regionNum}_q1.json`),
-              loadJSON<ProviderInfoRow[]>(`${qProvider}/provider_region${regionNum}_q2.json`),
-            ]);
-            
-            if (regionFacilityQ1 && regionFacilityQ2 && regionProviderQ1 && regionProviderQ2) {
-              console.log(`✅ Using pre-filtered region data for region ${regionNum} (${regionFacilityQ2.length} facilities vs ${facilityQ2.length} total)`);
-              facilityQ1 = regionFacilityQ1;
-              facilityQ2 = regionFacilityQ2;
-              providerQ1 = regionProviderQ1;
-              providerQ2 = regionProviderQ2;
-              usingFilteredData = true;
-            }
-          }
-        }
-      }
-
-      if (!usingFilteredData) {
-        console.log('✅ Using pre-processed JSON files (fast mode)');
-      }
-      
-      // Debug provider info from JSON
-      console.log(`Provider info from JSON - Q1: ${providerQ1.length}, Q2: ${providerQ2.length}`);
-      if (providerQ2.length > 0) {
-        console.log(`Sample JSON Q2 row: CCN=${providerQ2[0].PROVNUM}, State=${providerQ2[0].STATE}, Ownership=${providerQ2[0].ownership_type}, SFF=${providerQ2[0].sff_status}`);
-      }
-
-      // Log Q1 data status for debugging
-      console.log('Q1 Data Status:', {
-        stateQ1: Array.isArray(stateQ1Json) ? `${stateQ1Json.length} rows` : (stateQ1Json ? 'found' : 'missing'),
-        regionQ1: Array.isArray(regionQ1Json) ? `${regionQ1Json.length} rows` : (regionQ1Json ? 'found' : 'missing'),
-        nationalQ1: nationalQ1Json ? 'found' : 'missing',
+        facilityBySuffix[suf] = merged;
       });
-      
-      // Check if Q1 data is empty (common issue)
-      if (Array.isArray(stateQ1Json) && stateQ1Json.length === 0) {
-        console.warn('⚠️ WARNING: state_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
-      }
-      // Only warn about empty region Q1 if we're actually using region scope (suppress warning - data simply doesn't exist)
-      // if (scope === 'region' && Array.isArray(regionQ1Json) && regionQ1Json.length === 0) {
-      //   console.warn('⚠️ WARNING: region_q1.json is empty! Q1 trends will show 0.00. Regenerate JSON files with Q1 data.');
-      // }
-
-      // Load state standards from JSON if available (CSV fallback removed to avoid 404 errors)
-      let stateStandardsMap = new Map<string, StateStandardRow>();
-      if (stateStandardsJson) {
-        for (const [key, value] of Object.entries(stateStandardsJson)) {
-          stateStandardsMap.set(key, value as StateStandardRow);
-        }
-        console.log(`✅ Loaded ${stateStandardsMap.size} state standards from JSON`);
-      }
-      // If JSON not found, stateStandardsMap remains empty - state pages work fine without it
-
-      return {
-        stateData: { q1: stateQ1Json || [], q2: stateQ2Json || [] },
-        regionData: { q1: regionQ1Json || [], q2: regionQ2Json || [] },
-        nationalData: { q1: nationalQ1Json, q2: nationalQ2Json },
-        facilityData: { q1: facilityQ1, q2: facilityQ2 },
-        providerInfo: { q1: providerQ1, q2: providerQ2 },
-        regionStateMapping,
-        stateStandards: stateStandardsMap,
-        sffData: sffDataJson,
-      };
+    } else if (facilityPromises.length === FILE_SUFFIXES.length) {
+      facilityBySuffix['q1'] = Array.isArray(all[off]) ? (all[off] as FacilityLiteRow[]) : [];
+      facilityBySuffix['q2'] = Array.isArray(all[off + 1]) ? (all[off + 1] as FacilityLiteRow[]) : [];
+    } else {
+      facilityPromises.forEach((_, i) => {
+        const val = all[off + i];
+        facilityBySuffix[FILE_SUFFIXES[i]] = Array.isArray(val) ? (val as FacilityLiteRow[]) : [];
+      });
     }
+    off += facilityPromises.length;
+    if (providerPromises.length === FILE_SUFFIXES.length * regionsPerQuarter) {
+      FILE_SUFFIXES.forEach((suf, sufIdx) => {
+        const start = sufIdx * regionsPerQuarter;
+        let merged: ProviderInfoRow[] = [];
+        for (let i = 0; i < regionsPerQuarter; i++) {
+          const val = all[off + start + i];
+          const arr = Array.isArray(val) ? (val as ProviderInfoRow[]) : [];
+          merged = merged.concat(arr);
+        }
+        providerBySuffix[suf] = merged;
+      });
+    } else if (providerPromises.length === FILE_SUFFIXES.length) {
+      providerBySuffix['q1'] = Array.isArray(all[off]) ? (all[off] as ProviderInfoRow[]) : [];
+      providerBySuffix['q2'] = Array.isArray(all[off + 1]) ? (all[off + 1] as ProviderInfoRow[]) : [];
+    } else {
+      providerPromises.forEach((_, i) => {
+        const val = all[off + i];
+        providerBySuffix[FILE_SUFFIXES[i]] = Array.isArray(val) ? (val as ProviderInfoRow[]) : [];
+      });
+    }
+    off += providerPromises.length;
 
-    // Fall back to CSV parsing (slower but works if JSON not available)
-    console.log('⚠️ JSON files not found, falling back to CSV parsing (this will be slower)...');
-    console.log('💡 Tip: Run "preprocess-data.bat" to create JSON files for faster loading');
-    
-    // Load all CSV files in parallel; use absolute /data/ path for fallback so it works from /sff/* and /wrapped/*
-    const dataFallback = '/data';
-    const [
-      stateCsv,
-      regionCsv,
-      nationalCsv,
-      facilityCsv,
-      providerInfoCsv,
-      regionMappingCsv,
-    ] = await Promise.all([
-      loadCSV(`${basePath}/state_quarterly_metrics.csv`).catch(() =>
-        loadCSV(`${dataFallback}/state_quarterly_metrics.csv`)
-      ),
-      loadCSV(`${basePath}/cms_region_quarterly_metrics.csv`).catch(() =>
-        loadCSV(`${dataFallback}/cms_region_quarterly_metrics.csv`)
-      ),
-      loadCSV(`${basePath}/national_quarterly_metrics.csv`).catch(() =>
-        loadCSV(`${dataFallback}/national_quarterly_metrics.csv`)
-      ),
-      loadCSV(`${basePath}/facility_quarterly_metrics.csv`).catch(() =>
-        loadCSV(`${dataFallback}/facility_quarterly_metrics.csv`)
-      ),
-      loadCSV(`${basePath}/provider_info_combined.csv`).catch(() =>
-        loadCSV(`${dataFallback}/provider_info_combined.csv`)
-      ),
-      loadCSV(`${basePath}/cms_region_state_mapping.csv`).catch(() =>
-        loadCSV(`${dataFallback}/cms_region_state_mapping.csv`).catch(() => '')
-      ),
-    ]);
-
-    // Parse all CSVs
-    const [
-      stateRows,
-      regionRows,
-      nationalRows,
-      facilityRows,
-      providerInfoRows,
-      regionMappingRows,
-    ] = await Promise.all([
-      parseCSV<any>(stateCsv).then(rows => rows.map(parseStateRow)),
-      parseCSV<any>(regionCsv).then(rows => rows.map(parseRegionRow)),
-      parseCSV<any>(nationalCsv).then(rows => rows.map(parseNationalRow)),
-      parseCSV<any>(facilityCsv).then(rows => rows.map(parseFacilityRow)),
-      parseCSV<any>(providerInfoCsv).then(rows => rows.map(parseProviderInfoRow)),
-      regionMappingCsv ? parseCSV<any>(regionMappingCsv) : Promise.resolve([]),
-    ]);
-
-    // State standards CSV loading removed to avoid 404 errors
-    // State pages work fine without state standards data (it's optional)
-    const stateStandardsMap = new Map<string, StateStandardRow>();
-
-    // Build region-state mapping
     const regionStateMapping = new Map<number, Set<string>>();
-    if (regionMappingRows && regionMappingRows.length > 0) {
-      for (const row of regionMappingRows) {
-        const regionNum = parseInt(row.CMS_Region_Number, 10);
-        const stateCode = row.State_Code?.trim();
-        if (regionNum && stateCode) {
-          if (!regionStateMapping.has(regionNum)) {
-            regionStateMapping.set(regionNum, new Set());
-          }
-          regionStateMapping.get(regionNum)!.add(stateCode);
-        }
+    if (regionMapping && typeof regionMapping === 'object') {
+      for (const [regionNumStr, stateCodes] of Object.entries(regionMapping)) {
+        const num = parseInt(regionNumStr, 10);
+        if (Array.isArray(stateCodes)) regionStateMapping.set(num, new Set(stateCodes));
       }
     }
 
-    // Filter by quarters
-    const stateQ1 = filterByQuarter(stateRows, ['2025Q1']);
-    const stateQ2 = filterByQuarter(stateRows, ['2025Q2']);
-    
-    const regionQ1 = filterByQuarter(regionRows, ['2025Q1']);
-    const regionQ2 = filterByQuarter(regionRows, ['2025Q2']);
-    
-    const nationalQ1 = filterByQuarter(nationalRows, ['2025Q1'])[0] || null;
-    const nationalQ2 = filterByQuarter(nationalRows, ['2025Q2'])[0] || null;
-    
-    const facilityQ1 = filterByQuarter(facilityRows, ['2025Q1']);
-    const facilityQ2 = filterByQuarter(facilityRows, ['2025Q2']);
-    
-    // Filter provider info by quarter - always filter (quarter data exists in format 2025Q1, 2025Q2)
-    const providerInfoQ1 = filterByQuarter(providerInfoRows, ['2025Q1']);
-    const providerInfoQ2 = filterByQuarter(providerInfoRows, ['2025Q2']);
-    
-    console.log(`Provider info Q1 count: ${providerInfoQ1.length}, Q2 count: ${providerInfoQ2.length}`);
-    if (providerInfoQ1.length > 0) {
-      console.log(`Sample Q1 row: CCN=${providerInfoQ1[0].PROVNUM}, State=${providerInfoQ1[0].STATE}, Ownership=${providerInfoQ1[0].ownership_type}, SFF=${providerInfoQ1[0].sff_status}`);
-    }
-    if (providerInfoQ2.length > 0) {
-      console.log(`Sample Q2 row: CCN=${providerInfoQ2[0].PROVNUM}, State=${providerInfoQ2[0].STATE}, Ownership=${providerInfoQ2[0].ownership_type}, SFF=${providerInfoQ2[0].sff_status}`);
+    const stateStandardsMap = new Map<string, StateStandardRow>();
+    if (stateStandardsJson && typeof stateStandardsJson === 'object') {
+      for (const [k, v] of Object.entries(stateStandardsJson)) {
+        stateStandardsMap.set(k, v as StateStandardRow);
+      }
     }
 
-    // Load SFF data from sff-facilities.json (CSV fallback path)
-    // Use absolute path /wrapped/sff-facilities.json since file is in dist/ and served by /wrapped/<path:path> route
-    // SFF data is optional - don't fail if it's missing
-    const sffDataJsonCsv = await loadJSON<SFFData>('/wrapped/sff-facilities.json').catch(() => {
-      console.warn('[SFF Data] sff-facilities.json not found - SFF features will be disabled');
-      return null;
-    });
+    // Only q1/q2; q2 = most recent quarter. No fallbacks.
+    const stateQ1 = stateBySuffix['q1'] ?? [];
+    const stateQ2 = stateBySuffix['q2'] ?? [];
+    const regionQ1 = regionBySuffix['q1'] ?? [];
+    const regionQ2 = regionBySuffix['q2'] ?? [];
+    const nationalQ1 = nationalBySuffix['q1'] ?? null;
+    const nationalQ2 = nationalBySuffix['q2'] ?? null;
+    // Current quarter only: q2 = most recent (e.g. 2025Q3). No fallbacks to prior quarters.
+    const facilityQ1 = facilityBySuffix['q1'] ?? [];
+    const facilityQ2 = facilityBySuffix['q2'] ?? [];
+    const providerQ1 = providerBySuffix['q1'] ?? [];
+    const providerQ2 = providerBySuffix['q2'] ?? [];
+
+    const hasMinimalData = stateQ1.length > 0 || stateQ2.length > 0;
+    if (!hasMinimalData) {
+      throw new Error('No state quarterly JSON data available. Run preprocess-data to generate JSON files.');
+    }
+
+    if (DEV) {
+      console.log('[Data] Total payload size (bytes):', totalBytes);
+      if (totalBytes > 500 * 1024) console.warn('[Data] Total payload exceeds 500KB:', (totalBytes / 1024).toFixed(1), 'KB');
+    }
 
     return {
-      stateData: {
-        q1: stateQ1,
-        q2: stateQ2,
-      },
-      regionData: {
-        q1: regionQ1,
-        q2: regionQ2,
-      },
-      nationalData: {
-        q1: nationalQ1,
-        q2: nationalQ2,
-      },
-      facilityData: {
-        q1: facilityQ1,
-        q2: facilityQ2,
-      },
-      providerInfo: {
-        q1: providerInfoQ1,
-        q2: providerInfoQ2,
-      },
+      stateData: { q1: stateQ1, q2: stateQ2 },
+      regionData: { q1: regionQ1, q2: regionQ2 },
+      nationalData: { q1: nationalQ1, q2: nationalQ2 },
+      facilityData: { q1: facilityQ1, q2: facilityQ2 },
+      providerInfo: { q1: providerQ1, q2: providerQ2 },
       regionStateMapping,
       stateStandards: stateStandardsMap,
-      sffData: sffDataJsonCsv,
+      sffData: sffDataJson ?? null,
     };
   } catch (error) {
     console.error('Error loading data:', error);

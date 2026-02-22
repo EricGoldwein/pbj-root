@@ -2,9 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { loadAllData } from '../lib/wrapped/dataLoader';
 import { toTitleCase, capitalizeCity } from '../lib/wrapped/dataProcessor';
-import { getAssetPath } from '../utils/assets';
 import { updateSEO } from '../utils/seo';
 import { StateOutline } from '../components/wrapped/StateOutline';
+import { SiteNavbar } from '../components/SiteNavbar';
+import { SiteFooter } from '../components/SiteFooter';
 import type { FacilityLiteRow, ProviderInfoRow } from '../lib/wrapped/wrappedTypes';
 
 // Helper to get data path - data is served from /data, not /wrapped/data
@@ -92,7 +93,6 @@ export default function SFFPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sourceDates, setSourceDates] = useState<{ pbjQuarter: string; sffPosting: string } | null>(null);
   const itemsPerPage = 50;
 
@@ -227,14 +227,21 @@ export default function SFFPage() {
         }
 
         const baseDataPath = getDataPath();
-        const data = await loadAllData(baseDataPath, 'usa', undefined);
+        const dataScope: 'usa' | 'state' | 'region' =
+          scope === 'usa' ? 'usa'
+          : scope && scope.startsWith('region') ? 'region'
+          : scope && scope.length === 2 ? 'state'
+          : 'usa';
+        const dataIdentifier =
+          dataScope === 'state' ? scope!.toLowerCase()
+          : dataScope === 'region' ? ('region' + scope!.replace(/^region-?/i, ''))
+          : undefined;
+        const data = await loadAllData(baseDataPath, dataScope, dataIdentifier);
         
-        // Get provider info for status comparison
-        // Q1 data used for determining previous status (from provider info file, typically from earlier period)
-        // Q2 data used for current staffing metrics (from Q2 2025 PBJ data)
+        // Provider/facility quarterly: q1 = prior quarter (2025Q2), q2 = current quarter (2025Q3)
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
-        const facilityQ2 = data.facilityData.q2 || [];
+        const facilityQ2 = data.facilityData.q2 || []; // Q3 2025 facility metrics (Census, HPRD)
         
         // Debug: Log data counts for troubleshooting
         console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
@@ -293,9 +300,8 @@ export default function SFFPage() {
             return found;
           }
           
-          // If not in map, search array directly and auto-correct if needed
+          // If not in map, search array directly (q2 is already current quarter from loader, e.g. 2025Q3)
           const foundInArray = facilityQ2.find((f: FacilityLiteRow) => {
-            if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return false;
             const fProvNum = f.PROVNUM?.toString().trim() || '';
             if (!fProvNum) return false;
             return normalizeCCN(fProvNum) === normalized;
@@ -333,9 +339,7 @@ export default function SFFPage() {
         facilityQ2.forEach((f: FacilityLiteRow) => {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
-          
-          // Only include Q2 2025 data
-          if (f.CY_Qtr && f.CY_Qtr !== '2025Q2') return;
+          // q2 from loader is current quarter (e.g. 2025Q3) – no quarter filter
           
           // Auto-correct CSV column shifts before adding to map
           const corrected = correctColumnShift(f);
@@ -559,6 +563,8 @@ export default function SFFPage() {
                 directCareHPRD = typeof facility.Nurse_Care_HPRD === 'number' ? facility.Nurse_Care_HPRD : (parseFloat(String(facility.Nurse_Care_HPRD)) || 0);
                 rnHPRD = typeof facility.Total_RN_HPRD === 'number' ? facility.Total_RN_HPRD : (parseFloat(String(facility.Total_RN_HPRD)) || 0);
                 census = typeof facility.Census === 'number' ? facility.Census : (parseFloat(String(facility.Census)) || undefined);
+                if (census === undefined && provider?.avg_residents_per_day != null)
+                  census = typeof provider.avg_residents_per_day === 'number' ? provider.avg_residents_per_day : parseFloat(String(provider.avg_residents_per_day));
                 
                 // Final safety check: If validation somehow failed, log and zero out values
                 if (totalHPRD === 0 && (directCareHPRD > 0 || rnHPRD > 0)) {
@@ -619,7 +625,7 @@ export default function SFFPage() {
                 rnHPRD,
                 caseMixExpectedHPRD: caseMixExpected,
                 percentOfCaseMix,
-                census: facility?.Census,
+                census,
                 monthsAsSFF: pdfFacility.months_as_sff !== null && pdfFacility.months_as_sff !== undefined ? pdfFacility.months_as_sff : undefined,
                 mostRecentInspection: pdfFacility.most_recent_inspection ?? undefined,
                 metSurveyCriteria: pdfFacility.met_survey_criteria ?? undefined,
@@ -1054,120 +1060,7 @@ export default function SFFPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white">
-      {/* Header Navigation */}
-      <nav className="sticky top-0 z-50 bg-[#0f172a] border-b-2 border-blue-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 md:h-16">
-            <a 
-              href="https://pbj320.com" 
-              className="text-white font-bold text-lg md:text-xl hover:text-blue-300 transition-colors flex items-center gap-2"
-            >
-              <img src={getAssetPath('/pbj_favicon.png')} alt="PBJ320" className="h-6 md:h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              <span><span className="text-white">PBJ</span><span className="text-blue-400">320</span></span>
-            </a>
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-4 lg:gap-6">
-              <a 
-                href="https://pbj320.com/about" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                About
-              </a>
-              <a 
-                href="https://pbjdashboard.com/" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Dashboard
-              </a>
-              <a 
-                href="https://pbj320.com/insights" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Insights
-              </a>
-              <a 
-                href="https://pbj320.com/report" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Report
-              </a>
-              <a 
-                href="/phoebe" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Phoebe J
-              </a>
-              <a 
-                href="https://pbj320.com/owners" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Owner
-              </a>
-            </div>
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
-              aria-label="Toggle menu"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </div>
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-700 py-4">
-              <div className="flex flex-col space-y-3">
-                <a 
-                  href="https://pbj320.com/about" 
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  About
-                </a>
-                <a 
-                  href="https://pbjdashboard.com/" 
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  Dashboard
-                </a>
-                <a 
-                  href="https://pbj320.com/insights" 
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  Insights
-                </a>
-                <a 
-                  href="https://pbj320.com/report" 
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  Report
-                </a>
-                <a 
-                  href="/phoebe" 
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  Phoebe J
-                </a>
-                <a 
-                  href="https://pbj320.com/owners" 
-                  className="text-gray-300 hover:text-blue-300 text-sm font-medium transition-colors px-4"
-                >
-                  Owner
-                </a>
-              </div>
-            </div>
-          )}
-        </div>
-      </nav>
+      <SiteNavbar />
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8">
@@ -1428,7 +1321,7 @@ export default function SFFPage() {
                           </td>
                           <td className="px-1 md:px-2 py-2 max-w-[120px] md:max-w-none">
                             <a
-                              href={`https://pbjdashboard.com/?facility=${encodeURIComponent(facility.provnum || '')}`}
+                              href={`https://pbj320.com/provider/${encodeURIComponent(facility.provnum || '')}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-blue-300 hover:text-blue-200 underline font-medium text-xs leading-tight block"
@@ -1570,20 +1463,7 @@ export default function SFFPage() {
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="mt-6 md:mt-8 pt-6 md:pt-8 text-center" style={{ background: '#0f172a', padding: '40px 20px', marginTop: '60px' }}>
-        <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 auto', fontStyle: 'italic', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
-          The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Aging in America News</a>.
-        </p>
-        <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0.5rem auto 0', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
-          Digging deeper? Email or text for a <strong>PBJ320 Premium Demo</strong>: <a href="mailto:eric@320insight.com" style={{ color: '#60a5fa', textDecoration: 'none' }}>eric@320insight.com</a> | <a href="sms:+19298084996" style={{ color: '#60a5fa', textDecoration: 'none' }}>(347) 992-3569</a>
-        </p>
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '1.5rem auto 0', paddingTop: '1.5rem', maxWidth: '800px' }}>
-          <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>
-            <a href="https://www.320insight.com" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>320 Consulting — Turning Spreadsheets into Stories</a>
-          </p>
-        </div>
-      </footer>
+      <SiteFooter />
     </div>
   );
 }

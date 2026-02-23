@@ -22,6 +22,12 @@ function getStateFullName(abbr: string): string {
   return STATE_ABBR_TO_NAME[abbr.toLowerCase()] || abbr;
 }
 
+/** Canonical state URL slug for pbj320.com/state/<slug> */
+function stateCodeToSlug(abbr: string): string {
+  const name = getStateFullName(abbr);
+  return name.toLowerCase().replace(/\s+/g, '-');
+}
+
 interface TrendsCardProps {
   data: PBJWrappedData;
 }
@@ -111,7 +117,7 @@ export const TrendsCard: React.FC<TrendsCardProps> = ({ data }) => {
       {data.scope === 'state' && data.identifier && (
         <div className="pt-4 mt-3 border-t border-gray-700">
           <a
-            href={`https://pbj320.com/?state=${data.identifier.toUpperCase()}`}
+            href={`https://pbj320.com/state/${stateCodeToSlug(data.identifier)}`}
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 text-center shadow-lg hover:shadow-xl text-sm"

@@ -397,15 +397,19 @@ animation: slideFadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1)
 ### Link Generation
 
 **State Links:**
-- Format: `https://pbj320.com/?state=XX`
-- Example: `https://pbj320.com/?state=OR`
+- Format: `https://pbj320.com/state/<slug>` (slug = lowercase state name, spaces → hyphens)
+- Example: `https://pbj320.com/state/oregon`, `https://pbj320.com/state/new-york`
 
 **Region Links:**
 - Top/Bottom Regions: `https://pbj320.com/report`
-- Movers: `https://pbj320.com/?region=X`
+- Movers: `https://pbj320.com/report` (report page with region view)
 
 **Facility Links:**
-- Format: `https://pbj320.com/provider/XXXXX`
+- Format: `https://pbj320.com/provider/<ccn>` (6-digit CCN)
+- Example: `https://pbj320.com/provider/385121`
+
+**Entity Links:**
+- Format: `https://pbj320.com/entity/<id>` (numeric entity ID)
 
 **Internal Routes:**
 - SFF Wrapped: `/sff` (resolves to `/pbj-wrapped/sff` with basename)

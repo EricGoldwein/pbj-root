@@ -151,7 +151,7 @@ export const NavigationCard: React.FC<NavigationCardProps> = ({ data, onReplay }
         {data.scope === 'state' && stateDashboardInfo && (
           <div className="mt-4 pt-3 border-t border-gray-700">
             <a
-              href={`https://pbjdashboard.com/?state=${stateDashboardInfo.stateCode}`}
+              href={`https://pbj320.com/?state=${stateDashboardInfo.stateCode}`}
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full py-2.5 md:py-3 px-4 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 hover:border-blue-400 text-blue-300 font-medium rounded-lg transition-all duration-200 text-sm hover:scale-[1.01] active:scale-[0.99] touch-manipulation text-center"

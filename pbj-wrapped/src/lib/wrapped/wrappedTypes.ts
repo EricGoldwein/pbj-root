@@ -10,7 +10,7 @@ export interface Facility {
   city?: string;
   state: string;
   value: number; // HPRD or percentage
-  link: string; // pbjdashboard.com link
+  link: string; // pbj320.com link
   overallRating?: string; // CMS overall rating (1-5)
   staffingRating?: string; // CMS staffing rating (1-5)
 }
@@ -39,7 +39,7 @@ export interface StateChange {
   rnHPRDChange?: number; // Q2 - Q1 for RN HPRD
   q1RNHPRD?: number;
   q2RNHPRD?: number;
-  link: string; // pbjdashboard.com link
+  link: string; // pbj320.com link
 }
 
 export interface StateMinimum {
@@ -161,7 +161,7 @@ export interface PBJWrappedData {
     census?: number; // Facility census
     sffStatus?: string; // 'SFF', 'SFF CANDIDATE', or undefined
     ownershipType?: string;
-    link: string; // pbjdashboard.com link
+    link: string; // pbj320.com link
   };
   
   // States with minimum >= 2.00 HPRD (for USA scope only)

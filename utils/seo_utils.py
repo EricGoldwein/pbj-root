@@ -42,7 +42,7 @@ def get_seo_metadata(path):
     Get SEO metadata based on the request path.
     Returns a dict with title, description, og_title, og_description, canonical_url, og_url, and include_image.
     """
-    base_url = 'https://www.pbj320.com'
+    base_url = 'https://pbj320.com'
     
     # Default values for wrapped pages
     default_metadata = {
@@ -109,7 +109,7 @@ def get_seo_metadata(path):
                         'canonical_url': base_url + path.rstrip('/'),
                         'og_url': base_url + path.rstrip('/'),
                         'include_image': True,
-                        'og_image': 'https://www.pbj320.com/og-image-1200x630.png',
+                        'og_image': 'https://pbj320.com/og-image-1200x630.png',
                     }
     
     # Handle wrapped pages

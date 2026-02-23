@@ -1090,10 +1090,10 @@
             </div>
             <div class="nav-menu" id="navMenu" style="display: flex; gap: 30px; align-items: center;">
                 <a href="/about" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">About</a>
-                <a href="https://pbjdashboard.com/" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Dashboard</a>
+                <a href="https://pbj320.com/" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Dashboard</a>
                 <a href="/insights" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Insights</a>
                 <a href="/report" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Report</a>
-                <a href="https://www.320insight.com/phoebe" class="nav-link" target="_blank" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Phoebe J</a>
+                <a href="/phoebe" class="nav-link" style="color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">PBJ Explained</a>
                 <a href="/owners" class="nav-link active" style="color: #60a5fa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0;">Ownership</a>
             </div>
             <div class="nav-toggle" id="navToggle">
@@ -1168,7 +1168,7 @@
         </div>
 
         <div id="resultsSection" class="results-section" style="display: none;">
-            <div id="resultsCount" class="results-count"></div>
+            <div id="resultsCount" class="results-count" aria-live="polite" aria-atomic="true"></div>
             <div id="resultsContainer"></div>
         </div>
 
@@ -1314,7 +1314,7 @@
           <!-- SMS -->
           <a href="sms:+19298084996"
              style="display: inline-block; transition: opacity 0.3s ease;"
-             title="SMS: (347) 992-3569">
+             title="SMS: (929) 804-4996">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
           <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/>
             </svg>
@@ -2130,7 +2130,7 @@
                     div.innerHTML = `<a href="${provCsvUrl}" download="committee_providers.csv" style="float: right; color: #667eea; font-size: 0.9rem; margin-bottom: 0.5rem;">Export Providers CSV</a>` +
                         `<table class="facilities-table" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th style="padding: 0.75rem; text-align: left;">Provider Name</th><th style="padding: 0.75rem;">State</th><th style="padding: 0.75rem; text-align: left;">Ownership Entity</th><th style="padding: 0.75rem; text-align: right;">Total Amount</th><th style="padding: 0.75rem;">HPRD</th></tr></thead><tbody>` +
                         providers.map(p => {
-                            const dashboardLink = p.ccn ? `<a href="https://pbjdashboard.com/?facility=${p.ccn}" target="_blank" rel="noopener" style="color: #667eea;">${escapeHtml(p.provider_name || p.ownership_entity)}</a>` : escapeHtml(p.provider_name || p.ownership_entity);
+                            const dashboardLink = p.ccn ? `<a href="https://pbj320.com/?facility=${p.ccn}" target="_blank" rel="noopener" style="color: #667eea;">${escapeHtml(p.provider_name || p.ownership_entity)}</a>` : escapeHtml(p.provider_name || p.ownership_entity);
                             const hprd = p.avg_hprd !== '' && p.avg_hprd != null ? Number(p.avg_hprd).toFixed(2) : '-';
                             return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${dashboardLink}</td><td style="padding: 0.75rem;">${escapeHtml(p.state || '')}</td><td style="padding: 0.75rem;">${escapeHtml(p.ownership_entity || '')}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(p.total_amount)}</td><td style="padding: 0.75rem;">${hprd}</td></tr>`;
                         }).join('') + `</tbody></table>`;
@@ -2251,7 +2251,7 @@
                     }
                     
                     displayResults(data.results, data.provider_info, type);
-                    document.getElementById('resultsCount').textContent = `${data.count} result(s) found`;
+                    document.getElementById('resultsCount').textContent = data.count === 1 ? '1 result found' : `${data.count} results found`;
                     document.getElementById('resultsSection').style.display = 'block';
                     document.getElementById('detailsSection').style.display = 'none';
                 }
@@ -2270,12 +2270,12 @@
             
             if (!data.owners || data.owners.length === 0) {
                 container.innerHTML = `<p style="color: rgba(255,255,255,0.7);">No owners found for entity ${data.entity_id}${data.entity_name ? ` (${data.entity_name})` : ''}.</p>`;
-                countEl.textContent = '0 result(s) found';
+                countEl.textContent = '0 results found';
                 return;
             }
             
             const entityName = data.entity_name || `Entity ${data.entity_id}`;
-            const entityLink = `https://pbjdashboard.com/?entity=${data.entity_id}`;
+            const entityLink = `https://pbj320.com/?entity=${data.entity_id}`;
             
             // Store entity data for filtering
             window.currentEntityData = data;
@@ -2693,7 +2693,7 @@
                                     <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}${legalBusinessName ? ' (' + escapeHtml(legalBusinessName) + ')' : ''}</h3>
                                     ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` • ${state}` : ''}</div>` : ''}
                                 </div>
-                                <a href="https://pbjdashboard.com/?facility=${ccn}" 
+                                <a href="https://pbj320.com/?facility=${ccn}" 
                                    target="_blank" 
                                    style="padding: 0.6rem 1.2rem; background: #667eea; color: white; text-decoration: none; border-radius: 6px; font-weight: 500; transition: background 0.3s; white-space: nowrap;"
                                    onmouseover="this.style.background='#5568d3'"
@@ -2848,14 +2848,14 @@
                                         ccnForLink = String(f.ccn).replace('O', '').replace(/[^0-9]/g, '').padStart(6, '0');
                                         // Only create link if CCN is valid (6 digits)
                                         if (ccnForLink.length === 6 && /^\d{6}$/.test(ccnForLink)) {
-                                            dashboardLink = `https://pbjdashboard.com/?facility=${ccnForLink}`;
+                                            dashboardLink = `https://pbj320.com/?facility=${ccnForLink}`;
                                         }
                                     }
                                     
                                     // Add entity link if available
                                     let entityLink = '';
                                     if (f.entity_id) {
-                                        entityLink = `https://pbjdashboard.com/?entity=${f.entity_id}`;
+                                        entityLink = `https://pbj320.com/?entity=${f.entity_id}`;
                                     }
                                     
                                     // Format rating badge
@@ -3208,7 +3208,29 @@
                     })
                 });
                 
-                const data = await response.json();
+                let data;
+                const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+                const isJson = contentType.indexOf('application/json') !== -1;
+                if (!response.ok) {
+                    const text = await response.text();
+                    let msg = 'Request failed. Please try again.';
+                    if (response.status === 502) msg = 'The request timed out (FEC can be slow). Please try again.';
+                    else if (response.status === 503) msg = 'Search is temporarily unavailable. Please try again later.';
+                    else if (response.status >= 500) msg = 'Server error. Please try again.';
+                    else if (text && text.length < 200) msg = text;
+                    targetContainer.innerHTML = '<div class="error">' + escapeHtml(msg) + '</div>';
+                    return;
+                }
+                if (!isJson) {
+                    targetContainer.innerHTML = '<div class="error">Invalid response from server. Please try again.</div>';
+                    return;
+                }
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    targetContainer.innerHTML = '<div class="error">Invalid response from server. Please try again.</div>';
+                    return;
+                }
                 
                 if (data.error) {
                     targetContainer.innerHTML = '<div class="error">' + escapeHtml(data.error) + '</div>';
@@ -3514,15 +3536,32 @@
                     })
                 });
                 
-                const data = await response.json();
-                
+                if (!response.ok) {
+                    const text = await response.text();
+                    let msg = 'Request failed. Please try again.';
+                    if (response.status === 502) msg = 'The request timed out (FEC can be slow). Please try again.';
+                    else if (response.status === 503) msg = 'Search is temporarily unavailable. Please try again later.';
+                    else if (response.status >= 500) msg = 'Server error. Please try again.';
+                    showError(msg);
+                    return;
+                }
+                const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+                if (contentType.indexOf('application/json') === -1) {
+                    showError('Invalid response from server. Please try again.');
+                    return;
+                }
+                let data;
+                try {
+                    data = await response.json();
+                } catch (parseErr) {
+                    showError('Invalid response from server. Please try again.');
+                    return;
+                }
                 if (data.error) {
                     showError(data.error);
                     return;
                 }
-                
                 displayDonations(data.donations, data.total, data.count, currentOwner.owner_type || 'ORGANIZATION', data.names_searched);
-                
             } catch (error) {
                 showError('Error searching for contributions: ' + error.message);
             }

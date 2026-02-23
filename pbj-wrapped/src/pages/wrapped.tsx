@@ -50,7 +50,7 @@ const Wrapped: React.FC = () => {
     if (identifier) {
       const params = parseRouteParams(year, identifier);
       if (params.scope && params.normalizedIdentifier) {
-        const baseUrl = 'https://www.pbj320.com';
+        const baseUrl = 'https://pbj320.com';
         const path = `/wrapped/${params.normalizedIdentifier}`;
         // Set basic SEO immediately with og:image so crawlers see it
         updateSEO({

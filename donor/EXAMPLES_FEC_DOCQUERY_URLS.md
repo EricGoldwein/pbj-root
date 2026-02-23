@@ -1,12 +1,36 @@
 # FEC docquery URL examples by form type (from OpenFEC API)
 
-These URLs are **derived from the actual FEC API** (OpenFEC `/filings` with `form_type`). We build them with `committee_id` + `file_number` from the API and path `sa/ALL`. Manual check results below show that **the API’s `file_number` is not always a valid docquery report id** — docquery can return “Invalid Report Id” even when the path (sa/ALL) is correct.
+**Fix applied (from your manual check):** The example script now gets **file_number from schedule_a** (same as production when we have a schedule_a record), not from `/filings` alone. See “Is the fix actually better?” below for caveats.
 
-**Regenerate candidate URLs:** `python donor/examples_fec_docquery_by_form_type.py`
+**Regenerate URLs:** `python donor/examples_fec_docquery_by_form_type.py`
 
 ---
 
-## Manual check results (user-verified)
+## Is the fix actually better, or could the failures have been one-off?
+
+**What we know:**
+
+- **Theory:** schedule_a’s `file_number` is the filing that contains that Schedule A line. Docquery’s report id is that filing. So when we have a schedule_a record, using its `file_number` is the right id. Using `/filings` we pick “a filing” for the committee (or form type); that filing’s id might not match what docquery expects.
+- **Evidence:** We saw 3 failures from ids that came from `/filings` (form_type only, any committee) and 2 successes from schedule_a-derived ids. So there’s a pattern, but the sample is small. We did **not** test production’s actual fallback: when we have no schedule_a record, we call `/filings` for **that committee + date range**. That’s a different use than “one filing per form_type across all committees,” so we don’t know if production’s /filings fallback would have failed for the same committees or if those failures were specific to how the example script called the API.
+- **What we changed:** Only the **example script** and docs. **Production was not changed.** Production already prefers schedule_a when present (step 2 in `build_schedule_a_docquery_link`) and falls back to `/filings` (committee + period) when we don’t have schedule_a (step 3). We did not remove or alter that fallback. So we didn’t break anything.
+- **Conclusion:** Preferring schedule_a for the report id is **theoretically correct** and **consistent** with what we saw. We can’t be 100% sure the /filings failures weren’t one-off or due to the example script’s different use of /filings (form_type vs committee+period). For accuracy/consistency: when we have a schedule_a record we should use its file_number (we already do). When we don’t, the /filings fallback is best-effort; if you see Invalid Report Id in production, it’s likely in that “no schedule_a, only committee+date” path.
+
+---
+
+## New URLs (from schedule_a — please verify)
+
+These use file_number from schedule_a (docquery-compatible report id):
+
+| Form | committee_id | file_number | URL |
+|------|--------------|-------------|-----|
+| **F3**  | C00461426 | 788875  | https://docquery.fec.gov/cgi-bin/forms/C00461426/788875/sa/ALL |
+| **F3P** | C00890079 | 1858667 | https://docquery.fec.gov/cgi-bin/forms/C00890079/1858667/sa/ALL |
+| **F3X**  | C00892471 | 1930534 | https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL |
+| **F3L**  | C00573949 | 1921470 | https://docquery.fec.gov/cgi-bin/forms/C00573949/1921470/sa/ALL |
+
+---
+
+## Manual check results (user-verified, before fix)
 
 | Form | committee_id | file_number | URL | Result |
 |------|--------------|-------------|-----|--------|
@@ -58,4 +82,4 @@ These URLs are **derived from the actual FEC API** (OpenFEC `/filings` with `for
 
 ---
 
-**For link logic:** We keep F13 → f132, all others → sa/ALL. When a link fails with “Invalid Report Id”, the cause is the **id** (file_number) we got from the API, not the path. Improving id source (e.g. prefer docquery-compatible id from filings or schedule_a) would be a separate change.
+**Fix:** In production we already prefer file_number from the schedule_a record when building links. The example script was updated to do the same so it outputs URLs that docquery accepts. Link logic unchanged: F13 → f132, all others → sa/ALL.

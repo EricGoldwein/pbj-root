@@ -1,7 +1,7 @@
 """
-Fetch one filing per form type (F3, F3P, F3X, F3L) from the FEC API and print
-the docquery URL we derive. Use these URLs to manually verify that sa/ALL works
-for each form type.
+Fetch one Schedule A per form type (F3, F3P, F3X, F3L) from the FEC API and print
+the docquery URL we derive. Uses file_number from schedule_a (same as production)
+so docquery accepts the report id; /filings file_number often gives Invalid Report Id.
 
 Usage (from project root, with FEC_API_KEY in donor/.env or env):
   python donor/examples_fec_docquery_by_form_type.py
@@ -35,6 +35,7 @@ from fec_api_client import (
     DOCQUERY_BASE_URL,
     FEC_API_BASE_URL,
     docquery_path_for_form_type,
+    query_donations_by_committee,
     query_filings_by_committee,
 )
 # Use same validity check as link builder (4-12 digit filing number; docquery rejects negative/other)
@@ -52,13 +53,13 @@ except ImportError:
 import requests
 import time
 
-# Known committees that file each form type (for when /filings?form_type= alone returns nothing).
+# Known committees that file each form type; we use schedule_a from these so file_number = docquery report id.
 # F3 = House/Senate, F3P = Presidential, F3X = PAC/party, F3L = Lobbyist bundling.
 KNOWN_COMMITTEE_BY_FORM = {
+    "F3": "C00541474",    # Committee to Elect Shawn Pinkston (House)
+    "F3P": "C00890079",   # Conservative American Middle Eastern PAC (Form 3P)
     "F3X": "C00892471",   # MAGA Inc. (PAC)
-    "F3": "C00703975",    # Example House committee (e.g. a candidate committee)
-    "F3P": "C00848793",   # Example presidential committee
-    "F3L": None,          # Less common; we'll try API first
+    "F3L": "C00573949",   # Josh Gottheimer for Congress (F3L; 1943222 works)
 }
 
 
@@ -66,69 +67,74 @@ def _rate_limit():
     time.sleep(0.6)
 
 
-def fetch_one_filing_by_form_type(form_type: str):
-    """Get one filing of the given form_type with a valid file_number (4-12 digits) for docquery. Returns (committee_id, file_number, form_type) or None."""
+def fetch_one_schedule_a_by_form_type(form_type: str):
+    """Get one schedule_a record for the form_type; use its file_number (docquery accepts this). Returns (committee_id, file_number, form_type) or None."""
+    # Prefer schedule_a: file_number from the filing that contains that Schedule A is what docquery expects (avoids Invalid Report Id from /filings).
+    cid = KNOWN_COMMITTEE_BY_FORM.get(form_type)
+    if cid:
+        _rate_limit()
+        try:
+            records = query_donations_by_committee(cid, per_page=10, max_pages=1)
+            for rec in records:
+                fn = rec.get("file_number")
+                ft = (rec.get("form_type") or "").strip() or form_type
+                if fn is not None and _is_valid_filing_image_id(fn):
+                    return (cid, str(fn).strip().lstrip("FEC-"), ft)
+        except Exception:
+            pass
+    # Fallback: get committee from /filings?form_type=, then schedule_a for that committee.
     api_key = os.environ.get("FEC_API_KEY", "DEMO_KEY")
-    # Try global filings endpoint with form_type filter; request a few pages to find valid file_number.
     _rate_limit()
     try:
         r = requests.get(
             f"{FEC_API_BASE_URL}/filings",
-            params={
-                "api_key": api_key,
-                "form_type": form_type,
-                "per_page": 20,
-                "sort": "-receipt_date",
-            },
+            params={"api_key": api_key, "form_type": form_type, "per_page": 5, "sort": "-receipt_date"},
             timeout=30,
         )
         r.raise_for_status()
         results = (r.json() or {}).get("results") or []
         for f in results:
             cid = (f.get("committee") or {}).get("committee_id") or f.get("committee_id") or ""
-            fn = f.get("file_number") or f.get("image_number")
-            ft = (f.get("form_type") or "").strip() or form_type
-            if cid and fn is not None and _is_valid_filing_image_id(fn):
-                return (str(cid).strip(), str(fn).strip().lstrip("FEC-"), ft)
+            if not cid:
+                continue
+            _rate_limit()
+            try:
+                records = query_donations_by_committee(cid, per_page=5, max_pages=1)
+                for rec in records:
+                    fn = rec.get("file_number")
+                    ft = (rec.get("form_type") or "").strip() or form_type
+                    if fn is not None and _is_valid_filing_image_id(fn):
+                        return (str(cid).strip(), str(fn).strip().lstrip("FEC-"), ft)
+            except Exception:
+                continue
     except Exception:
         pass
-    # Fallback: use known committee for this form type.
-    cid = KNOWN_COMMITTEE_BY_FORM.get(form_type)
-    if not cid:
-        return None
-    filings = query_filings_by_committee(cid, form_type=form_type, per_page=20, max_pages=1)
-    for f in filings:
-        fn = f.get("file_number") or f.get("image_number")
-        ft = (f.get("form_type") or "").strip() or form_type
-        if fn is not None and _is_valid_filing_image_id(fn):
-            return (cid, str(fn).strip().lstrip("FEC-"), ft)
     return None
 
 
 def main():
     print("=" * 70)
-    print("FEC docquery URLs derived from API by form type (F3, F3P, F3X, F3L)")
+    print("FEC docquery URLs from schedule_a (same id source as production)")
     print("=" * 70)
-    print("Each URL is built from: committee_id + file_number from OpenFEC /filings/,")
-    print("path = docquery_path_for_form_type(form_type) -> sa/ALL for these types.\n")
+    print("file_number from schedule_a = docquery report id; /filings often gives Invalid Report Id.\n")
 
     for form_type in ("F3", "F3P", "F3X", "F3L"):
-        row = fetch_one_filing_by_form_type(form_type)
+        row = fetch_one_schedule_a_by_form_type(form_type)
         if not row:
-            print(f"{form_type}: No filing found (skip or add committee to KNOWN_COMMITTEE_BY_FORM).\n")
+            print(f"{form_type}: No schedule_a record found (add committee to KNOWN_COMMITTEE_BY_FORM).\n")
             continue
         committee_id, file_number, resolved_form = row
         path = docquery_path_for_form_type(resolved_form)
         url = f"{DOCQUERY_BASE_URL}/{committee_id}/{file_number}/{path}"
         print(f"Form type: {resolved_form}")
         print(f"  committee_id: {committee_id}")
-        print(f"  file_number:  {file_number}")
+        print(f"  file_number:  {file_number} (from schedule_a)")
         print(f"  path:         {path}")
         print(f"  URL:          {url}")
         print()
 
     print("=" * 70)
-    print("Open each URL in a browser; you should see 'SCHEDULE A - ITEMIZED RECEIPTS'.")
+    print("Open each URL in a browser; you should see Schedule A itemized receipts.")
     print("=" * 70)
 
 

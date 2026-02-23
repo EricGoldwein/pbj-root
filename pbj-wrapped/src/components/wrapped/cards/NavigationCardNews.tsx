@@ -31,7 +31,7 @@ export const NavigationCardNews: React.FC<NavigationCardNewsProps> = ({ data, on
           </a>
           
           <a
-            href="https://pbjdashboard.com"
+            href="https://pbj320.com"
             target="_blank"
             rel="noopener noreferrer"
             className="block w-full py-3 px-6 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg transition-all duration-200 text-center"

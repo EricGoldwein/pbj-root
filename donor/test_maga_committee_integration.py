@@ -1,25 +1,25 @@
 """
-Internal check: replicate exactly what the live site does for MAGA Inc. committee search.
+Replicate Render for MAGA Inc. committee search.
 
-Calls the same HTTP endpoint the browser calls on Render:
-  GET /api/search/committee?q=C00892471  (or q=MAGA Inc.)
-
-Asserts:
-  a) Request does NOT time out (completes within 115s; gunicorn timeout is 120s).
-  b) Response is 200 and Landa (Benjamin Landa, $5M) appears in the returned data.
+- Uses the SAME app and URL as the site: main app (app.py) + GET /owners/api/search/committee?q=C00892471
+  so the request goes through owner_api_proxy and lazy-loads owner_donor_dashboard (same as Render).
+- Enforces Render's gunicorn worker timeout: request must finish in 90s (gunicorn_config.py has timeout=120;
+  we use 90s so if we pass locally we have margin on slower Render).
+- Requires FEC_API_KEY. Uses real FEC API and full owner DB.
 
 Run from repo root:
   python -m donor.test_maga_committee_integration
 
-Requires FEC_API_KEY. Uses real FEC API (no mocks) so behavior matches production.
+Pass = 200, completed in <90s, Landa in response.
+Fail = timeout (>90s), 500, or Landa missing.
 """
 import concurrent.futures
-import json
+import os
 import sys
 import time
 from pathlib import Path
 
-# Run from repo root; donor dir on path for imports
+# Repo root and donor on path so app.py and donor imports resolve
 donor_dir = Path(__file__).resolve().parent
 repo_root = donor_dir.parent
 if str(repo_root) not in sys.path:
@@ -27,8 +27,21 @@ if str(repo_root) not in sys.path:
 if str(donor_dir) not in sys.path:
     sys.path.insert(0, str(donor_dir))
 
-# Gunicorn on Render uses timeout=120; fail if our request would exceed 115s
-REQUEST_TIMEOUT_SEC = 115
+# Match Render: read gunicorn timeout from gunicorn_config.py; fail if request exceeds (timeout - 30)s
+try:
+    import importlib.util
+    _spec = importlib.util.spec_from_file_location("gunicorn_config", repo_root / "gunicorn_config.py")
+    _mod = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(_mod)
+    GUNICORN_TIMEOUT = int(getattr(_mod, "timeout", 120))
+except Exception:
+    GUNICORN_TIMEOUT = 120
+REQUEST_TIMEOUT_SEC = max(60, GUNICORN_TIMEOUT - 30)
+if os.environ.get("MAGA_TEST_TIMEOUT"):
+    try:
+        REQUEST_TIMEOUT_SEC = int(os.environ["MAGA_TEST_TIMEOUT"])
+    except ValueError:
+        pass
 
 
 def _find_landa_in_response(data):
@@ -39,22 +52,19 @@ def _find_landa_in_response(data):
             return False
         amt = rec.get("amount") or rec.get("total_contributed") or rec.get("contribution_receipt_amount") or 0
         try:
-            return float(amt) >= 4_999_000  # 5M
+            return float(amt) >= 4_999_000
         except (TypeError, ValueError):
             return False
 
-    owners = data.get("owners") or []
-    for o in owners:
+    for o in (data.get("owners") or []):
         if has_landa_5m(o):
-            return True, f"owners: {o.get('owner_name')} / {o.get('contributor_name_fec')} ${o.get('total_contributed')}"
-    raw = data.get("raw_contributions") or []
-    for r in raw:
+            return True, "owners: {} / {} ${}".format(o.get("owner_name"), o.get("contributor_name_fec"), o.get("total_contributed"))
+    for r in (data.get("raw_contributions") or []):
         if has_landa_5m(r):
-            return True, f"raw_contributions: {r.get('donor_name')} ${r.get('amount')}"
-    all_c = data.get("all_contributions") or []
-    for c in all_c:
+            return True, "raw_contributions: {} ${}".format(r.get("donor_name"), r.get("amount"))
+    for c in (data.get("all_contributions") or []):
         if has_landa_5m(c):
-            return True, f"all_contributions: {c.get('donor_name')} ${c.get('amount')}"
+            return True, "all_contributions: {} ${}".format(c.get("donor_name"), c.get("amount"))
     return False, None
 
 
@@ -65,20 +75,20 @@ def run_integration_test():
         print("ERROR: Set FEC_API_KEY in donor/.env or environment.")
         return False, "FEC_API_KEY missing"
 
-    # Import app after path setup so BASE_DIR and data paths resolve correctly
-    from owner_donor_dashboard import app as owner_app
+    # Main app (app.py) so request goes through /owners/api/... proxy and lazy-loads owner_donor_dashboard (same as Render)
+    from app import app as main_app
 
-    client = owner_app.test_client()
-    url = "/api/search/committee?q=C00892471"  # same as live when user selects "MAGA Inc." from autocomplete
+    client = main_app.test_client()
+    url = "/owners/api/search/committee?q=C00892471"
 
-    print("Internal check: MAGA Inc. committee search (same as live site)")
-    print("  Endpoint: GET " + url)
-    print("  Timeout: request must complete within {}s (gunicorn=120s)".format(REQUEST_TIMEOUT_SEC))
+    print("Replicating Render: MAGA Inc. committee search")
+    print("  App: main app (app.py) -> /owners/api/... proxy -> owner_donor_dashboard (same as site)")
+    print("  URL: GET {}".format(url))
+    print("  Limit: request must finish in {}s (Render gunicorn timeout={}s)".format(REQUEST_TIMEOUT_SEC, GUNICORN_TIMEOUT))
     print()
 
     start = time.perf_counter()
     response = None
-    timeout_occurred = False
 
     def do_request():
         return client.get(url)
@@ -89,7 +99,7 @@ def run_integration_test():
             try:
                 response = future.result(timeout=REQUEST_TIMEOUT_SEC)
             except concurrent.futures.TimeoutError:
-                return False, "REQUEST_TIMED_OUT"
+                return False, "REQUEST_TIMED_OUT (>{}s - would hit Render worker timeout)".format(REQUEST_TIMEOUT_SEC)
     except Exception as e:
         return False, "request_failed: " + str(e)
 
@@ -122,8 +132,8 @@ def run_integration_test():
         return False, "Landa not in response (owners/raw_contributions/all_contributions)"
 
     print("  Committee: {} ({})".format(committee.get("name"), cid))
-    print("  Landa: YES — {}".format(details))
-    print("  OK: no timeout, 200, Landa included.")
+    print("  Landa: YES - {}".format(details))
+    print("  OK: completed in {:.1f}s (<{}s), 200, Landa included.".format(elapsed, REQUEST_TIMEOUT_SEC))
     return True, None
 
 
@@ -131,7 +141,7 @@ def main():
     ok, err = run_integration_test()
     if ok:
         print()
-        print("PASS: MAGA Inc. committee search would succeed on live site (no timeout, Landa returned).")
+        print("PASS: Same request would succeed on Render (under timeout, 200, Landa returned).")
         return 0
     print()
     print("FAIL: " + (err or "unknown"))

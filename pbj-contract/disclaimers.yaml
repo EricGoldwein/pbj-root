@@ -1,0 +1,50 @@
+# pbj-contract/disclaimers.yaml
+# Boilerplate methodology and caveats.
+# Extracted verbatim or near-verbatim from PBJPedia (pbj-root).
+# PBJapp alignment not verified.
+
+# ------------------------------------------------------------------------------
+# HPRD formula (canonical)
+# ------------------------------------------------------------------------------
+hprd_formula:
+  text: "HPRD = Total paid hours ÷ Resident days"
+  note: "Resident days from MDS assessments."
+  source: "PBJPedia metrics"
+
+# ------------------------------------------------------------------------------
+# CMS caveats (methodology)
+# ------------------------------------------------------------------------------
+cms_caveats:
+  - "PBJ data are designed for compliance monitoring, not for measuring care quality."
+  - "Facilities report only paid hours; unpaid or volunteer work is not captured."
+  - "The PBJ system cannot indicate noncompliance with other long-term care requirements (e.g., eight-hour RN coverage)."
+  - "Extreme values may remain because inclusion/exclusion rules are applied at the facility-quarter level."
+  - "Job categories differ from earlier surveys (CMS-671); staffing values may not be directly comparable."
+  - "Physician and non-physician practitioner hours are often underreported (billed separately, not paid by facilities)."
+  source: "PBJPedia methodology, data-limitations"
+
+# ------------------------------------------------------------------------------
+# Data limitations (key bullets)
+# ------------------------------------------------------------------------------
+data_limitations:
+  paid_hours_only: "PBJ captures only hours for which staff are paid. Unpaid overtime or volunteer work is not reported. Salaried workers may work additional hours that are unpaid and therefore unreported."
+  no_wages_shift_times: "PBJ does not include wage information or the start and end times of shifts."
+  limited_acuity: "Resident census counts are derived from MDS assessments, but PBJ data do not provide resident-level acuity or case mix. HPRD metrics should be interpreted in context."
+  administrative_vs_direct: "PBJ combines administrative and direct-care hours for some job categories. Administrative hours are included per CMS rules but are conceptually distinct from direct-care hours."
+  quarterly_exclusions: "Inclusion and exclusion criteria are applied at the facility-quarter level. Extreme daily values may remain in the data."
+  incomplete_submissions: "PBJ PUFs include only data received by the reporting deadline. Facilities that submit incomplete or erroneous data are excluded entirely. Coverage may vary across quarters."
+  source: "PBJPedia data-limitations"
+
+# ------------------------------------------------------------------------------
+# Interpretive guidance
+# ------------------------------------------------------------------------------
+interpretation:
+  text: "PBJ data are best used comparatively and contextually. Higher HPRD values generally indicate more staffing time per resident, but they do not necessarily reflect staffing adequacy or quality of care. Consider staffing mix (RN to CNA ratio), weekend vs weekday staffing, contract vs employee hours, and facility characteristics. PBJ data do not indicate compliance with specific regulations. For policy analysis, combine PBJ with MDS quality measures, survey deficiencies, and financial data."
+  source: "PBJPedia data-limitations, metrics"
+
+# ------------------------------------------------------------------------------
+# HPRD is input, not quality
+# ------------------------------------------------------------------------------
+hprd_disclaimer:
+  text: "HPRD is a measure of staffing input, not quality of care. Higher HPRD values generally indicate more staff time per resident, but they do not guarantee better outcomes."
+  source: "PBJPedia metrics"

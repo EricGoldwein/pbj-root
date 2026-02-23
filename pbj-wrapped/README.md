@@ -54,7 +54,7 @@ The application expects Q2 2025 (and Q1 2025 for comparisons) data in the CSV fi
 - 7 standardized data sections per page
 - Auto-advancing slides with touch/keyboard navigation
 - Mobile-responsive design
-- Links to pbjdashboard.com for facilities and states
+- Links to pbj320.com for facilities and states
 - Clear, factual presentation without editorializing
 
 ## Sections

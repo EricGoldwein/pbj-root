@@ -60,8 +60,8 @@ export const USAStatesExtremesCard: React.FC<USAStatesExtremesCardProps> = ({ da
         trackStateLinkClick(facility.state, stateName, 'USA States Extremes');
         navigate(facility.link);
       } else {
-        // External link to pbjdashboard
-        if (facility.link.includes('pbjdashboard.com')) {
+        // External link to pbj320
+        if (facility.link.includes('pbj320.com')) {
           trackStateLinkClick(facility.state, stateName, 'USA States Extremes - Dashboard');
         }
       }

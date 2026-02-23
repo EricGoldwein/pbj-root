@@ -167,40 +167,6 @@
     .phoebe-card a:hover { text-decoration: underline; color: #bae6fd; }
     .phoebe-card strong { color: rgba(255,255,255,0.95); }
     .phoebe-card em { color: rgba(255,255,255,0.75); font-style: italic; }
-    .cta-row {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-      margin-top: 2rem;
-      padding-top: 2rem;
-      border-top: 1px solid rgba(255,255,255,0.08);
-    }
-    .cta-btn {
-      display: inline-flex;
-      align-items: center;
-      background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-      color: white !important;
-      padding: 12px 20px;
-      border-radius: 10px;
-      font-weight: 600;
-      text-decoration: none !important;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 15px rgba(96, 165, 250, 0.3);
-    }
-    .cta-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(96, 165, 250, 0.4);
-    }
-    .cta-btn.secondary {
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.2);
-      box-shadow: none;
-    }
-    .cta-btn.secondary:hover {
-      background: rgba(255,255,255,0.12);
-      border-color: rgba(255,255,255,0.3);
-    }
     .footer {
       text-align: center;
       padding: 1.5rem 1rem;
@@ -252,8 +218,6 @@
       .phoebe-hero h1 { font-size: 1.25rem; line-height: 1.4; margin: 0; }
       .phoebe-who-pop { left: auto; right: 0; transform: none; }
       .phoebe-card h2:not(:first-of-type) { margin-top: 2rem; }
-      .cta-row { margin-top: 1.5rem; padding-top: 1.5rem; grid-template-columns: 1fr; }
-      .cta-btn { justify-content: center; }
     }
   </style>
 </head>
@@ -268,7 +232,6 @@
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
-        <a href="https://pbjdashboard.com/" class="nav-link">Dashboard</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link">Report</a>
         <a href="/phoebe" class="nav-link active">PBJ Explained</a>
@@ -292,13 +255,13 @@
       </div>
 
       <h2>What is PBJ?</h2>
-      <p><strong>PBJ</strong> (Payroll-Based Journal) is the <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">federal system that tracks staffing</a> in U.S. nursing homes. Medicare- and Medicaid-certified facilities must report who worked, what they did, and how many hours—using payroll records—each quarter. The data is public and covers more than 15,000 nursing homes.</p>
+      <p>PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
 
       <h2>Why does it matter?</h2>
       <p>Staffing levels are one of the strongest predictors of nursing home quality. More staff per resident generally means more time for care.</p>
 
       <h2>What is HPRD?</h2>
-      <p><strong>HPRD</strong> (hours per resident day) is the standard metric. It answers: <em>On average, how many hours of nursing staff time did each resident get per day?</em> For example, 4.0 HPRD means each resident had the equivalent of 4 hours of nursing care per day. Higher numbers usually mean more staffing; benchmarks often cite around 4.1 HPRD as a recommended minimum for direct care.</p>
+      <p><strong>HPRD</strong> (hours per resident day) is the standard metric. It answers: <em>On average, how many hours of nursing staff time did each resident get per day?</em> For example, 4.0 HPRD means each resident had the equivalent of 4 hours of nursing care per day. Higher numbers usually mean more staffing; benchmarks often cite 3.5 or 4.1 HPRD as a recommended minimum for direct care.</p>
 
       <h2>Key positions in PBJ</h2>
       <p>PBJ tracks several nursing roles:</p>
@@ -311,15 +274,8 @@
       <p>PBJ also records non-nursing roles (administrators, medical directors, therapists, dietary, housekeeping, etc.) and whether hours are from facility employees or contract staff.</p>
 
       <h2>What PBJ doesn't tell you</h2>
-      <p>PBJ reports paid staffing hours only. It doesn't include wages, volunteer time, resident complexity, or overall care quality. It shows staffing levels — not care outcomes — and should be interpreted alongside other information about a facility.</p>
-
-      <h2>Get started</h2>
-      <div class="cta-row">
-        <a href="https://pbjdashboard.com/" class="cta-btn secondary">Explore the PBJ Dashboard</a>
-        <a href="/insights" class="cta-btn secondary">Phoebe J's Insights</a>
-        <a href="https://www.320insight.com/phoebe" class="cta-btn secondary" target="_blank" rel="noopener">Try Phoebe J</a>
-        <a href="/about" class="cta-btn secondary">About</a>
-      </div>
+      <p>PBJ reports paid staffing hours only. It doesn't include wages, volunteer time, resident complexity, or overall care quality. It shows staffing levels — not care outcomes.</p>
+      <p>More hours doesn't mean better care: quantity isn't quality. PBJ doesn't tell you how skilled or experienced the staff are, only how many hours were reported. Shifts and daily staffing can vary a lot; the numbers you see are averages. Facilities can also make reporting mistakes, so the data isn't perfect. Use PBJ alongside other information about a facility when making decisions.</p>
     </div>
   </main>
 

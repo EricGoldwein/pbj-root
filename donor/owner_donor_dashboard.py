@@ -2,6 +2,9 @@
 Nursing Home Owner Donation Search Dashboard
 For journalists and attorneys to search owners and view political donations
 """
+# pyright: reportCallIssue=false, reportArgumentType=false, reportAttributeAccessIssue=false
+# pyright: reportGeneralTypeIssues=false, reportOptionalMemberAccess=false
+# pyright: reportOptionalSubscript=false, reportPossiblyUnboundVariable=false
 
 from flask import Flask, render_template, jsonify, request
 import pandas as pd
@@ -141,7 +144,8 @@ def sanitize_for_json(obj):
         if obj != obj or obj == float('inf') or obj == float('-inf'):  # nan or inf
             return None
     # NumPy scalars (e.g. from DataFrame row) - convert to Python type or None
-    if hasattr(obj, 'item'):
+    # (built-in int/float don't have .item(); only numpy scalars do)
+    if hasattr(obj, "item") and not isinstance(obj, (int, float, bool)):
         try:
             v = obj.item()
             return sanitize_for_json(v)
@@ -598,13 +602,29 @@ def _fec_contributor_matches_owner(contributor_name: str, owner_name: str, owner
     return False
 
 
+def _name_looks_like_individual(name: str) -> bool:
+    """Heuristic: treat UNKNOWN as individual when name looks like a person (e.g. 'STEVEN M ROSENZWEIG')."""
+    if not name or not isinstance(name, str):
+        return False
+    parts = str(name).upper().strip().split()
+    if len(parts) < 2 or len(parts) > 5:
+        return False
+    org_suffixes = {'LLC', 'INC', 'CORP', 'LP', 'LTD', 'CO', 'CORPORATION', 'L.L.C.', 'L.L.C', 'I.N.C.', 'I.N.C'}
+    for p in parts:
+        if p.rstrip('.') in org_suffixes:
+            return False
+    return True
+
+
 def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
     """Normalize name and generate variations for flexible matching"""
     if pd.isna(name) or not name:
         return []
     
     name_upper = str(name).upper().strip()
-    is_individual = owner_type.upper() == "INDIVIDUAL"
+    ot = (owner_type or '').strip().upper()
+    # Use individual-style name variants (First Last, Last First, middle initial) when type is INDIVIDUAL or UNKNOWN with person-like name
+    is_individual = ot == "INDIVIDUAL" or (ot == "UNKNOWN" and _name_looks_like_individual(name_upper))
     parts = name_upper.split()
     
     # Build in order so we try FEC-best variants first (API returns well for "First Last" and "Last, First")
@@ -3107,12 +3127,22 @@ def query_fec():
     try:
         all_donations = []
         
-        # Generate name variations for comprehensive search
-        name_variations = normalize_name_for_search(owner_name, owner_type)
-        name_variations.append(owner_name.upper())  # Add original
+        # Generate name variations for comprehensive search (includes middle-name variants for individuals / person-like UNKNOWN)
+        try:
+            name_variations = list(normalize_name_for_search(owner_name, owner_type) or [])
+        except Exception as e:
+            print(f"[WARNING] normalize_name_for_search failed for {owner_name!r}: {e}")
+            name_variations = []
+        orig_upper = (owner_name or "").strip().upper()
+        if orig_upper and orig_upper not in name_variations:
+            name_variations.append(orig_upper)
         
-        # Determine FEC API contributor type
-        fec_type = "individual" if owner_type == "INDIVIDUAL" else None
+        # Determine FEC API contributor type (individual filter for INDIVIDUAL or UNKNOWN with person-like name)
+        use_individual_filter = (
+            owner_type == "INDIVIDUAL"
+            or (owner_type == "UNKNOWN" and _name_looks_like_individual(owner_name))
+        )
+        fec_type = "individual" if use_individual_filter else None
         
         # Query with each name variation; stop as soon as we get results (avoids 5× slow calls)
         seen_ids = set()

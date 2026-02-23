@@ -50,7 +50,7 @@ export const RisersCard: React.FC<RisersCardProps> = ({ data }) => {
           e.preventDefault();
           trackStateLinkClick(stateItem.state, stateName, 'Risers');
           window.location.href = stateItem.link;
-        } else if (stateItem.link.includes('pbjdashboard.com')) {
+        } else if (stateItem.link.includes('pbj320.com')) {
           trackStateLinkClick(stateItem.state, stateName, 'Risers - Dashboard');
         }
       };

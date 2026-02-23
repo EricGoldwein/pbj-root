@@ -23,7 +23,7 @@ For detailed staffing data and standards by state, see individual state pages:
 - [New York](/new-york) – State staffing requirements and PBJ data
 - [California](/california) – State staffing requirements and PBJ data
 
-View all state pages at [pbj320.com](https://pbj320.com) or explore state-specific PBJ data using the [PBJ Dashboard](https://pbjdashboard.com/).
+View all state pages at [pbj320.com](https://pbj320.com) or explore state-specific PBJ data using the [PBJ Dashboard](https://pbj320.com/).
 
 ## PBJpedia Navigation
 

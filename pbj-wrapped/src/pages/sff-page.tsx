@@ -125,7 +125,7 @@ export default function SFFPage() {
   // Update SEO/OG tags based on page scope
   // Fetch dynamic source dates (PBJ quarter, SFF posting) from main site API
   useEffect(() => {
-    const apiBase = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://www.pbj320.com';
+    const apiBase = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://pbj320.com';
     fetch(`${apiBase}/api/dates`)
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {

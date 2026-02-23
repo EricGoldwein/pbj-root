@@ -1,11 +1,14 @@
 # Data sources and publishability
 
+**Canonical external URLs, contact info, and link structure:** see [SOURCES.md](SOURCES.md).
+
 ## What’s in git (publishable)
 
 - **App and static site**: `app.py`, HTML (index, about, press, report, insights, etc.), static assets, `search_index.json`.
 - **PBJ Wrapped / dashboard data**: `pbj-wrapped/public/data/json/` (e.g. facility/state JSON by region), `pbj-wrapped/public/sff-facilities.json`, `pbj-wrapped/public/data/json/state_standards.json`, `state_agency_contact.json`, etc.
 - **Donor dashboard**: FEC committee master CSVs under `donor/data/fec_committee_master/` (explicitly un-ignored).
 - **Provider info (owner dashboard)**: `provider_info/NH_ProviderInfo_Jan2026.csv` (un-ignored).
+- **Chain performance (entity pages)**: `2025-11/Chain_Performance_*.csv` (e.g. `Chain_Performance_20251205.csv`). Not gitignored; include in repo or place on server for entity-page chain metrics (facilities, states, SFF, abuse, fines, CMS star ratings, ownership mix).
 
 ## What’s gitignored (not in repo – server or local only)
 

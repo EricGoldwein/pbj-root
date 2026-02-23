@@ -41,7 +41,8 @@ for (const dir of [
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
-const TARGET_QUARTERS = ['2025Q1', '2025Q2'];
+// We are in Q3 2025: compare Q2 (previous) vs Q3 (current)
+const TARGET_QUARTERS = ['2025Q2', '2025Q3'];
 
 /** Normalize quarter from provider_info_combined.csv to YYYYQn (e.g. 2025Q1). Handles empty, "2025Q1", "2025 Q1", "Q1 2025", "2025-Q1", or date "2025-03-31". */
 function normalizeQuarterForProvider(raw) {
@@ -299,8 +300,8 @@ function processProviderInfo() {
         }
         const parsedRow = parseProviderInfoRow(raw);
         processedRows++;
-        if (parsedRow.CY_Qtr === '2025Q1') providerQ1.push(parsedRow);
-        else if (parsedRow.CY_Qtr === '2025Q2') providerQ2.push(parsedRow);
+        if (parsedRow.CY_Qtr === '2025Q2') providerQ1.push(parsedRow);
+        else if (parsedRow.CY_Qtr === '2025Q3') providerQ2.push(parsedRow);
         if (processedRows % 100000 === 0) {
           console.log(`  Processed ${processedRows.toLocaleString()} rows... (Q1: ${providerQ1.length}, Q2: ${providerQ2.length})`);
         }
@@ -365,12 +366,12 @@ async function runPreprocessing() {
       const sampleRow = stateRows[0];
       console.log(`  Sample parsed row - STATE: "${sampleRow.STATE}", CY_Qtr: "${sampleRow.CY_Qtr}" (type: ${typeof sampleRow.CY_Qtr})`);
       
-      // Check if any rows have 2025Q1 - do this BEFORE filtering
+      // Check if any rows have 2025Q2 - do this BEFORE filtering
       const q1Test = stateRows.filter(r => {
         const q = (r.CY_Qtr || '').toString().trim().toUpperCase();
-        return q === '2025Q1';
+        return q === '2025Q2';
       });
-      console.log(`  ✅ Rows with exact "2025Q1" match BEFORE filterByQuarter: ${q1Test.length}`);
+      console.log(`  ✅ Rows with exact "2025Q2" match BEFORE filterByQuarter: ${q1Test.length}`);
       
       if (q1Test.length > 0) {
         console.log(`  ✅ Sample Q1 row: STATE=${q1Test[0].STATE}, CY_Qtr="${q1Test[0].CY_Qtr}"`);
@@ -387,28 +388,24 @@ async function runPreprocessing() {
     console.log(`  All unique quarters (first 20): ${allQuarters.slice(0, 20).join(', ')}`);
     
     // Try filtering with multiple quarter format attempts
-    let stateQ1 = filterByQuarter(stateRows, ['2025Q1']);
-    let stateQ2 = filterByQuarter(stateRows, ['2025Q2']);
+    let stateQ1 = filterByQuarter(stateRows, ['2025Q2']);
+    let stateQ2 = filterByQuarter(stateRows, ['2025Q3']);
     
     console.log(`  After filterByQuarter - Q1: ${stateQ1.length} rows, Q2: ${stateQ2.length} rows`);
     
     // If Q1 is empty, try DIRECT filtering (bypass filterByQuarter)
     if (stateQ1.length === 0) {
-      console.warn(`  ⚠️ No 2025Q1 data found with filterByQuarter. Trying DIRECT filtering...`);
+      console.warn(`  ⚠️ No 2025Q2 data found with filterByQuarter. Trying DIRECT filtering...`);
       const sampleQuarters = [...new Set(stateRows.slice(0, 100).map(r => r.CY_Qtr).filter(Boolean))];
       console.warn(`  Sample quarter values from first 100 rows: ${sampleQuarters.slice(0, 10).join(', ')}`);
       
-      // DIRECT filter - check every row manually
       stateQ1 = stateRows.filter((row) => {
         const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
-        const matches = q === '2025Q1';
-        return matches;
+        return q === '2025Q2';
       });
-      
       stateQ2 = stateRows.filter((row) => {
         const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
-        const matches = q === '2025Q2';
-        return matches;
+        return q === '2025Q3';
       });
       
       console.log(`  After DIRECT filtering - Q1: ${stateQ1.length} rows, Q2: ${stateQ2.length} rows`);
@@ -416,14 +413,14 @@ async function runPreprocessing() {
       // If STILL empty, try even more flexible matching
       if (stateQ1.length === 0) {
         console.warn(`  ⚠️ Still no Q1 data. Trying flexible matching...`);
-        stateQ1 = stateRows.filter((row) => {
-          const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
-          return q.includes('2025') && q.includes('Q1');
-        });
-        stateQ2 = stateRows.filter((row) => {
-          const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
-          return q.includes('2025') && q.includes('Q2');
-        });
+      stateQ1 = stateRows.filter((row) => {
+        const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
+        return q.includes('2025') && q.includes('Q2');
+      });
+      stateQ2 = stateRows.filter((row) => {
+        const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
+        return q.includes('2025') && q.includes('Q3');
+      });
         console.log(`  After flexible matching - Q1: ${stateQ1.length} rows, Q2: ${stateQ2.length} rows`);
       }
     }
@@ -459,8 +456,8 @@ async function runPreprocessing() {
     
     // Verify files were written
     if (stateQ1.length === 0) {
-      console.error(`  ❌ ERROR: state_q1.json is EMPTY! Q1 data was not found in CSV.`);
-      console.error(`  This means trends will show 0.00. Check the CSV file for 2025Q1 data.`);
+      console.error(`  ❌ ERROR: state_q1.json is EMPTY! Q2 data was not found in CSV.`);
+      console.error(`  This means trends will show 0.00. Check the CSV file for 2025Q2 data.`);
     } else {
       console.log(`  ✅ SUCCESS: state_q1.json contains ${stateQ1.length} rows of Q1 data`);
     }
@@ -479,27 +476,23 @@ async function runPreprocessing() {
     console.log(`  Found 2025 quarters in region data: ${regionQuarters2025.join(', ')}`);
     console.log(`  All unique region quarters (first 20): ${allRegionQuarters.slice(0, 20).join(', ')}`);
     
-    let regionQ1 = filterByQuarter(regionRows, ['2025Q1']);
-    let regionQ2 = filterByQuarter(regionRows, ['2025Q2']);
+    let regionQ1 = filterByQuarter(regionRows, ['2025Q2']);
+    let regionQ2 = filterByQuarter(regionRows, ['2025Q3']);
     console.log(`  After filterByQuarter - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
     
     // If Q1 is empty, try DIRECT filtering (similar to state data)
     if (regionQ1.length === 0) {
-      console.warn(`  ⚠️ No 2025Q1 data found with filterByQuarter. Trying DIRECT filtering...`);
+      console.warn(`  ⚠️ No 2025Q2 data found with filterByQuarter. Trying DIRECT filtering...`);
       const sampleQuarters = [...new Set(regionRows.slice(0, 100).map(r => r.CY_Qtr).filter(Boolean))];
       console.warn(`  Sample quarter values from first 100 rows: ${sampleQuarters.slice(0, 10).join(', ')}`);
       
-      // DIRECT filter - check every row manually
       regionQ1 = regionRows.filter((row) => {
         const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
-        const matches = q === '2025Q1';
-        return matches;
+        return q === '2025Q2';
       });
-      
       regionQ2 = regionRows.filter((row) => {
         const q = (row.CY_Qtr || '').toString().trim().toUpperCase().replace(/\s+/g, '');
-        const matches = q === '2025Q2';
-        return matches;
+        return q === '2025Q3';
       });
       
       console.log(`  After DIRECT filtering - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
@@ -509,16 +502,21 @@ async function runPreprocessing() {
         console.warn(`  ⚠️ Still no Q1 data. Trying flexible matching...`);
         regionQ1 = regionRows.filter((row) => {
           const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
-          return q.includes('2025') && q.includes('Q1');
+          return q.includes('2025') && q.includes('Q2');
         });
         regionQ2 = regionRows.filter((row) => {
           const q = (row.CY_Qtr || '').toString().trim().toUpperCase();
-          return q.includes('2025') && q.includes('Q2');
+          return q.includes('2025') && q.includes('Q3');
         });
         console.log(`  After flexible matching - Q1: ${regionQ1.length} rows, Q2: ${regionQ2.length} rows`);
       }
     }
     
+    // If region CSV only has current quarter (e.g. 2025Q3), use it for both q1 and q2 so app doesn't break
+    if (regionQ1.length === 0 && regionQ2.length > 0) {
+      console.warn(`  ⚠️ No previous quarter in region CSV; using current quarter for both (trend will show no change).`);
+      regionQ1 = regionQ2;
+    }
     // Debug: Check if Region 4 exists in Q1
     const region4Q1 = regionQ1.find(r => r.REGION_NUMBER === 4);
     const region4Q2 = regionQ2.find(r => r.REGION_NUMBER === 4);
@@ -536,8 +534,8 @@ async function runPreprocessing() {
     
     // Verify files were written
     if (regionQ1.length === 0) {
-      console.error(`  ❌ ERROR: region_q1.json is EMPTY! Q1 data was not found in CSV.`);
-      console.error(`  This means trends will show 0.00. Check the CSV file for 2025Q1 data.`);
+      console.error(`  ❌ ERROR: region_q1.json is EMPTY! Q2 data was not found in CSV.`);
+      console.error(`  This means trends will show 0.00. Check the CSV file for 2025Q2 data.`);
       if (regionRows.length > 0) {
         const firstRow = regionRows[0];
         console.error(`  First row sample: REGION_NUMBER=${firstRow.REGION_NUMBER}, CY_Qtr="${firstRow.CY_Qtr}", type=${typeof firstRow.CY_Qtr}`);
@@ -551,8 +549,8 @@ async function runPreprocessing() {
     // Process national data
     console.log('Processing national data...');
     const nationalRows = parseCSV(join(DATA_DIR, 'national_quarterly_metrics.csv')).map(parseNationalRow);
-    const nationalQ1 = filterByQuarter(nationalRows, ['2025Q1'])[0] || null;
-    const nationalQ2 = filterByQuarter(nationalRows, ['2025Q2'])[0] || null;
+    const nationalQ1 = filterByQuarter(nationalRows, ['2025Q2'])[0] || null;
+    const nationalQ2 = filterByQuarter(nationalRows, ['2025Q3'])[0] || null;
     writeFileSync(join(OUTPUT_DIR, 'national_q1.json'), JSON.stringify(nationalQ1));
     writeFileSync(join(OUTPUT_DIR, 'national_q2.json'), JSON.stringify(nationalQ2));
     writeFileSync(join(Q_NATIONAL, 'national_q1.json'), JSON.stringify(nationalQ1));
@@ -564,8 +562,8 @@ async function runPreprocessing() {
     // Process facility data (only Q1 and Q2)
     console.log('Processing facility data (this may take a while)...');
     const facilityRows = parseCSV(join(DATA_DIR, 'facility_quarterly_metrics.csv')).map(parseFacilityRow);
-    const facilityQ1 = filterByQuarter(facilityRows, ['2025Q1']);
-    const facilityQ2 = filterByQuarter(facilityRows, ['2025Q2']);
+    const facilityQ1 = filterByQuarter(facilityRows, ['2025Q2']);
+    const facilityQ2 = filterByQuarter(facilityRows, ['2025Q3']);
     writeFileSync(join(OUTPUT_DIR, 'facility_q1.json'), JSON.stringify(facilityQ1));
     writeFileSync(join(OUTPUT_DIR, 'facility_q2.json'), JSON.stringify(facilityQ2));
     writeFileSync(join(Q_FACILITY, 'facility_q1.json'), JSON.stringify(facilityQ1));

@@ -166,17 +166,24 @@ export const WrappedScreenWrapper = forwardRef<WrappedNavigationRef, WrappedScre
         onTouchEnd={handleTouchEnd}
         style={{ height: '100dvh', maxHeight: '100dvh' }}
       >
-        {/* State outline background - only for state scope */}
+        {/* State outline background - only for state scope (subtle full-screen) */}
         {scope === 'state' && stateCode && (
           <div 
             className="absolute inset-0 flex items-center justify-center pointer-events-none z-0"
-            style={{ 
-              opacity: 0.15,
-            }}
+            style={{ opacity: 0.15 }}
           >
             <div className="w-full h-full" style={{ maxWidth: '90vw', maxHeight: '90vh', minWidth: '600px', minHeight: '600px' }}>
               <StateOutline stateCode={stateCode} className="w-full h-full" />
             </div>
+          </div>
+        )}
+        {/* Corner state map - same as SFF pages (visible outline in top-right) */}
+        {scope === 'state' && stateCode && (
+          <div
+            className="absolute top-0 right-0 w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 pointer-events-none z-0 opacity-10"
+            style={{ transform: 'translate(15%, -15%)' }}
+          >
+            <StateOutline stateCode={stateCode} className="w-full h-full" />
           </div>
         )}
 

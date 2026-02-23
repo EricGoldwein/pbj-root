@@ -1,0 +1,114 @@
+# pbj-contract/definitions.yaml
+# Staffing categories and composite metrics.
+# Populated from shared rules appearing in pbj-root (PBJPedia, pbj-sample, report).
+# PBJapp alignment not verified—conservative subset only.
+
+# ------------------------------------------------------------------------------
+# Total Nurse Staffing HPRD (canonical CMS definition)
+# ------------------------------------------------------------------------------
+total_nurse_hprd:
+  description: "Default staffing metric. Includes all nursing staff hours."
+  includes:
+    - RN DON (Director of Nursing)
+    - RN Admin
+    - RN (direct care)
+    - LPN Admin
+    - LPN
+    - CNA (Certified Nursing Assistant)
+    - Nurse Aide in Training
+    - Medication Aide/Technician
+  excludes: []
+  source: "PBJPedia metrics, pbj-sample methodology"
+  # Note: Administrative hours included per CMS rules; conceptually distinct from direct care.
+
+# ------------------------------------------------------------------------------
+# Direct Care HPRD (excludes administrative)
+# ------------------------------------------------------------------------------
+direct_care_hprd:
+  description: "Hours for direct patient care only; excludes administrative/supervisory."
+  includes:
+    - RN (direct care only)
+    - LPN (direct care only)
+    - CNA
+    - Nurse Aide in Training
+    - Medication Aide/Technician
+  excludes:
+    - RN Admin
+    - RN DON
+    - LPN Admin
+  source: "pbj-sample, report.html calculateDirectCareExclAdmin"
+  # Drift risk: report.html computes Direct Care by subtracting admin from totals.
+
+# ------------------------------------------------------------------------------
+# RN HPRD
+# ------------------------------------------------------------------------------
+rn_hprd:
+  description: "RN hours (administrative and direct care combined)."
+  includes:
+    - RN DON
+    - RN Admin
+    - RN
+  excludes: []
+  source: "PBJPedia"
+
+# ------------------------------------------------------------------------------
+# Direct RN HPRD
+# ------------------------------------------------------------------------------
+direct_rn_hprd:
+  excludes:
+    - RN Admin
+    - RN DON
+  source: "pbj-sample"
+
+# ------------------------------------------------------------------------------
+# LPN HPRD
+# ------------------------------------------------------------------------------
+lpn_hprd:
+  includes:
+    - LPN Admin
+    - LPN
+  excludes: []
+  source: "PBJPedia"
+
+# ------------------------------------------------------------------------------
+# Nurse Assistant / CNA HPRD
+# ------------------------------------------------------------------------------
+nurse_assistant_hprd:
+  description: "Nurse aide hours (CNA + NAtrn + MedAide)."
+  includes:
+    - CNA
+    - Nurse Aide in Training
+    - Medication Aide/Technician
+  excludes: []
+  source: "PBJPedia, report.html Nurse_Assistant_HPRD"
+
+# ------------------------------------------------------------------------------
+# Metric keys to display labels (used in report, insights, tooltips)
+# ------------------------------------------------------------------------------
+metric_labels:
+  Total_Nurse_HPRD: "Total Nurse HPRD"
+  Total_RN_HPRD: "RN HPRD"
+  Nurse_Assistant_HPRD: "Nurse Aide HPRD"
+  # status: OPEN_QUESTION if Nurse Aide vs Nurse Assistant wording differs across envs
+  Contract_Percentage: "Contract Staff"
+  avg_daily_census: "Census"
+  Nurse_Care_HPRD: "Direct Care (excl. Admin/DON)"
+  # Drift risk: report.html uses "Nurse Aide" and "Direct Care" in multiple places.
+
+# ------------------------------------------------------------------------------
+# Puerto Rico exclusions (report.html applies these for map/table/ranking)
+# ------------------------------------------------------------------------------
+puerto_rico:
+  exclude_from_state_table: true
+  # Gray out or exclude from certain metrics:
+  exclude_from_metrics:
+    - Total_RN_HPRD
+    - RN_CaseMix_Ratio
+    - Total_CaseMix_Ratio
+  gray_out_metrics:
+    - Total_RN_HPRD
+    - RN_CaseMix_Ratio
+    - Total_CaseMix_Ratio
+  # Total_Nurse_HPRD: also excluded in some report paths (e.g. map click)
+  source: "report.html multiple conditionals"
+  # Drift risk: logic duplicated 15+ times; status OPEN_QUESTION if PBJapp has different rules.

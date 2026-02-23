@@ -16,7 +16,7 @@ const DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 /** Get origin for API calls (same origin in browser) */
 function getApiBase(): string {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
-  return 'https://www.pbj320.com';
+  return 'https://pbj320.com';
 }
 
 export interface RegionStateMapping {

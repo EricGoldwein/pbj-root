@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WrappedImage } from '../components/wrapped/WrappedImage';
 import { USMap } from '../components/wrapped/USMap';
-import { updateSEO, getWrappedLandingSEO } from '../utils/seo';
+import { SiteNavbar } from '../components/SiteNavbar';
+import { SiteFooter } from '../components/SiteFooter';
 import { getAssetPath } from '../utils/assets';
+import { updateSEO, getWrappedLandingSEO } from '../utils/seo';
 import { trackDashboardLinkClick } from '../utils/analytics';
 
 const Index: React.FC = () => {
   const navigate = useNavigate();
   const [selectedState, setSelectedState] = useState<string>('');
   const [selectedRegion, setSelectedRegion] = useState<string>('');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Update SEO on mount
   useEffect(() => {
@@ -62,125 +63,7 @@ const Index: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 text-white">
-      {/* Header Navigation */}
-      <nav className="sticky top-0 z-50 bg-[#0f172a] border-b-2 border-blue-600 shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-14 md:h-16">
-            <a 
-              href="https://pbj320.com" 
-              className="text-white font-bold text-lg md:text-xl hover:text-blue-300 transition-colors flex items-center gap-2"
-            >
-              <img src={getAssetPath('/pbj_favicon.png')} alt="PBJ320" className="h-6 md:h-8 w-auto" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-              <span><span className="text-white">PBJ</span><span className="text-blue-400">320</span></span>
-            </a>
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center gap-4 lg:gap-6">
-              <a 
-                href="https://pbj320.com/about" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                About
-              </a>
-              <a 
-                href="https://pbjdashboard.com/" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-                onClick={() => trackDashboardLinkClick('Navigation', 'Index Page')}
-              >
-                Dashboard
-              </a>
-              <a 
-                href="https://pbj320.com/insights" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Insights
-              </a>
-              <a 
-                href="https://pbj320.com/report" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Report
-              </a>
-              <a 
-                href="/phoebe" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Phoebe J
-              </a>
-              <a 
-                href="https://pbj320.com/owners" 
-                className="text-gray-300 hover:text-blue-300 text-sm md:text-base font-medium transition-colors"
-              >
-                Owner
-              </a>
-            </div>
-            {/* Mobile Menu Button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden p-2 text-gray-300 hover:text-white transition-colors"
-              aria-label="Toggle menu"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {mobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-          </div>
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <div className="md:hidden border-t border-gray-700 py-3 space-y-2">
-              <a 
-                href="https://pbj320.com/about" 
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                About
-              </a>
-              <a 
-                href="https://pbjdashboard.com/" 
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Dashboard
-              </a>
-              <a 
-                href="https://pbj320.com/insights" 
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Insights
-              </a>
-              <a 
-                href="https://pbj320.com/report" 
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Report
-              </a>
-              <a 
-                href="/phoebe" 
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Phoebe J
-              </a>
-              <a 
-                href="https://pbj320.com/owners" 
-                className="block px-4 py-2 text-gray-300 hover:text-blue-300 hover:bg-gray-800/50 rounded transition-colors"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Owner
-              </a>
-            </div>
-          )}
-        </div>
-      </nav>
+      <SiteNavbar onDashboardClick={() => trackDashboardLinkClick('Navigation', 'Index Page')} />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-6">
         {/* Hero Section - Polished Header */}
@@ -279,20 +162,7 @@ const Index: React.FC = () => {
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="mt-6 md:mt-8 pt-6 md:pt-8 text-center" style={{ background: '#0f172a', padding: '40px 20px', marginTop: '60px' }}>
-          <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0 auto', fontStyle: 'italic', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
-            The <strong>PBJ Dashboard</strong> is a free public resource providing longitudinal staffing data at 15,000 US nursing homes. It has been featured in <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Columbia Public Health</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Positive Aging</a>, and <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', textDecoration: 'none' }}>Aging in America News</a>.
-          </p>
-          <p style={{ color: 'rgba(255,255,255,0.7)', margin: '0.5rem auto 0', lineHeight: '1.6', textAlign: 'center', maxWidth: '800px' }}>
-            Digging deeper? Email or text for a <strong>PBJ320 Premium Demo</strong>: <a href="mailto:eric@320insight.com" style={{ color: '#60a5fa', textDecoration: 'none' }}>eric@320insight.com</a> | <a href="sms:+19298084996" style={{ color: '#60a5fa', textDecoration: 'none' }}>(347) 992-3569</a>
-          </p>
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '1.5rem auto 0', paddingTop: '1.5rem', maxWidth: '800px' }}>
-            <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)', fontStyle: 'italic', fontSize: '0.9rem', textAlign: 'center' }}>
-              <a href="https://www.320insight.com" style={{ color: 'rgba(255,255,255,0.6)', textDecoration: 'none' }}>320 Consulting — Turning Spreadsheets into Stories</a>
-            </p>
-          </div>
-        </footer>
+        <SiteFooter />
       </div>
     </div>
   );

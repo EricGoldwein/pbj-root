@@ -19,6 +19,7 @@ All F13 → f132 / other → sa/ALL logic lives in **`donor/fec_api_client.py`**
 ## Hyperlinking each donation (View on FEC)
 
 - **Ready:** Each donation can have a **FEC docquery link** when we have `committee_id` and `file_number`. Path: F13 → `.../f132`, else → `.../sa/ALL` (see above).
+- **Report id:** Prefer `file_number` from the **schedule_a** record (the filing that contains that contribution); docquery accepts that as report id. Using `file_number` from `/filings` alone can yield “Invalid Report Id”. We already prefer schedule_a in `build_schedule_a_docquery_link()`.
 - **URL pattern:** `https://docquery.fec.gov/cgi-bin/forms/{committee_id}/{image_number}/sa/ALL`
 - **Backend:**
   - **Pre-processed donations** (from `owner_donations_database.csv`): We pass `fec_docquery_url` from the CSV as `fec_link`. If the CSV has `committee_id` and `fec_record_id`/`sub_id` but no URL, we build the link with `build_schedule_a_docquery_link(committee_id, image_number=...)`.

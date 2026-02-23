@@ -2149,86 +2149,125 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 </div>"""
     return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
 
+_PROVIDER_INFO_ENTITY_CACHE = None
+_PROVIDER_INFO_ENTITY_AT = 0
+_PROVIDER_INFO_ENTITY_TTL = 300  # 5 min — avoid re-reading full CSV on every entity request
+
 def load_entity_facilities(entity_id):
     """Load entity name and list of facilities (ccn, name, city, state, latest metrics) for chain_id/affiliated_entity_id.
-    Returns (entity_name, list of dicts). Empty list if not found. Prefers _latest CSV (same as Chain Performance recency)."""
+    Returns (entity_name, list of dicts). Empty list if not found. Tries both chain_id and affiliated_entity_id when both exist.
+    Caches provider_info DataFrame for 5 min to speed entity page loads."""
+    global _PROVIDER_INFO_ENTITY_CACHE, _PROVIDER_INFO_ENTITY_AT
     if not HAS_PANDAS:
         return '', []
-    # Use only provider_info_combined.csv (no _latest)
     paths = [
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
+        'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
     ]
+    now = time.time()
+    df = None
+    used_path = None
     for path in paths:
         if not os.path.exists(path):
             continue
+        used_path = path
+        if _PROVIDER_INFO_ENTITY_CACHE is not None and (now - _PROVIDER_INFO_ENTITY_AT) < _PROVIDER_INFO_ENTITY_TTL and _PROVIDER_INFO_ENTITY_CACHE.get('_path') == path:
+            df = _PROVIDER_INFO_ENTITY_CACHE.get('_df')
+            break
         try:
             df = pd.read_csv(path, low_memory=False)
-            eid_col = 'chain_id' if 'chain_id' in df.columns else 'affiliated_entity_id'
-            name_col = 'chain_name' if 'chain_id' in df.columns else 'affiliated_entity_name'
-            if eid_col not in df.columns:
-                continue
-            df = df.copy()
-            df[eid_col] = pd.to_numeric(df[eid_col], errors='coerce')
-            sub = df[df[eid_col] == int(entity_id)]
-            if sub.empty:
-                return '', []
-            entity_name = (sub[name_col].iloc[0] if name_col in sub.columns else '') or "—"
-            entity_name = str(entity_name).strip() if entity_name else "—"
-            entity_name = capitalize_entity_name(entity_name) if entity_name and entity_name != "—" else entity_name
-            # One row per CCN (latest by processing_date or CY_Qtr if present)
-            ccn_col = 'ccn' if 'ccn' in sub.columns else 'PROVNUM'
-            if 'processing_date' in sub.columns:
-                sub = sub.sort_values('processing_date', ascending=False)
-            elif 'CY_Qtr' in sub.columns:
-                sub = sub.sort_values('CY_Qtr', ascending=False)
-            by_ccn = {}
-            for _, row in sub.iterrows():
-                c = str(row.get(ccn_col, '')).strip()
-                if '.' in c:
-                    c = c.split('.')[0]
-                c = c.zfill(6)
-                if c and c not in by_ccn:
-                    _n = (row.get('provider_name', row.get('PROVNAME', '')) or '')
-                    _city = (row.get('city', row.get('CITY', '')) or '')
-                    _st = (row.get('state', row.get('STATE', '')) or '')
-                    by_ccn[c] = {
-                        'ccn': c,
-                        'name': str(_n).strip(),
-                        'city': str(_city).strip(),
-                        'state': str(_st).strip().upper()[:2],
-                    }
-            facilities = list(by_ccn.values())
-            if not facilities:
-                return '', []
-            # Attach latest-quarter metrics from facility_quarterly_metrics (same quarter as state/provider pages)
-            fq = load_csv_data('facility_quarterly_metrics.csv')
-            if fq is not None and isinstance(fq, pd.DataFrame) and 'PROVNUM' in fq.columns:
-                fq = fq.copy()
-                fq['PROVNUM'] = fq['PROVNUM'].astype(str).str.strip().str.zfill(6)
-                latest_q = get_canonical_latest_quarter()
-                if latest_q is None and 'CY_Qtr' in fq.columns:
-                    latest_q = fq['CY_Qtr'].max()
-                if latest_q:
-                    # Normalize quarter to str so CSV string/int don't mismatch
-                    fq_latest = fq[fq['CY_Qtr'].astype(str) == str(latest_q)]
-                    census_col = 'avg_daily_census' if 'avg_daily_census' in fq_latest.columns else 'Avg_Daily_Census'
-                    for fac in facilities:
-                        row = fq_latest[fq_latest['PROVNUM'] == fac['ccn']]
-                        if not row.empty:
-                            r = row.iloc[0]
-                            fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
-                            fac['RN_HPRD'] = r.get('RN_HPRD')
-                            fac['Contract_Percentage'] = r.get('Contract_Percentage')
-                            if census_col in fq_latest.columns:
-                                fac['avg_daily_census'] = r.get(census_col)
-                            fac['quarter'] = latest_q
-            return entity_name, facilities
+            _PROVIDER_INFO_ENTITY_CACHE = {'_df': df, '_path': path}
+            _PROVIDER_INFO_ENTITY_AT = now
+            break
         except Exception as e:
-            print(f"Error loading entity {entity_id} from {path}: {e}")
+            print(f"Error loading provider_info from {path}: {e}")
             continue
-    return '', []
+    if df is None and used_path:
+        try:
+            df = pd.read_csv(used_path, low_memory=False)
+            _PROVIDER_INFO_ENTITY_CACHE = {'_df': df, '_path': used_path}
+            _PROVIDER_INFO_ENTITY_AT = time.time()
+        except Exception as e:
+            print(f"Error loading entity {entity_id} from {used_path}: {e}")
+            return '', []
+    if df is None:
+        return '', []
+    try:
+        df = df.copy()
+        eid_col = 'chain_id' if 'chain_id' in df.columns else 'affiliated_entity_id'
+        name_col = 'chain_name' if 'chain_id' in df.columns else 'affiliated_entity_name'
+        if eid_col not in df.columns:
+            return '', []
+        df[eid_col] = pd.to_numeric(df[eid_col], errors='coerce')
+        # When both columns exist, match entity_id in either (same chain can appear as either)
+        if 'chain_id' in df.columns and 'affiliated_entity_id' in df.columns:
+            df['affiliated_entity_id'] = pd.to_numeric(df['affiliated_entity_id'], errors='coerce')
+            sub = df[(df['chain_id'] == int(entity_id)) | (df['affiliated_entity_id'] == int(entity_id))]
+            if not sub.empty and name_col in sub.columns:
+                entity_name_from_chain = (sub['chain_name'].iloc[0] if 'chain_name' in sub.columns else '') or ''
+                entity_name_from_aff = (sub['affiliated_entity_name'].iloc[0] if 'affiliated_entity_name' in sub.columns else '') or ''
+                name_col = 'chain_name' if (entity_name_from_chain and str(entity_name_from_chain).strip() != '') else 'affiliated_entity_name'
+        else:
+            sub = df[df[eid_col] == int(entity_id)]
+        if sub.empty:
+            return '', []
+        entity_name = (sub[name_col].iloc[0] if name_col in sub.columns else '') or "—"
+        entity_name = str(entity_name).strip() if entity_name else "—"
+        entity_name = capitalize_entity_name(entity_name) if entity_name and entity_name != "—" else entity_name
+        # One row per CCN (latest by processing_date or CY_Qtr if present)
+        ccn_col = 'ccn' if 'ccn' in sub.columns else 'PROVNUM'
+        if 'processing_date' in sub.columns:
+            sub = sub.sort_values('processing_date', ascending=False)
+        elif 'CY_Qtr' in sub.columns:
+            sub = sub.sort_values('CY_Qtr', ascending=False)
+        by_ccn = {}
+        for _, row in sub.iterrows():
+            c = str(row.get(ccn_col, '')).strip()
+            if '.' in c:
+                c = c.split('.')[0]
+            c = c.zfill(6)
+            if c and c not in by_ccn:
+                _n = (row.get('provider_name', row.get('PROVNAME', '')) or '')
+                _city = (row.get('city', row.get('CITY', '')) or '')
+                _st = (row.get('state', row.get('STATE', '')) or '')
+                by_ccn[c] = {
+                    'ccn': c,
+                    'name': str(_n).strip(),
+                    'city': str(_city).strip(),
+                    'state': str(_st).strip().upper()[:2],
+                }
+        facilities = list(by_ccn.values())
+        if not facilities:
+            return '', []
+        # Attach latest-quarter metrics from facility_quarterly_metrics (same quarter as state/provider pages)
+        fq = load_csv_data('facility_quarterly_metrics.csv')
+        if fq is not None and isinstance(fq, pd.DataFrame) and 'PROVNUM' in fq.columns:
+            fq = fq.copy()
+            fq['PROVNUM'] = fq['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            latest_q = get_canonical_latest_quarter()
+            if latest_q is None and 'CY_Qtr' in fq.columns:
+                latest_q = fq['CY_Qtr'].max()
+            if latest_q:
+                # Normalize quarter to str so CSV string/int don't mismatch
+                fq_latest = fq[fq['CY_Qtr'].astype(str) == str(latest_q)]
+                census_col = 'avg_daily_census' if 'avg_daily_census' in fq_latest.columns else 'Avg_Daily_Census'
+                for fac in facilities:
+                    row = fq_latest[fq_latest['PROVNUM'] == fac['ccn']]
+                    if not row.empty:
+                        r = row.iloc[0]
+                        fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
+                        fac['RN_HPRD'] = r.get('RN_HPRD')
+                        fac['Contract_Percentage'] = r.get('Contract_Percentage')
+                        if census_col in fq_latest.columns:
+                            fac['avg_daily_census'] = r.get(census_col)
+                        fac['quarter'] = latest_q
+        return entity_name, facilities
+    except Exception as e:
+        print(f"Error loading entity {entity_id}: {e}")
+        return '', []
 
 _CHAIN_PERF_CACHE = None
 _CHAIN_PERF_AT = 0
@@ -6326,8 +6365,12 @@ def pbj_wrapped_static(path):
 
 @app.route('/<path:filename>')
 def static_files(filename):
-    # Don't handle routes that are already defined
+    # Don't handle routes that are already defined (exact or prefix)
     if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner']:
+        from flask import abort
+        abort(404)
+    # Entity and provider/state pages are served by their own routes; avoid serving as static path
+    if filename.startswith('entity/') or filename.startswith('provider/') or filename.startswith('state/'):
         from flask import abort
         abort(404)
     

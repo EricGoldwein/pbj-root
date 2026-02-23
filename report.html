@@ -4464,21 +4464,7 @@
         max-width: 720px;
         font-size: 0.9rem;
       ">
-        <strong>The PBJ Dashboard</strong> is a free public resource from 320 Consulting tracking federal staffing data across ~15,000 U.S. nursing homes.
-        As seen in
-        <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards"
-           target="_blank"
-           style="color:#7dd3fc; text-decoration:none;">Columbia Public Health</a>,
-        <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond"
-           target="_blank"
-           style="color:#7dd3fc; text-decoration:none;">Positive Aging</a>,
-        <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/"
-           target="_blank"
-           style="color:#7dd3fc; text-decoration:none;">Aging in America News</a>,
-        and
-        <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026"
-           target="_blank"
-           style="color:#7dd3fc; text-decoration:none;">WTVR CBS</a>.
+        <strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes.
       </p>
       <p style="
         color: rgba(255,255,255,0.78);
@@ -4637,10 +4623,9 @@
     // Load data
     async function loadData() {
       try {
-        const [stateResponse, nationalResponse, providerResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
+        const [stateResponse, nationalResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
           fetch('state_quarterly_metrics.csv'),
           fetch('national_quarterly_metrics.csv'),
-          fetch('provider_info_combined.csv'),
           fetch('cms_region_state_mapping.csv'),
           fetch('facility_quarterly_metrics_latest.csv'),
           fetch('cms_region_quarterly_metrics.csv')
@@ -4653,12 +4638,20 @@
         const stateText = await stateResponse.text();
         const nationalText = await nationalResponse.text();
         let providerText = '';
-        if (providerResponse.ok) {
+        // Prefer smaller _latest file; avoid 206 Partial Content (incomplete CSV)
+        const providerUrl = 'provider_info_combined_latest.csv';
+        const providerFallbackUrl = 'provider_info_combined.csv';
+        let providerResponse = await fetch(providerUrl);
+        if (!providerResponse.ok && providerResponse.status === 404) {
+          providerResponse = await fetch(providerFallbackUrl);
+        }
+        let isProviderLatestFile = false;
+        if (providerResponse.ok && providerResponse.status === 200) {
           providerText = await providerResponse.text();
+          isProviderLatestFile = providerUrl === 'provider_info_combined_latest.csv';
         }
         
         // provider_info_combined.csv has all quarters; we filter to most recent quarter in code
-        const isProviderLatestFile = false;
         
         // Load facility quarterly metrics (for facility-level direct care data)
         let facilityQuarterlyText = '';
@@ -7733,7 +7726,9 @@
     window.openRegionSFFModal = openRegionSFFModal;
     
     // Load data on page load
-    loadData();
+    loadData().catch(function (err) {
+      console.error('Report loadData failed:', err);
+    });
   </script>
 </body>
 </html>

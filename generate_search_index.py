@@ -134,9 +134,10 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
+    # Prefer quarter-aligned provider_info_combined / _latest (have CY_Qtr/quarter). NH_ProviderInfo is fallback (no quarter).
     provider_paths = [
-        'provider_info_combined.csv',
         'provider_info_combined_latest.csv',
+        'provider_info_combined.csv',
         os.path.join(script_dir, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
         'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]

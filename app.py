@@ -898,16 +898,17 @@ def load_provider_info():
     now = time.time()
     if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
         return _LOAD_PROVIDER_INFO_CACHE
-    # If provider_info_combined_latest.csv or NH_ProviderInfo snapshot exists, use for fast load.
+    # Prefer quarter-aligned data: provider_info_combined_latest (from extract_latest_quarter.py) has CY_Qtr/quarter.
+    # NH_ProviderInfo is a single snapshot (no quarter); use only when combined/latest are not present.
     provider_paths = [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
-        'provider_info/NH_ProviderInfo_Jan2026.csv',
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
+        'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]
     if not HAS_PANDAS:
         return {}
@@ -1218,7 +1219,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     </div>
   </div>
   <footer class="pbj-footer">
-    <p><strong>320 Consulting</strong> — Turning Spreadsheets into Stories</p>
+    <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories</p>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
       <a href="mailto:eric@320insight.com" title="Email: eric@320insight.com"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
       <a href="sms:+19298084996" title="SMS: (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
@@ -2165,11 +2166,13 @@ def load_entity_facilities(entity_id):
     global _PROVIDER_INFO_ENTITY_CACHE, _PROVIDER_INFO_ENTITY_AT
     if not HAS_PANDAS:
         return '', []
+    # Prefer quarter-aligned data (provider_info_combined_latest has CY_Qtr/quarter). NH_ProviderInfo is fallback (no quarter).
     paths = [
-        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
-        'provider_info_combined.csv',
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
+        'pbj-wrapped/public/data/provider_info_combined_latest.csv',
+        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
+        'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
         os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
         'provider_info/NH_ProviderInfo_Jan2026.csv',
@@ -2773,7 +2776,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
-<style>.entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; }} .entity-facility-risk-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}</style>
+<style>.entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; left: 0; top: 100%; margin-top: 4px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>

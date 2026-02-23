@@ -849,6 +849,9 @@
     }
     
     .footer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       text-align: center;
       padding: 40px 20px;
       color: #6b7280;
@@ -857,6 +860,7 @@
       margin-top: 60px;
       border-top: 1px solid #e2e8f0;
       width: 100%;
+      box-sizing: border-box;
     }
     
     .footer p,
@@ -868,6 +872,11 @@
       margin-right: auto;
       text-align: center;
       color: #475569;
+    }
+    .footer .footer-tagline {
+      display: block;
+      width: 100%;
+      text-align: center;
     }
     
     .footer p:last-child {
@@ -1278,21 +1287,7 @@
         max-width: 720px;
         font-size: 0.9rem;
       ">
-        <strong style="color: #1e293b;">The PBJ Dashboard</strong> is a free public resource from 320 Consulting tracking federal staffing data across ~15,000 U.S. nursing homes.
-        As seen in
-        <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards"
-           target="_blank"
-           style="color:#1e40af; text-decoration:none; font-weight: 500;">Columbia Public Health</a>,
-        <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond"
-           target="_blank"
-           style="color:#1e40af; text-decoration:none; font-weight: 500;">Positive Aging</a>,
-        <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/"
-           target="_blank"
-           style="color:#1e40af; text-decoration:none; font-weight: 500;">Aging in America News</a>,
-        and
-        <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026"
-           target="_blank"
-           style="color:#1e40af; text-decoration:none; font-weight: 500;">WTVR CBS</a>.
+        <strong style="color: #1e293b;">320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes.
       </p>
       <p style="
         color: #475569;

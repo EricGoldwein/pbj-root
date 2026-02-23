@@ -639,6 +639,16 @@ def format_quarter(quarter_str):
     return str(quarter_str)
 
 
+def _quarter_display_to_cy_qtr(quarter_display):
+    """Convert provider_info 'quarter' (e.g. 'Q2 2025') to CY_Qtr form '2025Q2' for lookup."""
+    if not quarter_display:
+        return None
+    match = re.match(r'Q(\d)\s+(\d{4})', str(quarter_display).strip())
+    if match:
+        return f"{match.group(2)}Q{match.group(1)}"
+    return None
+
+
 def format_percentile_phrase(percentile, state_name):
     """Format facility state percentile as a single phrase for narrative use.
 
@@ -701,16 +711,17 @@ def format_percentile_phrase(percentile, state_name):
 _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
 _LOAD_PROVIDER_INFO_TTL = 300  # 5 min
+_LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
 
 def load_provider_info():
-    """Load provider info data for facility details (ownership, entity, residents, city). Cached 2 min."""
-    global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT
+    """Load provider info data for facility details (ownership, entity, residents, city). Cached 5 min."""
+    global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
     now = time.time()
     if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
         return _LOAD_PROVIDER_INFO_CACHE
     provider_paths = [
-        'provider_info_combined_latest.csv',
         'provider_info_combined.csv',
+        'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
     ]
     
@@ -721,9 +732,9 @@ def load_provider_info():
         if os.path.exists(path):
             try:
                 df = pd.read_csv(path)
-                # Create lookup dict by PROVNUM (use latest quarter if multiple)
+                # Lookup by PROVNUM (first/latest per CCN) and by (PROVNUM, quarter) for quarter-aligned case-mix
                 provider_dict = {}
-                # Sort by quarter to get latest
+                provider_dict_by_quarter = {}
                 if 'CY_Qtr' in df.columns:
                     df = df.sort_values('CY_Qtr', ascending=False)
                 def _row_val(r, *keys):
@@ -736,57 +747,74 @@ def load_provider_info():
                 for _, row in df.iterrows():
                     raw = _row_val(row, 'ccn', 'PROVNUM', 'CCN', 'Provnum')
                     provnum = str(raw or '').strip().replace('.0', '')
-                    if provnum:
-                        provnum = provnum.zfill(6)
-                        # Only keep first (latest) entry per PROVNUM
-                        if provnum not in provider_dict:
-                            eid_raw = _row_val(row, 'chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID')
-                            if eid_raw is None:
-                                for col in row.index:
-                                    if col and ('chain' in str(col).lower() and 'id' in str(col).lower()) or ('affiliated' in str(col).lower() and 'entity' in str(col).lower() and 'id' in str(col).lower()):
-                                        v = row[col]
-                                        if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
-                                            eid_raw = v
-                                            break
-                            try:
-                                entity_id = int(float(eid_raw)) if eid_raw is not None else None
-                            except (TypeError, ValueError):
-                                entity_id = None
-                            _sv = _row_val(row, 'state', 'STATE', 'State')
-                            state_val = (str(_sv) if _sv else '').strip().upper()[:2]
-                            entity_name_val = _row_val(row, 'entity_name', 'affiliated_entity', 'Entity Name', 'chain_name', 'affiliated_entity_name', 'Chain Name')
-                            if entity_name_val is None:
-                                for col in row.index:
-                                    c = str(col).lower()
-                                    if col and (('entity' in c or 'chain' in c) and ('name' in c or c in ('affiliated_entity', 'chain_name', 'chain name'))):
-                                        v = row[col]
-                                        if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
-                                            entity_name_val = v
-                                            break
-                            provider_dict[provnum] = {
-                                'city': _row_val(row, 'CITY', 'city', 'City') or '',
-                                'ownership_type': _row_val(row, 'ownership_type', 'Ownership_Type') or '',
-                                'avg_residents_per_day': row.get('avg_residents_per_day', ''),
-                                'entity_name': (str(entity_name_val).strip() if entity_name_val is not None else '') or '',
-                                'provider_name': _row_val(row, 'provider_name', 'PROVNAME', 'PROVNAME', 'Provider Name') or '',
-                                'state': state_val.strip().upper()[:2],
-                                'entity_id': entity_id,
-                                'reported_total_nurse_hrs_per_resident_per_day': row.get('reported_total_nurse_hrs_per_resident_per_day'),
-                                'reported_rn_hrs_per_resident_per_day': row.get('reported_rn_hrs_per_resident_per_day'),
-                                'reported_na_hrs_per_resident_per_day': row.get('reported_na_hrs_per_resident_per_day'),
-                                'case_mix_total_nurse_hrs_per_resident_per_day': row.get('case_mix_total_nurse_hrs_per_resident_per_day'),
-                                'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
-                                'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
-                                'overall_rating': row.get('overall_rating'),
-                                'staffing_rating': row.get('staffing_rating'),
-                            }
+                    if not provnum:
+                        continue
+                    provnum = provnum.zfill(6)
+                    eid_raw = _row_val(row, 'chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID')
+                    if eid_raw is None:
+                        for col in row.index:
+                            if col and ('chain' in str(col).lower() and 'id' in str(col).lower()) or ('affiliated' in str(col).lower() and 'entity' in str(col).lower() and 'id' in str(col).lower()):
+                                v = row[col]
+                                if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
+                                    eid_raw = v
+                                    break
+                    try:
+                        entity_id = int(float(eid_raw)) if eid_raw is not None else None
+                    except (TypeError, ValueError):
+                        entity_id = None
+                    _sv = _row_val(row, 'state', 'STATE', 'State')
+                    state_val = (str(_sv) if _sv else '').strip().upper()[:2]
+                    entity_name_val = _row_val(row, 'entity_name', 'affiliated_entity', 'Entity Name', 'chain_name', 'affiliated_entity_name', 'Chain Name')
+                    if entity_name_val is None:
+                        for col in row.index:
+                            c = str(col).lower()
+                            if col and (('entity' in c or 'chain' in c) and ('name' in c or c in ('affiliated_entity', 'chain_name', 'chain name'))):
+                                v = row[col]
+                                if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
+                                    entity_name_val = v
+                                    break
+                    row_dict = {
+                        'city': _row_val(row, 'CITY', 'city', 'City') or '',
+                        'ownership_type': _row_val(row, 'ownership_type', 'Ownership_Type') or '',
+                        'avg_residents_per_day': row.get('avg_residents_per_day', ''),
+                        'entity_name': (str(entity_name_val).strip() if entity_name_val is not None else '') or '',
+                        'provider_name': _row_val(row, 'provider_name', 'PROVNAME', 'PROVNAME', 'Provider Name') or '',
+                        'state': state_val.strip().upper()[:2],
+                        'entity_id': entity_id,
+                        'reported_total_nurse_hrs_per_resident_per_day': row.get('reported_total_nurse_hrs_per_resident_per_day'),
+                        'reported_rn_hrs_per_resident_per_day': row.get('reported_rn_hrs_per_resident_per_day'),
+                        'reported_na_hrs_per_resident_per_day': row.get('reported_na_hrs_per_resident_per_day'),
+                        'case_mix_total_nurse_hrs_per_resident_per_day': row.get('case_mix_total_nurse_hrs_per_resident_per_day'),
+                        'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
+                        'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
+                        'overall_rating': row.get('overall_rating'),
+                        'staffing_rating': row.get('staffing_rating'),
+                    }
+                    if provnum not in provider_dict:
+                        provider_dict[provnum] = row_dict
+                    quarter_cy = _quarter_display_to_cy_qtr(row.get('quarter'))
+                    if quarter_cy:
+                        provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
                 _LOAD_PROVIDER_INFO_CACHE = provider_dict
+                _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
                 _LOAD_PROVIDER_INFO_AT = time.time()
                 return provider_dict
             except Exception as e:
                 print(f"Error loading provider info from {path}: {e}")
                 continue
     return {}
+
+
+def get_provider_info_for_quarter(ccn, raw_quarter):
+    """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
+    Used to show case-mix and reported HPRD for the same quarter as the facility page."""
+    if not ccn or not raw_quarter:
+        return None
+    load_provider_info()
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
+        return None
+    key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
+    return _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
 
 def get_pbj_site_layout(page_title, meta_description, canonical_url):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
@@ -883,7 +911,10 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
 .custom-report-cta .custom-report-cta-dot {{ color: rgba(226,232,240,0.5); margin: 0 0.2rem; font-weight: 400; }}
+.custom-report-cta .custom-report-cta-box:hover {{ background: rgba(59,130,246,0.3); color: #bfdbfe; }}
 .custom-report-cta .custom-report-cta-footer {{ margin: 0.5rem 0 0 0; font-size: 0.75rem; color: rgba(226,232,240,0.6); }}
+.pbj-care-compare-badge {{ display: inline-block; margin-top: 0.25rem; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.35); color: #93c5fd; text-decoration: none; }}
+.pbj-care-compare-badge:hover {{ background: rgba(59,130,246,0.25); color: #bfdbfe; }}
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
 .custom-report-cta .custom-report-cta-sms a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-sms a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
@@ -991,7 +1022,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
-    sub_text = "Independent analysis from CMS payroll-based journal (PBJ) data for legal, media, and policy use."
+    sub_text = "Custom PBJ analysis for litigation and investigative reporting."
     footer_text = ""
 
     def mailto(subject, body):
@@ -1034,7 +1065,8 @@ Thank you,"""
         link_adv = mailto(subj_adv, '')
         sms_body = f"I'm reviewing {facility_name} (CCN {ccn}) and would like to connect regarding its staffing data. {page_url}"
         sms_href = f"sms:+19298084996?body={quote(sms_body)}"
-        show_email_text_row = True
+        primary_mailto = link_media
+        cta_label = "Request custom analysis"
 
     elif context == 'state':
         state_name = kwargs.get('state_name', '') or 'this state'
@@ -1068,7 +1100,8 @@ Thank you,"""
         link_adv = mailto(subj_adv, '')
         sms_body = f"I'm reviewing nursing home staffing in {state_name} and would like to connect. {page_url}"
         sms_href = f"sms:+19298084996?body={quote(sms_body)}"
-        show_email_text_row = True
+        primary_mailto = link_media
+        cta_label = "Request custom analysis"
 
     elif context == 'entity':
         entity_name = kwargs.get('entity_name', '') or 'this entity'
@@ -1102,26 +1135,23 @@ Thank you,"""
         link_adv = mailto(subj_adv, '')
         sms_body = f"I'm reviewing {entity_name} and would like to connect regarding staffing. {page_url}"
         sms_href = f"sms:+19298084996?body={quote(sms_body)}"
-        show_email_text_row = True
+        primary_mailto = link_media
+        cta_label = "Request custom analysis"
 
     else:
         return ''
 
-    # Email link: use pre-built mailto (subject + body with facility/entity/state name, page url) for facility/state/entity
-    primary_mailto = link_media if context in ('facility', 'state', 'entity') else f"mailto:{email}"
-    email_text_row = ''
-    if show_email_text_row:
-        if sms_href:
-            email_text_row = f'<div class="custom-report-cta-links"><a href="{primary_mailto}">Email</a><span class="custom-report-cta-dot"> · </span><a href="{sms_href}">Text</a></div>'
-        else:
-            email_text_row = f'<div class="custom-report-cta-links"><a href="{primary_mailto}">Email</a><span class="custom-report-cta-dot"> · </span>Text</div>'
+    # Single clickable mailto box (subject + body); no Email · Text row
+    primary_mailto = primary_mailto if context in ('facility', 'state', 'entity') else f"mailto:{email}"
+    cta_label = cta_label if context in ('facility', 'state', 'entity') else "Email us"
+    cta_box = f'<a href="{primary_mailto}" class="custom-report-cta-box" style="display:inline-block;margin-top:0.5rem;padding:0.5rem 1rem;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);border-radius:6px;color:#93c5fd;font-weight:500;text-decoration:none;">{cta_label}</a>'
 
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
     return f'''<div class="custom-report-cta">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
-{email_text_row}
+{cta_box}
 {footer_block}</div>'''
 
 
@@ -1362,7 +1392,6 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   if (typeof Chart !== 'undefined') { Chart.defaults.color = textColor; Chart.defaults.borderColor = gridColor; }
   function xLabels(quarters) {
     if (!quarters || !quarters.length) return [];
-    var n = quarters.length;
     return quarters.map(function(q, i) {
       var y = q.substring(0,4), qtr = (q.substring(4) || '').toUpperCase();
       if (qtr === 'Q1') return y;
@@ -1370,6 +1399,16 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       if (y !== prevY) return y;
       return '';
     });
+  }
+  function xTickCallback(quarters) {
+    if (!quarters || !quarters.length) return undefined;
+    return function(val, i) {
+      if (i < 0 || i >= quarters.length) return '';
+      var q = quarters[i];
+      if (!q || q.length < 6) return '';
+      if ((q.substring(4) || '').toUpperCase().indexOf('Q1') === 0) return q.substring(0,4);
+      return '';
+    };
   }
   function makeBar(id, labels, reported, caseMix) {
     var ctx = document.getElementById(id);
@@ -1384,7 +1423,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
         maintainAspectRatio: false,
         plugins: {
           title: { display: false },
-          legend: { labels: { color: textColor } },
+          legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
           tooltip: {
             callbacks: {
               label: function(context) {
@@ -1406,7 +1445,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       responsive: true,
       maintainAspectRatio: false,
       plugins: {
-        legend: { labels: { color: textColor } },
+        legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
         tooltip: {
           callbacks: {
             title: function(context) {
@@ -1430,7 +1469,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       },
         scales: {
         y: { beginAtZero: false, ticks: { color: textColor }, grid: { color: gridColor }, title: { display: !!yTitle, text: yTitle || '', color: textColor } },
-        x: { ticks: { color: textColor, maxTicksLimit: 14, autoSkip: true, font: { size: 11 } }, grid: { color: gridColor } }
+        x: { ticks: { color: textColor, maxTicksLimit: 20, autoSkip: true, font: { size: 11 }, callback: xTickCallback(quarters) }, grid: { color: gridColor } }
       }
     };
     new Chart(ctx.getContext('2d'), { type: 'line', data: { labels: labels, datasets: datasets }, options: opts });
@@ -1439,8 +1478,8 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   if (rc && rc.labels) makeBar('chartReportedCaseMix', rc.labels, rc.reported || [null, null, null], rc.caseMix);
   var th = d.totalHprd;
   if (th && th.quarters && th.quarters.length) {
-    var ds = [{ label: 'Total HPRD', data: th.total, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
-               { label: 'Direct care HPRD', data: th.direct, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }];
+    var ds = [{ label: 'Total', data: th.total, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
+               { label: 'Direct', data: th.direct, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }];
     if (th.macpac != null && typeof th.macpac === 'number') {
       var macpacArr = th.quarters.map(function(){ return th.macpac; });
       var stateMinLabel = (th.stateCode || 'State') + ' Min';
@@ -1450,8 +1489,8 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   }
   var rn = d.rnHprd;
   if (rn && rn.quarters && rn.quarters.length) makeLine('chartRN', xLabels(rn.quarters), [
-    { label: 'RN HPRD', data: rn.rn, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
-    { label: 'Direct care RN HPRD', data: rn.rnDirect, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }
+    { label: 'Total RN', data: rn.rn, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
+    { label: 'RN (excl. Admin/DON)', data: rn.rnDirect, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }
   ], 'Hours per resident day', rn.quarters);
   var ce = d.census;
   if (ce && ce.quarters && ce.quarters.length) makeLine('chartCensus', xLabels(ce.quarters), [{ label: 'Avg daily census', data: ce.census, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }], 'Census', ce.quarters);
@@ -1524,15 +1563,17 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if 'government' in o or 'gov' in o:
             return 'Government'
         return ot
-    ownership_short = abbreviate_ownership(ownership_raw) or '—'
+    ownership_short = abbreviate_ownership(ownership_raw) or ''
     base_url = 'https://pbj320.com'
-    state_link = f'<a href="/state/{canonical_slug}">{state_name}</a>' if canonical_slug else state_name
+    state_link = f'<a href="/state/{canonical_slug}">{state_code}</a>' if (canonical_slug and state_code) else (state_code or state_name)
     # Entity link to pbj320.com entity page (only show when entity exists)
     entity_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
-    entity_breadcrumb_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name} dashboard</a>' if entity_id and entity_name else ''
+    entity_breadcrumb_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else ''
     # Residents count for subtitle (census_int set later; we need it here for location line)
-    # Case-mix and reported from most recent provider info only (no provider_info_combined for this public tool)
+    # Prefer provider info for the same quarter as the page so case-mix matches displayed HPRD quarter
     pi = provider_info_row or {}
+    pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
+    pi_metrics = (pi_quarter or pi)
     def _safe(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return None
@@ -1540,13 +1581,13 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return float(v)
         except (TypeError, ValueError):
             return None
-    reported_total = get_val('Total_Nurse_HPRD') if get_val('Total_Nurse_HPRD') is not None else _safe(pi.get('reported_total_nurse_hrs_per_resident_per_day'))
-    reported_rn = get_val('RN_HPRD') if get_val('RN_HPRD') is not None else _safe(pi.get('reported_rn_hrs_per_resident_per_day'))
-    reported_na = get_val('Nurse_Assistant_HPRD') if get_val('Nurse_Assistant_HPRD') is not None else _safe(pi.get('reported_na_hrs_per_resident_per_day'))
-    case_mix_total = _safe(pi.get('case_mix_total_nurse_hrs_per_resident_per_day'))
-    case_mix_rn = _safe(pi.get('case_mix_rn_hrs_per_resident_per_day'))
-    case_mix_na = _safe(pi.get('case_mix_na_hrs_per_resident_per_day'))
-    census_num = _safe(pi.get('avg_residents_per_day'))
+    reported_total = get_val('Total_Nurse_HPRD') if get_val('Total_Nurse_HPRD') is not None else _safe(pi_metrics.get('reported_total_nurse_hrs_per_resident_per_day'))
+    reported_rn = get_val('RN_HPRD') if get_val('RN_HPRD') is not None else _safe(pi_metrics.get('reported_rn_hrs_per_resident_per_day'))
+    reported_na = get_val('Nurse_Assistant_HPRD') if get_val('Nurse_Assistant_HPRD') is not None else _safe(pi_metrics.get('reported_na_hrs_per_resident_per_day'))
+    case_mix_total = _safe(pi_metrics.get('case_mix_total_nurse_hrs_per_resident_per_day'))
+    case_mix_rn = _safe(pi_metrics.get('case_mix_rn_hrs_per_resident_per_day'))
+    case_mix_na = _safe(pi_metrics.get('case_mix_na_hrs_per_resident_per_day'))
+    census_num = _safe(pi_metrics.get('avg_residents_per_day'))
     if census_num is None and latest is not None:
         census_num = _safe(latest.get('avg_daily_census'))
     _c = round_half_up(census_num, 0) if census_num is not None else None
@@ -1584,6 +1625,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         casemix_hprd_fmt = f'{case_mix_total:.2f}'
         pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
         below_reported_casemix = f'<p class="pbj-percentile" style="margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);">Note: Reported staffing ({reported_hprd_fmt} HPRD) is {pct_fmt}% of case-mix ({casemix_hprd_fmt} HPRD).</p>'
+    elif case_mix_total is None:
+        below_reported_casemix = '<p class="pbj-percentile" style="margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p>'
     reported_vs_casemix_section = f'<div class="section-header">Reported vs. Case-Mix (Acuity)</div><p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px;">{methodology}</p>'
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=below_reported_casemix)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
@@ -1629,7 +1672,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     risk_badge = ('<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);">' + risk_badge_label + '</span>') if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
-    residents_str = f"{census_int:,} residents" if census_int else "— residents"
+    residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
     total_direct_badge = f"Total HPRD: {hprd_val} (Direct: {direct_hprd_val})"
     # CMS star ratings (1-5) from provider info
     def _star(val):
@@ -1645,15 +1688,19 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         return "—"
     overall_star = _star((provider_info_row or {}).get('overall_rating'))
     staffing_star = _star((provider_info_row or {}).get('staffing_rating'))
-    overall_star_label = f'{overall_star}-Star Overall' if overall_star != '—' else '— Overall'
-    staffing_star_label = f'{staffing_star}-Star Staffing' if staffing_star != '—' else '— Staffing'
+    overall_star_label = f'{overall_star}-Star Overall' if overall_star != '—' else 'Overall: not reported'
+    staffing_star_label = f'{staffing_star}-Star Staffing' if staffing_star != '—' else 'Staffing: not reported'
     badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(96,165,250,0.15); color: #e2e8f0; white-space: nowrap;'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
     if state_pct_phrase:
         state_ratio_str = f' (state ratio: {state_hprd_placeholder} HPRD)' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
-        narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + state_ratio_str + '.'
+        # When case-mix is missing, the narrative is a full sentence; add percentile as a second sentence. Otherwise join with "and".
+        if case_mix_total is None:
+            narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + state_ratio_str + '.'
+        else:
+            narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + state_ratio_str + '.'
     yoy_line = ''
     if facility_df is not None and not facility_df.empty and raw_quarter and reported_total is not None:
         try:
@@ -1765,8 +1812,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     facility_page_url = f"{base_url}/provider/{prov}"
     care_compare_facility_url = f'https://www.medicare.gov/care-compare/details/nursing-home/{prov}/view-all/?state={state_code}' if state_code else ''
     custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
-    _residents_sub = f"{census_int:,} residents" if census_int else "— residents"
-    _loc_sub = f"{city}, {state_link} &bull; {ownership_short} &bull; {_residents_sub}" if city else f"{state_link} &bull; {ownership_short} &bull; {_residents_sub}"
+    _residents_sub = f"{census_int:,} residents" if census_int else "Census not reported"
+    _loc_parts = []
+    if city:
+        _loc_parts.append(city)
+    if state_link:
+        _loc_parts.append(state_link)
+    if ownership_short and ownership_short.strip():
+        _loc_parts.append(ownership_short)
+    _loc_parts.append(_residents_sub)
+    _loc_sub = ' &bull; '.join(_loc_parts) if _loc_parts else _residents_sub
     subtitle_one_line = _loc_sub + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
     inner = f"""
 <h1>{facility_name}</h1>
@@ -1783,8 +1838,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {render_methodology_block()}
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(59,130,246,0.15);">
-<p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name} staffing</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
-<p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data.{' <a href="' + care_compare_facility_url + '" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a>' if care_compare_facility_url else ''}</p>
+<p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
+<p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data.</p>
+""" + (f'<p style="margin: 0.25rem 0 0 0;"><a href="{care_compare_facility_url}" target="_blank" rel="noopener" class="pbj-care-compare-badge">View on Care Compare</a></p>' if care_compare_facility_url else '') + """
 </div>"""
     return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
 
@@ -1793,7 +1849,7 @@ def load_entity_facilities(entity_id):
     Returns (entity_name, list of dicts). Empty list if not found."""
     if not HAS_PANDAS:
         return '', []
-    for path in ['provider_info_combined_latest.csv', 'provider_info_combined.csv', 'pbj-wrapped/public/data/provider_info_combined.csv']:
+    for path in ['provider_info_combined.csv', 'provider_info_combined_latest.csv', 'pbj-wrapped/public/data/provider_info_combined.csv']:
         if not os.path.exists(path):
             continue
         try:
@@ -1868,7 +1924,8 @@ _CHAIN_PERF_AT = 0
 _CHAIN_PERF_TTL = 300  # 5 min
 
 def load_chain_performance():
-    """Load chain/entity performance data from CMS Chain Performance CSV (e.g. 2025-11/Chain_Performance_*.csv).
+    """Load chain/entity performance data from CMS Chain Performance CSV.
+    Prefers 2025-11/Chain_Performance_20260218.csv (canonical; commit to git). Used for entity PBJ takeaway and key metrics.
     Returns dict mapping entity_id (int) -> row dict with keys matching CSV columns (strip-spaced)."""
     global _CHAIN_PERF_CACHE, _CHAIN_PERF_AT, _CHAIN_PERF_TTL
     now = time.time()
@@ -1876,15 +1933,20 @@ def load_chain_performance():
         return _CHAIN_PERF_CACHE
     if not HAS_PANDAS:
         return {}
-    search_globs = [
+    import glob
+    # Prefer the canonical Chain Performance file (track in git: 2025-11/Chain_Performance_20260218.csv)
+    canonical_path = os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_20260218.csv')
+    paths = []
+    if os.path.isfile(canonical_path):
+        paths.append(canonical_path)
+    for g in [
         os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_*.csv'),
         os.path.join(APP_ROOT, 'chain_performance.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain*.csv'),
-    ]
-    import glob
-    paths = []
-    for g in search_globs:
+    ]:
         paths.extend(glob.glob(g))
+    seen = set()
+    paths = [p for p in paths if p not in seen and not seen.add(p)]
     for path in paths:
         if not os.path.isfile(path):
             continue

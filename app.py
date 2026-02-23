@@ -296,9 +296,11 @@ def index():
 
 @app.errorhandler(400)
 def bad_request(err):
-    """Redirect /subscribe CSRF or bad request to homepage with error param instead of 400 page."""
+    """Redirect /subscribe and /contact CSRF or bad request to friendly page instead of 400."""
     if request.path == '/subscribe':
         return redirect('/?subscribe_error=invalid')
+    if request.path == '/contact':
+        return redirect('/contact?error=invalid')
     return make_response(('Bad Request', 400))
 
 def _send_subscribe_notification(email_address, source='homepage'):
@@ -327,6 +329,48 @@ def _send_subscribe_notification(email_address, source='homepage'):
             s.sendmail(from_addr, to_list, msg.encode('utf-8'))
     except Exception as e:
         print(f'Subscribe notification email failed: {e}')
+
+
+def _send_contact_email(sender_email, sender_name, message_body, subject_prefix='PBJ320 contact', is_press=False):
+    """Send contact form submission. Uses same SMTP and recipient list as subscribe (SUBSCRIBE_NOTIFY_TO)."""
+    to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
+    to_list = [a.strip() for a in to_list if a.strip()]
+    if not to_list:
+        to_list = ['egoldwein@gmail.com']
+    host = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_HOST', '').strip()
+    if not host:
+        # No SMTP configured (e.g. local/server without env). Log so you can test the flow; on Render with SMTP set, real email is sent.
+        print('[PBJ320 contact] SMTP not configured. Submission logged only:')
+        print(f'  From: {sender_name} <{sender_email}>  Media: {is_press}')
+        print(f'  Message: {message_body[:200]}{"..." if len(message_body) > 200 else ""}')
+        return True  # show success so form flow works when testing without SMTP
+    port = int(os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PORT', '587'))
+    user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
+    password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
+    from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
+    subject = f"{subject_prefix} from {sender_email}"
+    lines = [
+        f"Name: {sender_name}",
+        f"Email: {sender_email}",
+        f"Media: {'Yes' if is_press else 'No'}",
+        "",
+        "Message:",
+        message_body,
+    ]
+    body = "\n".join(lines)
+    msg = f"Subject: {subject}\r\nFrom: {from_addr}\r\nTo: {', '.join(to_list)}\r\nReply-To: {sender_email}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}"
+    try:
+        import smtplib
+        with smtplib.SMTP(host, port, timeout=10) as s:
+            if port == 587:
+                s.starttls()
+            if user and password:
+                s.login(user, password)
+            s.sendmail(from_addr, to_list, msg.encode('utf-8'))
+        return True
+    except Exception as e:
+        print(f'Contact form email failed: {e}')
+        return False
 
 
 @app.route('/subscribe', methods=['POST'])
@@ -361,6 +405,33 @@ def subscribe():
     except Exception:
         return redirect('/?subscribe_error=error')
     return redirect('/?subscribed=1')
+
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    """Contact form: GET shows form, POST sends email to eric@320insight.com. No mailto required."""
+    if request.method == 'POST':
+        if HAS_CSRF and validate_csrf is not None:
+            try:
+                validate_csrf(request.form.get('csrf_token'))
+            except Exception:
+                return redirect('/contact?error=invalid')
+        email = (request.form.get('email') or '').strip().lower()
+        message = (request.form.get('message') or '').strip()
+        name = (request.form.get('name') or '').strip()[:200]
+        is_press = request.form.get('press') in ('1', 'on', 'yes', 'true')
+        if not name:
+            return redirect('/contact?error=invalid')
+        if not email or not _EMAIL_RE.match(email) or len(email) > 255:
+            return redirect('/contact?error=invalid')
+        if not message or len(message) > 10000:
+            return redirect('/contact?error=invalid')
+        if _send_contact_email(email, name, message, 'PBJ320 contact', is_press=is_press):
+            return redirect('/?contact_sent=1')
+        return redirect('/?contact_error=1')
+    # Contact page not public: GET redirects to home. Form is only via popup (POST).
+    return redirect('/')
+
 
 @app.route('/about')
 def about():
@@ -613,6 +684,9 @@ STATE_NAME_TO_CODE = {
 }
 
 STATE_CODE_TO_NAME = {v: k.title() for k, v in STATE_NAME_TO_CODE.items()}
+
+# States included in rankings (exclude Puerto Rico so rankings are 51: 50 states + DC)
+STATES_FOR_RANKING = set(STATE_CODE_TO_NAME.keys()) - {'PR'}
 
 # Canonical slug mapping: state code -> canonical slug (lowercase, hyphenated)
 # Examples: TN -> /tn, NY -> /new-york
@@ -1109,6 +1183,12 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-chart-header-oneline {{ display: block; }}
   .pbj-chart-header-twoline {{ display: none; }}
 }}
+/* State page mobile only: one-row title "Illinois Census" with section-header style */
+.pbj-chart-header-state-mobile {{ display: none; }}
+@media (max-width: 768px) {{
+  .state-page-charts .pbj-chart-header-state-mobile {{ display: block; }}
+  .state-page-charts .pbj-chart-header-twoline {{ display: none; }}
+}}
 /* Total Staffing chart footnote: desktop = full sentence; mobile = shorter */
 .pbj-chart-footnote-mobile {{ display: none; }}
 @media (max-width: 768px) {{
@@ -1196,6 +1276,27 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   /* Entity page: hide " – Genesis Healthcare" (etc.) in subsection headers on mobile */
   .pbj-section-header-entity-name {{ display: none !important; }}
 }}
+/* Contact popup (entity/state/facility pages) */
+.contact-overlay {{ position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }}
+.contact-overlay[aria-hidden="false"] {{ display: flex; }}
+.contact-popup {{ position: relative; background: #1e293b; border: 1px solid rgba(96,165,250,0.25); border-radius: 12px; width: 100%; max-width: 440px; max-height: calc(100vh - 2rem); overflow: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.5); -webkit-overflow-scrolling: touch; }}
+.contact-popup h2 {{ margin: 0; padding: 1.25rem 1.25rem 0; font-size: 1.25rem; color: #60a5fa; }}
+.contact-popup .contact-popup-close {{ position: absolute; top: 0.75rem; right: 0.75rem; width: 44px; height: 44px; padding: 0; border: none; background: transparent; cursor: pointer; font-size: 1.5rem; line-height: 1; color: rgba(148,163,184,0.9); border-radius: 8px; }}
+.contact-popup .contact-popup-close:hover {{ color: #e2e8f0; background: rgba(96,165,250,0.15); }}
+.contact-popup .contact-popup-close:focus-visible {{ outline: 2px solid #60a5fa; outline-offset: 2px; }}
+.contact-popup-form {{ padding: 1rem 1.25rem 1.5rem; }}
+.contact-popup-form .f-group {{ margin-bottom: 1rem; }}
+.contact-popup-form .f-group label {{ display: block; font-weight: 500; color: #cbd5e1; margin-bottom: 0.3rem; font-size: 0.9rem; }}
+.contact-popup-form .f-group input[type="text"], .contact-popup-form .f-group input[type="email"], .contact-popup-form .f-group textarea {{ width: 100%; padding: 0.6rem 0.75rem; border: 1px solid rgba(96,165,250,0.35); border-radius: 8px; font: inherit; font-size: 1rem; min-height: 44px; box-sizing: border-box; background: rgba(15,23,42,0.6); color: #e2e8f0; }}
+.contact-popup-form .f-group textarea {{ min-height: 100px; resize: vertical; }}
+.contact-popup-form .f-group input:focus, .contact-popup-form .f-group textarea:focus {{ outline: none; border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,0.2); }}
+.contact-popup-form .f-row-submit {{ display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }}
+.contact-popup-form .cb-wrap {{ display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
+.contact-popup-form .cb-wrap input {{ width: 1.25rem; height: 1.25rem; cursor: pointer; flex-shrink: 0; }}
+.contact-popup-form .cb-wrap span {{ color: #cbd5e1; }}
+.contact-popup-form button[type="submit"] {{ background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.5); padding: 0.7rem 1.25rem; border-radius: 8px; font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer; min-height: 44px; }}
+.contact-popup-form button[type="submit"]:hover {{ background: rgba(96,165,250,0.3); color: #bfdbfe; }}
+.contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #166534; color: #fff; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.9rem; z-index: 10001; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }}
 </style>
 </head>
 <body>'''
@@ -1227,17 +1328,93 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   <footer class="pbj-footer">
     <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories.</p>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
-      <a href="mailto:eric@320insight.com" title="Email: eric@320insight.com"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
-      <a href="sms:+19298084996" title="SMS: (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
-      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener" title="LinkedIn"><img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
-      <a href="https://320insight.substack.com/" target="_blank" rel="noopener" title="The 320 Newsletter"><img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
+      <a href="mailto:eric@320insight.com" class="pbj-contact-cta" title="Email: eric@320insight.com" aria-label="Email eric@320insight.com"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
+      <a href="sms:+19298084996" title="SMS: (929) 804-4996" aria-label="Text (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
+      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
+      <a href="https://320insight.substack.com/" target="_blank" rel="noopener" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
     </div>
   </footer>
+  <div id="contact-overlay" class="contact-overlay" aria-hidden="true" role="presentation">
+    <div class="contact-popup" role="dialog" aria-labelledby="pbj-contact-popup-title" aria-modal="true" id="contact-dialog">
+      <h2 id="pbj-contact-popup-title">Request PBJ Analysis</h2>
+      <button type="button" class="contact-popup-close" id="pbj-contact-popup-close" aria-label="Close">×</button>
+      <form action="/contact" method="POST" class="contact-popup-form" id="pbj-contact-popup-form">
+        <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+        <div class="f-group">
+          <label for="pbj-popup-name">Name <span style="color:#f87171">*</span></label>
+          <input type="text" id="pbj-popup-name" name="name" required autocomplete="name" maxlength="200">
+        </div>
+        <div class="f-group">
+          <label for="pbj-popup-email">Email <span style="color:#f87171">*</span></label>
+          <input type="email" id="pbj-popup-email" name="email" required autocomplete="email">
+        </div>
+        <div class="f-group">
+          <label for="pbj-popup-message">Message <span style="color:#f87171">*</span></label>
+          <textarea id="pbj-popup-message" name="message" required placeholder="Facility or topic and your request…"></textarea>
+        </div>
+        <div class="f-group f-row-submit">
+          <label class="cb-wrap" for="pbj-popup-press">
+            <input type="checkbox" id="pbj-popup-press" name="press" value="yes" aria-label="I am media">
+            <span>I am media</span>
+          </label>
+          <button type="submit">Send</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script src="/pbj-site-universal.js"></script>
   <script>
   (function(){ var t=document.getElementById('navToggle'); var m=document.getElementById('navMenu'); if(t&&m){ t.addEventListener('click',function(){ m.classList.toggle('active'); t.classList.toggle('active'); document.body.style.overflow=m.classList.contains('active')?'hidden':''; }); } })();
   </script>
   <script>
-  (function(){ function init(){ var links=document.querySelectorAll('a.custom-report-cta-email-link[href^="mailto:"]'); links.forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); var h=this.getAttribute('href'); if(h) window.location.href=h; }); }); } if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init(); })();
+  (function(){
+    var overlay = document.getElementById('contact-overlay');
+    var dialog = document.getElementById('contact-dialog');
+    var closeBtn = document.getElementById('pbj-contact-popup-close');
+    var form = document.getElementById('pbj-contact-popup-form');
+    var messageEl = document.getElementById('pbj-popup-message');
+    if (!overlay || !dialog) return;
+    function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
+    function openContact(topic) {
+      overlay.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      if (messageEl && topic) messageEl.value = topic;
+      var first = form ? form.querySelector('input:not([type="hidden"]), textarea') : null;
+      if (first) first.focus(); else { var list = focusables(); if (list.length) list[0].focus(); }
+      document.addEventListener('keydown', trapKey);
+    }
+    function closeContact() {
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+      document.removeEventListener('keydown', trapKey);
+      var triggers = document.querySelectorAll('.pbj-contact-trigger');
+      if (triggers.length) triggers[0].focus();
+    }
+    function trapKey(e) {
+      if (e.key !== 'Tab' && e.key !== 'Escape') return;
+      if (e.key === 'Escape') { e.preventDefault(); closeContact(); return; }
+      var list = focusables();
+      if (list.length === 0) return;
+      var first = list[0], last = list[list.length - 1];
+      if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+      else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+    }
+    document.querySelectorAll('.pbj-contact-trigger').forEach(function(btn) {
+      btn.addEventListener('click', function(e) { e.preventDefault(); openContact(btn.getAttribute('data-topic') || ''); });
+    });
+    if (closeBtn) closeBtn.addEventListener('click', closeContact);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) closeContact(); });
+    if (form) form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+    if (new URLSearchParams(window.location.search).get('contact_sent') === '1') {
+      var toast = document.createElement('div');
+      toast.className = 'contact-toast';
+      toast.setAttribute('role', 'status');
+      toast.textContent = 'Thanks, your message was sent.';
+      document.body.appendChild(toast);
+      if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
+      setTimeout(function() { toast.remove(); }, 4000);
+    }
+  })();
   </script>
 </body>
 </html>'''
@@ -1263,6 +1440,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     if context == 'facility':
         facility_name = kwargs.get('facility_name', '') or 'This facility'
         ccn = kwargs.get('ccn', '') or ''
+        topic_default = f"{facility_name} ({ccn}) staffing data." if facility_name or ccn else ""
         subj_att = f"Custom Staffing Analysis – {facility_name} (CCN {ccn})"
         body_att = f"""Hello Eric,
 
@@ -1297,9 +1475,11 @@ Thank you,"""
         sms_href = f"sms:+19298084996?body={quote(sms_body)}"
         primary_mailto = link_media
         cta_label = "Request custom analysis"
+        contact_topic = topic_default
 
     elif context == 'state':
         state_name = kwargs.get('state_name', '') or 'this state'
+        contact_topic = f"{state_name} nursing home staffing data." if state_name else ""
         subj_att = f"Custom Staffing Analysis – {state_name}"
         body_att = f"""Hello Eric,
 
@@ -1335,6 +1515,7 @@ Thank you,"""
 
     elif context == 'entity':
         entity_name = kwargs.get('entity_name', '') or 'this entity'
+        contact_topic = f"{entity_name} ownership staffing data." if entity_name else ""
         subj_att = f"Ownership-Level Staffing Analysis – {entity_name}"
         body_att = f"""Hello Eric,
 
@@ -1371,11 +1552,12 @@ Thank you,"""
     else:
         return ''
 
-    # Use a div with an explicit mailto link so the link works reliably on desktop (no nested <a>).
-    primary_mailto = primary_mailto if context in ('facility', 'state', 'entity') else f"mailto:{email}"
+    # Popup trigger; pre-fill message from data-topic on provider/state/entity pages.
+    contact_topic = contact_topic if context in ('facility', 'state', 'entity') else ''
+    topic_attr = html.escape(contact_topic, quote=True) if contact_topic else ''
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    email_link = f'<a href="{html.escape(primary_mailto)}" class="custom-report-cta-email-link" style="color:#93c5fd;font-weight:500;text-decoration:none;">Email &gt; eric@320insight.com</a>'
+    email_link = f'<button type="button" class="pbj-contact-trigger custom-report-cta-email-link pbj-contact-cta" data-topic="{topic_attr}" style="color:#93c5fd;font-weight:500;text-decoration:none;background:none;border:none;cursor:pointer;padding:0;font:inherit;">Email &gt; eric@320insight.com</button>'
     return f'''<div class="custom-report-cta" style="margin:1.5rem 0;padding:0.85rem 1.15rem;background:rgba(15,23,42,0.5);border:1px solid rgba(59,130,246,0.2);border-radius:8px;max-width:640px;font-size:0.875rem;color:rgba(226,232,240,0.9);line-height:1.5;">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
@@ -1712,7 +1894,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     var ctx = document.getElementById(id);
     if (!ctx || !quarters || !quarters.length) return;
     var spanYears = getSpanYears(quarters);
-    var maxTicks = window.innerWidth < 768 ? Math.min(8, Math.max(4, Math.ceil(spanYears / 2))) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
+    var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
     var timeDatasets = datasets.map(function(ds) {
       var data = buildTimeSeriesData(quarters, ds.data);
       var out = { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, data: data };
@@ -2162,7 +2344,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data.</p>
 """ + (f'<p style="margin: 0.25rem 0 0 0;"><a href="{care_compare_facility_url}" target="_blank" rel="noopener" class="pbj-care-compare-badge">View on Care Compare</a></p>' if care_compare_facility_url else '') + """
 </div>"""
-    return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
+    html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
+    if HAS_CSRF and generate_csrf:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
+    else:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    return html_content
 
 _PROVIDER_INFO_ENTITY_CACHE = None
 _PROVIDER_INFO_ENTITY_AT = 0
@@ -2811,7 +2998,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
 <p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data for facility list and staffing. Chain-level metrics (ratings, fines, SFF, ownership) from CMS Care Compare chain performance data. <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>
 </div>"""
-    return layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
+    html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
+    if HAS_CSRF and generate_csrf:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
+    else:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    return html_content
 
 _SFF_CACHE = None
 _SFF_CACHE_AT = 0
@@ -3172,7 +3364,9 @@ def generate_state_chart_html(state_name, state_code):
     def chart_header(main_title):
         one_line = (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}: {state_esc}</div>') if state_esc else (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}</div>')
         two_line = f'<div class="pbj-chart-header-twoline"><div class="section-header" style="margin-bottom:0;">{main_title}</div>{state_sub}</div>'
-        return f'<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">{one_line}{two_line}</div>'
+        # State page mobile only: one row "Illinois Census" (state + metric) with same section-header style
+        state_mobile_line = (f'<div class="pbj-chart-header-state-mobile section-header" style="margin-bottom:0;">{state_esc} {main_title}</div>') if state_esc else ''
+        return f'<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">{one_line}{two_line}{state_mobile_line}</div>'
     def chart_block(title, canvas_id, footer=''):
         out = f'<div class="pbj-chart-container" style="margin-bottom:1.5rem;">{chart_header(title)}<div class="pbj-chart-wrapper"><canvas id="{canvas_id}"></canvas></div>'
         if footer:
@@ -3182,10 +3376,12 @@ def generate_state_chart_html(state_name, state_code):
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div id="state-chart-meta" data-state-code="{state_code_esc}" style="display:none;"></div>
+<div class="state-page-charts">
 ''' + chart_block('Total Staffing', 'stateChartTotal', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'stateChartRN') + '''
 ''' + chart_block('Census', 'stateChartCensus') + '''
 ''' + chart_block('Contract staff %', 'stateChartContract') + '''
+</div>
 <script src="/state-page-charts.js"></script>
 '''
 
@@ -3224,7 +3420,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             state_df = load_csv_data('state_quarterly_metrics.csv')
             if state_df is None:
                 return None
-            latest_all = state_df[state_df['CY_Qtr'] == raw_quarter]
+            latest_all = state_df[(state_df['CY_Qtr'] == raw_quarter) & (state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING))]
             if latest_all.empty:
                 return None
             latest_all_sorted = latest_all.sort_values(metric_key, ascending=False).reset_index(drop=True)
@@ -3943,7 +4139,7 @@ def get_pbjpedia_sidebar():
                     <div class="body">
                         <ul>
                             <li><a href="/about">About</a></li>
-                            <li><a href="mailto:eric@320insight.com">Contact</a></li>
+                            <li><a href="#" class="pbj-contact-modal-trigger" aria-label="Open contact options (email or copy)">Contact</a></li>
                             <li><a href="https://www.320insight.com" target="_blank" class="external-link">320 Consulting</a></li>
                         </ul>
                     </div>
@@ -4644,6 +4840,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             }}
         }})();
     </script>
+    <script src="/pbj-site-universal.js"></script>
 </body>
 </html>"""
 
@@ -4854,8 +5051,9 @@ def generate_state_page(state_code):
     sff_facilities = load_sff_facilities()
     state_sff = [f for f in sff_facilities if f.get('state', '').upper() == state_code]
     
-    # Rankings use same canonical quarter
-    latest_all_states = state_df[state_df['CY_Qtr'] == latest_quarter] if latest_quarter is not None else state_df
+    # Rankings use same canonical quarter; exclude PR (51 = 50 states + DC)
+    _rank_df = state_df[state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING)]
+    latest_all_states = _rank_df[_rank_df['CY_Qtr'] == latest_quarter] if latest_quarter is not None else _rank_df
     total_states = len(latest_all_states)
     
     # Rank by Total Nurse HPRD (higher is better)
@@ -4890,7 +5088,10 @@ def generate_state_page(state_code):
     )
     layout = get_pbj_site_layout(page_title, seo_description, canonical_url)
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
-    
+    if HAS_CSRF and generate_csrf:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
+    else:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',

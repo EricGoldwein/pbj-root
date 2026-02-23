@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Request PBJ Analysis | PBJ320</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+    .navbar {
+      background: #0f172a;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      border-bottom: 2px solid #1e40af;
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    .nav-brand a { color: inherit; text-decoration: none; display: flex; align-items: center; }
+    .nav-menu { display: flex; gap: 30px; align-items: center; }
+    .nav-link { color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; padding: 8px 0; }
+    .nav-link:hover, .nav-link.active { color: #60a5fa; }
+    .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; }
+    .nav-toggle span { width: 25px; height: 3px; background: white; }
+    .content { padding: 48px 20px; max-width: 560px; margin: 0 auto; }
+    .content-box {
+      background: #1e293b;
+      border-radius: 12px;
+      padding: 2rem;
+      border: 1px solid rgba(96,165,250,0.25);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .content-box h1 { font-size: 1.5rem; color: #60a5fa; margin-bottom: 0.5rem; }
+    .content-box > p { color: rgba(226,232,240,0.85); margin-bottom: 1.25rem; font-size: 0.95rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-group label { display: block; font-weight: 500; color: #cbd5e1; margin-bottom: 0.35rem; font-size: 0.9rem; }
+    .form-group input[type="text"],
+    .form-group input[type="email"],
+    .form-group textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid rgba(96,165,250,0.35);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      min-height: 44px;
+      background: rgba(15,23,42,0.6);
+      color: #e2e8f0;
+    }
+    .form-group textarea { min-height: 140px; resize: vertical; padding-top: 0.65rem; }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: rgba(148,163,184,0.7); }
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
+    }
+    .form-group .optional { font-weight: 400; color: rgba(148,163,184,0.9); font-size: 0.85rem; }
+    .form-row-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 1.25rem;
+    }
+    .form-row-submit .checkbox-wrap { margin-bottom: 0; }
+    .checkbox-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+    }
+    .checkbox-wrap input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .checkbox-wrap span { font-weight: 500; color: #cbd5e1; font-size: 0.9rem; }
+    button[type="submit"] {
+      background: rgba(96,165,250,0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(96,165,250,0.5);
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    button[type="submit"]:hover { background: rgba(96,165,250,0.3); color: #bfdbfe; border-color: rgba(96,165,250,0.6); }
+    button[type="submit"]:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; }
+    .message { padding: 0.75rem 1rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .message.success { background: rgba(34,197,94,0.2); color: #86efac; border: 1px solid rgba(34,197,94,0.4); }
+    .message.error { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    @media (max-width: 768px) {
+      .content { padding: 24px 16px; }
+      .content-box { padding: 1.5rem; }
+      .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: #0f172a; padding: 1rem; }
+      .nav-menu.active { display: flex; }
+      .nav-toggle { display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; margin-right: 8px;">
+          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/insights" class="nav-link">Insights</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Ownership</a>
+      </div>
+      <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+
+  <main class="content">
+    <div class="content-box">
+      <h1>Request PBJ Analysis</h1>
+
+      <div id="contact-success" class="message success" role="status" style="display: none;">Thanks. Your message was sent. We’ll get back to you soon.</div>
+      <div id="contact-error" class="message error" role="alert" style="display: none;">Something went wrong. Please try again or email eric@320insight.com directly.</div>
+
+      <form action="/contact" method="POST" id="contact-form">
+        <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+        <div class="form-group">
+          <label for="contact-name">Name <span style="color: #f87171;">*</span></label>
+          <input type="text" id="contact-name" name="name" required autocomplete="name" maxlength="200" aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="contact-email">Email <span style="color: #f87171;">*</span></label>
+          <input type="email" id="contact-email" name="email" required autocomplete="email" aria-required="true">
+        </div>
+        <div class="form-group">
+          <label for="contact-message">Message <span style="color: #f87171;">*</span></label>
+          <textarea id="contact-message" name="message" required placeholder="e.g. Facility or topic you’re asking about, and your request…" aria-required="true"></textarea>
+        </div>
+        <div class="form-row-submit">
+          <label class="checkbox-wrap" for="contact-press">
+            <input type="checkbox" id="contact-press" name="press" value="yes" aria-label="I am media">
+            <span>I am media</span>
+          </label>
+          <button type="submit">Send</button>
+        </div>
+      </form>
+    </div>
+  </main>
+
+  <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"></footer>
+
+  <script src="/pbj-site-universal.js?v=2"></script>
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var successEl = document.getElementById('contact-success');
+      var errorEl = document.getElementById('contact-error');
+      var formEl = document.getElementById('contact-form');
+      if (params.get('sent') === '1' && successEl) {
+        successEl.style.display = 'block';
+        if (formEl) formEl.style.display = 'none';
+      }
+      if (params.get('error') && errorEl) {
+        errorEl.style.display = 'block';
+      }
+      var messageInput = document.getElementById('contact-message');
+      if (messageInput && params.get('topic')) {
+        try {
+          messageInput.value = decodeURIComponent(params.get('topic'));
+        } catch (e) {}
+      }
+      var t = document.getElementById('navToggle');
+      var m = document.getElementById('navMenu');
+      if (t && m) t.addEventListener('click', function() { m.classList.toggle('active'); t.classList.toggle('active'); });
+    })();
+  </script>
+</body>
+</html>

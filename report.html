@@ -4256,8 +4256,8 @@
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
-        <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link active">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
@@ -4474,7 +4474,7 @@
         max-width: 720px;
         font-size: 0.95rem;
       ">
-        <a href="mailto:eric@320insight.com"
+        <a href="mailto:eric@320insight.com" class="pbj-contact-cta"
            style="color:rgba(255,255,255,0.85); text-decoration:none;">
           Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
         </a>
@@ -4748,8 +4748,8 @@
           console.log(`✓ Loaded ${Object.keys(facilityQuarterlyData).length} facilities with direct care data for quarter ${mostRecentQuarter}`);
         }
         
-        // Filter for the most recent quarter
-        const q2StateData = stateRows.filter(row => row.CY_Qtr === mostRecentQuarter);
+        // Filter for the most recent quarter; exclude Puerto Rico so rankings are 51 (50 states + DC)
+        const q2StateData = stateRows.filter(row => row.CY_Qtr === mostRecentQuarter && (row.STATE || '').trim().toUpperCase() !== 'PR');
         const q2NationalData = nationalRows.find(row => row.CY_Qtr === mostRecentQuarter);
 
         // Process state data

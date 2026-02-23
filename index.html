@@ -398,18 +398,18 @@
       color: rgba(255,255,255,0.4);
       letter-spacing: 0.08em;
     }
-    /* Request custom – badge-style CTA with color; tight vertical padding only */
+    /* Request custom – subtle dark tint, readable white */
     .hero-copy-cta-wrap {
       display: inline-block;
       margin-top: 0.5rem;
-      padding: 3px 12px;
-      color: #93c5fd;
+      padding: 4px 12px;
+      color: rgba(255, 255, 255, 0.92);
       font-size: 0.8rem;
       font-weight: 500;
       line-height: 1.5;
       text-decoration: none;
-      background: rgba(96, 165, 250, 0.12);
-      border: 1px solid rgba(96, 165, 250, 0.35);
+      background: rgba(0, 0, 0, 0.25);
+      border: 1px solid rgba(255, 255, 255, 0.22);
       border-radius: 6px;
       transition: color 0.2s, background 0.2s, border-color 0.2s;
       position: relative;
@@ -417,11 +417,135 @@
       cursor: pointer;
       pointer-events: auto;
     }
-    .hero-copy-cta-wrap:hover {
-      color: #bfdbfe;
-      background: rgba(96, 165, 250, 0.2);
-      border-color: rgba(96, 165, 250, 0.5);
+    button.hero-copy-cta-wrap,
+    a.hero-copy-cta-wrap {
+      -webkit-appearance: none;
+      appearance: none;
+      font-family: inherit;
     }
+    a.hero-copy-cta-wrap {
+      text-decoration: none;
+      color: inherit;
+    }
+    .hero-copy-cta-wrap:hover {
+      color: #fff;
+      background: rgba(0, 0, 0, 0.35);
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+    /* Contact popup */
+    .contact-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .contact-overlay[aria-hidden="false"] { display: flex; }
+    .contact-popup {
+      position: relative;
+      background: #1e293b;
+      border: 1px solid rgba(96,165,250,0.25);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 440px;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      -webkit-overflow-scrolling: touch;
+    }
+    .contact-popup h2 {
+      margin: 0;
+      padding: 1.25rem 1.25rem 0;
+      font-size: 1.25rem;
+      color: #60a5fa;
+    }
+    .contact-popup .contact-popup-close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: rgba(148,163,184,0.9);
+      border-radius: 8px;
+    }
+    .contact-popup .contact-popup-close:hover { color: #e2e8f0; background: rgba(96,165,250,0.15); }
+    .contact-popup .contact-popup-close:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .contact-popup-form { padding: 1rem 1.25rem 1.5rem; }
+    .contact-popup-form .f-group { margin-bottom: 1rem; }
+    .contact-popup-form .f-group label { display: block; font-weight: 500; color: #cbd5e1; margin-bottom: 0.3rem; font-size: 0.9rem; }
+    .contact-popup-form .f-group input[type="text"],
+    .contact-popup-form .f-group input[type="email"],
+    .contact-popup-form .f-group textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid rgba(96,165,250,0.35);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      min-height: 44px;
+      box-sizing: border-box;
+      background: rgba(15,23,42,0.6);
+      color: #e2e8f0;
+    }
+    .contact-popup-form .f-group textarea { min-height: 100px; resize: vertical; }
+    .contact-popup-form .f-group input::placeholder,
+    .contact-popup-form .f-group textarea::placeholder { color: rgba(148,163,184,0.7); }
+    .contact-popup-form .f-group input:focus,
+    .contact-popup-form .f-group textarea:focus {
+      outline: none;
+      border-color: #60a5fa;
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
+    }
+    .contact-popup-form .f-group .opt { font-weight: 400; color: rgba(148,163,184,0.9); font-size: 0.85rem; }
+    .contact-popup-form .f-row-submit {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+    .contact-popup-form .cb-wrap { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+    .contact-popup-form .cb-wrap input { width: 1.25rem; height: 1.25rem; cursor: pointer; flex-shrink: 0; }
+    .contact-popup-form .cb-wrap span { color: #cbd5e1; }
+    .contact-popup-form button[type="submit"] {
+      background: rgba(96,165,250,0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(96,165,250,0.5);
+      padding: 0.7rem 1.25rem;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .contact-popup-form button[type="submit"]:hover { background: rgba(96,165,250,0.3); color: #bfdbfe; }
+    .contact-popup-form button[type="submit"]:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; }
+    .contact-toast {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #166534;
+      color: #fff;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      z-index: 10001;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .contact-toast.error { background: #991b1b; }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -453,6 +577,12 @@
         max-width: 480px;
         margin-left: auto;
         margin-right: auto;
+        position: relative;
+        z-index: 10;
+      }
+      .phoebe-strip-wrap.phoebe-below-only {
+        position: relative;
+        z-index: 1;
       }
       .hero-cta-boilerplate {
         display: block;
@@ -797,6 +927,9 @@
         border-radius: 0;
         border: none;
         border-top: 1px solid rgba(255,255,255,0.1);
+      }
+      .footer .footer-tagline {
+        display: none !important;
       }
       .footer a {
         -webkit-tap-highlight-color: transparent;
@@ -1274,8 +1407,8 @@
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
-        <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
@@ -1339,7 +1472,6 @@
           
           <div id="homeSearchInfoPopup" class="home-search-info-popup" role="dialog" aria-label="Search help" aria-hidden="true">
             <div class="home-search-info-popup-inner">
-              <h2 id="homeSearchInfoTitle" class="home-search-info-title">Search help</h2>
               <button type="button" class="home-search-info-close" aria-label="Close">×</button>
               <div class="home-search-info-body">
                 <div class="info-section">
@@ -1359,7 +1491,6 @@
                   <p>🚩 Providers assigned 1-star, abuse icon, or SFF/Candidate status by CMS. Not real-time.</p>
                 </div>
                 <div class="info-footer">
-                  <p><strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>
                   <p><a href="/about">Learn more about the PBJ Dashboard</a></p>
                 </div>
               </div>
@@ -1384,8 +1515,38 @@
               <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>You're subscribed.</p>
               <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
             </div>
-            <a href="mailto:eric@320insight.com?subject=PBJ320%20custom%20analysis" class="hero-copy-cta-wrap" aria-label="Request custom PBJ staffing analysis">Request custom PBJ staffing analysis →</a>
+            <button type="button" class="hero-copy-cta-wrap" id="hero-contact-trigger" aria-label="Request custom PBJ staffing analysis" aria-haspopup="dialog" aria-expanded="false">Request custom PBJ staffing analysis →</button>
           </div>
+
+          <div id="contact-overlay" class="contact-overlay" aria-hidden="true" role="presentation">
+            <div class="contact-popup" role="dialog" aria-labelledby="contact-popup-title" aria-modal="true" id="contact-dialog">
+              <h2 id="contact-popup-title">Request PBJ Analysis</h2>
+              <button type="button" class="contact-popup-close" id="contact-popup-close" aria-label="Close">×</button>
+              <form action="/contact" method="POST" class="contact-popup-form" id="contact-popup-form">
+                <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+                <div class="f-group">
+                  <label for="popup-name">Name <span style="color:#f87171">*</span></label>
+                  <input type="text" id="popup-name" name="name" required autocomplete="name" maxlength="200">
+                </div>
+                <div class="f-group">
+                  <label for="popup-email">Email <span style="color:#f87171">*</span></label>
+                  <input type="email" id="popup-email" name="email" required autocomplete="email">
+                </div>
+                <div class="f-group">
+                  <label for="popup-message">Message <span style="color:#f87171">*</span></label>
+                  <textarea id="popup-message" name="message" required placeholder="Facility or topic and your request…"></textarea>
+                </div>
+                <div class="f-group f-row-submit">
+                  <label class="cb-wrap" for="popup-press">
+                    <input type="checkbox" id="popup-press" name="press" value="yes" aria-label="I am media">
+                    <span>I am media</span>
+                  </label>
+                  <button type="submit">Send</button>
+                </div>
+              </form>
+            </div>
+          </div>
+
           <div class="phoebe-strip-wrap phoebe-below-only" tabindex="-1">
             <button type="button" class="phoebe-strip" aria-label="What is PBJ? (hover or tap for short answer)" aria-haspopup="true" aria-expanded="false" id="phoebeStripBtnBelow">
               <span class="phoebe-strip-avatar" aria-hidden="true">
@@ -1408,23 +1569,6 @@
 
   <script src="/pbj-site-universal.js?v=2"></script>
   <script>
-    // Mailto fallback: force open mailto via JS so link works in Chrome/Windows and elsewhere
-    (function() {
-      function init() {
-        var links = document.querySelectorAll('a.hero-copy-cta-wrap[href^="mailto:"]');
-        links.forEach(function(a) {
-          a.addEventListener('click', function(e) {
-            e.preventDefault();
-            var href = this.getAttribute('href');
-            if (href) window.location.href = href;
-          });
-        });
-      }
-      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-      else init();
-    })();
-  </script>
-  <script>
     // Subscribe success/error from URL params (after POST /subscribe redirect)
     (function() {
       var params = new URLSearchParams(window.location.search);
@@ -1443,6 +1587,78 @@
       if (err && errorEl) {
         errorEl.hidden = false;
         errorEl.textContent = err === 'invalid' ? 'Please enter a valid email address.' : err === 'duplicate' ? 'That email is already subscribed.' : 'Something went wrong. Try again later.';
+      }
+    })();
+  </script>
+  <script>
+    // Contact popup: open/close, focus trap, Escape, success toast
+    (function() {
+      var overlay = document.getElementById('contact-overlay');
+      var dialog = document.getElementById('contact-dialog');
+      var trigger = document.getElementById('hero-contact-trigger');
+      var closeBtn = document.getElementById('contact-popup-close');
+      var form = document.getElementById('contact-popup-form');
+      if (!overlay || !dialog || !trigger) return;
+
+      var focusables = function() {
+        return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea');
+      };
+
+      function openContact() {
+        overlay.setAttribute('aria-hidden', 'false');
+        trigger.setAttribute('aria-expanded', 'true');
+        document.body.style.overflow = 'hidden';
+        var firstInput = form.querySelector('input:not([type="hidden"]), textarea');
+        if (firstInput) firstInput.focus();
+        else { var first = focusables()[0]; if (first) first.focus(); }
+        document.addEventListener('keydown', trapKey);
+      }
+
+      function closeContact() {
+        overlay.setAttribute('aria-hidden', 'true');
+        trigger.setAttribute('aria-expanded', 'false');
+        document.body.style.overflow = '';
+        trigger.focus();
+        document.removeEventListener('keydown', trapKey);
+      }
+
+      function trapKey(e) {
+        if (e.key !== 'Tab' && e.key !== 'Escape') return;
+        if (e.key === 'Escape') { e.preventDefault(); closeContact(); return; }
+        var list = focusables();
+        if (list.length === 0) return;
+        var first = list[0];
+        var last = list[list.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+        } else {
+          if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }
+      }
+
+      trigger.addEventListener('click', function() { openContact(); });
+      closeBtn.addEventListener('click', closeContact);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) closeContact(); });
+      form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('contact_sent') === '1') {
+        var toast = document.createElement('div');
+        toast.className = 'contact-toast';
+        toast.setAttribute('role', 'status');
+        toast.textContent = 'Thanks, your message was sent.';
+        document.body.appendChild(toast);
+        if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
+        setTimeout(function() { toast.remove(); }, 4000);
+      }
+      if (params.get('contact_error') === '1') {
+        var errToast = document.createElement('div');
+        errToast.className = 'contact-toast error';
+        errToast.setAttribute('role', 'alert');
+        errToast.textContent = 'Something went wrong. Please try again or email eric@320insight.com directly.';
+        document.body.appendChild(errToast);
+        if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
+        setTimeout(function() { errToast.remove(); }, 6000);
       }
     })();
   </script>

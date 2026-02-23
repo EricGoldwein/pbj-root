@@ -4,8 +4,11 @@ Generate search_index.json for home page search (facility by name/ID, entity, st
 Reads provider_info_combined.csv and states_list.json.
 Output: search_index.json with facilities, entities, and states for client-side autocomplete.
 
-Run this after updating provider_info_combined.csv (or entity/chain data) so the home page
-search dropdown entity counts (e.g. "Genesis — 202 NHs") match the entity page.
+When to run:
+  - After updating provider_info_combined.csv (or chain/entity data) so search counts match.
+  - If you see the same chain twice with different NH counts (e.g. "Genesis 347 NHs" and
+    "Genesis 267 NHs"), re-run this script: it dedupes by chain name and keeps one entry
+    per chain (the one with the largest facility count).
 """
 import csv
 import json
@@ -127,6 +130,21 @@ def main():
                     entities.append({'n': chain_name[:80], 'id': eid, 'fc': fc})
             except (ValueError, TypeError):
                 pass
+
+    # Dedupe entities by normalized name (e.g. "Genesis Healthcare" once, not 267 NHs and 347 NHs)
+    # Keep one entry per name: the one with the largest facility count; same name from different
+    # chain_id vs affiliated_entity_id rows was producing duplicates.
+    def _norm(s):
+        return (s or '').strip().lower()
+    by_name = {}  # normalized_name -> best {n, id, fc}
+    for ent in entities:
+        key = _norm(ent['n'])
+        if not key:
+            continue
+        cur = by_name.get(key)
+        if cur is None or ent['fc'] > cur['fc']:
+            by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
+    entities = list(by_name.values())
 
     # States: from states_list.json (full names) -> add abbr
     states = []

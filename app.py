@@ -7,6 +7,15 @@ Now with dynamic date support
 from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request, redirect, make_response
 import os
 import sys
+
+# Load .env from project root if present (for SUBSCRIBE_NOTIFY_*, SECRET_KEY, etc.)
+try:
+    from dotenv import load_dotenv
+    _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.isfile(_env_path):
+        load_dotenv(_env_path)
+except ImportError:
+    pass
 import re
 import csv
 import json
@@ -1036,6 +1045,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .section-header {{ margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.35em; font-weight: 700; color: #60a5fa; border-bottom: 2.5px solid rgba(59,130,246,0.3); padding-bottom: 4px; letter-spacing: 0.01em; }}
 .section-header:first-of-type {{ margin-top: 0; }}
 .pbj-subtitle {{ font-size: 0.9em; color: rgba(226,232,240,0.75); margin-top: 4px; }}
+.pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: rgba(226,232,240,0.7); margin-top: 6px; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #cbd5e1; max-width: 700px; }}
 .pbj-percentile, .pbj-entity-summary {{ font-size: 0.85rem; color: #94a3b8; margin-top: 6px; }}
@@ -1091,6 +1101,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
 .custom-report-cta .custom-report-cta-dot {{ color: rgba(226,232,240,0.5); margin: 0 0.2rem; font-weight: 400; }}
 .custom-report-cta .custom-report-cta-box:hover {{ background: rgba(59,130,246,0.3); color: #bfdbfe; }}
+.custom-report-cta.custom-report-cta-link {{ position: relative; z-index: 1; cursor: pointer; pointer-events: auto; }}
 .custom-report-cta.custom-report-cta-link:hover {{ background: rgba(59,130,246,0.15); border-color: rgba(96,165,250,0.4); }}
 .custom-report-cta .custom-report-cta-footer {{ margin: 0.5rem 0 0 0; font-size: 0.75rem; color: rgba(226,232,240,0.6); }}
 .pbj-care-compare-badge {{ display: inline-block; margin-top: 0.25rem; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.35); color: #93c5fd; text-decoration: none; }}
@@ -1139,6 +1150,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-subtitle {{ font-size: 0.85em; }}
   /* State page subtitle on mobile: "590 providers • 97,999 residents • 3.57 HPRD (Q3 2025)" - allow wrap, smaller */
   .pbj-subtitle-state {{ font-size: 0.8em; line-height: 1.4; }}
+  /* Provider page: on mobile show subtitle with total HPRD (after for profit, before residents) */
+  .pbj-subtitle-desktop {{ display: none; }}
+  .pbj-subtitle-mobile {{ display: inline; }}
   /* State page H1: on mobile show short "New York PBJ Staffing" only */
   .pbj-state-title .pbj-state-title-full {{ display: none !important; }}
   .pbj-state-title .pbj-state-title-mobile {{ display: inline !important; }}
@@ -1202,7 +1216,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
-    sub_text = "Request Custom PBJ analysis for litigation and investigative reporting."
+    sub_text = "Request custom PBJ analysis for litigation and investigative reporting."
     footer_text = ""
 
     def mailto(subject, body):
@@ -1325,7 +1339,7 @@ Thank you,"""
     primary_mailto = primary_mailto if context in ('facility', 'state', 'entity') else f"mailto:{email}"
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    return f'''<a href="{primary_mailto}" class="custom-report-cta custom-report-cta-link" style="display:block;text-decoration:none;color:inherit;">
+    return f'''<a href="{primary_mailto}" class="custom-report-cta custom-report-cta-link" style="display:block;text-decoration:none;color:inherit;position:relative;z-index:1;cursor:pointer;">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
 {footer_block}</a>'''
@@ -1905,7 +1919,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
     total_direct_badge = f"Total HPRD: {hprd_val} (Direct: {direct_hprd_val})"
-    # CMS star ratings (1-5) from provider info: show as "Overall: ★☆☆☆☆" / "Staffing: ★★★☆☆"
+    # CMS star ratings (1-5): show as "Overall: ★" or "Overall: ★★★★" (number of stars only)
     def _star_icons(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
             return "—"
@@ -1913,7 +1927,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             _n = round_half_up(float(val), 0)
             n = int(_n) if _n is not None else None
             if n is not None and 1 <= n <= 5:
-                return "★" * n + "☆" * (5 - n)
+                return "★" * n
         except (TypeError, ValueError):
             pass
         return "—"
@@ -2066,19 +2080,36 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     care_compare_facility_url = f'https://www.medicare.gov/care-compare/details/nursing-home/{prov}/view-all/?state={state_code}' if state_code else ''
     custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
     _residents_sub = f"{census_int:,} residents" if census_int else "Census not reported"
+    # City, ST as one part (e.g. "Brooklyn, NY" with state linked)
+    if city and state_link:
+        _city_state = f'{city}, {state_link}'
+    elif city:
+        _city_state = city
+    elif state_link:
+        _city_state = state_link
+    else:
+        _city_state = ''
     _loc_parts = []
-    if city:
-        _loc_parts.append(city)
-    if state_link:
-        _loc_parts.append(state_link)
+    if _city_state.strip():
+        _loc_parts.append(_city_state)
     if ownership_short and ownership_short.strip():
         _loc_parts.append(ownership_short)
     _loc_parts.append(_residents_sub)
     _loc_sub = ' &bull; '.join(_loc_parts) if _loc_parts else _residents_sub
     subtitle_one_line = _loc_sub + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
+    # Mobile subtitle: same but insert total HPRD after ownership, before residents
+    _loc_parts_mobile = []
+    if _city_state.strip():
+        _loc_parts_mobile.append(_city_state)
+    if ownership_short and ownership_short.strip():
+        _loc_parts_mobile.append(ownership_short)
+    _loc_parts_mobile.append(f'{hprd_val} HPRD')
+    _loc_parts_mobile.append(_residents_sub)
+    _loc_sub_mobile = ' &bull; '.join(_loc_parts_mobile) if _loc_parts_mobile else _residents_sub
+    subtitle_mobile = _loc_sub_mobile + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
     inner = f"""
 <h1>{facility_name}</h1>
-<p class="pbj-subtitle">{subtitle_one_line}</p>
+<p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
 
 {pbj_takeaway_card}
 
@@ -2244,13 +2275,13 @@ def _chain_val(row, *keys, default=None):
     return default
 
 def _star_display(val):
-    """Format 1–5 rating as star string (★★★☆☆). Returns '—' if missing."""
+    """Format 1–5 rating as star string (number of stars only, e.g. ★★★★). Returns '—' if missing."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return "—"
     try:
         _f = round_half_up(float(val), 0)
         full = min(5, max(0, int(_f))) if _f is not None else 0
-        return "★" * full + "☆" * (5 - full)
+        return "★" * full if full else "—"
     except (TypeError, ValueError):
         return "—"
 

@@ -431,6 +431,12 @@
       align-items: center;
       max-width: 320px;
     }
+    @media (min-width: 769px) {
+      .hero-email-cta form {
+        flex-wrap: nowrap;
+        max-width: 420px;
+      }
+    }
     .hero-email-cta input[type="email"] {
       min-width: 0;
       flex: 1 1 180px;
@@ -646,10 +652,14 @@
       text-align: center; 
       padding: 16px 24px; 
       background: #0f172a;
-      color: white;
+      color: #e2e8f0;
       margin-top: 17px;
+      margin-left: 0;
+      margin-right: 0;
       position: relative;
       width: 100%;
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
     }
     .footer::before {
       content: '';
@@ -659,10 +669,11 @@
       right: 0;
       height: 1px;
       background: linear-gradient(90deg, transparent, #3b82f6, transparent);
+      width: 100%;
     }
     .footer p {
       font-size: 1rem;
-      opacity: 0.9;
+      opacity: 0.95;
       color: #e2e8f0;
     }
     
@@ -706,9 +717,8 @@
         margin-top: 6px;
         padding: 8px 12px 14px;
         text-align: center;
-        background: rgba(255,255,255,0.05);
+        background: rgba(15, 23, 42, 0.95);
         border-radius: 8px;
-        backdrop-filter: blur(10px);
         border: 1px solid rgba(255,255,255,0.1);
         touch-action: pan-y;
         -webkit-overflow-scrolling: touch;
@@ -1273,18 +1283,6 @@
         </header>
 
         <div class="hero-below-wrap">
-          <div class="phoebe-strip-wrap" tabindex="-1">
-            <button type="button" class="phoebe-strip" aria-label="What is PBJ? (hover or tap for short answer)" aria-haspopup="true" aria-expanded="false" id="phoebeStripBtn">
-              <span class="phoebe-strip-avatar" aria-hidden="true">
-                <img src="/phoebe.png" alt="" width="52" height="52" loading="lazy">
-              </span>
-              <span class="phoebe-strip-label">What is PBJ?</span>
-            </button>
-            <div class="phoebe-strip-popup" id="phoebeStripPopup" role="tooltip">
-              <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
-              <p style="margin: 0;"><a href="/phoebe">PBJ Explained</a></p>
-            </div>
-          </div>
           <p class="hero-explore-bar">
             <span class="hero-explore-bar-desktop">Explore: <a href="/report">U.S. staffing rankings</a><span class="sep" aria-hidden="true">·</span><a href="/sff">Special Focus Facilities</a> · <a href="/owners">Ownership Political Contributions</a><span class="sep" aria-hidden="true">·</span><a href="/about">About PBJ320</a></span>
             <span class="hero-explore-bar-mobile">Explore: <a href="/report">Rankings</a><span class="sep" aria-hidden="true">·</span><a href="/owners">Follow the Money</a><span class="sep" aria-hidden="true">·</span><a href="/about">About PBJ320</a></span>
@@ -1299,6 +1297,18 @@
             </form>
             <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>Thanks — you’re on the list.</p>
             <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
+          </div>
+          <div class="phoebe-strip-wrap" tabindex="-1">
+            <button type="button" class="phoebe-strip" aria-label="What is PBJ? (hover or tap for short answer)" aria-haspopup="true" aria-expanded="false" id="phoebeStripBtn">
+              <span class="phoebe-strip-avatar" aria-hidden="true">
+                <img src="/phoebe.png" alt="" width="52" height="52" loading="lazy">
+              </span>
+              <span class="phoebe-strip-label">What is PBJ?</span>
+            </button>
+            <div class="phoebe-strip-popup" id="phoebeStripPopup" role="tooltip">
+              <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
+              <p style="margin: 0;"><a href="/phoebe">PBJ Explained</a></p>
+            </div>
           </div>
         </div>
       </div>

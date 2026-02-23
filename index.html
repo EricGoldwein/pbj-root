@@ -1608,7 +1608,8 @@
               const matchId = matchQuery(String(row.id), q);
               if (!matchName && !matchId) continue;
               count++;
-              const url = DASHBOARD_BASE + '/entity/' + encodeURIComponent(row.id);
+              var entityId = (row.linkId != null ? row.linkId : row.id);
+              const url = DASHBOARD_BASE + '/entity/' + encodeURIComponent(entityId);
               var fc = row.fc != null ? row.fc : 0;
               var label = titleCase(row.n || '') + ' (ID: ' + row.id + ')';
               if (fc > 0) label += ' — ' + fc + ' NH' + (fc === 1 ? '' : 's');

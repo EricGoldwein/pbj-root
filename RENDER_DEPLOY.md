@@ -12,4 +12,4 @@ Render will then use HTTP GET requests to `http://<your-service>:PORT/health` in
 - If you created the service from this repo’s **Blueprint** (`render.yaml`), `healthCheckPath: /health` is already in the spec; re-applying the Blueprint or creating a new service from it will set this.
 - If you created the service manually (e.g. "New Web Service" and then connected the repo), you must set Health Check Path in the dashboard as above.
 
-The app binds to `0.0.0.0:PORT` via `gunicorn_config.py`; Render sets `PORT` (often 10000). The `/health` route in `app.py` is lightweight and does not load the owner dashboard.
+The app binds to `0.0.0.0:PORT` via `gunicorn_config.py`; Render sets `PORT` (often 10000). The `/health` route in `app.py` is lightweight and does not load the owner dashboard. Pandas is loaded on first non-health request so workers can respond to `/health` before heavy imports (avoids "No open HTTP ports" when the health check runs before the worker finishes loading).

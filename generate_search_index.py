@@ -42,6 +42,41 @@ def normalize_ccn(val):
     return s.zfill(6)
 
 
+def load_chain_performance_facility_count(script_dir):
+    """Load Chain ID -> Number of facilities from CMS Chain Performance CSV.
+    Prefers 2025-11/Chain_Performance_20260218.csv. Returns dict chain_id (int) -> facility count (int)."""
+    canonical = os.path.join(script_dir, '2025-11', 'Chain_Performance_20260218.csv')
+    for path in [canonical] + [os.path.join(script_dir, p) for p in ['chain_performance.csv', '2025-11/Chain_Performance_20260218.csv']]:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                if not reader.fieldnames or 'Chain ID' not in reader.fieldnames:
+                    continue
+                col_num = 'Number of facilities'
+                if col_num not in reader.fieldnames:
+                    continue
+                out = {}
+                for row in reader:
+                    eid_raw = row.get('Chain ID', '').strip()
+                    num_raw = row.get(col_num, '').strip()
+                    if not eid_raw:
+                        continue
+                    try:
+                        eid = int(float(eid_raw))
+                        num = int(float(num_raw)) if num_raw and num_raw != '' else None
+                        if num is not None and num >= 0:
+                            out[eid] = num
+                    except (ValueError, TypeError):
+                        pass
+                return out
+        except Exception as e:
+            print(f"Warning: could not load chain performance from {path}: {e}")
+            continue
+    return {}
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
@@ -49,6 +84,8 @@ def main():
     provider_path = 'provider_info_combined.csv'
     states_path = 'states_list.json'
     out_path = 'search_index.json'
+
+    chain_perf_fc = load_chain_performance_facility_count(script_dir)
 
     # Pass 1: count unique CCNs per chain_id (for entity NH count)
     entity_ccns = {}  # chain_id -> set of CCNs
@@ -126,25 +163,40 @@ def main():
                 eid = int(float(chain_id_raw))
                 if eid not in entities_seen:
                     entities_seen.add(eid)
-                    fc = len(entity_ccns.get(eid, set()))
+                    fc_pbj = len(entity_ccns.get(eid, set()))
+                    fc = chain_perf_fc.get(eid) if eid in chain_perf_fc else fc_pbj
                     entities.append({'n': chain_name[:80], 'id': eid, 'fc': fc})
             except (ValueError, TypeError):
                 pass
 
-    # Dedupe entities by normalized name (e.g. "Genesis Healthcare" once, not 267 NHs and 347 NHs)
-    # Keep one entry per name: the one with the largest facility count; same name from different
-    # chain_id vs affiliated_entity_id rows was producing duplicates.
+    # Dedupe entities by normalized name (e.g. "Genesis Healthcare" once, not 267 NHs and 347 NHs).
+    # Keep one canonical entry per name (id with largest facility count). Also add alias entries
+    # for other IDs that share the same name so search by "237" still finds the chain and links to canonical.
     def _norm(s):
         return (s or '').strip().lower()
     by_name = {}  # normalized_name -> best {n, id, fc}
+    all_by_name = {}  # normalized_name -> list of {n, id, fc} for that name
     for ent in entities:
         key = _norm(ent['n'])
         if not key:
             continue
+        all_by_name.setdefault(key, []).append(ent)
         cur = by_name.get(key)
         if cur is None or ent['fc'] > cur['fc']:
             by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
-    entities = list(by_name.values())
+    # Build final list: one canonical per name, plus aliases. Use Chain Performance facility count
+    # for the whole name group when any id in the group has one (so e.g. Genesis shows 197, not 284).
+    entities_out = []
+    for key, canonical in by_name.items():
+        group = all_by_name.get(key, [])
+        disp_fc = max((chain_perf_fc.get(e['id']) for e in group if e['id'] in chain_perf_fc), default=None)
+        if disp_fc is None:
+            disp_fc = canonical['fc']
+        entities_out.append({'n': canonical['n'], 'id': canonical['id'], 'fc': disp_fc})
+        for ent in group:
+            if ent['id'] != canonical['id']:
+                entities_out.append({'n': canonical['n'], 'id': ent['id'], 'fc': disp_fc, 'linkId': canonical['id']})
+    entities = entities_out
 
     # States: from states_list.json (full names) -> add abbr
     states = []

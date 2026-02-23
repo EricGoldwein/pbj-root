@@ -91,20 +91,50 @@
     .content-box header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(148, 163, 184, 0.3); }
     .content-box header h1 { font-size: 2.5rem; color: #1e40af; margin-bottom: 0.5rem; font-weight: 700; }
     .content-box header .subtitle { color: #475569; font-size: 1.15rem; font-weight: 500; }
-    .as-seen-in {
-      margin-top: 1rem;
-      margin-bottom: 1.5rem;
-      color: #64748b;
-      font-size: 0.95rem;
+    .as-seen-in-wrap {
+      margin: 1.5rem 0;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      border: 1px solid rgba(30, 64, 175, 0.15);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
     }
-    .as-seen-in .label { font-weight: 600; color: #475569; letter-spacing: 0.02em; }
-    .as-seen-in a { color: #1e40af; }
-    .as-seen-in .and-desktop { display: inline; }
-    .as-seen-in .and-mobile { display: none; }
+    .as-seen-in-wrap .label {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 0.6rem;
+    }
+    .as-seen-in-outlets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1rem;
+      align-items: center;
+    }
+    .as-seen-in-outlets a {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      background: #fff;
+      color: #1e40af;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      border-radius: 8px;
+      border: 1px solid rgba(30, 64, 175, 0.2);
+      transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    }
+    .as-seen-in-outlets a:hover {
+      background: #eff6ff;
+      border-color: rgba(30, 64, 175, 0.4);
+      color: #1e40af;
+    }
     @media (max-width: 768px) {
-      .as-seen-in { font-size: 0.88rem; }
-      .as-seen-in .and-desktop { display: none; }
-      .as-seen-in .and-mobile { display: inline; }
+      .as-seen-in-wrap { padding: 0.9rem 1rem; }
+      .as-seen-in-outlets { gap: 0.4rem 0.75rem; }
+      .as-seen-in-outlets a { font-size: 0.85rem; padding: 0.3rem 0.6rem; }
     }
     .content-box h2 { font-size: 1.6rem; color: #1e40af; margin-top: 1.8rem; margin-bottom: 1rem; font-weight: 600; }
     .content-box h3 { font-size: 1.4rem; color: #3b82f6; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }
@@ -124,6 +154,42 @@
     }
     .contact-box p { margin-bottom: 0.5rem; }
     .contact-box .subject-hint { font-size: 0.95rem; color: #64748b; margin-top: 0.75rem; }
+    .press-contact {
+      margin: 1.5rem 0;
+      padding: 1.25rem 1.5rem;
+      background: #fff;
+      border: 1px solid rgba(30, 64, 175, 0.2);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .press-contact .press-contact-heading {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.75rem;
+    }
+    .press-contact-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem 1.5rem;
+      align-items: center;
+    }
+    .press-contact-links a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #1e40af;
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 1rem;
+      transition: color 0.2s ease;
+    }
+    .press-contact-links a:hover { color: #3b82f6; }
+    @media (max-width: 768px) {
+      .press-contact-links { flex-direction: column; align-items: flex-start; gap: 0.75rem; }
+    }
     /* Placeholder for data visuals - reserved space for future embedded content */
     .visuals-placeholder {
       min-height: 200px;
@@ -205,9 +271,24 @@
 
       <p>I'm available for both background and on-the-record reporting.</p>
 
-      <p class="as-seen-in"><span class="label">As seen in</span> <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener">Columbia Public Health</a>, <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026" target="_blank" rel="noopener">WTVR CBS</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener">Positive Aging</a>,<span class="and-desktop"> and </span><span class="and-mobile"> &amp; </span><a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener">Aging in America News</a>.</p>
+      <div class="as-seen-in-wrap">
+        <span class="label">As seen in</span>
+        <div class="as-seen-in-outlets">
+          <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer">Columbia Public Health</a>
+          <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026" target="_blank" rel="noopener noreferrer">WTVR CBS</a>
+          <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer">Positive Aging</a>
+          <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer">Aging in America News</a>
+        </div>
+      </div>
 
-      <p><strong>Email:</strong> <a href="mailto:eric@320insight.com?subject=Press%3A%20%5BOutlet%5D%20%E2%80%93%20%5BFacility%20or%20Topic%5D">eric@320insight.com</a><br><strong>Text:</strong> <a href="sms:+19298084996">(929) 804-4996</a></p>
+      <div class="press-contact">
+        <div class="press-contact-heading">For press inquiries</div>
+        <div class="press-contact-links">
+          <a href="mailto:eric@320insight.com?subject=Press%20inquiry%20%E2%80%93%20%5BOutlet%5D%20%E2%80%93%20%5BTopic%5D" aria-label="Email Eric for press inquiries">Email eric@320insight.com</a>
+          <a href="tel:+19298084996" aria-label="Call (929) 804-4996">Call (929) 804-4996</a>
+          <a href="sms:+19298084996" aria-label="Send text to (929) 804-4996">Text (929) 804-4996</a>
+        </div>
+      </div>
 
       <h2>How I Support Reporting</h2>
       <ul>
@@ -240,22 +321,24 @@
     <p style="margin: 0 auto 1rem auto; color: #64748b; font-size: 0.8rem; text-align: center; letter-spacing: 0.03em; width: 100%; max-width: 100%;">
       <strong style="color: #475569;">320 Consulting</strong> — Turning Spreadsheets into Stories
     </p>
-    <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
-      <a href="mailto:eric@320insight.com" style="display: inline-block; transition: opacity 0.3s ease;" title="Email: eric@320insight.com">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
-          <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#1e40af"/>
-        </svg>
+    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 16px 24px; margin-top: 0.5rem;">
+      <a href="mailto:eric@320insight.com" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Email: eric@320insight.com" aria-label="Email eric@320insight.com">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/></svg>
+        <span>Email</span>
       </a>
-      <a href="sms:+19298084996" style="display: inline-block; transition: opacity 0.3s ease;" title="SMS: (929) 804-4996">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.7;">
-          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#1e40af"/>
-        </svg>
+      <a href="tel:+19298084996" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Call (929) 804-4996" aria-label="Call (929) 804-4996">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/></svg>
+        <span>Call</span>
       </a>
-      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" style="display: inline-block; transition: opacity 0.3s ease;" title="LinkedIn">
-        <img src="/LI-In-Bug.png" alt="LinkedIn" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      <a href="sms:+19298084996" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Text (929) 804-4996" aria-label="Text (929) 804-4996">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="currentColor"/></svg>
+        <span>Text</span>
       </a>
-      <a href="https://320insight.substack.com/" target="_blank" style="display: inline-block; transition: opacity 0.3s ease;" title="The 320 Newsletter">
-        <img src="/substack.png" alt="Substack" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.7; transition: opacity 0.3s ease;">
+      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500;" title="LinkedIn" aria-label="LinkedIn">
+        <img src="/LI-In-Bug.png" alt="" style="width: 20px; height: 20px; object-fit: contain; opacity: 0.85;"><span>LinkedIn</span>
+      </a>
+      <a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500;" title="The 320 Newsletter" aria-label="The 320 Newsletter">
+        <img src="/substack.png" alt="" style="width: 20px; height: 20px; object-fit: contain; opacity: 0.85;"><span>Newsletter</span>
       </a>
     </div>
   </footer>

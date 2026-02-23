@@ -36,13 +36,25 @@ except ImportError:
     print("Warning: markdown module not found. PBJpedia pages will not be available.")
     print("Install with: pip install markdown")
 
-try:
-    import pandas as pd
-    HAS_PANDAS = True
-except ImportError:
-    HAS_PANDAS = False
-    print("Warning: pandas module not found. Dynamic PBJpedia pages will not be available.")
-    print("Install with: pip install pandas")
+# Defer pandas import so workers can respond to /health before heavy imports (Render port check).
+_pandas_module = None
+HAS_PANDAS = False
+
+def get_pd():
+    """Import pandas on first use so /health can respond before workers load it."""
+    global _pandas_module, HAS_PANDAS
+    if _pandas_module is not None:
+        return _pandas_module
+    try:
+        import pandas as pd
+        _pandas_module = pd
+        HAS_PANDAS = True
+        return pd
+    except ImportError:
+        HAS_PANDAS = False
+        return None
+
+pd = None  # Set by _ensure_pandas() on first non-health request.
 
 # Import date utilities from local utils package (run from pbj-root so utils is on path)
 from utils.date_utils import get_latest_data_periods, get_latest_update_month_year  # type: ignore[reportMissingImports]
@@ -251,6 +263,15 @@ def get_facility_risk_from_search_index(ccn):
     except Exception:
         pass
     return 0, ''
+
+@app.before_request
+def _ensure_pandas():
+    """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
+    if request.path == '/health':
+        return
+    global pd
+    if pd is None:
+        pd = get_pd()
 
 @app.route('/health')
 def health():

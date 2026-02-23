@@ -19,7 +19,7 @@ This document is the **master checklist** for ensuring every datapoint on provid
 | Source | File(s) | Required columns | Aliases / notes |
 |--------|--------|-------------------|-----------------|
 | Facility quarterly metrics | `facility_quarterly_metrics.csv` (fallback: `facility_quarterly_metrics_latest.csv`) | `PROVNUM`, `CY_Qtr`, `STATE`, `Total_Nurse_HPRD` | Optional: `RN_HPRD`, `Nurse_Assistant_HPRD`, `Nurse_Care_HPRD`, `Contract_Percentage`, `avg_daily_census` or `Avg_Daily_Census` |
-| Provider info | `provider_info_combined_latest.csv` → `provider_info_combined.csv` → `pbj-wrapped/public/data/provider_info_combined.csv` | CCN key: `ccn` or `PROVNUM` or `CCN` or `Provnum`; entity: `chain_id` or `affiliated_entity_id`; name: `provider_name` or `PROVNAME`; state: `state` or `STATE`; city: `CITY` or `city` | `Chain ID`, `Chain_ID`, `AFFILIATED_ENTITY_ID`; entity name: `entity_name`, `affiliated_entity`, `Entity Name`, `chain_name`, `affiliated_entity_name`, `Chain Name` |
+| Provider info | `provider_info_combined.csv` → `pbj-wrapped/public/data/provider_info_combined.csv` | CCN key: `ccn` or `PROVNUM` or `CCN` or `Provnum`; entity: `chain_id` or `affiliated_entity_id`; name: `provider_name` or `PROVNAME`; state: `state` or `STATE`; city: `CITY` or `city` | `Chain ID`, `Chain_ID`, `AFFILIATED_ENTITY_ID`; entity name: `entity_name`, `affiliated_entity`, `Entity Name`, `chain_name`, `affiliated_entity_name`, `Chain Name` |
 
 - **CCN normalization**: All CCNs must be 6-digit zero-padded (`str(c).strip().zfill(6)`). Used in provider lookup, entity facility list, SFF match.
 - **Provider page metrics**: Values come from the row for **canonical latest quarter** (see §0) when the facility has it; otherwise the facility’s most recent row. Fallback for reported HPRD/census: `provider_info` fields like `reported_total_nurse_hrs_per_resident_per_day`, `avg_residents_per_day`.
@@ -126,7 +126,7 @@ This document is the **master checklist** for ensuring every datapoint on provid
 
 - **load_csv_data(filename)**: Tries APP_ROOT, cwd, pbj-wrapped/public/data, pbj-wrapped/dist/data, data/. **No** automatic _latest.csv substitute; callers must request that filename explicitly.
 - **State historical**: 1) state_quarterly_metrics by STATE + CY_Qtr; 2) aggregate facility_quarterly_metrics by state/quarter (mean). Do not reorder without updating docs and tests.
-- **Provider info**: 1) provider_info_combined_latest.csv; 2) provider_info_combined.csv; 3) pbj-wrapped/public/data/provider_info_combined.csv.
+- **Provider info**: 1) provider_info_combined.csv; 2) pbj-wrapped/public/data/provider_info_combined.csv.
 - **Entity facilities**: Same provider_info path order; then facility_quarterly for latest quarter metrics.
 - **SFF**: 1) pbj-wrapped/public/sff-facilities.json; 2) pbj-wrapped/dist/sff-facilities.json; 3) sff-facilities.json.
 

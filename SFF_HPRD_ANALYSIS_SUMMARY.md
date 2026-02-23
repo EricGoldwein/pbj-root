@@ -83,7 +83,7 @@ This analysis examines Hours Per Resident Day (HPRD) metrics for facilities in t
 
 - **Data Matching:** Facilities were matched by normalized 6-digit CCN (provider number).
 - **HPRD Data:** From `facility_lite_metrics.csv` (Q2 2025).
-- **Case-Mix Data:** From `provider_info_combined_latest.csv` (Q2 2025).
+- **Case-Mix Data:** From `provider_info_combined.csv` (Q2 2025).
 - **SFF Status:** From `sff-facilities.json` (December 2025 CMS posting).
 - **Months as SFF:** Only available for current SFFs and Candidates from the CMS posting.
 - **Percent Case-Mix:** Calculated as (Total HPRD / Case-Mix Expected HPRD) × 100.

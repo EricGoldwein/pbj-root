@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
 Generate search_index.json for home page search (facility by name/ID, entity, state).
-Reads provider_info_combined_latest.csv and states_list.json.
+Reads provider_info_combined.csv and states_list.json.
 Output: search_index.json with facilities, entities, and states for client-side autocomplete.
+
+Run this after updating provider_info_combined.csv (or entity/chain data) so the home page
+search dropdown entity counts (e.g. "Genesis — 202 NHs") match the entity page.
 """
 import csv
 import json
@@ -40,7 +43,7 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    provider_path = 'provider_info_combined_latest.csv'
+    provider_path = 'provider_info_combined.csv'
     states_path = 'states_list.json'
     out_path = 'search_index.json'
 

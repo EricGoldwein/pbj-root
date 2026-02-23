@@ -394,18 +394,123 @@
       border-color: rgba(147, 197, 253, 0.6);
       color: #e2e8f0;
     }
-    /* Phoebe: "What is PBJ?" strip – hover/focus popup with short answer + link to /phoebe */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    /* Secondary CTA: email capture – boxed for distinction from "Request custom" link */
+    .hero-email-cta {
+      margin-top: 0.75rem;
+      padding: 1rem 1.25rem;
+      max-width: 360px;
+      margin-left: auto;
+      margin-right: auto;
+      text-align: center;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.5);
+    }
+    .hero-email-cta .hero-email-cta-subtext {
+      font-size: 0.65rem;
+      color: rgba(226, 232, 240, 0.55);
+      margin: 0 0 6px 0;
+      line-height: 1.3;
+    }
+    .hero-email-cta form {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      align-items: center;
+      max-width: 320px;
+    }
+    .hero-email-cta input[type="email"] {
+      min-width: 0;
+      flex: 1 1 180px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+    }
+    .hero-email-cta input[type="email"]::placeholder {
+      color: rgba(226, 232, 240, 0.45);
+    }
+    .hero-email-cta input[type="email"]:focus {
+      outline: none;
+      border-color: rgba(96, 165, 250, 0.6);
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    .hero-email-cta button[type="submit"] {
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      border-radius: 6px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(30, 58, 138, 0.4);
+      color: rgba(226, 232, 240, 0.9);
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .hero-email-cta button[type="submit"]:hover {
+      border-color: rgba(147, 197, 253, 0.5);
+      background: rgba(30, 58, 138, 0.6);
+    }
+    .hero-email-cta button[type="submit"]:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+    .hero-email-cta-privacy {
+      font-size: 0.6rem;
+      color: rgba(226, 232, 240, 0.5);
+      margin: 4px 0 0 0;
+      line-height: 1.35;
+    }
+    .hero-email-cta-success {
+      font-size: 0.8rem;
+      color: rgba(147, 197, 253, 0.95);
+      margin: 6px 0 0 0;
+      font-weight: 500;
+    }
+    .hero-email-cta-error {
+      font-size: 0.75rem;
+      color: rgba(248, 113, 113, 0.95);
+      margin: 6px 0 0 0;
+    }
+    @media (max-width: 768px) {
+      .hero-email-cta form {
+        flex-direction: column;
+        width: 100%;
+        max-width: 100%;
+      }
+      .hero-email-cta input[type="email"] {
+        flex: 1 1 auto;
+        width: 100%;
+      }
+      .hero-email-cta button[type="submit"] {
+        width: 100%;
+      }
+    }
+    /* Phoebe: "What is PBJ?" strip – below Get updates, slightly smaller, same style */
     .phoebe-strip-wrap {
       position: relative;
       display: inline-block;
-      margin-top: 12px;
+      margin-top: 14px;
     }
     .phoebe-strip {
       display: inline-flex;
       align-items: center;
-      gap: 14px;
-      padding: 14px 18px;
-      border-radius: 12px;
+      gap: 12px;
+      padding: 10px 14px;
+      border-radius: 10px;
       background: rgba(12, 18, 32, 0.55);
       color: inherit;
       text-decoration: none;
@@ -421,8 +526,8 @@
     }
     .phoebe-strip-avatar {
       flex-shrink: 0;
-      width: 64px;
-      height: 64px;
+      width: 52px;
+      height: 52px;
       border-radius: 50%;
       overflow: hidden;
     }
@@ -432,7 +537,7 @@
       object-fit: cover;
     }
     .phoebe-strip-label {
-      font-size: 1.15rem;
+      font-size: 1rem;
       font-weight: 600;
       color: rgba(255,255,255,0.92);
     }
@@ -498,31 +603,33 @@
       outline-offset: 2px;
       border-radius: 2px;
     }
-    /* Explore bar – secondary nav: letter-spacing, intentional but below CTA */
+    /* Explore bar – more pronounced secondary nav */
     .hero-explore-bar {
-      margin-top: 12px;
-      font-size: 0.7rem;
+      margin-top: 14px;
+      font-size: 0.85rem;
       line-height: 1.5;
-      letter-spacing: 0.04em;
-      color: rgba(255,255,255,0.58);
+      letter-spacing: 0.03em;
+      color: rgba(255,255,255,0.82);
+      font-weight: 500;
     }
     .hero-explore-bar a {
-      color: rgba(255,255,255,0.68);
+      color: rgba(226, 232, 240, 0.95);
       text-decoration: none;
+      font-weight: 500;
     }
     .hero-explore-bar a:hover {
-      color: rgba(147, 197, 253, 0.9);
+      color: #93c5fd;
     }
     .hero-explore-bar .sep {
-      margin: 0 0.35em;
-      color: rgba(255,255,255,0.4);
+      margin: 0 0.4em;
+      color: rgba(255,255,255,0.5);
       user-select: none;
     }
     .hero-explore-bar-mobile { display: none; }
     @media (max-width: 768px) {
       .hero-explore-bar-desktop { display: none; }
       .hero-explore-bar-mobile { display: inline; }
-      .hero-explore-bar { font-size: 0.65rem; margin-top: 10px; }
+      .hero-explore-bar { font-size: 0.8rem; margin-top: 12px; }
     }
     @media (max-width: 1023px) {
       .phoebe-strip-wrap { margin-top: 12px; }
@@ -530,8 +637,8 @@
         padding: 12px 14px;
         gap: 12px;
       }
-      .phoebe-strip-avatar { width: 56px; height: 56px; }
-      .phoebe-strip-label { font-size: 1.05rem; }
+      .phoebe-strip-avatar { width: 52px; height: 52px; }
+      .phoebe-strip-label { font-size: 0.95rem; }
       .phoebe-strip-popup { min-width: 260px; padding: 12px 14px; font-size: 0.875rem; }
     }
     
@@ -1106,7 +1213,7 @@
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;"><span class="map-title-full">PBJ Nursing Home Staffing Dashboard</span><span class="map-title-mobile">PBJ Nursing Home<br>Staffing Dashboard</span></h1>
           
           <div class="home-search-wrap" role="search">
-            <p class="home-search-label"><span class="home-search-label-desktop">Search CMS payroll-based journal staffing data across 15,000+ U.S. nursing homes.</span><span class="home-search-label-mobile">Search staffing data across 15,000+ nursing homes.</span></p>
+            <p class="home-search-label"><span class="home-search-label-desktop">Search CMS payroll-based journal staffing data across 15,000+ U.S. nursing homes.</span><span class="home-search-label-mobile">Search staffing across 15,000+ facilities.</span></p>
             <div class="search-mode-tabs" role="tablist" aria-label="Search type">
               <button type="button" role="tab" id="searchTabFacility" aria-selected="true" aria-controls="homeSearchInput" class="search-mode-tab active">Provider</button>
               <button type="button" role="tab" id="searchTabChain" aria-selected="false" aria-controls="homeSearchInput" class="search-mode-tab">Chain</button>
@@ -1169,13 +1276,13 @@
           <div class="phoebe-strip-wrap" tabindex="-1">
             <button type="button" class="phoebe-strip" aria-label="What is PBJ? (hover or tap for short answer)" aria-haspopup="true" aria-expanded="false" id="phoebeStripBtn">
               <span class="phoebe-strip-avatar" aria-hidden="true">
-                <img src="/phoebe.png" alt="" width="64" height="64" loading="lazy">
+                <img src="/phoebe.png" alt="" width="52" height="52" loading="lazy">
               </span>
               <span class="phoebe-strip-label">What is PBJ?</span>
             </button>
             <div class="phoebe-strip-popup" id="phoebeStripPopup" role="tooltip">
               <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
-              <p style="margin: 0;"><a href="/phoebe">PBJ Explained – full guide</a></p>
+              <p style="margin: 0;"><a href="/phoebe">PBJ Explained</a></p>
             </div>
           </div>
           <p class="hero-explore-bar">
@@ -1183,6 +1290,16 @@
             <span class="hero-explore-bar-mobile">Explore: <a href="/report">Rankings</a><span class="sep" aria-hidden="true">·</span><a href="/owners">Follow the Money</a><span class="sep" aria-hidden="true">·</span><a href="/about">About PBJ320</a></span>
           </p>
           <a href="mailto:eric@320insight.com?subject=PBJ320%20custom%20analysis" class="hero-copy-cta-wrap" aria-label="Request custom PBJ staffing analysis">Request custom PBJ staffing analysis →</a>
+          <div class="hero-email-cta" aria-label="Subscribe to email updates">
+            <form action="/subscribe" method="POST" aria-label="Subscribe to PBJ320 email updates" id="hero-subscribe-form">
+              <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+              <label for="hero-email-input" class="sr-only">Email address</label>
+              <input type="email" id="hero-email-input" name="email" placeholder="Enter your email" required autocomplete="email">
+              <button type="submit">Get Updates</button>
+            </form>
+            <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>Thanks — you’re on the list.</p>
+            <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
+          </div>
         </div>
       </div>
     </article>
@@ -1192,6 +1309,26 @@
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
 
   <script src="/pbj-site-universal.js"></script>
+  <script>
+    // Subscribe success/error from URL params (after POST /subscribe redirect)
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var successEl = document.getElementById('hero-subscribe-success');
+      var errorEl = document.getElementById('hero-subscribe-error');
+      var formEl = document.getElementById('hero-subscribe-form');
+      if (params.get('subscribed') === '1' && successEl) {
+        successEl.hidden = false;
+        if (formEl) formEl.style.display = 'none';
+        var privacy = document.querySelector('.hero-email-cta-privacy');
+        if (privacy) privacy.style.display = 'none';
+      }
+      var err = params.get('subscribe_error');
+      if (err && errorEl) {
+        errorEl.hidden = false;
+        errorEl.textContent = err === 'invalid' ? 'Please enter a valid email address.' : err === 'duplicate' ? 'That email is already subscribed.' : 'Something went wrong. Try again later.';
+      }
+    })();
+  </script>
   <script>
     // Phoebe strip: aria-expanded, hover delay (no flash), Escape to close, open state class
     (function() {
@@ -1360,7 +1497,8 @@
         const infoPopup = document.getElementById('homeSearchInfoPopup');
         const infoClose = infoPopup ? infoPopup.querySelector('.home-search-info-close') : null;
         if (!input || !resultsEl) return;
-        const DASHBOARD_BASE = 'https://pbj320.com'; // facility → /provider/ccn, chain → /entity/id, state → /state/slug
+        // Relative base so search works on any origin (local, staging, production)
+        const DASHBOARD_BASE = '';
         let searchIndex = { f: [], e: [], s: [] };
         let stateHprdData = null;
         let indexReady = false;

@@ -573,7 +573,7 @@ def main():
     base_path = Path(__file__).parent
     sff_json_path = base_path / 'pbj-wrapped' / 'public' / 'sff-facilities.json'
     facility_csv_path = base_path / 'facility_lite_metrics.csv'
-    provider_csv_path = base_path / 'provider_info_combined_latest.csv'
+    provider_csv_path = base_path / 'provider_info_combined.csv'
     
     print("Loading data...")
     

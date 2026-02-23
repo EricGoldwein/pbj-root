@@ -31,7 +31,7 @@ Flask loads routes when the server starts. Even though the code has been updated
 
 ✅ `/state_quarterly_metrics.csv`
 ✅ `/national_quarterly_metrics.csv`
-✅ `/provider_info_combined_latest.csv`
+✅ `/provider_info_combined.csv`
 ✅ `/cms_region_state_mapping.csv`
 ✅ `/facility_quarterly_metrics_latest.csv`
 ✅ `/cms_region_quarterly_metrics.csv`

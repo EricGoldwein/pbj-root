@@ -4,12 +4,13 @@
 Simple Flask app to serve static files with proper headers for Facebook scraper
 Now with dynamic date support
 """
-from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request, redirect
+from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request, redirect, make_response
 import os
 import sys
 import re
 import csv
 import json
+import sqlite3
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import quote
@@ -50,6 +51,43 @@ except ImportError:
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in production.
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    app.config['SECRET_KEY'] = 'jak@rr23'
+    print('Warning: SECRET_KEY not set; using default. Set SECRET_KEY or FLASK_SECRET_KEY in production.')
+try:
+    from flask_wtf.csrf import CSRFProtect, generate_csrf, validate_csrf  # type: ignore[reportMissingImports]
+    CSRFProtect(app)
+    HAS_CSRF = True
+except ImportError:
+    HAS_CSRF = False
+    generate_csrf = None
+    validate_csrf = None
+    print('Warning: Flask-WTF not installed. CSRF disabled for /subscribe. Install: pip install Flask-WTF')
+
+# Subscribers DB: SQLite in instance/ (not in repo). No public routes to read it.
+def _subscribers_db_path():
+    instance = app.instance_path
+    if not os.path.isdir(instance):
+        os.makedirs(instance, exist_ok=True)
+    return os.path.join(instance, 'subscribers.db')
+
+def _init_subscribers_db():
+    """Create subscribers table if not exists. Called on first use."""
+    path = _subscribers_db_path()
+    conn = sqlite3.connect(path)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS subscribers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            source VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
 # Cache for built assets (cleared on app start)
 _built_assets_cache = None
@@ -210,9 +248,89 @@ def health():
     """Lightweight health check for Render. Side-effect free (best practice for public sites)."""
     return 'ok', 200
 
+# Simple email format check (not RFC-strict; rejects obviously invalid)
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+
 @app.route('/')
 def index():
-    return send_file('index.html', mimetype='text/html')
+    path = os.path.join(APP_ROOT, 'index.html')
+    with open(path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    if HAS_CSRF and generate_csrf:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
+    else:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    resp = make_response(html_content)
+    resp.mimetype = 'text/html'
+    return resp
+
+@app.errorhandler(400)
+def bad_request(err):
+    """Redirect /subscribe CSRF or bad request to homepage with error param instead of 400 page."""
+    if request.path == '/subscribe':
+        return redirect('/?subscribe_error=invalid')
+    return make_response(('Bad Request', 400))
+
+def _send_subscribe_notification(email_address, source='homepage'):
+    """Send a brief notification email to configured addresses when someone subscribes. Optional: set SUBSCRIBE_NOTIFY_SMTP_* env."""
+    to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
+    to_list = [a.strip() for a in to_list if a.strip()]
+    if not to_list:
+        return
+    host = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_HOST', '').strip()
+    if not host:
+        return
+    port = int(os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PORT', '587'))
+    user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
+    password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
+    from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
+    subject = 'PBJ320: New subscriber'
+    body = f"New PBJ320 email signup.\n\nEmail: {email_address}\nSource: {source}\n"
+    msg = f"Subject: {subject}\r\nFrom: {from_addr}\r\nTo: {', '.join(to_list)}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}"
+    try:
+        import smtplib
+        with smtplib.SMTP(host, port, timeout=10) as s:
+            if port == 587:
+                s.starttls()
+            if user and password:
+                s.login(user, password)
+            s.sendmail(from_addr, to_list, msg.encode('utf-8'))
+    except Exception as e:
+        print(f'Subscribe notification email failed: {e}')
+
+
+@app.route('/subscribe', methods=['POST'])
+def subscribe():
+    """Accept email for PBJ320 updates. Stored in DB only; no public list. CSRF required."""
+    if HAS_CSRF and validate_csrf is not None:
+        try:
+            validate_csrf(request.form.get('csrf_token'))
+        except Exception:
+            return redirect('/?subscribe_error=invalid')
+    raw = request.form.get('email')
+    if not raw or not isinstance(raw, str):
+        return redirect('/?subscribe_error=invalid')
+    email = raw.strip().lower()
+    if not email or len(email) > 255:
+        return redirect('/?subscribe_error=invalid')
+    if not _EMAIL_RE.match(email):
+        return redirect('/?subscribe_error=invalid')
+    _init_subscribers_db()
+    try:
+        conn = sqlite3.connect(_subscribers_db_path())
+        conn.execute(
+            'INSERT INTO subscribers (email, source) VALUES (?, ?)',
+            (email, 'homepage')
+        )
+        conn.commit()
+        conn.close()
+        _send_subscribe_notification(email, 'homepage')
+    except sqlite3.IntegrityError:
+        # Duplicate: treat as success (idempotent; don't leak existence)
+        pass
+    except Exception:
+        return redirect('/?subscribe_error=error')
+    return redirect('/?subscribed=1')
 
 @app.route('/about')
 def about():
@@ -561,7 +679,7 @@ def load_csv_data(filename):
         if now - cached_at < _LOAD_CSV_TTL:
             return data
     # Prefer APP_ROOT for known large data files so provider pages always use repo data regardless of cwd
-    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv', 'provider_info_combined_latest.csv', 'provider_info_combined.csv')
+    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv', 'provider_info_combined.csv')
     if filename in app_root_first:
         possible_paths = [
             os.path.join(APP_ROOT, filename),
@@ -582,7 +700,7 @@ def load_csv_data(filename):
         if os.path.exists(path):
             try:
                 if HAS_PANDAS:
-                    out = pd.read_csv(path)
+                    out = pd.read_csv(path, low_memory=False)
                     _LOAD_CSV_CACHE[filename] = (now, out)
                     return out
                 else:
@@ -609,8 +727,8 @@ _CANONICAL_QUARTER_TTL = 300  # 5 min
 
 def get_canonical_latest_quarter():
     """Single source of truth for 'current' quarter. Used so state, provider, and entity pages
-    all show the same quarter (e.g. Q3 2025). Never falls back to a prior quarter as 'current'
-    and never uses synthetic data. Order: state_quarterly_metrics, then facility_quarterly_metrics."""
+    all show the same quarter (e.g. Q3 2025). Prefers full facility_quarterly_metrics.csv so
+    we use the most recent quarter (2025Q3) when that file has it; _latest may only have through Q2."""
     global _CANONICAL_QUARTER_CACHE, _CANONICAL_QUARTER_AT
     now = time.time()
     if _CANONICAL_QUARTER_CACHE is not None and (now - _CANONICAL_QUARTER_AT) < _CANONICAL_QUARTER_TTL:
@@ -620,6 +738,7 @@ def get_canonical_latest_quarter():
     if state_df is not None and HAS_PANDAS and isinstance(state_df, pd.DataFrame) and 'CY_Qtr' in state_df.columns:
         q = state_df['CY_Qtr'].max()
     if q is None:
+        # Prefer full file so we get 2025Q3 when present; _latest may only have through Q2 2025
         fq = load_csv_data('facility_quarterly_metrics.csv')
         if fq is None or not isinstance(fq, pd.DataFrame):
             fq = load_csv_data('facility_quarterly_metrics_latest.csv')
@@ -710,41 +829,97 @@ def format_percentile_phrase(percentile, state_name):
 
 _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
-_LOAD_PROVIDER_INFO_TTL = 300  # 5 min
+_LOAD_PROVIDER_INFO_TTL = 900  # 15 min
 _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
+# Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
+_LATEST_PROVIDER_QUARTERS = 4
+
+def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
+    """Discover the latest n_quarters distinct quarter values (CY_Qtr form) by reading only the quarter column(s)."""
+    try:
+        # Peek at columns
+        head = pd.read_csv(path, nrows=0)
+        cols = set(head.columns)
+        qcol = 'CY_Qtr' if 'CY_Qtr' in cols else ('quarter' if 'quarter' in cols else None)
+        if not qcol:
+            return None
+        # Read only quarter column in chunks to get unique values
+        seen = set()
+        for chunk in pd.read_csv(path, usecols=[qcol], low_memory=False, chunksize=200000):
+            for v in chunk[qcol].dropna().astype(str).str.strip():
+                if not v:
+                    continue
+                if qcol == 'CY_Qtr':
+                    seen.add(v)
+                else:
+                    cy = _quarter_display_to_cy_qtr(v)
+                    if cy:
+                        seen.add(cy)
+        if not seen:
+            return None
+        sorted_q = sorted(seen)
+        return sorted_q[-n_quarters:]  # last N quarters
+    except Exception:
+        return None
 
 def load_provider_info():
-    """Load provider info data for facility details (ownership, entity, residents, city). Cached 5 min."""
+    """Load provider info for facility details (ownership, entity, residents, city). Loads only the latest few quarters from provider_info_combined.csv. Cached 15 min."""
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
     now = time.time()
     if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
         return _LOAD_PROVIDER_INFO_CACHE
+    # If provider_info_combined_latest.csv exists, use it for fast load (one quarter only).
     provider_paths = [
-        'provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
+        'pbj-wrapped/public/data/provider_info_combined_latest.csv',
+        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
+        'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
     ]
-    
     if not HAS_PANDAS:
         return {}
-    
+    def _row_val(r, *keys):
+        for k in keys:
+            if k in r:
+                v = r[k]
+                if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
+                    return v
+        return None
+    def _quarter_from_row(row):
+        q = row.get('CY_Qtr') or row.get('quarter')
+        if q is None or (isinstance(q, float) and pd.isna(q)):
+            return None
+        s = str(q).strip()
+        if re.match(r'^\d{4}Q[1-4]$', s):
+            return s
+        return _quarter_display_to_cy_qtr(s)
     for path in provider_paths:
-        if os.path.exists(path):
-            try:
-                df = pd.read_csv(path)
-                # Lookup by PROVNUM (first/latest per CCN) and by (PROVNUM, quarter) for quarter-aligned case-mix
-                provider_dict = {}
-                provider_dict_by_quarter = {}
-                if 'CY_Qtr' in df.columns:
-                    df = df.sort_values('CY_Qtr', ascending=False)
-                def _row_val(r, *keys):
-                    for k in keys:
-                        if k in r:
-                            v = r[k]
-                            if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
-                                return v
-                    return None
-                for _, row in df.iterrows():
+        if not os.path.exists(path):
+            continue
+        try:
+            # _latest file is already one quarter; skip quarter discovery and filtering.
+            is_latest_file = 'provider_info_combined_latest' in path or path.replace('\\', '/').endswith('_latest.csv')
+            latest_quarters = None if is_latest_file else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
+            provider_dict = {}
+            provider_dict_by_quarter = {}
+            # Stream CSV in chunks and keep only rows from latest quarters
+            for chunk in pd.read_csv(path, low_memory=False, chunksize=150000):
+                if latest_quarters is not None:
+                    # Filter to latest quarters: CY_Qtr or quarter (normalized)
+                    qcol = 'CY_Qtr' if 'CY_Qtr' in chunk.columns else 'quarter'
+                    if qcol not in chunk.columns:
+                        continue
+                    if qcol == 'CY_Qtr':
+                        chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
+                    else:
+                        cy = chunk['quarter'].astype(str).apply(lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None)
+                        chunk = chunk[cy.isin(latest_quarters)]
+                if chunk.empty:
+                    continue
+                if 'CY_Qtr' in chunk.columns:
+                    chunk = chunk.sort_values('CY_Qtr', ascending=False)
+                for row in chunk.to_dict('records'):
                     raw = _row_val(row, 'ccn', 'PROVNUM', 'CCN', 'Provnum')
                     provnum = str(raw or '').strip().replace('.0', '')
                     if not provnum:
@@ -752,9 +927,8 @@ def load_provider_info():
                     provnum = provnum.zfill(6)
                     eid_raw = _row_val(row, 'chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID')
                     if eid_raw is None:
-                        for col in row.index:
+                        for col, v in row.items():
                             if col and ('chain' in str(col).lower() and 'id' in str(col).lower()) or ('affiliated' in str(col).lower() and 'entity' in str(col).lower() and 'id' in str(col).lower()):
-                                v = row[col]
                                 if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
                                     eid_raw = v
                                     break
@@ -766,10 +940,9 @@ def load_provider_info():
                     state_val = (str(_sv) if _sv else '').strip().upper()[:2]
                     entity_name_val = _row_val(row, 'entity_name', 'affiliated_entity', 'Entity Name', 'chain_name', 'affiliated_entity_name', 'Chain Name')
                     if entity_name_val is None:
-                        for col in row.index:
+                        for col, v in row.items():
                             c = str(col).lower()
                             if col and (('entity' in c or 'chain' in c) and ('name' in c or c in ('affiliated_entity', 'chain_name', 'chain name'))):
-                                v = row[col]
                                 if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
                                     entity_name_val = v
                                     break
@@ -792,16 +965,16 @@ def load_provider_info():
                     }
                     if provnum not in provider_dict:
                         provider_dict[provnum] = row_dict
-                    quarter_cy = _quarter_display_to_cy_qtr(row.get('quarter'))
+                    quarter_cy = _quarter_from_row(row)
                     if quarter_cy:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
-                _LOAD_PROVIDER_INFO_CACHE = provider_dict
-                _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
-                _LOAD_PROVIDER_INFO_AT = time.time()
-                return provider_dict
-            except Exception as e:
-                print(f"Error loading provider info from {path}: {e}")
-                continue
+            _LOAD_PROVIDER_INFO_CACHE = provider_dict
+            _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
+            _LOAD_PROVIDER_INFO_AT = time.time()
+            return provider_dict
+        except Exception as e:
+            print(f"Error loading provider info from {path}: {e}")
+            continue
     return {}
 
 
@@ -876,7 +1049,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-high-risk-help-wrap {{ position: relative; display: inline; }}
 .pbj-high-risk-help {{ cursor: help; text-decoration: none; border-bottom: 1px dotted rgba(148,163,184,0.6); transition: border-color 0.2s ease, color 0.2s ease; }}
 .pbj-high-risk-help:hover {{ border-bottom-color: rgba(147,197,253,0.9); color: #93c5fd; }}
-.pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; max-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
+.pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; min-width: 260px; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
 .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}
 .pbj-details-content {{ padding: 0.9rem 1rem 1rem; border-top: 1px solid rgba(59,130,246,0.15); }}
 .pbj-details-content p:first-child {{ margin-top: 0; }}
@@ -897,6 +1070,12 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-chart-header-oneline {{ display: block; }}
   .pbj-chart-header-twoline {{ display: none; }}
 }}
+/* Total Staffing chart footnote: desktop = full sentence; mobile = shorter */
+.pbj-chart-footnote-mobile {{ display: none; }}
+@media (max-width: 768px) {{
+  .pbj-chart-footnote-desktop {{ display: none; }}
+  .pbj-chart-footnote-mobile {{ display: inline; }}
+}}
 .pbj-table-wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1rem 0; border-radius: 8px; border: 1px solid rgba(59,130,246,0.2); }}
 .pbj-table-wrap table {{ margin: 0; min-width: 400px; }}
 /* State page H1: desktop show full only; mobile shows short only (via @media) */
@@ -912,6 +1091,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
 .custom-report-cta .custom-report-cta-dot {{ color: rgba(226,232,240,0.5); margin: 0 0.2rem; font-weight: 400; }}
 .custom-report-cta .custom-report-cta-box:hover {{ background: rgba(59,130,246,0.3); color: #bfdbfe; }}
+.custom-report-cta.custom-report-cta-link:hover {{ background: rgba(59,130,246,0.15); border-color: rgba(96,165,250,0.4); }}
 .custom-report-cta .custom-report-cta-footer {{ margin: 0.5rem 0 0 0; font-size: 0.75rem; color: rgba(226,232,240,0.6); }}
 .pbj-care-compare-badge {{ display: inline-block; margin-top: 0.25rem; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.35); color: #93c5fd; text-decoration: none; }}
 .pbj-care-compare-badge:hover {{ background: rgba(59,130,246,0.25); color: #bfdbfe; }}
@@ -1022,7 +1202,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
-    sub_text = "Custom PBJ analysis for litigation and investigative reporting."
+    sub_text = "Request Custom PBJ analysis for litigation and investigative reporting."
     footer_text = ""
 
     def mailto(subject, body):
@@ -1141,18 +1321,14 @@ Thank you,"""
     else:
         return ''
 
-    # Single clickable mailto box (subject + body); no Email · Text row
+    # Whole box is one clickable link (no separate button)
     primary_mailto = primary_mailto if context in ('facility', 'state', 'entity') else f"mailto:{email}"
-    cta_label = cta_label if context in ('facility', 'state', 'entity') else "Email us"
-    cta_box = f'<a href="{primary_mailto}" class="custom-report-cta-box" style="display:inline-block;margin-top:0.5rem;padding:0.5rem 1rem;background:rgba(59,130,246,0.2);border:1px solid rgba(59,130,246,0.4);border-radius:6px;color:#93c5fd;font-weight:500;text-decoration:none;">{cta_label}</a>'
-
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    return f'''<div class="custom-report-cta">
+    return f'''<a href="{primary_mailto}" class="custom-report-cta custom-report-cta-link" style="display:block;text-decoration:none;color:inherit;">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
-{cta_box}
-{footer_block}</div>'''
+{footer_block}</a>'''
 
 
 def render_methodology_block():
@@ -1218,7 +1394,10 @@ def capitalize_entity_name(name):
     return capitalize_facility_name(str(name).strip())
 
 def load_facility_quarterly_for_provider(ccn):
-    """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None."""
+    """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None.
+    Prefers full facility_quarterly_metrics.csv so we include 2025Q3 when present; _latest may only have through Q2 2025.
+    This is the source for provider page longitudinal charts (staffing, census, contract); all quarters are kept. Speed
+    optimizations in load_provider_info() do not affect chart data."""
     if not HAS_PANDAS:
         return None
     prov = normalize_ccn(ccn)
@@ -1240,6 +1419,7 @@ def get_facility_state_percentile(ccn, state_code, quarter, facility_hprd_total,
     if not HAS_PANDAS or not state_code or not quarter or facility_hprd_total is None:
         return None, None
     prov = normalize_ccn(ccn)
+    # Use same source as provider page so quarter (e.g. 2025Q3) is consistent
     df = load_csv_data('facility_quarterly_metrics.csv')
     if df is None or not isinstance(df, pd.DataFrame):
         df = load_csv_data('facility_quarterly_metrics_latest.csv')
@@ -1326,35 +1506,44 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
         ]
     if facility_df is None or facility_df.empty or not HAS_PANDAS:
         return out
-    df = facility_df.sort_values('CY_Qtr').copy()
-    quarters = df['CY_Qtr'].astype(str).tolist()
-    out['totalHprd'] = {
-        'quarters': quarters,
-        'total': _series_to_list_with_none(df['Total_Nurse_HPRD']),
-        'direct': _series_to_list_with_none(df['Nurse_Care_HPRD'] if 'Nurse_Care_HPRD' in df.columns else pd.Series(dtype=float)),
-        'macpac': get_macpac_hprd_for_state(state_code),
-        'stateCode': (state_code.strip().upper()[:2] if state_code else None)
-    }
-    out['rnHprd'] = {
-        'quarters': quarters,
-        'rn': _series_to_list_with_none(df['RN_HPRD']),
-        'rnDirect': _series_to_list_with_none(df['RN_Care_HPRD'] if 'RN_Care_HPRD' in df.columns else pd.Series(dtype=float))
-    }
-    out['contract'] = {'quarters': quarters, 'facility': _series_to_list_with_none(df['Contract_Percentage']), 'stateMedian': []}
-    if state_code:
-        fq_df = load_csv_data('facility_quarterly_metrics.csv')
-        if fq_df is None or fq_df.empty:
-            fq_df = load_csv_data('facility_quarterly_metrics_latest.csv')
-        if fq_df is not None and not fq_df.empty and 'STATE' in fq_df.columns and 'Contract_Percentage' in fq_df.columns and 'CY_Qtr' in fq_df.columns:
-            fq_df = fq_df.copy()
-            fq_df['STATE'] = fq_df['STATE'].astype(str).str.strip().str.upper()
-            sc = state_code.strip().upper()[:2]
-            state_fac = fq_df[fq_df['STATE'] == sc]
-            if not state_fac.empty:
-                medians = state_fac.groupby('CY_Qtr')['Contract_Percentage'].median()
-                out['contract']['stateMedian'] = [float(medians.get(q)) if q in medians.index and pd.notna(medians.get(q)) else None for q in quarters]
-    col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
-    out['census'] = {'quarters': quarters, 'census': _series_to_list_with_none(df[col] if col in df.columns else pd.Series(dtype=float))}
+    try:
+        if 'CY_Qtr' not in facility_df.columns or 'Total_Nurse_HPRD' not in facility_df.columns:
+            return out
+        df = facility_df.sort_values('CY_Qtr').copy()
+        # Normalize quarter to string (e.g. 2025Q3); some CSVs have float/int
+        df['CY_Qtr'] = df['CY_Qtr'].astype(str).str.strip()
+        quarters = df['CY_Qtr'].tolist()
+        if not quarters:
+            return out
+        out['totalHprd'] = {
+            'quarters': quarters,
+            'total': _series_to_list_with_none(df['Total_Nurse_HPRD']),
+            'direct': _series_to_list_with_none(df['Nurse_Care_HPRD'] if 'Nurse_Care_HPRD' in df.columns else pd.Series(dtype=float)),
+            'macpac': get_macpac_hprd_for_state(state_code),
+            'stateCode': (state_code.strip().upper()[:2] if state_code else None)
+        }
+        out['rnHprd'] = {
+            'quarters': quarters,
+            'rn': _series_to_list_with_none(df['RN_HPRD']),
+            'rnDirect': _series_to_list_with_none(df['RN_Care_HPRD'] if 'RN_Care_HPRD' in df.columns else pd.Series(dtype=float))
+        }
+        out['contract'] = {'quarters': quarters, 'facility': _series_to_list_with_none(df['Contract_Percentage'] if 'Contract_Percentage' in df.columns else pd.Series(dtype=float)), 'stateMedian': []}
+        if state_code:
+            fq_df = load_csv_data('facility_quarterly_metrics.csv')
+            if fq_df is None or fq_df.empty:
+                fq_df = load_csv_data('facility_quarterly_metrics_latest.csv')
+            if fq_df is not None and not fq_df.empty and 'STATE' in fq_df.columns and 'Contract_Percentage' in fq_df.columns and 'CY_Qtr' in fq_df.columns:
+                fq_df = fq_df.copy()
+                fq_df['STATE'] = fq_df['STATE'].astype(str).str.strip().str.upper()
+                sc = state_code.strip().upper()[:2]
+                state_fac = fq_df[fq_df['STATE'] == sc]
+                if not state_fac.empty:
+                    medians = state_fac.groupby('CY_Qtr')['Contract_Percentage'].median()
+                    out['contract']['stateMedian'] = [float(medians.get(q)) if q in medians.index and pd.notna(medians.get(q)) else None for q in quarters]
+        col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
+        out['census'] = {'quarters': quarters, 'census': _series_to_list_with_none(df[col] if col in df.columns else pd.Series(dtype=float))}
+    except Exception as e:
+        print(f"Provider chart data build failed: {e}")
     return out
 
 def _provider_charts_html(chart_data, facility_name='', below_reported_casemix=''):
@@ -1372,15 +1561,24 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
         one_line = ('<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">' + main_title + ': ' + facility_esc + '</div>') if facility_esc else ('<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">' + main_title + '</div>')
         two_line = '<div class="pbj-chart-header-twoline"><div class="section-header" style="margin-bottom:0;">' + main_title + '</div>' + facility_sub + '</div>'
         return '<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">' + one_line + two_line + '</div>'
-    # One bordered box per chart: title + facility name inside the box, then canvas in fixed-height wrapper
-    def chart_block(title, canvas_id):
-        return '<div class="pbj-chart-container" style="margin-bottom:1.5rem;">' + chart_header(title) + '<div class="pbj-chart-wrapper"><canvas id="' + canvas_id + '"></canvas></div></div>'
+    # One bordered box per chart: title + facility name, canvas, optional footer (e.g. Total Staffing MACPAC note)
+    macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+    total_staffing_footer = '''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
+<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums are based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-mobile">State min. based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+</p>'''
+    def chart_block(title, canvas_id, footer=''):
+        out = '<div class="pbj-chart-container" style="margin-bottom:1.5rem;">' + chart_header(title) + '<div class="pbj-chart-wrapper"><canvas id="' + canvas_id + '"></canvas></div>'
+        if footer:
+            out += footer
+        return out + '</div>'
     return '''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;"><div class="pbj-chart-wrapper"><canvas id="chartReportedCaseMix"></canvas></div>
 ''' + (below_reported_casemix or '') + '''
 </div>
-''' + chart_block('Total Staffing', 'chartTotalHprd') + '''
+''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract staff %', 'chartContract') + '''
@@ -1390,24 +1588,44 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   var textColor = 'rgba(226,232,240,0.9)';
   var gridColor = 'rgba(148,163,184,0.2)';
   if (typeof Chart !== 'undefined') { Chart.defaults.color = textColor; Chart.defaults.borderColor = gridColor; }
-  function xLabels(quarters) {
-    if (!quarters || !quarters.length) return [];
-    return quarters.map(function(q, i) {
-      var y = q.substring(0,4), qtr = (q.substring(4) || '').toUpperCase();
-      if (qtr === 'Q1') return y;
-      var prevY = i > 0 ? quarters[i-1].substring(0,4) : null;
-      if (y !== prevY) return y;
-      return '';
-    });
+  function quarterToDate(q) {
+    var s = String(q).trim();
+    if (s.length < 5) return null;
+    var y = parseInt(s.substring(0,4), 10);
+    var rest = (s.substring(4) || '').replace(/^Q?/i,'').trim();
+    var qn = rest === '1' || rest === 'Q1' ? 1 : (rest === '2' || rest === 'Q2' ? 2 : (rest === '3' || rest === 'Q3' ? 3 : (rest === '4' || rest === 'Q4' ? 4 : 1)));
+    return new Date(y, (qn - 1) * 3, 1);
   }
-  function xTickCallback(quarters) {
-    if (!quarters || !quarters.length) return undefined;
-    return function(val, i) {
-      if (i < 0 || i >= quarters.length) return '';
-      var q = quarters[i];
-      if (!q || q.length < 6) return '';
-      if ((q.substring(4) || '').toUpperCase().indexOf('Q1') === 0) return q.substring(0,4);
-      return '';
+  function buildTimeSeriesData(quarters, values) {
+    if (!quarters || !quarters.length) return [];
+    var out = [];
+    for (var i = 0; i < quarters.length; i++) {
+      var dt = quarterToDate(quarters[i]);
+      out.push({ x: dt ? dt.getTime() : null, y: i < (values && values.length) ? values[i] : null });
+    }
+    return out;
+  }
+  function getSpanYears(quarters) {
+    if (!quarters || quarters.length < 2) return 1;
+    var first = quarterToDate(quarters[0]);
+    var last = quarterToDate(quarters[quarters.length - 1]);
+    return first && last ? (last.getFullYear() - first.getFullYear()) + (last.getMonth() - first.getMonth()) / 12 : 1;
+  }
+  function timeTickCallback(quarters) {
+    var spanYears = getSpanYears(quarters);
+    var showQuarters = spanYears < 2;
+    var isMobile = window.innerWidth < 768;
+    return function(value) {
+      var d = new Date(value);
+      if (showQuarters) {
+        var y = d.getFullYear();
+        var q = Math.floor(d.getMonth() / 3) + 1;
+        return y + ' Q' + q;
+      }
+      if (d.getMonth() !== 0 || d.getDate() !== 1) return '';
+      var y = d.getFullYear();
+      if (isMobile && (y - 2017) % 2 !== 0) return '';
+      return '' + y;
     };
   }
   function makeBar(id, labels, reported, caseMix) {
@@ -1438,9 +1656,17 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       }
     });
   }
-  function makeLine(id, labels, datasets, yTitle, quarters) {
+  function makeLineTime(id, quarters, datasets, yTitle, quartersRef) {
     var ctx = document.getElementById(id);
-    if (!ctx) return;
+    if (!ctx || !quarters || !quarters.length) return;
+    var spanYears = getSpanYears(quarters);
+    var maxTicks = window.innerWidth < 768 ? Math.min(8, Math.max(4, Math.ceil(spanYears / 2))) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
+    var timeDatasets = datasets.map(function(ds) {
+      var data = buildTimeSeriesData(quarters, ds.data);
+      var out = { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, data: data };
+      if (ds._macpacNote) out._macpacNote = true;
+      return out;
+    });
     var opts = {
       responsive: true,
       maintainAspectRatio: false,
@@ -1449,11 +1675,11 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
         tooltip: {
           callbacks: {
             title: function(context) {
-              if (quarters && context[0] && context[0].dataIndex < quarters.length) {
-                var q = quarters[context[0].dataIndex];
-                if (q && q.length >= 6) return q.substring(0,4) + ' Q' + (q.substring(5) || '').replace(/^Q?/i,'');
+              if (context[0] && context[0].raw && context[0].raw.x != null) {
+                var d = new Date(context[0].raw.x);
+                return d.getFullYear() + ' Q' + (Math.floor(d.getMonth() / 3) + 1);
               }
-              return context[0].label || '';
+              return '';
             },
             label: function(context) {
               var v = context.parsed.y;
@@ -1467,12 +1693,17 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
           }
         }
       },
-        scales: {
+      scales: {
         y: { beginAtZero: false, ticks: { color: textColor }, grid: { color: gridColor }, title: { display: !!yTitle, text: yTitle || '', color: textColor } },
-        x: { ticks: { color: textColor, maxTicksLimit: 20, autoSkip: true, font: { size: 11 }, callback: xTickCallback(quarters) }, grid: { color: gridColor } }
+        x: {
+          type: 'time',
+          time: { unit: 'quarter', displayFormats: { year: 'yyyy', quarter: 'yyyy Qq', month: 'MMM yyyy' }, tooltipFormat: 'yyyy Qq' },
+          ticks: { color: textColor, maxTicksLimit: maxTicks, autoSkip: true, font: { size: 11 }, callback: timeTickCallback(quartersRef || quarters) },
+          grid: { color: gridColor }
+        }
       }
     };
-    new Chart(ctx.getContext('2d'), { type: 'line', data: { labels: labels, datasets: datasets }, options: opts });
+    new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: opts });
   }
   var rc = d.reportedCaseMix;
   if (rc && rc.labels) makeBar('chartReportedCaseMix', rc.labels, rc.reported || [null, null, null], rc.caseMix);
@@ -1485,19 +1716,19 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       var stateMinLabel = (th.stateCode || 'State') + ' Min';
       ds.push({ label: stateMinLabel, data: macpacArr, borderColor: '#dc2626', borderDash: [4,4], tension: 0, fill: false, spanGaps: false, _macpacNote: true });
     }
-    makeLine('chartTotalHprd', xLabels(th.quarters), ds, 'Hours per resident day', th.quarters);
+    makeLineTime('chartTotalHprd', th.quarters, ds, 'Hours per resident day', th.quarters);
   }
   var rn = d.rnHprd;
-  if (rn && rn.quarters && rn.quarters.length) makeLine('chartRN', xLabels(rn.quarters), [
+  if (rn && rn.quarters && rn.quarters.length) makeLineTime('chartRN', rn.quarters, [
     { label: 'Total RN', data: rn.rn, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
     { label: 'RN (excl. Admin/DON)', data: rn.rnDirect, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }
   ], 'Hours per resident day', rn.quarters);
   var ce = d.census;
-  if (ce && ce.quarters && ce.quarters.length) makeLine('chartCensus', xLabels(ce.quarters), [{ label: 'Avg daily census', data: ce.census, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }], 'Census', ce.quarters);
+  if (ce && ce.quarters && ce.quarters.length) makeLineTime('chartCensus', ce.quarters, [{ label: 'Avg daily census', data: ce.census, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }], 'Census', ce.quarters);
   var co = d.contract;
   if (co && co.quarters && co.quarters.length) {
     var cds = [{ label: 'Facility contract %', data: co.facility, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }];
-    makeLine('chartContract', xLabels(co.quarters), cds, 'Contract %', co.quarters);
+    makeLineTime('chartContract', co.quarters, cds, 'Contract %', co.quarters);
   }
 })();
 </script>'''
@@ -1566,9 +1797,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     ownership_short = abbreviate_ownership(ownership_raw) or ''
     base_url = 'https://pbj320.com'
     state_link = f'<a href="/state/{canonical_slug}">{state_code}</a>' if (canonical_slug and state_code) else (state_code or state_name)
-    # Entity link to pbj320.com entity page (only show when entity exists)
-    entity_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else (entity_name or '')
-    entity_breadcrumb_link = f'<a href="{base_url}/entity/{entity_id}" style="color: #93c5fd;">{entity_name}</a>' if entity_id and entity_name else ''
+    # Entity link (relative); same style as other footer links (no brighter color)
+    entity_link = f'<a href="/entity/{entity_id}">{html.escape(entity_name or '')}</a>' if entity_id and entity_name else (entity_name or '')
+    entity_breadcrumb_link = f'<a href="/entity/{entity_id}">{html.escape(entity_name or '')}</a>' if entity_id and entity_name else ''
     # Residents count for subtitle (census_int set later; we need it here for location line)
     # Prefer provider info for the same quarter as the page so case-mix matches displayed HPRD quarter
     pi = provider_info_row or {}
@@ -1674,23 +1905,38 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
     total_direct_badge = f"Total HPRD: {hprd_val} (Direct: {direct_hprd_val})"
-    # CMS star ratings (1-5) from provider info
-    def _star(val):
+    # CMS star ratings (1-5) from provider info: show as "Overall: ★☆☆☆☆" / "Staffing: ★★★☆☆"
+    def _star_icons(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
             return "—"
         try:
             _n = round_half_up(float(val), 0)
             n = int(_n) if _n is not None else None
             if n is not None and 1 <= n <= 5:
-                return str(n)
+                return "★" * n + "☆" * (5 - n)
         except (TypeError, ValueError):
             pass
         return "—"
-    overall_star = _star((provider_info_row or {}).get('overall_rating'))
-    staffing_star = _star((provider_info_row or {}).get('staffing_rating'))
-    overall_star_label = f'{overall_star}-Star Overall' if overall_star != '—' else 'Overall: not reported'
-    staffing_star_label = f'{staffing_star}-Star Staffing' if staffing_star != '—' else 'Staffing: not reported'
+    _overall_raw = (provider_info_row or {}).get('overall_rating')
+    _staffing_raw = (provider_info_row or {}).get('staffing_rating')
+    overall_star_icons = _star_icons(_overall_raw)
+    staffing_star_icons = _star_icons(_staffing_raw)
+    overall_star_label = f'Overall: {overall_star_icons}' if overall_star_icons != '—' else 'Overall: not reported'
+    staffing_star_label = f'Staffing: {staffing_star_icons}' if staffing_star_icons != '—' else 'Staffing: not reported'
     badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(96,165,250,0.15); color: #e2e8f0; white-space: nowrap;'
+    badge_span_red = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4); white-space: nowrap;'
+    # Omit separate risk badge when the only risk is 1-star overall (we show that via red Overall badge)
+    _risk_reason_lower = (risk_reason or '').strip().lower()
+    _skip_risk_badge = _risk_reason_lower in ('1-star overall', '1 star overall', '1-star', '1 star')
+    risk_badge_conditional = risk_badge if (risk_badge and not _skip_risk_badge) else ''
+    try:
+        _on = round_half_up(float(_overall_raw), 0) if _overall_raw is not None else None
+        is_1_star_overall = (_on is not None and int(_on) == 1)
+    except (TypeError, ValueError):
+        is_1_star_overall = False
+    overall_badge_style = badge_span_red if is_1_star_overall else badge_span
+    overall_badge_html = f'<span style="{overall_badge_style}">{overall_star_label}</span>'
+    staffing_badge_html = f'<span style="{badge_span}">{staffing_star_label}</span>'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
@@ -1747,8 +1993,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                                 below_count += 1
                         except (TypeError, ValueError):
                             pass
-                facility_count = len(ent_facilities)
                 state_count = len(states_seen)
+                # Prefer Chain Performance (2025-11/Chain_Performance_20260218.csv) facility count when available
+                chain_perf = load_chain_performance()
+                chain_row_prov = chain_perf.get(int(entity_id)) if chain_perf else None
+                _chain_fac = _chain_val(chain_row_prov, 'Number of facilities') if chain_row_prov else None
+                try:
+                    facility_count = int(float(_chain_fac)) if _chain_fac is not None else len(ent_facilities)
+                except (TypeError, ValueError):
+                    facility_count = len(ent_facilities)
                 entity_summary_html = f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in {state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing below their respective state averages this quarter.</div>'
         except Exception:
             pass
@@ -1800,7 +2053,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
 </div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge}<span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span><span style="{badge_span}">{overall_star_label}</span><span style="{badge_span}">{staffing_star_label}</span></div>
+<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{overall_badge_html}{staffing_badge_html}</div>
 {percentile_line}
 <p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>
 <p style="margin: 0.5rem 0 0 0; color: #e2e8f0;"><strong>Put another way…</strong> {put_another_way}</p>
@@ -1846,14 +2099,20 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 def load_entity_facilities(entity_id):
     """Load entity name and list of facilities (ccn, name, city, state, latest metrics) for chain_id/affiliated_entity_id.
-    Returns (entity_name, list of dicts). Empty list if not found."""
+    Returns (entity_name, list of dicts). Empty list if not found. Prefers _latest CSV (same as Chain Performance recency)."""
     if not HAS_PANDAS:
         return '', []
-    for path in ['provider_info_combined.csv', 'provider_info_combined_latest.csv', 'pbj-wrapped/public/data/provider_info_combined.csv']:
+    # Use only provider_info_combined.csv (no _latest)
+    paths = [
+        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
+        'provider_info_combined.csv',
+        'pbj-wrapped/public/data/provider_info_combined.csv',
+    ]
+    for path in paths:
         if not os.path.exists(path):
             continue
         try:
-            df = pd.read_csv(path)
+            df = pd.read_csv(path, low_memory=False)
             eid_col = 'chain_id' if 'chain_id' in df.columns else 'affiliated_entity_id'
             name_col = 'chain_name' if 'chain_id' in df.columns else 'affiliated_entity_name'
             if eid_col not in df.columns:
@@ -1951,7 +2210,7 @@ def load_chain_performance():
         if not os.path.isfile(path):
             continue
         try:
-            df = pd.read_csv(path)
+            df = pd.read_csv(path, low_memory=False)
             df.columns = [str(c).strip() for c in df.columns]
             if 'Chain ID' not in df.columns:
                 continue
@@ -2105,8 +2364,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         turnover_pct = _num('Average total nursing staff turnover percentage')
         payment_denials = _num('Total number of payment denials')
         total_fines_count = _num('Total number of fines')
-        # Use our facility count (n) so takeaway matches the facilities table; fall back to Care Compare count if missing
-        n_fac = n if n else (int(n_chain) if n_chain is not None else 0)
+        # Prefer Chain Performance (CMS) facility count when available; else use PBJ facility list length
+        n_fac = int(n_chain) if n_chain is not None else (n if n else 0)
         n_st = num_states if num_states else (int(states_chain) if states_chain is not None else 0)
         # Use chain CSV HPRD if present, else PBJ aggregate
         hprd_for_narrative = chain_hprd_total if chain_hprd_total is not None else avg_total
@@ -2132,7 +2391,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tier1_badges = f'<span style="{_badge}">{n_fac:,} Facilities</span><span style="{_badge}">{n_st} States</span>'
         if fp_pct is not None:
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
-        tier1_badges += f'<span style="{_badge}">Avg Overall: {_star_display(overall_rating)}</span>'
+        tier1_badges += f'<span style="{_badge}">Avg. Rating: {(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</span>'
 
         risk_parts = []
         if sff is not None and sff > 0:
@@ -2153,7 +2412,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             tier3_parts.append(f'Avg Total Nurse HPRD: {hprd_for_narrative:.2f}')
         if rn_for_narrative is not None:
             tier3_parts.append(f'Avg RN HPRD: {rn_for_narrative:.2f}')
-        tier3_parts.append(f'Avg Staffing Rating: {_star_display(staff_rating)}')
+        tier3_parts.append(f'Avg. Staffing rating: {(f"{staff_rating:.1f}" if staff_rating is not None else "—")}')
         tier3_html = ''.join(f'<span style="{_badge_neutral}">{t}</span>' for t in tier3_parts)
 
         # Paragraph 1 — Scale & Model (neutral)
@@ -2251,7 +2510,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
                 one_star_count = count_1 if (provider_info and facilities) else None
         except Exception:
             pass
-        high_risk_html = f'<div class="section-header" title="{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}">High-Risk Facilities<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
+        high_risk_html = f'<div class="section-header"><span class="pbj-high-risk-help-wrap entity-section-tooltip-wrap"><span class="pbj-high-risk-help">High-Risk Facilities</span><span class="pbj-high-risk-tooltip entity-section-tooltip" role="tooltip">{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}</span></span><span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
         high_risk_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
         high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Special Focus Facilities (SFFs)</div><div class="value">{int(sff) if sff is not None else "—"}</div></div>'
         high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">SFF Candidates</div><div class="value">{int(sff_cand) if sff_cand is not None else "—"}</div></div>'
@@ -2261,9 +2520,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         high_risk_html += '</div>'
         cms_stars_html = f'<div class="section-header">Avg. CMS 5-Star Rating<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
         cms_stars_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Overall</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
+        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg. Rating</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
         cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Health Inspection</div><div class="value">{(f"{hi_rating:.1f}" if hi_rating is not None else "—")}</div></div>'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Staffing</div><div class="value">{(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</div></div>'
+        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg. Staffing rating</div><div class="value">{(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</div></div>'
         cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Quality</div><div class="value">{(f"{quality_rating:.1f}" if quality_rating is not None else "—")}</div></div>'
         cms_stars_html += '</div>'
         fp = for_profit or 0
@@ -2300,9 +2559,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tn_num = float(tn) if tn is not None and not (isinstance(tn, float) and pd.isna(tn)) else None
         rn_num = float(rn) if rn is not None and not (isinstance(rn, float) and pd.isna(rn)) else None
         contract_num = float(contract) if contract is not None and not (isinstance(contract, float) and pd.isna(contract)) else None
-        risk_flag, _ = get_facility_risk_from_search_index(ccn) if ccn else (False, '')
+        risk_flag, risk_reason = get_facility_risk_from_search_index(ccn) if ccn else (False, '')
         row_class = 'entity-facility-row high-risk' if risk_flag else 'entity-facility-row'
-        cells = [state_cell, f'<a href="/provider/{ccn}">{name}</a>', city or '—']
+        facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
+        if risk_flag and risk_reason:
+            facility_cell += f' <span class="pbj-high-risk-help-wrap entity-facility-risk-wrap" style="position:relative;display:inline-flex;align-items:center;vertical-align:middle;"><span class="entity-facility-risk-icon" aria-label="High risk" style="color:#fca5a5;font-size:0.85em;cursor:help;margin-left:2px;">⚠</span><span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">{html.escape(risk_reason)}</span></span>'
+        cells = [state_cell, facility_cell, city or '—']
         if tn is not None:
             cells.append(format_metric_value(tn, 'Total_Nurse_HPRD'))
         else:
@@ -2321,7 +2583,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     tbody = '\n'.join(rows)
     show_more_btn = ''
     if n > PAGE_SIZE:
-        show_more_btn = f'<p class="entity-table-more" style="margin-top:0.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;"><button type="button" id="entity-view-more" style="padding:0.4rem 0.8rem; font-size:0.875rem; background:rgba(148,163,184,0.2); color:#e2e8f0; border:1px solid rgba(148,163,184,0.4); border-radius:6px; cursor:pointer;">View next {PAGE_SIZE}</button> <span id="entity-showing" style="color:#94a3b8; font-size:0.875rem;">Showing 1–{PAGE_SIZE} of {n}</span></p>'
+        show_more_btn = f'<p class="entity-table-more" style="margin-top:0.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;"><span id="entity-showing" style="color:#94a3b8; font-size:0.875rem;">1–{PAGE_SIZE} of {n}</span> <button type="button" id="entity-view-more" style="padding:0.4rem 0.8rem; font-size:0.875rem; background:rgba(148,163,184,0.2); color:#e2e8f0; border:1px solid rgba(148,163,184,0.4); border-radius:6px; cursor:pointer;">Load more</button></p>'
     table_script = '''
 <script>
 (function(){
@@ -2332,7 +2594,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
   var total = rows.length;
   for (var i = PAGE; i < rows.length; i++) rows[i].style.display = "none";
   var showing = PAGE;
-  function updateLabel(){ var el = document.getElementById("entity-showing"); if(el) el.textContent = "Showing 1–" + Math.min(showing, total) + " of " + total; }
+  function updateLabel(){ var el = document.getElementById("entity-showing"); if(el) el.textContent = "1–" + Math.min(showing, total) + " of " + total; }
   var btn = document.getElementById("entity-view-more");
   if (btn) {
     btn.onclick = function(){
@@ -2370,7 +2632,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 })();
 </script>'''
     seo_desc = f"{entity_name} operates {subtitle}. PBJ staffing data for affiliated nursing homes."
-    page_title = f"{entity_name} | Nursing Home Staffing | PBJ320"
+    page_title = f"{entity_name} ({n} facilities) | Nursing Home Staffing | PBJ320"
     layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}")
     entity_page_url = f"{base_url}/entity/{entity_id}"
     care_compare_entity_url = f'https://www.medicare.gov/care-compare/details/chains/{entity_id}'
@@ -2396,7 +2658,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
-<style>.entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }}</style>
+<style>.entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; }} .entity-facility-risk-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>
@@ -2761,16 +3023,25 @@ def generate_state_chart_html(state_name, state_code):
     state_esc = html.escape(str(state_name)) if state_name else ''
     state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
     state_sub = f'<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 0.75rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);">{state_esc}</p>' if state_esc else ''
+    macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+    total_staffing_footer = f'''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
+<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums are based on <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-mobile">State min. based on <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+</p>'''
     def chart_header(main_title):
         one_line = (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}: {state_esc}</div>') if state_esc else (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}</div>')
         two_line = f'<div class="pbj-chart-header-twoline"><div class="section-header" style="margin-bottom:0;">{main_title}</div>{state_sub}</div>'
         return f'<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">{one_line}{two_line}</div>'
-    def chart_block(title, canvas_id):
-        return f'<div class="pbj-chart-container" style="margin-bottom:1.5rem;">{chart_header(title)}<div class="pbj-chart-wrapper"><canvas id="{canvas_id}"></canvas></div></div>'
+    def chart_block(title, canvas_id, footer=''):
+        out = f'<div class="pbj-chart-container" style="margin-bottom:1.5rem;">{chart_header(title)}<div class="pbj-chart-wrapper"><canvas id="{canvas_id}"></canvas></div>'
+        if footer:
+            out += footer
+        return out + '</div>'
     return f'''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div id="state-chart-meta" data-state-code="{state_code_esc}" style="display:none;"></div>
-''' + chart_block('Total Staffing', 'stateChartTotal') + '''
+''' + chart_block('Total Staffing', 'stateChartTotal', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'stateChartRN') + '''
 ''' + chart_block('Census', 'stateChartCensus') + '''
 ''' + chart_block('Contract staff %', 'stateChartContract') + '''
@@ -4239,6 +4510,10 @@ def pbjpedia_index():
     return redirect('/pbjpedia/overview')
 
 
+# Per-CCN provider page HTML cache (short TTL for fast repeat loads)
+_PROVIDER_PAGE_CACHE = {}
+_PROVIDER_PAGE_CACHE_TTL = 120  # seconds
+
 # Canonical provider/state/entity pages (pbj320.com/provider/xxx, /state/pa, /entity/123)
 def _provider_page_impl(ccn):
     from flask import abort
@@ -4247,12 +4522,19 @@ def _provider_page_impl(ccn):
     prov = normalize_ccn(ccn)
     if not prov:
         abort(404)
+    now = time.time()
+    cached = _PROVIDER_PAGE_CACHE.get(prov)
+    if cached is not None:
+        cached_at, html = cached
+        if now - cached_at < _PROVIDER_PAGE_CACHE_TTL:
+            return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
     facility_df = load_facility_quarterly_for_provider(prov)
     if facility_df is None or facility_df.empty:
         abort(404)
     provider_info = load_provider_info()
     provider_info_row = provider_info.get(prov, {})
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
+    _PROVIDER_PAGE_CACHE[prov] = (now, html)
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 def _state_page_impl(state_slug):
@@ -5804,7 +6086,6 @@ def data_files(path):
         allowed_csv = {
             'facility_quarterly_metrics.csv', 'state_quarterly_metrics.csv', 'national_quarterly_metrics.csv',
             'cms_region_quarterly_metrics.csv', 'cms_region_state_mapping.csv', 'provider_info_combined.csv',
-            'provider_info_combined_latest.csv',
         }
         if filename in allowed_csv:
             # Try multiple locations so /data/X.csv works wherever CSVs are deployed (root or data/)

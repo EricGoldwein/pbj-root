@@ -10,7 +10,7 @@ This document describes the structure of the **provider (facility) page** served
 - **Handler:** `provider_page(ccn)` → loads data, then calls `generate_provider_page_html(ccn, facility_df, provider_info_row)`.
 - **Data sources:**
   - **`facility_df`** — from `load_facility_quarterly_for_provider(prov)`: facility-level quarterly metrics (e.g. `facility_quarterly_metrics.csv` or equivalent). Columns include `CY_Qtr`, `Total_Nurse_HPRD`, `RN_HPRD`, `Nurse_Assistant_HPRD`, `Nurse_Care_HPRD`, `RN_Care_HPRD`, `Contract_Percentage`, `avg_daily_census` / `Avg_Daily_Census`, `COUNTY_NAME`, `STATE`, `PROVNAME`.
-  - **`provider_info_row`** — from `load_provider_info()[prov]`: one row per CCN from `provider_info_combined_latest.csv` (or fallbacks). Fields: `provider_name`, `state`, `city`, `ownership_type`, `entity_name`, `entity_id`, `avg_residents_per_day`, `reported_*`, `case_mix_*` HPRD values.
+  - **`provider_info_row`** — from `load_provider_info()[prov]`: one row per CCN from `provider_info_combined.csv` (or fallbacks). Fields: `provider_name`, `state`, `city`, `ownership_type`, `entity_name`, `entity_id`, `avg_residents_per_day`, `reported_*`, `case_mix_*` HPRD values.
 - **404:** If `facility_df` is missing or empty, the route returns 404.
 
 ---

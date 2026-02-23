@@ -4637,7 +4637,7 @@
         const [stateResponse, nationalResponse, providerResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
           fetch('state_quarterly_metrics.csv'),
           fetch('national_quarterly_metrics.csv'),
-          fetch('provider_info_combined_latest.csv'),
+          fetch('provider_info_combined.csv'),
           fetch('cms_region_state_mapping.csv'),
           fetch('facility_quarterly_metrics_latest.csv'),
           fetch('cms_region_quarterly_metrics.csv')
@@ -4654,8 +4654,8 @@
           providerText = await providerResponse.text();
         }
         
-        // Check if using _latest.csv file (pre-filtered to most recent quarter only)
-        const isProviderLatestFile = true; // true when using provider_info_combined_latest.csv
+        // provider_info_combined.csv has all quarters; we filter to most recent quarter in code
+        const isProviderLatestFile = false;
         
         // Load facility quarterly metrics (for facility-level direct care data)
         let facilityQuarterlyText = '';
@@ -4795,7 +4795,7 @@
         });
 
         // Process provider info data for SFF/SFF Candidate facilities and case-mix
-        // Note: If using provider_info_combined_latest.csv, it already contains only the most recent quarter
+        // provider_info_combined.csv contains all quarters; filter to most recent quarter in code
         if (providerText) {
           const lines = providerText.split('\n');
           const headers = parseCSVLine(lines[0]);

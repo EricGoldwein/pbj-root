@@ -142,7 +142,7 @@ def audit_state_quarterly() -> bool:
 
 
 def audit_provider_info() -> bool:
-    path = find_file('provider_info_combined_latest.csv', 'provider_info_combined.csv', 'pbj-wrapped/public/data/provider_info_combined.csv')
+    path = find_file('provider_info_combined.csv', 'pbj-wrapped/public/data/provider_info_combined.csv')
     if not path:
         print("  [SKIP] provider_info: no file found")
         return True

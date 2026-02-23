@@ -23,7 +23,7 @@ export const SiteFooter: React.FC = () => (
         letterSpacing: '0.03em',
       }}
     >
-      <strong>320 Consulting</strong> — Turning Spreadsheets into Stories
+      <strong>320 Consulting</strong>: Turning Spreadsheets into Stories.
     </p>
 
     {/* Social Icons */}

@@ -991,6 +991,7 @@ def load_provider_info():
                         'state': state_val.strip().upper()[:2],
                         'entity_id': entity_id,
                         'reported_total_nurse_hrs_per_resident_per_day': row.get('reported_total_nurse_hrs_per_resident_per_day'),
+                        'Total_Nurse_HPRD': row.get('Total_Nurse_HPRD'),
                         'reported_rn_hrs_per_resident_per_day': row.get('reported_rn_hrs_per_resident_per_day'),
                         'reported_na_hrs_per_resident_per_day': row.get('reported_na_hrs_per_resident_per_day'),
                         'case_mix_total_nurse_hrs_per_resident_per_day': row.get('case_mix_total_nurse_hrs_per_resident_per_day'),
@@ -1087,6 +1088,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-high-risk-help {{ cursor: help; text-decoration: none; border-bottom: 1px dotted rgba(148,163,184,0.6); transition: border-color 0.2s ease, color 0.2s ease; }}
 .pbj-high-risk-help:hover {{ border-bottom-color: rgba(147,197,253,0.9); color: #93c5fd; }}
 .pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; min-width: 260px; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
+.entity-section-tooltip {{ max-width: 360px; max-height: 200px; overflow-y: auto; }}
 .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}
 .pbj-details-content {{ padding: 0.9rem 1rem 1rem; border-top: 1px solid rgba(59,130,246,0.15); }}
 .pbj-details-content p:first-child {{ margin-top: 0; }}
@@ -1168,6 +1170,10 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .infobox {{ float: none; width: 100%; margin: 1em 0; }}
   .state-key-metrics-row {{ grid-template-columns: repeat(2, 1fr); }}
   .pbj-metric-card .value {{ font-size: 1.1rem; }}
+  /* PBJ Takeaway: on desktop larger font for entity/provider/state */
+  @media (min-width: 769px) {{
+    .pbj-takeaway-header {{ font-size: 1.35rem !important; }}
+  }}
   /* PBJ Takeaway: on mobile show only "PBJ Takeaway", hide facility/state/entity name */
   .pbj-takeaway-title-name {{ display: none; }}
   /* On mobile hide residents, direct (HPRD), and contract badges to save space */
@@ -1219,7 +1225,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     </div>
   </div>
   <footer class="pbj-footer">
-    <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories</p>
+    <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories.</p>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
       <a href="mailto:eric@320insight.com" title="Email: eric@320insight.com"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
       <a href="sms:+19298084996" title="SMS: (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
@@ -1229,6 +1235,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   </footer>
   <script>
   (function(){ var t=document.getElementById('navToggle'); var m=document.getElementById('navMenu'); if(t&&m){ t.addEventListener('click',function(){ m.classList.toggle('active'); t.classList.toggle('active'); document.body.style.overflow=m.classList.contains('active')?'hidden':''; }); } })();
+  </script>
+  <script>
+  (function(){ function init(){ var links=document.querySelectorAll('a.custom-report-cta-email-link[href^="mailto:"]'); links.forEach(function(a){ a.addEventListener('click',function(e){ e.preventDefault(); var h=this.getAttribute('href'); if(h) window.location.href=h; }); }); } if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init(); })();
   </script>
 </body>
 </html>'''
@@ -1362,14 +1371,16 @@ Thank you,"""
     else:
         return ''
 
-    # Whole box is one clickable link (no separate button)
+    # Use a div with an explicit mailto link so the link works reliably on desktop (no nested <a>).
     primary_mailto = primary_mailto if context in ('facility', 'state', 'entity') else f"mailto:{email}"
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    return f'''<a href="{primary_mailto}" class="custom-report-cta custom-report-cta-link" style="display:block;text-decoration:none;color:inherit;position:relative;z-index:1;cursor:pointer;">
+    email_link = f'<a href="{html.escape(primary_mailto)}" class="custom-report-cta-email-link" style="color:#93c5fd;font-weight:500;text-decoration:none;">Email &gt; eric@320insight.com</a>'
+    return f'''<div class="custom-report-cta" style="margin:1.5rem 0;padding:0.85rem 1.15rem;background:rgba(15,23,42,0.5);border:1px solid rgba(59,130,246,0.2);border-radius:8px;max-width:640px;font-size:0.875rem;color:rgba(226,232,240,0.9);line-height:1.5;">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
-{footer_block}</a>'''
+<p class="custom-report-cta-links" style="margin:0.3rem 0 0;font-size:0.85rem;">{email_link}</p>
+{footer_block}</div>'''
 
 
 def render_methodology_block():
@@ -1723,14 +1734,12 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
               return '';
             },
             label: function(context) {
+              if (context.dataset && context.dataset._macpacNote) return context.dataset.label;
               var v = context.parsed.y;
               if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + v.toFixed(2);
               return context.dataset.label + ': ' + (v != null ? v : '');
             },
-            afterBody: function(context) {
-              if (context[0] && context[0].dataset && context[0].dataset._macpacNote) return ['Via MACPAC; estimate.'];
-              return [];
-            }
+            afterBody: function(context) { return []; }
           }
         }
       },
@@ -1754,7 +1763,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
                { label: 'Direct', data: th.direct, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }];
     if (th.macpac != null && typeof th.macpac === 'number') {
       var macpacArr = th.quarters.map(function(){ return th.macpac; });
-      var stateMinLabel = (th.stateCode || 'State') + ' Min';
+      var stateMinLabel = (th.stateCode || 'State') + ' Min: ~' + Number(th.macpac).toFixed(2) + ' (MACPAC)';
       ds.push({ label: stateMinLabel, data: macpacArr, borderColor: '#dc2626', borderDash: [4,4], tension: 0, fill: false, spanGaps: false, _macpacNote: true });
     }
     makeLineTime('chartTotalHprd', th.quarters, ds, 'Hours per resident day', th.quarters);
@@ -2092,7 +2101,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <div id="pbj-takeaway" class="pbj-content-box" style="margin: 1rem 0; padding: 1rem; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;">
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
-<div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
+<div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
 </div>
 <div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{overall_badge_html}{staffing_badge_html}</div>
 {percentile_line}
@@ -2444,7 +2453,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <div id="pbj-takeaway" class="pbj-content-box" style="margin: 1rem 0; padding: 1rem; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;">
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
-<div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(entity_name or "Chain")}</span></div>
+<div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(entity_name or "Chain")}</span></div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{_scope}</p>
 <p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{_p_ops}{_p_value}</p>
@@ -2583,7 +2592,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <div id="pbj-takeaway" class="pbj-content-box" style="margin: 1rem 0; padding: 1rem; border: 1px solid rgba(59,130,246,0.3); border-radius: 8px;">
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
-<div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(entity_name or "Chain")}</span></div>
+<div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(entity_name or "Chain")}</span></div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{tier1_badges}</p>
 <p style="margin: 0.5rem 0 0.25rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{p1_simple}</p>
@@ -2660,6 +2669,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         chain_metrics_html += '</div>'
 
     PAGE_SIZE = 20
+    provider_info = load_provider_info() or {}
     rows = []
     for fac in facilities:
         ccn = fac.get('ccn', '')
@@ -2673,10 +2683,19 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         state_cell = f'<a href="/state/{canonical_slug}">{state}</a>' if canonical_slug else state
         tn = fac.get('Total_Nurse_HPRD')
         rn = fac.get('RN_HPRD')
-        contract = fac.get('Contract_Percentage')
         tn_num = float(tn) if tn is not None and not (isinstance(tn, float) and pd.isna(tn)) else None
         rn_num = float(rn) if rn is not None and not (isinstance(rn, float) and pd.isna(rn)) else None
-        contract_num = float(contract) if contract is not None and not (isinstance(contract, float) and pd.isna(contract)) else None
+        info = provider_info.get(ccn, {}) if ccn else {}
+        _overall = info.get('overall_rating')
+        _staff = info.get('staffing_rating')
+        try:
+            overall_num = int(round_half_up(float(_overall), 0)) if _overall is not None and not (isinstance(_overall, float) and pd.isna(_overall)) else None
+        except (TypeError, ValueError):
+            overall_num = None
+        try:
+            staff_num = int(round_half_up(float(_staff), 0)) if _staff is not None and not (isinstance(_staff, float) and pd.isna(_staff)) else None
+        except (TypeError, ValueError):
+            staff_num = None
         risk_flag, risk_reason = get_facility_risk_from_search_index(ccn) if ccn else (False, '')
         row_class = 'entity-facility-row high-risk' if risk_flag else 'entity-facility-row'
         facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
@@ -2691,13 +2710,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             cells.append(format_metric_value(rn, 'RN_HPRD'))
         else:
             cells.append('—')
-        if contract is not None:
-            cells.append(format_metric_value(contract, 'Contract_Percentage') + '%')
-        else:
-            cells.append('—')
-        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-contract="{contract_num if contract_num is not None else ""}"'
+        cells.append(str(overall_num) if overall_num is not None else '—')
+        cells.append(str(staff_num) if staff_num is not None else '—')
+        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
         rows.append('<tr class="' + row_class + '"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
-    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Facility</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="total-hprd">Total Nurse HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="contract">Contract %</th></tr>'
+    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Facility</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="total-hprd">Total Nurse HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
     tbody = '\n'.join(rows)
     show_more_btn = ''
     if n > PAGE_SIZE:
@@ -2776,7 +2793,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
-<style>.entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; left: 0; top: 100%; margin-top: 4px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }}</style>
+<style>.entity-facilities-table {{ font-size: 0.875rem; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; left: 0; top: 100%; margin-top: 4px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.8rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.4rem 0.35rem; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>
@@ -3142,9 +3159,15 @@ def generate_state_chart_html(state_name, state_code):
     state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
     state_sub = f'<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 0.75rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);">{state_esc}</p>' if state_esc else ''
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+    macpac_hprd = get_macpac_hprd_for_state(state_code) if state_code else None
+    if macpac_hprd is not None and macpac_hprd >= 1.5:
+        min_str = f'~{macpac_hprd:.2f}'
+        state_min_phrase = f' State minimum ({state_code_esc}: {min_str} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a>.'
+    else:
+        state_min_phrase = ''
     total_staffing_footer = f'''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
-<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums are based on <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
-<span class="pbj-chart-footnote-mobile">State min. based on <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON.{state_min_phrase}</span>
+<span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON.{state_min_phrase}</span>
 </p>'''
     def chart_header(main_title):
         one_line = (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}: {state_esc}</div>') if state_esc else (f'<div class="pbj-chart-header-oneline section-header" style="margin-bottom:0;">{main_title}</div>')
@@ -3399,7 +3422,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             pid = panel_id_prefix + cat_key.lower()
             selected = (cat_key == first_selected)
             aria_val = 'true' if selected else 'false'
-            sff_section += f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" aria-selected="{aria_val}" class="sff-tab-btn" data-panel="{pid}" style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(30,64,175,0.3); color:#93c5fd; border:1px solid rgba(59,130,246,0.4); border-radius:6px; cursor:pointer;">{tab_label} ({count})</button>'
+            sff_section += f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" aria-selected="{aria_val}" class="sff-tab-btn" data-panel="{pid}" style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(15,23,42,0.6); color:rgba(226,232,240,0.85); border:1px solid rgba(59,130,246,0.35); border-radius:6px; cursor:pointer;">{tab_label} ({count})</button>'
         sff_section += '</div>'
         for cat_key, tab_label, months_label in categories_order:
             lst = by_cat.get(cat_key) or []
@@ -3420,7 +3443,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                 sff_section += f'''
     <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
     <table class="sff-facilities-table" style="width:100%; min-width:320px; border-collapse:collapse; font-size:0.875rem;">
-    <thead><tr><th scope="col">Facility</th><th scope="col">Months</th><th scope="col">Residents</th><th scope="col">Ownership</th>{extra_col}</tr></thead>
+    <thead><tr><th scope="col">Facility</th><th scope="col">Months</th><th scope="col">Residents</th><th scope="col">Total HPRD</th><th scope="col">Ownership</th>{extra_col}</tr></thead>
     <tbody>'''
                 for facility in lst:
                     facility_name = facility.get('facility_name', 'Unknown')
@@ -3443,6 +3466,11 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                             residents_cell = str(int(float(residents)))
                     except (ValueError, TypeError):
                         residents_cell = '—'
+                    total_hprd_raw = prov_info.get('reported_total_nurse_hrs_per_resident_per_day') or prov_info.get('Total_Nurse_HPRD')
+                    try:
+                        total_hprd_cell = fmt(float(total_hprd_raw)) if total_hprd_raw is not None and str(total_hprd_raw).strip() else '—'
+                    except (ValueError, TypeError):
+                        total_hprd_cell = '—'
                     ownership_cell = ownership or '—'
                     extra_cell = ''
                     if cat_key == 'Graduate':
@@ -3451,7 +3479,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                     elif cat_key == 'Terminated':
                         d = facility.get('date_of_termination') or ''
                         extra_cell = f'<td>{html.escape(d) if d else "—"}</td>'
-                    sff_section += f'<tr><td>{facility_cell}</td><td>{months_cell}</td><td>{residents_cell}</td><td>{ownership_cell}</td>{extra_cell}</tr>'
+                    sff_section += f'<tr><td>{facility_cell}</td><td>{months_cell}</td><td>{residents_cell}</td><td>{total_hprd_cell}</td><td>{ownership_cell}</td>{extra_cell}</tr>'
                 sff_section += '</tbody></table></div>'
             sff_section += '</div>'
         sff_section += f'''
@@ -3459,7 +3487,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.5rem 0.4rem; border: 1px solid rgba(59,130,246,0.25); text-align:left; }}
     .sff-facilities-table th {{ background: rgba(30,64,175,0.2); color: #93c5fd; font-weight:600; }}
     .sff-facilities-table tbody tr:nth-child(even) {{ background: rgba(15,23,42,0.4); }}
-    .sff-tab-btn[aria-selected="true"] {{ background: rgba(59,130,246,0.5); border-color: #60a5fa; }}
+    .sff-tab-btn[aria-selected="true"] {{ background: rgba(59,130,246,0.55) !important; border-color: #60a5fa !important; color: #e2e8f0 !important; font-weight: 600; box-shadow: 0 0 0 1px rgba(96,165,250,0.5); }}
     @media (max-width: 640px) {{ .sff-facilities-table {{ font-size: 0.8rem; }} .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.35rem 0.25rem; }} }}
     </style>
     <p style="margin-top:0.75rem; font-size:0.85rem;"><a href="{html.escape(SFF_SOURCE_URL)}" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p>
@@ -3659,7 +3687,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {state_outline_inset}
 <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 10px;">
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
-<div style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
+<div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
 </div>
 <p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>
 {state_narrative}
@@ -3673,13 +3701,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Staffing Metrics ({quarter})</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {state_name} Staffing Metrics ({quarter})</summary>
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">
         <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>
         <tr><td>Total Nurse Staffing HPRD</td><td>{format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')}</td><td>#{rank_total_nurse} of {total_states if total_states else 'N/A'}</td></tr>
-        <tr><td>RN HPRD</td><td>{format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')}</td><td>#{rank_rn_hprd} of {total_states if total_states else 'N/A'}</td></tr>
         <tr><td title="Excludes admin, DON (Director of Nursing)">Direct Care Nurse HPRD</td><td>{format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD', 'N/A')}</td><td>#{rank_direct_care} of {total_states if rank_direct_care and total_states else 'N/A'}</td></tr>
+        <tr><td>RN HPRD</td><td>{format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')}</td><td>#{rank_rn_hprd} of {total_states if total_states else 'N/A'}</td></tr>
         <tr><td title="Excludes admin, DON (Director of Nursing)">RN Direct Care HPRD</td><td>{format_metric_value(get_val('RN_Care_HPRD'), 'RN_Care_HPRD', 'N/A')}</td><td>#{rank_rn_care} of {total_states if rank_rn_care and total_states else 'N/A'}</td></tr>
         <tr><td>Nurse Aide HPRD</td><td>{format_metric_value(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD', 'N/A')}</td><td>#{rank_nurse_aide} of {total_states if rank_nurse_aide and total_states else 'N/A'}</td></tr>
         <tr><td>Contract Staff Percentage</td><td>{format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')}%</td><td>—</td></tr>

@@ -398,22 +398,29 @@
       color: rgba(255,255,255,0.4);
       letter-spacing: 0.08em;
     }
-    /* Request custom – text link style, no border */
+    /* Request custom – badge-style CTA with color; tight vertical padding only */
     .hero-copy-cta-wrap {
       display: inline-block;
-      margin-top: 0.25rem;
-      padding: 4px 0;
-      color: rgba(226, 232, 240, 0.8);
+      margin-top: 0.5rem;
+      padding: 3px 12px;
+      color: #93c5fd;
       font-size: 0.8rem;
       font-weight: 500;
       line-height: 1.5;
       text-decoration: none;
-      border-bottom: 1px solid transparent;
-      transition: color 0.2s, border-color 0.2s;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      border-radius: 6px;
+      transition: color 0.2s, background 0.2s, border-color 0.2s;
+      position: relative;
+      z-index: 2;
+      cursor: pointer;
+      pointer-events: auto;
     }
     .hero-copy-cta-wrap:hover {
-      color: #93c5fd;
-      border-bottom-color: rgba(147, 197, 253, 0.5);
+      color: #bfdbfe;
+      background: rgba(96, 165, 250, 0.2);
+      border-color: rgba(96, 165, 250, 0.5);
     }
     .sr-only {
       position: absolute;
@@ -426,6 +433,32 @@
       white-space: nowrap;
       border: 0;
     }
+    /* Desktop: one bordered box = boilerplate (small text) + email form + Request custom link; mobile: no box, keep as is */
+    .hero-cta-box {
+      margin-top: 0;
+    }
+    .hero-cta-boilerplate {
+      display: none;
+      margin: 0;
+      font-size: 0.8rem;
+      line-height: 1.45;
+      color: rgba(226, 232, 240, 0.82);
+    }
+    @media (min-width: 769px) {
+      .hero-cta-box {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 8px;
+        max-width: 480px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+      .hero-cta-boilerplate {
+        display: block;
+        margin-bottom: 0.75rem;
+      }
+    }
     /* Secondary CTA: email capture – tight inline on desktop, no heavy box */
     .hero-email-cta {
       margin-top: 0.6rem;
@@ -435,9 +468,13 @@
       .hero-email-cta {
         padding: 0;
         max-width: none;
+        margin-top: 0;
       }
     }
     @media (max-width: 768px) {
+      .hero-cta-box {
+        margin-top: 0;
+      }
       .hero-email-cta {
         padding: 0.6rem 0.75rem;
         max-width: 320px;
@@ -661,54 +698,9 @@
       outline-offset: 2px;
       border-radius: 2px;
     }
-    /* Explore bar – single row on desktop; visible separators */
+    /* Explore bar – removed on desktop and mobile */
     .hero-explore-bar {
-      margin-top: 14px;
-      font-size: 0.8125rem;
-      line-height: 1.5;
-      letter-spacing: 0.02em;
-      color: rgba(255,255,255,0.82);
-      font-weight: 500;
-    }
-    @media (min-width: 769px) {
-      .hero-explore-bar {
-        display: flex;
-        justify-content: center;
-        flex-wrap: nowrap;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-      }
-      .hero-explore-bar-desktop {
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-    }
-    .hero-explore-bar a {
-      color: rgba(226, 232, 240, 0.95);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .hero-explore-bar a:hover {
-      color: #93c5fd;
-    }
-    .hero-explore-bar .sep {
-      margin: 0 0.45em;
-      color: rgba(255,255,255,0.5);
-      user-select: none;
-      font-weight: 400;
-    }
-    .hero-explore-bar-mobile { display: none; }
-    @media (max-width: 768px) {
-      .hero-explore-bar-desktop { display: none; }
-      .hero-explore-bar-mobile { display: inline; }
-      .hero-explore-bar { font-size: 0.8rem; margin-top: 12px; }
-      .hero-explore-bar-mobile a {
-        color: #93c5fd;
-        font-weight: 600;
-        text-decoration: none;
-      }
-      .hero-explore-bar-mobile a:hover { color: #bfdbfe; }
+      display: none !important;
     }
     @media (max-width: 1023px) {
       .phoebe-strip-wrap { margin-top: 12px; }
@@ -721,6 +713,15 @@
       .phoebe-strip-popup { min-width: 260px; padding: 12px 14px; font-size: 0.875rem; }
     }
     
+    /* Sticky footer on mobile: body flex column, main grows, footer at bottom */
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    main {
+      flex: 1 0 auto;
+    }
     /* Footer: same style as report/about — full width at bottom, not card-like */
     .footer {
       text-align: center;
@@ -728,7 +729,7 @@
       color: rgba(255,255,255,0.7);
       font-size: 0.9rem;
       background: #1a2433;
-      margin-top: 60px;
+      margin-top: auto;
       border-top: 1px solid rgba(255,255,255,0.1);
       width: 100%;
       box-sizing: border-box;
@@ -755,6 +756,12 @@
     .footer a:hover img {
       opacity: 1;
     }
+    /* Hide footer boilerplate on desktop; keep on mobile */
+    @media (min-width: 769px) {
+      .footer .footer-boilerplate {
+        display: none !important;
+      }
+    }
     @media (max-width: 768px) {
       .map-container {
         padding: 22px 16px 17px;
@@ -776,7 +783,7 @@
       }
       .hero-copy-cta-wrap {
         margin-top: 8px;
-        padding: 8px 12px;
+        padding: 3px 12px;
         font-size: 0.75rem;
       }
       .phoebe-strip {
@@ -1352,7 +1359,7 @@
                   <p>🚩 Providers assigned 1-star, abuse icon, or SFF/Candidate status by CMS. Not real-time.</p>
                 </div>
                 <div class="info-footer">
-                  <p><strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20demo%20request">Request a PBJ320 Premium demo</a> for litigation, research, or investigative use.</p>
+                  <p><strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>
                   <p><a href="/about">Learn more about the PBJ Dashboard</a></p>
                 </div>
               </div>
@@ -1365,17 +1372,20 @@
             <span class="hero-explore-bar-desktop">Explore: <a href="/phoebe">PBJ Explained</a><span class="sep" aria-hidden="true"> &bull; </span><a href="/report">U.S. staffing rankings</a><span class="sep" aria-hidden="true"> &bull; </span><a href="/sff">Special Focus Facilities</a><span class="sep" aria-hidden="true"> &bull; </span><a href="/owners">Ownership Political Contributions</a><span class="sep" aria-hidden="true"> &bull; </span><a href="/about">About PBJ320</a></span>
             <span class="hero-explore-bar-mobile"><a href="/report">Rankings</a><span class="sep" aria-hidden="true">·</span><a href="/owners">Follow the Money</a><span class="sep" aria-hidden="true">·</span><a href="/phoebe">PBJ Explained</a><span class="sep" aria-hidden="true">·</span><a href="/about">About PBJ320</a></span>
           </p>
-          <div class="hero-email-cta" aria-label="Subscribe to email updates">
-            <form action="/subscribe" method="POST" aria-label="Subscribe to PBJ320 email updates" id="hero-subscribe-form">
-              <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
-              <label for="hero-email-input" class="sr-only">Email address</label>
-              <input type="email" id="hero-email-input" name="email" placeholder="Enter your email" required autocomplete="email">
-              <button type="submit">Get Updates</button>
-            </form>
-            <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>You're subscribed.</p>
-            <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
+          <div class="hero-cta-box">
+            <p class="hero-cta-boilerplate"><strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>
+            <div class="hero-email-cta" aria-label="Subscribe to email updates">
+              <form action="/subscribe" method="POST" aria-label="Subscribe to PBJ320 email updates" id="hero-subscribe-form">
+                <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+                <label for="hero-email-input" class="sr-only">Email address</label>
+                <input type="email" id="hero-email-input" name="email" placeholder="Enter your email" required autocomplete="email">
+                <button type="submit">Get Updates</button>
+              </form>
+              <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>You're subscribed.</p>
+              <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
+            </div>
+            <a href="mailto:eric@320insight.com?subject=PBJ320%20custom%20analysis" class="hero-copy-cta-wrap" aria-label="Request custom PBJ staffing analysis">Request custom PBJ staffing analysis →</a>
           </div>
-          <a href="mailto:eric@320insight.com?subject=PBJ320%20custom%20analysis" class="hero-copy-cta-wrap" aria-label="Request custom PBJ staffing analysis">Request custom PBJ staffing analysis →</a>
           <div class="phoebe-strip-wrap phoebe-below-only" tabindex="-1">
             <button type="button" class="phoebe-strip" aria-label="What is PBJ? (hover or tap for short answer)" aria-haspopup="true" aria-expanded="false" id="phoebeStripBtnBelow">
               <span class="phoebe-strip-avatar" aria-hidden="true">
@@ -1396,7 +1406,24 @@
 
   <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
-  <script src="/pbj-site-universal.js"></script>
+  <script src="/pbj-site-universal.js?v=2"></script>
+  <script>
+    // Mailto fallback: force open mailto via JS so link works in Chrome/Windows and elsewhere
+    (function() {
+      function init() {
+        var links = document.querySelectorAll('a.hero-copy-cta-wrap[href^="mailto:"]');
+        links.forEach(function(a) {
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            var href = this.getAttribute('href');
+            if (href) window.location.href = href;
+          });
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+      else init();
+    })();
+  </script>
   <script>
     // Subscribe success/error from URL params (after POST /subscribe redirect)
     (function() {

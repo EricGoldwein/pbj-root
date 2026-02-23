@@ -112,9 +112,7 @@
 
 ### Problem: `/<state_slug>` Intercepts Static FilesThe route `@app.route('/<state_slug>')` matches before the catch-all, so requests to `/national_historical_data.json`, `/phoebe.png`, etc. were treated as state slugs and returned 404.
 
-**Fix:** In `canonical_state_page()`, check for file extensions first (`.json`, `.png`, `.jpg`, `.csv`, etc.) and serve the file before processing as a state. Use `APP_ROOT` (not `'.'`) for paths.
-
-### Problem: Static Files 404 (CWD vs APP_ROOT)Using `send_from_directory('.', filename)` and `os.path.join('.', path)` fails when CWD differs (e.g., different launcher or subdirectory).**Fix:**
+**Fix:** In `canonical_state_page()`, check for file extensions first (`.json`, `.png`, `.jpg`, `.csv`, etc.) and serve the file before processing as a state. Use `APP_ROOT` (not `'.'`) for paths.### Problem: Static Files 404 (CWD vs APP_ROOT)Using `send_from_directory('.', filename)` and `os.path.join('.', path)` fails when CWD differs (e.g., different launcher or subdirectory).**Fix:**
 - `APP_ROOT = os.path.dirname(os.path.abspath(__file__))` in `app.py`
 - Replace `'.'` with `APP_ROOT` in `canonical_state_page()` and the catch-all route
 - Add explicit routes for critical assets: `/LI-In-Bug.png`, `/substack.png`, `/press/wtvr-twin-lakes-clip.mp4`, `/press/wtvr-thumbnail.jpg`

@@ -407,6 +407,25 @@ def subscribe():
     return redirect('/?subscribed=1')
 
 
+@app.route('/admin/subscribers')
+def admin_subscribers():
+    """List newsletter signups (email, source, created_at). Requires ?key=ADMIN_VIEW_KEY env."""
+    admin_key = os.environ.get('ADMIN_VIEW_KEY', '').strip()
+    if not admin_key or request.args.get('key') != admin_key:
+        return jsonify({'error': 'Unauthorized'}), 403
+    _init_subscribers_db()
+    try:
+        conn = sqlite3.connect(_subscribers_db_path())
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            'SELECT email, source, created_at FROM subscribers ORDER BY created_at DESC'
+        ).fetchall()
+        conn.close()
+        return jsonify([{'email': r['email'], 'source': r['source'] or '', 'created_at': r['created_at'] or ''} for r in rows])
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     """Contact form: GET shows form, POST sends email to eric@320insight.com. No mailto required."""
@@ -1231,6 +1250,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-footer p {{ margin: 0 0 1rem 0; color: rgba(255,255,255,0.55); }}
 .pbj-footer a {{ color: #60a5fa; opacity: 0.9; transition: opacity 0.3s ease; }}
 .pbj-footer a:hover {{ opacity: 1; }}
+.pbj-badge-mobile-only {{ display: none !important; }}
 @media (max-width: 768px) {{
   .pbj-metrics-row {{ grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }}
   .pbj-content {{ padding: 20px 16px; }}
@@ -1256,8 +1276,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   }}
   /* PBJ Takeaway: on mobile show only "PBJ Takeaway", hide facility/state/entity name */
   .pbj-takeaway-title-name {{ display: none; }}
-  /* On mobile hide residents, direct (HPRD), and contract badges to save space */
+  /* On mobile hide residents, direct (HPRD), contract badges, and overall rating */
   .pbj-badge-mobile-hide {{ display: none !important; }}
+  .pbj-badge-mobile-only {{ display: none !important; }}
+  @media (max-width: 768px) {{
+    .pbj-overall-badge {{ display: none !important; }}
+    .pbj-badge-mobile-only {{ display: inline-block !important; }}
+  }}
   /* High-risk tooltip: wider on mobile so it's not a thin strip; use most of viewport */
   .pbj-high-risk-tooltip {{ min-width: 260px; max-width: calc(100vw - 24px); width: max-content; padding: 12px 14px; font-size: 0.875rem; line-height: 1.45; }}
   .pbj-subtitle {{ font-size: 0.85em; }}
@@ -2119,10 +2144,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         floor_aides = max(0, _fa if _fa is not None else 0)
         put_another_way = f'On a typical <strong>30-bed floor</strong> at {facility_name} you’d see about <strong>{floor_staff:.1f}</strong> staff, including ~{floor_aides:.1f} nurse aides. For the entire {census_int:,}-resident facility, that’s about {total_staff:.1f} total staff, including ~{aides:.1f} nurse aides.'
     else:
-        put_another_way = f'Staffing counts depend on census and HPRD; see key metrics above for this facility’s reported hours per resident day.'
-    narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} hours per resident day</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
+        put_another_way = f'Staffing counts depend on census and HPRD; see key metrics above for this facility’s reported HPRD.'
+    narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
     if case_mix_total is None:
-        narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} hours per resident day</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
+        narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     is_sff = any((str(f.get('provider_number') or '').strip().zfill(6)) == prov for f in (sff_facilities_list or []))
@@ -2157,7 +2182,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     staffing_star_icons = _star_icons(_staffing_raw)
     overall_star_label = f'Overall: {overall_star_icons}' if overall_star_icons != '—' else 'Overall: not reported'
     staffing_star_label = f'Staffing: {staffing_star_icons}' if staffing_star_icons != '—' else 'Staffing: not reported'
-    badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(96,165,250,0.15); color: #e2e8f0; white-space: nowrap;'
+    badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(96,165,250,0.15); color: #b8d4f0; white-space: nowrap;'
     badge_span_red = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4); white-space: nowrap;'
     # Omit separate risk badge when the only risk is 1-star overall (we show that via red Overall badge)
     _risk_reason_lower = (risk_reason or '').strip().lower()
@@ -2287,10 +2312,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
 </div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{overall_badge_html}{staffing_badge_html}</div>
+<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-only" style="{badge_span}">Total HPRD: {hprd_val}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
-<p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{narrative}</p>
-<p style="margin: 0.5rem 0 0 0; color: #e2e8f0;"><strong>Put another way…</strong> {put_another_way}</p>
+<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
+<p class="pbj-takeaway-put-another-way" style="margin: 0.5rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.9);"><strong>Put another way…</strong> {put_another_way}</p>
 <div style="margin-top: 0.35rem; margin-bottom: 0.15rem; display: flex; justify-content: flex-end;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.4);">320 Consulting</span></div>
 </div>'''
     seo_desc = f"{facility_name} nursing home staffing: {format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')} HPRD total nurse staffing in {quarter_display}."
@@ -2707,7 +2732,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tier1_badges = f'<span style="{_badge}">{n_fac:,} Facilities</span><span style="{_badge}">{n_st} States</span>'
         if fp_pct is not None:
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
-        tier1_badges += f'<span style="{_badge}">Avg. Rating: {(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</span>'
+        tier1_badges += f'<span style="{_badge}">Avg. Staffing: {(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</span><span class="pbj-overall-badge" style="{_badge}">Avg. Rating: {(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</span>'
 
         risk_parts = []
         if sff is not None and sff > 0:
@@ -2748,7 +2773,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         # Paragraph 2 — Staffing pattern vs national
         if hprd_for_narrative is not None:
-            p2 = f"Across the portfolio, facilities report an average of <strong>{hprd_for_narrative:.2f}</strong> total nurse hours per resident day (HPRD)"
+            p2 = f"Across the portfolio, facilities report an average of <strong>{hprd_for_narrative:.2f}</strong> total nurse HPRD"
             if rn_for_narrative is not None:
                 p2 += f", including <strong>{rn_for_narrative:.2f}</strong> RN hours"
             if national_hprd is not None:
@@ -2784,9 +2809,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(entity_name or "Chain")}</span></div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{tier1_badges}</p>
-<p style="margin: 0.5rem 0 0.25rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{p1_simple}</p>
-<p style="margin: 0.25rem 0 0.25rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{p2}</p>
-<p style="margin: 0.25rem 0 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{p3}</p>
+<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p1_simple}</p>
+<p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p2}</p>
+<p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p3}</p>
 <div style="margin-top: 0.35rem; margin-bottom: 0.15rem; display: flex; justify-content: flex-end;"><span style="display: inline-block; padding: 4px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(59,130,246,0.4);">320 Consulting</span></div>
 </div>'''
 
@@ -3446,7 +3471,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             try:
                 min_staffing_num = float(min_staffing_val)
                 if min_staffing_num > 1.5:
-                    state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;">{state_code} Min: {fmt(min_staffing_num, 2)} HPRD</span>'
+                    state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;">{state_code} Min: {fmt(min_staffing_num, 2)} HPRD</span>'
             except (TypeError, ValueError):
                 pass
         except Exception:
@@ -3796,7 +3821,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     avg_facility_census = int(_afc) if _afc is not None else None
     state_narrative = ''
     if cur_hprd is not None:
-        parts = [f"<strong>{html.escape(state_name)}</strong>'s reported <strong>{total_hprd_val} hours per resident day</strong>"]
+        parts = [f"<strong>{html.escape(state_name)}</strong>'s reported <strong>{total_hprd_val} HPRD</strong>"]
         if residents_per_staff is not None:
             parts[0] += f" (≈ {residents_per_staff} residents per total staff)"
         parts[0] += f" in {quarter}."
@@ -3815,9 +3840,9 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             parts.append(".")
         if rank_total_nurse and total_states:
             parts.append(f" and ranks <strong>#{rank_total_nurse}</strong> out of {total_states} states.")
-        state_narrative = '<p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">' + ''.join(parts) + '</p>'
+        state_narrative = '<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">' + ''.join(parts) + '</p>'
     else:
-        state_narrative = f'<p style="margin: 0.5rem 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of <strong>{total_hprd_val} hours per resident day</strong> of total nurse staffing.{" Ranks <strong>#" + str(rank_total_nurse) + "</strong> of " + str(total_states) + " states." if rank_total_nurse and total_states else ""}</p>'
+        state_narrative = f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of <strong>{total_hprd_val} HPRD</strong> of total nurse staffing.{" Ranks <strong>#" + str(rank_total_nurse) + "</strong> of " + str(total_states) + " states." if rank_total_nurse and total_states else ""}</p>'
     state_put_another_way = ''
     if cur_hprd and cur_hprd > 0:
         _fs = round_half_up(30 * cur_hprd / 24, 1)
@@ -3834,7 +3859,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         state_put_another_way = '<p style="margin: 0.5rem 0 0 0; color: #e2e8f0;"><strong>Put another way…</strong> ' + state_put_another_way + '</p>'
     # Badge order: HPRD (rank), RN HPRD, contract %, then state min
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
-    _bs = 'display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #e2e8f0;'
+    _bs = 'display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;'
     badges_line = f'<span style="{_bs}">{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})</span><span class="pbj-badge-mobile-hide" style="{_bs}">{rn_hprd_val} RN HPRD</span><span class="pbj-badge-mobile-hide" style="{_bs}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>{state_standard_badge}'
     # State outline: D3 + TopoJSON (will be placed inside PBJ takeaway card)
     state_code_esc = html.escape(state_code, quote=True)

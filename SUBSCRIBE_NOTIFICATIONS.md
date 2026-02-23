@@ -100,6 +100,14 @@ sqlite3 instance/subscribers.db "SELECT email, source, created_at FROM subscribe
 
 You can also open `instance/subscribers.db` in any SQLite viewer (e.g. DB Browser for SQLite, or the SQLite extension in VS Code) and run the same queries.
 
+**In-app JSON list (no SQLite needed):** Set env **`ADMIN_VIEW_KEY`** to a secret string (e.g. a long random password). Then visit:
+
+**`https://yoursite.com/admin/subscribers?key=YOUR_SECRET`**
+
+You get JSON with `email`, `source`, `created_at` for each subscriber. If the key is missing or wrong, the route returns 403.
+
+**Contact form:** Submissions are only sent by email (to `SUBSCRIBE_NOTIFY_TO`). There is no in-app list of contact messages; check your email.
+
 ---
 
 ## Summary

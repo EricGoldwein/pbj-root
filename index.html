@@ -506,6 +506,20 @@
       border-color: #60a5fa;
       box-shadow: 0 0 0 2px rgba(96,165,250,0.2);
     }
+    /* Prevent autofill flash to white on mobile */
+    .contact-popup-form .f-group input:-webkit-autofill,
+    .contact-popup-form .f-group input:-webkit-autofill:hover,
+    .contact-popup-form .f-group input:-webkit-autofill:focus,
+    .contact-popup-form .f-group input:-webkit-autofill:active,
+    .contact-popup-form .f-group textarea:-webkit-autofill,
+    .contact-popup-form .f-group textarea:-webkit-autofill:hover,
+    .contact-popup-form .f-group textarea:-webkit-autofill:focus,
+    .contact-popup-form .f-group textarea:-webkit-autofill:active {
+      -webkit-text-fill-color: #e2e8f0;
+      -webkit-box-shadow: 0 0 0 1000px rgba(15,23,42,0.95) inset;
+      box-shadow: 0 0 0 1000px rgba(15,23,42,0.95) inset;
+      transition: background-color 5000s ease-in-out 0s;
+    }
     .contact-popup-form .f-group .opt { font-weight: 400; color: rgba(148,163,184,0.9); font-size: 0.85rem; }
     .contact-popup-form .f-row-submit {
       display: flex;
@@ -537,15 +551,18 @@
       bottom: 1.5rem;
       left: 50%;
       transform: translateX(-50%);
-      background: #166534;
-      color: #fff;
-      padding: 0.75rem 1.25rem;
-      border-radius: 8px;
-      font-size: 0.9rem;
+      background: rgba(30, 41, 59, 0.95);
+      color: #e2e8f0;
+      padding: 0.875rem 1.5rem;
+      border-radius: 12px;
+      font-size: 0.9375rem;
+      font-weight: 500;
       z-index: 10001;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.24);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      backdrop-filter: blur(8px);
     }
-    .contact-toast.error { background: #991b1b; }
+    .contact-toast.error { background: rgba(30, 41, 59, 0.95); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }
     .sr-only {
       position: absolute;
       width: 1px;
@@ -841,6 +858,19 @@
       .phoebe-strip-avatar { width: 52px; height: 52px; }
       .phoebe-strip-label { font-size: 0.95rem; }
       .phoebe-strip-popup { min-width: 260px; padding: 12px 14px; font-size: 0.875rem; }
+    }
+    /* Mobile: PBJ popup above the icon so it doesn’t sit at bottom of screen */
+    @media (max-width: 768px) {
+      .phoebe-strip-wrap.phoebe-below-only .phoebe-strip-popup {
+        top: auto;
+        bottom: 100%;
+        margin-top: 0;
+        margin-bottom: 10px;
+        transform: translate(-50%, 8px);
+      }
+      .phoebe-strip-wrap.phoebe-below-only.is-open .phoebe-strip-popup {
+        transform: translate(-50%, 0);
+      }
     }
     
     /* Sticky footer on mobile: body flex column, main grows, footer at bottom */
@@ -1646,7 +1676,7 @@
         var toast = document.createElement('div');
         toast.className = 'contact-toast';
         toast.setAttribute('role', 'status');
-        toast.textContent = 'Thanks, your message was sent.';
+        toast.textContent = 'Message sent. We’ll be in touch.';
         document.body.appendChild(toast);
         if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
         setTimeout(function() { toast.remove(); }, 4000);

@@ -331,7 +331,7 @@ def _send_subscribe_notification(email_address, source='homepage'):
         print(f'Subscribe notification email failed: {e}')
 
 
-def _send_contact_email(sender_email, sender_name, message_body, subject_prefix='PBJ320 contact', is_press=False):
+def _send_contact_email(sender_email, sender_name, message_body, is_press=False):
     """Send contact form submission. Uses same SMTP and recipient list as subscribe (SUBSCRIBE_NOTIFY_TO)."""
     to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
     to_list = [a.strip() for a in to_list if a.strip()]
@@ -348,7 +348,7 @@ def _send_contact_email(sender_email, sender_name, message_body, subject_prefix=
     user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
     password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
     from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
-    subject = f"{subject_prefix} from {sender_email}"
+    subject = f"PRESS REQUEST: {sender_name}" if is_press else f"PBJ320 Request: {sender_name}"
     lines = [
         f"Name: {sender_name}",
         f"Email: {sender_email}",
@@ -426,7 +426,7 @@ def contact():
             return redirect('/contact?error=invalid')
         if not message or len(message) > 10000:
             return redirect('/contact?error=invalid')
-        if _send_contact_email(email, name, message, 'PBJ320 contact', is_press=is_press):
+        if _send_contact_email(email, name, message, is_press=is_press):
             return redirect('/?contact_sent=1')
         return redirect('/?contact_error=1')
     # Contact page not public: GET redirects to home. Form is only via popup (POST).
@@ -1290,13 +1290,15 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .contact-popup-form .f-group input[type="text"], .contact-popup-form .f-group input[type="email"], .contact-popup-form .f-group textarea {{ width: 100%; padding: 0.6rem 0.75rem; border: 1px solid rgba(96,165,250,0.35); border-radius: 8px; font: inherit; font-size: 1rem; min-height: 44px; box-sizing: border-box; background: rgba(15,23,42,0.6); color: #e2e8f0; }}
 .contact-popup-form .f-group textarea {{ min-height: 100px; resize: vertical; }}
 .contact-popup-form .f-group input:focus, .contact-popup-form .f-group textarea:focus {{ outline: none; border-color: #60a5fa; box-shadow: 0 0 0 2px rgba(96,165,250,0.2); }}
+.contact-popup-form .f-group input:-webkit-autofill, .contact-popup-form .f-group input:-webkit-autofill:hover, .contact-popup-form .f-group input:-webkit-autofill:focus, .contact-popup-form .f-group input:-webkit-autofill:active, .contact-popup-form .f-group textarea:-webkit-autofill, .contact-popup-form .f-group textarea:-webkit-autofill:hover, .contact-popup-form .f-group textarea:-webkit-autofill:focus, .contact-popup-form .f-group textarea:-webkit-autofill:active {{ -webkit-text-fill-color: #e2e8f0; -webkit-box-shadow: 0 0 0 1000px rgba(15,23,42,0.95) inset; box-shadow: 0 0 0 1000px rgba(15,23,42,0.95) inset; transition: background-color 5000s ease-in-out 0s; }}
 .contact-popup-form .f-row-submit {{ display: flex; align-items: center; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 0.75rem; }}
 .contact-popup-form .cb-wrap {{ display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }}
 .contact-popup-form .cb-wrap input {{ width: 1.25rem; height: 1.25rem; cursor: pointer; flex-shrink: 0; }}
 .contact-popup-form .cb-wrap span {{ color: #cbd5e1; }}
 .contact-popup-form button[type="submit"] {{ background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.5); padding: 0.7rem 1.25rem; border-radius: 8px; font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer; min-height: 44px; }}
 .contact-popup-form button[type="submit"]:hover {{ background: rgba(96,165,250,0.3); color: #bfdbfe; }}
-.contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: #166534; color: #fff; padding: 0.75rem 1.25rem; border-radius: 8px; font-size: 0.9rem; z-index: 10001; box-shadow: 0 4px 20px rgba(0,0,0,0.2); }}
+.contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.95); color: #e2e8f0; padding: 0.875rem 1.5rem; border-radius: 12px; font-size: 0.9375rem; font-weight: 500; z-index: 10001; box-shadow: 0 8px 32px rgba(0,0,0,0.24); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(8px); }}
+.contact-toast.error {{ background: rgba(30, 41, 59, 0.95); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }}
 </style>
 </head>
 <body>'''
@@ -1409,7 +1411,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       var toast = document.createElement('div');
       toast.className = 'contact-toast';
       toast.setAttribute('role', 'status');
-      toast.textContent = 'Thanks, your message was sent.';
+      toast.textContent = "Message sent. We'll be in touch.";
       document.body.appendChild(toast);
       if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
       setTimeout(function() { toast.remove(); }, 4000);

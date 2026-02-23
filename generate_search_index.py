@@ -42,6 +42,59 @@ def normalize_ccn(val):
     return s.zfill(6)
 
 
+def _norm_provider_row(row):
+    """Normalize a provider CSV row to combined format (ccn, chain_id, provider_name, state, city, sff_status, abuse_icon, etc.)."""
+    if row.get('chain_id') or row.get('ccn'):
+        return row
+    if 'Chain ID' in row:
+        out = {
+            'ccn': row.get('CMS Certification Number (CCN)', ''),
+            'provider_name': row.get('Provider Name', ''),
+            'chain_id': row.get('Chain ID', ''),
+            'chain_name': row.get('Chain Name', ''),
+            'affiliated_entity_id': row.get('Chain ID', ''),
+            'affiliated_entity_name': row.get('Chain Name', ''),
+            'state': row.get('State', ''),
+            'city': row.get('City/Town', ''),
+            'processing_date': '',
+            'sff_status': row.get('Special Focus Status', '') or row.get('sff_status', ''),
+            'abuse_icon': row.get('Abuse Icon', '') or row.get('abuse_icon', ''),
+            'overall_rating': row.get('Overall Rating', '') or row.get('overall_rating', ''),
+            **row,
+        }
+        return out
+    return row
+
+
+def load_sff_ccns(script_dir):
+    """Load set of CCNs that are SFF or Candidate from sff-facilities.json. Used to enrich search index when CSV has no sff_status."""
+    paths = [
+        os.path.join(script_dir, 'pbj-wrapped', 'public', 'sff-facilities.json'),
+        'pbj-wrapped/public/sff-facilities.json',
+        os.path.join(script_dir, 'sff-facilities.json'),
+        'sff-facilities.json',
+    ]
+    for path in paths:
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            facilities = data.get('facilities') if isinstance(data, dict) else (data if isinstance(data, list) else [])
+            out = set()
+            for f in facilities:
+                cat = (f.get('category') or '').strip()
+                if cat in ('SFF', 'Candidate'):
+                    ccn = normalize_ccn(f.get('provider_number') or '')
+                    if ccn:
+                        out.add(ccn)
+            return out
+        except Exception as e:
+            print(f"Warning: could not load SFF facilities from {path}: {e}")
+            continue
+    return set()
+
+
 def load_chain_performance_facility_count(script_dir):
     """Load Chain ID -> Number of facilities from CMS Chain Performance CSV.
     Prefers 2025-11/Chain_Performance_20260218.csv. Returns dict chain_id (int) -> facility count (int)."""
@@ -81,18 +134,33 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    provider_path = 'provider_info_combined.csv'
+    provider_paths = [
+        'provider_info_combined.csv',
+        'provider_info_combined_latest.csv',
+        os.path.join(script_dir, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
+        'provider_info/NH_ProviderInfo_Jan2026.csv',
+    ]
+    provider_path = None
+    for p in provider_paths:
+        if os.path.exists(p):
+            provider_path = p
+            break
+    if not provider_path:
+        provider_path = provider_paths[0]  # so exists check below is false
+
     states_path = 'states_list.json'
     out_path = 'search_index.json'
 
     chain_perf_fc = load_chain_performance_facility_count(script_dir)
+    sff_ccns = load_sff_ccns(script_dir)
 
     # Pass 1: count unique CCNs per chain_id (for entity NH count)
     entity_ccns = {}  # chain_id -> set of CCNs
-    if os.path.exists(provider_path):
+    if provider_path and os.path.exists(provider_path):
         with open(provider_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                row = _norm_provider_row(row)
                 ccn = normalize_ccn(row.get('ccn', ''))
                 chain_id_raw = row.get('chain_id') or row.get('affiliated_entity_id') or ''
                 if not ccn or not chain_id_raw:
@@ -104,12 +172,13 @@ def main():
                     pass
 
     # Pass 2: collect all facility rows, then keep the LATEST row per CCN (by processing_date)
-    # so name, city, abuse, rating, SFF reflect the most recent data
+    # so name, city, abuse, rating, SFF reflect the most recent data (NH_ProviderInfo has no date = one per CCN)
     facility_rows = []
-    if os.path.exists(provider_path):
+    if provider_path and os.path.exists(provider_path):
         with open(provider_path, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                row = _norm_provider_row(row)
                 ccn = normalize_ccn(row.get('ccn', ''))
                 name = (row.get('provider_name') or '').strip()
                 if not ccn or not name:
@@ -148,6 +217,8 @@ def main():
             reasons.append('1 star')
         if sff_status and ('SFF' in sff_status.upper() or 'Candidate' in sff_status):
             reasons.append('SFF')
+        if ccn in sff_ccns and 'SFF' not in reasons:
+            reasons.append('SFF')
         high_risk = 1 if reasons else 0
         high_risk_reason = ', '.join(reasons) if reasons else ''
 
@@ -182,7 +253,14 @@ def main():
             continue
         all_by_name.setdefault(key, []).append(ent)
         cur = by_name.get(key)
-        if cur is None or ent['fc'] > cur['fc']:
+        if cur is None:
+            by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
+        elif ent['id'] in chain_perf_fc and cur['id'] not in chain_perf_fc:
+            # Prefer the chain ID that appears in CMS Chain Performance (official ID for display)
+            by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
+        elif cur['id'] in chain_perf_fc and ent['id'] not in chain_perf_fc:
+            pass
+        elif ent['fc'] > cur['fc']:
             by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
     # Build final list: one canonical per name, plus aliases. Use Chain Performance facility count
     # for the whole name group when any id in the group has one (so e.g. Genesis shows 197, not 284).

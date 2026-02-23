@@ -898,11 +898,13 @@ def load_provider_info():
     now = time.time()
     if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
         return _LOAD_PROVIDER_INFO_CACHE
-    # If provider_info_combined_latest.csv exists, use it for fast load (one quarter only).
+    # If provider_info_combined_latest.csv or NH_ProviderInfo snapshot exists, use for fast load.
     provider_paths = [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
+        'provider_info/NH_ProviderInfo_Jan2026.csv',
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
@@ -928,8 +930,11 @@ def load_provider_info():
         if not os.path.exists(path):
             continue
         try:
-            # _latest file is already one quarter; skip quarter discovery and filtering.
-            is_latest_file = 'provider_info_combined_latest' in path or path.replace('\\', '/').endswith('_latest.csv')
+            # _latest or NH_ProviderInfo snapshot: one snapshot; skip quarter discovery and filtering.
+            is_latest_file = (
+                'provider_info_combined_latest' in path or path.replace('\\', '/').endswith('_latest.csv')
+                or 'NH_ProviderInfo' in path
+            )
             latest_quarters = None if is_latest_file else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
             provider_dict = {}
             provider_dict_by_quarter = {}
@@ -950,7 +955,7 @@ def load_provider_info():
                 if 'CY_Qtr' in chunk.columns:
                     chunk = chunk.sort_values('CY_Qtr', ascending=False)
                 for row in chunk.to_dict('records'):
-                    raw = _row_val(row, 'ccn', 'PROVNUM', 'CCN', 'Provnum')
+                    raw = _row_val(row, 'ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)')
                     provnum = str(raw or '').strip().replace('.0', '')
                     if not provnum:
                         continue
@@ -2166,6 +2171,8 @@ def load_entity_facilities(entity_id):
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
+        'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]
     now = time.time()
     df = None
@@ -2197,6 +2204,23 @@ def load_entity_facilities(entity_id):
         return '', []
     try:
         df = df.copy()
+        # Normalize CMS NH_ProviderInfo column names to combined format so entity logic works
+        if 'Chain ID' in df.columns and 'chain_id' not in df.columns:
+            rename = {
+                'CMS Certification Number (CCN)': 'ccn',
+                'Provider Name': 'provider_name',
+                'Chain ID': 'chain_id',
+                'Chain Name': 'chain_name',
+                'State': 'state',
+                'City/Town': 'city',
+            }
+            df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
+            if 'chain_id' in df.columns and 'affiliated_entity_id' not in df.columns:
+                df['affiliated_entity_id'] = df['chain_id']
+        if 'ccn' not in df.columns and 'CMS Certification Number (CCN)' in df.columns:
+            df['ccn'] = df['CMS Certification Number (CCN)'].astype(str).str.strip()
+        if 'provider_name' not in df.columns and 'Provider Name' in df.columns:
+            df['provider_name'] = df['Provider Name']
         eid_col = 'chain_id' if 'chain_id' in df.columns else 'affiliated_entity_id'
         name_col = 'chain_name' if 'chain_id' in df.columns else 'affiliated_entity_name'
         if eid_col not in df.columns:

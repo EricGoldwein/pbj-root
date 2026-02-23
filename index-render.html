@@ -922,7 +922,8 @@
             // Find state name from abbreviation
             const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === stateAbbr);
             if (stateName) {
-              exploreLink.innerHTML = `<a href="https://pbj320.com/app?state=${stateAbbr}" target="_blank">Explore ${stateName} PBJ Data</a>`;
+              const stateSlug = (stateName || '').toLowerCase().replace(/\s+/g, '-');
+              exploreLink.innerHTML = `<a href="https://pbj320.com/state/${stateSlug}" target="_blank">Explore ${stateName} PBJ Data</a>`;
               chartFooter.style.display = 'block';
             }
           } else {
@@ -1067,8 +1068,8 @@
           })
           .on('click', function(event, d) {
             const stateName = d.properties.name;
-            const stateAbbr = stateAbbreviations[stateName];
-            window.location.href = `https://pbj320.com/?state=${stateAbbr}`;
+            const stateSlug = (stateName || '').toLowerCase().replace(/\s+/g, '-');
+            if (stateSlug) window.location.href = `https://pbj320.com/state/${stateSlug}`;
           })
           .on('mouseover', function(event, d) {
             const stateName = d.properties.name;

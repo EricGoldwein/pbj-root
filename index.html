@@ -2037,7 +2037,8 @@
               const matchAbbr = matchQuery(row.abbr, q);
               if (!matchName && !matchAbbr) continue;
               count++;
-              const url = DASHBOARD_BASE + '/state/' + encodeURIComponent(row.abbr || '');
+              var stateSlug = (row.n || '').toLowerCase().replace(/\s+/g, '-');
+              const url = stateSlug ? (DASHBOARD_BASE + '/state/' + encodeURIComponent(stateSlug)) : (DASHBOARD_BASE + '/state/' + encodeURIComponent(row.abbr || ''));
               var nhCount = searchIndex.f.filter(function(r) { return (r.s || '') === row.abbr; }).length;
               var hprdArr = stateHprdData && stateHprdData[row.abbr];
               var hprd = (hprdArr && hprdArr.length) ? hprdArr[hprdArr.length - 1] : null;
@@ -2325,7 +2326,8 @@
               // Find state name from abbreviation
               const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === stateAbbr);
               if (stateName) {
-                exploreLink.innerHTML = `<a href="https://pbj320.com/state/${stateAbbr}" target="_blank">Explore ${stateName} PBJ Data</a>`;
+                const stateSlug = (stateName || '').toLowerCase().replace(/\s+/g, '-');
+                exploreLink.innerHTML = `<a href="https://pbj320.com/state/${stateSlug}" target="_blank">Explore ${stateName} PBJ Data</a>`;
                 chartFooter.style.display = 'block';
               }
             } else {

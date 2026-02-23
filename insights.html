@@ -1326,16 +1326,88 @@
         max-width: 720px;
         font-size: 0.95rem;
       ">
-        <a href="/contact" class="pbj-contact-cta"
-           style="color:rgba(255,255,255,0.85); text-decoration:none;">
+        <button type="button" class="pbj-contact-form-trigger" id="premium-demo-trigger"
+           style="color:rgba(255,255,255,0.85); text-decoration:none; background:none; border:none; padding:0; font:inherit; cursor:pointer;">
           Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
-        </a>
+        </button>
       </p>
     </section>
 
+    <div id="contact-overlay" class="contact-overlay-static" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
+      <div class="contact-popup-static" role="dialog" aria-labelledby="contact-popup-title-static" aria-modal="true" id="contact-dialog-static" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 1.25rem 0; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
+        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
+        <form action="/contact" method="POST" class="contact-popup-form-static" id="contact-popup-form-static" style="padding:1rem 1.25rem 1.5rem;">
+          <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
+          <div class="f-group" style="margin-bottom:1rem;">
+            <label for="popup-name-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
+            <input type="text" id="popup-name-static" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+          </div>
+          <div class="f-group" style="margin-bottom:1rem;">
+            <label for="popup-email-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Email <span style="color:#f87171">*</span></label>
+            <input type="email" id="popup-email-static" name="email" required autocomplete="email" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+          </div>
+          <div class="f-group" style="margin-bottom:1rem;">
+            <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
+            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+          </div>
+          <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
+            <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+              <input type="checkbox" id="popup-press-static" name="press" value="yes" aria-label="I am media" style="width:1.25rem; height:1.25rem;">
+              <span style="color:#cbd5e1;">I am media</span>
+            </label>
+            <button type="submit" style="background:rgba(96,165,250,0.2); color:#93c5fd; border:1px solid rgba(96,165,250,0.5); padding:0.7rem 1.25rem; border-radius:8px; font:inherit; font-size:1rem; font-weight:500; cursor:pointer; min-height:44px;">Send</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
   <script src="/pbj-site-universal.js?v=2"></script>
-
+  <script>
+    (function() {
+      var overlay = document.getElementById('contact-overlay');
+      var dialog = document.getElementById('contact-dialog-static');
+      var form = document.getElementById('contact-popup-form-static');
+      var closeBtn = document.getElementById('contact-popup-close-static');
+      var csrfInput = document.getElementById('contact-csrf-token');
+      var trigger = document.getElementById('premium-demo-trigger');
+      if (!overlay || !dialog || !form) return;
+      function showOverlay() { overlay.style.display = 'flex'; overlay.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
+      function hideOverlay() { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (trigger) trigger.focus(); }
+      function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
+      function trapKey(e) {
+        if (e.key === 'Escape') { e.preventDefault(); hideOverlay(); document.removeEventListener('keydown', trapKey); return; }
+        if (e.key !== 'Tab') return;
+        var list = focusables();
+        if (list.length === 0) return;
+        var first = list[0], last = list[list.length - 1];
+        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
+        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
+      }
+      function openContact() {
+        if (csrfInput && !csrfInput.value) {
+          fetch('/').then(function(r) { return r.text(); }).then(function(html) {
+            var m = html.match(/name="csrf_token"[^>]*value="([^"]+)"/) || html.match(/value="([^"]+)"[^>]*name="csrf_token"/);
+            if (m && csrfInput) csrfInput.value = m[1];
+            showOverlay();
+            document.addEventListener('keydown', trapKey);
+            var first = form.querySelector('input:not([type="hidden"]), textarea');
+            if (first) first.focus();
+          }).catch(function() { showOverlay(); document.addEventListener('keydown', trapKey); });
+        } else {
+          showOverlay();
+          document.addEventListener('keydown', trapKey);
+          var first = form.querySelector('input:not([type="hidden"]), textarea');
+          if (first) first.focus();
+        }
+      }
+      if (trigger) trigger.addEventListener('click', openContact);
+      closeBtn.addEventListener('click', function() { hideOverlay(); document.removeEventListener('keydown', trapKey); });
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) { hideOverlay(); document.removeEventListener('keydown', trapKey); } });
+      form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+    })();
+  </script>
   <script>
     // Load data dynamically from CSV files
     let pbjData = null;

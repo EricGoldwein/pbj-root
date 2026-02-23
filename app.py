@@ -1214,6 +1214,10 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-chart-footnote-desktop {{ display: none; }}
   .pbj-chart-footnote-mobile {{ display: inline; }}
 }}
+/* Reported vs Case-Mix notes: on mobile match state-min footnote size, each on own row */
+@media (max-width: 768px) {{
+  .pbj-chart-notes .pbj-percentile {{ font-size: 0.7rem; line-height: 1.35; margin: 0.2rem 0; }}
+}}
 .pbj-table-wrap {{ overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1rem 0; border-radius: 8px; border: 1px solid rgba(59,130,246,0.2); }}
 .pbj-table-wrap table {{ margin: 0; min-width: 400px; }}
 /* State page H1: desktop show full only; mobile shows short only (via @media) */
@@ -1355,7 +1359,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   <footer class="pbj-footer">
     <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories.</p>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
-      <a href="mailto:eric@320insight.com" class="pbj-contact-cta" title="Email: eric@320insight.com" aria-label="Email eric@320insight.com"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
+      <a href="/contact" class="pbj-contact-cta" title="Contact form" aria-label="Contact us"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
       <a href="sms:+19298084996" title="SMS: (929) 804-4996" aria-label="Text (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
       <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
       <a href="https://320insight.substack.com/" target="_blank" rel="noopener" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
@@ -1579,16 +1583,13 @@ Thank you,"""
     else:
         return ''
 
-    # Popup trigger; pre-fill message from data-topic on provider/state/entity pages.
-    contact_topic = contact_topic if context in ('facility', 'state', 'entity') else ''
-    topic_attr = html.escape(contact_topic, quote=True) if contact_topic else ''
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    email_link = f'<button type="button" class="pbj-contact-trigger custom-report-cta-email-link pbj-contact-cta" data-topic="{topic_attr}" style="color:#93c5fd;font-weight:500;text-decoration:none;background:none;border:none;cursor:pointer;padding:0;font:inherit;">Email &gt; eric@320insight.com</button>'
+    contact_link = '<a href="/contact" class="pbj-contact-cta" style="color:#93c5fd;font-weight:500;text-decoration:none;">Request custom analysis</a>'
     return f'''<div class="custom-report-cta" style="margin:1.5rem 0;padding:0.85rem 1.15rem;background:rgba(15,23,42,0.5);border:1px solid rgba(59,130,246,0.2);border-radius:8px;max-width:640px;font-size:0.875rem;color:rgba(226,232,240,0.9);line-height:1.5;">
 {header_block}
 <p class="custom-report-cta-sub">{sub_text}</p>
-<p class="custom-report-cta-links" style="margin:0.3rem 0 0;font-size:0.85rem;">{email_link}</p>
+<p class="custom-report-cta-links" style="margin:0.3rem 0 0;font-size:0.85rem;">{contact_link}</p>
 {footer_block}</div>'''
 
 
@@ -1607,7 +1608,7 @@ def render_methodology_block():
 </ul>
 <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: rgba(226,232,240,0.8);">Note: Some states set minimums (e.g., NJ, CA, NY at 3.5 HPRD); a federal 3.48 minimum was recently overturned (2025). A 2001 federal study linked 4.1 HPRD to better outcomes in that study. Staffing needs vary by resident acuity (case-mix), day, and shift. Estimates on PBJ Takeaway assume roughly 60% of staff are CNAs.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #93c5fd;">Data transparency</p>
-<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please let me know <a href="mailto:eric@320insight.com" style="color: #93c5fd;">eric@320insight.com</a> so I can set things right.</p>
+<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="/contact" style="color: #93c5fd;">let me know via the contact form</a> so I can set things right.</p>
 </div>
 </details>'''
 
@@ -2110,13 +2111,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na)
     methodology = 'Case-mix HPRD is a CMS metric for staffing levels based on resident acuity.'
     below_reported_casemix = ''
+    note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);'
     if case_mix_total is not None and (reported_total or 0) is not None and case_mix_total > 0:
         reported_hprd_fmt = f'{(reported_total or 0):.2f}'
         casemix_hprd_fmt = f'{case_mix_total:.2f}'
         pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
-        below_reported_casemix = f'<p class="pbj-percentile" style="margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);">Note: Reported staffing ({reported_hprd_fmt} HPRD) is {pct_fmt}% of case-mix ({casemix_hprd_fmt} HPRD).</p>'
+        line1 = f'<p class="pbj-percentile" style="{note_style}">Case-mix (acuity): {casemix_hprd_fmt} HPRD.</p>'
+        line2 = f'<p class="pbj-percentile" style="{note_style}">Reported staffing ({reported_hprd_fmt} HPRD) is {pct_fmt}% of case-mix.</p>'
+        below_reported_casemix = f'<div class="pbj-chart-notes">{line1}{line2}</div>'
     elif case_mix_total is None:
-        below_reported_casemix = '<p class="pbj-percentile" style="margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p>'
+        below_reported_casemix = f'<div class="pbj-chart-notes"><p class="pbj-percentile" style="{note_style}">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p></div>'
     reported_vs_casemix_section = f'<div class="section-header">Reported vs. Case-Mix (Acuity)</div><p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px;">{methodology}</p>'
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=below_reported_casemix)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
@@ -4803,7 +4807,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+            <a href="/contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
         </p>
     </div>
     <script>
@@ -6268,7 +6272,7 @@ def pbjpedia_page(page):
             <div style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.5em; margin: 2em 0;">
                 <h3 style="margin-top: 0; font-size: 1.1em;">Custom PBJ Analysis for Attorneys & Journalists</h3>
                 <p>320 Consulting offers custom reports and dashboards with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. Check out a <a href="https://pbj320-395258.vercel.app/" target="_blank" rel="noopener">sample dashboard</a>.</p>
-                <p><strong>Contact:</strong> <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)</p>
+                <p><strong>Contact:</strong> <a href="/contact">Contact form</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)</p>
                 <p style="margin-bottom: 0;"><strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it.</p>
             </div>
             <div class="categories">
@@ -6284,7 +6288,7 @@ def pbjpedia_page(page):
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="mailto:eric@320insight.com">eric@320insight.com</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+            <a href="/contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
         </p>
     </div>
     <script>

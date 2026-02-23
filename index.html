@@ -729,6 +729,9 @@
       .hero-email-cta input[type="email"] {
         flex: 1 1 auto;
         width: 100%;
+        font-size: 1rem;
+        min-height: 44px;
+        padding: 10px 12px;
       }
       .hero-email-cta button[type="submit"] {
         width: 100%;
@@ -870,6 +873,17 @@
       }
       .phoebe-strip-wrap.phoebe-below-only.is-open .phoebe-strip-popup {
         transform: translate(-50%, 0);
+      }
+      .phoebe-strip-wrap.phoebe-below-only .phoebe-strip {
+        padding: 10px 12px;
+        gap: 10px;
+      }
+      .phoebe-strip-wrap.phoebe-below-only .phoebe-strip-avatar {
+        width: 44px;
+        height: 44px;
+      }
+      .phoebe-strip-wrap.phoebe-below-only .phoebe-strip-label {
+        font-size: 0.85rem;
       }
     }
     
@@ -1488,7 +1502,7 @@
                   <span class="phoebe-strip-label">What is PBJ?</span>
                 </button>
                 <div class="phoebe-strip-popup" id="phoebeStripPopup" role="tooltip">
-                  <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
+                  <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal system that uses payroll records to track staffing at 15,000+ U.S. nursing homes.</p>
                   <p style="margin: 0;"><a href="/phoebe">PBJ Explained</a></p>
                 </div>
               </div>
@@ -1685,7 +1699,7 @@
         var errToast = document.createElement('div');
         errToast.className = 'contact-toast error';
         errToast.setAttribute('role', 'alert');
-        errToast.textContent = 'Something went wrong. Please try again or email eric@320insight.com directly.';
+        errToast.textContent = 'Something went wrong. Please try again or use the contact form.';
         document.body.appendChild(errToast);
         if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
         setTimeout(function() { errToast.remove(); }, 6000);

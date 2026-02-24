@@ -409,7 +409,8 @@ def subscribe():
 
 @app.route('/admin/subscribers')
 def admin_subscribers():
-    """List newsletter signups (email, source, created_at). Requires ?key=ADMIN_VIEW_KEY env."""
+    """List newsletter signups (email, source, created_at). Requires ?key=ADMIN_VIEW_KEY env.
+    Returns HTML table in browser, JSON if Accept is application/json."""
     admin_key = os.environ.get('ADMIN_VIEW_KEY', '').strip()
     if not admin_key or request.args.get('key') != admin_key:
         return jsonify({'error': 'Unauthorized'}), 403
@@ -421,7 +422,33 @@ def admin_subscribers():
             'SELECT email, source, created_at FROM subscribers ORDER BY created_at DESC'
         ).fetchall()
         conn.close()
-        return jsonify([{'email': r['email'], 'source': r['source'] or '', 'created_at': r['created_at'] or ''} for r in rows])
+        data = [{'email': r['email'], 'source': r['source'] or '', 'created_at': r['created_at'] or ''} for r in rows]
+        # Browser: return HTML table; API: return JSON
+        accept = request.headers.get('Accept', '') or ''
+        if 'application/json' in accept and 'text/html' not in accept:
+            return jsonify(data)
+        # HTML page
+        rows_html = ''.join(
+            f'<tr><td>{html.escape(r["email"])}</td><td>{html.escape(r["source"])}</td><td>{r["created_at"] or ""}</td></tr>'
+            for r in data
+        )
+        html_page = f'''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Subscribers</title>
+<style>body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }}
+table {{ border-collapse: collapse; }}
+th, td {{ border: 1px solid #334155; padding: 0.5rem 1rem; text-align: left; }}
+th {{ background: #1e293b; color: #93c5fd; }}</style>
+</head>
+<body>
+<h1>Newsletter subscribers</h1>
+<p>{len(data)} signup(s)</p>
+<table><thead><tr><th>Email</th><th>Source</th><th>Created</th></tr></thead>
+<tbody>{rows_html or '<tr><td colspan="3">No subscribers yet.</td></tr>'}</tbody>
+</table>
+</body>
+</html>'''
+        return make_response(html_page, 200, {'Content-Type': 'text/html; charset=utf-8'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -2122,7 +2149,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na)
-    methodology = 'Case-mix HPRD is a CMS measure based on resident acuity.'
+    methodology = 'Case-mix is a CMS metric based on resident acuity.'
     below_reported_casemix = ''
     note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.7rem; color: rgba(226,232,240,0.75);'
     if case_mix_total is not None and (reported_total or 0) is not None and case_mix_total > 0:

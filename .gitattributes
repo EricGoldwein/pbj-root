@@ -1,0 +1,3 @@
+# Normalize line endings to LF so Git doesn't show false "modified" on Windows
+# when the editor uses LF and core.autocrlf is true.
+* text=auto eol=lf

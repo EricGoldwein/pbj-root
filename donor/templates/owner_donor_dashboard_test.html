@@ -1519,7 +1519,7 @@
                         `<table class="facilities-table" style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;"><thead><tr style="background: rgba(102, 126, 234, 0.2);"><th style="padding: 0.75rem; text-align: left;">Provider Name</th><th style="padding: 0.75rem;">State</th><th style="padding: 0.75rem; text-align: left;">Ownership Entity</th><th style="padding: 0.75rem; text-align: right;">Total Amount</th><th style="padding: 0.75rem;">HPRD</th></tr></thead><tbody>` +
                         providers.map(p => {
                             const dashboardLink = p.ccn ? `<a href="https://pbj320.com/provider/${p.ccn}" target="_blank" rel="noopener" style="color: #667eea;">${escapeHtml(p.provider_name || p.ownership_entity)}</a>` : escapeHtml(p.provider_name || p.ownership_entity);
-                            const hprd = p.avg_hprd !== '' && p.avg_hprd != null ? Number(p.avg_hprd).toFixed(2) : '-';
+                            const hprd = p.avg_hprd !== '' && p.avg_hprd != null ? (Math.round(Number(p.avg_hprd) * 100) / 100).toFixed(2) : '-';
                             return `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${dashboardLink}</td><td style="padding: 0.75rem;">${escapeHtml(p.state || '')}</td><td style="padding: 0.75rem;">${escapeHtml(p.ownership_entity || '')}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(p.total_amount)}</td><td style="padding: 0.75rem;">${hprd}</td></tr>`;
                         }).join('') + `</tbody></table>`;
                 }
@@ -2115,7 +2115,7 @@
                                     if (f.avg_hprd && f.avg_hprd !== 'N/A' && f.avg_hprd !== 'None') {
                                         const hprdVal = parseFloat(f.avg_hprd);
                                         if (!isNaN(hprdVal) && isFinite(hprdVal)) {
-                                            hprdDisplay = hprdVal.toFixed(2);
+                                            hprdDisplay = (Math.round(Number(hprdVal) * 100) / 100).toFixed(2);
                                         }
                                     }
                                     

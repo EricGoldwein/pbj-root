@@ -108,9 +108,14 @@ def _subscribers_db_path():
         return os.path.join(instance, 'subscribers.db')
     except PermissionError:
         pass
-    fallback_dir = os.path.join(os.getcwd(), 'data')
-    os.makedirs(fallback_dir, exist_ok=True)
-    return os.path.join(fallback_dir, 'subscribers.db')
+    for candidate in (os.path.join(os.getcwd(), 'data'), '/tmp/pbj_data'):
+        try:
+            os.makedirs(candidate, exist_ok=True)
+            return os.path.join(candidate, 'subscribers.db')
+        except (PermissionError, OSError):
+            continue
+    # Last resort: current dir (may fail on insert)
+    return os.path.join(os.getcwd(), 'subscribers.db')
 
 def _init_subscribers_db():
     """Create subscribers table if not exists. Called on first use."""
@@ -419,7 +424,11 @@ def subscribe():
     except sqlite3.IntegrityError:
         # Duplicate: treat as success (idempotent; don't leak existence)
         pass
-    except Exception:
+    except Exception as e:
+        if app.debug:
+            raise
+        import logging
+        logging.getLogger(__name__).warning('Subscribe failed: %s', e, exc_info=True)
         return redirect('/?subscribe_error=error')
     return redirect('/?subscribed=1')
 

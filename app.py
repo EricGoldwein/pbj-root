@@ -453,15 +453,26 @@ th {{ background: #1e293b; color: #93c5fd; }}</style>
         return jsonify({'error': str(e)}), 500
 
 
+def _contact_redirect(path_fragment, param_value):
+    """Redirect to path_fragment with param (contact_sent or contact_error). path_fragment must be safe (start with /, not //)."""
+    if not path_fragment or not path_fragment.startswith('/') or path_fragment.startswith('//'):
+        path_fragment = '/'
+    sep = '&' if '?' in path_fragment else '?'
+    return redirect(path_fragment + sep + param_value)
+
+
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
-    """Contact form: GET shows form, POST sends email to eric@320insight.com. No mailto required."""
+    """Contact form: GET shows form, POST sends email. Redirects back to same page (next) on success/error."""
     if request.method == 'POST':
+        next_url = (request.form.get('next') or '').strip()
+        if not next_url.startswith('/') or next_url.startswith('//'):
+            next_url = '/'
         if HAS_CSRF and validate_csrf is not None:
             try:
                 validate_csrf(request.form.get('csrf_token'))
             except Exception:
-                return redirect('/?contact_error=1')
+                return _contact_redirect(next_url, 'contact_error=1')
         email = (request.form.get('email') or '').strip().lower()
         message = (request.form.get('message') or '').strip()
         name = (request.form.get('name') or '').strip()[:200]
@@ -473,8 +484,8 @@ def contact():
         if not message or len(message) > 10000:
             return redirect('/contact?error=invalid')
         if _send_contact_email(email, name, message, is_press=is_press):
-            return redirect('/?contact_sent=1')
-        return redirect('/?contact_error=1')
+            return _contact_redirect(next_url, 'contact_sent=1')
+        return _contact_redirect(next_url, 'contact_error=1')
     # Contact page not public: GET redirects to home. Form is only via popup (POST).
     return redirect('/')
 
@@ -1406,6 +1417,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       <button type="button" class="contact-popup-close" id="pbj-contact-popup-close" aria-label="Close">×</button>
       <form action="/contact" method="POST" class="contact-popup-form" id="pbj-contact-popup-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+        <input type="hidden" name="next" id="pbj-contact-next" value="">
         <div class="f-group">
           <label for="pbj-popup-name">Name <span style="color:#f87171">*</span></label>
           <input type="text" id="pbj-popup-name" name="name" required autocomplete="name" maxlength="200">
@@ -1442,6 +1454,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     if (!overlay || !dialog) return;
     function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
     function openContact(topic) {
+      var nextEl = document.getElementById('pbj-contact-next');
+      if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       if (messageEl && topic) messageEl.value = topic;
@@ -1465,6 +1479,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
       else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
     }
+    var nextEl = document.getElementById('pbj-contact-next');
+    if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
     document.querySelectorAll('.pbj-contact-trigger').forEach(function(btn) {
       btn.addEventListener('click', function(e) { e.preventDefault(); openContact(btn.getAttribute('data-topic') || ''); });
     });
@@ -1479,6 +1495,15 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       document.body.appendChild(toast);
       if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
       setTimeout(function() { toast.remove(); }, 4000);
+    }
+    if (new URLSearchParams(window.location.search).get('contact_error') === '1') {
+      var errToast = document.createElement('div');
+      errToast.className = 'contact-toast error';
+      errToast.setAttribute('role', 'alert');
+      errToast.textContent = "Something went wrong. Please try again or email directly.";
+      document.body.appendChild(errToast);
+      if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
+      setTimeout(function() { errToast.remove(); }, 6000);
     }
   })();
   </script>

@@ -1208,10 +1208,10 @@
     <div class="content-box">
       
       <h3>Digging deeper?</h3>
-      <p><strong><a href="https://pbj320.com/Premium">Premium</a></strong> – 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="https://pbj-sample-concordia.vercel.app/" target="_blank">Check out a sample dashboard</a>.</p>
+      <p><strong><a href="https://pbj320.com/Premium">Premium</a></strong> – 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="https://pbj320-sample.vercel.app/" target="_blank">Check out a sample dashboard</a>.</p>
             
       <div class="premium-section">
-        <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. <a href="/contact">Contact us</a> for requests.
+        <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. <button type="button" class="pbj-contact-form-trigger" style="color:inherit;text-decoration:underline;background:none;border:none;padding:0;font:inherit;cursor:pointer;">Contact us</button> for requests.
       </div>
     </div>
     
@@ -1310,6 +1310,7 @@
         <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
         <form action="/contact" method="POST" class="contact-popup-form-static" id="contact-popup-form-static" style="padding:1rem 1.25rem 1.5rem;">
           <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
+          <input type="hidden" name="next" id="contact-next-about" value="/about">
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-name-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
             <input type="text" id="popup-name-static" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
@@ -1343,13 +1344,16 @@
       var form = document.getElementById('contact-popup-form-static');
       var closeBtn = document.getElementById('contact-popup-close-static');
       var csrfInput = document.getElementById('contact-csrf-token');
-      var trigger = document.getElementById('premium-demo-trigger');
+      var nextInput = document.getElementById('contact-next-about');
       if (!overlay || !dialog || !form) return;
-      function showOverlay() { overlay.style.display = 'flex'; overlay.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden'; }
-      function hideOverlay() { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (trigger) trigger.focus(); }
+      function showOverlay() {
+        if (nextInput) nextInput.value = window.location.pathname || '/about';
+        overlay.style.display = 'flex'; overlay.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
+      }
+      function hideOverlay(focusTrigger) { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (focusTrigger) focusTrigger.focus(); }
       function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
       function trapKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); hideOverlay(); document.removeEventListener('keydown', trapKey); return; }
+        if (e.key === 'Escape') { e.preventDefault(); hideOverlay(document.activeElement); document.removeEventListener('keydown', trapKey); return; }
         if (e.key !== 'Tab') return;
         var list = focusables();
         if (list.length === 0) return;
@@ -1374,10 +1378,31 @@
           if (first) first.focus();
         }
       }
-      if (trigger) trigger.addEventListener('click', openContact);
-      closeBtn.addEventListener('click', function() { hideOverlay(); document.removeEventListener('keydown', trapKey); });
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) { hideOverlay(); document.removeEventListener('keydown', trapKey); } });
+      document.querySelectorAll('.pbj-contact-form-trigger').forEach(function(btn) { btn.addEventListener('click', openContact); });
+      closeBtn.addEventListener('click', function() { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); });
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); } });
       form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('contact_sent') === '1') {
+        var toast = document.createElement('div');
+        toast.className = 'contact-toast';
+        toast.setAttribute('role', 'status');
+        toast.textContent = "Message sent. We'll be in touch.";
+        toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;box-shadow:0 8px 32px rgba(0,0,0,0.24);border:1px solid rgba(148,163,184,0.2);';
+        document.body.appendChild(toast);
+        if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/about');
+        setTimeout(function() { toast.remove(); }, 4000);
+      }
+      if (params.get('contact_error') === '1') {
+        var errToast = document.createElement('div');
+        errToast.className = 'contact-toast error';
+        errToast.setAttribute('role', 'alert');
+        errToast.textContent = "Something went wrong. Please try again or email directly.";
+        errToast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#fca5a5;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;box-shadow:0 8px 32px rgba(0,0,0,0.24);border:1px solid rgba(248,113,113,0.25);';
+        document.body.appendChild(errToast);
+        if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/about');
+        setTimeout(function() { errToast.remove(); }, 6000);
+      }
     })();
   </script>
   <script>

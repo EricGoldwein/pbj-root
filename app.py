@@ -434,7 +434,7 @@ def contact():
             try:
                 validate_csrf(request.form.get('csrf_token'))
             except Exception:
-                return redirect('/contact?error=invalid')
+                return redirect('/?contact_error=1')
         email = (request.form.get('email') or '').strip().lower()
         message = (request.form.get('message') or '').strip()
         name = (request.form.get('name') or '').strip()[:200]
@@ -1227,7 +1227,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-cta-premium a {{ color: #93c5fd; font-weight: 600; }}
 .custom-report-cta {{ margin: 1.5rem 0; padding: 0.85rem 1.15rem; background: rgba(15,23,42,0.5); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; max-width: 640px; font-size: 0.875rem; color: rgba(226,232,240,0.9); line-height: 1.5; }}
 .custom-report-cta .custom-report-cta-header {{ margin: 0; font-size: 0.9rem; font-weight: 600; color: #e2e8f0; }}
-.custom-report-cta .custom-report-cta-sub {{ margin: 0.2rem 0 0.35rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.8); line-height: 1.4; }}
+.custom-report-cta .custom-report-cta-sub {{ margin: 0.2rem 0 0.35rem 0; font-size: 1em; color: rgba(226,232,240,0.9); line-height: 1.45; }}
+.custom-report-cta-mobile {{ display: none; }}
+@media (max-width: 768px) {{ .custom-report-cta-desktop {{ display: none; }} .custom-report-cta-mobile {{ display: inline; }} }}
 .custom-report-cta .custom-report-cta-links {{ margin: 0.3rem 0 0; font-size: 0.85rem; }}
 .custom-report-cta .custom-report-cta-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-links a:hover {{ color: #bfdbfe; text-decoration: underline; text-underline-offset: 3px; }}
@@ -1292,13 +1294,16 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-subtitle {{ font-size: 0.85em; }}
   /* State page subtitle on mobile: "590 providers • 97,999 residents • 3.57 HPRD (Q3 2025)" - allow wrap, smaller */
   .pbj-subtitle-state {{ font-size: 0.8em; line-height: 1.4; }}
-  /* Provider page: on mobile show subtitle with total HPRD (after for profit, before residents) */
+  /* Provider page: on mobile show subtitle in two rows (row1: location • HPRD • residents; row2: For Profit • Entity) */
   .pbj-subtitle-desktop {{ display: none; }}
-  .pbj-subtitle-mobile {{ display: inline; }}
+  .pbj-subtitle-mobile {{ display: block; }}
+  .pbj-subtitle-mobile-row1, .pbj-subtitle-mobile-row2 {{ display: block; }}
+  .pbj-subtitle-mobile-row2 {{ margin-top: 0.2em; }}
   /* State page H1: on mobile show short "New York PBJ Staffing" only */
   .pbj-state-title .pbj-state-title-full {{ display: none !important; }}
   .pbj-state-title .pbj-state-title-mobile {{ display: inline !important; }}
   .custom-report-cta {{ font-size: 0.825rem; padding: 0.75rem 1rem; }}
+  .custom-report-cta .custom-report-cta-sub {{ font-size: 1em; }}
   .pbj-page-footer {{ margin-top: 1.5rem; padding-top: 0.4rem; }}
   .entity-chain-metrics {{ grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }}
   .pbj-chart-container {{ padding: 12px; }}
@@ -1326,6 +1331,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .contact-popup-form .cb-wrap span {{ color: #cbd5e1; }}
 .contact-popup-form button[type="submit"] {{ background: rgba(96,165,250,0.2); color: #93c5fd; border: 1px solid rgba(96,165,250,0.5); padding: 0.7rem 1.25rem; border-radius: 8px; font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer; min-height: 44px; }}
 .contact-popup-form button[type="submit"]:hover {{ background: rgba(96,165,250,0.3); color: #bfdbfe; }}
+.custom-report-cta .pbj-contact-trigger {{ color: #93c5fd; font-weight: 500; text-decoration: none; cursor: pointer; background: none; border: none; padding: 0; font: inherit; }}
+.custom-report-cta .pbj-contact-trigger:hover {{ text-decoration: underline; }}
+.custom-report-cta .pbj-contact-trigger:focus-visible {{ outline: 2px solid #60a5fa; outline-offset: 2px; }}
 .contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.95); color: #e2e8f0; padding: 0.875rem 1.5rem; border-radius: 12px; font-size: 0.9375rem; font-weight: 500; z-index: 10001; box-shadow: 0 8px 32px rgba(0,0,0,0.24); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(8px); }}
 .contact-toast.error {{ background: rgba(30, 41, 59, 0.95); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }}
 </style>
@@ -1460,7 +1468,8 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
-    sub_text = "Request custom PBJ analysis for litigation and investigative reporting."
+    sub_text_desktop = "Request custom PBJ analysis for litigation and investigative reporting."
+    sub_text_mobile = "Request custom PBJ analysis for litigation."
     footer_text = ""
 
     def mailto(subject, body):
@@ -1583,14 +1592,18 @@ Thank you,"""
     else:
         return ''
 
+    # Escape topic for HTML data attribute (prefill message in contact overlay)
+    topic_attr = html.escape(contact_topic).replace('"', '&quot;') if contact_topic else ''
+    # Single CTA: sentence is the trigger; opens contact overlay with topic prefill (no separate "Contact us")
+    link_attrs = f'href="#" class="pbj-contact-trigger" data-topic="{topic_attr}" role="button" aria-label="Open contact form to request custom PBJ analysis"'
+    desktop_link = f'<a {link_attrs}><span class="custom-report-cta-desktop">{html.escape(sub_text_desktop)}</span><span class="custom-report-cta-mobile">{html.escape(sub_text_mobile)}</span></a>'
+    # Desktop and mobile text shown/hidden via CSS; both in one link so one click target
     footer_block = f'<p class="custom-report-cta-footer">{footer_text}</p>' if footer_text else ''
     header_block = f'<p class="custom-report-cta-header">{header_text}</p>' if header_text else ''
-    contact_link = '<a href="/contact" class="pbj-contact-cta" style="color:#93c5fd;font-weight:500;text-decoration:none;">Request custom analysis</a>'
-    return f'''<div class="custom-report-cta" style="margin:1.5rem 0;padding:0.85rem 1.15rem;background:rgba(15,23,42,0.5);border:1px solid rgba(59,130,246,0.2);border-radius:8px;max-width:640px;font-size:0.875rem;color:rgba(226,232,240,0.9);line-height:1.5;">
+    return f'''<section class="custom-report-cta" aria-label="Request custom PBJ analysis">
 {header_block}
-<p class="custom-report-cta-sub">{sub_text}</p>
-<p class="custom-report-cta-links" style="margin:0.3rem 0 0;font-size:0.85rem;">{contact_link}</p>
-{footer_block}</div>'''
+<p class="custom-report-cta-sub">{desktop_link}</p>
+{footer_block}</section>'''
 
 
 def render_methodology_block():
@@ -1987,7 +2000,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   if (ce && ce.quarters && ce.quarters.length) makeLineTime('chartCensus', ce.quarters, [{ label: 'Avg daily census', data: ce.census, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }], 'Census', ce.quarters);
   var co = d.contract;
   if (co && co.quarters && co.quarters.length) {
-    var cds = [{ label: 'Facility contract %', data: co.facility, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }];
+    var cds = [{ label: '% Contract Staff', data: co.facility, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false }];
     makeLineTime('chartContract', co.quarters, cds, 'Contract %', co.quarters);
   }
 })();
@@ -2109,19 +2122,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na)
-    methodology = 'Case-mix HPRD is a CMS metric for staffing levels based on resident acuity.'
+    methodology = 'Case-mix HPRD is a CMS measure based on resident acuity.'
     below_reported_casemix = ''
-    note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.8rem; color: rgba(226,232,240,0.75);'
+    note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.7rem; color: rgba(226,232,240,0.75);'
     if case_mix_total is not None and (reported_total or 0) is not None and case_mix_total > 0:
         reported_hprd_fmt = f'{(reported_total or 0):.2f}'
         casemix_hprd_fmt = f'{case_mix_total:.2f}'
         pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
-        line1 = f'<p class="pbj-percentile" style="{note_style}">Case-mix (acuity): {casemix_hprd_fmt} HPRD.</p>'
-        line2 = f'<p class="pbj-percentile" style="{note_style}">Reported staffing ({reported_hprd_fmt} HPRD) is {pct_fmt}% of case-mix.</p>'
-        below_reported_casemix = f'<div class="pbj-chart-notes">{line1}{line2}</div>'
+        line1 = f'<p class="pbj-percentile" style="{note_style}">Reported staffing HPRD ({reported_hprd_fmt}) is {pct_fmt}% of case-mix ({casemix_hprd_fmt}).</p>'
+        below_reported_casemix = f'<div class="pbj-chart-notes">{line1}</div>'
     elif case_mix_total is None:
         below_reported_casemix = f'<div class="pbj-chart-notes"><p class="pbj-percentile" style="{note_style}">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p></div>'
-    reported_vs_casemix_section = f'<div class="section-header">Reported vs. Case-Mix (Acuity)</div><p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px;">{methodology}</p>'
+    reported_vs_casemix_section = f'<div class="section-header">Reported vs. Case-Mix (Acuity)</div><p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: rgba(226,232,240,0.8);">{methodology}</p>'
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=below_reported_casemix)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     casemix_str = format_metric_value(case_mix_total, 'Total_Nurse_HPRD') if case_mix_total is not None else '—'
@@ -2149,9 +2161,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         put_another_way = f'On a typical <strong>30-bed floor</strong> at {facility_name} you’d see about <strong>{floor_staff:.1f}</strong> staff, including ~{floor_aides:.1f} nurse aides. For the entire {census_int:,}-resident facility, that’s about {total_staff:.1f} total staff, including ~{aides:.1f} nurse aides.'
     else:
         put_another_way = f'Staffing counts depend on census and HPRD; see key metrics above for this facility’s reported HPRD.'
-    narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
+    narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
     if case_mix_total is None:
-        narrative = f'<strong>{facility_name}</strong>’s reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
+        narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     is_sff = any((str(f.get('provider_number') or '').strip().zfill(6)) == prov for f in (sff_facilities_list or []))
@@ -2338,24 +2350,33 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         _city_state = state_link
     else:
         _city_state = ''
+    # Desktop subtitle order: Brooklyn, NY • 2.90 HPRD • 351 residents • For Profit • Entity: ...
     _loc_parts = []
     if _city_state.strip():
         _loc_parts.append(_city_state)
+    _loc_parts.append(f'{hprd_val} HPRD')
+    _loc_parts.append(_residents_sub)
     if ownership_short and ownership_short.strip():
         _loc_parts.append(ownership_short)
-    _loc_parts.append(_residents_sub)
     _loc_sub = ' &bull; '.join(_loc_parts) if _loc_parts else _residents_sub
     subtitle_one_line = _loc_sub + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
-    # Mobile subtitle: same but insert total HPRD after ownership, before residents
-    _loc_parts_mobile = []
+    # Mobile subtitle: row 1 = Brooklyn, NY • 2.90 HPRD • 351 residents; row 2 = For Profit • Entity link (no bullet after residents)
+    _row1_parts = []
     if _city_state.strip():
-        _loc_parts_mobile.append(_city_state)
+        _row1_parts.append(_city_state)
+    _row1_parts.append(f'{hprd_val} HPRD')
+    _row1_parts.append(_residents_sub)
+    _row1 = ' &bull; '.join(_row1_parts) if _row1_parts else _residents_sub
+    _row2_parts = []
     if ownership_short and ownership_short.strip():
-        _loc_parts_mobile.append(ownership_short)
-    _loc_parts_mobile.append(f'{hprd_val} HPRD')
-    _loc_parts_mobile.append(_residents_sub)
-    _loc_sub_mobile = ' &bull; '.join(_loc_parts_mobile) if _loc_parts_mobile else _residents_sub
-    subtitle_mobile = _loc_sub_mobile + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
+        _row2_parts.append(ownership_short)
+    if entity_id and entity_name:
+        _row2_parts.append(entity_link)
+    _row2 = ' &bull; '.join(_row2_parts) if _row2_parts else ''
+    if _row2:
+        subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span><span class="pbj-subtitle-mobile-row2">{_row2}</span>'
+    else:
+        subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
@@ -3825,7 +3846,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     avg_facility_census = int(_afc) if _afc is not None else None
     state_narrative = ''
     if cur_hprd is not None:
-        parts = [f"<strong>{html.escape(state_name)}</strong>'s reported <strong>{total_hprd_val} HPRD</strong>"]
+        parts = [f"<strong>{html.escape(state_name)}</strong> reported <strong>{total_hprd_val} HPRD</strong>"]
         if residents_per_staff is not None:
             parts[0] += f" (≈ {residents_per_staff} residents per total staff)"
         parts[0] += f" in {quarter}."

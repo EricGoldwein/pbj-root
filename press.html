@@ -33,7 +33,7 @@
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       border-bottom: 2px solid #1e40af;
     }
     .nav-container {
@@ -52,21 +52,21 @@
       font-size: 1.2rem;
       font-weight: 700;
     }
+    .nav-brand a { color: inherit; text-decoration: none; display: flex; align-items: center; }
     .nav-menu {
       display: flex;
       gap: 30px;
       align-items: center;
     }
     .nav-link {
-      color: rgba(255,255,255,0.8);
+      color: rgba(255,255,255,0.9);
       text-decoration: none;
       font-weight: 500;
-      transition: color 0.3s ease;
       padding: 8px 0;
     }
     .nav-link:hover, .nav-link.active { color: #60a5fa; }
     .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; }
-    .nav-toggle span { width: 25px; height: 3px; background: white; transition: all 0.3s ease; }
+    .nav-toggle span { width: 25px; height: 3px; background: white; }
     .content { padding: 60px 20px; max-width: 1100px; margin: 0 auto; }
     .content-box {
       background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
@@ -88,34 +88,40 @@
     }
     .content-box:hover { transform: translateY(-3px); box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
     .content-box:hover::before { opacity: 1; }
-    .content-box header { margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid rgba(148, 163, 184, 0.3); }
-    .content-box header h1 { font-size: 2.5rem; color: #1e40af; margin-bottom: 0.5rem; font-weight: 700; }
-    .content-box header .subtitle { color: #475569; font-size: 1.15rem; font-weight: 500; }
-    .as-seen-in-wrap {
-      margin: 1.5rem 0;
-      font-size: 1rem;
-      color: #475569;
-    }
-    .as-seen-in-wrap .label {
-      font-weight: 600;
+    .content-box header { margin-bottom: 0.5rem; padding-bottom: 0; border-bottom: none; }
+    .content-box header h1 { font-size: 2.5rem; color: #1e40af; margin-bottom: 0.25rem; font-weight: 700; }
+    .content-box header .subtitle { color: #475569; font-size: 1.15rem; font-weight: 500; margin-bottom: 0; }
+    .as-seen-in-simple {
+      margin: 1rem 0;
+      font-size: 0.95rem;
       color: #64748b;
-      margin-right: 0.35em;
     }
-    .as-seen-in-outlets {
-      display: inline;
-    }
-    .as-seen-in-outlets a {
+    .as-seen-in-simple a {
       color: #1e40af;
-      font-weight: 500;
       text-decoration: none;
-      transition: color 0.2s ease;
+      font-weight: 500;
     }
-    .as-seen-in-outlets a:hover { color: #3b82f6; }
-    .as-seen-in-outlets .sep {
-      margin: 0 0.25em;
-      color: #94a3b8;
-      user-select: none;
+    .as-seen-in-simple a:hover { color: #3b82f6; }
+    .press-contact-cta {
+      margin: 0.25rem 0 1.25rem 0;
     }
+    .press-contact-trigger {
+      display: inline-block;
+      padding: 0.6rem 1.25rem;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: #fff;
+      background: #1e40af;
+      border: 1px solid #1e40af;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+    .press-contact-trigger:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
+    .press-contact-trigger:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
+    .press-contact-overlay { display: none; }
+    .press-contact-overlay[aria-hidden="false"] { display: flex !important; }
     .content-box h2 { font-size: 1.6rem; color: #1e40af; margin-top: 1.8rem; margin-bottom: 1rem; font-weight: 600; }
     .content-box h3 { font-size: 1.4rem; color: #3b82f6; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }
     .content-box h3:first-of-type { margin-top: 0; }
@@ -134,21 +140,6 @@
     }
     .contact-box p { margin-bottom: 0.5rem; }
     .contact-box .subject-hint { font-size: 0.95rem; color: #64748b; margin-top: 0.75rem; }
-    .press-contact {
-      margin: 1.5rem 0;
-      padding: 1.25rem 1.5rem;
-      background: #fff;
-      border: 1px solid rgba(30, 64, 175, 0.2);
-      border-radius: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .press-contact .press-contact-intro {
-      margin: 0;
-      font-size: 1.05rem;
-      color: #374151;
-    }
-    .press-contact .press-contact-intro a { color: #1e40af; }
-    .press-contact .press-contact-intro a:hover { color: #3b82f6; }
     /* Placeholder for data visuals - reserved space for future embedded content */
     .visuals-placeholder {
       min-height: 200px;
@@ -187,11 +178,29 @@
     .footer p { margin: 0 auto 1rem; color: #64748b; font-size: 0.8rem; line-height: 1.6; }
     .footer a { color: #1e40af; text-decoration: none; font-weight: 500; transition: opacity 0.3s ease; }
     @media (max-width: 768px) {
-      .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: #0f172a; padding: 1rem; }
+      .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: #0f172a; padding: 1rem; gap: 12px; }
       .nav-menu.active { display: flex; }
-      .nav-toggle { display: flex; }
+      .nav-link { padding: 12px 0; min-height: 44px; display: flex; align-items: center; }
+      .nav-toggle { display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; cursor: pointer; }
+      .nav-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(5px,5px); }
+      .nav-toggle.active span:nth-child(2) { opacity: 0; }
+      .nav-toggle.active span:nth-child(3) { transform: rotate(-45deg) translate(7px,-6px); }
       .content-box { padding: 30px 24px; }
     }
+    .footer {
+      text-align: center;
+      padding: 40px 20px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.9rem;
+      background: #1a2433;
+      margin-top: 40px;
+      border-top: 1px solid rgba(255,255,255,0.1);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .footer .footer-tagline { margin: 0 0 1rem 0; font-size: 0.8rem; text-align: center; letter-spacing: 0.03em; color: rgba(255,255,255,0.85); }
+    .footer a { color: #60a5fa; text-decoration: none; }
+    .footer a:hover { color: #93c5fd; opacity: 1; }
   </style>
 </head>
 <body>
@@ -204,12 +213,13 @@
         </a>
       </div>
       <div class="nav-menu" id="navMenu">
-        <a href="/" class="nav-link">Home</a>
         <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-        <a href="/press" class="nav-link active">Press</a>
+        <a href="/owners" class="nav-link">Ownership</a>
       </div>
-      <div class="nav-toggle" id="navToggle">
+      <div class="nav-toggle" id="navToggle" aria-label="Menu">
         <span></span>
         <span></span>
         <span></span>
@@ -224,25 +234,17 @@
         <p class="subtitle">For journalists covering nursing homes, staffing, and ownership.</p>
       </header>
 
+      <div class="press-contact-cta">
+        <button type="button" class="press-contact-trigger" aria-label="Open contact form for press inquiries">Contact for press inquiries</button>
+      </div>
+
       <p>I'm <strong>Eric Goldwein</strong>, a data consultant specializing in CMS Payroll-Based Journal (PBJ) staffing data, nursing home quality metrics, and ownership structures. I've worked with PBJ data since 2019, translating complex federal datasets into clear, defensible findings for attorneys, advocates, and newsrooms.</p>
 
-      <p>I regularly provide background briefings, data interpretation, and rapid-turn analysis for reporters on deadline. I've appeared in media coverage, led webinars for state ombuds programs and advocacy groups, and spoken publicly on PBJ methodology and nursing home oversight.</p>
+      <p>I regularly provide background briefings, data interpretation, and rapid-turn analysis. I've appeared in media coverage, led webinars for state ombudsman programs and advocacy groups, and spoken publicly on PBJ methodology and nursing home oversight.</p>
 
       <p>I'm available for both background and on-the-record reporting.</p>
 
-      <p class="as-seen-in-wrap">
-        <span class="label">As seen in:</span>
-        <span class="as-seen-in-outlets">
-          <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer">Columbia Public Health</a><span class="sep">·</span>
-          <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026" target="_blank" rel="noopener noreferrer">WTVR CBS</a><span class="sep">·</span>
-          <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer">Positive Aging</a><span class="sep">·</span>
-          <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer">Aging in America News</a>
-        </span>
-      </p>
-
-      <div class="press-contact">
-        <p class="press-contact-intro">For press inquiries, <a href="/contact" class="pbj-contact-cta" aria-label="Contact form for press inquiries">contact us</a>.</p>
-      </div>
+      <p class="as-seen-in-simple">As seen in: <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" rel="noopener noreferrer">Columbia Public Health</a>, <a href="https://www.wtvr.com/news/local-news/twin-lakes-rehab-sale-feb-11-2026" target="_blank" rel="noopener noreferrer">WTVR CBS</a>, <a href="https://www.retirementlivingsourcebook.com/videos/why-nursing-home-staffing-data-matters-for-1-2-million-residents-and-beyond" target="_blank" rel="noopener noreferrer">Positive Aging</a>, <a href="https://aginginamerica.news/2025/09/16/crunching-the-nursing-home-data/" target="_blank" rel="noopener noreferrer">Aging in America News</a>.</p>
 
       <h2>How I Support Reporting</h2>
       <ul>
@@ -265,39 +267,103 @@
           <p>Your browser does not support the video tag. <a href="/press/wtvr-twin-lakes-clip.mp4">Download the clip</a>.</p>
         </video>
       </div>
-
-      <h2>Get Started on Your Own</h2>
-      <p>The <a href="https://pbj320.com/" target="_blank">PBJ Dashboard</a> lets you explore staffing data for ~15,000 U.S. nursing homes—by state, facility, or ownership group. You can start there for self-serve exploration, or email me if you need help interpreting what you find.</p>
     </div>
   </div>
 
-  <footer class="footer" style="padding: 1.25rem 1rem;">
-    <p style="margin: 0 auto 1rem auto; color: #64748b; font-size: 0.8rem; text-align: center; letter-spacing: 0.03em; width: 100%; max-width: 100%;">
-      <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color: #475569; text-decoration: none; font-weight: 700;">320 Consulting</a>: Turning Spreadsheets into Stories.
-    </p>
-    <div style="display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 16px 24px; margin-top: 0.5rem;">
-      <a href="/contact" class="pbj-contact-cta" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Contact form" aria-label="Contact us">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="currentColor"/></svg>
-        <span>Contact</span>
-      </a>
-      <a href="tel:+19298084996" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Call (929) 804-4996" aria-label="Call (929) 804-4996">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" fill="currentColor"/></svg>
-        <span>Call</span>
-      </a>
-      <a href="sms:+19298084996" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: opacity 0.3s ease;" title="Text (929) 804-4996" aria-label="Text (929) 804-4996">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity: 0.85;"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="currentColor"/></svg>
-        <span>Text</span>
-      </a>
-      <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500;" title="LinkedIn" aria-label="LinkedIn">
-        <img src="/LI-In-Bug.png" alt="" style="width: 20px; height: 20px; object-fit: contain; opacity: 0.85;"><span>LinkedIn</span>
-      </a>
-      <a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" style="display: inline-flex; align-items: center; gap: 6px; color: #1e40af; text-decoration: none; font-size: 0.9rem; font-weight: 500;" title="The 320 Newsletter" aria-label="The 320 Newsletter">
-        <img src="/substack.png" alt="" style="width: 20px; height: 20px; object-fit: contain; opacity: 0.85;"><span>Newsletter</span>
-      </a>
+  <div id="press-contact-overlay" class="press-contact-overlay" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
+    <div class="press-contact-dialog" role="dialog" aria-labelledby="press-contact-title" aria-modal="true" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
+      <h2 id="press-contact-title" style="margin:0; padding:1.25rem 1.25rem 0; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
+      <button type="button" class="press-contact-close" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
+      <form action="/contact" method="POST" style="padding:1rem 1.25rem 1.5rem;">
+        <input type="hidden" name="csrf_token" id="press-csrf" value="">
+        <input type="hidden" name="next" value="/press">
+        <div class="f-group" style="margin-bottom:1rem;">
+          <label for="press-name" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
+          <input type="text" id="press-name" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+        </div>
+        <div class="f-group" style="margin-bottom:1rem;">
+          <label for="press-email" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Email <span style="color:#f87171">*</span></label>
+          <input type="email" id="press-email" name="email" required autocomplete="email" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+        </div>
+        <div class="f-group" style="margin-bottom:1rem;">
+          <label for="press-message" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
+          <textarea id="press-message" name="message" required placeholder="Your inquiry…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+        </div>
+        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
+            <input type="checkbox" name="press" id="press-media-checkbox" value="yes" aria-label="I am media" style="width:1.25rem; height:1.25rem;" checked>
+            <span style="color:#cbd5e1;">I am media</span>
+          </label>
+          <button type="submit" style="background:rgba(96,165,250,0.2); color:#93c5fd; border:1px solid rgba(96,165,250,0.5); padding:0.7rem 1.25rem; border-radius:8px; font:inherit; font-size:1rem; font-weight:500; cursor:pointer; min-height:44px;">Send</button>
+        </div>
+      </form>
     </div>
-  </footer>
+  </div>
+
+  <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
   <script src="/pbj-site-universal.js?v=2"></script>
+  <script>
+    (function() {
+      var overlay = document.getElementById('press-contact-overlay');
+      var form = overlay ? overlay.querySelector('form') : null;
+      var closeBtn = overlay ? overlay.querySelector('.press-contact-close') : null;
+      var csrfInput = document.getElementById('press-csrf');
+      function showOverlay() {
+        if (!overlay) return;
+        var mediaCheck = document.getElementById('press-media-checkbox');
+        if (mediaCheck) mediaCheck.checked = true;
+        if (csrfInput && !csrfInput.value) {
+          fetch('/').then(function(r) { return r.text(); }).then(function(html) {
+            var m = html.match(/name="csrf_token"[^>]*value="([^"]+)"/) || html.match(/value="([^"]+)"[^>]*name="csrf_token"/);
+            if (m && csrfInput) csrfInput.value = m[1];
+            overlay.setAttribute('aria-hidden', 'false');
+            overlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            var first = form ? form.querySelector('input:not([type="hidden"]), textarea') : null;
+            if (first) first.focus();
+          }).catch(function() { overlay.setAttribute('aria-hidden', 'false'); overlay.style.display = 'flex'; document.body.style.overflow = 'hidden'; });
+        } else {
+          overlay.setAttribute('aria-hidden', 'false');
+          overlay.style.display = 'flex';
+          document.body.style.overflow = 'hidden';
+          var first = form ? form.querySelector('input:not([type="hidden"]), textarea') : null;
+          if (first) first.focus();
+        }
+      }
+      function hideOverlay() {
+        if (!overlay) return;
+        overlay.setAttribute('aria-hidden', 'true');
+        overlay.style.display = 'none';
+        document.body.style.overflow = '';
+      }
+      document.querySelectorAll('.press-contact-trigger').forEach(function(btn) {
+        btn.addEventListener('click', function(e) { e.preventDefault(); showOverlay(); });
+      });
+      if (closeBtn) closeBtn.addEventListener('click', hideOverlay);
+      if (overlay) overlay.addEventListener('click', function(e) { if (e.target === overlay) hideOverlay(); });
+      if (form) form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+      var params = new URLSearchParams(window.location.search);
+      if (params.get('contact_sent') === '1') {
+        var toast = document.createElement('div');
+        toast.setAttribute('role', 'status');
+        toast.textContent = "Message sent. We'll be in touch.";
+        toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;box-shadow:0 8px 32px rgba(0,0,0,0.24);';
+        document.body.appendChild(toast);
+        if (history.replaceState) history.replaceState({}, '', '/press');
+        setTimeout(function() { toast.remove(); }, 4000);
+      }
+      if (params.get('contact_error') === '1') {
+        var err = document.createElement('div');
+        err.setAttribute('role', 'alert');
+        err.textContent = "Something went wrong. Please try again or email directly.";
+        err.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#fca5a5;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;';
+        document.body.appendChild(err);
+        if (history.replaceState) history.replaceState({}, '', '/press');
+        setTimeout(function() { err.remove(); }, 6000);
+      }
+    })();
+  </script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const navToggle = document.getElementById('navToggle');

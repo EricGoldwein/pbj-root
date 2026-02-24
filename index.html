@@ -2055,7 +2055,7 @@
               var nhCount = searchIndex.f.filter(function(r) { return (r.s || '') === row.abbr; }).length;
               var hprdArr = stateHprdData && stateHprdData[row.abbr];
               var hprd = (hprdArr && hprdArr.length) ? hprdArr[hprdArr.length - 1] : null;
-              var label = (row.n || row.abbr) + ' (' + row.abbr + ') ' + nhCount + ' NHs, ' + (hprd != null ? Number(hprd).toFixed(2) : '—') + ' HPRD';
+              var label = (row.n || row.abbr) + ' (' + row.abbr + ') ' + nhCount + ' NHs, ' + (hprd != null ? (Math.round(Number(hprd) * 100) / 100).toFixed(2) : '—') + ' HPRD';
               out.push({ url: url, label: label, highRisk: false });
             }
           }

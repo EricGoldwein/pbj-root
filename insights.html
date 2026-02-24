@@ -1788,7 +1788,7 @@
                 },
                 label: function(context) {
                   if (context.datasetIndex === 0) {
-                    return `HPRD: ${context.parsed.y.toFixed(2)}`;
+                    return `HPRD: ${(Math.round(context.parsed.y * 100) / 100).toFixed(2)}`;
                   } else {
                     const facilityCount = pbjData.quarterly_trends.facility_count[context.dataIndex];
                     return `Census: ${(context.parsed.y / 1000000).toFixed(3)}M (${facilityCount.toLocaleString()} facilities)`;
@@ -2750,10 +2750,10 @@
               let metricLabel, valueDisplay;
               if (selectedMetric === 'Total_Nurse_HPRD') {
                 metricLabel = 'HPRD';
-                valueDisplay = value.toFixed(2);
+                valueDisplay = (Math.round(value * 100) / 100).toFixed(2);
               } else if (selectedMetric === 'Total_RN_HPRD') {
                 metricLabel = 'RN HPRD';
-                valueDisplay = value.toFixed(2);
+                valueDisplay = (Math.round(value * 100) / 100).toFixed(2);
               } else if (selectedMetric === 'Contract_Percentage') {
                 metricLabel = 'Contract %';
                 valueDisplay = value.toFixed(1) + '%';

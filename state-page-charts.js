@@ -94,7 +94,7 @@
                   },
                   label: function(context) {
                     var v = context.parsed.y;
-                    if (typeof v === "number" && !isNaN(v)) return context.dataset.label + ": " + v.toFixed(2);
+                    if (typeof v === "number" && !isNaN(v)) return context.dataset.label + ": " + (Math.round(v * 100) / 100).toFixed(2);
                     return context.dataset.label + ": " + (v != null ? v : "");
                   },
                   afterBody: function(tooltipItems) {

@@ -5092,8 +5092,8 @@
               facilitiesWithCaseMix: akWithCaseMix.length,
               totalWeighted: totalWeighted,
               totalCensus: totalCensus,
-              calculatedValue: totalCensus > 0 ? (totalWeighted / totalCensus).toFixed(2) : 'N/A',
-              storedValue: stateData['Alaska'].caseMixTotalHPRD.toFixed(2),
+              calculatedValue: totalCensus > 0 ? (Math.round((totalWeighted / totalCensus) * 100) / 100).toFixed(2) : 'N/A',
+              storedValue: (Math.round(stateData['Alaska'].caseMixTotalHPRD * 100) / 100).toFixed(2),
               sampleFacilities: akWithCaseMix.slice(0, 3).map(r => ({
                 name: r.provider_name,
                 census: r.avg_residents_per_day,
@@ -6022,11 +6022,11 @@
           </div>
           <div class="metric-row">
             <span class="metric-label">Total HPRD</span>
-            <span class="metric-value">${totalHPRDDisplay.toFixed(2)}</span>
+            <span class="metric-value">${(Math.round(Number(totalHPRDDisplay) * 100) / 100).toFixed(2)}</span>
             </div>
           <div class="metric-row">
             <span class="metric-label">RN HPRD</span>
-            <span class="metric-value">${rnHPRDDisplay.toFixed(2)}</span>
+            <span class="metric-value">${(Math.round(Number(rnHPRDDisplay) * 100) / 100).toFixed(2)}</span>
           </div>
       `;
       } else {
@@ -6094,12 +6094,11 @@
         let totalHPRDDisplay, rnHPRDDisplay;
         if (excludeAdminDON) {
           // When excludeAdminDON is enabled, show only the selected value
-          totalHPRDDisplay = showMedians ? totalHPRDMedian.toFixed(2) : `${totalHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`;
-          rnHPRDDisplay = showMedians ? rnHPRDMedian.toFixed(2) : `${rnHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`;
+          totalHPRDDisplay = showMedians ? (Math.round(totalHPRDMedian * 100) / 100).toFixed(2) : `${(Math.round(totalHPRD * 100) / 100).toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${(Math.round(totalHPRDMedian * 100) / 100).toFixed(2)} median)</span>`;
+          rnHPRDDisplay = showMedians ? (Math.round(rnHPRDMedian * 100) / 100).toFixed(2) : `${(Math.round(rnHPRD * 100) / 100).toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${(Math.round(rnHPRDMedian * 100) / 100).toFixed(2)} median)</span>`;
         } else {
-          // When excludeAdminDON is false, always show average with median in parentheses (regardless of showMedians)
-          totalHPRDDisplay = `${totalHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${totalHPRDMedian.toFixed(2)} median)</span>`;
-          rnHPRDDisplay = `${rnHPRD.toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${rnHPRDMedian.toFixed(2)} median)</span>`;
+          totalHPRDDisplay = `${(Math.round(totalHPRD * 100) / 100).toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${(Math.round(totalHPRDMedian * 100) / 100).toFixed(2)} median)</span>`;
+          rnHPRDDisplay = `${(Math.round(rnHPRD * 100) / 100).toFixed(2)} <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal;">(${(Math.round(rnHPRDMedian * 100) / 100).toFixed(2)} median)</span>`;
         }
         
         html = `
@@ -6521,9 +6520,9 @@
         // Reported HPRD cells - use the values we already calculated (they already have medians if toggle is on)
         let reportedTotalText, reportedRNText, reportedNAText;
         // Values are already set correctly above based on tableShowMedians toggle
-        reportedTotalText = reportedTotalValue.toFixed(2);
-        reportedRNText = reportedRNValue.toFixed(2);
-        reportedNAText = reportedNAValue.toFixed(2);
+        reportedTotalText = (Math.round(reportedTotalValue * 100) / 100).toFixed(2);
+        reportedRNText = (Math.round(reportedRNValue * 100) / 100).toFixed(2);
+        reportedNAText = (Math.round(reportedNAValue * 100) / 100).toFixed(2);
         
         // Reported HPRD cells - CSS handles widths
         const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value');
@@ -6605,13 +6604,11 @@
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
         const ratio = f.case_mix_total_hprd > 0 ? (f.total_nurse_hprd / f.case_mix_total_hprd * 100).toFixed(0) : '0';
         // Use raw values directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${f.total_nurse_hprd.toFixed(2)}, ${ratio}% of Case-Mix (${f.case_mix_total_hprd.toFixed(2)})</div>`;
+        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${(Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2)}, ${ratio}% of Case-Mix (${(Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2)})</div>`;
       } else if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined) {
-        // Use raw value directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${f.total_nurse_hprd.toFixed(2)}</div>`;
+        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${(Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2)}</div>`;
       } else if (f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
-        // Use raw value directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Case Mix: ${f.case_mix_total_hprd.toFixed(2)}</div>`;
+        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Case Mix: ${(Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2)}</div>`;
       }
       
       let multipleCriteriaNote = '';
@@ -7067,7 +7064,7 @@
             if (data) {
               // Use getMetricValue to respect excludeAdminDON toggle
               const value = getMetricValue(stateName, currentMetric);
-              let formattedValue = value.toFixed(2);
+              let formattedValue = (Math.round(value * 100) / 100).toFixed(2);
               
               // Get state rank
               const rank = stateRankings[stateName] || 'N/A';
@@ -7344,7 +7341,7 @@
         } else if (displayMetric === 'avg_daily_census') {
           return Math.round(val).toLocaleString();
         } else {
-          return val.toFixed(2);
+          return (Math.round(val * 100) / 100).toFixed(2);
         }
       };
 
@@ -7546,7 +7543,7 @@
             // When showing ratio, primary is the ratio
             const ratio = value;
             primaryLabel = isRatioMetric ? metricLabels[currentMetric] : `${metricLabels[currentMetric]}`;
-            primaryValue = ratio.toFixed(2);
+            primaryValue = (Math.round(ratio * 100) / 100).toFixed(2);
             
             // Case-mix removed from desktop hover tooltips
             tooltipContent = `
@@ -7567,10 +7564,10 @@
               primaryValue = value.toFixed(1) + '%';
               primaryLabel = 'Contract Staff';
             } else if (currentMetric === 'Nurse_Assistant_HPRD') {
-            primaryValue = value.toFixed(2);
+              primaryValue = (Math.round(value * 100) / 100).toFixed(2);
               primaryLabel = 'Nurse Aide';
             } else {
-              primaryValue = value.toFixed(2);
+              primaryValue = (Math.round(value * 100) / 100).toFixed(2);
             }
             
             // Case-mix removed from desktop hover tooltips

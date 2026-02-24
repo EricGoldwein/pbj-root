@@ -1830,21 +1830,35 @@ def _series_to_list_with_none(ser):
         return []
     return [float(x) if pd.notna(x) and x is not None else None for x in ser]
 
+
+def _series_to_list_rounded(ser, decimals=2):
+    """Like _series_to_list_with_none but round non-null values with round_half_up(decimals). Use for chart data that is displayed with toFixed(decimals) to avoid double-rounding errors."""
+    if ser is None or (hasattr(ser, 'empty') and ser.empty):
+        return []
+    out = []
+    for x in ser:
+        if pd.isna(x) or x is None:
+            out.append(None)
+        else:
+            r = round_half_up(float(x), decimals)
+            out.append(r if r is not None else None)
+    return out
+
 def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na):
     """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0."""
     out = {}
     out['reportedCaseMix'] = {
         'labels': ['Total', 'RN', 'Nurse aide'],
-        'reported': [float(reported_total) if reported_total is not None and not (isinstance(reported_total, float) and pd.isna(reported_total)) else None,
-                     float(reported_rn) if reported_rn is not None and not (isinstance(reported_rn, float) and pd.isna(reported_rn)) else None,
-                     float(reported_na) if reported_na is not None and not (isinstance(reported_na, float) and pd.isna(reported_na)) else None],
+        'reported': [round_half_up(float(reported_total), 2) if reported_total is not None and not (isinstance(reported_total, float) and pd.isna(reported_total)) else None,
+                     round_half_up(float(reported_rn), 2) if reported_rn is not None and not (isinstance(reported_rn, float) and pd.isna(reported_rn)) else None,
+                     round_half_up(float(reported_na), 2) if reported_na is not None and not (isinstance(reported_na, float) and pd.isna(reported_na)) else None],
         'caseMix': None
     }
     if case_mix_total is not None or case_mix_rn is not None or case_mix_na is not None:
         out['reportedCaseMix']['caseMix'] = [
-            float(case_mix_total) if case_mix_total is not None and not (isinstance(case_mix_total, float) and pd.isna(case_mix_total)) else None,
-            float(case_mix_rn) if case_mix_rn is not None and not (isinstance(case_mix_rn, float) and pd.isna(case_mix_rn)) else None,
-            float(case_mix_na) if case_mix_na is not None and not (isinstance(case_mix_na, float) and pd.isna(case_mix_na)) else None
+            round_half_up(float(case_mix_total), 2) if case_mix_total is not None and not (isinstance(case_mix_total, float) and pd.isna(case_mix_total)) else None,
+            round_half_up(float(case_mix_rn), 2) if case_mix_rn is not None and not (isinstance(case_mix_rn, float) and pd.isna(case_mix_rn)) else None,
+            round_half_up(float(case_mix_na), 2) if case_mix_na is not None and not (isinstance(case_mix_na, float) and pd.isna(case_mix_na)) else None
         ]
     if facility_df is None or facility_df.empty or not HAS_PANDAS:
         return out
@@ -1881,9 +1895,9 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
                 state_fac = fq_df[fq_df['STATE'] == sc]
                 if not state_fac.empty:
                     medians = state_fac.groupby('CY_Qtr')['Contract_Percentage'].median()
-                    out['contract']['stateMedian'] = [float(medians.get(q)) if q in medians.index and pd.notna(medians.get(q)) else None for q in quarters]
+                    out['contract']['stateMedian'] = [round_half_up(float(medians.get(q)), 2) if q in medians.index and pd.notna(medians.get(q)) else None for q in quarters]
         col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
-        out['census'] = {'quarters': quarters, 'census': _series_to_list_with_none(df[col] if col in df.columns else pd.Series(dtype=float))}
+        out['census'] = {'quarters': quarters, 'census': _series_to_list_rounded(df[col] if col in df.columns else pd.Series(dtype=float), 1)}
     except Exception as e:
         print(f"Provider chart data build failed: {e}")
     return out
@@ -1986,11 +2000,11 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
           legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
           tooltip: {
             callbacks: {
-              label: function(context) {
+              label: function(context) {{
                 var v = context.parsed.y;
-                if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + v.toFixed(2);
+                if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + (Math.round(v * 100) / 100).toFixed(2);
                 return context.dataset.label + ': ' + (v != null ? v : '');
-              }
+              }}
             }
           }
         },
@@ -2023,12 +2037,12 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
               }
               return '';
             },
-            label: function(context) {
+            label: function(context) {{
               if (context.dataset && context.dataset._macpacNote) return context.dataset.label;
               var v = context.parsed.y;
-              if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + v.toFixed(2);
+              if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + (Math.round(v * 100) / 100).toFixed(2);
               return context.dataset.label + ': ' + (v != null ? v : '');
-            },
+            }},
             afterBody: function(context) { return []; }
           }
         }
@@ -2053,7 +2067,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
                { label: 'Direct', data: th.direct, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }];
     if (th.macpac != null && typeof th.macpac === 'number') {
       var macpacArr = th.quarters.map(function(){ return th.macpac; });
-      var stateMinLabel = (th.stateCode || 'State') + ' Min: ~' + Number(th.macpac).toFixed(2) + ' (MACPAC)';
+      var stateMinLabel = (th.stateCode || 'State') + ' Min: ~' + (Math.round(Number(th.macpac) * 100) / 100).toFixed(2) + ' (MACPAC)';
       ds.push({ label: stateMinLabel, data: macpacArr, borderColor: '#dc2626', borderDash: [4,4], tension: 0, fill: false, spanGaps: false, _macpacNote: true });
     }
     makeLineTime('chartTotalHprd', th.quarters, ds, 'Hours per resident day', th.quarters);
@@ -2078,7 +2092,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     try:
         from pbj_format import format_metric_value, format_quarter_display
     except ImportError:
-        format_metric_value = lambda v, k, d='N/A': f"{float(v):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
+        format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
         format_quarter_display = format_quarter
     prov = normalize_ccn(ccn)
     facility_name = ''
@@ -2193,8 +2207,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     below_reported_casemix = ''
     note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.7rem; color: rgba(226,232,240,0.75);'
     if case_mix_total is not None and (reported_total or 0) is not None and case_mix_total > 0:
-        reported_hprd_fmt = f'{(reported_total or 0):.2f}'
-        casemix_hprd_fmt = f'{case_mix_total:.2f}'
+        reported_hprd_fmt = f'{round_half_up(reported_total or 0, 2):.2f}'
+        casemix_hprd_fmt = f'{round_half_up(case_mix_total, 2):.2f}'
         pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
         line1 = f'<p class="pbj-percentile" style="{note_style}">Reported staffing HPRD ({reported_hprd_fmt}) is {pct_fmt}% of case-mix ({casemix_hprd_fmt}).</p>'
         below_reported_casemix = f'<div class="pbj-chart-notes">{line1}</div>'
@@ -2304,7 +2318,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                         yoy_change = (reported_total or 0) - prev_hprd
                         yoy_pct = 100 * yoy_change / prev_hprd
                         sign = '' if yoy_change >= 0 else '−'
-                        yoy_line = f'<div class="pbj-percentile">Year-over-year change (Total Nurse HPRD): {sign}{abs(yoy_change):.2f} ({sign}{abs(yoy_pct):.0f}%)</div>'
+                        yoy_line = f'<div class="pbj-percentile">Year-over-year change (Total Nurse HPRD): {sign}{round_half_up(abs(yoy_change), 2):.2f} ({sign}{abs(yoy_pct):.0f}%)</div>'
         except Exception:
             pass
     entity_summary_html = ''
@@ -2695,7 +2709,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     try:
         from pbj_format import format_metric_value, get_metric_label
     except ImportError:
-        format_metric_value = lambda v, k, d='N/A': f"{float(v):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
+        format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
         get_metric_label = lambda k: k.replace('_', ' ')
     base_url = 'https://pbj320.com'
     n = len(facilities)
@@ -2842,9 +2856,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         tier3_parts = []
         if hprd_for_narrative is not None:
-            tier3_parts.append(f'Avg Total Nurse HPRD: {hprd_for_narrative:.2f}')
+            tier3_parts.append(f'Avg Total Nurse HPRD: {format_metric_value(hprd_for_narrative, "Total_Nurse_HPRD")}')
         if rn_for_narrative is not None:
-            tier3_parts.append(f'Avg RN HPRD: {rn_for_narrative:.2f}')
+            tier3_parts.append(f'Avg RN HPRD: {format_metric_value(rn_for_narrative, "RN_HPRD")}')
         tier3_parts.append(f'Avg. Staffing rating: {(f"{staff_rating:.1f}" if staff_rating is not None else "—")}')
         tier3_html = ''.join(f'<span style="{_badge_neutral}">{t}</span>' for t in tier3_parts)
 
@@ -3181,10 +3195,10 @@ def get_state_historical_data(state_code):
         for _, row in state_rows.iterrows():
             q_str = str(row['CY_Qtr'])
             raw_quarters.append(q_str)
-            total_data.append(round_half_up(float(row['Total_Nurse_HPRD']), 3) if pd.notna(row.get('Total_Nurse_HPRD')) else None)
-            direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 3) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
-            rn_data.append(round_half_up(float(row['RN_HPRD']), 3) if pd.notna(row.get('RN_HPRD')) else None)
-            rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 3) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
+            total_data.append(round_half_up(float(row['Total_Nurse_HPRD']), 2) if pd.notna(row.get('Total_Nurse_HPRD')) else None)
+            direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 2) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
+            rn_data.append(round_half_up(float(row['RN_HPRD']), 2) if pd.notna(row.get('RN_HPRD')) else None)
+            rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 2) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
             census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
             census_data.append(round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None)
             contract_data.append(round_half_up(float(row['Contract_Percentage']), 2) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else None)
@@ -3292,7 +3306,7 @@ def get_national_historical_data():
                     quarters.append(q_str)
                 
                 hprd = float(row['Total_Nurse_HPRD']) if pd.notna(row['Total_Nurse_HPRD']) else 0
-                _h = round_half_up(hprd, 3)
+                _h = round_half_up(hprd, 2)
                 hprd_data.append(_h if _h is not None else hprd)
         else:
             for row in national_rows:
@@ -3304,7 +3318,7 @@ def get_national_historical_data():
                     quarters.append(q_str)
                 
                 hprd = float(row.get('Total_Nurse_HPRD', 0)) if row.get('Total_Nurse_HPRD') else 0
-                _h = round_half_up(hprd, 3)
+                _h = round_half_up(hprd, 2)
                 hprd_data.append(_h if _h is not None else hprd)
         
         return quarters, hprd_data
@@ -3401,7 +3415,7 @@ def generate_us_chart_html():
                     ctx.fillStyle = '#54595d';
                     ctx.font = '10px Arial';
                     ctx.textAlign = 'right';
-                    ctx.fillText(value.toFixed(2), paddingLeft - 10, y + 4);
+                    ctx.fillText((Math.round(value * 100) / 100).toFixed(2), paddingLeft - 10, y + 4);
                 }}
                 
                 // Draw line
@@ -3509,7 +3523,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     try:
         from pbj_format import format_metric_value
     except ImportError:
-        format_metric_value = lambda v, k, d='N/A': f"{float(v):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
+        format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
     # Format data values (use format_metric_value for audit-grade ROUND_HALF_UP; fmt for generic decimals)
     def fmt(val, decimals=2):
         try:
@@ -4053,7 +4067,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         if min_staffing:
             try:
                 min_val = float(str(min_staffing).replace(' HPRD', ''))
-                seo_description_parts.append(f"State minimum: {min_val:.2f} HPRD.")
+                seo_description_parts.append(f"State minimum: {round_half_up(min_val, 2):.2f} HPRD.")
             except:
                 pass
     seo_description_parts.append("CMS Payroll-Based Journal (PBJ) data.")
@@ -4071,7 +4085,7 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
     try:
         from pbj_format import format_metric_value
     except ImportError:
-        format_metric_value = lambda v, k, d='N/A': f"{float(v):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
+        format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
     def fmt(val, decimals=2):
         try:
             if pd.isna(val) or val is None:

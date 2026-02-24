@@ -70,10 +70,12 @@ Subscribers are still saved to the database, but **no notification email is sent
 
 ## Where is the subscriber list?
 
-There is **no in-app UI** for the list. Subscribers are stored in a SQLite database:
+Subscribers are stored in a SQLite database. You can view them in the browser or as JSON (see below).
 
-**File:** `instance/subscribers.db`  
+**File (default):** `instance/subscribers.db`  
 (relative to the app root; the `instance` folder is created automatically when the first subscriber is added)
+
+**On Render (or any host with ephemeral disk):** The default path is **wiped on every deploy**, so the admin page will show "No subscribers yet" even after signups. Set **`SUBSCRIBERS_DB_PATH`** to a path on a **persistent disk** so data survives deploys (see [Render Persistent Disks](https://render.com/docs/disks)). Example: attach a disk at `/opt/render/project/src/storage` and set `SUBSCRIBERS_DB_PATH=/opt/render/project/src/storage/subscribers.db` in the service Environment.
 
 **Table:** `subscribers`  
 Columns: `id`, `email`, `source`, `created_at`.
@@ -100,11 +102,14 @@ sqlite3 instance/subscribers.db "SELECT email, source, created_at FROM subscribe
 
 You can also open `instance/subscribers.db` in any SQLite viewer (e.g. DB Browser for SQLite, or the SQLite extension in VS Code) and run the same queries.
 
-**In-app JSON list (no SQLite needed):** Set env **`ADMIN_VIEW_KEY`** to a secret string (e.g. a long random password). Then visit:
+**In-app list (HTML or JSON):** Set env **`ADMIN_VIEW_KEY`** to a secret string (e.g. a long random password). Then visit:
 
 **`https://yoursite.com/admin/subscribers?key=YOUR_SECRET`**
 
-You get JSON with `email`, `source`, `created_at` for each subscriber. If the key is missing or wrong, the route returns 403.
+- In a browser you get an HTML table of subscribers.
+- With `Accept: application/json` you get JSON: `[{ "email", "source", "created_at" }, ...]`.
+
+If the key is missing or wrong, the route returns 403. If you see "No subscribers yet" on production, set **`SUBSCRIBERS_DB_PATH`** to a path on a persistent disk (see above).
 
 **Contact form:** Submissions are only sent by email (to `SUBSCRIBE_NOTIFY_TO`). There is no in-app list of contact messages; check your email.
 
@@ -116,4 +121,4 @@ You get JSON with `email`, `source`, `created_at` for each subscriber. If the ke
 |----------|--------|
 | Will I get emails to egoldwein@gmail.com and eric@320insight.com? | Yes, **if** `SUBSCRIBE_NOTIFY_SMTP_HOST` (and auth if needed) is set. `SUBSCRIBE_NOTIFY_TO` defaults to those two addresses. |
 | Do I need another setting for notifications? | You need the SMTP env vars above. No other app setting is required. |
-| Where do I see the subscriber list? | In the database only: `instance/subscribers.db` → table `subscribers`. Use `sqlite3` or a SQLite GUI; there is no in-app “view list” page. |
+| Where do I see the subscriber list? | Visit `/admin/subscribers?key=ADMIN_VIEW_KEY` (HTML or JSON). On Render, set `SUBSCRIBERS_DB_PATH` to a persistent disk path or the list resets on deploy. |

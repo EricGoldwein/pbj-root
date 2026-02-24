@@ -1077,7 +1077,7 @@
             if (data) {
               const ranking = stateRankings.find(r => r.name === stateName);
               const rank = ranking ? ranking.rank : 'N/A';
-              const roundedHprd = data.hprd.toFixed(2);
+              const roundedHprd = (Math.round(Number(data.hprd) * 100) / 100).toFixed(2);
               
               tooltip.transition()
                 .duration(200)

@@ -94,12 +94,23 @@ def _subscribers_db_path():
     if env_path:
         parent = os.path.dirname(env_path)
         if parent and not os.path.isdir(parent):
-            os.makedirs(parent, exist_ok=True)
-        return env_path
-    instance = app.instance_path
-    if not os.path.isdir(instance):
-        os.makedirs(instance, exist_ok=True)
-    return os.path.join(instance, 'subscribers.db')
+            try:
+                os.makedirs(parent, exist_ok=True)
+            except PermissionError:
+                env_path = None  # fall back to writable location below
+        if env_path:
+            return env_path
+    # Default: instance path, or writable fallback when instance path is not writable (e.g. Render)
+    try:
+        instance = app.instance_path
+        if not os.path.isdir(instance):
+            os.makedirs(instance, exist_ok=True)
+        return os.path.join(instance, 'subscribers.db')
+    except PermissionError:
+        pass
+    fallback_dir = os.path.join(os.getcwd(), 'data')
+    os.makedirs(fallback_dir, exist_ok=True)
+    return os.path.join(fallback_dir, 'subscribers.db')
 
 def _init_subscribers_db():
     """Create subscribers table if not exists. Called on first use."""
@@ -1187,6 +1198,14 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url):
 <meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
 <link rel="canonical" href="{canon}">
 <link rel="icon" type="image/png" href="/pbj_favicon.png">
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){{dataLayer.push(arguments);}}
+gtag('js', new Date());
+gtag('config', 'G-NDPVY6TWBK');
+</script>
 <style>
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; line-height: 1.6; min-height: 100vh; }}

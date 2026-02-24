@@ -234,7 +234,7 @@ _SEARCH_INDEX_CACHE = None
 _SEARCH_INDEX_AT = 0
 _SEARCH_INDEX_TTL = 300  # 5 min
 
-HIGH_RISK_CRITERIA_TOOLTIP = 'PBJ320 flags as high-risk when a facility is: Special Focus Facility (SFF), SFF candidate, 1-star overall rating, abuse icon, or other CMS-reported designations.'
+HIGH_RISK_CRITERIA_TOOLTIP = 'PBJ320 flags as high-risk when a facility is: Special Focus Facility (SFF), SFF candidate, 1-star overall rating, or abuse icon (from CMS Care Compare data).'
 
 def get_facility_risk_from_search_index(ccn):
     """Return (risk_flag, reason_str) for a facility CCN from search_index.json (same logic as home search). Cached 2 min."""
@@ -2880,7 +2880,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         if fines_dollars is not None and fines_dollars > 0:
             fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
             if total_fines_count is not None and total_fines_count > 0:
-                p3 += f"CMS reports a total of <strong>{int(total_fines_count):,} fines</strong> (<strong>{fines_phrase}</strong>) for the chain's facilities."
+                p3 += f"CMS reports a total of <strong>{int(total_fines_count):,} fines</strong> (<strong>{fines_phrase}</strong>) for the chain's nursing homes."
             else:
                 p3 += f"Total fines: <strong>{fines_phrase}</strong>."
         else:

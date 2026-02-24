@@ -1,8 +1,12 @@
 # Render: bind to PORT so port scan and /health both work.
+# Start command binds explicitly so Render detects the port reliably (no script indirection).
 services:
   - type: web
     name: pbj
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: bash render_start.sh
+    startCommand: gunicorn app:app -c gunicorn_config.py --bind 0.0.0.0:10000
     healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"

@@ -848,6 +848,19 @@
       outline-offset: 2px;
       border-radius: 2px;
     }
+    .phoebe-popup-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35em;
+      padding: 0.4em 0.15em 0.4em 0;
+      min-height: 44px;
+      min-width: 44px;
+      box-sizing: border-box;
+    }
+    .phoebe-popup-cta-icon {
+      font-size: 1.1em;
+      opacity: 0.9;
+    }
     /* Explore bar – removed on desktop and mobile */
     .hero-explore-bar {
       display: none !important;
@@ -1599,8 +1612,8 @@
               <span class="phoebe-strip-label">What is PBJ?</span>
             </button>
             <div class="phoebe-strip-popup" id="phoebeStripPopupBelow" role="tooltip">
-              <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing across 15,000+ U.S. nursing homes.</p>
-              <p style="margin: 0;"><a href="/phoebe">PBJ Explained</a></p>
+              <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing levels across 15,000+ U.S. nursing homes.</p>
+              <p style="margin: 0;"><a href="/phoebe" class="phoebe-popup-cta">PBJ Overview<span class="phoebe-popup-cta-icon" aria-hidden="true"> →</span></a></p>
             </div>
           </div>
         </div>

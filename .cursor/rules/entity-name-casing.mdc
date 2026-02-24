@@ -1,0 +1,17 @@
+---
+description: Entity/chain name display — preserve acronyms (e.g. NHS Management)
+globs: app.py,**/generate_search_index.py
+alwaysApply: false
+---
+
+# Entity and Chain Name Casing
+
+When displaying or generating entity/chain names (nursing home chains, affiliated entities):
+
+- Use **title case** for the full name (e.g. "NHS Management", not "NHS MANAGEMENT" or "nhs management").
+- **Preserve known acronyms in all-caps** when they appear as words in the name. Examples:
+  - "Nhs management" → **NHS Management**
+  - "Genesis Healthcare" → unchanged
+  - Names containing CMS, RN, LPN, CCRC, PBJ, HPRD, SNF, ALF, LTAC, ID/DD should keep those tokens in all-caps.
+
+In this codebase, `capitalize_entity_name()` in `app.py` applies this logic. When adding new acronyms that should stay all-caps, add them to `ENTITY_NAME_ACRONYMS` and ensure display paths (provider pages, entity pages, search index, breadcrumbs) use `capitalize_entity_name()` for entity/chain names.

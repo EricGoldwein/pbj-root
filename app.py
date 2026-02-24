@@ -1714,11 +1714,20 @@ def capitalize_city_name(city):
         return city
     return ' '.join([word.capitalize() for word in city.split()])
 
+# Known acronyms to preserve in entity/chain names (e.g. "Nhs management" -> "NHS Management")
+ENTITY_NAME_ACRONYMS = {'NHS', 'CMS', 'RN', 'LPN', 'CCRC', 'PBJ', 'HPRD', 'SNF', 'ALF', 'LTAC', 'ID/DD'}
+
+
 def capitalize_entity_name(name):
-    """Entity/chain name: first letter of each word capitalized (same rule as facility names)."""
+    """Entity/chain name: title-case with known acronyms kept all-caps (e.g. NHS Management)."""
     if not name or str(name).strip() == '' or name == "—":
         return name
-    return capitalize_facility_name(str(name).strip())
+    s = capitalize_facility_name(str(name).strip())
+    for acr in ENTITY_NAME_ACRONYMS:
+        # Replace title-cased or lowercase form of acronym with canonical form (word boundary)
+        s = re.sub(r'\b' + re.escape(acr.capitalize()) + r'\b', acr, s, flags=re.IGNORECASE)
+        s = re.sub(r'\b' + re.escape(acr.lower()) + r'\b', acr, s)
+    return s
 
 def load_facility_quarterly_for_provider(ccn):
     """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None.
@@ -2871,7 +2880,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         if fines_dollars is not None and fines_dollars > 0:
             fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
             if total_fines_count is not None and total_fines_count > 0:
-                p3 += f"CMS has cited the chain <strong>{int(total_fines_count):,} times</strong>, with total fines of <strong>{fines_phrase}</strong>."
+                p3 += f"CMS reports a total of <strong>{int(total_fines_count):,} fines</strong> (<strong>{fines_phrase}</strong>) for the chain's facilities."
             else:
                 p3 += f"Total fines: <strong>{fines_phrase}</strong>."
         else:
@@ -3084,7 +3093,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
-<style>.entity-facilities-table {{ font-size: 0.875rem; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; left: 0; top: 100%; margin-top: 4px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.8rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.4rem 0.35rem; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; }} }}</style>
+<style>.entity-facilities-table {{ font-size: 0.875rem; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.8rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.4rem 0.35rem; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>
@@ -3914,8 +3923,11 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                 parts.append(f" This level is above the national ratio of {format_metric_value(national_hprd, 'Total_Nurse_HPRD', 'N/A')} HPRD")
             else:
                 parts.append(f" This level is near the national ratio of {format_metric_value(national_hprd, 'Total_Nurse_HPRD', 'N/A')} HPRD")
-            parts.append(".")
-        if rank_total_nurse and total_states:
+            if rank_total_nurse and total_states:
+                parts.append(f" and ranks <strong>#{rank_total_nurse}</strong> out of {total_states} states.")
+            else:
+                parts.append(".")
+        elif rank_total_nurse and total_states:
             parts.append(f" and ranks <strong>#{rank_total_nurse}</strong> out of {total_states} states.")
         state_narrative = '<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">' + ''.join(parts) + '</p>'
     else:

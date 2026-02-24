@@ -117,10 +117,19 @@ def _subscribers_db_path():
     # Last resort: current dir (may fail on insert)
     return os.path.join(os.getcwd(), 'subscribers.db')
 
+def _subscribers_conn():
+    """Open a connection with busy_timeout so concurrent workers don't get 'database is locked'."""
+    path = _subscribers_db_path()
+    conn = sqlite3.connect(path, timeout=10.0)
+    conn.execute('PRAGMA busy_timeout=5000')
+    return conn
+
 def _init_subscribers_db():
     """Create subscribers table if not exists. Called on first use."""
     path = _subscribers_db_path()
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, timeout=10.0)
+    conn.execute('PRAGMA busy_timeout=5000')
+    conn.execute('PRAGMA journal_mode=WAL')
     conn.execute('''
         CREATE TABLE IF NOT EXISTS subscribers (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -131,6 +140,7 @@ def _init_subscribers_db():
     ''')
     conn.commit()
     conn.close()
+
 
 # Cache for built assets (cleared on app start)
 _built_assets_cache = None
@@ -413,7 +423,7 @@ def subscribe():
         return redirect('/?subscribe_error=invalid')
     _init_subscribers_db()
     try:
-        conn = sqlite3.connect(_subscribers_db_path())
+        conn = _subscribers_conn()
         conn.execute(
             'INSERT INTO subscribers (email, source) VALUES (?, ?)',
             (email, 'homepage')
@@ -442,7 +452,7 @@ def admin_subscribers():
         return jsonify({'error': 'Unauthorized'}), 403
     _init_subscribers_db()
     try:
-        conn = sqlite3.connect(_subscribers_db_path())
+        conn = _subscribers_conn()
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             'SELECT email, source, created_at FROM subscribers ORDER BY created_at DESC'

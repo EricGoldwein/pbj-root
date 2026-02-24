@@ -88,8 +88,14 @@ except ImportError:
     validate_csrf = None
     print('Warning: Flask-WTF not installed. CSRF disabled for /subscribe. Install: pip install Flask-WTF')
 
-# Subscribers DB: SQLite in instance/ (not in repo). No public routes to read it.
+# Subscribers DB: SQLite. Set SUBSCRIBERS_DB_PATH in production (e.g. on a persistent disk) so data survives deploys.
 def _subscribers_db_path():
+    env_path = os.environ.get('SUBSCRIBERS_DB_PATH', '').strip()
+    if env_path:
+        parent = os.path.dirname(env_path)
+        if parent and not os.path.isdir(parent):
+            os.makedirs(parent, exist_ok=True)
+        return env_path
     instance = app.instance_path
     if not os.path.isdir(instance):
         os.makedirs(instance, exist_ok=True)
@@ -2338,7 +2344,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                     facility_count = int(float(_chain_fac)) if _chain_fac is not None else len(ent_facilities)
                 except (TypeError, ValueError):
                     facility_count = len(ent_facilities)
-                entity_summary_html = f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in {state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing below their respective state averages this quarter.</div>'
+                entity_summary_html = f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in {state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing below their respective state ratio this quarter.</div>'
         except Exception:
             pass
     orientation_parts = []
@@ -2864,11 +2870,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
                 p2 += f", including <strong>{rn_for_narrative:.2f}</strong> RN hours"
             if national_hprd is not None:
                 if hprd_for_narrative < national_hprd * 0.97:
-                    p2 += f", below the national average of <strong>{national_hprd:.2f} HPRD</strong>."
+                    p2 += f", below the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
                 elif hprd_for_narrative > national_hprd * 1.03:
-                    p2 += f", above the national average of <strong>{national_hprd:.2f} HPRD</strong>."
+                    p2 += f", above the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
                 else:
-                    p2 += f", near the national average of <strong>{national_hprd:.2f} HPRD</strong>."
+                    p2 += f", near the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
             else:
                 p2 += "."
         else:

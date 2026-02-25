@@ -754,8 +754,6 @@ def owner_api_proxy(api_path):
         traceback.print_exc()
         return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
-print("✓ Owner donor dashboard will load on first /owners visit (lazy); / and /health respond immediately")
-
 @app.route('/sitemap.xml')
 def sitemap():
     """Dynamic sitemap: static pages + /state/<slug> for all states + provider/entity from search_index (subset)."""
@@ -2013,7 +2011,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
-''' + chart_block('Contract staff %', 'chartContract') + '''
+''' + chart_block('Contract Staff %', 'chartContract') + '''
 <script>
 (function(){
   var d = ''' + data_esc + ''';
@@ -3605,8 +3603,8 @@ def generate_state_chart_html(state_name, state_code):
 <div class="state-page-charts">
 ''' + chart_block('Total Staffing', 'stateChartTotal', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'stateChartRN') + '''
-''' + chart_block('Resident census', 'stateChartCensus') + '''
-''' + chart_block('Contract staff %', 'stateChartContract') + '''
+''' + chart_block('Resident Census', 'stateChartCensus') + '''
+''' + chart_block('Contract Staff %', 'stateChartContract') + '''
 </div>
 <script src="/state-page-charts.js"></script>
 '''

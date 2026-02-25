@@ -1,0 +1,234 @@
+# Provider Page and State Page: Style and Structure (for Flask Replication)
+
+This document describes the **style** and **structure** of the **Provider (facility)** page and **State** page as implemented in the Streamlit PBJ apps (`PBJ_Dashboard.py`, `Internal_PBJ_Dashboard.py`, `prov_info.py`), so you can replicate the same look and flow in a Flask app.
+
+---
+
+## 1. Source of Truth
+
+| Page type   | Primary source        | Alternate / related              |
+|------------|------------------------|-----------------------------------|
+| **Provider** | `prov_info.py` → `show_facility_page()` | `PBJ_Dashboard.py` → facility-level branch in `display_metrics(level="Facility")` |
+| **State**    | `PBJ_Dashboard.py` → `display_metrics(level="State")` | Same app: state selector, state-level metrics and charts |
+| **PBJ Takeaway (facility)** | `PBJ_Dashboard.py` → `pbj_takeaway_card()` | Bordered summary card with chips + narrative; anchor `#pbj-takeaway` |
+| **PBJ Takeaway (state)**   | `Internal_PBJ_Dashboard.py` → `state_pbj_takeaway_card()` | Same pattern for state-level summary |
+
+---
+
+## 2. Shared Style Tokens
+
+Use these consistently in Flask (e.g. in `templates/dynamic_facility_dashboard.html` or a new template).
+
+### Colors
+- **Primary / header / links:** `#1976d2` (blue)
+- **Secondary / description:** `#5a6c7d`, `#666`
+- **Border / divider:** `#e3eaf3` (light blue-gray), `2.5px solid`
+- **Background (header block):** `linear-gradient(135deg, #f8fafd 0%, #e3f2fd 100%)` or `#f8f9fa` for body
+- **Chart bars:** Reported = blue; Case-Mix = red; Adjusted = green (dashed)
+- **320 Consulting / branding:** `#1769aa`
+
+### Typography
+- **Section headers:** `font-size: 1.35em`, `font-weight: 700`, `color: #1976d2`, `letter-spacing: 0.01em`
+- **Subheaders:** `st.subheader` → use Bootstrap `h4` or equivalent, bold
+- **Caption / meta:** `font-size: 0.9em`, `color: #666`
+- **Main app title:** `font-size: 2.6em`, `font-weight: 700`, `color: #1769aa`
+
+### Spacing and layout
+- **Section header:** `margin-top: 8px` (or `-30px` when directly under main header), `padding-bottom: 4px`, `border-bottom: 2.5px solid #e3eaf3`
+- **Mobile:** `@media (max-width: 768px)` — reduce font sizes, hide/show desktop vs mobile text, add `.state-page-mobile-padding` (e.g. `margin-top: 15px`)
+- **Desktop state page:** `.state-page-mobile-padding` → `margin-top: 25px`
+- **Charts:** `margin: 20px 0`, container with `border: 1px solid #e9ecef`, `border-radius: 8px`, `padding: 20px`, light box-shadow
+
+### CSS class to replicate (section header)
+```css
+.section-header {
+  margin-top: 8px;
+  font-size: 1.35em;
+  font-weight: 700;
+  color: #1976d2;
+  border-bottom: 2.5px solid #e3eaf3;
+  padding-bottom: 4px;
+  letter-spacing: 0.01em;
+}
+```
+
+---
+
+## 3. Provider (Facility) Page — Structure
+
+### 3.1 Data source
+- **prov_info:** Single facility from `provider_info_combined.csv` filtered by CCN; rows by `processing_date`; quarter from mapping (e.g. `quarter_to_provider_mapping_examples.csv`).
+- **PBJ_Dashboard facility level:** Facility-level metrics (e.g. from facility/state/national metrics CSVs or DuckDB), current quarter + previous quarter for deltas.
+
+### 3.2 Page layout (top to bottom)
+
+1. **Header block**
+   - **Title:** Facility name (e.g. from `provider_name` or `PROVNAME`) + optional quarter, e.g. `{Provname} ({Quarter name})`.
+   - **Subtitle line:** `City, State • Ownership type` (caption-style).
+   - **Optional (PBJ_Dashboard):** Second line with county, link to state page (`?state=XX`), and “Ownership:” link to entity page (`?entity=ID`) or “N/A”.
+   - **Style:** `.section-header` as above; subtitle `font-size: 0.9em`, `color: #666`, `margin-top: 4px`.
+
+2. **Quarter selector**
+   - **prov_info:** Single selectbox: “Quarter (staffing data)” — options = sorted quarters for that facility; default = latest.
+   - Use selected quarter to filter all staffing charts and tables below.
+
+3. **Charts (order and type)**
+   - **Reported vs Case-Mix (single quarter):** Grouped bar chart (Total, RN, CNA). Blue = Reported, Red = Case-Mix. Delta annotations above bars (Δ HPRD and %). Title: “Reported vs. Case-Mix (Expected)” + facility name + quarter.
+   - **Methodology blurb:** Short italic text under chart (case-mix definition, positive/negative delta meaning).
+   - **Ratings methodology:** In an expander/collapsible: “Ratings Methodology & Footnotes” (star ratings, footnote codes 1, 2, 6, 9, 10, 12, 13, 14, 18, 19).
+   - **Total Staffing longitudinal:** Line chart by quarter — Reported Total (blue), Case-Mix Total (red), Adjusted Total (green, dashed). X = quarter labels (e.g. “Q1 2021”), Y = HPRD.
+   - **RN Staffing longitudinal:** Same idea for RN (Reported / Case-Mix / Adjusted).
+   - **CNA (NA) longitudinal:** Same for NA/CNA.
+   - **Ratings over time:** Line chart — Overall, Staffing, Health Inspection ratings by quarter (if available).
+   - Chart height: ~280 (single-quarter bar), ~400 (longitudinal). Use `plotly_white` template; legend horizontal, above chart (`y=1.02`).
+
+4. **Ownership change**
+   - **Subheader:** “Ownership Change History”
+   - If any `provider_changed_ownership_in_last_12_months == "Y"`: table of processing date, category, value.
+   - Else: short message “No evidence of ownership changes found.”
+
+5. **Basic facility information**
+   - **Subheader:** “Basic Facility Information”
+   - Optional toggle: “Show basic facility information” (default on).
+   - Table: Provider Name, City, State, County, Ownership Type, For Profit, Overall/Staffing/Health Inspection Rating, Matched Quarter, Latest Processing Date. One row (latest record).
+
+6. **Complete facility data table**
+   - **Subheader:** “Complete Facility Data by Quarter”
+   - **Caption:** “All available data for this facility across all quarters”
+   - Wide table: Month/Year, Data Release Date, quarter, avg_residents_per_day, ratings, reported/case_mix/adjusted HPRD (Total, RN, LPN, NA), weekend HPRD, turnover, ownership change. Numeric columns formatted to 3 decimals.
+   - Sorted by Data Release Date descending.
+   - Optional fixed height (e.g. 400px) with scroll.
+
+7. **Summary statistics (bottom)**
+   - **Label:** “Summary Statistics:”
+   - **Columns:** e.g. 3 columns: Total Records, Quarters Covered | Latest Overall Rating, Latest Staffing Rating | (optional third column).
+   - Display as small metrics/cards.
+
+### 3.3 Provider page — Components to replicate in Flask
+- One main content column (optionally narrow right column for future use).
+- HTML: header (h1/h2) + subtitle `<p>` or `<div>` with same classes.
+- Quarter dropdown → send selection to backend; return JSON for charts or render server-side.
+- Plotly charts: same trace names and colors; same layout (title, axis labels, legend).
+- Tables: Bootstrap table or similar; optional “Show basic info” via checkbox + JS or server round-trip.
+- Expander: Bootstrap collapse or `<details>` for “Ratings Methodology & Footnotes”.
+- Horizontal rules (`<hr>` or `st.markdown("---")` equivalent) between major sections.
+
+---
+
+## 4. State Page — Structure
+
+### 4.1 Data source
+- State-level aggregated metrics (e.g. `state_lite_metrics.csv` or DuckDB state-level table): STATE, CY_Qtr, Facility_Count, State_Census, Total_Nurse_HPRD, Contract_Percentage, etc.
+- Current quarter + previous quarter for deltas.
+
+### 4.2 Page layout (top to bottom)
+
+1. **App-level header (when not state-filtered)**
+   - Centered block: “PBJ Nursing Home Staffing Dashboard”; tagline “Explore staffing trends across 15,000+ U.S. nursing homes”; “About the PBJ Dashboard” link; “320 Consulting” footer.
+   - Optional: on state page, add class `state-page-mobile-padding` (extra top margin: 15px mobile, 25px desktop).
+
+2. **State-specific section header**
+   - **Text:** “{Full State Name} Key Metrics ({Quarter name})” (e.g. “New Jersey Key Metrics (Q4 2024)”).
+   - **Mobile variant:** Short state name if needed (e.g. “D.C.” for District of Columbia).
+   - **Style:** `.section-header` (same as provider: 1.35em, 700, #1976d2, border-bottom).
+
+3. **Key metrics row (4 columns)**
+   - **Column 1 — Nursing Homes:** Count of facilities; delta vs previous quarter (e.g. “+12” or “—” for zero).
+   - **Column 2 — Resident Census:** State total census; delta vs previous quarter.
+   - **Column 3 — Nurse Staffing (HPRD):** Total nurse HPRD; delta vs previous quarter.
+   - **Column 4 — Contract Staff %:** Percentage; delta vs previous quarter.
+   - **Metric style:** Large value, optional delta with up/down arrow or “—” for no change. Help text/tooltip on each (e.g. “Total number of nursing homes during the reporting period. Arrow compares to previous quarter.”).
+
+4. **Charts**
+   - Same metric logic as national/facility: time series and distributions as appropriate for state (e.g. state HPRD over quarters, facility count, etc.). Use same colors and Plotly layout.
+
+5. **Navigation / UX**
+   - “Back to Search” or similar when arriving from search; sidebar auto-collapse on state (and facility) pages on desktop so content is full-width.
+   - State page uses same global header as rest of app; only the **section header** and **metrics/charts** are state-specific.
+
+### 4.3 State page — Components to replicate in Flask
+- One full-width main column.
+- **Section header:** `<h2>` or `<div>` with class `section-header` and optional mobile-only duplicate with different text.
+- **Metrics row:** 4 divs in a row (Bootstrap `row` / `col-3` or CSS grid). Each: label, value, optional delta; optional tooltip.
+- **Charts:** Same Plotly config as elsewhere; data from state-level API or server-rendered.
+- Optional: “Back to Search” button that links to `/?page=dashboard` or your Flask search route.
+
+---
+
+## 5. PBJ Takeaway Card — Style and Structure
+
+The **PBJ Takeaway** is a compact, bordered summary card on **facility** and **state** pages: one-glance narrative (HPRD vs state/case-mix or national, trend, and “put another way” staff counts). Replicate it in Flask so provider and state pages keep the same “brief” experience.
+
+### 5.1 Where it appears and anchor
+
+- **Facility / State page:** Card near the top of the content. Use **`id="pbj-takeaway"`** on the card wrapper so the floating button can jump to it.
+- **Floating button:** Fixed (e.g. `top: 80px; right: 18.5px; z-index: 1000`). Label: **“PBJ Takeaway”** (desktop), **“PBJ Brief”** (mobile). Link: `#pbj-takeaway`. Style: gradient `#1976d2` → `#42a5f5`, white text, rounded pill, arrow “→”. Optional: fade/hide after delay via JS.
+
+### 5.2 Container and title row
+
+- **Container:** Bordered box; padding; position relative if you use an absolute badge.
+- **Title row:** Flex, align center. Optional: PBJ icon 24×24px, then **“PBJ Takeaway: {facility name}”** or **“PBJ Takeaway: {state name}”**. Title: `font-size: 16px`, `font-weight: bold`, `margin-bottom: 10px`.
+
+### 5.3 Chip (pill) style
+
+- **Base:** `display: inline-block`, `padding: 2px 8px`, `border-radius: 999px`, `font-weight: 600`, `font-size: 0.85rem`, `margin-right: 6px`.
+- **Tones:** good `#065f46`/`#ecfdf5`, warn `#7c2d12`/`#fff7ed`, neutral `#334155`/`#f1f5f9`.
+- **Special:** High Risk = red `#dc2626` bg (facility, when `is_high_risk`). Ownership Change = amber `#fef3c7`/`#92400e` (facility). Entity link = blue pill linking to entity page. State page: optional “State Standard: X HPRD” chip from MACPAC.
+
+### 5.4 Facility PBJ Takeaway — Content order
+
+1. Title: “PBJ Takeaway: {Facility Name}”.
+2. **Chips:** High Risk (if any) → Total HPRD (📈/📉) → {State} HPRD → Census → Contract → Ownership type → Entity (link) → Ownership Change (if any).
+3. **Narrative:** “**{Facility}**’s reported **{X.XX} hours per resident day** (≈ {Y.Y} residents per total staff) in {Quarter}{trend}{census trend}. This level is {above/below/around} the {State} ratio of {state_hprd} and {above/below/around} its case-mix (expected) {casemix_hprd}.” (If no case-mix: “… CMS did not report case-mix data …”.)
+4. **“Put another way…”:** “On a typical **30-bed floor** at {facility} you’d see about **{N} staff**, including ~{M} nurse aides. For the entire {census}-resident facility, that’s about {total_staff} total staff, including ~{aides} nurse aides.”
+5. *Note: staffing varies by day and shift…*
+6. **High-risk factors (if any):** “**⚠️ High-Risk Factors:** 1-Star, SFF, …”
+7. **320 Consulting** badge (small, bottom-right of card).
+
+**Inputs:** facility name, reported_hprd, quarter_label, state_name, state_hprd, casemix_hprd, census, contract, trend_delta, census_trend, previous_year, ownership_type, affiliated_entity, affiliated_entity_id, high_risk_indicators, ownership_change.
+
+### 5.5 State PBJ Takeaway — Content order
+
+1. Title: “PBJ Takeaway: {State Name}”.
+2. **Chips:** {State} HPRD (📈/📉) → National HPRD → State Rank (#k of n) → optional State Standard chip.
+3. **Narrative:** “**{State}**’s reported **{X.XX} hours per resident day** (≈ {Y.Y} residents per total staff) in {Quarter}{trend}. This level is {above/below/around} the national ratio of {national_hprd} HPRD and ranks **#{rank}** out of {total_states} states.”
+4. **“Put another way…”:** 30-bed floor + average {State} facility size staff/aide counts.
+5. *Note:* same as facility.
+6. **320 Consulting** badge.
+
+**Inputs:** state_name, reported_hprd, quarter_label, national_hprd, state_rank, total_states, trend_delta, previous_year, aide_share, floor_beds (30), avg_facility_size (e.g. 100). Optional: state standard from MACPAC.
+
+### 5.6 Flask replication notes
+
+- Add `<div id="pbj-takeaway">` (or similar) around the card for the floating button link.
+- Implement `_classify(reported, benchmark)` → “above”/“below”/“around” and `_fmt(val, decimals)` for numbers and trend/census sentences.
+- Chips: HTML or a small component with label, value, tone, optional link.
+
+---
+
+## 6. Replication Checklist for Flask
+
+- [ ] **Colors / CSS:** Add `.section-header` and shared color variables (e.g. `#1976d2`, `#e3eaf3`, `#1769aa`) to your Flask template or static CSS.
+- [ ] **Provider page:** Route (e.g. `/facility/<ccn>` or `/?facility=CCN`); template with header (name + quarter), quarter dropdown, Reported vs Case-Mix bar chart, longitudinal line charts (Total, RN, CNA), ratings chart, ownership table, basic info table, full data table, summary metrics.
+- [ ] **State page:** Route (e.g. `/state/<code>` or `/?state=XX`); template with state section header, 4-metric row, then charts.
+- [ ] **Charts:** Serve Plotly via `plotly.json` or `Plotly.newPlot` in JS; or server-side render to image. Keep same trace names and colors (blue/red/green).
+- [ ] **Responsive:** Media query 768px; optional desktop/mobile text swap and state-page top padding.
+- [ ] **Data:** Flask endpoints that return facility-level and state-level metrics (and quarters) so the templates or JS can drive the same structure as Streamlit (e.g. `/api/facility/<ccn>/metrics`, `/api/state/<code>/metrics`).
+- [ ] **PBJ Takeaway:** Add `id="pbj-takeaway"` card (facility and state) with chips, narrative, “Put another way…”, note, and 320 badge; optional floating “PBJ Takeaway” / “PBJ Brief” button linking to `#pbj-takeaway`.
+
+---
+
+## 7. File References (Streamlit)
+
+| Item | File | Function / area |
+|------|------|------------------|
+| Provider page layout | `prov_info.py` | `show_facility_page()` (lines ~397–1230) |
+| Facility header (name, county, state, entity) | `PBJ_Dashboard.py` | `display_metrics()` level "Facility" (~2484–2532) |
+| State header & metrics | `PBJ_Dashboard.py` | `display_metrics()` level "State" (~2432–2471), metrics (~2578–2665) |
+| **PBJ Takeaway (facility)** | `PBJ_Dashboard.py` | `pbj_takeaway_card()` (~559–735); floating button ~4620–4647 |
+| **PBJ Takeaway (state)** | `Internal_PBJ_Dashboard.py` | `state_pbj_takeaway_card()` (~552–741); floating button ~4105–4134 |
+| Section header CSS | `PBJ_Dashboard.py` | `display_metrics()` state/facility markdown blocks |
+| Search tabs (Facility / State / Ownership) | `PBJ_Dashboard.py` | Tabs and state/facility selectors (~4056–4170) |
+| Flask facility template (reference style) | `templates/dynamic_facility_dashboard.html` | Bootstrap, chart-container, table-container, disclaimers |
+
+Using this doc you can replicate the **provider** and **state** page **style and structure** in a Flask app (templates, routes, and APIs) while keeping the same look and information hierarchy as the Streamlit apps.

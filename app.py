@@ -3276,8 +3276,22 @@ def get_state_historical_data(state_code):
             direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 2) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
             rn_data.append(round_half_up(float(row['RN_HPRD']), 2) if pd.notna(row.get('RN_HPRD')) else None)
             rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 2) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
-            census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
-            census_data.append(round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None)
+            # State resident census: resident_census (fallback sum), total_resident_days/90, or facility_count * avg_daily_census
+            resident_census = None
+            if 'resident_census' in cols and pd.notna(row.get('resident_census')):
+                resident_census = round_half_up(float(row['resident_census']), 0)
+            if resident_census is None and 'total_resident_days' in cols and pd.notna(row.get('total_resident_days')):
+                trd = float(row['total_resident_days'])
+                if trd >= 0:
+                    resident_census = round_half_up(trd / 90, 0)
+            if resident_census is None and 'facility_count' in cols and pd.notna(row.get('facility_count')):
+                census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
+                if census_col in cols and pd.notna(row.get(census_col)):
+                    resident_census = round_half_up(float(row['facility_count']) * float(row[census_col]), 0)
+            if resident_census is None:
+                census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
+                resident_census = round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None
+            census_data.append(int(resident_census) if resident_census is not None and (pd.notna(resident_census) if hasattr(pd, 'notna') else resident_census == resident_census) and resident_census >= 0 else None)
             contract_data.append(round_half_up(float(row['Contract_Percentage']), 2) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else None)
         return {
             'raw_quarters': raw_quarters,
@@ -3321,8 +3335,10 @@ def get_state_historical_data(state_code):
         agg = sub.groupby('CY_Qtr', as_index=False).agg(agg_dict)
         census_col = 'avg_daily_census' if 'avg_daily_census' in sub.columns else ('Census' if 'Census' in sub.columns else None)
         if census_col and census_col in sub.columns:
-            census_means = sub.groupby('CY_Qtr')[census_col].mean()
-            agg = agg.merge(census_means.rename('avg_daily_census'), left_on='CY_Qtr', right_index=True, how='left')
+            # State resident census = sum of facility census per quarter (not mean)
+            census_sums = sub.groupby('CY_Qtr')[census_col].sum()
+            agg = agg.merge(census_sums.rename('resident_census'), left_on='CY_Qtr', right_index=True, how='left')
+            agg['resident_census'] = agg['resident_census'].round(0)
         state_rows = agg.sort_values('CY_Qtr')
         return build_result(state_rows, state_rows.columns)
     except Exception as e:
@@ -3589,7 +3605,7 @@ def generate_state_chart_html(state_name, state_code):
 <div class="state-page-charts">
 ''' + chart_block('Total Staffing', 'stateChartTotal', total_staffing_footer) + '''
 ''' + chart_block('RN Staffing', 'stateChartRN') + '''
-''' + chart_block('Census', 'stateChartCensus') + '''
+''' + chart_block('Resident census', 'stateChartCensus') + '''
 ''' + chart_block('Contract staff %', 'stateChartContract') + '''
 </div>
 <script src="/state-page-charts.js"></script>

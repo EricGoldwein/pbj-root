@@ -56,7 +56,7 @@
         };
       }
 
-      function makeLineTime(id, quarters, datasets, yTitle, directCareSuffix) {
+      function makeLineTime(id, quarters, datasets, yTitle, directCareSuffix, integerFormat) {
         var ctx = document.getElementById(id);
         if (!ctx || !quarters || !quarters.length) return;
         var spanYears = getSpanYears(quarters);
@@ -72,6 +72,9 @@
             spanGaps: false
           };
         });
+        var formatValue = integerFormat
+          ? function(v) { return (typeof v === "number" && !isNaN(v)) ? Math.round(v).toLocaleString() : (v != null ? String(v) : ""); }
+          : function(v) { return (typeof v === "number" && !isNaN(v)) ? (Math.round(v * 100) / 100).toFixed(2) : (v != null ? v : ""); };
         new Chart(ctx.getContext("2d"), {
           type: "line",
           data: { datasets: timeDatasets },
@@ -91,8 +94,7 @@
                   },
                   label: function(context) {
                     var v = context.parsed.y;
-                    if (typeof v === "number" && !isNaN(v)) return context.dataset.label + ": " + (Math.round(v * 100) / 100).toFixed(2);
-                    return context.dataset.label + ": " + (v != null ? v : "");
+                    return context.dataset.label + ": " + formatValue(v);
                   },
                   afterBody: function(tooltipItems) {
                     if (!directCareSuffix) return null;
@@ -107,7 +109,14 @@
             scales: {
               y: {
                 beginAtZero: false,
-                ticks: { color: textColor },
+                ticks: {
+                  color: textColor,
+                  callback: integerFormat ? function(value) {
+                    var n = Number(value);
+                    if (!isFinite(n)) return value;
+                    return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                  } : undefined
+                },
                 grid: { color: gridColor },
                 title: { display: !!yTitle, text: yTitle || "", color: textColor }
               },
@@ -152,8 +161,8 @@
       }
       if (d.census && d.census.length) {
         makeLineTime("stateChartCensus", quarters, [
-          { label: "Avg daily census", data: d.census, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false }
-        ], "Census", null);
+          { label: "Resident census", data: d.census, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false }
+        ], "Resident census", null, true);
       }
       if (d.contract && d.contract.length) {
         makeLineTime("stateChartContract", quarters, [

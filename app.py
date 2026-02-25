@@ -2056,7 +2056,6 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       }
       if (d.getMonth() !== 0 || d.getDate() !== 1) return '';
       var y = d.getFullYear();
-      if (isMobile && (y - 2017) % 2 !== 0) return '';
       return '' + y;
     };
   }

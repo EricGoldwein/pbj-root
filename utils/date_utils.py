@@ -18,7 +18,7 @@ def get_latest_data_periods():
         dict: Dictionary containing:
             - data_range: String range like '2017-2025' (from actual data)
             - quarter_count: Integer count of quarters (from actual data)
-            - provider_info_latest: Latest provider info date (e.g., 'September 2025')
+            - provider_info_latest: Latest provider info date (e.g., 'February 2026')
             - provider_info_previous: Previous provider info date (e.g., 'June 2025')
             - affiliated_entity_latest: Latest affiliated entity date (e.g., 'July 2025')
             - current_year: Current year as integer

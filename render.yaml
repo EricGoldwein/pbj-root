@@ -3,7 +3,7 @@ services:
   - type: web
     name: pbj
     runtime: python
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && cd pbj-wrapped && npm install && npm run build
     startCommand: gunicorn app:app -c gunicorn_config.py --bind 0.0.0.0:10000
     healthCheckPath: /health
     envVars:

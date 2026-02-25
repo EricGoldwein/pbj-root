@@ -1378,11 +1378,12 @@
           if (first) first.focus();
         }
       }
-      document.querySelectorAll('.pbj-contact-form-trigger').forEach(function(btn) { btn.addEventListener('click', openContact); });
+      document.querySelectorAll('.pbj-contact-form-trigger').forEach(function(btn) { btn.addEventListener('click', function(e) { e.preventDefault(); openContact(); }); });
       closeBtn.addEventListener('click', function() { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); });
       overlay.addEventListener('click', function(e) { if (e.target === overlay) { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); } });
       form.addEventListener('submit', function() { document.body.style.overflow = ''; });
       var params = new URLSearchParams(window.location.search);
+      if (params.get('open') === 'contact') { setTimeout(openContact, 100); }
       if (params.get('contact_sent') === '1') {
         var toast = document.createElement('div');
         toast.className = 'contact-toast';

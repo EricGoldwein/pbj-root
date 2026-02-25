@@ -124,9 +124,17 @@ def _subscribers_conn():
     conn.execute('PRAGMA busy_timeout=5000')
     return conn
 
+_subscribers_path_logged = False
+
 def _init_subscribers_db():
     """Create subscribers table if not exists. Called on first use."""
+    global _subscribers_path_logged
     path = _subscribers_db_path()
+    if not _subscribers_path_logged:
+        import logging
+        persistent = bool(os.environ.get('SUBSCRIBERS_DB_PATH', '').strip())
+        logging.getLogger(__name__).info('Subscribers DB: %s%s', path, ' (persistent)' if persistent else ' (ephemeral if not SUBSCRIBERS_DB_PATH)')
+        _subscribers_path_logged = True
     conn = sqlite3.connect(path, timeout=10.0)
     conn.execute('PRAGMA busy_timeout=5000')
     conn.execute('PRAGMA journal_mode=WAL')
@@ -360,7 +368,8 @@ def _send_subscribe_notification(email_address, source='homepage'):
                 s.login(user, password)
             s.sendmail(from_addr, to_list, msg.encode('utf-8'))
     except Exception as e:
-        print(f'Subscribe notification email failed: {e}')
+        import logging
+        logging.getLogger(__name__).warning('Subscribe notification email failed: %s', e)
 
 
 def _send_contact_email(sender_email, sender_name, message_body, is_press=False):
@@ -380,7 +389,13 @@ def _send_contact_email(sender_email, sender_name, message_body, is_press=False)
     user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
     password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
     from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
-    subject = f"PRESS REQUEST: {sender_name}" if is_press else f"PBJ320 Request: {sender_name}"
+    subject_type = (request.form.get('subject_type') or '').strip().lower() if request.form else ''
+    if subject_type == 'data_issue':
+        subject = 'PBJ320 Data Issue'
+    elif is_press:
+        subject = f"PRESS REQUEST: {sender_name}"
+    else:
+        subject = f"PBJ320 Request: {sender_name}"
     lines = [
         f"Name: {sender_name}",
         f"Email: {sender_email}",
@@ -422,25 +437,37 @@ def subscribe():
     if not _EMAIL_RE.match(email):
         return redirect('/?subscribe_error=invalid')
     _init_subscribers_db()
+    conn = _subscribers_conn()
     try:
-        conn = _subscribers_conn()
-        conn.execute(
-            'INSERT INTO subscribers (email, source) VALUES (?, ?)',
-            (email, 'homepage')
-        )
-        conn.commit()
-        conn.close()
+        for attempt in range(2):
+            try:
+                conn.execute(
+                    'INSERT INTO subscribers (email, source) VALUES (?, ?)',
+                    (email, 'homepage')
+                )
+                conn.commit()
+                break
+            except sqlite3.OperationalError as e:
+                if 'locked' in str(e).lower() and attempt == 0:
+                    time.sleep(0.25)
+                    continue
+                raise
         _send_subscribe_notification(email, 'homepage')
+        return redirect('/?subscribed=1')
     except sqlite3.IntegrityError:
         # Duplicate: treat as success (idempotent; don't leak existence)
-        pass
+        return redirect('/?subscribed=1')
     except Exception as e:
         if app.debug:
             raise
         import logging
         logging.getLogger(__name__).warning('Subscribe failed: %s', e, exc_info=True)
         return redirect('/?subscribe_error=error')
-    return redirect('/?subscribed=1')
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 @app.route('/admin/subscribers')
@@ -451,13 +478,12 @@ def admin_subscribers():
     if not admin_key or request.args.get('key') != admin_key:
         return jsonify({'error': 'Unauthorized'}), 403
     _init_subscribers_db()
+    conn = _subscribers_conn()
     try:
-        conn = _subscribers_conn()
         conn.row_factory = sqlite3.Row
         rows = conn.execute(
             'SELECT email, source, created_at FROM subscribers ORDER BY created_at DESC'
         ).fetchall()
-        conn.close()
         data = [{'email': r['email'], 'source': r['source'] or '', 'created_at': r['created_at'] or ''} for r in rows]
         # Browser: return HTML table; API: return JSON
         accept = request.headers.get('Accept', '') or ''
@@ -487,6 +513,11 @@ th {{ background: #1e293b; color: #93c5fd; }}</style>
         return make_response(html_page, 200, {'Content-Type': 'text/html; charset=utf-8'})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def _contact_redirect(path_fragment, param_value):
@@ -1449,7 +1480,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   <footer class="pbj-footer">
     <p><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories.</p>
     <div style="display: flex; justify-content: center; align-items: center; gap: 20px; margin-top: 0.5rem;">
-      <a href="/contact" class="pbj-contact-cta" title="Contact form" aria-label="Contact us"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
+      <a href="#" class="pbj-contact-cta pbj-contact-trigger" role="button" title="Contact form" aria-label="Contact us"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>
       <a href="sms:+19298084996" title="SMS: (929) 804-4996" aria-label="Text (929) 804-4996"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity: 0.8;" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>
       <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
       <a href="https://320insight.substack.com/" target="_blank" rel="noopener" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" style="width: 24px; height: 24px; object-fit: contain; opacity: 0.8;"></a>
@@ -1462,6 +1493,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       <form action="/contact" method="POST" class="contact-popup-form" id="pbj-contact-popup-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
         <input type="hidden" name="next" id="pbj-contact-next" value="">
+        <input type="hidden" name="subject_type" id="pbj-contact-subject-type" value="">
         <div class="f-group">
           <label for="pbj-popup-name">Name <span style="color:#f87171">*</span></label>
           <input type="text" id="pbj-popup-name" name="name" required autocomplete="name" maxlength="200">
@@ -1497,9 +1529,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     var messageEl = document.getElementById('pbj-popup-message');
     if (!overlay || !dialog) return;
     function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
-    function openContact(topic) {
+    function openContact(topic, subjectType) {
       var nextEl = document.getElementById('pbj-contact-next');
       if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
+      var subjectEl = document.getElementById('pbj-contact-subject-type');
+      if (subjectEl) subjectEl.value = subjectType || '';
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       if (messageEl && topic) messageEl.value = topic;
@@ -1526,7 +1560,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     var nextEl = document.getElementById('pbj-contact-next');
     if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
     document.querySelectorAll('.pbj-contact-trigger').forEach(function(btn) {
-      btn.addEventListener('click', function(e) { e.preventDefault(); openContact(btn.getAttribute('data-topic') || ''); });
+      btn.addEventListener('click', function(e) { e.preventDefault(); openContact(btn.getAttribute('data-topic') || '', btn.getAttribute('data-subject-type') || ''); });
     });
     if (closeBtn) closeBtn.addEventListener('click', closeContact);
     overlay.addEventListener('click', function(e) { if (e.target === overlay) closeContact(); });
@@ -1717,7 +1751,7 @@ def render_methodology_block():
 </ul>
 <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: rgba(226,232,240,0.8);">Note: Some states set minimums (e.g., NJ, CA, NY at 3.5 HPRD); a federal 3.48 minimum was recently overturned (2025). A 2001 federal study linked 4.1 HPRD to better outcomes in that study. Staffing needs vary by resident acuity (case-mix), day, and shift. Estimates on PBJ Takeaway assume roughly 60% of staff are CNAs.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #93c5fd;">Data transparency</p>
-<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="/contact" style="color: #93c5fd;">let me know via the contact form</a> so I can set things right.</p>
+<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="#" class="pbj-contact-trigger" data-topic="Data issue or possible bug (please describe what looks wrong and where)." data-subject-type="data_issue" style="color: #93c5fd;" role="button">let me know via the contact form</a> so I can set things right.</p>
 </div>
 </details>'''
 
@@ -1959,7 +1993,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
     total_staffing_footer = '''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
 <span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums are based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
-<span class="pbj-chart-footnote-mobile">State min. based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON. State min. based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
 </p>'''
     def chart_block(title, canvas_id, footer=''):
         out = '<div class="pbj-chart-container" style="margin-bottom:1.5rem;">' + chart_header(title) + '<div class="pbj-chart-wrapper"><canvas id="' + canvas_id + '"></canvas></div>'
@@ -2248,7 +2282,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         reported_hprd_fmt = f'{round_half_up(reported_total or 0, 2):.2f}'
         casemix_hprd_fmt = f'{round_half_up(case_mix_total, 2):.2f}'
         pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
-        line1 = f'<p class="pbj-percentile" style="{note_style}">Reported staffing HPRD ({reported_hprd_fmt}) is {pct_fmt}% of case-mix ({casemix_hprd_fmt}).</p>'
+        line1 = f'<p class="pbj-percentile" style="{note_style}">Reported HPRD ({reported_hprd_fmt}) is {pct_fmt}% of case-mix ({casemix_hprd_fmt}).</p>'
         below_reported_casemix = f'<div class="pbj-chart-notes">{line1}</div>'
     elif case_mix_total is None:
         below_reported_casemix = f'<div class="pbj-chart-notes"><p class="pbj-percentile" style="{note_style}">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p></div>'
@@ -2277,7 +2311,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         floor_staff = max(0.1, _f if _f is not None else floor_staff_raw)
         _fa = round_half_up(floor_aides_raw, 1)
         floor_aides = max(0, _fa if _fa is not None else 0)
-        put_another_way = f'On a typical <strong>30-bed floor</strong> at {facility_name} you’d see about <strong>{floor_staff:.1f}</strong> staff, including ~{floor_aides:.1f} nurse aides. For the entire {census_int:,}-resident facility, that’s about {total_staff:.1f} total staff, including ~{aides:.1f} nurse aides.'
+        put_another_way = f'On a typical <strong>30-bed floor</strong> at {facility_name} you’d see about <strong>{floor_staff:.1f}</strong> staff, including {floor_aides:.1f} nurse aides. For the entire {census_int:,}-resident facility, that’s about {total_staff:.1f} total staff, including {aides:.1f} nurse aides.'
     else:
         put_another_way = f'Staffing counts depend on census and HPRD; see key metrics above for this facility’s reported HPRD.'
     narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
@@ -2335,7 +2369,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
     if state_pct_phrase:
-        state_ratio_str = f' (state ratio: {state_hprd_placeholder} HPRD)' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
+        state_ratio_str = f' (state HPRD: {state_hprd_placeholder})' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
         # When case-mix is missing, the narrative is a full sentence; add percentile as a second sentence. Otherwise join with "and".
         if case_mix_total is None:
             narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + state_ratio_str + '.'
@@ -3525,7 +3559,7 @@ def generate_state_chart_html(state_name, state_code):
     macpac_hprd = get_macpac_hprd_for_state(state_code) if state_code else None
     if macpac_hprd is not None and macpac_hprd >= 1.5:
         min_str = f'~{macpac_hprd:.2f}'
-        state_min_phrase = f' State minimum ({state_code_esc}: {min_str} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a>.'
+        state_min_phrase = f' State min. ({min_str} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC</a>.'
     else:
         state_min_phrase = ''
     total_staffing_footer = f'''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
@@ -3996,13 +4030,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         floor_staff = max(0.1, _fs if _fs is not None else 30 * cur_hprd / 24)
         _fa = round_half_up(30 * (state_na_hprd or 0) / 24, 1) if state_na_hprd is not None else None
         floor_aides = max(0, _fa if _fa is not None else 0)
-        state_put_another_way = f"On a 30-bed floor at a typical {html.escape(state_name)} nursing home you'd see about <strong>{floor_staff:.1f} staff members</strong>, including ~{floor_aides:.1f} nurse aides."
+        state_put_another_way = f"On a 30-bed floor at a typical {html.escape(state_name)} nursing home you'd see about <strong>{floor_staff:.1f} staff members</strong>, including {floor_aides:.1f} nurse aides."
         if avg_facility_census and avg_facility_census > 0:
             _fst = round_half_up(avg_facility_census * cur_hprd / 24, 1)
             fac_staff = max(1, _fst if _fst is not None else avg_facility_census * cur_hprd / 24)
             _fai = round_half_up(fac_staff * (state_na_hprd or 0) / cur_hprd, 1) if state_na_hprd is not None else None
             fac_aides = max(0, _fai if _fai is not None else 0)
-            state_put_another_way += f" For the entire {avg_facility_census}-resident facility ({html.escape(state_name)} average), that's about {fac_staff:.1f} total staff, including ~{fac_aides:.1f} nurse aides."
+            state_put_another_way += f" For the entire {avg_facility_census}-resident facility ({html.escape(state_name)} average), that's about {fac_staff:.1f} total staff, including {fac_aides:.1f} nurse aides."
         state_put_another_way = '<p style="margin: 0.5rem 0 0 0; color: #e2e8f0;"><strong>Put another way…</strong> ' + state_put_another_way + '</p>'
     # Badge order: HPRD (rank), RN HPRD, contract %, then state min
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
@@ -4067,7 +4101,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
-    <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD ({quarter})</p>
+    <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details">
@@ -4950,7 +4984,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="/contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+            <a href="/about?open=contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
         </p>
     </div>
     <script>
@@ -6415,7 +6449,7 @@ def pbjpedia_page(page):
             <div style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.5em; margin: 2em 0;">
                 <h3 style="margin-top: 0; font-size: 1.1em;">Custom PBJ Analysis for Attorneys & Journalists</h3>
                 <p>320 Consulting offers custom reports and dashboards with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. Check out a <a href="https://pbj320-395258.vercel.app/" target="_blank" rel="noopener">sample dashboard</a>.</p>
-                <p><strong>Contact:</strong> <a href="/contact">Contact form</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)</p>
+                <p><strong>Contact:</strong> <a href="/about?open=contact">Contact form</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)</p>
                 <p style="margin-bottom: 0;"><strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it.</p>
             </div>
             <div class="categories">
@@ -6431,7 +6465,7 @@ def pbjpedia_page(page):
             <a href="/about">About PBJ320</a> | 
             <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
             <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="/contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+            <a href="/about?open=contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
         </p>
     </div>
     <script>

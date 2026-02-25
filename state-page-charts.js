@@ -63,7 +63,7 @@
         var ctx = document.getElementById(id);
         if (!ctx || !quarters || !quarters.length) return;
         var spanYears = getSpanYears(quarters);
-        var maxTicks = window.innerWidth < 768 ? Math.min(8, Math.max(4, Math.ceil(spanYears / 2))) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
+        var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
         var timeDatasets = datasets.map(function(ds) {
           return {
             label: ds.label,

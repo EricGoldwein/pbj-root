@@ -66,8 +66,8 @@ def get_latest_data_periods():
     return {
         'data_range': data_range,
         'quarter_count': quarter_count,
-        'provider_info_latest': 'September 2025',  # TODO: Move to config file if needed
-        'provider_info_previous': 'June 2025',  # TODO: Move to config file if needed
+        'provider_info_latest': 'February 2026',  # NH_ProviderInfo_Feb2026.csv (ratings update; staffing same as combined)
+        'provider_info_previous': 'January 2026',  # TODO: Move to config file if needed
         'affiliated_entity_latest': 'July 2025',  # TODO: Move to config file if needed
         'current_year': current_year
     }
@@ -80,4 +80,4 @@ def get_latest_update_month_year():
     """
     # For now, return a hardcoded value as per user request.
     # In a real application, this would be derived from the latest data available.
-    return "January 2026"
+    return "February 2026"

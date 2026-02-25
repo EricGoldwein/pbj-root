@@ -44,7 +44,6 @@
       function timeTickCallback(quarters) {
         var spanYears = getSpanYears(quarters);
         var showQuarters = spanYears < 2;
-        var isMobile = window.innerWidth < 768;
         return function(value) {
           var date = new Date(value);
           if (showQuarters) {
@@ -53,9 +52,7 @@
             return y + " Q" + q;
           }
           if (date.getMonth() !== 0 || date.getDate() !== 1) return "";
-          var y = date.getFullYear();
-          if (isMobile && (y - 2017) % 2 !== 0) return "";
-          return "" + y;
+          return "" + date.getFullYear();
         };
       }
 

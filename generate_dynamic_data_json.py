@@ -181,7 +181,7 @@ def main():
     }
     with open('latest_quarter_data.json', 'w', encoding='utf-8') as f:
         json.dump(latest_data, f, indent=2)
-    print(f"[OK] Created latest_quarter_data.json (Q2 2025 data)")
+    print(f"[OK] Created latest_quarter_data.json ({latest_quarter_display})")
     
     # 5. States list for dropdown
     states_list = ['USA'] + sorted([STATE_NAMES[abbr] for abbr in state_abbrs])

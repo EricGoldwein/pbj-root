@@ -1,7 +1,6 @@
 {
   "quarter": "2025Q3",
   "quarter_display": "Q3 2025",
-  "quarters": ["2025Q3", "2025Q2", "2025Q1"],
   "national_hprd": 3.774,
   "highest_state": {
     "name": "Alaska",

@@ -199,7 +199,9 @@ def get_built_assets():
         return {'scripts': '', 'stylesheets': ''}
 
 def get_dynamic_dates():
-    """Get dynamic date information"""
+    """Get dynamic date information. Used by /api/dynamic-dates (SFF page source text, quarter discovery).
+    data_range and quarter_count come from national_quarterly_metrics.csv when available;
+    provider_info_* and affiliated_entity_* are from utils.date_utils (hardcoded there)."""
     try:
         return get_latest_data_periods()
     except Exception as e:
@@ -207,8 +209,8 @@ def get_dynamic_dates():
         return {
             'data_range': '2017-2025',
             'quarter_count': 33,
-            'provider_info_latest': 'September 2025',
-            'provider_info_previous': 'June 2025',
+            'provider_info_latest': 'February 2026',
+            'provider_info_previous': 'January 2026',
             'affiliated_entity_latest': 'July 2025',
             'current_year': 2025
         }
@@ -1105,6 +1107,8 @@ def load_provider_info():
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Feb2026.csv'),
+        'provider_info/NH_ProviderInfo_Feb2026.csv',
         os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
         'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]
@@ -1992,8 +1996,8 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     # One bordered box per chart: title + facility name, canvas, optional footer (e.g. Total Staffing MACPAC note)
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
     total_staffing_footer = '''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
-<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums are based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
-<span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON. State min. based on <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> and may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums via <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC (2022)</a> may reflect calculated HPRD equivalents.</span>
+<span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON. State minimums via <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC</a> may reflect calculated HPRD equivalents.</span>
 </p>'''
     def chart_block(title, canvas_id, footer=''):
         out = '<div class="pbj-chart-container" style="margin-bottom:1.5rem;">' + chart_header(title) + '<div class="pbj-chart-wrapper"><canvas id="' + canvas_id + '"></canvas></div>'
@@ -2575,6 +2579,8 @@ def load_entity_facilities(entity_id):
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Feb2026.csv'),
+        'provider_info/NH_ProviderInfo_Feb2026.csv',
         os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
         'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]

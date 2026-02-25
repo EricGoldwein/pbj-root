@@ -108,9 +108,26 @@ def main():
             
             if latest_row:
                 hprd = float(latest_row['Total_Nurse_HPRD'])
+                residents = None
+                if 'total_resident_days' in latest_row and latest_row.get('total_resident_days'):
+                    try:
+                        trd = float(latest_row['total_resident_days'])
+                        if trd >= 0:
+                            residents = int(round(trd / 90))
+                    except (ValueError, TypeError):
+                        pass
+                if residents is None and 'facility_count' in latest_row and 'avg_daily_census' in latest_row:
+                    try:
+                        fc = float(latest_row['facility_count'])
+                        adc = float(latest_row.get('avg_daily_census') or latest_row.get('Avg_Daily_Census') or 0)
+                        if fc >= 0 and adc >= 0:
+                            residents = int(round(fc * adc))
+                    except (ValueError, TypeError):
+                        pass
                 latest_state_data[state_name] = {
                     'hprd': round(hprd, 3),
-                    'name': state_name
+                    'name': state_name,
+                    'residents': residents
                 }
     
     # Get latest national data

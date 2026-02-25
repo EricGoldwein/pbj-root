@@ -1601,7 +1601,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     contact_display = '(929) 804-4996'
     header_text = ""
     sub_text_desktop = "Request custom PBJ analysis for litigation and investigative reporting."
-    sub_text_mobile = "Request custom PBJ analysis for litigation."
+    sub_text_mobile = "Request custom PBJ analysis."
     footer_text = ""
 
     def mailto(subject, body):
@@ -3826,7 +3826,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         total_sff = len(sff_facilities)
         sff_section = f"""
     <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Special Focus Facilities (SFF) Program</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Special Focus Facilities</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">{state_name} has facilities in the Special Focus Facility program. Select a tab to view Current SFFs, Candidates, Graduates, or facilities no longer in Medicare/Medicaid.</p>
     <div class="sff-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
@@ -4124,7 +4124,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {state_name} Staffing Metrics ({quarter})</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {state_name} PBJ Metrics</summary>
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">
         <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>

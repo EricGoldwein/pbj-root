@@ -1300,6 +1300,12 @@
     .home-search-results a:hover { background: rgba(96, 165, 250, 0.15); color: #93c5fd; }
     .home-search-results a.high-risk { color: #fca5a5; }
     .home-search-results a.high-risk:hover { color: #fecaca; }
+    .home-search-results .pbj-search-desktop-only { display: inline; }
+    .home-search-results .pbj-search-mobile-only { display: none; }
+    @media (max-width: 768px) {
+      .home-search-results .pbj-search-desktop-only { display: none; }
+      .home-search-results .pbj-search-mobile-only { display: inline; }
+    }
     .home-search-nav-loading {
       display: none;
       position: fixed;
@@ -2037,8 +2043,14 @@
               const url = DASHBOARD_BASE + '/entity/' + encodeURIComponent(entityId);
               var fc = row.fc != null ? row.fc : 0;
               var label = titleCase(row.n || '') + ' (ID: ' + entityId + ')';
-              if (fc > 0) label += ' — ' + fc + ' NH' + (fc === 1 ? '' : 's');
-              out.push({ url: url, label: label, highRisk: false });
+              if (fc > 0) {
+                label += ' — ' + fc + ' NH' + (fc === 1 ? '' : 's');
+                var fcStr = Number(fc).toLocaleString();
+                var labelHtml = escapeHtml(titleCase(row.n || '')) + ' (ID: ' + escapeHtml(String(entityId)) + ') — ' + fcStr + ' <span class="pbj-search-desktop-only">Providers</span><span class="pbj-search-mobile-only">NH' + (fc === 1 ? '' : 's') + '</span>';
+                out.push({ url: url, label: label, labelHtml: labelHtml, highRisk: false });
+              } else {
+                out.push({ url: url, label: label, highRisk: false });
+              }
             }
           } else {
             const limit = 15;
@@ -2052,11 +2064,16 @@
               count++;
               var stateSlug = (row.n || '').toLowerCase().replace(/\s+/g, '-');
               const url = stateSlug ? (DASHBOARD_BASE + '/state/' + encodeURIComponent(stateSlug)) : (DASHBOARD_BASE + '/state/' + encodeURIComponent(row.abbr || ''));
+              var stateName = row.n || row.abbr;
               var nhCount = searchIndex.f.filter(function(r) { return (r.s || '') === row.abbr; }).length;
               var hprdArr = stateHprdData && stateHprdData[row.abbr];
               var hprd = (hprdArr && hprdArr.length) ? hprdArr[hprdArr.length - 1] : null;
-              var label = (row.n || row.abbr) + ' (' + row.abbr + ') ' + nhCount + ' NHs, ' + (hprd != null ? (Math.round(Number(hprd) * 100) / 100).toFixed(2) : '—') + ' HPRD';
-              out.push({ url: url, label: label, highRisk: false });
+              var hprdStr = hprd != null ? (Math.round(Number(hprd) * 100) / 100).toFixed(2) : '—';
+              var nhNumStr = nhCount >= 0 ? Number(nhCount).toLocaleString() : '';
+              var nhStr = nhNumStr ? ' (' + nhNumStr + ' NHs)' : '';
+              var label = stateName + ' - ' + hprdStr + ' HPRD' + nhStr;
+              var labelHtml = nhNumStr ? (escapeHtml(stateName) + ' - ' + hprdStr + ' HPRD (' + nhNumStr + ' <span class="pbj-search-desktop-only">Providers</span><span class="pbj-search-mobile-only">NHs</span>)') : null;
+              out.push({ url: url, label: label, labelHtml: labelHtml || undefined, highRisk: false });
             }
           }
           if (out.length === 0) {
@@ -2065,7 +2082,8 @@
           } else {
             resultsEl.innerHTML = out.map(function(r) {
               var cls = r.highRisk ? 'high-risk' : '';
-              return '<a href="' + escapeHtml(r.url) + '" role="option"' + (cls ? ' class="' + cls + '"' : '') + '>' + escapeHtml(r.label) + '</a>';
+              var content = r.labelHtml != null ? r.labelHtml : escapeHtml(r.label);
+              return '<a href="' + escapeHtml(r.url) + '" role="option"' + (cls ? ' class="' + cls + '"' : '') + '>' + content + '</a>';
             }).join('');
           }
           resultsEl.setAttribute('data-open', 'true');

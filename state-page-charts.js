@@ -111,11 +111,12 @@
                 beginAtZero: false,
                 ticks: {
                   color: textColor,
-                  callback: integerFormat ? function(value) {
+                  callback: function(value) {
                     var n = Number(value);
                     if (!isFinite(n)) return value;
-                    return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-                  } : undefined
+                    if (integerFormat) return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                    return (Math.round(n * 100) / 100).toFixed(2);
+                  }
                 },
                 grid: { color: gridColor },
                 title: { display: !!yTitle, text: yTitle || "", color: textColor }

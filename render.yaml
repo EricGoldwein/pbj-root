@@ -1,5 +1,4 @@
-# Render: bind to PORT so port scan and /health both work.
-# Start command binds explicitly so Render detects the port reliably (no script indirection).
+# Render: must bind 0.0.0.0:10000 so port scan and /health work. Procfile must match.
 services:
   - type: web
     name: pbj

@@ -680,12 +680,24 @@ def owner_proxy(path):
         return "Owner dashboard unavailable. Please check server logs.", 503
     if path.startswith('api/'):
         api_path = path[4:]
-        with owner_app.test_request_context(f'/api/{api_path}',
-                                             method=request.method,
-                                             query_string=request.query_string.decode(),
-                                             data=request.get_data(),
-                                             content_type=request.content_type,
-                                             headers=list(request.headers)):
+        # For POST/PUT, pass body explicitly so sub-app always receives it (avoids empty body on Render).
+        req_data = None
+        req_json = None
+        if request.method in ('POST', 'PUT'):
+            raw = request.get_data()
+            if request.is_json and raw:
+                req_json = request.get_json(silent=True) or None
+            if req_json is None and raw:
+                req_data = raw
+        with owner_app.test_request_context(
+            f'/api/{api_path}',
+            method=request.method,
+            query_string=request.query_string.decode(),
+            json=req_json,
+            data=req_data,
+            content_type=request.content_type,
+            headers=list(request.headers)
+        ):
             return owner_app.full_dispatch_request()
     elif path == '':
         with owner_app.test_request_context('/', method=request.method):

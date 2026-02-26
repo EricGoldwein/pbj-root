@@ -1155,6 +1155,40 @@ def index_test():
     return render_template('owner_donor_dashboard_test.html')
 
 
+def _normalize_associate_id(val):
+    """Normalize associate_id_owner to 10-digit string for URL/lookup (strip O/o, digits only). Returns 10-char string or empty."""
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return ''
+    s = str(val).strip().replace('O', '').replace('o', '')
+    digits = re.sub(r'[^0-9]', '', s)
+    return digits if len(digits) == 10 else (digits.zfill(10) if len(digits) < 10 and digits else '')
+
+
+@app.route('/<owner_id>')
+def owner_page(owner_id):
+    """Owner detail page by CMS unique ID (associate_id_owner, 10-digit). Canonical URL: /owners/<id>. Tracked in GA."""
+    if owner_id in ('', 'top', 'api'):
+        from flask import abort
+        abort(404)
+    # Only accept 10-digit CMS owner ID
+    normalized = _normalize_associate_id(owner_id)
+    if len(normalized) != 10 or not normalized.isdigit():
+        from flask import abort
+        abort(404)
+    ensure_load_data()
+    if owners_df is None or owners_df.empty or 'associate_id_owner' not in owners_df.columns:
+        from flask import abort
+        abort(404)
+    # Match by normalized associate_id_owner
+    mask = owners_df['associate_id_owner'].astype(str).apply(lambda x: _normalize_associate_id(x) == normalized)
+    owner = owners_df[mask]
+    if owner.empty:
+        from flask import abort
+        abort(404)
+    # Pass CMS ID so template can load owner and set GA page_path
+    return render_template('owner_donor_dashboard.html', initial_owner_id=normalized)
+
+
 @app.route('/api/autocomplete')
 def autocomplete():
     """Provide autocomplete suggestions for search"""
@@ -2759,17 +2793,15 @@ def get_owner_details(owner_name):
     
     # Lookup by associate_id_owner (PAC ID) - 10-digit numeric. Internal use, soft connect.
     if 'associate_id_owner' in owners_df.columns:
-        query_stripped = owner_name.strip().replace('O', '').replace('o', '')
-        if query_stripped.isdigit() and len(query_stripped) == 10:
-            owner = owners_df[owners_df['associate_id_owner'].astype(str).str.strip() == query_stripped]
+        query_normalized = _normalize_associate_id(owner_name)
+        if query_normalized:
+            owner = owners_df[owners_df['associate_id_owner'].astype(str).apply(lambda x: _normalize_associate_id(x) == query_normalized)]
             if not owner.empty:
                 owner_row = owner.iloc[0]
                 display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', '')) or owner_row.get('owner_name', '')
                 # Fall through to facilities/donations logic below - we have owner_row
             else:
-                owner = pd.DataFrame()  # Not found
-        else:
-            owner = pd.DataFrame()
+                owner = pd.DataFrame()
     else:
         owner = pd.DataFrame()
     

@@ -6,7 +6,7 @@
     <title>Nursing Home Owner Political Contributions Search | PBJ320</title>
     <meta name="description" content="Search nursing home owners and view their political contributions. Explore ownership data and campaign contributions from nursing home operators.">
     <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
-    <link rel="canonical" href="https://pbj320.com/owners">
+    <link rel="canonical" href="https://www.pbj320.com/owners{% if initial_owner_id %}/{{ initial_owner_id }}{% endif %}">
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
     
     <!-- Google tag (gtag.js) -->
@@ -1078,7 +1078,7 @@
         }
     </style>
 </head>
-<body>
+<body{% if initial_owner_id %} data-initial-owner-id="{{ initial_owner_id }}"{% endif %}>
     <!-- Navigation -->
     <nav class="navbar" style="background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #1e40af; margin: 0;">
         <div class="nav-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px;">
@@ -2360,9 +2360,8 @@
                 const donationSummary = owner.donations.length > 0 
                     ? `${owner.donations.length} ${owner.donations.length === 1 ? 'donation' : 'donations'} totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
                     : 'No contributions found';
-                
-                html += `
-                    <div class="result-card" onclick="showOwnerDetails('${owner.owner_name.replace(/'/g, "\\'")}')" style="cursor: pointer;">
+                const ownerId = (function() { const s = String(owner.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                const cardContent = `
                         <div style="display: flex; justify-content: space-between; align-items: start;">
                             <div>
                                 <div style="font-size: 1.1rem; font-weight: 600; color: white; margin-bottom: 0.3rem;">
@@ -2386,8 +2385,12 @@
                                 </div>
                             ` : ''}
                         </div>
-                    </div>
-                `;
+                    `;
+                if (ownerId) {
+                    html += `<a href="/owners/${ownerId}" class="result-card" style="cursor: pointer; text-decoration: none; color: inherit; display: block;">${cardContent}</a>`;
+                } else {
+                    html += `<div class="result-card" onclick="showOwnerDetails('${owner.owner_name.replace(/'/g, "\\'")}')" style="cursor: pointer;">${cardContent}</div>`;
+                }
             });
             
             container.innerHTML = html;
@@ -2752,8 +2755,9 @@
                 return;
             }
             
-            container.innerHTML = headerHtml + results.map(result => `
-                <div class="result-card">
+            container.innerHTML = headerHtml + results.map(result => {
+                const ownerId = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                const cardInner = `
                     <div class="result-header">
                         <div>
                             <div class="owner-name">${escapeHtml(result.owner_name)}</div>
@@ -2766,9 +2770,10 @@
                             ${result.facilities.length > 3 ? ` and ${result.facilities.length - 3} more` : ''}
                         </div>
                     ` : ''}
-                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;" onclick="event.stopPropagation(); event.preventDefault();">
                         <button 
-                            onclick="event.stopPropagation(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" 
+                            type="button"
+                            onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" 
                             class="query-fec-btn" 
                             style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
                         >
@@ -2783,8 +2788,11 @@
                             Providers (${result.num_facilities})
                         </button>
                     </div>
-                </div>
-            `).join('');
+                `;
+                return ownerId
+                    ? `<a href="/owners/${ownerId}" class="result-card" style="text-decoration: none; color: inherit; display: block;">${cardInner}</a>`
+                    : `<div class="result-card">${cardInner}</div>`;
+            }).join('');
         }
 
         // Show owner details
@@ -2820,6 +2828,15 @@
                 
                 currentOwner = owner;
                 document.getElementById('ownerTitle').textContent = owner.owner_name;
+                
+                // GA: track owner page view (canonical URL /owners/<cms_id>)
+                if (window.INITIAL_OWNER_ID) {
+                    const cmsId = String(owner.associate_id_owner || '').replace(/[^0-9]/g, '').padStart(10, '0');
+                    if (cmsId === window.INITIAL_OWNER_ID && typeof gtag === 'function') {
+                        gtag('config', 'G-NDPVY6TWBK', { page_path: '/owners/' + window.INITIAL_OWNER_ID, page_title: (owner.owner_name || 'Owner') + ' | PBJ320' });
+                        document.title = (owner.owner_name || 'Owner') + ' | PBJ320';
+                    }
+                }
                 
                 // Show facilities in a polished table (skip portfolio summary - redundant)
                 // Ensure facilities is an array (filter out null/undefined)
@@ -3608,8 +3625,17 @@
         // Load stats on page load
         loadStats();
 
-        // If URL has ?owner=... (e.g. from "Linked Providers" link in new tab), show that owner's providers
+        // If canonical owner page (/owners/<cms_id>), load that owner and set GA
         (function checkOwnerParam() {
+            var initialId = document.body.getAttribute('data-initial-owner-id');
+            if (initialId && initialId.trim()) { window.INITIAL_OWNER_ID = initialId.trim(); }
+            if (window.INITIAL_OWNER_ID && typeof showOwnerDetails === 'function') {
+                showOwnerDetails(window.INITIAL_OWNER_ID);
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState(null, '', '/owners/' + window.INITIAL_OWNER_ID);
+                }
+                return;
+            }
             const params = new URLSearchParams(window.location.search);
             const owner = params.get('owner');
             if (owner && typeof showOwnerDetails === 'function') {

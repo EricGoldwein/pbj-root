@@ -58,7 +58,9 @@ OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Full 2
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
 OWNERSHIP_NORM_PARQUET = BASE_DIR / "donor" / "output" / "ownership_normalized.parquet"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
-PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"  # Has Legal Business Name
+PROVIDER_INFO_DIR = BASE_DIR / "provider_info"  # NH_ProviderInfo_<Month><Year>.csv — we use the most recent
+# Fallback if no file in provider_info/ (e.g. old deploy)
+PROVIDER_INFO_LATEST_FALLBACK = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
 FACILITY_NAME_MAPPING_PARQUET = BASE_DIR / "donor" / "output" / "facility_name_mapping.parquet"
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
@@ -94,6 +96,7 @@ ownership_df = None
 ownership_raw_df = None  # Raw ownership file for provider matching
 provider_info_df = None
 provider_info_latest_df = None  # Latest provider info with Legal Business Name
+provider_info_source_label = None  # e.g. "Feb. 2026" for display under facilities table
 facility_name_mapping_df = None  # Pre-computed mapping
 entity_lookup_df = None
 donations_df = None
@@ -103,6 +106,42 @@ facility_metrics_df = None
 _owner_data_loaded = False
 _owner_data_lock = threading.Lock()
 _fec_cache_lock = threading.Lock()
+
+# Month suffix in NH_ProviderInfo_<Month><Year>.csv (order for sorting)
+_PROVIDER_INFO_MONTHS = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+
+def _get_latest_provider_info_path():
+    """
+    Return (path, label) for the most recent NH_ProviderInfo_<Month><Year>.csv in provider_info/.
+    label is e.g. "Feb. 2026" for display. Returns (None, None) if no matching file.
+    """
+    if not PROVIDER_INFO_DIR.is_dir():
+        return (None, None)
+    candidates = []
+    for p in PROVIDER_INFO_DIR.glob("NH_ProviderInfo_*.csv"):
+        stem = p.stem  # e.g. NH_ProviderInfo_Feb2026
+        prefix = "NH_ProviderInfo_"
+        if not stem.startswith(prefix):
+            continue
+        rest = stem[len(prefix):]  # e.g. Feb2026
+        for i, mon in enumerate(_PROVIDER_INFO_MONTHS, start=1):
+            if rest.startswith(mon) and len(rest) > len(mon):
+                year_str = rest[len(mon):]
+                if year_str.isdigit() and len(year_str) == 4:
+                    year = int(year_str)
+                    candidates.append((p, (year, i), mon, year))
+                    break
+    if not candidates:
+        return (None, None)
+    # Sort by (year, month) descending; take latest
+    candidates.sort(key=lambda x: (x[1][0], x[1][1]), reverse=True)
+    path, _, mon, year = candidates[0]
+    label = f"{mon}. {year}"
+    return (path, label)
 
 
 def ensure_load_data():
@@ -1067,18 +1106,34 @@ def load_data():
                 provider_info_df = pd.DataFrame()
     
     # Load latest provider info with Legal Business Name (for facility matching)
-    global provider_info_latest_df
-    if PROVIDER_INFO_LATEST.exists():
+    # Use most recent NH_ProviderInfo_<Month><Year>.csv in provider_info/
+    global provider_info_latest_df, provider_info_source_label
+    provider_info_source_label = None
+    latest_path, latest_label = _get_latest_provider_info_path()
+    if latest_path is None and PROVIDER_INFO_LATEST_FALLBACK.exists():
+        latest_path = PROVIDER_INFO_LATEST_FALLBACK
+        # Derive label from filename, e.g. NH_ProviderInfo_Jan2026 -> Jan. 2026
+        stem = latest_path.stem
+        for mon in _PROVIDER_INFO_MONTHS:
+            if mon in stem:
+                rest = stem.split(mon)[-1]
+                if rest.isdigit() and len(rest) == 4:
+                    latest_label = f"{mon}. {rest}"
+                    break
+        if latest_label is None:
+            latest_label = "Provider Info"
+    if latest_path is not None and latest_path.exists():
         try:
-            print(f"Loading latest provider info with Legal Business Name: {PROVIDER_INFO_LATEST}")
+            print(f"Loading latest provider info with Legal Business Name: {latest_path}")
             try:
-                provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='utf-8')
+                provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8')
             except UnicodeDecodeError:
                 try:
-                    provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='utf-8-sig')
+                    provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
-                    provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"[OK] Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
+                    provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='latin-1')
+            provider_info_source_label = latest_label or "Provider Info"
+            print(f"[OK] Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name) — {provider_info_source_label}")
             # Validate expected columns so renames/missing columns fail fast
             if not provider_info_latest_df.empty:
                 required = ['Legal Business Name']
@@ -1093,7 +1148,10 @@ def load_data():
             print(f"[FAIL] Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()
     else:
-        print(f"[WARN] Latest provider info not found: {PROVIDER_INFO_LATEST}")
+        if latest_path is None:
+            print(f"[WARN] No NH_ProviderInfo_<Month><Year>.csv found in {PROVIDER_INFO_DIR}")
+        else:
+            print(f"[WARN] Latest provider info not found: {latest_path}")
         provider_info_latest_df = pd.DataFrame()
     
     # Load pre-computed facility name mapping (if exists - speeds up matching)
@@ -3319,7 +3377,8 @@ def get_owner_details(owner_name):
         'has_preprocessed_donations': len(donations) > 0,
         'is_equity_owner': owner_row.get('is_equity_owner', False) if 'is_equity_owner' in owner_row else False,
         'is_officer': owner_row.get('is_officer', False) if 'is_officer' in owner_row else False,
-        'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else ''
+        'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else '',
+        'provider_info_source_label': provider_info_source_label or 'Provider Info',
     }
     if 'associate_id_owner' in owner_row.index and pd.notna(owner_row.get('associate_id_owner')):
         response_data['associate_id_owner'] = str(owner_row.get('associate_id_owner', '')).strip()

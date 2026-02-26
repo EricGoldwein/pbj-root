@@ -432,6 +432,14 @@
             min-width: 0;
             justify-content: flex-start;
         }
+        .details-header-title-row.has-fec-cta {
+            justify-content: center;
+        }
+        .details-header-title-row.has-fec-cta .header-fec-wrap .query-fec-btn {
+            font-size: 1.25rem;
+            font-weight: 600;
+            padding: 0.75rem 1.75rem;
+        }
         .header-fec-wrap { flex-shrink: 0; }
         .header-fec-wrap .query-fec-btn {
             font-size: 1.1rem;
@@ -677,6 +685,27 @@
             .back-btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
         }
         
+        .providers-affiliated-line {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.65);
+            margin: 0 0 0.35rem 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.2rem;
+        }
+        .facilities-top-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 0.35rem;
+        }
+        .facilities-top-row .providers-affiliated-line { margin: 0; }
+        @media (max-width: 768px) {
+            #facilitiesFecBtnSlot { display: none !important; }
+        }
         .facilities-table thead {
             background: rgba(102, 126, 234, 0.2);
         }
@@ -717,6 +746,14 @@
         
         .facilities-table tbody tr:last-child td {
             border-bottom: none;
+        }
+        
+        .facilities-table-source {
+            margin: 0.75rem 0 0;
+            padding: 0;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+            line-height: 1.4;
         }
         
         .facility-link {
@@ -1163,7 +1200,7 @@
                 <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA</span>
             </div>
             <p style="margin: 0.5rem auto 0; font-size: 0.8rem; font-weight: 400; color: rgba(255,255,255,0.55); max-width: 700px; line-height: 1.4; text-align: center;">
-                Note: This tool is in beta and may contain matching errors or incomplete data. Click <strong>View on FEC</strong> next to each donation to verify.
+                Note: This tool is in beta and may contain matching errors or incomplete data. Click <strong>FEC</strong> source links to verify.
             </p>
             <p style="margin: 0.5rem auto 0; font-size: 0.9rem; font-weight: 500; text-align: center;">
                 <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #60a5fa; text-decoration: none; padding: 0.35rem 0.6rem; border-radius: 4px; border: 1px solid rgba(102,126,234,0.5); background: rgba(102,126,234,0.15);">Verify on FEC →</a>
@@ -2361,6 +2398,7 @@
             } finally {
                 btn.disabled = false;
                 btn.textContent = 'Search';
+                requestAnimationFrame(function() { requestAnimationFrame(function() { window.scrollTo(0, 0); }); });
             }
         }
         
@@ -2669,7 +2707,7 @@
                 var isFirst = i === 0;
                 var isLast = i === words.length - 1;
                 if (!raw) return '';
-                var isAcronym = ownerAcronymStems.indexOf(wNorm) !== -1 || (raw.length >= 2 && raw.length <= 5 && /^[A-Za-z.]+$/.test(raw) && raw === raw.toUpperCase());
+                var isAcronym = ownerAcronymStems.indexOf(wNorm) !== -1;
                 if (isAcronym) return raw.toUpperCase();
                 if (raw.length === 1) return raw.toUpperCase();
                 if (!isFirst && !isLast && ownerSmallWords.indexOf(wNorm) !== -1) return raw.toLowerCase();
@@ -2955,12 +2993,16 @@
             document.getElementById('detailsSection').style.display = 'block';
             var ctaBlock = document.getElementById('ownerFecCtaBlock');
             var headerFec = document.getElementById('headerFecBtnWrap');
+            var titleRow = document.querySelector('.details-header-title-row');
+            var ownerTitleEl = document.getElementById('ownerTitle');
+            if (ownerTitleEl) ownerTitleEl.style.display = '';
+            if (titleRow) titleRow.classList.remove('has-fec-cta');
             if (headerFec) headerFec.innerHTML = '';
             if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
             document.getElementById('donationsContainer').style.display = 'block';
             document.getElementById('donationsContainer').innerHTML = '<div class="loading">Loading...</div>';
             document.getElementById('facilitiesContainer').innerHTML = '';
-            document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            requestAnimationFrame(function() { requestAnimationFrame(function() { window.scrollTo(0, 0); }); });
             
             try {
                 const response = await fetch(`/owners/api/owner/${encodeURIComponent(ownerName)}`);
@@ -2999,14 +3041,17 @@
                 // Ensure facilities is an array (filter out null/undefined)
                 const facilities = (Array.isArray(owner.facilities) ? owner.facilities : []).filter(function(f) { return f != null; });
                 const ownerDisplayName = toTitleCaseOwnerName((owner.owner_name || owner.owner_name_original || 'this owner').trim());
-                const providersTitle = 'Providers affiliated with ' + escapeHtml(ownerDisplayName) + ' (' + facilities.length + ')';
+                const providersTitle = facilities.length + ' providers affiliated with ' + escapeHtml(ownerDisplayName);
                 const providersLimitations = 'Affiliation is from CMS ownership data; provider names may differ from legal business names.';
                 const limitsUid = 'prov-limits-' + Math.random().toString(36).slice(2);
                 const touch = 'ontouchstart' in window;
                 const limitsHoverOn = touch ? '' : (' onmouseenter="showDonorPopup(\'' + limitsUid + '\')" onmouseleave="hideDonorPopup(\'' + limitsUid + '\')"');
                 const infoIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
                 const facilitiesHtml = facilities.length > 0 ? `
-                    <h3 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">${providersTitle}<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.15rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"${limitsHoverOn} onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup('${limitsUid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${limitsUid}')}" style="cursor:pointer;padding:0.2rem;color:rgba(255,255,255,0.7);line-height:0;">${infoIconSvg}</span><div id="${limitsUid}" class="donor-popup">${escapeHtml(providersLimitations)}</div></span></h3>
+                    <div class="facilities-top-row">
+                        <p class="providers-affiliated-line">${providersTitle}<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.2rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"${limitsHoverOn} onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup('${limitsUid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${limitsUid}')}" style="cursor:pointer;padding:0.15rem;color:rgba(255,255,255,0.6);line-height:0;">${infoIconSvg}</span><div id="${limitsUid}" class="donor-popup">${escapeHtml(providersLimitations)}</div></span></p>
+                        <span id="facilitiesFecBtnSlot"></span>
+                    </div>
                     <div style="overflow-x: auto;">
                         <table class="facilities-table">
                             <thead>
@@ -3096,11 +3141,16 @@
                             </tbody>
                         </table>
                     </div>
+                    <p class="facilities-table-source">Source: <a href="https://data.cms.gov/provider-data/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">CMS Provider Info</a> (${escapeHtml((owner.provider_info_source_label || 'Provider Info').trim())}).</p>
                 ` : '<p style="color: rgba(255,255,255,0.7);">No facilities found.</p>';
                 
                 // Display donations FIRST (above facilities)
                 var ctaBlock = document.getElementById('ownerFecCtaBlock');
                 var headerWrap = document.getElementById('headerFecBtnWrap');
+                var titleRow = document.querySelector('.details-header-title-row');
+                var ownerTitleEl = document.getElementById('ownerTitle');
+                if (ownerTitleEl) ownerTitleEl.style.display = '';
+                if (titleRow) titleRow.classList.remove('has-fec-cta');
                 if (headerWrap) headerWrap.innerHTML = '';
                 if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
                 document.getElementById('donationsContainer').style.display = 'block';
@@ -3117,9 +3167,8 @@
                     }
                 } else {
                     const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
-                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">View Political Contributions</button>';
-                    var headerWrap = document.getElementById('headerFecBtnWrap');
-                    if (headerWrap) headerWrap.innerHTML = fecBtn;
+                    const fecBtnText = 'View ' + displayName + ' Political Contributions';
+                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">' + escapeHtml(fecBtnText) + '</button>';
                     if (ctaBlock) { ctaBlock.innerHTML = fecBtn; ctaBlock.style.display = 'block'; ctaBlock.classList.add('has-fec-btn'); }
                     document.getElementById('donationsContainer').innerHTML = '';
                     document.getElementById('donationsContainer').style.display = 'none';
@@ -3127,6 +3176,13 @@
                 
                 // Display facilities AFTER donations
                 document.getElementById('facilitiesContainer').innerHTML = facilitiesHtml;
+                if (!owner.donations || owner.donations.length === 0) {
+                    const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
+                    const fecBtnText = 'View ' + displayName + ' Political Contributions';
+                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">' + escapeHtml(fecBtnText) + '</button>';
+                    var slot = document.getElementById('facilitiesFecBtnSlot');
+                    if (slot) slot.innerHTML = fecBtn;
+                }
                 
             } catch (error) {
                 showError('Error loading owner details: ' + error.message);
@@ -3142,12 +3198,12 @@
                 return;
             }
             
+            const ownerName = currentOwner ? (currentOwner.owner_name_original || currentOwner.owner_name || '') : '';
             const namesSearchedLine = (namesSearched && namesSearched.length > 0)
-                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(String(n).replace(/\s+/g, ' ').trim())).join(', ') + '.</p>'
+                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
                 : '';
             
             // FEC query uses original name (as in CMS/filings) when available
-            const ownerName = currentOwner ? (currentOwner.owner_name_original || currentOwner.owner_name || '') : '';
             
             // Generate FEC API search URL for verification
             let fecApiSearchUrl = '';
@@ -3398,13 +3454,13 @@
                 if (ctaEl) { ctaEl.style.display = 'none'; ctaEl.classList.remove('has-fec-btn'); }
                 var headerFecEl = document.getElementById('headerFecBtnWrap');
                 if (headerFecEl) headerFecEl.innerHTML = '';
-                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations such as with/without middle initial). The FEC API can take 30–90 seconds; please wait.</div>';
+                targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations). FEC search can take 30–90 seconds; please wait.</div>';
             } else {
                 const resultsContainer = document.getElementById('resultsContainer');
                 const donationsDiv = document.createElement('div');
                 donationsDiv.id = 'tempDonationsDisplay_' + ownerName.replace(/[^a-zA-Z0-9]/g, '_');
                 donationsDiv.style.cssText = 'background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin: 1rem 0; border: 2px solid rgba(102, 126, 234, 0.3);';
-                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations such as with/without middle initial). The FEC API can take 30–90 seconds; please wait.</div>';
+                donationsDiv.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations). FEC search can take 30–90 seconds; please wait.</div>';
                 resultsContainer.insertBefore(donationsDiv, resultsContainer.firstChild);
                 targetContainer = donationsDiv;
             }
@@ -3465,9 +3521,11 @@
         
         // Display donations in a specific container (for search results)
         function displayDonationsInContainer(donations, total, count, container, ownerName = '', ownerType = 'ORGANIZATION', namesSearched = null) {
+            var displayOwnerName = toTitleCaseOwnerName(ownerName || '');
+            if (!displayOwnerName) displayOwnerName = ownerName || '';
             if (!donations || donations.length === 0) {
                 const searchedLine = (namesSearched && namesSearched.length > 0)
-                    ? ' <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">(Searched: ' + namesSearched.map(n => escapeHtml(String(n).replace(/\s+/g, ' ').trim())).join(', ') + '.)</span>'
+                    ? ' <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">(Searched: ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.)</span>'
                     : '';
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.' + searchedLine + '</p>';
                 return;
@@ -3486,7 +3544,7 @@
             const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
             const donationCount = count !== null ? count : donations.length;
             const namesSearchedLine = (namesSearched && namesSearched.length > 0)
-                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(String(n).replace(/\s+/g, ' ').trim())).join(', ') + '.</p>'
+                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
                 : '';
             
             // Group by recipient for summary
@@ -3568,7 +3626,7 @@
             const isMobile = window.innerWidth <= 768;
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
-                    ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
+                    ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(displayOwnerName)}</h3>`}
                     <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: -0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕'}</button>
                     ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
@@ -3677,12 +3735,10 @@
                         <button type="button" id="donationsPrevBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage - 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; display: none;" disabled>Prev</button>
                         <button type="button" id="donationsNextBtn" onclick="if(window.showDonationsPage) window.showDonationsPage(window.currentDonationsPage + 1)" style="background: rgba(102,126,234,0.3); border: 1px solid rgba(102,126,234,0.5); color: white; padding: 0.35rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; ${Math.ceil(donations.length / 20) <= 1 ? 'display: none;' : ''}">Next</button>
                     ` : ''}
-                    <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: underline; font-size: 0.85rem;">Export CSV</a>
                 </div>
-                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); text-align: center;">
-                    <p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin: 0;">
-                        Source: <a href="${fecIndividualContributionsUrl(ownerName, ownerType)}" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a>
-                    </p>
+                <div class="donations-export-source-row" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <a href="${csvUrl}" download="donations_${ownerName.replace(/[^a-zA-Z0-9]/g, '_')}.csv" style="color: #667eea; text-decoration: none; font-size: 0.85rem; font-weight: 500;">Export CSV</a>
+                    <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 0.85rem;">Source: <a href="${fecIndividualContributionsUrl(ownerName, ownerType)}" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission</a></p>
                 </div>
             `;
         }

@@ -3092,16 +3092,21 @@ def query_fec():
     NOT called during initial load or when viewing owner details.
     """
     try:
-        # Handle both direct requests and proxied requests
+        # Handle both direct requests and proxied requests. Use get_json(silent=True)
+        # so we never raise BadRequest (which would be caught by main app's 400 handler
+        # and returned as plain "Bad Request" instead of JSON).
+        raw = request.get_data()
+        if not raw or (isinstance(raw, bytes) and not raw.strip()) or (isinstance(raw, str) and not raw.strip()):
+            return jsonify({'error': 'Request body required'}), 400
         if request.is_json:
-            data = request.json
+            data = request.get_json(silent=True)
+            if data is None:
+                return jsonify({'error': 'Invalid JSON in request body'}), 400
         else:
-            # Try to parse JSON from raw data
             try:
                 data = json.loads(request.get_data(as_text=True))
-            except:
+            except Exception:
                 return jsonify({'error': 'Invalid JSON in request body'}), 400
-        
         if not data:
             return jsonify({'error': 'Request body required'}), 400
 

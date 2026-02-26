@@ -416,40 +416,51 @@
 
         .details-header {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
             flex-wrap: wrap;
-            gap: 1rem;
+            gap: 0.75rem;
         }
-        .details-header-title-row {
+        .details-header-center {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-width: 0;
+        }
+        .details-header-right {
+            flex-shrink: 0;
             display: flex;
             align-items: center;
-            gap: 1rem;
-            flex: 1;
+            justify-content: flex-end;
             min-width: 0;
-            justify-content: flex-start;
         }
-        .details-header-title-row.has-fec-cta {
-            justify-content: center;
+        .details-header-right .providers-affiliated-line {
+            margin: 0;
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            text-align: right;
         }
-        .details-header-title-row.has-fec-cta .header-fec-wrap .query-fec-btn {
-            font-size: 1.25rem;
+        .details-header-center .query-fec-btn {
+            font-size: 1.35rem;
             font-weight: 600;
             padding: 0.75rem 1.75rem;
-        }
-        .header-fec-wrap { flex-shrink: 0; }
-        .header-fec-wrap .query-fec-btn {
-            font-size: 1.1rem;
-            font-weight: 600;
-            padding: 0.6rem 1.35rem;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
         }
-        .header-fec-wrap .query-fec-btn:hover {
+        .details-header-center .query-fec-btn:hover {
             box-shadow: 0 4px 12px rgba(102, 126, 234, 0.45);
+        }
+        .details-header-owner-title.visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
         }
         .owner-fec-cta-block {
             text-align: center;
@@ -459,14 +470,32 @@
         .owner-fec-cta-block .query-fec-btn {
             padding: 0.75rem 1.5rem;
             font-size: 1.05rem;
+            font-weight: 500;
+        }
+        .donations-container-zone {
+            margin-top: 0.25rem;
+            margin-bottom: 0.75rem;
         }
         @media (max-width: 768px) {
-            .header-fec-wrap { display: none !important; }
-            .owner-fec-cta-block.has-fec-btn { padding: 0.2rem 1rem 0.35rem; margin-bottom: 0.2rem; margin-top: -0.15rem; }
-            .details-header { margin-bottom: 0.75rem; }
+            .details-header-center { display: none !important; }
+            .details-header-right { display: none !important; }
+            .owner-fec-cta-block.has-fec-btn { padding: 0.35rem 1rem 0.5rem; margin-bottom: 0.25rem; margin-top: 0; }
+            .owner-fec-cta-block .query-fec-btn {
+                font-size: 1.1rem;
+                font-weight: 600;
+                padding: 0.7rem 1.25rem;
+                white-space: normal;
+                line-height: 1.35;
+            }
+            .fec-btn-break-mobile {
+                display: block;
+            }
+            .details-header { margin-bottom: 0.5rem; }
         }
         @media (min-width: 769px) {
             .owner-fec-cta-block.has-fec-btn { display: none !important; }
+            .providers-above-table { display: none !important; }
+            .fec-btn-break-mobile { display: none; }
         }
 
         .back-btn {
@@ -687,24 +716,45 @@
         
         .providers-affiliated-line {
             font-size: 0.85rem;
-            color: rgba(255, 255, 255, 0.65);
+        }
+        .providers-above-table {
+            font-size: 0.8rem;
             margin: 0 0 0.35rem 0;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.2rem;
+            color: rgba(255,255,255,0.75);
         }
-        .facilities-top-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            margin-bottom: 0.35rem;
+        .facilities-table-collapsed tbody tr:nth-child(n+21) {
+            display: none;
         }
-        .facilities-top-row .providers-affiliated-line { margin: 0; }
+        .facilities-expand-wrap {
+            margin-top: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .facilities-expand-btn {
+            background: rgba(102, 126, 234, 0.25);
+            border: 1px solid rgba(102, 126, 234, 0.5);
+            color: white;
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .facilities-expand-btn:hover {
+            background: rgba(102, 126, 234, 0.4);
+        }
+        .providers-affiliated-line.providers-above-table {
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.75);
+            margin: 0 0 0.35rem 0;
+        }
         @media (max-width: 768px) {
-            #facilitiesFecBtnSlot { display: none !important; }
+            .providers-above-table {
+                text-align: center;
+                margin: 0 0 0.2rem 0;
+            }
+            #facilitiesContainer {
+                margin-top: 0.25rem;
+                padding-top: 0;
+            }
         }
         .facilities-table thead {
             background: rgba(102, 126, 234, 0.2);
@@ -1264,13 +1314,12 @@
         <div id="detailsSection" class="details-section" style="display: none;">
             <div class="details-header">
                 <a href="/owners" class="back-btn" style="text-decoration: none; color: inherit; flex-shrink: 0;"><span class="back-btn-desktop">← Back to search</span><span class="back-btn-mobile">Back</span></a>
-                <div class="details-header-title-row">
-                    <h2 id="ownerTitle" style="margin: 0; flex: 0 1 auto; min-width: 0;">{% if initial_owner_id %}Loading...{% endif %}</h2>
-                    <span id="headerFecBtnWrap" class="header-fec-wrap"></span>
-                </div>
+                <div class="details-header-center" id="headerFecBtnWrap" aria-hidden="true"></div>
+                <div class="details-header-right" id="headerProvidersSlot"></div>
+                <h2 id="ownerTitle" class="details-header-owner-title visually-hidden" style="margin: 0;">{% if initial_owner_id %}Loading...{% endif %}</h2>
             </div>
             <div id="ownerFecCtaBlock" class="owner-fec-cta-block" style="display: none;"></div>
-            <div id="donationsContainer">{% if initial_owner_id %}<div class="loading">Loading...</div>{% endif %}</div>
+            <div id="donationsContainer" class="donations-container-zone">{% if initial_owner_id %}<div class="loading">Loading...</div>{% endif %}</div>
             <div id="facilitiesContainer"></div>
         </div>
     </div>
@@ -2993,11 +3042,9 @@
             document.getElementById('detailsSection').style.display = 'block';
             var ctaBlock = document.getElementById('ownerFecCtaBlock');
             var headerFec = document.getElementById('headerFecBtnWrap');
-            var titleRow = document.querySelector('.details-header-title-row');
-            var ownerTitleEl = document.getElementById('ownerTitle');
-            if (ownerTitleEl) ownerTitleEl.style.display = '';
-            if (titleRow) titleRow.classList.remove('has-fec-cta');
             if (headerFec) headerFec.innerHTML = '';
+            var headerProvSlot = document.getElementById('headerProvidersSlot');
+            if (headerProvSlot) headerProvSlot.innerHTML = '';
             if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
             document.getElementById('donationsContainer').style.display = 'block';
             document.getElementById('donationsContainer').innerHTML = '<div class="loading">Loading...</div>';
@@ -3044,16 +3091,20 @@
                 const providersTitle = facilities.length + ' providers affiliated with ' + escapeHtml(ownerDisplayName);
                 const providersLimitations = 'Affiliation is from CMS ownership data; provider names may differ from legal business names.';
                 const limitsUid = 'prov-limits-' + Math.random().toString(36).slice(2);
+                const limitsUidFacilities = limitsUid + '-fac';
                 const touch = 'ontouchstart' in window;
                 const limitsHoverOn = touch ? '' : (' onmouseenter="showDonorPopup(\'' + limitsUid + '\')" onmouseleave="hideDonorPopup(\'' + limitsUid + '\')"');
+                const limitsHoverOnFac = touch ? '' : (' onmouseenter="showDonorPopup(\'' + limitsUidFacilities + '\')" onmouseleave="hideDonorPopup(\'' + limitsUidFacilities + '\')"');
                 const infoIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
+                const providersLineForHeader = '<p class="providers-affiliated-line details-header-providers">' + providersTitle + '<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.2rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"' + limitsHoverOn + ' onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup(\'' + limitsUid + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + limitsUid + '\')}" style="cursor:pointer;padding:0.15rem;color:rgba(255,255,255,0.6);line-height:0;">' + infoIconSvg + '</span><div id="' + limitsUid + '" class="donor-popup">' + escapeHtml(providersLimitations) + '</div></span></p>';
+                const facilitiesTableId = 'facilitiesTable';
+                const facilitiesExpandId = 'facilitiesExpandWrap';
+                const maxTableRows = 20;
+                const showExpand = facilities.length > maxTableRows;
                 const facilitiesHtml = facilities.length > 0 ? `
-                    <div class="facilities-top-row">
-                        <p class="providers-affiliated-line">${providersTitle}<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.2rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"${limitsHoverOn} onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup('${limitsUid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${limitsUid}')}" style="cursor:pointer;padding:0.15rem;color:rgba(255,255,255,0.6);line-height:0;">${infoIconSvg}</span><div id="${limitsUid}" class="donor-popup">${escapeHtml(providersLimitations)}</div></span></p>
-                        <span id="facilitiesFecBtnSlot"></span>
-                    </div>
+                    <p class="providers-affiliated-line providers-above-table">${providersTitle}<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.2rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"${limitsHoverOnFac} onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup('${limitsUidFacilities}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${limitsUidFacilities}')}" style="cursor:pointer;padding:0.15rem;color:rgba(255,255,255,0.6);line-height:0;">${infoIconSvg}</span><div id="${limitsUidFacilities}" class="donor-popup">${escapeHtml(providersLimitations)}</div></span></p>
                     <div style="overflow-x: auto;">
-                        <table class="facilities-table">
+                        <table id="${facilitiesTableId}" class="facilities-table${showExpand ? ' facilities-table-collapsed' : ''}">
                             <thead>
                                 <tr>
                                     <th>Legal Business Name</th>
@@ -3141,18 +3192,20 @@
                             </tbody>
                         </table>
                     </div>
-                    <p class="facilities-table-source">Source: <a href="https://data.cms.gov/provider-data/" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">CMS Provider Info</a> (${escapeHtml((owner.provider_info_source_label || 'Provider Info').trim())}).</p>
+                    ${showExpand ? '<div id="' + facilitiesExpandId + '" class="facilities-expand-wrap"><button type="button" class="facilities-expand-btn" onclick="var t=document.getElementById(\'' + facilitiesTableId + '\');var w=document.getElementById(\'' + facilitiesExpandId + '\');if(t){t.classList.remove(\'facilities-table-collapsed\');}if(w){w.style.display=\'none\';}">Show all ' + facilities.length + ' providers</button></div>' : ''}
+                    <p class="facilities-table-source">Source: <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener" style="color: #667eea; text-decoration: none;">CMS Provider Info</a> (${escapeHtml((owner.provider_info_source_label || 'Provider Info').trim())}).</p>
                 ` : '<p style="color: rgba(255,255,255,0.7);">No facilities found.</p>';
                 
                 // Display donations FIRST (above facilities)
                 var ctaBlock = document.getElementById('ownerFecCtaBlock');
-                var headerWrap = document.getElementById('headerFecBtnWrap');
-                var titleRow = document.querySelector('.details-header-title-row');
+                var headerFec = document.getElementById('headerFecBtnWrap');
                 var ownerTitleEl = document.getElementById('ownerTitle');
-                if (ownerTitleEl) ownerTitleEl.style.display = '';
-                if (titleRow) titleRow.classList.remove('has-fec-cta');
-                if (headerWrap) headerWrap.innerHTML = '';
-                if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
+                if (ownerTitleEl) ownerTitleEl.textContent = displayName;
+                var nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
+                var fecBtnHtml = 'View ' + escapeHtml(displayName) + ' <span class="fec-btn-break-mobile"></span>Political Contributions';
+                var fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">' + fecBtnHtml + '</button>';
+                if (headerFec) headerFec.innerHTML = fecBtn;
+                if (ctaBlock) { ctaBlock.innerHTML = fecBtn; ctaBlock.style.display = 'block'; ctaBlock.classList.add('has-fec-btn'); }
                 document.getElementById('donationsContainer').style.display = 'block';
                 if (owner.donations && owner.donations.length > 0) {
                     displayDonations(owner.donations, owner.total_donated, owner.donation_count, owner.owner_type || 'ORGANIZATION');
@@ -3166,23 +3219,14 @@
                         container.insertBefore(note, container.firstChild);
                     }
                 } else {
-                    const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
-                    const fecBtnText = 'View ' + displayName + ' Political Contributions';
-                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">' + escapeHtml(fecBtnText) + '</button>';
-                    if (ctaBlock) { ctaBlock.innerHTML = fecBtn; ctaBlock.style.display = 'block'; ctaBlock.classList.add('has-fec-btn'); }
                     document.getElementById('donationsContainer').innerHTML = '';
                     document.getElementById('donationsContainer').style.display = 'none';
                 }
                 
-                // Display facilities AFTER donations
+                // Display facilities AFTER donations (FEC loading/results appear in donationsContainer above)
                 document.getElementById('facilitiesContainer').innerHTML = facilitiesHtml;
-                if (!owner.donations || owner.donations.length === 0) {
-                    const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
-                    const fecBtnText = 'View ' + displayName + ' Political Contributions';
-                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">' + escapeHtml(fecBtnText) + '</button>';
-                    var slot = document.getElementById('facilitiesFecBtnSlot');
-                    if (slot) slot.innerHTML = fecBtn;
-                }
+                var headerProvidersSlot = document.getElementById('headerProvidersSlot');
+                if (headerProvidersSlot) headerProvidersSlot.innerHTML = facilities.length > 0 ? providersLineForHeader : '';
                 
             } catch (error) {
                 showError('Error loading owner details: ' + error.message);
@@ -3452,8 +3496,6 @@
                 targetContainer.style.display = 'block';
                 var ctaEl = document.getElementById('ownerFecCtaBlock');
                 if (ctaEl) { ctaEl.style.display = 'none'; ctaEl.classList.remove('has-fec-btn'); }
-                var headerFecEl = document.getElementById('headerFecBtnWrap');
-                if (headerFecEl) headerFecEl.innerHTML = '';
                 targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations). FEC search can take 30–90 seconds; please wait.</div>';
             } else {
                 const resultsContainer = document.getElementById('resultsContainer');

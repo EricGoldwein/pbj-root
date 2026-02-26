@@ -418,9 +418,47 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .details-header-title-row {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+            min-width: 0;
+            justify-content: flex-start;
+        }
+        .header-fec-wrap { flex-shrink: 0; }
+        .header-fec-wrap .query-fec-btn {
+            font-size: 1.1rem;
+            font-weight: 600;
+            padding: 0.6rem 1.35rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
+        }
+        .header-fec-wrap .query-fec-btn:hover {
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.45);
+        }
+        .owner-fec-cta-block {
+            text-align: center;
+            padding: 1.25rem 1rem 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .owner-fec-cta-block .query-fec-btn {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.05rem;
+        }
+        @media (max-width: 768px) {
+            .header-fec-wrap { display: none !important; }
+            .owner-fec-cta-block.has-fec-btn { padding: 0.2rem 1rem 0.35rem; margin-bottom: 0.2rem; margin-top: -0.15rem; }
+            .details-header { margin-bottom: 0.75rem; }
+        }
+        @media (min-width: 769px) {
+            .owner-fec-cta-block.has-fec-btn { display: none !important; }
         }
 
         .back-btn {
@@ -433,7 +471,8 @@
             color: white;
             transition: all 0.3s;
         }
-
+        .back-btn-mobile { display: none; }
+        .back-btn-desktop { display: inline; }
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.2);
         }
@@ -633,6 +672,9 @@
                 margin-top: 2rem !important;
                 padding: 1.5rem 1rem !important;
             }
+            .back-btn-mobile { display: inline; }
+            .back-btn-desktop { display: none; }
+            .back-btn { padding: 0.5rem 0.75rem; font-size: 0.85rem; }
         }
         
         .facilities-table thead {
@@ -728,10 +770,11 @@
         .donor-info-trigger {
             cursor: pointer;
             touch-action: manipulation;
-            border-bottom: 1px solid rgba(102, 126, 234, 0.65);
+            text-decoration: none;
+            border-bottom: none;
         }
         .donor-info-trigger:hover {
-            border-bottom-color: rgba(102, 126, 234, 0.95);
+            text-decoration: none;
         }
         .donor-info-trigger-match {
             text-decoration: none !important;
@@ -783,6 +826,8 @@
         .committee-th-name-mobile {
             display: none;
         }
+        .owner-provider-th-mobile { display: none; }
+        .owner-provider-th-desktop { display: inline; }
         @media (max-width: 768px) {
             .committee-th-name-desktop {
                 display: none;
@@ -790,6 +835,8 @@
             .committee-th-name-mobile {
                 display: inline;
             }
+            .owner-provider-th-desktop { display: none; }
+            .owner-provider-th-mobile { display: inline; }
             .committee-contributors-wrap {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
@@ -1076,9 +1123,12 @@
                 transform: rotate(-45deg) translate(7px, -6px);
             }
         }
+        /* Owner detail view: hide search page, show details (no Jinja in style="" so CSS linter is happy) */
+        body.owner-detail-view #ownersSearchPage { display: none !important; }
+        body.owner-detail-view #detailsSection { display: block !important; }
     </style>
 </head>
-<body{% if initial_owner_id %} data-initial-owner-id="{{ initial_owner_id }}"{% endif %}>
+<body class="{% if initial_owner_id %}owner-detail-view {% endif %}"{% if initial_owner_id %} data-initial-owner-id="{{ initial_owner_id }}"{% endif %}>
     <!-- Navigation -->
     <nav class="navbar" style="background: #0f172a; padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border-bottom: 2px solid #1e40af; margin: 0;">
         <div class="nav-container" style="max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px;">
@@ -1105,6 +1155,7 @@
     </nav>
 
     <div class="container" style="padding: 20px;">
+        <div id="ownersSearchPage">
         <div class="header">
             <h1 class="page-title">Nursing Home Owner Political Contributions</h1>
             <div style="margin-top: 0.5rem; font-size: 0.95rem; font-weight: 500; color: rgba(255,255,255,0.85);">
@@ -1171,13 +1222,18 @@
             <div id="resultsCount" class="results-count" aria-live="polite" aria-atomic="true"></div>
             <div id="resultsContainer"></div>
         </div>
+        </div><!-- /#ownersSearchPage -->
 
         <div id="detailsSection" class="details-section" style="display: none;">
             <div class="details-header">
-                <h2 id="ownerTitle"></h2>
-                <button class="back-btn" onclick="showSearchResults()">Back</button>
+                <a href="/owners" class="back-btn" style="text-decoration: none; color: inherit; flex-shrink: 0;"><span class="back-btn-desktop">← Back to search</span><span class="back-btn-mobile">Back</span></a>
+                <div class="details-header-title-row">
+                    <h2 id="ownerTitle" style="margin: 0; flex: 0 1 auto; min-width: 0;">{% if initial_owner_id %}Loading...{% endif %}</h2>
+                    <span id="headerFecBtnWrap" class="header-fec-wrap"></span>
+                </div>
             </div>
-            <div id="donationsContainer"></div>
+            <div id="ownerFecCtaBlock" class="owner-fec-cta-block" style="display: none;"></div>
+            <div id="donationsContainer">{% if initial_owner_id %}<div class="loading">Loading...</div>{% endif %}</div>
             <div id="facilitiesContainer"></div>
         </div>
     </div>
@@ -1784,7 +1840,14 @@
                         const providerName = item.getAttribute('data-provider-name') || name;
                         selectAutocomplete(name, ccn, providerName);
                     } else {
-                        selectAutocomplete(name);
+                        const ownerIdRaw = item.getAttribute('data-owner-id') || '';
+                        const ownerId = String(ownerIdRaw).replace(/\D/g, '');
+                        if (ownerId.length >= 9 && ownerId.length <= 11) {
+                            const id = ownerId.length === 10 ? ownerId : ownerId.length === 9 ? ownerId.padStart(10, '0') : ownerId.slice(-10);
+                            selectAutocompleteOwnerId(id);
+                        } else {
+                            selectAutocomplete(name);
+                        }
                     }
                 }
             } else if (e.key === 'Escape') {
@@ -1822,9 +1885,14 @@
                         </div>
                     `;
                 } else {
-                    // For owner search, show owner info
+                    // For owner search: if we have owner id, clicking goes directly to owner page; else trigger search
+                    const rawId = item.id;
+                    const digitsOnly = (rawId != null && rawId !== '') ? String(rawId).replace(/\D/g, '') : '';
+                    const hasId = digitsOnly.length >= 9 && digitsOnly.length <= 11;
+                    const ownerId = hasId ? (digitsOnly.length === 10 ? digitsOnly : digitsOnly.length === 9 ? digitsOnly.padStart(10, '0') : digitsOnly.slice(-10)) : '';
+                    const onClick = hasId ? `selectAutocompleteOwnerId('${ownerId}')` : `selectAutocomplete('${escapeHtml(item.name).replace(/'/g, "\\'")}')`;
                     return `
-                <div class="autocomplete-item" data-index="${index}" onclick="selectAutocomplete('${escapeHtml(item.name)}')">
+                <div class="autocomplete-item" data-index="${index}" data-owner-id="${ownerId}" onclick="${onClick}">
                     <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
                     <div class="autocomplete-item-details">${item.type} • ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
                 </div>
@@ -1844,6 +1912,13 @@
                     item.classList.remove('selected');
                 }
             });
+        }
+
+        function selectAutocompleteOwnerId(ownerId) {
+            if (!ownerId || String(ownerId).length < 9) return;
+            const s = String(ownerId).replace(/\D/g, '');
+            const id = s.length === 10 ? s : s.length === 9 ? s.padStart(10, '0') : s.slice(-10);
+            window.location.href = '/owners/' + id;
         }
 
         function selectAutocomplete(name, ccn = '', providerName = '') {
@@ -2249,7 +2324,32 @@
                         showSearchError(data.error);
                         return;
                     }
-                    
+                    // Single result: always go to owner page (no card). Use ID from result or resolve by name.
+                    if (data.count === 1 && data.results && data.results[0]) {
+                        const r = data.results[0];
+                        let ownerId = null;
+                        const s = String(r.associate_id_owner || '').replace(/[^0-9]/g, '');
+                        if (s.length >= 9 && s.length <= 11) {
+                            ownerId = s.length === 10 ? s : s.length === 9 ? s.padStart(10, '0') : s.slice(-10);
+                        }
+                        if (!ownerId) {
+                            const name = (r.owner_name_original || r.owner_name || '').trim();
+                            if (name) {
+                                try {
+                                    const res = await fetch('/owners/api/owner/' + encodeURIComponent(name));
+                                    if (res.ok) {
+                                        const obj = await res.json();
+                                        const pac = obj.associate_id_owner ? String(obj.associate_id_owner).replace(/[^0-9]/g, '') : '';
+                                        if (pac.length >= 9 && pac.length <= 11) ownerId = pac.length === 10 ? pac : pac.length === 9 ? pac.padStart(10, '0') : pac.slice(-10);
+                                    }
+                                } catch (_) {}
+                            }
+                        }
+                        if (ownerId) {
+                            window.location.href = '/owners/' + ownerId;
+                            return;
+                        }
+                    }
                     displayResults(data.results, data.provider_info, type);
                     document.getElementById('resultsCount').textContent = data.count === 1 ? '1 result found' : `${data.count} results found`;
                     document.getElementById('resultsSection').style.display = 'block';
@@ -2360,7 +2460,11 @@
                 const donationSummary = owner.donations.length > 0 
                     ? `${owner.donations.length} ${owner.donations.length === 1 ? 'donation' : 'donations'} totaling $${owner.total_donated.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}`
                     : 'No contributions found';
-                const ownerId = (function() { const s = String(owner.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                const ownerId = (function() {
+                    const s = String(owner.associate_id_owner || '').replace(/[^0-9]/g, '');
+                    if (s.length >= 9 && s.length <= 11) return s.slice(-10).padStart(10, '0');
+                    return null;
+                })();
                 const cardContent = `
                         <div style="display: flex; justify-content: space-between; align-items: start;">
                             <div>
@@ -2551,6 +2655,27 @@
             stateAbbrevs.forEach(ab => { r = r.replace(new RegExp('\\b' + ab + '\\b', 'gi'), ab.toUpperCase()); });
             return r;
         }
+        // Owner name for header and "Providers affiliated with X": title case with first-letter caps, acronyms (LLC, INC, HGM) all caps, small words (of, at, in, the, and) lowercase unless first/last
+        var ownerSmallWords = ['of','at','in','the','and','or','for','to','with','a','an','on','by','as'];
+        var ownerAcronymStems = ['llc','corp','lp','ltd','llp','pllc','hgm','pac','snf'];
+        function toTitleCaseOwnerName(str) {
+            if (!str) return '';
+            var s = String(str).trim();
+            if (!s) return '';
+            var words = s.split(/\s+/);
+            return words.map(function(word, i) {
+                var raw = word;
+                var wNorm = word.toLowerCase().replace(/\./g, '');
+                var isFirst = i === 0;
+                var isLast = i === words.length - 1;
+                if (!raw) return '';
+                var isAcronym = ownerAcronymStems.indexOf(wNorm) !== -1 || (raw.length >= 2 && raw.length <= 5 && /^[A-Za-z.]+$/.test(raw) && raw === raw.toUpperCase());
+                if (isAcronym) return raw.toUpperCase();
+                if (raw.length === 1) return raw.toUpperCase();
+                if (!isFirst && !isLast && ownerSmallWords.indexOf(wNorm) !== -1) return raw.toLowerCase();
+                return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
+            }).join(' ');
+        }
         // FEC individual-contributions contributor_name: for individuals "first last", for orgs the name (spaces as +)
         function fecContributorQuery(ownerName, ownerType) {
             if (!ownerName) return '';
@@ -2639,7 +2764,7 @@
                                             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                                 <button onclick="event.stopPropagation(); queryFecApiForOwner('${nameForApi}', 'INDIVIDUAL')" 
                                                     style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
-                                                    Contributions
+                                                    View Political Contributions
                                                 </button>
                                                 <button onclick="event.stopPropagation(); showOwnerDetails('${nameForApi}')" 
                                                     style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
@@ -2669,7 +2794,7 @@
                                                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                                         <button onclick="event.stopPropagation(); queryFecApiForOwner('${nameForApi}', 'INDIVIDUAL')" 
                                                             style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
-                                                            Contributions
+                                                            View Political Contributions
                                                         </button>
                                                         <button onclick="event.stopPropagation(); showOwnerDetails('${nameForApi}')" 
                                                             style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">
@@ -2738,11 +2863,11 @@
                             <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">Owners and Managers</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
                                 ${results.map(result => {
-                                    const oid = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                                    const oid = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); if (s.length >= 9 && s.length <= 11) return s.slice(-10).padStart(10, '0'); return null; })();
                                     const nameLine = '<div style="color: white; font-weight: 500; word-break: break-word;">' + escapeHtml(result.owner_name || '') + '</div>';
                                     const facLine = (result.facilities && result.facilities.length) ? '<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">' + result.facilities.slice(0, 3).map(f => escapeHtml(toTitleCase(f))).join(', ') + (result.facilities.length > 3 ? ' and ' + (result.facilities.length - 3) + ' more' : '') + '</div>' : '';
                                     if (oid) return '<a href="/owners/' + oid + '" style="display: block; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-decoration: none; color: inherit;">' + nameLine + facLine + '<div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 0.25rem;">View owner page →</div></a>';
-                                    return '<div style="padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">' + nameLine + facLine + '<div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;"><button type="button" onclick="queryFecApiForOwner(\'' + (result.owner_name || '').replace(/'/g, "\\'") + '\', \'' + (result.owner_type || 'UNKNOWN') + '\')" style="padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Contributions</button><button type="button" onclick="showOwnerDetails(\'' + (result.owner_name || '').replace(/'/g, "\\'") + '\')" style="padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Providers</button></div></div>';
+                                    return '<div style="padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">' + nameLine + facLine + '<div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;"><button type="button" onclick="queryFecApiForOwner(\'' + ((result.owner_name_original || result.owner_name) || '').replace(/'/g, "\\'") + '\', \'' + (result.owner_type || 'UNKNOWN') + '\')" style="padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">View Political Contributions</button><button type="button" onclick="showOwnerDetails(\'' + (result.owner_name || '').replace(/'/g, "\\'") + '\')" style="padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Providers</button></div></div>';
                                 }).join('')}
                             </div>
                         </div>`;
@@ -2753,7 +2878,11 @@
             }
             
             container.innerHTML = headerHtml + results.map(result => {
-                const ownerId = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                const ownerId = (function() {
+                    const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, '');
+                    if (s.length >= 9 && s.length <= 11) return s.slice(-10).padStart(10, '0');
+                    return null;
+                })();
                 if (ownerId) {
                     // Single link to owner page: name, type, provider count. No buttons or popup.
                     return `<a href="/owners/${ownerId}" class="result-card" style="text-decoration: none; color: inherit; display: block;">
@@ -2768,13 +2897,15 @@
                         </div>
                     </a>`;
                 }
-                // No CMS ID: keep card with buttons for popup (no dedicated page)
+                // No associate_id_owner in response: card with buttons; clicking "View owner page" resolves by name and redirects
+                const ownerNameForApi = (result.owner_name_original || result.owner_name || '').replace(/'/g, "\\'");
                 const cardInner = `
-                    <div class="result-header">
+                    <div class="result-header" style="cursor: pointer;" onclick="event.stopPropagation(); goToOwnerPageByName('${ownerNameForApi}')" title="Go to owner page">
                         <div>
                             <div class="owner-name">${escapeHtml(result.owner_name)}</div>
                             <span class="owner-type ${result.owner_type.toLowerCase()}">${result.owner_type}</span>
                         </div>
+                        <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">View owner page →</div>
                     </div>
                     ${result.facilities.length > 0 ? `
                         <div class="facilities-list">
@@ -2782,8 +2913,8 @@
                             ${result.facilities.length > 3 ? ` and ${result.facilities.length - 3} more` : ''}
                         </div>
                     ` : ''}
-                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                        <button type="button" onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" class="query-fec-btn" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Political Contributions</button>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;" onclick="event.stopPropagation();">
+                        <button type="button" onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${ownerNameForApi}', '${result.owner_type}')" class="query-fec-btn" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">View Political Contributions</button>
                         <button type="button" class="back-btn show-owner-providers-btn" data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Providers (${result.num_facilities})</button>
                     </div>
                 `;
@@ -2791,14 +2922,42 @@
             }).join('');
         }
 
-        // Show owner details
+        // Resolve owner by name and go to /owners/<id> if backend returns associate_id_owner (used when search card has no id)
+        async function goToOwnerPageByName(ownerName) {
+            if (!ownerName || !String(ownerName).trim()) return;
+            try {
+                const response = await fetch('/owners/api/owner/' + encodeURIComponent(String(ownerName).trim()));
+                if (!response.ok) return;
+                const data = await response.json();
+                const pac = data.associate_id_owner ? String(data.associate_id_owner).replace(/[^0-9]/g, '') : '';
+                if (pac.length >= 9 && pac.length <= 11) {
+                    const id = pac.length === 10 ? pac : pac.length === 9 ? pac.padStart(10, '0') : pac.slice(-10);
+                    window.location.href = '/owners/' + id;
+                } else {
+                    showOwnerDetails(ownerName);
+                }
+            } catch (_) {
+                showOwnerDetails(ownerName);
+            }
+        }
+
+        // Show owner details (full "owner page" view: hide search, show details)
         async function showOwnerDetails(ownerName) {
-            // Show details section and loading state immediately so user sees something
+            var searchPage = document.getElementById('ownersSearchPage');
+            if (searchPage) searchPage.style.display = 'none';
             document.getElementById('resultsSection').style.display = 'none';
             document.getElementById('resultsContainer').innerHTML = '';
             document.getElementById('resultsCount').textContent = '';
-            document.getElementById('ownerTitle').textContent = ownerName || 'Loading...';
+            // Never show raw CMS ID in the title (looks like 9–11 digits) – use "Loading..." until we have the name
+            var titleText = ownerName || 'Loading...';
+            if (titleText && /^\d{9,11}$/.test(String(titleText).trim())) titleText = 'Loading...';
+            document.getElementById('ownerTitle').textContent = titleText;
             document.getElementById('detailsSection').style.display = 'block';
+            var ctaBlock = document.getElementById('ownerFecCtaBlock');
+            var headerFec = document.getElementById('headerFecBtnWrap');
+            if (headerFec) headerFec.innerHTML = '';
+            if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
+            document.getElementById('donationsContainer').style.display = 'block';
             document.getElementById('donationsContainer').innerHTML = '<div class="loading">Loading...</div>';
             document.getElementById('facilitiesContainer').innerHTML = '';
             document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -2823,28 +2982,37 @@
                 }
                 
                 currentOwner = owner;
-                document.getElementById('ownerTitle').textContent = owner.owner_name;
-                
+                var displayName = toTitleCaseOwnerName(String(owner.owner_name || owner.owner_name_original || '').trim());
+                if (!displayName) displayName = (owner.owner_name || owner.owner_name_original || '') || 'Owner';
+                document.getElementById('ownerTitle').textContent = displayName;
+                document.title = displayName + ' | PBJ320';
                 // GA: track owner page view (canonical URL /owners/<cms_id>)
                 if (window.INITIAL_OWNER_ID) {
-                    const cmsId = String(owner.associate_id_owner || '').replace(/[^0-9]/g, '').padStart(10, '0');
+                    var cmsId = String(owner.associate_id_owner || '').replace(/[^0-9]/g, '');
+                    if (cmsId.length >= 9 && cmsId.length <= 11) cmsId = cmsId.slice(-10).padStart(10, '0');
                     if (cmsId === window.INITIAL_OWNER_ID && typeof gtag === 'function') {
-                        gtag('config', 'G-NDPVY6TWBK', { page_path: '/owners/' + window.INITIAL_OWNER_ID, page_title: (owner.owner_name || 'Owner') + ' | PBJ320' });
-                        document.title = (owner.owner_name || 'Owner') + ' | PBJ320';
+                        gtag('config', 'G-NDPVY6TWBK', { page_path: '/owners/' + window.INITIAL_OWNER_ID, page_title: displayName + ' | PBJ320' });
                     }
                 }
                 
                 // Show facilities in a polished table (skip portfolio summary - redundant)
                 // Ensure facilities is an array (filter out null/undefined)
                 const facilities = (Array.isArray(owner.facilities) ? owner.facilities : []).filter(function(f) { return f != null; });
+                const ownerDisplayName = toTitleCaseOwnerName((owner.owner_name || owner.owner_name_original || 'this owner').trim());
+                const providersTitle = 'Providers affiliated with ' + escapeHtml(ownerDisplayName) + ' (' + facilities.length + ')';
+                const providersLimitations = 'Affiliation is from CMS ownership data; provider names may differ from legal business names.';
+                const limitsUid = 'prov-limits-' + Math.random().toString(36).slice(2);
+                const touch = 'ontouchstart' in window;
+                const limitsHoverOn = touch ? '' : (' onmouseenter="showDonorPopup(\'' + limitsUid + '\')" onmouseleave="hideDonorPopup(\'' + limitsUid + '\')"');
+                const infoIconSvg = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>';
                 const facilitiesHtml = facilities.length > 0 ? `
-                    <h3 style="margin-bottom: 1rem;">Providers (${facilities.length})</h3>
+                    <h3 style="margin-bottom: 1rem; display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap;">${providersTitle}<span class="donor-info-wrap" style="position:relative;display:inline-flex;vertical-align:middle;margin-left:0.15rem;"><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Limitations"${limitsHoverOn} onclick="event.preventDefault();event.stopPropagation();toggleDonorPopup('${limitsUid}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleDonorPopup('${limitsUid}')}" style="cursor:pointer;padding:0.2rem;color:rgba(255,255,255,0.7);line-height:0;">${infoIconSvg}</span><div id="${limitsUid}" class="donor-popup">${escapeHtml(providersLimitations)}</div></span></h3>
                     <div style="overflow-x: auto;">
                         <table class="facilities-table">
                             <thead>
                                 <tr>
                                     <th>Legal Business Name</th>
-                                    <th>Provider Name</th>
+                                    <th><span class="owner-provider-th-desktop">Provider Name</span><span class="owner-provider-th-mobile">Provider</span></th>
                                     <th>Location</th>
                                     <th>Rating</th>
                                     <th>Beds</th>
@@ -2873,7 +3041,7 @@
                                     
                                     // Format rating badge
                                     const rating = f.rating ? parseInt(f.rating) : null;
-                                    const ratingBadge = rating ? `<span class="rating-badge rating-${rating}">${rating}★</span>` : 'N/A';
+                                    const ratingBadge = rating ? `<span class="rating-badge rating-${rating}">${rating}</span>` : 'N/A';
                                     
                                     // Format beds
                                     const beds = f.beds ? Math.round(parseFloat(f.beds)).toLocaleString() : 'N/A';
@@ -2916,7 +3084,6 @@
                                             <td>${escapeHtml(legalBusinessNameDisplay)}</td>
                                             <td title="${escapeHtml(legalBusinessName)}" style="cursor: help;">
                                                 ${dashboardLink ? `<a href="${dashboardLink}" target="_blank" style="color: #a5b4fc; text-decoration: none; font-weight: 500;">${escapeHtml(providerNameDisplay)}</a>` : escapeHtml(providerNameDisplay)}
-                                                ${ccnDisplay !== 'N/A' ? `<span style="color: rgba(255,255,255,0.5); font-size: 0.85em; margin-left: 0.3rem;">(${ccnDisplay})</span>` : ''}
                                                 ${entityLink ? `<br><a href="${entityLink}" target="_blank" style="font-size: 0.8rem; color: #93c5fd; text-decoration: none;">Entity ${f.entity_id} ↗</a>` : ''}
                                             </td>
                                             <td>${escapeHtml(locationDisplay)}</td>
@@ -2932,6 +3099,11 @@
                 ` : '<p style="color: rgba(255,255,255,0.7);">No facilities found.</p>';
                 
                 // Display donations FIRST (above facilities)
+                var ctaBlock = document.getElementById('ownerFecCtaBlock');
+                var headerWrap = document.getElementById('headerFecBtnWrap');
+                if (headerWrap) headerWrap.innerHTML = '';
+                if (ctaBlock) { ctaBlock.innerHTML = ''; ctaBlock.style.display = 'none'; ctaBlock.classList.remove('has-fec-btn'); }
+                document.getElementById('donationsContainer').style.display = 'block';
                 if (owner.donations && owner.donations.length > 0) {
                     displayDonations(owner.donations, owner.total_donated, owner.donation_count, owner.owner_type || 'ORGANIZATION');
                     // Show note if from pre-processed database
@@ -2939,17 +3111,18 @@
                         const container = document.getElementById('donationsContainer');
                         const note = document.createElement('div');
                         note.style.cssText = 'background: rgba(102, 126, 234, 0.2); padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 0.85rem; color: rgba(255,255,255,0.8);';
-                        note.innerHTML = '📊 Showing contributions from pre-processed database. <button onclick="queryFecApiForOwner(\'' + (owner.owner_name || '').replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">View Political Contributions</button> to search for latest contributions.';
+                        const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || '';
+                        note.innerHTML = '📊 Showing contributions from pre-processed database. <button onclick="queryFecApiForOwner(\'' + (nameForFec || owner.owner_name || '').replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" style="background: #667eea; color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-weight: 600; margin-left: 0.5rem;">View Political Contributions</button> to search for latest contributions.';
                         container.insertBefore(note, container.firstChild);
                     }
                 } else {
-                    document.getElementById('donationsContainer').innerHTML = `
-                        <div style="background: rgba(102, 126, 234, 0.15); padding: 1.5rem; border-radius: 8px; margin-bottom: 2rem; text-align: center;">
-                            <button onclick="queryFecApiForOwner('${(owner.owner_name || '').replace(/'/g, "\\'")}', '${owner.owner_type || 'ORGANIZATION'}')" class="query-fec-btn" style="padding: 1rem 2rem; font-size: 1.1rem;">
-                             Political Contributions
-                            </button>
-                        </div>
-                    `;
+                    const nameForFec = (owner.owner_name_original || owner.owner_name || '').trim() || (owner.owner_name || '');
+                    const fecBtn = '<button onclick="queryFecApiForOwner(\'' + (nameForFec).replace(/'/g, "\\'") + '\', \'' + (owner.owner_type || 'ORGANIZATION') + '\')" class="query-fec-btn">View Political Contributions</button>';
+                    var headerWrap = document.getElementById('headerFecBtnWrap');
+                    if (headerWrap) headerWrap.innerHTML = fecBtn;
+                    if (ctaBlock) { ctaBlock.innerHTML = fecBtn; ctaBlock.style.display = 'block'; ctaBlock.classList.add('has-fec-btn'); }
+                    document.getElementById('donationsContainer').innerHTML = '';
+                    document.getElementById('donationsContainer').style.display = 'none';
                 }
                 
                 // Display facilities AFTER donations
@@ -2973,8 +3146,8 @@
                 ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(String(n).replace(/\s+/g, ' ').trim())).join(', ') + '.</p>'
                 : '';
             
-            // Get owner name from currentOwner if available
-            const ownerName = currentOwner ? currentOwner.owner_name : '';
+            // FEC query uses original name (as in CMS/filings) when available
+            const ownerName = currentOwner ? (currentOwner.owner_name_original || currentOwner.owner_name || '') : '';
             
             // Generate FEC API search URL for verification
             let fecApiSearchUrl = '';
@@ -3192,14 +3365,39 @@
             `;
         }
 
-        // Query FEC API for owner (from search results or from owner details page)
+        // Query FEC API for owner (from search results or from owner details page). FEC is always queried by NAME, not ID.
         async function queryFecApiForOwner(ownerName, ownerType) {
             const detailsSection = document.getElementById('detailsSection');
             const isDetailsView = detailsSection && detailsSection.style.display === 'block';
+            // If caller passed an ID (9-11 digits) or empty name, and we're on the owner page with currentOwner, use currentOwner's name
+            const nameStr = String(ownerName || '').trim();
+            if (typeof currentOwner !== 'undefined' && currentOwner && (!nameStr || /^\d{9,11}$/.test(nameStr))) {
+                const fromOwner = (currentOwner.owner_name_original || currentOwner.owner_name || '').trim();
+                if (fromOwner) {
+                    ownerName = fromOwner;
+                    ownerType = currentOwner.owner_type || ownerType;
+                }
+            }
+            const finalName = String(ownerName || '').trim();
+            if (!finalName) {
+                const errEl = document.getElementById('donationsContainer');
+                if (errEl) errEl.innerHTML = '<div class="error">Owner name is required to search FEC. Please refresh the page.</div>';
+                return;
+            }
+            if (/^\d{9,11}$/.test(finalName.replace(/\D/g, ''))) {
+                const errEl = document.getElementById('donationsContainer');
+                if (errEl) errEl.innerHTML = '<div class="error">Political contributions must be searched by owner name, not ID. This owner record has no name available for FEC search.</div>';
+                return;
+            }
+            ownerName = finalName;
             let targetContainer;
-            
             if (isDetailsView) {
                 targetContainer = document.getElementById('donationsContainer');
+                targetContainer.style.display = 'block';
+                var ctaEl = document.getElementById('ownerFecCtaBlock');
+                if (ctaEl) { ctaEl.style.display = 'none'; ctaEl.classList.remove('has-fec-btn'); }
+                var headerFecEl = document.getElementById('headerFecBtnWrap');
+                if (headerFecEl) headerFecEl.innerHTML = '';
                 targetContainer.innerHTML = '<div class="loading">Searching for political contributions for ' + escapeHtml(ownerName) + ' (trying name variations such as with/without middle initial). The FEC API can take 30–90 seconds; please wait.</div>';
             } else {
                 const resultsContainer = document.getElementById('resultsContainer');
@@ -3230,7 +3428,15 @@
                     if (response.status === 502) msg = 'The request timed out (FEC can be slow). Please try again.';
                     else if (response.status === 503) msg = 'Search is temporarily unavailable. Please try again later.';
                     else if (response.status >= 500) msg = 'Server error. Please try again.';
-                    else if (text && text.length < 200) msg = text;
+                    else if (text) {
+                        try {
+                            const errJson = JSON.parse(text);
+                            if (errJson && errJson.error) msg = errJson.error;
+                            else if (text.length < 200) msg = text;
+                        } catch (_) {
+                            if (text.length < 200) msg = text;
+                        }
+                    }
                     targetContainer.innerHTML = '<div class="error">' + escapeHtml(msg) + '</div>';
                     return;
                 }
@@ -3540,11 +3746,16 @@
             container.innerHTML = '<div class="loading">Searching for political contributions... (The FEC API can take 30–90 seconds; please wait.)</div>';
             
             try {
+                const nameForFec = (currentOwner.owner_name_original || currentOwner.owner_name || '').trim() || (currentOwner.owner_name || '');
+                if (!nameForFec || !String(nameForFec).trim()) {
+                    showError('Owner name is required to search FEC. This owner record has no name available.');
+                    return;
+                }
                 const response = await fetch('/owners/api/query-fec', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
-                        owner_name: currentOwner.owner_name,
+                        owner_name: nameForFec,
                         owner_type: currentOwner.owner_type
                     })
                 });
@@ -3581,6 +3792,8 @@
         }
 
         function showSearchResults() {
+            var searchPage = document.getElementById('ownersSearchPage');
+            if (searchPage) searchPage.style.display = 'block';
             document.getElementById('resultsSection').style.display = 'block';
             document.getElementById('detailsSection').style.display = 'none';
             currentOwner = null;

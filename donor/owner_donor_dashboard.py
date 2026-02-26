@@ -53,13 +53,20 @@ app = Flask(__name__, template_folder='templates')
 # Data paths
 BASE_DIR = Path(__file__).parent.parent
 OWNERS_DB = BASE_DIR / "donor" / "output" / "owners_database.csv"
+OWNERS_PARQUET = BASE_DIR / "donor" / "output" / "owners_database.parquet"  # Built by build_owner_cache.py
 OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Full 250k CSV
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
+OWNERSHIP_NORM_PARQUET = BASE_DIR / "donor" / "output" / "ownership_normalized.parquet"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
 PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"  # Has Legal Business Name
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
+FACILITY_NAME_MAPPING_PARQUET = BASE_DIR / "donor" / "output" / "facility_name_mapping.parquet"
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
 DONATIONS_DB = BASE_DIR / "donor" / "output" / "owner_donations_database.csv"
+# Optional FEC response cache (speeds repeat lookups; invalidate when data period changes)
+FEC_CACHE_PATH = BASE_DIR / "donor" / "output" / "fec_cache.json"
+FEC_CACHE_DAYS = int(os.environ.get("FEC_CACHE_DAYS", "30"))
+FEC_CACHE_MAX_ENTRIES = int(os.environ.get("FEC_CACHE_MAX_ENTRIES", "500"))
 # FEC committee master: CMTE_ID -> CMTE_NM (cm26=2025-2026, cm24=2023-2024, etc.)
 # Try donor/data/fec_committee_master first, then donor/FEC data (user may place cm*.csv there)
 FEC_COMMITTEE_MASTER_DIR = BASE_DIR / "donor" / "data" / "fec_committee_master"
@@ -95,6 +102,7 @@ facility_metrics_df = None
 # Lazy load: avoid blocking gunicorn startup (cm26 + FEC data can be heavy on Render)
 _owner_data_loaded = False
 _owner_data_lock = threading.Lock()
+_fec_cache_lock = threading.Lock()
 
 
 def ensure_load_data():
@@ -863,14 +871,31 @@ def load_data():
             except UnicodeDecodeError:
                 return pd.read_csv(path, dtype=str, low_memory=False, encoding='latin-1')
 
+    def _read_csv_or_parquet(csv_path, parquet_path):
+        """Prefer Parquet when it exists and is not older than CSV (faster load). Build with: python -m donor.build_owner_cache"""
+        use_parquet = False
+        if parquet_path and parquet_path.exists():
+            try:
+                csv_mtime = csv_path.stat().st_mtime if csv_path.exists() else 0
+                pq_mtime = parquet_path.stat().st_mtime
+                if pq_mtime >= csv_mtime:
+                    use_parquet = True
+            except OSError:
+                pass
+        if use_parquet:
+            return pd.read_parquet(parquet_path)
+        if csv_path.exists():
+            return _read_csv(csv_path)
+        return pd.DataFrame()
+
     # Load heaviest files in parallel to reduce first-request time (e.g. avoid Render timeout)
     owners_df = pd.DataFrame()
     donations_df = pd.DataFrame()
     ownership_df = pd.DataFrame()
     with ThreadPoolExecutor(max_workers=3) as ex:
-        fut_own = ex.submit(_read_csv, OWNERS_DB) if OWNERS_DB.exists() else None
+        fut_own = ex.submit(_read_csv_or_parquet, OWNERS_DB, OWNERS_PARQUET) if OWNERS_DB.exists() else None
         fut_don = ex.submit(_read_csv, DONATIONS_DB) if DONATIONS_DB.exists() else None
-        fut_norm = ex.submit(_read_csv, OWNERSHIP_NORM) if OWNERSHIP_NORM.exists() else None
+        fut_norm = ex.submit(_read_csv_or_parquet, OWNERSHIP_NORM, OWNERSHIP_NORM_PARQUET) if OWNERSHIP_NORM.exists() else None
         try:
             if fut_own:
                 owners_df = fut_own.result()
@@ -889,6 +914,13 @@ def load_data():
 
     if not owners_df.empty:
         print(f"Loading pre-processed owners database: {OWNERS_DB}")
+        # Normalize Owner Associate ID column name (PAC, 10-digit) so search/autocomplete can link to /owners/<id>
+        if 'associate_id_owner' not in owners_df.columns:
+            for c in owners_df.columns:
+                norm = re.sub(r'[\s\-_]+', '', str(c)).upper()
+                if norm in ('ASSOCIATEIDOWNER', 'OWNERASSOCIATEID'):
+                    owners_df = owners_df.rename(columns={c: 'associate_id_owner'})
+                    break
         for col in ['owner_name', 'owner_name_original', 'owner_type', 'facilities', 'associate_id_owner']:
             if col in owners_df.columns:
                 owners_df[col] = owners_df[col].fillna('').astype(str)
@@ -1066,17 +1098,13 @@ def load_data():
     
     # Load pre-computed facility name mapping (if exists - speeds up matching)
     global facility_name_mapping_df
-    if FACILITY_NAME_MAPPING.exists():
+    if FACILITY_NAME_MAPPING.exists() or (FACILITY_NAME_MAPPING_PARQUET and FACILITY_NAME_MAPPING_PARQUET.exists()):
         try:
-            print(f"Loading facility name mapping: {FACILITY_NAME_MAPPING}")
-            try:
-                facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False, encoding='utf-8')
-            except UnicodeDecodeError:
-                try:
-                    facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False, encoding='utf-8-sig')
-                except UnicodeDecodeError:
-                    facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False, encoding='latin-1')
-            print(f"[OK] Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
+            facility_name_mapping_df = _read_csv_or_parquet(FACILITY_NAME_MAPPING, FACILITY_NAME_MAPPING_PARQUET)
+            if facility_name_mapping_df.empty:
+                facility_name_mapping_df = pd.DataFrame()
+            else:
+                print(f"[OK] Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
         except Exception as e:
             print(f"[FAIL] Error loading facility name mapping: {e}")
             facility_name_mapping_df = pd.DataFrame()
@@ -1156,12 +1184,110 @@ def index_test():
 
 
 def _normalize_associate_id(val):
-    """Normalize associate_id_owner to 10-digit string for URL/lookup (strip O/o, digits only). Returns 10-char string or empty."""
+    """Normalize associate_id_owner to 10-digit string for URL/lookup (strip O/o, digits only). Accepts 9–11 digits."""
     if val is None or (isinstance(val, float) and pd.isna(val)):
         return ''
     s = str(val).strip().replace('O', '').replace('o', '')
     digits = re.sub(r'[^0-9]', '', s)
-    return digits if len(digits) == 10 else (digits.zfill(10) if len(digits) < 10 and digits else '')
+    if len(digits) == 10:
+        return digits
+    if len(digits) == 9 and digits:
+        return digits.zfill(10)
+    if len(digits) == 11:
+        return digits[-10:]
+    return ''
+
+
+def _get_owner_name_from_raw_by_id(associate_id_owner):
+    """
+    When owners_df row has no usable name (empty or ID), try to resolve from raw CMS ownership
+    so the FEC query receives a valid owner name. Returns (display_name, original_name) or ('', '').
+    """
+    if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:
+        return '', ''
+    pac = _normalize_associate_id(associate_id_owner)
+    if not pac:
+        return '', ''
+    for col_id in ('ASSOCIATE ID - OWNER', 'Associate Id - Owner'):
+        if col_id not in ownership_raw_df.columns:
+            continue
+        matches = ownership_raw_df[
+            ownership_raw_df[col_id].astype(str).apply(lambda x: _normalize_associate_id(x) == pac)
+        ]
+        if matches.empty:
+            continue
+        # Prefer first row with a name
+        for _, r in matches.iterrows():
+            first_ = str(r.get('FIRST NAME - OWNER', '') or '').strip()
+            mid_ = str(r.get('MIDDLE NAME - OWNER', '') or '').strip()
+            last_ = str(r.get('LAST NAME - OWNER', '') or '').strip()
+            org_ = str(r.get('ORGANIZATION NAME - OWNER', '') or '').strip()
+            if first_ or last_:
+                parts = [p for p in (first_, mid_, last_) if p]
+                display = ' '.join(parts).upper() if parts else ''
+                original = ' '.join(parts).strip() or display
+                if display and not re.match(r'^\d{9,11}$', re.sub(r'[^0-9]', '', display)):
+                    return display, original or display
+            if org_ and not re.match(r'^\d{9,11}$', re.sub(r'[^0-9]', '', org_)):
+                return org_.upper(), org_
+        break
+    return '', ''
+
+
+def _safe_owner_name_from_row(row, exclude_id=None):
+    """Get a non-empty owner name from a row (Series/dict). Never returns NaN or the numeric ID. Used for FEC button and display."""
+    if row is None:
+        return ''
+    try:
+        if pd.isna(row):
+            return ''
+    except Exception:
+        pass
+    keys_try = ('owner_name_original', 'owner_name', 'owner_name_normalized', 'dba_name_owner')
+    for key in keys_try:
+        try:
+            val = row.get(key) if hasattr(row, 'get') else (row[key] if key in getattr(row, 'index', []) else None)
+        except Exception:
+            val = None
+        if val is None:
+            continue
+        try:
+            if pd.isna(val):
+                continue
+        except Exception:
+            pass
+        s = str(val).strip()
+        if not s or s.upper() in ('NAN', 'NONE', 'N/A'):
+            continue
+        if exclude_id and re.sub(r'[^0-9]', '', s) == exclude_id:
+            continue
+        if re.match(r'^\d{9,11}$', re.sub(r'[^0-9]', '', s)):
+            continue
+        return s
+    # Fallback: any column whose name contains "name" and value looks like a name (not ID, length > 2)
+    try:
+        idx = getattr(row, 'index', None)
+        if idx is not None:
+            for key in idx:
+                if 'name' not in str(key).lower() or key in keys_try:
+                    continue
+                val = row.get(key) if hasattr(row, 'get') else None
+                if val is None:
+                    continue
+                try:
+                    if pd.isna(val):
+                        continue
+                except Exception:
+                    pass
+                s = str(val).strip()
+                if len(s) < 3 or s.upper() in ('NAN', 'NONE', 'N/A'):
+                    continue
+                if re.match(r'^\d{9,11}$', re.sub(r'[^0-9]', '', s)):
+                    continue
+                return s
+    except Exception:
+        pass
+    return ''
 
 
 @app.route('/<owner_id>')
@@ -1237,18 +1363,28 @@ def autocomplete():
             name_matches = name_matches | org_match
         
         results = filtered_df[name_matches].copy()
-        # Deduplicate by display name (same org can appear under multiple associate IDs)
+        # Prefer rows with Owner Associate ID (PAC) so dropdown can link to /owners/<id>
+        if 'associate_id_owner' in results.columns:
+            pac_ok = results['associate_id_owner'].apply(
+                lambda x: bool(x) and pd.notna(x) and len(re.sub(r'[^0-9]', '', str(x).strip())) in (9, 10, 11)
+            )
+            results['_has_pac'] = pac_ok.astype(int)
         results['_n_fac'] = results['facilities'].fillna('').str.split(',').map(lambda x: len([f for f in x if str(f).strip()]))
-        results = results.sort_values('_n_fac', ascending=False).drop_duplicates(subset=['owner_name_original'], keep='first').drop(columns=['_n_fac'], errors='ignore').head(10)
+        sort_cols = ['_has_pac', '_n_fac'] if '_has_pac' in results.columns else ['_n_fac']
+        results = results.sort_values(sort_cols, ascending=[False, False]).drop_duplicates(subset=['owner_name_original'], keep='first').drop(columns=[c for c in ['_n_fac', '_has_pac'] if c in results.columns], errors='ignore').head(10)
         
         suggestions = []
         for _, row in results.iterrows():
             facilities_str = row.get('facilities', '') if pd.notna(row.get('facilities')) else ''
             facilities = [f.strip() for f in facilities_str.split(',') if f.strip()] if facilities_str else []
+            # Owner Associate ID (PAC) only — 10-digit. Do not use Enrollment ID (15-char).
+            raw_id = row.get('associate_id_owner')
+            owner_id = _normalize_associate_id(raw_id) if pd.notna(raw_id) and str(raw_id).strip() else None
             suggestions.append({
                 'name': row.get('owner_name_original', row.get('owner_name', '')),
                 'type': row.get('owner_type', 'UNKNOWN'),
-                'facilities': len(facilities)
+                'facilities': len(facilities),
+                'id': owner_id if owner_id else None,
             })
         
         return jsonify({'suggestions': suggestions})
@@ -1494,12 +1630,24 @@ def search():
         # If there's an exact match, ONLY show exact matches (relevance >= 1000)
         exact_matches = results[results['_relevance_score'] >= 1000]
         if not exact_matches.empty:
-            # Only show exact matches - deduplicate by associate_id_owner (PAC) if available, else owner_name
-            results = exact_matches.sort_values(['_relevance_score', 'owner_name'], ascending=[False, True])
-            dedup_col = 'associate_id_owner' if 'associate_id_owner' in results.columns else 'owner_name'
-            results = results.drop_duplicates(subset=[dedup_col], keep='first')
-            # Limit to max 10 exact matches (should usually be just 1)
-            results = results.head(10)
+            # Prefer rows that have Owner Associate ID (PAC, 10-digit) so we can link to /owners/<id>
+            if 'associate_id_owner' in exact_matches.columns:
+                pac_ok = exact_matches['associate_id_owner'].apply(
+                    lambda x: bool(x) and pd.notna(x) and len(re.sub(r'[^0-9]', '', str(x).strip())) in (9, 10, 11)
+                )
+                exact_matches = exact_matches.copy()
+                exact_matches['_has_pac'] = pac_ok.astype(int)
+                exact_matches = exact_matches.sort_values(
+                    ['_has_pac', '_relevance_score', 'owner_name'], ascending=[False, False, True]
+                ).drop(columns=['_has_pac'], errors='ignore')
+            else:
+                exact_matches = exact_matches.sort_values(['_relevance_score', 'owner_name'], ascending=[False, True])
+            # Dedupe by owner name so we keep one row per owner; we already sorted so rows with PAC are first
+            results = exact_matches.drop_duplicates(subset=['owner_name_original'], keep='first').head(10)
+            if results.empty:
+                results = exact_matches.drop_duplicates(subset=['owner_name'], keep='first').head(10)
+            if results.empty:
+                results = exact_matches.head(10)
         else:
             # No exact match, show top results
             results = results.sort_values(['_relevance_score', 'owner_name'], ascending=[False, True]).head(50)
@@ -1537,6 +1685,7 @@ def search():
             result = {
                 'owner_name': display_name,
                 'owner_name_normalized': owner_name_display,  # Keep normalized for API lookups
+                'owner_name_original': str(owner_name_orig).strip() if owner_name_orig and str(owner_name_orig).strip() else None,  # For FEC query (name logic)
                 'owner_type': row.get('owner_type', 'UNKNOWN'),
                 'facilities': facilities,
                 'num_facilities': len(facilities),
@@ -1545,8 +1694,10 @@ def search():
                 'is_officer': row.get('is_officer', False) if 'is_officer' in row else False,
                 'earliest_association': row.get('earliest_association', '') if 'earliest_association' in row else ''
             }
-            if 'associate_id_owner' in row.index and pd.notna(row.get('associate_id_owner')):
-                result['associate_id_owner'] = str(row.get('associate_id_owner', '')).strip()
+            # Include Owner Associate ID (PAC, 9-11 digits) so frontend can link card to /owners/<id>
+            pac_val = (str(row.get('associate_id_owner', '')).strip() if 'associate_id_owner' in row.index else '') or ''
+            if pac_val and len(re.sub(r'[^0-9]', '', pac_val)) in (9, 10, 11):
+                result['associate_id_owner'] = pac_val
             if 'dba_name_owner' in row.index and pd.notna(row.get('dba_name_owner')) and str(row.get('dba_name_owner', '')).strip():
                 result['dba_name_owner'] = str(row.get('dba_name_owner', '')).strip()
             formatted.append(result)
@@ -2756,7 +2907,8 @@ def search_by_provider(query):
             enrollment_ids = [e.strip() for e in enrollment_ids_str.split(',') if e.strip()] if enrollment_ids_str else []
             
             owner_name_display = owner_row.get('owner_name_original', owner_row.get('owner_name', ''))
-            
+            raw_pac = owner_row.get('associate_id_owner', '') if 'associate_id_owner' in owner_row.index else ''
+            pac_val = _normalize_associate_id(raw_pac) if raw_pac and pd.notna(raw_pac) and str(raw_pac).strip() else ''
             formatted.append({
                 'owner_name': owner_name_display,
                 'owner_name_normalized': owner_row.get('owner_name', ''),
@@ -2764,6 +2916,7 @@ def search_by_provider(query):
                 'facilities': facilities,
                 'num_facilities': len(facilities),
                 'enrollment_ids': enrollment_ids,
+                'associate_id_owner': pac_val or None,
                 'is_equity_owner': owner_row.get('is_equity_owner', False) if 'is_equity_owner' in owner_row else False,
                 'is_officer': owner_row.get('is_officer', False) if 'is_officer' in owner_row else False,
                 'earliest_association': owner_row.get('earliest_association', '') if 'earliest_association' in owner_row else ''
@@ -2786,10 +2939,12 @@ def search_by_provider(query):
 @app.route('/api/owner/<owner_name>')
 def get_owner_details(owner_name):
     """Get detailed information about a specific owner. Lookup by name or associate_id_owner (PAC ID)."""
+    ensure_load_data()
     if owners_df is None:
         return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
     
     query_upper = owner_name.upper().strip()
+    matched_by_id = False  # When True, never use owner_name (path param) as display/response name — it's the ID.
     
     # Lookup by associate_id_owner (PAC ID) - 10-digit numeric. Internal use, soft connect.
     if 'associate_id_owner' in owners_df.columns:
@@ -2797,8 +2952,17 @@ def get_owner_details(owner_name):
         if query_normalized:
             owner = owners_df[owners_df['associate_id_owner'].astype(str).apply(lambda x: _normalize_associate_id(x) == query_normalized)]
             if not owner.empty:
+                matched_by_id = True
                 owner_row = owner.iloc[0]
-                display_name = owner_row.get('owner_name_original', owner_row.get('owner_name', '')) or owner_row.get('owner_name', '')
+                display_name = _safe_owner_name_from_row(owner_row, exclude_id=query_normalized)
+                if not display_name:
+                    display_name = _safe_owner_name_from_row(owner_row)
+                # Audit diagnostic: when FEC query 400 is investigated, log row and safe name for ID 7810804515
+                if query_normalized == "7810804515" and (_DEBUG or os.environ.get("FEC_AUDIT_LOG")):
+                    raw_on = owner_row.get("owner_name", "")
+                    raw_orig = owner_row.get("owner_name_original", "")
+                    safe_out = _safe_owner_name_from_row(owner_row, exclude_id=query_normalized) or _safe_owner_name_from_row(owner_row)
+                    print(f"[FEC audit] get_owner_details(7810804515): row owner_name={raw_on!r} owner_name_original={raw_orig!r} -> _safe_owner_name_from_row={safe_out!r} display_name={display_name!r}")
                 # Fall through to facilities/donations logic below - we have owner_row
             else:
                 owner = pd.DataFrame()
@@ -2840,14 +3004,17 @@ def get_owner_details(owner_name):
     
     owner_row = owner.iloc[0]
     
-    # Use normalized name for display if it matches the query, otherwise use original
-    display_name = owner_row.get('owner_name', owner_name)
-    if owner_name.upper() not in display_name.upper():
-        # If normalized name doesn't match, try original
-        orig_name = owner_row.get('owner_name_original', '')
-        if orig_name and owner_name.upper() in orig_name.upper():
-            display_name = orig_name
-        # Otherwise keep normalized name (it's more reliable)
+    # Use normalized name for display if it matches the query, otherwise use original.
+    # When we looked up by ID (matched_by_id), never use owner_name (the path param) as name — it's the numeric ID.
+    if not matched_by_id:
+        display_name = owner_row.get('owner_name', owner_name)
+        if owner_name.upper() not in display_name.upper():
+            # If normalized name doesn't match, try original
+            orig_name = owner_row.get('owner_name_original', '')
+            if orig_name and owner_name.upper() in orig_name.upper():
+                display_name = orig_name
+            # Otherwise keep normalized name (it's more reliable)
+    # else: display_name already set from row when we matched by ID (name fields only)
     
     # Get facilities (use comma split + strip to match rest of codebase and handle "A,B" or "A, B")
     facilities = []
@@ -3094,9 +3261,56 @@ def get_owner_details(owner_name):
     # Sort donations by date (most recent first)
     donations.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)
     
+    # Response owner_name/owner_name_original are used by the frontend for the FEC query. FEC search is by NAME only (never ID or CCN).
+    # When we looked up by ID: use only the row's owner_name and owner_name_original (the actual person/org name from owners_database).
+    owner_type_response = owner_row['owner_type']
+    oid_norm = _normalize_associate_id(owner_row.get('associate_id_owner')) if matched_by_id else None
+
+    def _is_valid_name_for_fec(s):
+        if not s or not str(s).strip():
+            return False
+        s = str(s).strip()
+        if s.upper() in ('NAN', 'NONE', 'N/A'):
+            return False
+        digits = ''.join(c for c in s if c.isdigit())
+        if oid_norm and digits == oid_norm:
+            return False
+        if len(digits) >= 9 and len(digits) <= 11 and digits.isdigit():
+            return False
+        return True
+
+    final_display = ''
+    final_original = ''
+    if matched_by_id:
+        # Single path: name comes from the row's owner_name / owner_name_original only (from owners_database built by owner_donor.py).
+        on = str(owner_row.get('owner_name') or '').strip()
+        oorig = str(owner_row.get('owner_name_original') or '').strip()
+        if _is_valid_name_for_fec(oorig):
+            final_display = oorig
+            final_original = oorig
+        if _is_valid_name_for_fec(on) and not final_display:
+            final_display = on
+            final_original = oorig if _is_valid_name_for_fec(oorig) else on
+        if not final_display and ownership_raw_df is not None and not ownership_raw_df.empty:
+            raw_display, raw_original = _get_owner_name_from_raw_by_id(owner_row.get('associate_id_owner'))
+            if raw_display and _is_valid_name_for_fec(raw_display):
+                final_display = raw_display.strip()
+                final_original = (raw_original or final_display).strip()
+    else:
+        # Looked up by name: use display_name and row names as before.
+        owner_name_original = (owner_row.get('owner_name_original') or '') if pd.notna(owner_row.get('owner_name_original')) else ''
+        if not owner_name_original or not str(owner_name_original).strip():
+            owner_name_original = display_name
+        safe_display = _safe_owner_name_from_row(owner_row)
+        if not safe_display and display_name is not None and not (isinstance(display_name, float) and pd.isna(display_name)):
+            safe_display = str(display_name).strip()
+        safe_original = (str(owner_name_original).strip() if owner_name_original and pd.notna(owner_name_original) else '') or safe_display
+        final_display = safe_display or (str(display_name).strip() if display_name and not (isinstance(display_name, float) and pd.isna(display_name)) else '')
+        final_original = safe_original or safe_display or (str(owner_name_original).strip() if owner_name_original else '')
     response_data = {
-        'owner_name': display_name,
-        'owner_type': owner_row['owner_type'],
+        'owner_name': final_display,
+        'owner_name_original': final_original or final_display,
+        'owner_type': owner_type_response,
         'facilities': facilities,
         'portfolio_summary': portfolio_summary,
         'donations': donations,
@@ -3124,25 +3338,19 @@ def query_fec():
     NOT called during initial load or when viewing owner details.
     """
     try:
-        # Handle both direct requests and proxied requests. Use get_json(silent=True)
-        # so we never raise BadRequest (which would be caught by main app's 400 handler
-        # and returned as plain "Bad Request" instead of JSON).
+        # Parse body manually so we never raise BadRequest (FEC query is always by owner NAME, not ID).
         raw = request.get_data()
         if not raw or (isinstance(raw, bytes) and not raw.strip()) or (isinstance(raw, str) and not raw.strip()):
             return jsonify({'error': 'Request body required'}), 400
-        if request.is_json:
-            data = request.get_json(silent=True)
-            if data is None:
-                return jsonify({'error': 'Invalid JSON in request body'}), 400
-        else:
-            try:
-                data = json.loads(request.get_data(as_text=True))
-            except Exception:
-                return jsonify({'error': 'Invalid JSON in request body'}), 400
-        if not data:
+        try:
+            raw_str = raw.decode('utf-8') if isinstance(raw, bytes) else raw
+            data = json.loads(raw_str)
+        except Exception:
+            return jsonify({'error': 'Invalid JSON in request body'}), 400
+        if not data or not isinstance(data, dict):
             return jsonify({'error': 'Request body required'}), 400
 
-        # Defensive: JSON null or missing keys must not become None (avoids AttributeError)
+        # FEC API is queried by owner NAME only (as in filings). Never by ID, CCN, or any number.
         owner_name = (data.get('owner_name') or '').strip()
         owner_type = (data.get('owner_type') or 'ORGANIZATION')
         if isinstance(owner_type, str):
@@ -3151,7 +3359,12 @@ def query_fec():
             owner_type = 'ORGANIZATION'
 
         if not owner_name:
+            if _DEBUG or os.environ.get("FEC_AUDIT_LOG"):
+                print(f"[FEC query 400] owner_name empty. Request body: owner_name={data.get('owner_name')!r} owner_type={data.get('owner_type')!r}")
             return jsonify({'error': 'Owner name required'}), 400
+        digits_only = ''.join(c for c in owner_name if c.isdigit())
+        if len(digits_only) >= 9 and len(digits_only) <= 11 and digits_only.isdigit():
+            return jsonify({'error': 'FEC search must use the owner\'s name, not an ID number. Use the name from the owner page.'}), 400
 
         if not FEC_API_KEY or FEC_API_KEY == "YOUR_API_KEY_HERE":
             return jsonify({'error': 'Search is temporarily unavailable.'}), 503
@@ -3160,7 +3373,30 @@ def query_fec():
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Error parsing request: {str(e)}'}), 400
-    
+
+    # Optional: return cached FEC response if fresh (speeds repeat lookups; data changes handled by FEC_CACHE_DAYS)
+    cache_key = (owner_name.upper().strip() + "|" + owner_type).replace(" ", "_")[:200]
+    if FEC_CACHE_PATH and FEC_CACHE_DAYS > 0:
+        try:
+            from datetime import datetime, timezone, timedelta
+            with _fec_cache_lock:
+                if FEC_CACHE_PATH.exists():
+                    cache_data = json.loads(FEC_CACHE_PATH.read_text(encoding="utf-8"))
+                    if cache_key in cache_data:
+                        entry = cache_data[cache_key]
+                        cached_at = entry.get("cached_at") or ""
+                        try:
+                            dt = datetime.fromisoformat(cached_at.replace("Z", "+00:00"))
+                            if dt.tzinfo is None:
+                                dt = dt.replace(tzinfo=timezone.utc)
+                            if (datetime.now(timezone.utc) - dt).days < FEC_CACHE_DAYS:
+                                return jsonify(entry.get("response") or {})
+                        except Exception:
+                            pass
+        except Exception as e:
+            if _DEBUG:
+                print(f"[FEC cache read] {e}")
+
     try:
         all_donations = []
         
@@ -3302,6 +3538,29 @@ def query_fec():
             resp['fec_timeout'] = True
             if not normalized:
                 resp['error'] = 'The FEC API took too long to respond. Please try again.'
+
+        # Optional: cache response for repeat lookups (invalidate with FEC_CACHE_DAYS or delete fec_cache.json)
+        if FEC_CACHE_PATH and FEC_CACHE_DAYS > 0 and FEC_CACHE_MAX_ENTRIES > 0:
+            try:
+                from datetime import datetime, timezone
+                with _fec_cache_lock:
+                    cache_data = {}
+                    if FEC_CACHE_PATH.exists():
+                        try:
+                            cache_data = json.loads(FEC_CACHE_PATH.read_text(encoding="utf-8"))
+                        except Exception:
+                            pass
+                    now = datetime.now(timezone.utc).isoformat()
+                    cache_data[cache_key] = {"cached_at": now, "response": resp}
+                    while len(cache_data) > FEC_CACHE_MAX_ENTRIES:
+                        oldest_key = min(cache_data.keys(), key=lambda k: cache_data[k].get("cached_at") or "")
+                        del cache_data[oldest_key]
+                    FEC_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+                    FEC_CACHE_PATH.write_text(json.dumps(cache_data, indent=None), encoding="utf-8")
+            except Exception as e:
+                if _DEBUG:
+                    print(f"[FEC cache write] {e}")
+
         return jsonify(resp)
     
     except Exception as e:

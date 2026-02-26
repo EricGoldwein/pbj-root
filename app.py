@@ -80,6 +80,7 @@ if not app.config['SECRET_KEY']:
     print('Warning: SECRET_KEY not set; using default. Set SECRET_KEY or FLASK_SECRET_KEY in production.')
 try:
     from flask_wtf.csrf import CSRFProtect, generate_csrf, validate_csrf  # type: ignore[reportMissingImports]
+    app.config.setdefault('WTF_CSRF_CHECK_DEFAULT', False)
     csrf_protect = CSRFProtect(app)
     HAS_CSRF = True
 except ImportError:
@@ -316,6 +317,17 @@ def _ensure_pandas():
     if pd is None:
         pd = get_pd()
 
+
+@app.before_request
+def _csrf_protect_selectively():
+    """Only run CSRF for /subscribe and /contact. Skip all /owners/* so query-fec and owner pages never get 400."""
+    if not HAS_CSRF or csrf_protect is None:
+        return
+    if request.path.startswith('/owners'):
+        return
+    if request.path in ('/subscribe', '/contact') or request.path.startswith('/contact?'):
+        csrf_protect.protect()
+
 @app.route('/health')
 def health():
     """Lightweight health check for Render. Side-effect free (best practice for public sites)."""
@@ -344,6 +356,9 @@ def bad_request(err):
         return redirect('/?subscribe_error=invalid')
     if request.path == '/contact':
         return redirect('/contact?error=invalid')
+    # Owners API: return JSON so frontend sees real error (e.g. query-fec "Owner name required")
+    if request.path.startswith('/owners/api/'):
+        return make_response((json.dumps({'error': getattr(err, 'description', None) or 'Bad request'}), 400, {'Content-Type': 'application/json'}))
     return make_response(('Bad Request', 400))
 
 def _send_subscribe_notification(email_address, source='homepage'):
@@ -681,19 +696,51 @@ def owner_api_proxy(api_path):
     except Exception:
         return jsonify({'error': 'Owner dashboard unavailable'}), 503
     try:
-        req_body = None
-        if request.method in ['POST', 'PUT']:
-            req_body = request.get_data()
-        headers = {k: v for k, v in request.headers if k.lower() != 'host'}
-        with owner_app.test_request_context(
-            f'/api/{api_path}',
-            method=request.method,
-            query_string=request.query_string.decode() if request.query_string else '',
-            data=req_body,
-            content_type=request.content_type,
-            headers=headers
-        ):
-            return owner_app.full_dispatch_request()
+        # Use test_client so the sub-app receives the POST body reliably.
+        # For JSON bodies, parse here and pass as json= so the sub-app definitely gets the payload.
+        client = owner_app.test_client()
+        headers = [(k, v) for k, v in request.headers if k.lower() != 'host']
+        if request.method == 'GET':
+            qs = request.query_string
+            query_string_arg = qs.decode('utf-8') if qs else None
+            r = client.get(f'/api/{api_path}', query_string=query_string_arg, headers=headers)
+        elif request.method == 'POST':
+            is_json = (request.content_type or '').strip().lower().startswith('application/json')
+            if is_json:
+                payload = request.get_json(silent=True, force=True)
+                if payload is None:
+                    payload = {}
+                r = client.post(f'/api/{api_path}', json=payload, headers=headers)
+            else:
+                req_body = request.get_data()
+                r = client.post(
+                    f'/api/{api_path}',
+                    data=req_body,
+                    content_type=request.content_type or 'application/octet-stream',
+                    headers=headers
+                )
+        elif request.method == 'PUT':
+            is_json = (request.content_type or '').strip().lower().startswith('application/json')
+            if is_json:
+                payload = request.get_json(silent=True, force=True)
+                if payload is None:
+                    payload = {}
+                r = client.put(f'/api/{api_path}', json=payload, headers=headers)
+            else:
+                req_body = request.get_data()
+                r = client.put(
+                    f'/api/{api_path}',
+                    data=req_body,
+                    content_type=request.content_type or 'application/octet-stream',
+                    headers=headers
+                )
+        elif request.method == 'DELETE':
+            r = client.delete(f'/api/{api_path}', headers=headers)
+        else:
+            return jsonify({'error': 'Method not allowed'}), 405
+        # Pass through status and body so sub-app JSON/errors are returned correctly
+        from flask import Response
+        return Response(r.get_data(), status=r.status_code, mimetype=r.content_type)
     except Exception as e:
         from werkzeug.exceptions import BadRequest
         if isinstance(e, BadRequest):

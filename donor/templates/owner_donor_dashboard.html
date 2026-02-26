@@ -422,19 +422,25 @@
             flex-wrap: wrap;
             gap: 0.75rem;
         }
-        .details-header-center {
+        .details-header .back-btn {
             flex: 1;
+            min-width: 0;
+        }
+        .details-header .back-btn + .details-header-center {
+            flex: 0 0 auto;
+        }
+        .details-header-center {
             display: flex;
             justify-content: center;
             align-items: center;
             min-width: 0;
         }
         .details-header-right {
-            flex-shrink: 0;
+            flex: 1;
+            min-width: 0;
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            min-width: 0;
         }
         .details-header-right .providers-affiliated-line {
             margin: 0;
@@ -443,9 +449,9 @@
             text-align: right;
         }
         .details-header-center .query-fec-btn {
-            font-size: 1.35rem;
+            font-size: 1.15rem;
             font-weight: 600;
-            padding: 0.75rem 1.75rem;
+            padding: 0.7rem 1.5rem;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(102, 126, 234, 0.35);
         }
@@ -859,9 +865,13 @@
             touch-action: manipulation;
             text-decoration: none;
             border-bottom: none;
+            display: inline-flex;
+            align-items: center;
+            vertical-align: middle;
         }
         .donor-info-trigger:hover {
             text-decoration: none;
+            color: rgba(255,255,255,0.95);
         }
         .donor-info-trigger-match {
             text-decoration: none !important;
@@ -1638,7 +1648,7 @@
             });
             const el = document.getElementById(uid);
             if (!el) return;
-            const wrap = el.closest('.donor-info-wrap');
+            const wrap = el.closest('.donor-info-wrap') || el._donorPopupParent;
             if (!wrap) return;
             if (!el._donorPopupParent) {
                 el._donorPopupParent = wrap;
@@ -1663,7 +1673,7 @@
         function toggleDonorPopup(uid) {
             const el = document.getElementById(uid);
             if (!el) return;
-            const wrap = el.closest('.donor-info-wrap');
+            const wrap = el.closest('.donor-info-wrap') || el._donorPopupParent;
             if (!wrap) return;
             const isShown = el.classList.contains('show');
             document.querySelectorAll('.donor-popup.show').forEach(function(p) {
@@ -3088,7 +3098,7 @@
                 // Ensure facilities is an array (filter out null/undefined)
                 const facilities = (Array.isArray(owner.facilities) ? owner.facilities : []).filter(function(f) { return f != null; });
                 const ownerDisplayName = toTitleCaseOwnerName((owner.owner_name || owner.owner_name_original || 'this owner').trim());
-                const providersTitle = facilities.length + ' providers affiliated with ' + escapeHtml(ownerDisplayName);
+                const providersTitle = 'Affiliated providers/businesses (' + facilities.length + ')';
                 const providersLimitations = 'Affiliation is from CMS ownership data; provider names may differ from legal business names.';
                 const limitsUid = 'prov-limits-' + Math.random().toString(36).slice(2);
                 const limitsUidFacilities = limitsUid + '-fac';

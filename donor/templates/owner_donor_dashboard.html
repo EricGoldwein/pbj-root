@@ -460,9 +460,9 @@
                 grid-column: 2;
                 justify-self: center;
                 text-align: center;
-                font-size: 1.05rem;
+                font-size: 1.15rem;
                 position: relative;
-                left: -0.4rem;
+                left: -0.65rem;
             }
         }
         .details-header-center .query-fec-btn {
@@ -928,17 +928,17 @@
         }
         .donor-popup.donor-popup-inline {
             position: absolute;
-            bottom: 100%;
-            right: 0;
-            margin-bottom: 6px;
+            top: 100%;
+            left: 0;
+            margin-top: 6px;
             min-width: 180px;
             max-width: 260px;
             white-space: normal;
         }
         @media (max-width: 768px) {
             .donor-popup.donor-popup-inline {
-                right: 0;
-                left: auto;
+                left: 0;
+                right: auto;
                 max-width: min(260px, calc(100vw - 2rem));
             }
             .donor-popup {
@@ -3145,7 +3145,7 @@
                 var displayName = toTitleCaseOwnerName(String(owner.owner_name || owner.owner_name_original || '').trim());
                 if (!displayName) displayName = (owner.owner_name || owner.owner_name_original || '') || 'Owner';
                 document.getElementById('ownerTitle').textContent = displayName;
-                var pageTitle = displayName + ' | PBJ320 Nursing Home Owner';
+                var pageTitle = displayName + ' | PBJ320 Nursing Home Owner Search';
                 document.title = pageTitle;
                 var ogTitle = document.querySelector('meta[property="og:title"]');
                 if (ogTitle) ogTitle.setAttribute('content', pageTitle);
@@ -3156,7 +3156,7 @@
                     var cmsId = String(owner.associate_id_owner || '').replace(/[^0-9]/g, '');
                     if (cmsId.length >= 9 && cmsId.length <= 11) cmsId = cmsId.slice(-10).padStart(10, '0');
                     if (cmsId === window.INITIAL_OWNER_ID && typeof gtag === 'function') {
-                        gtag('config', 'G-NDPVY6TWBK', { page_path: '/owners/' + window.INITIAL_OWNER_ID, page_title: displayName + ' | PBJ320 Nursing Home Owner' });
+                        gtag('config', 'G-NDPVY6TWBK', { page_path: '/owners/' + window.INITIAL_OWNER_ID, page_title: displayName + ' | PBJ320 Nursing Home Owner Search' });
                     }
                 }
                 

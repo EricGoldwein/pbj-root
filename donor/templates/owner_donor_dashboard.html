@@ -2737,16 +2737,13 @@
                         ownerCardsHtml = `<div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(102, 126, 234, 0.3);">
                             <h4 style="margin: 0 0 1rem 0; color: white; font-size: 1rem; font-weight: 600;">Owners and Managers</h4>
                             <div style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                ${results.map(result => `
-                                    <div style="display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">
-                                        <div style="color: white; font-weight: 500; word-break: break-word;">${escapeHtml(result.owner_name || '')}</div>
-                                        ${(result.facilities && result.facilities.length) ? `<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">${result.facilities.slice(0, 3).map(f => escapeHtml(toTitleCase(f))).join(', ')}${result.facilities.length > 3 ? ' and ' + (result.facilities.length - 3) + ' more' : ''}</div>` : ''}
-                                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                            <button onclick="event.stopPropagation(); queryFecApiForOwner('${(result.owner_name || '').replace(/'/g, "\\'")}', '${result.owner_type || 'UNKNOWN'}')" style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">Contributions</button>
-                                            <button onclick="event.stopPropagation(); showOwnerDetails('${(result.owner_name || '').replace(/'/g, "\\'")}')" style="flex: 1; min-width: 120px; padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 0.8rem;">Providers</button>
-                                        </div>
-                                    </div>
-                                `).join('')}
+                                ${results.map(result => {
+                                    const oid = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                                    const nameLine = '<div style="color: white; font-weight: 500; word-break: break-word;">' + escapeHtml(result.owner_name || '') + '</div>';
+                                    const facLine = (result.facilities && result.facilities.length) ? '<div style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">' + result.facilities.slice(0, 3).map(f => escapeHtml(toTitleCase(f))).join(', ') + (result.facilities.length > 3 ? ' and ' + (result.facilities.length - 3) + ' more' : '') + '</div>' : '';
+                                    if (oid) return '<a href="/owners/' + oid + '" style="display: block; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px; text-decoration: none; color: inherit;">' + nameLine + facLine + '<div style="color: rgba(255,255,255,0.6); font-size: 0.8rem; margin-top: 0.25rem;">View owner page →</div></a>';
+                                    return '<div style="padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: 6px;">' + nameLine + facLine + '<div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;"><button type="button" onclick="queryFecApiForOwner(\'' + (result.owner_name || '').replace(/'/g, "\\'") + '\', \'' + (result.owner_type || 'UNKNOWN') + '\')" style="padding: 0.5rem 0.75rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Contributions</button><button type="button" onclick="showOwnerDetails(\'' + (result.owner_name || '').replace(/'/g, "\\'") + '\')" style="padding: 0.5rem 0.75rem; background: rgba(255, 255, 255, 0.1); color: white; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 6px; cursor: pointer; font-size: 0.8rem;">Providers</button></div></div>';
+                                }).join('')}
                             </div>
                         </div>`;
                     }
@@ -2757,6 +2754,21 @@
             
             container.innerHTML = headerHtml + results.map(result => {
                 const ownerId = (function() { const s = String(result.associate_id_owner || '').replace(/[^0-9]/g, ''); return s.length === 10 ? s : null; })();
+                if (ownerId) {
+                    // Single link to owner page: name, type, provider count. No buttons or popup.
+                    return `<a href="/owners/${ownerId}" class="result-card" style="text-decoration: none; color: inherit; display: block;">
+                        <div class="result-header">
+                            <div>
+                                <div class="owner-name">${escapeHtml(result.owner_name)}</div>
+                                <span class="owner-type ${result.owner_type.toLowerCase()}">${result.owner_type}</span>
+                            </div>
+                        </div>
+                        <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem; margin-top: 0.35rem;">
+                            ${result.num_facilities} ${result.num_facilities === 1 ? 'Provider' : 'Providers'} · View owner page →
+                        </div>
+                    </a>`;
+                }
+                // No CMS ID: keep card with buttons for popup (no dedicated page)
                 const cardInner = `
                     <div class="result-header">
                         <div>
@@ -2770,28 +2782,12 @@
                             ${result.facilities.length > 3 ? ` and ${result.facilities.length - 3} more` : ''}
                         </div>
                     ` : ''}
-                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;" onclick="event.stopPropagation(); event.preventDefault();">
-                        <button 
-                            type="button"
-                            onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" 
-                            class="query-fec-btn" 
-                            style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
-                        >
-                            Political Contributions
-                        </button>
-                        <button 
-                            type="button"
-                            class="back-btn show-owner-providers-btn" 
-                            data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}"
-                            style="flex: 1; padding: 0.6rem; font-size: 0.9rem;"
-                        >
-                            Providers (${result.num_facilities})
-                        </button>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                        <button type="button" onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${result.owner_name.replace(/'/g, "\\'")}', '${result.owner_type}')" class="query-fec-btn" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Political Contributions</button>
+                        <button type="button" class="back-btn show-owner-providers-btn" data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Providers (${result.num_facilities})</button>
                     </div>
                 `;
-                return ownerId
-                    ? `<a href="/owners/${ownerId}" class="result-card" style="text-decoration: none; color: inherit; display: block;">${cardInner}</a>`
-                    : `<div class="result-card">${cardInner}</div>`;
+                return `<div class="result-card">${cardInner}</div>`;
             }).join('');
         }
 

@@ -80,10 +80,11 @@ if not app.config['SECRET_KEY']:
     print('Warning: SECRET_KEY not set; using default. Set SECRET_KEY or FLASK_SECRET_KEY in production.')
 try:
     from flask_wtf.csrf import CSRFProtect, generate_csrf, validate_csrf  # type: ignore[reportMissingImports]
-    CSRFProtect(app)
+    csrf_protect = CSRFProtect(app)
     HAS_CSRF = True
 except ImportError:
     HAS_CSRF = False
+    csrf_protect = None
     generate_csrf = None
     validate_csrf = None
     print('Warning: Flask-WTF not installed. CSRF disabled for /subscribe. Install: pip install Flask-WTF')
@@ -669,6 +670,44 @@ def get_owner_app():
 from flask import Blueprint
 owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
 
+
+@app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def owner_api_proxy(api_path):
+    """Handle /owners/api/* first so POST body is reliably passed to sub-app. Registered before blueprint."""
+    try:
+        owner_app = get_owner_app()
+    except Exception:
+        return jsonify({'error': 'Owner dashboard unavailable'}), 503
+    try:
+        req_body = None
+        if request.method in ['POST', 'PUT']:
+            req_body = request.get_data()
+        headers = {k: v for k, v in request.headers if k.lower() != 'host'}
+        with owner_app.test_request_context(
+            f'/api/{api_path}',
+            method=request.method,
+            query_string=request.query_string.decode() if request.query_string else '',
+            data=req_body,
+            content_type=request.content_type,
+            headers=headers
+        ):
+            return owner_app.full_dispatch_request()
+    except Exception as e:
+        from werkzeug.exceptions import BadRequest
+        if isinstance(e, BadRequest):
+            return jsonify({'error': getattr(e, 'description', None) or 'Bad request'}), 400
+        print(f"Error in owner_api_proxy for {api_path}: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Proxy error: {str(e)}'}), 500
+
+
+if csrf_protect:
+    csrf_protect.exempt(owner_api_proxy)
+
+
 @owner_bp.route('', defaults={'path': ''})
 @owner_bp.route('/', defaults={'path': ''})
 @owner_bp.route('/<path:path>')
@@ -680,21 +719,15 @@ def owner_proxy(path):
         return "Owner dashboard unavailable. Please check server logs.", 503
     if path.startswith('api/'):
         api_path = path[4:]
-        # For POST/PUT, pass body explicitly so sub-app always receives it (avoids empty body on Render).
-        req_data = None
-        req_json = None
+        # For POST/PUT, pass raw body so sub-app always receives it (test_request_context json= can be unreliable).
+        req_body = None
         if request.method in ('POST', 'PUT'):
-            raw = request.get_data()
-            if request.is_json and raw:
-                req_json = request.get_json(silent=True) or None
-            if req_json is None and raw:
-                req_data = raw
+            req_body = request.get_data()
         with owner_app.test_request_context(
             f'/api/{api_path}',
             method=request.method,
             query_string=request.query_string.decode(),
-            json=req_json,
-            data=req_data,
+            data=req_body,
             content_type=request.content_type,
             headers=list(request.headers)
         ):
@@ -733,38 +766,6 @@ def owner_alias(path=''):
     if path:
         return redirect(f'/owners/{path}', code=301)
     return redirect('/owners', code=301)
-
-@app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def owner_api_proxy(api_path):
-    try:
-        owner_app = get_owner_app()
-    except Exception:
-        return jsonify({'error': 'Owner dashboard unavailable'}), 503
-    try:
-        request_data = None
-        if request.method in ['POST', 'PUT']:
-            if request.is_json:
-                request_data = request.get_json()
-            else:
-                request_data = request.get_data()
-        headers = {k: v for k, v in request.headers if k.lower() != 'host'}
-        with owner_app.test_request_context(
-            f'/api/{api_path}',
-            method=request.method,
-            query_string=request.query_string.decode() if request.query_string else '',
-            json=request_data if request.is_json and request_data else None,
-            data=request_data if not request.is_json and request_data else None,
-            content_type=request.content_type,
-            headers=headers
-        ):
-            return owner_app.full_dispatch_request()
-    except Exception as e:
-        print(f"Error in owner_api_proxy for {api_path}: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Proxy error: {str(e)}'}), 500
 
 @app.route('/sitemap.xml')
 def sitemap():

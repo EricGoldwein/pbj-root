@@ -42,6 +42,20 @@ from fec_indiv_bulk import (
 )
 import requests
 
+# Memory debugging (temporary)
+try:
+    import psutil  # type: ignore[reportMissingImports]
+    _donor_psutil_process = psutil.Process()
+    def _log_mem_donor(label):
+        try:
+            rss_mb = _donor_psutil_process.memory_info().rss / (1024 * 1024)
+            print(f"[MEM] donor {label}: {rss_mb:.1f} MB RSS", flush=True)
+        except Exception:
+            pass
+except ImportError:
+    def _log_mem_donor(label):
+        pass
+
 # Set DONOR_DEBUG=1 to enable [DEBUG] prints (autocomplete/search); off by default
 _DEBUG = os.environ.get("DONOR_DEBUG", "").strip() in ("1", "true", "yes")
 
@@ -895,6 +909,7 @@ def load_data():
     """
     global owners_df, ownership_df, ownership_raw_df, provider_info_df, entity_lookup_df, donations_df, committee_master
     
+    _log_mem_donor("load_data_start")
     print("="*60)
     print("Loading data for dashboard...")
     print("="*60)
@@ -1219,6 +1234,7 @@ def load_data():
                 print(f"  [Background] Committee autocomplete ready ({n:,} committees)")
         except Exception as e:
             print(f"  [Background] Committee autocomplete preload: {e}")
+    _log_mem_donor("load_data_end")
     t = threading.Thread(target=_preload_committee_autocomplete, daemon=True)
     t.start()
 
@@ -1226,6 +1242,7 @@ def load_data():
 @app.before_request
 def _before_request_ensure_data():
     """Lazy-load owner data on first request so gunicorn can bind and respond quickly (Render port check)."""
+    _log_mem_donor("before_request_ensure_data")
     ensure_load_data()
 
 

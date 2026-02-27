@@ -27,6 +27,21 @@ import html
 import time
 import gzip
 
+# Memory debugging (temporary) — log RSS at startup and heaviest routes
+try:
+    import psutil  # type: ignore[reportMissingImports]
+    _psutil_process = psutil.Process()
+    def _log_mem(label):
+        try:
+            rss_mb = _psutil_process.memory_info().rss / (1024 * 1024)
+            print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
+        except Exception:
+            pass
+except ImportError:
+    _psutil_process = None
+    def _log_mem(label):
+        pass
+
 try:
     import markdown  # type: ignore
     HAS_MARKDOWN = True
@@ -699,6 +714,7 @@ def _owners_api_cors_headers():
 @app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 def owner_api_proxy(api_path):
     """Handle /owners/api/* first so POST body is reliably passed to sub-app. Registered before blueprint."""
+    _log_mem("route_owner_api_before")
     if request.method == 'OPTIONS':
         resp = app.make_default_options_response()
         resp.status_code = 204
@@ -763,6 +779,7 @@ def owner_api_proxy(api_path):
         resp = Response(r.get_data(), status=r.status_code, mimetype=r.content_type)
         for k, v in _owners_api_cors_headers().items():
             resp.headers[k] = v
+        _log_mem("route_owner_api_after")
         return resp
     except Exception as e:
         from werkzeug.exceptions import BadRequest
@@ -1900,24 +1917,52 @@ def capitalize_entity_name(name):
         s = re.sub(r'\b' + re.escape(acr.lower()) + r'\b', acr, s)
     return s
 
+def _facility_quarterly_csv_path():
+    """Resolve path for facility_quarterly_metrics (same order as load_csv_data). Returns path or None."""
+    for filename in ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv'):
+        for path in [
+            os.path.join(APP_ROOT, filename),
+            filename,
+            os.path.join('pbj-wrapped', 'public', 'data', filename),
+            os.path.join('pbj-wrapped', 'dist', 'data', filename),
+            os.path.join('data', filename),
+        ]:
+            if os.path.exists(path):
+                return path
+    return None
+
+
 def load_facility_quarterly_for_provider(ccn):
     """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None.
     Prefers full facility_quarterly_metrics.csv so we include 2025Q3 when present; _latest may only have through Q2 2025.
-    This is the source for provider page longitudinal charts (staffing, census, contract); all quarters are kept. Speed
-    optimizations in load_provider_info() do not affect chart data."""
+    This is the source for provider page longitudinal charts (staffing, census, contract); all quarters are kept.
+    Streams CSV in chunks so the full file is never loaded; peak memory stays low."""
     if not HAS_PANDAS:
         return None
     prov = normalize_ccn(ccn)
     if not prov:
         return None
-    df = load_csv_data('facility_quarterly_metrics.csv')
-    if df is None or not isinstance(df, pd.DataFrame):
-        df = load_csv_data('facility_quarterly_metrics_latest.csv')
-    if df is None or not isinstance(df, pd.DataFrame):
+    path = _facility_quarterly_csv_path()
+    if not path:
         return None
-    df = df.copy()
-    df['PROVNUM'] = df['PROVNUM'].astype(str).str.strip().str.zfill(6)
-    out = df[df['PROVNUM'] == prov]
+    _log_mem("facility_quarterly_stream_start")
+    chunks_list = []
+    try:
+        for chunk in pd.read_csv(path, low_memory=False, chunksize=100000):
+            if 'PROVNUM' not in chunk.columns:
+                continue
+            normalized = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            match = chunk.loc[normalized == prov]
+            if not match.empty:
+                out_match = match.copy()
+                out_match['PROVNUM'] = out_match['PROVNUM'].astype(str).str.strip().str.zfill(6)
+                chunks_list.append(out_match)
+    except Exception as e:
+        print(f"Error streaming facility_quarterly from {path}: {e}")
+        _log_mem("facility_quarterly_stream_end")
+        return None
+    out = pd.concat(chunks_list, axis=0, ignore_index=True) if chunks_list else pd.DataFrame()
+    _log_mem("facility_quarterly_stream_end")
     return out if not out.empty else None
 
 
@@ -5196,17 +5241,22 @@ def _provider_page_impl(ccn):
     provider_info_row = provider_info.get(prov, {})
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
     _PROVIDER_PAGE_CACHE[prov] = (now, html)
+    _log_mem("route_provider_after")
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 def _state_page_impl(state_slug):
+    _log_mem("route_state_before")
     canonical_slug, state_code = resolve_state_slug(state_slug)
     if not canonical_slug or not state_code:
         from flask import abort
         abort(404)
-    return generate_state_page(state_code)
+    out = generate_state_page(state_code)
+    _log_mem("route_state_after")
+    return out
 
 def _entity_page_impl(entity_id):
     from flask import abort
+    _log_mem("route_entity_before")
     if not HAS_PANDAS:
         return "Pandas not available. Entity pages require pandas.", 503
     entity_name, facilities = load_entity_facilities(entity_id)
@@ -5215,6 +5265,7 @@ def _entity_page_impl(entity_id):
     chain_perf = load_chain_performance()
     chain_row = chain_perf.get(int(entity_id)) if chain_perf else None
     html = generate_entity_page_html(entity_id, entity_name, facilities, chain_row=chain_row)
+    _log_mem("route_entity_after")
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
 
 @app.route('/provider/<ccn>')
@@ -5310,9 +5361,10 @@ def pbjpedia_state_page(state_identifier):
 
 def generate_state_page(state_code):
     """Generate state page with all data - used by both canonical and legacy routes"""
+    _log_mem("generate_state_page_start")
     if not HAS_PANDAS:
         return "Pandas not available. Dynamic state pages require pandas.", 503
-    
+
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     
     # Load data
@@ -5410,6 +5462,7 @@ def generate_state_page(state_code):
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    _log_mem("generate_state_page_end")
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': 'no-cache, no-store, must-revalidate',
@@ -7028,6 +7081,8 @@ def compress_response(response):
             pass
     return response
 
+
+_log_mem("app_startup")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))

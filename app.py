@@ -686,15 +686,35 @@ from flask import Blueprint
 owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
 
 
-@app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def _owners_api_cors_headers():
+    """CORS + Private Network Access so /owners/api/* works from both localhost and LAN IP (e.g. 192.168.0.8)."""
+    h = {'Access-Control-Allow-Private-Network': 'true'}
+    origin = request.environ.get('HTTP_ORIGIN')
+    h['Access-Control-Allow-Origin'] = origin if origin else '*'
+    return h
+
+
+@app.route('/owners/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+@app.route('/owner/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
+@app.route('/ownership/api/<path:api_path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 def owner_api_proxy(api_path):
     """Handle /owners/api/* first so POST body is reliably passed to sub-app. Registered before blueprint."""
+    if request.method == 'OPTIONS':
+        resp = app.make_default_options_response()
+        resp.status_code = 204
+        for k, v in _owners_api_cors_headers().items():
+            resp.headers[k] = v
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+        return resp
     try:
         owner_app = get_owner_app()
     except Exception:
-        return jsonify({'error': 'Owner dashboard unavailable'}), 503
+        r = jsonify({'error': 'Owner dashboard unavailable'})
+        r.status_code = 503
+        for k, v in _owners_api_cors_headers().items():
+            r.headers[k] = v
+        return r
     try:
         # Use test_client so the sub-app receives the POST body reliably.
         # For JSON bodies, parse here and pass as json= so the sub-app definitely gets the payload.
@@ -740,15 +760,26 @@ def owner_api_proxy(api_path):
             return jsonify({'error': 'Method not allowed'}), 405
         # Pass through status and body so sub-app JSON/errors are returned correctly
         from flask import Response
-        return Response(r.get_data(), status=r.status_code, mimetype=r.content_type)
+        resp = Response(r.get_data(), status=r.status_code, mimetype=r.content_type)
+        for k, v in _owners_api_cors_headers().items():
+            resp.headers[k] = v
+        return resp
     except Exception as e:
         from werkzeug.exceptions import BadRequest
         if isinstance(e, BadRequest):
-            return jsonify({'error': getattr(e, 'description', None) or 'Bad request'}), 400
+            r = jsonify({'error': getattr(e, 'description', None) or 'Bad request'})
+            r.status_code = 400
+            for k, v in _owners_api_cors_headers().items():
+                r.headers[k] = v
+            return r
         print(f"Error in owner_api_proxy for {api_path}: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': f'Proxy error: {str(e)}'}), 500
+        r = jsonify({'error': f'Proxy error: {str(e)}'})
+        r.status_code = 500
+        for k, v in _owners_api_cors_headers().items():
+            r.headers[k] = v
+        return r
 
 
 if csrf_protect:

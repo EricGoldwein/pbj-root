@@ -343,6 +343,7 @@
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             position: relative;
             z-index: 1;
+            overflow: visible;
         }
         
         .search-input-wrapper {
@@ -421,6 +422,8 @@
             margin-bottom: 0.5rem;
             padding-bottom: 0.5rem;
             gap: 0.75rem;
+            position: relative;
+            z-index: 10;
         }
         .details-header .back-btn {
             justify-self: start;
@@ -443,6 +446,11 @@
             font-size: 0.85rem;
             color: rgba(255,255,255,0.8);
             text-align: right;
+        }
+        .details-header-right .donor-info-wrap,
+        .providers-above-table .donor-info-wrap {
+            position: relative;
+            z-index: 11;
         }
         .details-header-mobile-title {
             display: none;
@@ -926,6 +934,9 @@
         .donor-popup.show {
             display: block;
         }
+        .donor-info-wrap.donor-inline-popup-open {
+            z-index: 1000;
+        }
         .donor-popup.donor-popup-inline {
             position: absolute;
             top: 100%;
@@ -934,6 +945,11 @@
             min-width: 180px;
             max-width: 260px;
             white-space: normal;
+            z-index: 99999;
+        }
+        .details-header-right .donor-popup.donor-popup-inline {
+            left: auto;
+            right: 0;
         }
         @media (max-width: 768px) {
             .donor-popup.donor-popup-inline {
@@ -1690,6 +1706,8 @@
             const el = document.getElementById(uid);
             if (!el) return;
             if (el.classList.contains('donor-popup-inline')) {
+                var w = el.closest('.donor-info-wrap');
+                if (w) w.classList.add('donor-inline-popup-open');
                 el.classList.add('show');
                 return;
             }
@@ -1752,6 +1770,10 @@
         }
         function closeAllDonorPopups() {
             document.querySelectorAll('.donor-popup.show').forEach(function(p) {
+                if (p.classList.contains('donor-popup-inline')) {
+                    var w = p.closest('.donor-info-wrap');
+                    if (w) w.classList.remove('donor-inline-popup-open');
+                }
                 p.classList.remove('show');
                 if (p._donorPopupParent) {
                     p._donorPopupParent.appendChild(p);
@@ -3164,7 +3186,7 @@
                 // Ensure facilities is an array (filter out null/undefined)
                 const facilities = (Array.isArray(owner.facilities) ? owner.facilities : []).filter(function(f) { return f != null; });
                 const ownerDisplayName = toTitleCaseOwnerName((owner.owner_name || owner.owner_name_original || 'this owner').trim());
-                const providersTitle = 'Affiliated providers/businesses (' + facilities.length + ')';
+                const providersTitle = 'Affiliated Providers/Businesses (' + facilities.length + ')';
                 const providersLimitations = 'Affiliation is from CMS ownership data; provider names may differ from legal business names.';
                 const limitsUid = 'prov-limits-' + Math.random().toString(36).slice(2);
                 const limitsUidFacilities = limitsUid + '-fac';

@@ -802,23 +802,22 @@
                 padding-top: 0;
                 overflow: visible;
             }
-            .providers-above-table .donor-info-wrap {
-                position: static;
-                display: block;
-                width: 100%;
-                padding: 0.35rem 0;
-                min-height: 2.25rem;
-                text-align: center;
+            .providers-above-table {
+                white-space: nowrap;
+                font-size: 0.75rem;
             }
-            .providers-above-table .donor-info-wrap .donor-info-trigger {
-                display: inline-block;
+            .providers-above-table .donor-info-wrap {
+                display: inline-flex;
+                vertical-align: middle;
+                padding: 0 0.2rem;
+                min-height: 1.5rem;
             }
             .providers-above-table .donor-popup.donor-popup-inline {
                 left: 50%;
                 right: auto;
                 transform: translateX(-50%);
                 top: 100%;
-                margin-top: 6px;
+                margin-top: 4px;
             }
         }
         .facilities-table thead {
@@ -3371,8 +3370,9 @@
             }
             
             const ownerName = currentOwner ? (currentOwner.owner_name_original || currentOwner.owner_name || '') : '';
+            const _isMobileNames = typeof window !== 'undefined' && window.innerWidth <= 768;
             const namesSearchedLine = (namesSearched && namesSearched.length > 0)
-                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
+                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing ' + (_isMobileNames ? 'Contributions' : 'FEC results') + ' for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
                 : '';
             
             // FEC query uses original name (as in CMS/filings) when available
@@ -3713,8 +3713,9 @@
             
             const totalAmount = total !== null ? total : donations.reduce((sum, d) => sum + (d.amount || 0), 0);
             const donationCount = count !== null ? count : donations.length;
+            const _isMobileFec = typeof window !== 'undefined' && window.innerWidth <= 768;
             const namesSearchedLine = (namesSearched && namesSearched.length > 0)
-                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing FEC results for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
+                ? '<p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.75rem;">Showing ' + (_isMobileFec ? 'Contributions' : 'FEC results') + ' for ' + namesSearched.map(n => escapeHtml(toTitleCaseOwnerName(String(n).replace(/\s+/g, ' ').trim()))).join(', ') + '.</p>'
                 : '';
             
             // Group by recipient for summary
@@ -3795,11 +3796,10 @@
             window.currentDonationsPage = 1;
             const isMobile = window.innerWidth <= 768;
             container.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
-                    ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(displayOwnerName)}</h3>`}
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: -0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '✕' : '✕'}</button>
-                    ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
-                </div>
+                ${isMobile ? '' : `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
+                    <h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(displayOwnerName)}</h3>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.9rem;">✕</button>
+                </div>`}
                 ${namesSearchedLine}
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
                     <div>

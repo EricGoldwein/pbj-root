@@ -116,10 +116,21 @@ entity_lookup_df = None
 donations_df = None
 facility_metrics_df = None
 
-# Lazy load: avoid blocking gunicorn startup (cm26 + FEC data can be heavy on Render)
+# Lazy load: avoid blocking gunicorn startup; each dataset loads only when first accessed
 _owner_data_loaded = False
 _owner_data_lock = threading.Lock()
 _fec_cache_lock = threading.Lock()
+# Per-dataset locks for lazy getters
+_owners_df_lock = threading.Lock()
+_donations_df_lock = threading.Lock()
+_ownership_df_lock = threading.Lock()
+_ownership_raw_df_lock = threading.Lock()
+_provider_info_df_lock = threading.Lock()
+_provider_info_latest_df_lock = threading.Lock()
+_facility_name_mapping_df_lock = threading.Lock()
+_entity_lookup_df_lock = threading.Lock()
+_facility_metrics_df_lock = threading.Lock()
+_committee_master_lock = threading.Lock()
 
 # Month suffix in NH_ProviderInfo_<Month><Year>.csv (order for sorting)
 _PROVIDER_INFO_MONTHS = [
@@ -158,19 +169,295 @@ def _get_latest_provider_info_path():
     return (path, label)
 
 
-def ensure_load_data():
-    """Load owner dashboard data once on first request. Keeps startup fast so Render detects the port."""
-    global _owner_data_loaded
-    with _owner_data_lock:
-        if _owner_data_loaded:
-            return
+def _read_csv_safe(path):
+    """Read CSV with encoding fallbacks. Used by lazy getters."""
+    try:
+        return pd.read_csv(path, dtype=str, low_memory=False, encoding='utf-8')
+    except UnicodeDecodeError:
         try:
-            load_data()
-            _owner_data_loaded = True
+            return pd.read_csv(path, dtype=str, low_memory=False, encoding='utf-8-sig')
+        except UnicodeDecodeError:
+            return pd.read_csv(path, dtype=str, low_memory=False, encoding='latin-1')
+
+
+def _read_csv_or_parquet_safe(csv_path, parquet_path):
+    """Prefer parquet when not older than CSV. Used by lazy getters."""
+    use_parquet = False
+    if parquet_path and parquet_path.exists():
+        try:
+            csv_mtime = csv_path.stat().st_mtime if csv_path.exists() else 0
+            pq_mtime = parquet_path.stat().st_mtime
+            if pq_mtime >= csv_mtime:
+                use_parquet = True
+        except OSError:
+            pass
+    if use_parquet:
+        return pd.read_parquet(parquet_path)
+    if csv_path.exists():
+        return _read_csv_safe(csv_path)
+    return pd.DataFrame()
+
+
+def get_owners_df():
+    """Lazy-load owners database; load only when first needed."""
+    global owners_df
+    with _owners_df_lock:
+        if owners_df is not None:
+            return owners_df
+        _log_mem_donor("get_owners_df_before")
+        try:
+            if not OWNERS_DB.exists():
+                owners_df = pd.DataFrame()
+            else:
+                owners_df = _read_csv_or_parquet_safe(OWNERS_DB, OWNERS_PARQUET)
+                if not owners_df.empty:
+                    if 'associate_id_owner' not in owners_df.columns:
+                        for c in owners_df.columns:
+                            norm = re.sub(r'[\s\-_]+', '', str(c)).upper()
+                            if norm in ('ASSOCIATEIDOWNER', 'OWNERASSOCIATEID'):
+                                owners_df = owners_df.rename(columns={c: 'associate_id_owner'})
+                                break
+                    for col in ['owner_name', 'owner_name_original', 'owner_type', 'facilities', 'associate_id_owner']:
+                        if col in owners_df.columns:
+                            owners_df[col] = owners_df[col].fillna('').astype(str)
         except Exception as e:
-            print(f"ensure_load_data failed: {e}")
-            import traceback
-            traceback.print_exc()
+            print(f"[FAIL] Error loading owners database: {e}")
+            owners_df = pd.DataFrame()
+        _log_mem_donor("get_owners_df_after")
+        return owners_df
+
+
+def get_donations_df():
+    """Lazy-load donations database; load only when first needed."""
+    global donations_df
+    with _donations_df_lock:
+        if donations_df is not None:
+            return donations_df
+        _log_mem_donor("get_donations_df_before")
+        try:
+            donations_df = _read_csv_safe(DONATIONS_DB) if DONATIONS_DB.exists() else pd.DataFrame()
+        except Exception as e:
+            print(f"[FAIL] Error loading donations: {e}")
+            donations_df = pd.DataFrame()
+        _log_mem_donor("get_donations_df_after")
+        return donations_df
+
+
+def get_ownership_df():
+    """Lazy-load normalized ownership; load only when first needed."""
+    global ownership_df
+    with _ownership_df_lock:
+        if ownership_df is not None:
+            return ownership_df
+        _log_mem_donor("get_ownership_df_before")
+        try:
+            ownership_df = _read_csv_or_parquet_safe(OWNERSHIP_NORM, OWNERSHIP_NORM_PARQUET) if OWNERSHIP_NORM.exists() or (OWNERSHIP_NORM_PARQUET and OWNERSHIP_NORM_PARQUET.exists()) else pd.DataFrame()
+        except Exception as e:
+            print(f"[FAIL] Error loading ownership: {e}")
+            ownership_df = pd.DataFrame()
+        _log_mem_donor("get_ownership_df_after")
+        return ownership_df
+
+
+def get_ownership_raw_df():
+    """Lazy-load raw ownership for provider matching. Skipped on RENDER to save memory."""
+    global ownership_raw_df
+    with _ownership_raw_df_lock:
+        if ownership_raw_df is not None:
+            return ownership_raw_df
+        _log_mem_donor("get_ownership_raw_df_before")
+        if os.environ.get("RENDER") == "true":
+            ownership_raw_df = pd.DataFrame()
+        elif OWNERSHIP_RAW.exists():
+            try:
+                try:
+                    ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
+                except UnicodeDecodeError:
+                    try:
+                        ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8-sig', nrows=None)
+                    except UnicodeDecodeError:
+                        try:
+                            ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
+                        except UnicodeDecodeError:
+                            ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
+            except Exception as e:
+                print(f"[FAIL] Error loading raw ownership: {e}")
+                ownership_raw_df = pd.DataFrame()
+        else:
+            ownership_raw_df = pd.DataFrame()
+        _log_mem_donor("get_ownership_raw_df_after")
+        return ownership_raw_df
+
+
+def get_provider_info_df():
+    """Lazy-load provider_info_combined (usecols when possible). Load only when first needed."""
+    global provider_info_df
+    with _provider_info_df_lock:
+        if provider_info_df is not None:
+            return provider_info_df
+        _log_mem_donor("get_provider_info_df_before")
+        provider_info_df = pd.DataFrame()
+        if PROVIDER_INFO.exists():
+            try:
+                try:
+                    sample_df = pd.read_csv(PROVIDER_INFO, nrows=1, dtype=str, low_memory=False, encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        sample_df = pd.read_csv(PROVIDER_INFO, nrows=1, dtype=str, low_memory=False, encoding='utf-8-sig')
+                    except UnicodeDecodeError:
+                        sample_df = pd.read_csv(PROVIDER_INFO, nrows=1, dtype=str, low_memory=False, encoding='latin-1')
+                available_cols = list(sample_df.columns)
+                base_cols = ['ccn', 'provider_name', 'state', 'city', 'avg_residents_per_day', 'overall_rating', 'ownership_type']
+                usecols_list = [c for c in base_cols if c in available_cols]
+                county_col = next((col for col in available_cols if 'county' in col.lower() or 'township' in col.lower()), None)
+                if county_col and county_col not in usecols_list:
+                    usecols_list.append(county_col)
+                for entity_col in ['Chain ID', 'chain_id', 'Chain_ID', 'Entity ID', 'entity_id', 'affiliated_entity_id', 'Chain Name', 'chain_name', 'Chain_Name', 'Entity Name', 'entity_name', 'affiliated_entity_name']:
+                    if entity_col in available_cols and entity_col not in usecols_list:
+                        usecols_list.append(entity_col)
+                encoding = 'utf-8'
+                try:
+                    pd.read_csv(PROVIDER_INFO, nrows=1, encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        pd.read_csv(PROVIDER_INFO, nrows=1, encoding='utf-8-sig')
+                        encoding = 'utf-8-sig'
+                    except UnicodeDecodeError:
+                        encoding = 'latin-1'
+                try:
+                    provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, usecols=usecols_list, nrows=None, encoding=encoding)
+                except Exception:
+                    provider_info_df = _read_csv_safe(PROVIDER_INFO)
+            except Exception as e:
+                print(f"[FAIL] Error loading provider info: {e}")
+                try:
+                    provider_info_df = _read_csv_safe(PROVIDER_INFO)
+                except Exception:
+                    provider_info_df = pd.DataFrame()
+        _log_mem_donor("get_provider_info_df_after")
+        return provider_info_df
+
+
+def get_provider_info_latest_df():
+    """Lazy-load latest NH_ProviderInfo CSV (Legal Business Name). Sets provider_info_source_label. Load only when first needed."""
+    global provider_info_latest_df, provider_info_source_label
+    with _provider_info_latest_df_lock:
+        if provider_info_latest_df is not None:
+            return provider_info_latest_df
+        _log_mem_donor("get_provider_info_latest_df_before")
+        provider_info_source_label = None
+        latest_path, latest_label = _get_latest_provider_info_path()
+        if latest_path is None and PROVIDER_INFO_LATEST_FALLBACK.exists():
+            latest_path = PROVIDER_INFO_LATEST_FALLBACK
+            stem = latest_path.stem
+            for mon in _PROVIDER_INFO_MONTHS:
+                if mon in stem:
+                    rest = stem.split(mon)[-1]
+                    if rest.isdigit() and len(rest) == 4:
+                        latest_label = f"{mon}. {rest}"
+                        break
+            if latest_label is None:
+                latest_label = "Provider Info"
+        if latest_path and latest_path.exists():
+            try:
+                try:
+                    provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8-sig')
+                    except UnicodeDecodeError:
+                        provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='latin-1')
+                provider_info_source_label = latest_label or "Provider Info"
+            except Exception as e:
+                print(f"[FAIL] Error loading latest provider info: {e}")
+                provider_info_latest_df = pd.DataFrame()
+        else:
+            provider_info_latest_df = pd.DataFrame()
+        _log_mem_donor("get_provider_info_latest_df_after")
+        return provider_info_latest_df
+
+
+def get_facility_name_mapping_df():
+    """Lazy-load facility name mapping. Load only when first needed."""
+    global facility_name_mapping_df
+    with _facility_name_mapping_df_lock:
+        if facility_name_mapping_df is not None:
+            return facility_name_mapping_df
+        _log_mem_donor("get_facility_name_mapping_df_before")
+        if FACILITY_NAME_MAPPING.exists() or (FACILITY_NAME_MAPPING_PARQUET and FACILITY_NAME_MAPPING_PARQUET.exists()):
+            try:
+                facility_name_mapping_df = _read_csv_or_parquet_safe(FACILITY_NAME_MAPPING, FACILITY_NAME_MAPPING_PARQUET)
+                if facility_name_mapping_df.empty:
+                    facility_name_mapping_df = pd.DataFrame()
+            except Exception as e:
+                print(f"[FAIL] Error loading facility name mapping: {e}")
+                facility_name_mapping_df = pd.DataFrame()
+        else:
+            facility_name_mapping_df = pd.DataFrame()
+        _log_mem_donor("get_facility_name_mapping_df_after")
+        return facility_name_mapping_df
+
+
+def get_entity_lookup_df():
+    """Lazy-load entity lookup. Load only when first needed."""
+    global entity_lookup_df
+    with _entity_lookup_df_lock:
+        if entity_lookup_df is not None:
+            return entity_lookup_df
+        _log_mem_donor("get_entity_lookup_df_before")
+        if ENTITY_LOOKUP.exists():
+            try:
+                entity_lookup_df = _read_csv_safe(ENTITY_LOOKUP)
+            except Exception as e:
+                print(f"Error loading entity lookup: {e}")
+                entity_lookup_df = pd.DataFrame()
+        else:
+            entity_lookup_df = pd.DataFrame()
+        _log_mem_donor("get_entity_lookup_df_after")
+        return entity_lookup_df
+
+
+def get_facility_metrics_df():
+    """Lazy-load facility metrics. Load only when first needed."""
+    global facility_metrics_df
+    with _facility_metrics_df_lock:
+        if facility_metrics_df is not None:
+            return facility_metrics_df
+        _log_mem_donor("get_facility_metrics_df_before")
+        facility_metrics_path = BASE_DIR / "facility_lite_metrics.csv"
+        if not facility_metrics_path.exists():
+            facility_metrics_path = BASE_DIR / "facility_quarterly_metrics.csv"
+        if facility_metrics_path.exists():
+            try:
+                facility_metrics_df = _read_csv_safe(facility_metrics_path)
+            except Exception as e:
+                print(f"Error loading facility metrics: {e}")
+                facility_metrics_df = pd.DataFrame()
+        else:
+            facility_metrics_df = pd.DataFrame()
+        _log_mem_donor("get_facility_metrics_df_after")
+        return facility_metrics_df
+
+
+def get_committee_master():
+    """Lazy-load FEC committee master (CMTE_ID -> CMTE_NM). Load only when first needed."""
+    global committee_master
+    with _committee_master_lock:
+        if committee_master is not None:
+            return committee_master
+        _log_mem_donor("get_committee_master_before")
+        try:
+            committee_master = _load_committee_master() or {}
+        except Exception as e:
+            print(f"  [WARN] FEC committee master: {e}")
+            committee_master = {}
+        _log_mem_donor("get_committee_master_after")
+        return committee_master
+
+
+def ensure_load_data():
+    """No-op: datasets are now loaded lazily via get_*() when first needed. Kept for compatibility."""
+    pass
 
 
 def _display_na(val):
@@ -813,16 +1100,16 @@ def _committee_display_name(name):
 def get_committee_display_name(committee_id, fallback=""):
     """
     Return committee name from master (CMTE_NM) for verification/display.
-    Uses in-memory committee_master loaded at startup; O(1) lookup.
+    Lazy-loads committee_master on first use; O(1) lookup after load.
     Applies one-off display overrides (e.g. ActBlue, WinRed).
     """
-    global committee_master
-    if committee_master is None:
+    cm = get_committee_master()
+    if not cm:
         return _committee_display_name(fallback or "")
     cid = (committee_id or "").strip()
     if not cid:
         return _committee_display_name(fallback or "")
-    name = committee_master.get(cid) or fallback or ""
+    name = cm.get(cid) or fallback or ""
     return _committee_display_name(name) if name else ""
 
 
@@ -1239,11 +1526,7 @@ def load_data():
     t.start()
 
 
-@app.before_request
-def _before_request_ensure_data():
-    """Lazy-load owner data on first request so gunicorn can bind and respond quickly (Render port check)."""
-    _log_mem_donor("before_request_ensure_data")
-    ensure_load_data()
+# Removed @app.before_request ensure_load_data: donor datasets load only when an endpoint actually needs them.
 
 
 @app.route('/')
@@ -1278,6 +1561,7 @@ def _get_owner_name_from_raw_by_id(associate_id_owner):
     When owners_df row has no usable name (empty or ID), try to resolve from raw CMS ownership
     so the FEC query receives a valid owner name. Returns (display_name, original_name) or ('', '').
     """
+    ownership_raw_df = get_ownership_raw_df()
     if not associate_id_owner or ownership_raw_df is None or ownership_raw_df.empty:
         return '', ''
     pac = _normalize_associate_id(associate_id_owner)
@@ -1376,7 +1660,7 @@ def owner_page(owner_id):
     if len(normalized) != 10 or not normalized.isdigit():
         from flask import abort
         abort(404)
-    ensure_load_data()
+    owners_df = get_owners_df()
     if owners_df is None or owners_df.empty or 'associate_id_owner' not in owners_df.columns:
         from flask import abort
         abort(404)
@@ -1393,6 +1677,7 @@ def owner_page(owner_id):
 @app.route('/api/autocomplete')
 def autocomplete():
     """Provide autocomplete suggestions for search"""
+    owners_df = get_owners_df()
     try:
         query = request.args.get('q', '').strip()
         search_type = request.args.get('type', 'all')  # all, individual, organization, provider
@@ -1472,6 +1757,7 @@ def autocomplete():
 
 def autocomplete_provider_search(query):
     """Autocomplete for provider search - searches providers and returns matching owners"""
+    provider_info_latest_df = get_provider_info_latest_df()
     try:
         if _DEBUG:
             print(f"[DEBUG] autocomplete_provider_search: query='{query}'")
@@ -1573,6 +1859,7 @@ def autocomplete_provider_search(query):
 @app.route('/api/search')
 def search():
     """Search for owners by name, organization, or provider (nursing home)"""
+    owners_df = get_owners_df()
     try:
         query = request.args.get('q', '').strip()
         search_type = request.args.get('type', 'all')  # 'all', 'individual', 'organization', 'provider'
@@ -1844,7 +2131,10 @@ def committee_providers_endpoint():
 
 def _compute_providers_from_owners(owners_deduped):
     """Compute provider list from owners (extracted for lazy loading)."""
-    global owners_df, facility_name_mapping_df, provider_info_latest_df, facility_metrics_df
+    owners_df = get_owners_df()
+    facility_name_mapping_df = get_facility_name_mapping_df()
+    provider_info_latest_df = get_provider_info_latest_df()
+    facility_metrics_df = get_facility_metrics_df()
     providers_result = []
     prov_key_to_data = {}
     for o in owners_deduped:
@@ -1975,7 +2265,8 @@ def search_by_committee(query, include_providers=False):
     Returns: committee_info, owners, providers (if include_providers), raw_contributions.
     Providers are expensive; fetch on demand via include_providers=1.
     """
-    global committee_master, owners_df, ownership_raw_df, provider_info_latest_df, facility_metrics_df
+    owners_df = get_owners_df()
+    committee_master = get_committee_master()
     if owners_df is None or owners_df.empty:
         return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
     # Resolve query to committee_id
@@ -1993,8 +2284,10 @@ def search_by_committee(query, include_providers=False):
                 committee_name = _committee_display_name(c.get('name', ''))
                 committee_type = c.get('type', 'Committee')
                 break
-        if not committee_name and committee_master:
-            committee_name = _committee_display_name(committee_master.get(committee_id, ''))
+        if not committee_name:
+            cm = get_committee_master()
+            if cm:
+                committee_name = _committee_display_name(cm.get(committee_id, ''))
     else:
         for c in committees:
             if c['name'].upper() == query_upper or query_upper in c['name'].upper():
@@ -2616,6 +2909,10 @@ def search_by_committee(query, include_providers=False):
 
 def search_by_provider(query):
     """Search for owners by provider name, CCN, or Legal Business Name"""
+    provider_info_latest_df = get_provider_info_latest_df()
+    facility_name_mapping_df = get_facility_name_mapping_df()
+    ownership_raw_df = get_ownership_raw_df()
+    ownership_df = get_ownership_df()
     try:
         if _DEBUG:
             print(f"[DEBUG] search_by_provider: query='{query}'")
@@ -3014,7 +3311,9 @@ def search_by_provider(query):
 @app.route('/api/owner/<owner_name>')
 def get_owner_details(owner_name):
     """Get detailed information about a specific owner. Lookup by name or associate_id_owner (PAC ID)."""
-    ensure_load_data()
+    owners_df = get_owners_df()
+    donations_df = get_donations_df()
+    get_provider_info_latest_df()  # sets provider_info_source_label for response
     if owners_df is None:
         return jsonify({'error': 'Data is still loading. Please try again in a moment.'}), 500
     
@@ -3649,6 +3948,10 @@ def query_fec():
 @app.route('/api/entity/<entity_id>')
 def get_entity_owners(entity_id):
     """Get all owners affiliated with an entity and their donations"""
+    owners_df = get_owners_df()
+    provider_info_df = get_provider_info_df()
+    ownership_df = get_ownership_df()
+    donations_df = get_donations_df()
     try:
         if _DEBUG:
             print(f"[DEBUG] get_entity_owners: entity_id='{entity_id}'")
@@ -3896,6 +4199,8 @@ def get_entity_owners(entity_id):
 @app.route('/api/stats')
 def get_stats():
     """Get overall statistics"""
+    owners_df = get_owners_df()
+    donations_df = get_donations_df()
     if owners_df is None or owners_df.empty:
         return jsonify({
             'total_owners': 0,

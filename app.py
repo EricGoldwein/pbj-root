@@ -1302,9 +1302,11 @@ def load_provider_info():
                         'Total_Nurse_HPRD': row.get('Total_Nurse_HPRD'),
                         'reported_rn_hrs_per_resident_per_day': row.get('reported_rn_hrs_per_resident_per_day'),
                         'reported_na_hrs_per_resident_per_day': row.get('reported_na_hrs_per_resident_per_day'),
+                        'reported_lpn_hrs_per_resident_per_day': row.get('reported_lpn_hrs_per_resident_per_day'),
                         'case_mix_total_nurse_hrs_per_resident_per_day': row.get('case_mix_total_nurse_hrs_per_resident_per_day'),
                         'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
                         'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
+                        'case_mix_lpn_hrs_per_resident_per_day': row.get('case_mix_lpn_hrs_per_resident_per_day'),
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
                     }
@@ -1512,8 +1514,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     .pbj-overall-badge {{ display: none !important; }}
     .pbj-badge-mobile-only {{ display: inline-block !important; }}
   }}
-  /* High-risk tooltip: wider on mobile so it's not a thin strip; use most of viewport */
-  .pbj-high-risk-tooltip {{ min-width: 260px; max-width: calc(100vw - 24px); width: max-content; padding: 12px 14px; font-size: 0.875rem; line-height: 1.45; }}
+  /* High-risk tooltip: less narrow on mobile; position clamped by JS so it never bleeds off left or right */
+  .pbj-high-risk-tooltip {{ min-width: 280px; max-width: min(320px, calc(100vw - 24px)); width: max-content; padding: 12px 14px; font-size: 0.875rem; line-height: 1.45; }}
   .pbj-subtitle {{ font-size: 0.85em; }}
   /* State page subtitle on mobile: "590 providers • 97,999 residents • 3.57 HPRD (Q3 2025)" - allow wrap, smaller */
   .pbj-subtitle-state {{ font-size: 0.8em; line-height: 1.4; }}
@@ -1693,6 +1695,32 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
       if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
       setTimeout(function() { errToast.remove(); }, 6000);
     }
+  })();
+  </script>
+  <script>
+  (function(){
+    var MARGIN = 12;
+    function clampTooltipToViewport(tooltip) {
+      if (!tooltip || !tooltip.offsetParent) return;
+      var rect = tooltip.getBoundingClientRect();
+      var vw = window.innerWidth || document.documentElement.clientWidth;
+      var desiredLeft = Math.max(MARGIN, Math.min(rect.left, vw - MARGIN - rect.width));
+      var shift = desiredLeft - rect.left;
+      tooltip.style.transform = shift === 0 ? 'translateX(-50%)' : 'translateX(calc(-50% + ' + shift + 'px))';
+    }
+    function clearTooltipShift(tooltip) {
+      if (tooltip) tooltip.style.transform = '';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.pbj-high-risk-help-wrap').forEach(function(wrap) {
+        var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
+        if (!tooltip) return;
+        wrap.addEventListener('mouseenter', function() {
+          requestAnimationFrame(function() { requestAnimationFrame(function() { clampTooltipToViewport(tooltip); }); });
+        });
+        wrap.addEventListener('mouseleave', function() { clearTooltipShift(tooltip); });
+      });
+    });
   })();
   </script>
 </body>
@@ -2054,21 +2082,24 @@ def _series_to_list_rounded(ser, decimals=2):
             out.append(r if r is not None else None)
     return out
 
-def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na):
-    """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0."""
+def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na):
+    """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide."""
+    def _round_val(v):
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return None
+        return round_half_up(float(v), 2)
     out = {}
     out['reportedCaseMix'] = {
-        'labels': ['Total', 'RN', 'Nurse aide'],
-        'reported': [round_half_up(float(reported_total), 2) if reported_total is not None and not (isinstance(reported_total, float) and pd.isna(reported_total)) else None,
-                     round_half_up(float(reported_rn), 2) if reported_rn is not None and not (isinstance(reported_rn, float) and pd.isna(reported_rn)) else None,
-                     round_half_up(float(reported_na), 2) if reported_na is not None and not (isinstance(reported_na, float) and pd.isna(reported_na)) else None],
+        'labels': ['Total', 'RN', 'LPN', 'Nurse aide'],
+        'reported': [_round_val(reported_total), _round_val(reported_rn), _round_val(reported_lpn), _round_val(reported_na)],
         'caseMix': None
     }
-    if case_mix_total is not None or case_mix_rn is not None or case_mix_na is not None:
+    if case_mix_total is not None or case_mix_rn is not None or case_mix_lpn is not None or case_mix_na is not None:
         out['reportedCaseMix']['caseMix'] = [
-            round_half_up(float(case_mix_total), 2) if case_mix_total is not None and not (isinstance(case_mix_total, float) and pd.isna(case_mix_total)) else None,
-            round_half_up(float(case_mix_rn), 2) if case_mix_rn is not None and not (isinstance(case_mix_rn, float) and pd.isna(case_mix_rn)) else None,
-            round_half_up(float(case_mix_na), 2) if case_mix_na is not None and not (isinstance(case_mix_na, float) and pd.isna(case_mix_na)) else None
+            _round_val(case_mix_total),
+            _round_val(case_mix_rn),
+            _round_val(case_mix_lpn),
+            _round_val(case_mix_na)
         ]
     if facility_df is None or facility_df.empty or not HAS_PANDAS:
         return out
@@ -2269,7 +2300,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: opts });
   }
   var rc = d.reportedCaseMix;
-  if (rc && rc.labels) makeBar('chartReportedCaseMix', rc.labels, rc.reported || [null, null, null], rc.caseMix);
+  if (rc && rc.labels) makeBar('chartReportedCaseMix', rc.labels, rc.reported || [null, null, null, null], rc.caseMix);
   var th = d.totalHprd;
   if (th && th.quarters && th.quarters.length) {
     var ds = [{ label: 'Total', data: th.total, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
@@ -2377,9 +2408,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return None
     reported_total = get_val('Total_Nurse_HPRD') if get_val('Total_Nurse_HPRD') is not None else _safe(pi_metrics.get('reported_total_nurse_hrs_per_resident_per_day'))
     reported_rn = get_val('RN_HPRD') if get_val('RN_HPRD') is not None else _safe(pi_metrics.get('reported_rn_hrs_per_resident_per_day'))
+    reported_lpn = get_val('LPN_HPRD') if get_val('LPN_HPRD') is not None else _safe(pi_metrics.get('reported_lpn_hrs_per_resident_per_day'))
     reported_na = get_val('Nurse_Assistant_HPRD') if get_val('Nurse_Assistant_HPRD') is not None else _safe(pi_metrics.get('reported_na_hrs_per_resident_per_day'))
     case_mix_total = _safe(pi_metrics.get('case_mix_total_nurse_hrs_per_resident_per_day'))
     case_mix_rn = _safe(pi_metrics.get('case_mix_rn_hrs_per_resident_per_day'))
+    case_mix_lpn = _safe(pi_metrics.get('case_mix_lpn_hrs_per_resident_per_day'))
     case_mix_na = _safe(pi_metrics.get('case_mix_na_hrs_per_resident_per_day'))
     census_num = _safe(pi_metrics.get('avg_residents_per_day'))
     if census_num is None and latest is not None:
@@ -2411,7 +2444,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if r < b * 0.95:
             return 'below'
         return 'around'
-    chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_na, case_mix_total, case_mix_rn, case_mix_na)
+    chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na)
     methodology = 'Case-mix is a CMS metric based on resident acuity.'
     below_reported_casemix = ''
     note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.7rem; color: rgba(226,232,240,0.75);'
@@ -2469,7 +2502,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
-    total_direct_badge = f"Total HPRD: {hprd_val} (Direct: {direct_hprd_val})"
+    total_direct_badge = f"{hprd_val} HPRD ({direct_hprd_val} Direct HPRD)"
     # CMS star ratings (1-5): show as "Overall: ★" or "Overall: ★★★★" (number of stars only)
     def _star_icons(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
@@ -2506,7 +2539,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
     if state_pct_phrase:
-        state_ratio_str = f' (state HPRD: {state_hprd_placeholder})' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
+        state_ratio_str = f' ({state_hprd_placeholder} HPRD)' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
         # When case-mix is missing, the narrative is a full sentence; add percentile as a second sentence. Otherwise join with "and".
         if case_mix_total is None:
             narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + state_ratio_str + '.'
@@ -2618,7 +2651,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
 </div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-only" style="{badge_span}">Total HPRD: {hprd_val}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
+<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-only" style="{badge_span}">{hprd_val} HPRD</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
 <p class="pbj-takeaway-put-another-way" style="margin: 0.5rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.9);"><strong>Put another way…</strong> {put_another_way}</p>
@@ -3049,7 +3082,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tier1_badges = f'<span style="{_badge}">{n_fac:,} Facilities</span><span style="{_badge}">{n_st} States</span>'
         if fp_pct is not None:
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
-        tier1_badges += f'<span style="{_badge}">Avg. Staffing: {(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</span><span class="pbj-overall-badge" style="{_badge}">Avg. Rating: {(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</span>'
+        staff_val = (f"{staff_rating:.1f}" if staff_rating is not None else "—")
+        overall_val = (f"{overall_rating:.1f}" if overall_rating is not None else "—")
+        tier1_badges += f'<span class="pbj-overall-badge" style="{_badge}">Avg. Overall Rating: {overall_val}</span><span class="pbj-badge-mobile-hide" style="{_badge}">Avg. Staffing Rating: {staff_val}</span><span class="pbj-badge-mobile-only" style="{_badge}">Staffing Rating: {staff_val}</span>'
 
         risk_parts = []
         if sff is not None and sff > 0:
@@ -3134,9 +3169,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         chain_metrics_html = '<div class="section-header">Key metrics</div>'
         chain_metrics_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Total Facilities</div><div class="value">{n_fac:,}</div></div>'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">States of Operation</div><div class="value">{n_st}</div></div>'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Overall Rating</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Providers</div><div class="value">{n_fac:,}</div></div>'
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">States</div><div class="value">{n_st}</div></div>'
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg. Rating</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
         if fines_dollars is not None:
             if fines_dollars >= 1e6:
                 fines_str = f'${fines_dollars/1e6:.1f} million'
@@ -3172,9 +3207,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         high_risk_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
         high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Special Focus Facilities (SFFs)</div><div class="value">{int(sff) if sff is not None else "—"}</div></div>'
         high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">SFF Candidates</div><div class="value">{int(sff_cand) if sff_cand is not None else "—"}</div></div>'
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">1-Star Overall Rating</div><div class="value">{int(one_star_count) if one_star_count is not None else "—"}</div></div>'
-        abuse_display = f'{int(abuse_count)} ({abuse_pct:.1f}%)' if abuse_count is not None and abuse_pct is not None else (f'{int(abuse_count)}' if abuse_count is not None else '—')
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Facilities Cited for Abuse</div><div class="value">{abuse_display}</div></div>'
+        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">1-Star Overall</div><div class="value">{int(one_star_count) if one_star_count is not None else "—"}</div></div>'
+        abuse_display = f'{int(abuse_count)}' if abuse_count is not None else '—'
+        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Cited for Abuse</div><div class="value">{abuse_display}</div></div>'
         high_risk_html += '</div>'
         cms_stars_html = f'<div class="section-header">Avg. CMS 5-Star Rating<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
         cms_stars_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
@@ -3245,7 +3280,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         cells.append(str(staff_num) if staff_num is not None else '—')
         data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
         rows.append('<tr class="' + row_class + '"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
-    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Facility</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="total-hprd">Total Nurse HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
+    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
     tbody = '\n'.join(rows)
     show_more_btn = ''
     if n > PAGE_SIZE:

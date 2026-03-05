@@ -2854,19 +2854,6 @@
         padding: 12px 6px !important;
       }
       
-      /* HPRD header text - readable on mobile */
-      #stateTable th.col-hprd .mobile-text {
-        font-size: 0.55rem;
-        line-height: 1.1;
-        white-space: normal;
-      }
-      
-      #stateTable th.col-hprd {
-        padding: 6px 2px;
-      }
-      
-      
-      
       /* Show/hide desktop/mobile text for headers */
       #stateTable th.col-highrisk .desktop-text,
       #stateTable th.col-hprd .desktop-text,
@@ -4380,7 +4367,7 @@
                 Residents
               </th>
               <th rowspan="2" class="col-sff desktop-sff-header">SFFs &<br/>Candidates</th>
-              <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="totalHPRD"><span class="desktop-text">Total<br/>HPRD</span><span class="mobile-text">Total HPRD</span></th>
+              <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="totalHPRD"><span class="desktop-text">Total<br/>HPRD</span><span class="mobile-text">Total<br/>HPRD</span></th>
               <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="rnHPRD"><span class="desktop-text">RN<br/>HPRD</span><span class="mobile-text">RN<br/>HPRD</span></th>
               <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="nurseAideHPRD"><span class="desktop-text">Nurse Aide<br/>HPRD</span><span class="mobile-text">NA</span></th>
               <th rowspan="2" class="col-contract sortable" data-sort="contract"><span class="desktop-text">% Contract</span><span class="mobile-text">% Ctr</span></th>
@@ -6699,7 +6686,7 @@
               <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', stateAbbr)).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
             </ul>
           </div>
         `;
@@ -6720,7 +6707,7 @@
               <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', stateAbbr)).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
             </ul>
           </div>
         `;
@@ -6741,7 +6728,7 @@
               <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', stateAbbr)).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
             </ul>
           </div>
         `;
@@ -6762,7 +6749,7 @@
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', stateAbbr)).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
             </ul>
           </div>
         `;
@@ -6784,7 +6771,7 @@
             </h4>
             <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', stateAbbr)).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
             </ul>
           </div>
         `;

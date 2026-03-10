@@ -2033,7 +2033,7 @@ def get_facility_state_percentile(ccn, state_code, quarter, facility_hprd_total,
 
 
 def get_macpac_hprd_for_state(state_code):
-    """Return state minimum staffing HPRD (float) for horizontal reference line, or None."""
+    """Return state minimum staffing HPRD (float), or None. Used for state page min phrase; for provider chart line/label use get_macpac_chart_info."""
     if not state_code:
         return None
     state_code_lower = (state_code or '').strip().upper()[:2]
@@ -2058,6 +2058,60 @@ def get_macpac_hprd_for_state(state_code):
             raw = row.iloc[0].get('Min_Staffing', '')
             try:
                 return float(str(raw).replace(' HPRD', '').strip())
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
+def get_macpac_chart_info(state_code):
+    """Return dict with line_value (float for chart line; use max when range), label_short (no MACPAC), label_long (with MACPAC), or None."""
+    if not state_code:
+        return None
+    state_code_upper = (state_code or '').strip().upper()[:2]
+    state_code_lower = state_code_upper.lower()
+    for path in ['pbj-wrapped/public/data/json/state_standards.json', 'state_standards.json']:
+        if os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    s = data.get(state_code_upper) or data.get(state_code_lower)
+                    if s and isinstance(s, dict):
+                        min_raw = s.get('Min_Staffing')
+                        max_raw = s.get('Max_Staffing')
+                        value_type = (s.get('Value_Type') or '').strip().lower()
+                        try:
+                            min_val = float(str(min_raw).replace(' HPRD', '').strip()) if min_raw is not None else None
+                            max_val = float(str(max_raw).replace(' HPRD', '').strip()) if max_raw is not None else None
+                        except (TypeError, ValueError):
+                            min_val = max_val = None
+                        if min_val is None:
+                            continue
+                        # For range states, draw line at upper (max); for single use min
+                        line_value = max_val if (value_type == 'range' and max_val is not None) else min_val
+                        min_str = f'~{round_half_up(min_val, 2):.2f}' if min_val is not None else ''
+                        if value_type == 'range' and max_val is not None and max_val != min_val:
+                            label_val = f'{min_str}-{round_half_up(max_val, 2):.2f}'
+                        else:
+                            label_val = min_str
+                        label_base = f'{state_code_upper} Min. {label_val}'
+                        return {
+                            'line_value': line_value,
+                            'label_short': label_base,
+                            'label_long': label_base + ' (MACPAC)',
+                            'min_display_str': label_val,  # e.g. "~1.56-2.31" or "~3.42" for state page footer/SEO
+                        }
+            except Exception:
+                continue
+    macpac_df = load_csv_data('macpac_state_standards_clean.csv')
+    if macpac_df is not None and not macpac_df.empty and 'State_Code' in macpac_df.columns:
+        row = macpac_df[macpac_df['State_Code'].str.upper().str.strip() == state_code_upper]
+        if not row.empty and 'Min_Staffing' in macpac_df.columns:
+            raw = row.iloc[0].get('Min_Staffing', '')
+            try:
+                v = float(str(raw).replace(' HPRD', '').strip())
+                label_val = f'~{round_half_up(v, 2):.2f}'
+                label_base = f'{state_code_upper} Min. {label_val}'
+                return {'line_value': v, 'label_short': label_base, 'label_long': label_base + ' (MACPAC)', 'min_display_str': label_val}
             except (TypeError, ValueError):
                 pass
     return None
@@ -2112,11 +2166,14 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
         quarters = df['CY_Qtr'].tolist()
         if not quarters:
             return out
+        macpac_info = get_macpac_chart_info(state_code)
         out['totalHprd'] = {
             'quarters': quarters,
             'total': _series_to_list_with_none(df['Total_Nurse_HPRD']),
             'direct': _series_to_list_with_none(df['Nurse_Care_HPRD'] if 'Nurse_Care_HPRD' in df.columns else pd.Series(dtype=float)),
-            'macpac': get_macpac_hprd_for_state(state_code),
+            'macpac': macpac_info['line_value'] if macpac_info else None,
+            'macpacLabelShort': macpac_info['label_short'] if macpac_info else None,
+            'macpacLabelLong': macpac_info['label_long'] if macpac_info else None,
             'stateCode': (state_code.strip().upper()[:2] if state_code else None)
         }
         out['rnHprd'] = {
@@ -2307,7 +2364,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
                { label: 'Direct', data: th.direct, borderColor: '#6366f1', borderDash: [5,5], tension: 0.3, fill: false, spanGaps: false }];
     if (th.macpac != null && typeof th.macpac === 'number') {
       var macpacArr = th.quarters.map(function(){ return th.macpac; });
-      var stateMinLabel = (th.stateCode || 'State') + ' Min: ~' + (Math.round(Number(th.macpac) * 100) / 100).toFixed(2) + ' (MACPAC)';
+      var stateMinLabel = (th.macpacLabelLong && th.macpacLabelShort) ? (window.innerWidth >= 640 ? th.macpacLabelLong : th.macpacLabelShort) : ((th.stateCode || 'State') + ' Min: ~' + (Math.round(Number(th.macpac) * 100) / 100).toFixed(2) + ' (MACPAC)');
       ds.push({ label: stateMinLabel, data: macpacArr, borderColor: '#dc2626', borderDash: [4,4], tension: 0, fill: false, spanGaps: false, _macpacNote: true });
     }
     makeLineTime('chartTotalHprd', th.quarters, ds, 'Hours per resident day', th.quarters);
@@ -2501,11 +2558,17 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     else:
         risk_badge_label = ''
     # Use responsive label for SFF Candidate: full "SFF Candidate" on desktop, "SFF Cand." on mobile
+    badge_style = 'display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);'
+    sff_candidate_spans = '<span class="pbj-badge-mobile-hide">SFF Candidate</span><span class="pbj-badge-mobile-only">SFF Cand.</span>'
     use_sff_candidate_badge = (risk_badge_label == 'SFF Candidate')
     if use_sff_candidate_badge:
-        risk_badge = '<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);"><span class="pbj-badge-mobile-hide">SFF Candidate</span><span class="pbj-badge-mobile-only">SFF Cand.</span></span>'
+        risk_badge = f'<span style="{badge_style}">{sff_candidate_spans}</span>'
+    elif is_sff_candidate and risk_badge_label and 'SFF' in risk_badge_label:
+        # Combined reason (e.g. "1 star, SFF") – show SFF as SFF Candidate responsively
+        risk_badge_content = risk_badge_label.replace('SFF', sff_candidate_spans)
+        risk_badge = f'<span style="{badge_style}">{risk_badge_content}</span>'
     else:
-        risk_badge = ('<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);">' + risk_badge_label + '</span>') if risk_badge_label else ''
+        risk_badge = (f'<span style="{badge_style}">{risk_badge_label}</span>') if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
@@ -3753,10 +3816,10 @@ def generate_state_chart_html(state_name, state_code):
     state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
     state_sub = f'<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 0.75rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);">{state_esc}</p>' if state_esc else ''
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
-    macpac_hprd = get_macpac_hprd_for_state(state_code) if state_code else None
-    if macpac_hprd is not None and macpac_hprd >= 1.5:
-        min_str = f'~{macpac_hprd:.2f}'
-        state_min_phrase = f' State min. ({min_str} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC</a>.'
+    macpac_info = get_macpac_chart_info(state_code) if state_code else None
+    if macpac_info is not None and macpac_info.get('line_value') is not None and macpac_info['line_value'] >= 1.5:
+        min_display = macpac_info.get('min_display_str') or f'~{macpac_info["line_value"]:.2f}'
+        state_min_phrase = f' State min. ({min_display} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#93c5fd;">MACPAC</a>.'
     else:
         state_min_phrase = ''
     total_staffing_footer = f'''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
@@ -3836,21 +3899,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Region link removed per user request
     region_link = ""
     
-    # State standard (MACPAC) as badge only when relevant (> 1.5 HPRD)
+    # State standard (MACPAC) as badge only when relevant (> 1.5 HPRD); use range display (e.g. ~1.56-2.31) for range states
     state_standard_badge = ""
     state_standard_footer = ""
-    if macpac_standard is not None:
-        try:
-            min_staffing_raw = macpac_standard.get('Min_Staffing', '') if isinstance(macpac_standard, dict) else getattr(macpac_standard, 'Min_Staffing', '')
-            min_staffing_val = str(min_staffing_raw).replace(' HPRD', '').strip()
-            try:
-                min_staffing_num = float(min_staffing_val)
-                if min_staffing_num > 1.5:
-                    state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;">{state_code} Min: {fmt(min_staffing_num, 2)} HPRD</span>'
-            except (TypeError, ValueError):
-                pass
-        except Exception:
-            pass
+    _macpac_info = get_macpac_chart_info(state_code) if state_code else None
+    if _macpac_info is not None and _macpac_info.get('line_value') is not None and _macpac_info['line_value'] > 1.5:
+        label_short = _macpac_info.get('label_short') or f"{state_code} Min. ~{_macpac_info['line_value']:.2f}"
+        state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;">{label_short} HPRD</span>'
 
     # Get basics: prefer facility count from facility_quarterly for this same quarter; fall back to state_quarterly (same quarter). Never show 0 when both missing; no synthetic data.
     _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
@@ -4331,14 +4386,8 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     ]
     if rank_total_nurse and total_states:
         seo_description_parts.append(f"Ranked #{rank_total_nurse} of {total_states} states.")
-    if macpac_standard:
-        min_staffing = macpac_standard.get('Min_Staffing', '')
-        if min_staffing:
-            try:
-                min_val = float(str(min_staffing).replace(' HPRD', ''))
-                seo_description_parts.append(f"State minimum: {round_half_up(min_val, 2):.2f} HPRD.")
-            except:
-                pass
+    if _macpac_info is not None and _macpac_info.get('min_display_str'):
+        seo_description_parts.append(f"State minimum: {_macpac_info['min_display_str']} HPRD.")
     seo_description_parts.append("CMS Payroll-Based Journal (PBJ) data.")
     seo_description = " ".join(seo_description_parts)
     

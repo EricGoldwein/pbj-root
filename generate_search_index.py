@@ -67,7 +67,7 @@ def _norm_provider_row(row):
 
 
 def load_sff_ccns(script_dir):
-    """Load set of CCNs that are SFF or Candidate from sff-facilities.json. Used to enrich search index when CSV has no sff_status."""
+    """Load CCN -> category ('SFF' or 'Candidate') from sff-facilities.json. Used to enrich search index when CSV has no sff_status."""
     paths = [
         os.path.join(script_dir, 'pbj-wrapped', 'public', 'sff-facilities.json'),
         'pbj-wrapped/public/sff-facilities.json',
@@ -81,18 +81,18 @@ def load_sff_ccns(script_dir):
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             facilities = data.get('facilities') if isinstance(data, dict) else (data if isinstance(data, list) else [])
-            out = set()
+            out = {}
             for f in facilities:
                 cat = (f.get('category') or '').strip()
                 if cat in ('SFF', 'Candidate'):
                     ccn = normalize_ccn(f.get('provider_number') or '')
                     if ccn:
-                        out.add(ccn)
+                        out[ccn] = cat
             return out
         except Exception as e:
             print(f"Warning: could not load SFF facilities from {path}: {e}")
             continue
-    return set()
+    return {}
 
 
 def load_chain_performance_facility_count(script_dir):
@@ -153,7 +153,7 @@ def main():
     out_path = 'search_index.json'
 
     chain_perf_fc = load_chain_performance_facility_count(script_dir)
-    sff_ccns = load_sff_ccns(script_dir)
+    sff_ccn_to_category = load_sff_ccns(script_dir)
 
     # Pass 1: count unique CCNs per chain_id (for entity NH count)
     entity_ccns = {}  # chain_id -> set of CCNs
@@ -216,10 +216,12 @@ def main():
             reasons.append('Abuse')
         if rating == 1:
             reasons.append('1 star')
-        if sff_status and ('SFF' in sff_status.upper() or 'Candidate' in sff_status):
+        if sff_status and 'Candidate' in sff_status:
+            reasons.append('SFF Candidate')
+        elif sff_status and 'SFF' in sff_status.upper():
             reasons.append('SFF')
-        if ccn in sff_ccns and 'SFF' not in reasons:
-            reasons.append('SFF')
+        if ccn in sff_ccn_to_category and not any(r in ('SFF', 'SFF Candidate') for r in reasons):
+            reasons.append('SFF Candidate' if sff_ccn_to_category[ccn] == 'Candidate' else 'SFF')
         high_risk = 1 if reasons else 0
         high_risk_reason = ', '.join(reasons) if reasons else ''
 

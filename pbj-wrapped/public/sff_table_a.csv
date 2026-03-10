@@ -1,88 +1,86 @@
 Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Most Recent Inspection,Met Survey Criteria,Months as an SFF
-015463,Knollwood Healthcare,3151-A Knollwood Drive,Mobile,AL,36693,251-661-7608,09/11/2025,Not Met,17
-045421,Ashley Rehabilitation And Health Care Center,2600 N 22nd Street,Rogers,AR,72756,479-899-6778,12/12/2025,Met,4
-035255,Palm Valley Post Acute,13575 West Mcdowell Road,Goodyear,AZ,85395,623-536-9911,08/01/2025,Met,14
-055858,Rancho Seco Care Center,144 F Street,Galt,CA,95632,209-745-1537,08/22/2025,Not Met,1
-056487,Rio Hondo Subacute & Nursing Center,273 E Beverly Boulevard,Montebello,CA,90640,323-724-5100,09/11/2025,Met,15
-055189,Greenfield Care Center Of Fairfield,1260 Travis Blvd,Fairfield,CA,94533,707-425-0669,09/12/2025,Not Met,11
-555330,Riverside Postacute Care,8781 Lakeview Avenue,Riverside,CA,92509,951-685-1531,11/18/2025,Not Met,21
-055870,Sunray Healthcare Center,3210 W Pico Blvd,Los Angeles,CA,90019,323-734-2171,12/11/2025,Met,15
-555565,Artesia Palms Care Center,11900 E. Artesia Blvd.,Artesia,CA,90701,562-865-0271,12/04/2025,Met,45
-065327,Juniper Village - The Spearly Center,2205 W 29th Ave,Denver,CO,80211,303-458-1112,07/24/2025,Not Met,11
-075182,Grandview Rehabilitation And Healthcare Center,55 Grand Street,New Britain,CT,06052,860-223-3617,11/17/2025,Met,42
-085010,Milford Center,700 Marvel Road,Milford,DE,19963,302-422-3303,08/28/2025,Not Met,5
-105269,Groves Center,512 S 11th St,Lake Wales,FL,33853,863-676-8502,11/20/2025,Not Met,1
-105688,Aventura At The Bay,10300 4th St N,Saint Petersburg,FL,33716,727-576-1025,11/17/2025,Met,7
-105672,Gulf Coast Village,1333 Santa Barbara Blvd,Cape Coral,FL,33991,239-772-1333,11/18/2025,Not Met,16
-115585,Legacy Transitional Care & Rehabilitation,460 Auburn Avenue N.E.,Atlanta,GA,30312,404-523-1613,04/11/2025,Met,30
-115685,Heardmont Health And Rehabilitation,1043 Longstreet Road,Elberton,GA,30635,706-283-5429,06/09/2025,Not Met,11
-125007,Hale Makua - Kahului,472 Kaulana Street,Kahului,HI,96732,808-877-2761,12/08/2025,Not Met,18
-165350,Pine Acres Rehabilitation And Care Center,1501 Office Park Road,West Des Moines,IA,50265,515-223-1223,06/27/2025,Not Met,8
-165531,Garden View Care Center,1200 West Nishna Road,Shenandoah,IA,51601,712-246-4515,05/09/2025,Not Met,6
-135058,Silverton Health And Rehabilitation Of Cascadia,405 West Seventh Street,Silverton,ID,83867,208-556-1147,06/06/2025,Not Met,7
-145811,Arcadia Care Peoria Heights,1629 East Gardner Lane,Peoria Heights,IL,61616,309-685-1545,08/26/2025,Not Met,24
-145850,City View Multicare Center,5825 West Cermak Road,Cicero,IL,60804,708-656-9120,01/08/2026,Met,30
-145389,Arcadia Care Watseka,715 East Raymond Road,Watseka,IL,60970,815-432-5476,09/23/2025,Met,10
-146097,El Paso Health Care Center,850 East Second Street,El Paso,IL,61738,309-527-2700,11/17/2025,Met,31
-155426,Signature Healthcare Of Terre Haute,3500 Maple Ave,Terre Haute,IN,47804,812-238-1555,12/09/2025,Met,6
-155086,Woodland Manor,343 S Nappanee St,Elkhart,IN,46514,574-295-0096,11/19/2025,Met,16
-155156,Aperion Care Arbors Michigan City,1101 E Coolspring Ave,Michigan City,IN,46360,219-874-5211,12/10/2025,Not Met,22
-175298,Riverbend Post Acute Rehabilitation,7850 Freeman Avenue,Kansas City,KS,66112,913-334-3666,07/25/2025,Not Met,10
-185165,Lyndon Crossing,1101 Lyndon Lane,Louisville,KY,40222,502-425-0331,07/09/2025,Met,13
-195177,Lakeshore Manor Nursing & Rehab,1400 Lindberg Drive,Slidell,LA,70458,985-641-4985,10/02/2025,Not Met,26
-225049,Pine Knoll Nursing Center,30 Watertown Street,Lexington,MA,02420,781-862-8151,04/17/2025,Not Met,1
-225723,Fall River Healthcare,1748 Highland Avenue,Fall River,MA,02720,508-730-1070,12/04/2025,Not Met,14
-215085,Carroll Park Healthcare,3330 Wilkens Avenue,Baltimore,MD,21229,410-525-1544,07/02/2025,Not Met,9
-205180,Windward Gardens,105 Mechanic Street,Camden,ME,04843,207-236-4197,09/19/2025,Not Met,11
-235719,Lakeside Manor Nursing And Rehabilitation Center,13990 Lakeside Circle,Sterling Heights,MI,48313,586-488-1400,08/14/2025,Met,4
-235664,Mission Point Nursing & Physical Rehabilitation Center Of Beverly Hills,18200 W 13 Mile Road,Beverly Hills,MI,48025,248-940-5390,12/08/2025,Met,10
-245289,The Terrace At Crystal Llc,3245 Vera Cruz Avenue North,Crystal,MN,55422,763-971-6300,08/14/2025,Met,20
-245028,Highland Chateau Health And Rehabilitation Center,2319 West Seventh Street,Saint Paul,MN,55116,651-698-0793,08/20/2025,Met,11
-265433,Lincoln County Nursing & Rehab,1145 East Cherry Street,Troy,MO,63379,636-528-5712,11/20/2025,Met,1
-265118,Aspen Point Health And Rehabilitation,2840 West Clay St,Saint Charles,MO,63301,636-946-6100,09/11/2025,Met,19
-265258,Belleview Valley Nursing Home,23144 Highway 32,Belleview,MO,63623,573-697-5311,12/16/2025,Met,10
-255172,Starkville Manor Health Care And Rehabilitation Ce,1001 Hospital Road,Starkville,MS,39759,662-323-6360,,,1
-275120,Billings Rehabilitation And Nursing Llc,600 S 27th St,Billings,MT,59101,406-259-8000,,,18
-345529,Universal Health Care/North Raleigh,5201 Clarks Fork Drive Nw,Raleigh,NC,27616,919-872-7033,,,10
-345489,Rockwell Park Rehabilitation And Healthcare Center,1930 West Sugar Creek Road,Charlotte,NC,28262,704-598-4480,,,19
-355093,Good Samaritan Society - Bottineau,725 E 10th St,Bottineau,ND,58318,701-228-3796,,,21
-285054,The Banyan At Montclair,2525 South 135th Avenue,Omaha,NE,68144,402-333-2304,,,19
-305045,Pleasant View Center,239 Pleasant Street,Concord,NH,03301,603-224-6561,,,1
-315125,Crystal Lake Healthcare And Rehabilitation,395 Lakeside Blvd,Bayville,NJ,08721,732-269-0500,,,6
-315205,Majestic Center For Rehab & Sub-Acute Care,Two Cooper Plaza,Camden,NJ,08103,856-342-7600,12/19/2025,Met,12
-325038,Casa Real,1650 Galisteo Street,Santa Fe,NM,87505,505-984-8313,05/09/2025,Not Met,7
-295029,White Pine Care Center,1500 Avenue G,Ely,NV,89301,775-289-8801,12/09/2025,Not Met,7
-335082,Waterview Heights Rehabilitation And Nursing Center,135 Meridan St.,Rochester,NY,14612,585-663-0930,12/15/2025,Not Met,25
-335744,Grand Manor Nursing & Rehabilitation Center,700 White Plains Road,Bronx,NY,10473,718-518-8892,09/15/2025,Not Met,34
-335184,Van Duyn Center For Rehabilitation And Nursing,5075 West Seneca Turnpike,Syracuse,NY,13215,315-449-6000,12/04/2025,Met,4
-365780,Marietta Heights Post Acute,5001 State Route 60,Marietta,OH,45750,740-373-8920,12/08/2025,Not Met,14
-365952,Ridgewood Manor,3231 Manley Road,Maumee,OH,43537,419-865-1248,12/09/2025,Met,31
-365826,Continuing Healthcare Of Cuyahoga Falls,300 East Bath Road,Cuyahoga Falls,OH,44223,330-929-6272,12/11/2025,Met,23
-365754,Majestic Care Of Columbus Llc,44 S Souder Ave,Columbus,OH,43222,614-228-5900,08/18/2025,Not Met,31
-365022,Atrium Nursing And Rehabilitation,1301 North Monroe Drive,Xenia,OH,45385,937-372-4495,12/09/2025,Met,21
-375582,Park Place Healthcare And Rehab,1530 Ne Grand Blvd,Oklahoma City,OK,73117,405-768-1155,09/11/2025,Met,21
-375253,Clinton Therapy & Living Center,2316 Modelle,Clinton,OK,73601,580-205-2460,09/19/2025,Not Met,9
-385072,Corvallis Manor,160 Ne Conifer Blvd,Corvallis,OR,97330,541-757-1651,12/03/2025,Met,1
-395985,Midtown Oaks Health & Rehab Center,1020 Green Avenue,Altoona,PA,16601,814-946-2700,12/10/2025,Met,8
-395751,Rochester Residence And Care Center,174 Virginia Avenue,Rochester,PA,15074,724-775-6400,07/31/2025,Met,8
-395929,Ridgeview Healthcare & Rehab Center,200 Pennsylvania Avenue,Shenandoah,PA,17976,570-462-1921,05/06/2025,Not Met,39
-395892,Kadima Rehabilitation & Nursing At Latrobe,576 Fred Rogers Drive,Latrobe,PA,15650,724-537-4441,12/11/2025,Met,14
-415084,Elmhurst Rehabilitation And Healthcare Center,50 Maude Street,Providence,RI,02908,401-456-2600,07/31/2025,Not Met,41
-425302,Rehab Center Of Cheraw,1150 State Road,Cheraw,SC,29520,843-537-2060,08/14/2025,Met,23
-435129,Dells Nursing And Rehab Center Inc,1400 Thresher Dr,Dell Rapids,SD,57022,605-428-5478,09/16/2025,Not Met,30
-445262,Eaton Creek Post Acute,4343 Ashland City Highway,Nashville,TN,37218,615-726-0492,09/18/2025,Met,2
-445237,Church Hill Post-Acute And Rehabilitation Center,701 West Main Blvd,Church Hill,TN,37642,423-357-7178,12/03/2025,Not Met,1
-675918,Gracy Woods Nursing Center,12021 Metric Blvd,Austin,TX,78758,512-228-3300,12/03/2025,Not Met,10
-675085,Paradigm At Woodwind Lakes,7215 Windfern Rd,Houston,TX,77040,713-466-8933,07/22/2025,Not Met,20
-675112,Coral Rehabilitation And Nursing Of Arlington,1112 Gibbins Rd,Arlington,TX,76011,817-274-2584,08/06/2025,Not Met,9
-455725,Oakmont Healthcare And Rehabilitation Of Humble,8450 Will Clayton Pkwy,Humble,TX,77338,281-446-8484,08/29/2025,Met,7
-675879,Terrell Healthcare Center,204 W Nash,Terrell,TX,75160,972-563-7668,08/26/2025,Met,6
-675595,Harmony Care At Beaumont,2660 Brickyard Rd,Beaumont,TX,77703,409-892-1533,12/04/2025,Met,4
-465086,Mountain View Health Services,5865 South Wasatch Drive,Ogden,UT,84403,801-479-8480,09/11/2025,Met,2
-495193,Henrico Health & Rehabilitation Center,561 North Airport Drive,Highland Springs,VA,23075,804-737-0172,09/11/2025,Not Met,12
-475020,Premier Rehab And Healthcare At Berlin,98 Hospitality Drive,Barre,VT,05641,802-229-0308,,,27
-505491,Everett Center,1919 112th Street Southwest,Everett,WA,98204,425-513-1600,,,21
-525074,Madison Health And Rehabilitation Center,110 Belmont Rd,Madison,WI,53714,608-249-7391,,,17
-525262,Rock River Nursing & Rehab,430 Wilcox St,Fort Atkinson,WI,53538,920-563-5533,,,12
-515086,Beckley Healthcare Center,100 Heartland Drive,Beckley,WV,25801,304-256-1650,,,13
-535022,The Legacy Living And Rehabilitation Center,1000 S Douglas Way,Gillette,WY,82716,307-688-7000,,,10
+015463,Knollwood Healthcare,3151-A Knollwood Drive,Mobile,AL,36693,251-661-7608,09/11/2025,Not Met,18
+045421,Ashley Rehabilitation And Health Care Center,2600 N 22nd Street,Rogers,AR,72756,479-899-6778,12/12/2025,Met,5
+035255,Palm Valley Post Acute,13575 West Mcdowell Road,Goodyear,AZ,85395,623-536-9911,08/01/2025,Met,15
+056487,Rio Hondo Subacute & Nursing Center,273 E Beverly Boulevard,Montebello,CA,90640,323-724-5100,08/22/2025,Not Met,16
+055189,Greenfield Care Center Of Fairfield,1260 Travis Blvd,Fairfield,CA,94533,707-425-0669,09/11/2025,Met,12
+555330,Riverside Postacute Care,8781 Lakeview Avenue,Riverside,CA,92509,951-685-1531,09/12/2025,Not Met,22
+055870,Sunray Healthcare Center,3210 W Pico Blvd,Los Angeles,CA,90019,323-734-2171,11/18/2025,Not Met,16
+555565,Artesia Palms Care Center,11900 E. Artesia Blvd.,Artesia,CA,90701,562-865-0271,12/11/2025,Met,46
+055858,Rancho Seco Care Center,144 F Street,Galt,CA,95632,209-745-1537,01/08/2026,Met,2
+065327,Juniper Village - The Spearly Center,2205 W 29th Ave,Denver,CO,80211,303-458-1112,12/04/2025,Met,12
+075182,Grandview Rehabilitation And Healthcare Center,55 Grand Street,New Britain,CT,06052,860-223-3617,12/05/2025,Met,43
+085010,Milford Center,700 Marvel Road,Milford,DE,19963,302-422-3303,11/17/2025,Met,6
+105269,Groves Center,512 S 11th St,Lake Wales,FL,33853,863-676-8502,08/28/2025,Not Met,2
+105688,Aventura At The Bay,10300 4th St N,Saint Petersburg,FL,33716,727-576-1025,11/20/2025,Not Met,8
+105672,Gulf Coast Village,1333 Santa Barbara Blvd,Cape Coral,FL,33991,239-772-1333,11/17/2025,Met,17
+115270,Perimeter Rehabilitation Suites By Harborview,"5470 Meridian Mark Road, Bld",Atlanta,GA,30342,404-256-5131,01/09/2026,Met,1
+115585,Legacy Transitional Care & Rehabilitation,460 Auburn Avenue N.E.,Atlanta,GA,30312,404-523-1613,12/08/2025,Not Met,31
+125007,Hale Makua - Kahului,472 Kaulana Street,Kahului,HI,96732,808-877-2761,01/08/2026,Met,19
+165531,Garden View Care Center,1200 West Nishna Road,Shenandoah,IA,51601,712-246-4515,01/09/2026,Not Met,7
+165350,Pine Acres Rehabilitation And Care Center,1501 Office Park Road,West Des Moines,IA,50265,515-223-1223,08/26/2025,Not Met,9
+135058,Silverton Health And Rehabilitation Of Cascadia,405 West Seventh Street,Silverton,ID,83867,208-556-1147,12/10/2025,Met,8
+145389,Arcadia Care Watseka,715 East Raymond Road,Watseka,IL,60970,815-432-5476,01/08/2026,Not Met,11
+146097,El Paso Health Care Center,850 East Second Street,El Paso,IL,61738,309-527-2700,01/09/2026,Met,32
+145850,City View Multicare Center,5825 West Cermak Road,Cicero,IL,60804,708-656-9120,09/23/2025,Met,31
+145811,Arcadia Care Peoria Heights,1629 East Gardner Lane,Peoria Heights,IL,61616,309-685-1545,12/09/2025,Met,25
+155270,Core Of Dale,510 W Medcalf Road,Dale,IN,47523,812-937-7073,11/19/2025,Met,0
+155426,Signature Healthcare Of Terre Haute,3500 Maple Ave,Terre Haute,IN,47804,812-238-1555,12/10/2025,Not Met,7
+155156,Aperion Care Arbors Michigan City,1101 E Coolspring Ave,Michigan City,IN,46360,219-874-5211,01/12/2026,Not Met,23
+175298,Riverbend Post Acute Rehabilitation,7850 Freeman Avenue,Kansas City,KS,66112,913-334-3666,11/26/2025,Met,11
+185165,Lyndon Crossing,1101 Lyndon Lane,Louisville,KY,40222,502-425-0331,12/04/2025,Not Met,14
+225049,Pine Knoll Nursing Center,30 Watertown Street,Lexington,MA,02420,781-862-8151,09/19/2025,Not Met,2
+215085,Carroll Park Healthcare,3330 Wilkens Avenue,Baltimore,MD,21229,410-525-1544,12/08/2025,Not Met,10
+205180,Windward Gardens,105 Mechanic Street,Camden,ME,04843,207-236-4197,08/14/2025,Met,12
+235719,Lakeside Manor Nursing And Rehabilitation Center,13990 Lakeside Circle,Sterling Heights,MI,48313,586-488-1400,12/08/2025,Met,5
+235664,Mission Point Nursing & Physical Rehabilitation Center Of Beverly Hills,18200 W 13 Mile Road,Beverly Hills,MI,48025,248-940-5390,08/14/2025,Met,11
+245028,Highland Chateau Health And Rehabilitation Center,2319 West Seventh Street,Saint Paul,MN,55116,651-698-0793,08/20/2025,Met,12
+245289,The Terrace At Crystal Llc,3245 Vera Cruz Avenue North,Crystal,MN,55422,763-971-6300,11/20/2025,Not Met,21
+265433,Lincoln County Nursing & Rehab,1145 East Cherry Street,Troy,MO,63379,636-528-5712,09/11/2025,Met,2
+265118,Aspen Point Health And Rehabilitation,2840 West Clay St,Saint Charles,MO,63301,636-946-6100,12/16/2025,Met,20
+265258,Belleview Valley Nursing Home,23144 Highway 32,Belleview,MO,63623,573-697-5311,12/19/2025,Met,11
+255172,Starkville Manor Health Care And Rehabilitation Center,1001 Hospital Road,Starkville,MS,39759,662-323-6360,,,2
+275120,Billings Rehabilitation And Nursing Llc,600 S 27th St,Billings,MT,59101,406-259-8000,,,19
+345529,Universal Health Care/North Raleigh,5201 Clarks Fork Drive Nw,Raleigh,NC,27616,919-872-7033,,,11
+345489,Rockwell Park Rehabilitation And Healthcare Center,1930 West Sugar Creek Road,Charlotte,NC,28262,704-598-4480,,,20
+355093,Good Samaritan Society - Bottineau,725 E 10th St,Bottineau,ND,58318,701-228-3796,,,22
+285054,The Banyan At Montclair,2525 South 135th Avenue,Omaha,NE,68144,402-333-2304,,,20
+305045,Pleasant View Center,239 Pleasant Street,Concord,NH,03301,603-224-6561,,,2
+315205,Majestic Center For Rehab & Sub-Acute Care,Two Cooper Plaza,Camden,NJ,08103,856-342-7600,,,13
+315125,Crystal Lake Healthcare And Rehabilitation,395 Lakeside Blvd,Bayville,NJ,08721,732-269-0500,01/27/2026,Not Met,7
+325038,Casa Real,1650 Galisteo Street,Santa Fe,NM,87505,505-984-8313,01/06/2026,Not Met,8
+295029,White Pine Care Center,1500 Avenue G,Ely,NV,89301,775-289-8801,12/09/2025,Not Met,8
+335744,Grand Manor Nursing & Rehabilitation Center,700 White Plains Road,Bronx,NY,10473,718-518-8892,12/15/2025,Not Met,35
+335184,Van Duyn Center For Rehabilitation And Nursing,5075 West Seneca Turnpike,Syracuse,NY,13215,315-449-6000,12/22/2025,Not Met,5
+335082,Waterview Heights Rehabilitation And Nursing Center,135 Meridan St.,Rochester,NY,14612,585-663-0930,09/15/2025,Not Met,26
+366328,Divine Rehabilitation And Nursing At Toledo,1011 North Byrne Road,Toledo,OH,43607,419-536-7600,12/08/2025,Not Met,1
+366094,Continuing Healthcare Of Gahanna,167 North Stygler Road,Gahanna,OH,43230,614-475-8778,08/18/2025,Not Met,1
+365370,Momentous Health At Richfield,4360 Brecksville Rd,Richfield,OH,44286,330-659-6166,09/11/2025,Met,1
+365780,Marietta Heights Post Acute,5001 State Route 60,Marietta,OH,45750,740-373-8920,09/19/2025,Not Met,15
+365826,Continuing Healthcare Of Cuyahoga Falls,300 East Bath Road,Cuyahoga Falls,OH,44223,330-929-6272,12/03/2025,Met,24
+375303,Wewoka Healthcare Center,1400 West First Street,Wewoka,OK,74884,405-257-3393,12/10/2025,Met,1
+375582,Park Place Healthcare And Rehab,1530 Ne Grand Blvd,Oklahoma City,OK,73117,405-768-1155,01/15/2026,Met,22
+385072,Corvallis Manor,160 Ne Conifer Blvd,Corvallis,OR,97330,541-757-1651,05/06/2025,Not Met,2
+395985,Midtown Oaks Health & Rehab Center,1020 Green Avenue,Altoona,PA,16601,814-946-2700,09/16/2025,Not Met,9
+395751,Rochester Residence And Care Center,174 Virginia Avenue,Rochester,PA,15074,724-775-6400,09/18/2025,Met,9
+395929,Ridgeview Healthcare & Rehab Center,200 Pennsylvania Avenue,Shenandoah,PA,17976,570-462-1921,12/03/2025,Not Met,40
+395892,Kadima Rehabilitation & Nursing At Latrobe,576 Fred Rogers Drive,Latrobe,PA,15650,724-537-4441,12/03/2025,Not Met,15
+415084,Elmhurst Rehabilitation And Healthcare Center,50 Maude Street,Providence,RI,02908,401-456-2600,12/31/2025,Met,42
+425302,Rehab Center Of Cheraw,1150 State Road,Cheraw,SC,29520,843-537-2060,01/09/2026,Not Met,24
+435039,Avantara Norton,3600 South Norton Avenue,Sioux Falls,SD,57105,605-338-9891,01/08/2026,Not Met,0
+445262,Eaton Creek Post Acute,4343 Ashland City Highway,Nashville,TN,37218,615-726-0492,07/22/2025,Not Met,3
+445237,Church Hill Post-Acute And Rehabilitation Center,701 West Main Blvd,Church Hill,TN,37642,423-357-7178,08/06/2025,Not Met,2
+675112,Coral Rehabilitation And Nursing Of Arlington,1112 Gibbins Rd,Arlington,TX,76011,817-274-2584,08/29/2025,Met,10
+455725,Oakmont Healthcare And Rehabilitation Of Humble,8450 Will Clayton Pkwy,Humble,TX,77338,281-446-8484,08/26/2025,Met,8
+675879,Terrell Healthcare Center,204 W Nash,Terrell,TX,75160,972-563-7668,12/04/2025,Met,7
+675595,Harmony Care At Beaumont,2660 Brickyard Rd,Beaumont,TX,77703,409-892-1533,01/13/2026,Met,5
+675918,Gracy Woods Nursing Center,12021 Metric Blvd,Austin,TX,78758,512-228-3300,09/11/2025,Not Met,11
+675085,Paradigm At Woodwind Lakes,7215 Windfern Rd,Houston,TX,77040,713-466-8933,,,21
+465086,Mountain View Health Services,5865 South Wasatch Drive,Ogden,UT,84403,801-479-8480,,,3
+495193,Henrico Health & Rehabilitation Center,561 North Airport Drive,Highland Springs,VA,23075,804-737-0172,,,13
+475020,Premier Rehab And Healthcare At Berlin,98 Hospitality Drive,Barre,VT,05641,802-229-0308,,,28
+505491,Everett Center,1919 112th Street Southwest,Everett,WA,98204,425-513-1600,,,22
+525074,Madison Health And Rehabilitation Center,110 Belmont Rd,Madison,WI,53714,608-249-7391,,,18
+525262,Rock River Nursing & Rehab,430 Wilcox St,Fort Atkinson,WI,53538,920-563-5533,,,13
+515086,Beckley Healthcare Center,100 Heartland Drive,Beckley,WV,25801,304-256-1650,,,14
+535022,The Legacy Living And Rehabilitation Center,1000 S Douglas Way,Gillette,WY,82716,307-688-7000,,,11

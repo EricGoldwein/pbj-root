@@ -266,7 +266,7 @@ def api_dates():
     except Exception:
         data['pbj_quarter_display'] = 'Q3 2025'
         data['quarters'] = ['2025Q3', '2025Q2']
-    data['sff_posting'] = 'Jan. 2026'  # CMS SFF posting date; update when new list is published
+    data['sff_posting'] = 'Feb. 2026'  # CMS SFF posting date; update when new list is published
     return jsonify(data)
 
 @app.route('/api/state/<state_code>/chart-data')
@@ -2489,16 +2489,23 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
-    is_sff = any((str(f.get('provider_number') or '').strip().zfill(6)) == prov for f in (sff_facilities_list or []))
+    sff_entry = next((f for f in (sff_facilities_list or []) if (str(f.get('provider_number') or '').strip().zfill(6)) == prov), None)
+    is_sff = sff_entry is not None
+    is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
     if risk_flag and risk_reason:
         risk_badge_label = risk_reason
     elif risk_flag:
         risk_badge_label = 'Meets high-risk criteria'
     elif is_sff:
-        risk_badge_label = 'SFF'
+        risk_badge_label = 'SFF Candidate' if is_sff_candidate else 'SFF'
     else:
         risk_badge_label = ''
-    risk_badge = ('<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);">' + risk_badge_label + '</span>') if risk_badge_label else ''
+    # Use responsive label for SFF Candidate: full "SFF Candidate" on desktop, "SFF Cand." on mobile
+    use_sff_candidate_badge = (risk_badge_label == 'SFF Candidate')
+    if use_sff_candidate_badge:
+        risk_badge = '<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);"><span class="pbj-badge-mobile-hide">SFF Candidate</span><span class="pbj-badge-mobile-only">SFF Cand.</span></span>'
+    else:
+        risk_badge = ('<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(220,38,38,0.25); color: #fca5a5; border: 1px solid rgba(220,38,38,0.4);">' + risk_badge_label + '</span>') if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
@@ -3388,7 +3395,7 @@ _SFF_CACHE = None
 _SFF_CACHE_AT = 0
 _SFF_CACHE_TTL = 300  # 5 min
 # CMS SFF posting PDF; update when a new list is published (e.g. sff-posting-candidate-list-july-2026.pdf)
-SFF_SOURCE_URL = 'https://www.cms.gov/files/document/sff-posting-candidate-list-january-2026.pdf'
+SFF_SOURCE_URL = 'https://www.cms.gov/files/document/sff-posting-candidate-list-february-2026.pdf'
 
 def load_sff_facilities():
     """Load Special Focus Facilities (SFF) data. Cached 2 min."""

@@ -1419,7 +1419,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-january-2026.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Jan. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-february-2026.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Feb. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">

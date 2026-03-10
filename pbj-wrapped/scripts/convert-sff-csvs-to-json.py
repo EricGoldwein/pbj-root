@@ -101,12 +101,12 @@ def main():
         counts[category] = len(facilities)
         print(f"Loaded {csv_file}: {len(facilities)} facilities ({category})")
     
-    # Create combined JSON structure
+    # Create combined JSON structure (update month/year when re-running from a new CMS posting PDF)
     output_data = {
         'document_date': {
-            'month': 1,
+            'month': 2,
             'year': 2026,
-            'month_name': 'January'
+            'month_name': 'February'
         },
         'facilities': all_facilities,
         'summary': {

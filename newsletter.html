@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PBJ320 Insights | Nursing Home Stories &amp; Data | PBJ320</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f172a">
+  <meta name="description" content="Nursing home–focused articles and data stories from The 320. Read previews and subscribe for full issues.">
+  <meta name="keywords" content="nursing home, insights, the 320, substack, nursing home staffing, long-term care, 320 consulting, pbj320">
+  <link rel="canonical" href="https://pbj320.com/newsletter">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NDPVY6TWBK');
+  </script>
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pbj320.com/newsletter">
+  <meta property="og:title" content="PBJ320 Insights | Nursing Home Stories &amp; Data | PBJ320">
+  <meta property="og:description" content="Nursing home–focused articles and data stories from The 320. Read previews and subscribe.">
+  <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="og:site_name" content="PBJ320">
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:title" content="PBJ320 Insights | Nursing Home Stories &amp; Data | PBJ320">
+  <meta property="twitter:description" content="Nursing home–focused articles and data stories from The 320. Read previews and subscribe.">
+  <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #cbd5e1 100%);
+      color: #1e293b;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 1rem;
+      z-index: 10000;
+      padding: 0.75rem 1rem;
+      background: #1e40af;
+      color: #fff;
+      font-weight: 600;
+      text-decoration: none;
+      border-radius: 8px;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus {
+      top: 1rem;
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+    }
+    .navbar {
+      background: #0f172a;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      border-bottom: 2px solid #1e40af;
+    }
+    .nav-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 60px;
+    }
+    .nav-brand a {
+      color: white;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .nav-brand a:hover { color: #e2e8f0; }
+    .nav-menu { display: flex; gap: 30px; align-items: center; }
+    .nav-link {
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+    .nav-link:hover, .nav-link.active { color: #60a5fa; }
+    .nav-link:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; border-radius: 4px; }
+    .nav-link { padding: 0.5rem 0; min-height: 44px; display: inline-flex; align-items: center; }
+    .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; padding: 12px; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+    .nav-toggle:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; border-radius: 4px; }
+    .nav-toggle span { width: 25px; height: 3px; background: white; }
+    @media (max-width: 768px) {
+      .nav-toggle { display: flex; }
+      .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: #0f172a; padding: 1rem; gap: 12px; }
+      .nav-menu.active { display: flex; }
+    }
+    .content { padding: clamp(1.5rem, 4vw, 40px) clamp(1rem, 3vw, 20px) clamp(2rem, 6vw, 60px); max-width: 900px; margin: 0 auto; }
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem 1.25rem;
+      padding: 0;
+      margin-bottom: 0.85rem;
+      background: transparent;
+      border-left: none;
+      border-radius: 0;
+      border-bottom: none;
+    }
+    .page-header h1 {
+      font-size: clamp(1.5rem, 3.5vw, 2rem);
+      font-weight: 700;
+      color: #1e40af;
+      letter-spacing: -0.025em;
+      line-height: 1.2;
+      margin: 0;
+    }
+    .page-header .subscribe-cta {
+      margin: 0 0 0 auto;
+      font-size: 0.9375rem;
+    }
+    .page-header .subscribe-cta a {
+      color: #1e40af;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .page-header .subscribe-cta a:hover { text-decoration: underline; }
+    .page-header .subscribe-cta a:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; border-radius: 4px; }
+    .page-header .subscribe-cta a::after { content: " \2192"; }
+    .page-header .tagline {
+      font-size: 0.9375rem;
+      color: #475569;
+      line-height: 1.25;
+      margin: 0;
+      width: 100%;
+      flex-basis: 100%;
+    }
+    @media (max-width: 640px) {
+      .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem 0;
+        padding: 0;
+        border-left: none;
+        border-top: none;
+        border-radius: 0;
+      }
+      .page-header h1 { font-size: 1.5rem; }
+      .page-header .subscribe-cta {
+        margin: 0.25rem 0 0 0;
+        order: 3;
+      }
+      .page-header .subscribe-cta a {
+        display: inline-block;
+        padding: 0.5rem 0;
+      }
+      .page-header .tagline { order: 2; }
+    }
+    .substack-embed-bottom {
+      margin-top: 2rem;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      width: 100%;
+    }
+    .substack-embed-bottom iframe {
+      display: block;
+      width: 100%;
+      height: 320px;
+      border: none;
+      min-height: 280px;
+    }
+    .content-box {
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      border-radius: 16px;
+      padding: clamp(1.25rem, 4vw, 40px) clamp(1rem, 3vw, 36px);
+      margin-bottom: 24px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .content-box::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+    .content-box .page-header h1 { font-size: inherit; color: #1e40af; }
+    .content-box .intro { color: #374151; font-size: 1.05rem; margin-bottom: 1.5rem; }
+    .content-box .intro a { color: #1e40af; text-decoration: none; font-weight: 500; }
+    .content-box .intro a:hover { text-decoration: underline; }
+    .newsletter-list { list-style: none; }
+    .newsletter-list li {
+      margin-bottom: 2rem;
+      padding: clamp(1rem, 3vw, 1.5rem);
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .newsletter-list li:last-child { margin-bottom: 0; }
+    .post-card { display: block; }
+    .post-card .post-title {
+      margin-bottom: 0.45rem;
+    }
+    .post-featured-img {
+      width: 100%;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f1f5f9;
+      margin: 0 0 0.75rem 0;
+      display: block;
+    }
+    .post-featured-img:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; border-radius: 10px; }
+    .post-featured-img img {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+      display: block;
+    }
+    @media (max-width: 520px) {
+      .post-featured-img img { height: 200px; }
+    }
+    .post-body { }
+    .newsletter-list a.post-title {
+      font-size: clamp(1.1rem, 2vw, 1.2rem);
+      font-weight: 600;
+      color: #1e40af;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 0.35rem;
+      line-height: 1.3;
+      padding: 0.35rem 0;
+      min-height: 44px;
+    }
+    .newsletter-list a.post-title:hover { color: #3b82f6; text-decoration: underline; }
+    .newsletter-list a.post-title:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; border-radius: 6px; }
+    .post-meta { font-size: 0.875rem; color: #64748b; margin: 0 0 0.2rem 0; line-height: 1.2; }
+    .post-desc { font-size: 0.95rem; color: #475569; line-height: 1.55; margin: 0 0 0.6rem 0; }
+    .post-link-wrap { margin: 0.35rem 0 0 0; }
+    .post-link-substack {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #1e40af;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.5rem 0;
+      min-height: 44px;
+    }
+    .post-link-substack:hover { color: #3b82f6; text-decoration: underline; }
+    .post-link-substack:focus-visible { outline: 2px solid #1e40af; outline-offset: 2px; border-radius: 6px; }
+    .post-link-substack::after { content: " \2192"; }
+    .post-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #e0f2fe;
+      color: #0369a1;
+      margin-left: 6px;
+    }
+    .newsletter-loading { color: #64748b; padding: 1.5rem 0; }
+    .newsletter-error { color: #b91c1c; padding: 1rem 0; }
+    .footer { padding: 1.25rem 1rem; }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <nav class="navbar" aria-label="Main">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Ownership</a>
+      </div>
+      <div class="nav-toggle" id="navToggle">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main-content" class="content" role="main">
+    <div class="content-box">
+      <header class="page-header">
+        <h1>PBJ320 Insights</h1>
+        <p class="subscribe-cta"><a href="https://320insight.substack.com/" target="_blank" rel="noopener">Subscribe to The 320</a></p>
+        <p class="tagline">Nursing homes and numbers that tell stories.</p>
+      </header>
+      <section id="recent-posts-section" aria-label="Recent posts">
+        <div id="newsletter-feed">
+          <p class="newsletter-loading" id="newsletter-loading">Loading posts…</p>
+          <ul class="newsletter-list" id="newsletter-list" style="display: none;"></ul>
+          <p class="newsletter-error" id="newsletter-error" style="display: none;"></p>
+        </div>
+        <div class="substack-embed-bottom" id="substack-embed-bottom" style="display: none;" aria-label="Subscribe to The 320 on Substack">
+          <iframe src="https://320insight.substack.com/embed" width="100%" height="320" style="border: 1px solid #EEE; background: white;" frameborder="0" scrolling="no" title="Subscribe to The 320"></iframe>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
+
+  <script src="/pbj-site-universal.js?v=2"></script>
+  <script>
+    (function() {
+      var listEl = document.getElementById('newsletter-list');
+      var loadingEl = document.getElementById('newsletter-loading');
+      var errorEl = document.getElementById('newsletter-error');
+
+      function formatDate(raw) {
+        if (!raw) return '';
+        try {
+          var d = new Date(raw);
+          if (isNaN(d.getTime())) return raw;
+          return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) { return raw; }
+      }
+
+      fetch('/api/newsletter')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Feed unavailable')); })
+        .then(function(data) {
+          loadingEl.style.display = 'none';
+          var posts = (data && data.posts) ? data.posts : [];
+          if (posts.length === 0) {
+            listEl.innerHTML = '<li><p class="post-desc">No posts yet. New nursing home articles from The 320 will appear here.</p></li>';
+          } else {
+            listEl.innerHTML = posts.map(function(p) {
+              var title = (p.title || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              var url = (p.url || '#').replace(/"/g, '&quot;');
+              var desc = (p.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              var dateStr = formatDate(p.date || p.sort_date);
+              var badge = p.source === 'manual' ? '<span class="post-badge">Added by PBJ320</span>' : '';
+              var imgHtml = '';
+              if (p.image_url) {
+                var imgUrl = (p.image_url || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+                var imgAlt = (p.title || 'Article').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                imgHtml = '<a href="' + url + '" target="_blank" rel="noopener" class="post-featured-img"><img src="' + imgUrl + '" alt="Preview: ' + imgAlt + '" loading="lazy"></a>';
+              }
+              return '<li class="post-card">' +
+                '<div class="post-body">' +
+                '<a href="' + url + '" class="post-title" target="_blank" rel="noopener">' + title + badge + '</a>' +
+                '<p class="post-meta">' + dateStr + '</p>' +
+                '</div>' +
+                imgHtml +
+                '<div class="post-body">' +
+                (desc ? '<p class="post-desc">' + desc + '</p>' : '') +
+                '<p class="post-link-wrap"><a href="' + url + '" class="post-link-substack" target="_blank" rel="noopener">' + (p.source === 'manual' ? 'Read article' : 'Read on The 320') + '</a></p>' +
+                '</div></li>';
+            }).join('');
+            var embedBottom = document.getElementById('substack-embed-bottom');
+            if (embedBottom) embedBottom.style.display = 'block';
+          }
+          listEl.style.display = 'block';
+        })
+        .catch(function(err) {
+          loadingEl.style.display = 'none';
+          errorEl.textContent = 'Could not load newsletter feed. Try again later.';
+          errorEl.style.display = 'block';
+        });
+    })();
+  </script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var navToggle = document.getElementById('navToggle');
+      var navMenu = document.getElementById('navMenu');
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() {
+          navMenu.classList.toggle('active');
+          navToggle.classList.toggle('active');
+        });
+      }
+    });
+  </script>
+</body>
+</html>

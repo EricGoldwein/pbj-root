@@ -23,20 +23,23 @@ import sqlite3
 from pathlib import Path
 from datetime import datetime
 from urllib.parse import quote
+from urllib.request import urlopen, Request
+import xml.etree.ElementTree as ET
 import html
 import time
 import gzip
 
-# Memory debugging (temporary) — log RSS at startup and heaviest routes
+# Memory debugging — only logs when PBJ_MEM_DEBUG=1 (e.g. for profiling)
 try:
     import psutil  # type: ignore[reportMissingImports]
     _psutil_process = psutil.Process()
     def _log_mem(label):
-        try:
-            rss_mb = _psutil_process.memory_info().rss / (1024 * 1024)
-            print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
-        except Exception:
-            pass
+        if os.environ.get('PBJ_MEM_DEBUG', '').strip() in ('1', 'true', 'yes'):
+            try:
+                rss_mb = _psutil_process.memory_info().rss / (1024 * 1024)
+                print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
+            except Exception:
+                pass
 except ImportError:
     _psutil_process = None
     def _log_mem(label):
@@ -88,11 +91,13 @@ except ImportError:
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
-# SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in production.
+# SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in .env or production env.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
 if not app.config['SECRET_KEY']:
     app.config['SECRET_KEY'] = 'jak@rr23'
-    print('Warning: SECRET_KEY not set; using default. Set SECRET_KEY or FLASK_SECRET_KEY in production.')
+    # Only warn in production (or when FLASK_ENV is not development) so local dev is quieter
+    if os.environ.get('FLASK_ENV', '').lower() != 'development':
+        print('Warning: SECRET_KEY not set; using default. Set SECRET_KEY or FLASK_SECRET_KEY in production.', flush=True)
 try:
     from flask_wtf.csrf import CSRFProtect, generate_csrf, validate_csrf  # type: ignore[reportMissingImports]
     app.config.setdefault('WTF_CSRF_CHECK_DEFAULT', False)
@@ -628,6 +633,199 @@ def phoebe():
     return send_file('phoebe.html', mimetype='text/html')
 
 
+# ---------------------------------------------------------------------------
+# Newsletter: Substack feed (nursing-home-only) + manual posts
+# ---------------------------------------------------------------------------
+NEWSLETTER_SUBSTACK_FEED = 'https://320insight.substack.com/feed'
+NEWSLETTER_POSTS_JSON = 'newsletter_posts.json'
+NEWSLETTER_CACHE_SECONDS = 600  # 10 min
+_newsletter_cache = None
+_newsletter_cache_time = 0
+
+
+def _strip_html_fragment(raw: str, max_len: int = 480) -> str:
+    """Remove HTML tags for a preview snippet; limit length (default 480 chars)."""
+    if not raw or not isinstance(raw, str):
+        return ''
+    # Strip tags and normalize whitespace for a clean preview snippet.
+    text = re.sub(r'<[^>]+>', ' ', raw)
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    # Substack/RSS previews often append "Read more" / "Continue reading".
+    # Remove these before truncation so we don't end up with artifacts like "R…".
+    text = re.sub(r'\b(read more|continue reading)\b\.?', '', text, flags=re.IGNORECASE).strip()
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    if len(text) <= max_len:
+        return text
+
+    # Truncate on a word boundary when possible to avoid cutting mid-token.
+    boundary = text.rfind(' ', 0, max_len)
+    if boundary > 0:
+        text = text[:boundary].rstrip()
+    else:
+        text = text[:max_len].rstrip()
+    return text + '…'
+
+
+def _elem_text(el) -> str:
+    """Get all text content of an element (including nested). Safe for None."""
+    if el is None:
+        return ''
+    return ''.join(el.itertext()).strip()
+
+
+def _local_tag(tag: str) -> str:
+    """Strip XML namespace from tag: '{http://...}title' -> 'title'."""
+    if not tag:
+        return ''
+    return tag.split('}')[-1] if '}' in tag else tag
+
+
+def _parse_rss_item(item_el) -> dict | None:
+    """Extract title, link, description, pubDate, image from an RSS <item>. Iterate children so namespaces don't break find()."""
+    title = ''
+    link = ''
+    link_from_href = ''
+    description = ''
+    raw_date = ''
+    image_url = ''
+    encoded_full = ''
+    for el in item_el:
+        local = _local_tag(getattr(el, 'tag', ''))
+        txt = (el.text or '').strip() or _elem_text(el)
+        if local == 'title':
+            title = txt
+        elif local == 'link':
+            if txt:
+                link = txt
+            elif el.get('href'):
+                link_from_href = (el.get('href') or '').strip()
+        elif local == 'description':
+            description = _strip_html_fragment(txt or _elem_text(el))
+        elif local == 'encoded':
+            encoded_full = txt or _elem_text(el)
+        elif local == 'enclosure':
+            url = (el.get('url') or '').strip()
+            if url and ('image' in (el.get('type') or '').lower() or not el.get('type')):
+                image_url = url
+        elif local.lower() == 'pubdate':
+            raw_date = txt
+        elif local == 'date':
+            if not raw_date:
+                raw_date = txt
+    if not link:
+        link = link_from_href
+    if not title or not link:
+        return None
+    if encoded_full and len(encoded_full) > len(description or ''):
+        description = _strip_html_fragment(encoded_full)
+    return {'title': title, 'url': link, 'description': description, 'date': raw_date, 'source': 'substack', 'image_url': image_url or None}
+
+
+def _fetch_substack_posts() -> list:
+    """Fetch Substack RSS and return all items (The 320 feed is nursing-home focused)."""
+    out = []
+    try:
+        req = Request(NEWSLETTER_SUBSTACK_FEED, headers={'User-Agent': 'PBJ320-Newsletter/1.0'})
+        with urlopen(req, timeout=15) as resp:
+            tree = ET.parse(resp)
+        root = tree.getroot()
+        items = root.findall('.//item')
+        if not items:
+            items = root.findall('.//{http://purl.org/rss/1.0/}item')
+        for item_el in items:
+            row = _parse_rss_item(item_el)
+            if not row:
+                continue
+            raw = row.get('date') or ''
+            try:
+                from email.utils import parsedate_to_datetime
+                dt = parsedate_to_datetime(raw)
+                row['sort_date'] = dt.strftime('%Y-%m-%dT%H:%M:%S')
+            except Exception:
+                row['sort_date'] = raw or '1970-01-01'
+            out.append(row)
+    except Exception as e:
+        print(f'[newsletter] Substack feed error: {e}', flush=True)
+    return out
+
+
+def _load_manual_newsletter_posts() -> list:
+    """Load manually added posts from newsletter_posts.json in project root."""
+    path = os.path.join(APP_ROOT, NEWSLETTER_POSTS_JSON)
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+    except Exception as e:
+        print(f'[newsletter] manual posts load error: {e}', flush=True)
+        return []
+    if not isinstance(data, list):
+        return []
+    out = []
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        title = entry.get('title') or ''
+        url = entry.get('url') or ''
+        if not title or not url:
+            continue
+        row = {
+            'title': title,
+            'url': url,
+            'description': (entry.get('description') or '').strip(),
+            'date': entry.get('date') or '',
+            'source': 'manual',
+            'image_url': (entry.get('image_url') or '').strip() or None,
+        }
+        raw_date = row['date']
+        try:
+            from email.utils import parsedate_to_datetime
+            dt = parsedate_to_datetime(raw_date)
+            row['sort_date'] = dt.strftime('%Y-%m-%dT%H:%M:%S')
+        except Exception:
+            # Accept ISO date (YYYY-MM-DD) for manual entries
+            if re.match(r'^\d{4}-\d{2}-\d{2}', raw_date or ''):
+                row['sort_date'] = (raw_date or '1970-01-01')[:10] + 'T00:00:00'
+            else:
+                row['sort_date'] = raw_date or '1970-01-01'
+        out.append(row)
+    return out
+
+
+def _get_newsletter_posts() -> list:
+    """Merge Substack feed and manual posts, sorted by date descending. Cached."""
+    global _newsletter_cache, _newsletter_cache_time
+    now = time.time()
+    if _newsletter_cache is not None and (now - _newsletter_cache_time) < NEWSLETTER_CACHE_SECONDS:
+        return _newsletter_cache
+    substack = _fetch_substack_posts()
+    manual = _load_manual_newsletter_posts()
+    merged = substack + manual
+    merged.sort(key=lambda x: x.get('sort_date') or '', reverse=True)
+    # Only cache when we have data (or after successful fetch); avoid caching empty on transient failure
+    if substack or manual or _newsletter_cache is not None:
+        _newsletter_cache = merged
+        _newsletter_cache_time = now
+    return merged
+
+
+@app.route('/api/newsletter')
+def api_newsletter():
+    """JSON feed of newsletter posts: Substack (nursing-home only) + manual entries."""
+    posts = _get_newsletter_posts()
+    return jsonify({'posts': posts})
+
+
+@app.route('/newsletter')
+@app.route('/newsletter/')
+def newsletter_page():
+    """Newsletter section: The 320 (Substack) nursing-home posts + manual posts."""
+    return send_file('newsletter.html', mimetype='text/html')
+
+
 @app.route('/LI-In-Bug.png')
 def serve_li_bug():
     return send_from_directory(APP_ROOT, 'LI-In-Bug.png', mimetype='image/png')
@@ -873,6 +1071,7 @@ def sitemap():
         ('/', '1.0', 'weekly'),
         ('/about', '0.8', 'monthly'),
         ('/insights', '0.9', 'weekly'),
+        ('/newsletter', '0.85', 'weekly'),
         ('/report', '0.9', 'weekly'),
         ('/press', '0.8', 'monthly'),
         ('/attorneys', '0.8', 'monthly'),
@@ -7084,7 +7283,7 @@ def pbj_wrapped_static(path):
 @app.route('/<path:filename>')
 def static_files(filename):
     # Don't handle routes that are already defined (exact or prefix)
-    if filename in ['insights', 'insights.html', 'about', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner']:
+    if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner']:
         from flask import abort
         abort(404)
     # Entity and provider/state pages are served by their own routes; avoid serving as static path

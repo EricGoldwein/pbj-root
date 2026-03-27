@@ -104,9 +104,9 @@ def main():
     # Create combined JSON structure (update month/year when re-running from a new CMS posting PDF)
     output_data = {
         'document_date': {
-            'month': 2,
+            'month': 3,
             'year': 2026,
-            'month_name': 'February'
+            'month_name': 'March'
         },
         'facilities': all_facilities,
         'summary': {

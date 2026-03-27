@@ -238,7 +238,9 @@ def main():
                 if eid not in entities_seen:
                     entities_seen.add(eid)
                     fc_pbj = len(entity_ccns.get(eid, set()))
-                    fc = chain_perf_fc.get(eid) if eid in chain_perf_fc else fc_pbj
+                    # Prefer provider roster count for search labels so counts
+                    # match entity page provider table and on-page headline.
+                    fc = fc_pbj if fc_pbj > 0 else chain_perf_fc.get(eid, 0)
                     entities.append({'n': chain_name[:80], 'id': eid, 'fc': fc})
             except (ValueError, TypeError):
                 pass
@@ -265,14 +267,12 @@ def main():
             pass
         elif ent['fc'] > cur['fc']:
             by_name[key] = {'n': ent['n'], 'id': ent['id'], 'fc': ent['fc']}
-    # Build final list: one canonical per name, plus aliases. Use Chain Performance facility count
-    # for the whole name group when any id in the group has one (so e.g. Genesis shows 197, not 284).
+    # Build final list: one canonical per name, plus aliases. Keep provider-roster
+    # facility count for display so search count matches entity page/table count.
     entities_out = []
     for key, canonical in by_name.items():
         group = all_by_name.get(key, [])
-        disp_fc = max((chain_perf_fc.get(e['id']) for e in group if e['id'] in chain_perf_fc), default=None)
-        if disp_fc is None:
-            disp_fc = canonical['fc']
+        disp_fc = max((e.get('fc', 0) for e in group), default=canonical['fc'])
         entities_out.append({'n': canonical['n'], 'id': canonical['id'], 'fc': disp_fc})
         for ent in group:
             if ent['id'] != canonical['id']:

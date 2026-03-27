@@ -418,7 +418,7 @@ export default function SFFPage() {
           }
 
           // Convert to array of facilities, handling duplicates by using highest priority category
-          // Priority: SFF > Candidate > Graduate > Decertified (Terminated)
+          // Priority: Decertified (Terminated) > SFF > Candidate > Graduate
           const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus; categories: string[] }> = [];
           for (const [ccn, facilities] of facilitiesByCCN.entries()) {
             if (facilities.length === 0) continue;
@@ -427,8 +427,10 @@ export default function SFFPage() {
             const categories = [...new Set(facilities.map(f => f.category))];
             
             // Determine highest priority status
-            let priorityStatus: SFFStatus = 'Decertified';
-            if (categories.includes('SFF')) {
+            let priorityStatus: SFFStatus = 'Graduate';
+            if (categories.includes('Terminated')) {
+              priorityStatus = 'Decertified';
+            } else if (categories.includes('SFF')) {
               priorityStatus = 'SFF';
             } else if (categories.includes('Candidate')) {
               priorityStatus = 'Candidate';
@@ -1453,7 +1455,7 @@ export default function SFFPage() {
                   <strong className="text-yellow-300">SFF Candidate List:</strong> These are nursing homes that qualify to be selected as an SFF. The number of nursing homes on the candidate list is based on five candidates for each SFF slot, with a minimum candidate pool of five nursing homes and a maximum of 30 per State.
                 </div>
                 <div className="pt-2 border-t border-gray-700">
-                  <strong className="text-blue-300">Multi-Category Facilities:</strong> Some facilities appear in multiple CMS SFF categories (e.g., Graduate and Candidate, or Candidate and SFF) due to status changes over time (e.g., Candidate → SFF → Graduate). For clarity, facilities are shown once using the highest priority category: SFF {'>'} Candidate {'>'} Graduate {'>'} Decertified.
+                  <strong className="text-blue-300">Multi-Category Facilities:</strong> Some facilities appear in multiple CMS SFF categories (e.g., Graduate and Candidate, or Candidate and SFF) due to status changes over time. For clarity, facilities are shown once using the highest priority category: Decertified {'>'} SFF {'>'} Candidate {'>'} Graduate. This keeps Table C terminations in the Decertified bucket when a facility appears in more than one category.
                 </div>
                 <div className="pt-2 border-t border-gray-700">
                   <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have {sourceDates?.pbjQuarter ?? 'Q3 2025'} PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.

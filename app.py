@@ -2131,7 +2131,7 @@ def capitalize_city_name(city):
     return ' '.join([word.capitalize() for word in city.split()])
 
 # Known acronyms to preserve in entity/chain names (e.g. "Nhs management" -> "NHS Management")
-ENTITY_NAME_ACRONYMS = {'NHS', 'CMS', 'RN', 'LPN', 'CCRC', 'PBJ', 'HPRD', 'SNF', 'ALF', 'LTAC', 'ID/DD'}
+ENTITY_NAME_ACRONYMS = {'NHS', 'CMS', 'RN', 'LPN', 'CCRC', 'PBJ', 'HPRD', 'SNF', 'ALF', 'LTAC', 'ID/DD', 'PACS'}
 
 
 def capitalize_entity_name(name):
@@ -3366,8 +3366,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         turnover_pct = _num('Average total nursing staff turnover percentage')
         payment_denials = _num('Total number of payment denials')
         total_fines_count = _num('Total number of fines')
-        # Prefer Chain Performance (CMS) facility count when available; else use PBJ facility list length
-        n_fac = int(n_chain) if n_chain is not None else (n if n else 0)
+        # Prefer provider roster count for entity page/titles/table consistency.
+        # Keep CMS chain count as an optional secondary reference for context.
+        n_fac_provider = n if n else 0
+        n_fac_cms = int(n_chain) if n_chain is not None else None
+        n_fac = n_fac_provider if n_fac_provider else (n_fac_cms if n_fac_cms is not None else 0)
         n_st = num_states if num_states else (int(states_chain) if states_chain is not None else 0)
         # Use chain CSV HPRD if present, else PBJ aggregate
         hprd_for_narrative = chain_hprd_total if chain_hprd_total is not None else avg_total
@@ -3480,7 +3483,15 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         chain_metrics_html = '<div class="section-header">Key metrics</div>'
         chain_metrics_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Providers</div><div class="value">{n_fac:,}</div></div>'
+        providers_label = 'Providers'
+        if n_fac_cms is not None and n_fac_provider and n_fac_cms != n_fac_provider:
+            providers_label += (
+                ' <span class="pbj-high-risk-help-wrap" style="position:relative;display:inline-flex;align-items:center;vertical-align:middle;">'
+                '<span class="pbj-high-risk-help" style="font-size:0.75rem;cursor:help;">ⓘ</span>'
+                f'<span class="pbj-high-risk-tooltip" role="tooltip">Provider roster shows {n_fac_provider:,} facilities; CMS chain performance file lists {n_fac_cms:,}.</span>'
+                '</span>'
+            )
+        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">{providers_label}</div><div class="value">{n_fac:,}</div></div>'
         chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">States</div><div class="value">{n_st}</div></div>'
         chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg. Rating</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
         if fines_dollars is not None:
@@ -4414,10 +4425,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                     dashboard_link = f'/provider/{provider_number}'
                     facility_cell = f'<a href="{dashboard_link}">{html.escape(facility_name_cap)}</a>' + (f' <span style="color:rgba(226,232,240,0.75);">({html.escape(city_cap)})</span>' if city_cap else '')
                     months_cell = str(months_val) if months_val is not None else '—'
-                    residents_cell = str(int(float(residents))) if residents and str(residents).strip() else '—'
+                    residents_cell = '—'
                     try:
                         if residents and str(residents).strip():
-                            residents_cell = str(int(float(residents)))
+                            residents_val = float(residents)
+                            # float('nan') can appear in provider data; display em dash instead of crashing.
+                            residents_cell = str(int(residents_val)) if residents_val == residents_val else '—'
                     except (ValueError, TypeError):
                         residents_cell = '—'
                     total_hprd_raw = prov_info.get('reported_total_nurse_hrs_per_resident_per_day') or prov_info.get('Total_Nurse_HPRD')

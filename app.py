@@ -271,7 +271,8 @@ def api_dates():
     except Exception:
         data['pbj_quarter_display'] = 'Q3 2025'
         data['quarters'] = ['2025Q3', '2025Q2']
-    data['sff_posting'] = 'Feb. 2026'  # CMS SFF posting date; update when new list is published
+    data['sff_posting'] = get_sff_posting_display()
+    data['sff_source_url'] = get_sff_source_url()
     return jsonify(data)
 
 @app.route('/api/state/<state_code>/chart-data')
@@ -3656,8 +3657,68 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 _SFF_CACHE = None
 _SFF_CACHE_AT = 0
 _SFF_CACHE_TTL = 300  # 5 min
-# CMS SFF posting PDF; update when a new list is published (e.g. sff-posting-candidate-list-july-2026.pdf)
-SFF_SOURCE_URL = 'https://www.cms.gov/files/document/sff-posting-candidate-list-february-2026.pdf'
+
+_SFF_MONTH_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+_SFF_NUM_TO_LABEL = {
+    1: 'Jan.', 2: 'Feb.', 3: 'Mar.', 4: 'Apr.',
+    5: 'May', 6: 'Jun.', 7: 'Jul.', 8: 'Aug.',
+    9: 'Sep.', 10: 'Oct.', 11: 'Nov.', 12: 'Dec.',
+}
+
+
+def _extract_sff_pdf_parts(filename: str) -> tuple[int, int] | None:
+    """Extract (year, month_num) from SFF PDF names."""
+    name = (filename or '').lower()
+    match = re.search(r'candidate-list-([a-z]+)-(\d{4})', name)
+    if not match:
+        return None
+    month_name, year_str = match.group(1), match.group(2)
+    month_num = _SFF_MONTH_TO_NUM.get(month_name)
+    if not month_num:
+        return None
+    return (int(year_str), month_num)
+
+
+def _find_latest_sff_pdf_filename() -> str | None:
+    """Find the newest SFF candidate list PDF in pbj-wrapped/public by month/year in filename."""
+    public_dir = Path(__file__).resolve().parent / 'pbj-wrapped' / 'public'
+    if not public_dir.exists():
+        return None
+    candidates = [p for p in public_dir.glob('sff-posting*candidate-list*.pdf') if p.is_file()]
+    if not candidates:
+        return None
+    parsed = [(p, _extract_sff_pdf_parts(p.name)) for p in candidates]
+    valid = [(p, parts) for p, parts in parsed if parts is not None]
+    if valid:
+        latest = max(valid, key=lambda x: x[1])[0]
+        return latest.name
+    # Fallback if naming format changes: pick most recently modified matching file.
+    latest_by_mtime = max(candidates, key=lambda p: p.stat().st_mtime)
+    return latest_by_mtime.name
+
+
+def get_sff_posting_display() -> str:
+    """Return SFF posting display like 'Feb. 2026' based on latest local PDF."""
+    latest_name = _find_latest_sff_pdf_filename()
+    if not latest_name:
+        return 'Unknown'
+    parts = _extract_sff_pdf_parts(latest_name)
+    if not parts:
+        return latest_name
+    year, month_num = parts
+    return f"{_SFF_NUM_TO_LABEL.get(month_num, 'Unknown')} {year}"
+
+
+def get_sff_source_url() -> str:
+    """Return link to latest local SFF PDF when available; fallback to CMS SFF program page."""
+    latest_name = _find_latest_sff_pdf_filename()
+    if latest_name:
+        return f"/{latest_name}"
+    return 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'
 
 def load_sff_facilities():
     """Load Special Focus Facilities (SFF) data. Cached 2 min."""
@@ -4342,7 +4403,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     .sff-tab-btn[aria-selected="true"] {{ background: rgba(59,130,246,0.55) !important; border-color: #60a5fa !important; color: #e2e8f0 !important; font-weight: 600; box-shadow: 0 0 0 1px rgba(96,165,250,0.5); }}
     @media (max-width: 640px) {{ .sff-facilities-table {{ font-size: 0.8rem; }} .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.35rem 0.25rem; }} }}
     </style>
-    <p style="margin-top:0.75rem; font-size:0.85rem;"><a href="{html.escape(SFF_SOURCE_URL)}" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p>
+    <p style="margin-top:0.75rem; font-size:0.85rem;"><a href="{html.escape(get_sff_source_url())}" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p>
     <script>
     (function(){{
       var tabs = document.querySelectorAll(".sff-tab-btn");

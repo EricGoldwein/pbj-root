@@ -155,9 +155,35 @@
     document.head.appendChild(style);
   }
 
+  /**
+   * Enforce a consistent site shell across static pages:
+   * - stable scrollbar gutter (prevents width jump between pages)
+   * - unified navbar container width and spacing
+   */
+  function injectSiteShellStyles() {
+    if (document.getElementById('pbj-site-shell-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'pbj-site-shell-styles';
+    style.textContent = [
+      'html{overflow-y:scroll;scrollbar-gutter:stable;}',
+      '.navbar .nav-container{max-width:1200px !important;margin:0 auto !important;padding:0 20px !important;height:60px !important;}',
+      '.navbar .nav-brand,.navbar .nav-link{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif !important;}',
+      '.navbar .nav-menu{gap:30px !important;align-items:center !important;}',
+      '.navbar .nav-link{padding:8px 0 !important;font-size:16px !important;line-height:1.25 !important;font-weight:500 !important;}',
+      '@media (max-width:768px){',
+      '  .navbar .nav-menu{height:calc(100vh - 60px) !important;top:60px !important;left:-100% !important;padding:0 !important;gap:0 !important;justify-content:flex-start !important;align-items:stretch !important;border-top:1px solid rgba(255,255,255,0.1) !important;}',
+      '  .navbar .nav-menu.active{left:0 !important;}',
+      '  .navbar .nav-link{padding:18px 24px !important;border-bottom:1px solid rgba(255,255,255,0.1) !important;text-align:left !important;font-size:1rem !important;color:rgba(255,255,255,0.9) !important;background:transparent !important;transition:all 0.2s ease !important;}',
+      '  .navbar .nav-link:hover,.navbar .nav-link.active{background:rgba(96,165,250,0.1) !important;color:#60a5fa !important;border-left:3px solid #60a5fa !important;}',
+      '}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
   function run() {
     var footer = document.getElementById('site-footer');
     if (footer) injectFooter(footer);
+    injectSiteShellStyles();
     injectContactCtaStyles();
     bindContactFallbacks();
   }

@@ -93,7 +93,7 @@ export default function SFFPage() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
-  const [sourceDates, setSourceDates] = useState<{ pbjQuarter: string; sffPosting: string } | null>(null);
+  const [sourceDates, setSourceDates] = useState<{ pbjQuarter: string; sffPosting: string; sffSourceUrl?: string } | null>(null);
   const itemsPerPage = 50;
 
   // Helper function for state names (needed for SEO)
@@ -133,6 +133,7 @@ export default function SFFPage() {
           setSourceDates({
             pbjQuarter: data.pbj_quarter_display,
             sffPosting: data.sff_posting,
+            sffSourceUrl: data.sff_source_url || undefined,
           });
         }
       })
@@ -1419,7 +1420,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href="https://www.cms.gov/files/document/sff-posting-candidate-list-february-2026.pdf" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Feb. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">

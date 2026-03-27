@@ -4,6 +4,8 @@ Extract SFF candidate months data from PDF
 """
 import sys
 import os
+import re
+from pathlib import Path
 
 try:
     import PyPDF2
@@ -33,8 +35,40 @@ def extract_text_from_pdf(pdf_path):
         print(f"ERROR reading PDF: {e}")
         return None
 
+
+MONTH_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+
+
+def _extract_pdf_date_parts(filename: str):
+    match = re.search(r'candidate-list-([a-z]+)-(\d{4})', filename.lower())
+    if not match:
+        return None
+    month_num = MONTH_TO_NUM.get(match.group(1))
+    if not month_num:
+        return None
+    return (int(match.group(2)), month_num)
+
+
+def _find_latest_sff_pdf(public_dir: Path) -> Path | None:
+    candidates = [p for p in public_dir.glob('sff-posting*candidate-list*.pdf') if p.is_file()]
+    if not candidates:
+        return None
+    parsed = [(p, _extract_pdf_date_parts(p.name)) for p in candidates]
+    valid = [(p, parts) for p, parts in parsed if parts is not None]
+    if valid:
+        return max(valid, key=lambda x: x[1])[0]
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
 if __name__ == "__main__":
-    pdf_path = os.path.join("public", "sff-posting-with-candidate-list-january-2026_0.pdf")
+    latest = _find_latest_sff_pdf(Path("public"))
+    if latest is None:
+        print("ERROR: No matching SFF PDF found in ./public")
+        sys.exit(1)
+    pdf_path = str(latest)
     
     if not os.path.exists(pdf_path):
         print(f"ERROR: PDF file not found at {pdf_path}")

@@ -9,6 +9,15 @@ import pandas as pd
 import os
 import re
 
+
+def quarter_sort_key(quarter: str) -> tuple[int, int]:
+    """Return sortable key for quarters like '2025Q2'."""
+    match = re.fullmatch(r'(\d{4})Q([1-4])', str(quarter))
+    if not match:
+        return (0, 0)
+    return (int(match.group(1)), int(match.group(2)))
+
+
 def find_most_recent_common_quarter():
     """
     Find the most recent quarter that exists in ALL three files:
@@ -25,14 +34,23 @@ def find_most_recent_common_quarter():
     print(f"State data latest: {state_df['CY_Qtr'].max()}")
     
     # Get quarters from facility data (format: "2025Q2")
-    facility_df = pd.read_csv('facility_quarterly_metrics.csv', usecols=['CY_Qtr'], low_memory=False)
+    facility_df = pd.read_csv(
+        'facility_quarterly_metrics.csv',
+        usecols=lambda c: c == 'CY_Qtr',
+        low_memory=False
+    )
     facility_quarters = set(facility_df['CY_Qtr'].unique())
     print(f"Facility data latest: {facility_df['CY_Qtr'].max()}")
     
     # Get quarters from provider data (format: "Q2 2025")
     print("Reading provider_info_combined.csv to find available quarters...")
     provider_quarters = set()
-    for chunk in pd.read_csv('provider_info_combined.csv', usecols=['quarter'], chunksize=50000, low_memory=False):
+    for chunk in pd.read_csv(
+        'provider_info_combined.csv',
+        usecols=lambda c: c == 'quarter',
+        chunksize=50000,
+        low_memory=False
+    ):
         valid_quarters = [q for q in chunk['quarter'].dropna().unique() if isinstance(q, str)]
         provider_quarters.update(valid_quarters)
     
@@ -58,7 +76,8 @@ def find_most_recent_common_quarter():
         if state_q:
             provider_quarters_state.add(state_q)
     
-    print(f"Provider data latest (converted): {sorted(provider_quarters_state)[-1] if provider_quarters_state else 'N/A'}")
+    provider_latest = max(provider_quarters_state, key=quarter_sort_key) if provider_quarters_state else 'N/A'
+    print(f"Provider data latest (converted): {provider_latest}")
     
     # Find quarters that exist in ALL three files
     common_quarters = state_quarters & facility_quarters & provider_quarters_state
@@ -73,7 +92,7 @@ def find_most_recent_common_quarter():
         print("Using state + provider common quarters (facility may be outdated)")
     
     # Sort and get most recent
-    most_recent = sorted(common_quarters)[-1]
+    most_recent = max(common_quarters, key=quarter_sort_key)
     print(f"\nMost recent common quarter (all files): {most_recent}")
     return most_recent
 
@@ -165,16 +184,54 @@ def extract_provider_info_latest(target_quarter_state_format):
             os.remove(temp_file)
         return
     
-    # Rename temp file to final file
-    if os.path.exists(temp_file):
-        if os.path.exists(output_file):
-            os.remove(output_file)
-        os.rename(temp_file, output_file)
+    # At this point, temp_file contains ALL rows for the target quarter.
+    # There can still be multiple rows per facility (ccn) for the SAME quarter
+    # with different processing_date values. For downstream uses (like PBJ report),
+    # we only want the most recent processing_date per facility+quarter.
+    print("\nDeduplicating provider rows by CCN + quarter (keep latest processing_date)...")
+    if not os.path.exists(temp_file):
+        print("ERROR: Temp file missing before dedup; aborting provider_info_combined_latest extraction.")
+        return
+    
+    df_latest = pd.read_csv(temp_file, low_memory=False)
+    before_count = len(df_latest)
+    
+    # Only attempt dedup if required columns exist
+    required_cols = {'ccn', 'processing_date', 'quarter'}
+    if required_cols.issubset(df_latest.columns):
+        # Parse processing_date so that "latest" is truly newest in time
+        df_latest['processing_date_dt'] = pd.to_datetime(df_latest['processing_date'], errors='coerce')
+        
+        # Sort so that the newest processing_date comes first within each (ccn, quarter)
+        df_latest.sort_values(
+            by=['ccn', 'quarter', 'processing_date_dt'],
+            ascending=[True, True, False],
+            inplace=True
+        )
+        
+        # Drop duplicates, keeping the row with the latest processing_date per facility+quarter
+        df_latest = df_latest.drop_duplicates(subset=['ccn', 'quarter'], keep='first')
+        after_count = len(df_latest)
+        removed = before_count - after_count
+        print(f"  Deduplicated provider rows: {before_count:,} -> {after_count:,} (removed {removed:,})")
+        
+        # Drop helper column before saving
+        df_latest.drop(columns=['processing_date_dt'], inplace=True)
+    else:
+        missing = required_cols - set(df_latest.columns)
+        print(f"WARNING: Missing columns for dedup ({', '.join(sorted(missing))}); "
+              f"skipping per-facility deduplication. Rows will match raw filtered count.")
+        after_count = before_count
+    
+    # Write final deduplicated file and clean up temp
+    df_latest.to_csv(output_file, index=False)
+    os.remove(temp_file)
     
     print(f"\nOriginal rows (approx): {total_rows:,}")
-    print(f"Latest quarter rows: {matched_rows:,}")
+    print(f"Latest quarter raw rows: {matched_rows:,}")
+    print(f"Latest quarter unique facility rows: {after_count:,}")
     print(f"Saved to {output_file}")
-    print(f"Size reduction: {matched_rows/total_rows*100:.1f}% of original")
+    print(f"Size reduction: {after_count/total_rows*100:.1f}% of original")
 
 if __name__ == '__main__':
     # Find most recent quarter that exists in ALL files

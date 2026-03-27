@@ -11,6 +11,35 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+MONTH_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+
+
+def extract_pdf_date_parts(filename: str) -> Optional[Tuple[int, int]]:
+    """Extract sortable (year, month_num) from SFF PDF filename."""
+    match = re.search(r'candidate-list-([a-z]+)-(\d{4})', filename.lower())
+    if not match:
+        return None
+    month_num = MONTH_TO_NUM.get(match.group(1))
+    if not month_num:
+        return None
+    return (int(match.group(2)), month_num)
+
+
+def find_latest_sff_pdf(public_dir: Path) -> Optional[Path]:
+    """Pick latest SFF PDF by month/year in filename; fallback to newest mtime."""
+    candidates = [p for p in public_dir.glob('sff-posting*candidate-list*.pdf') if p.is_file()]
+    if not candidates:
+        return None
+    parsed = [(p, extract_pdf_date_parts(p.name)) for p in candidates]
+    valid = [(p, parts) for p, parts in parsed if parts is not None]
+    if valid:
+        return max(valid, key=lambda x: x[1])[0]
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
 def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
     """Extract all tables from PDF using pdfplumber."""
     tables = {'a': [], 'b': [], 'c': [], 'd': []}
@@ -18,12 +47,12 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
     # Known page ranges (1-indexed for pdfplumber)
     # Table A: pages 4-5
     # Table B: pages 6-8
-    # Table C: page 9
+    # Table C: page 9 and possible spillover into page 10
     # Table D: pages 10-18
     page_ranges = {
         'a': (4, 5),
         'b': (6, 8),
-        'c': (9, 9),
+        'c': (9, 10),
         'd': (10, 18)
     }
     
@@ -37,6 +66,7 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
             headers_set = False
             headers = None
             
+            stop_table = False
             for page_num in range(start_page - 1, min(end_page, len(pdf.pages))):  # Convert to 0-indexed
                 page = pdf.pages[page_num]
                 
@@ -109,6 +139,9 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
                                 
                                 # Check if this is a table title row
                                 row_text = ' '.join([str(c) for c in row if c]).lower()
+                                if table_type == 'c' and 'table d' in row_text and 'candidate' in row_text:
+                                    stop_table = True
+                                    break
                                 is_table_title = False
                                 if table_type == 'a':
                                     is_table_title = 'table a' in row_text and 'current sff' in row_text
@@ -149,6 +182,8 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
                                     # Only add if first column looks like a CCN
                                     if data_row and data_row[0] and re.match(r'^\d{6}', data_row[0]):
                                         all_rows.append(data_row)
+                            if stop_table:
+                                break
                         else:
                             # Standard table structure - process row by row
                             for row_idx, row in enumerate(table):
@@ -173,6 +208,9 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
                                 
                                 # Check if this is a header row
                                 row_text = ' '.join(clean_row).lower()
+                                if table_type == 'c' and 'table d' in row_text and 'candidate' in row_text:
+                                    stop_table = True
+                                    break
                                 is_header = any(keyword in row_text for keyword in [
                                     'provider number', 'facility name', 'address', 'city', 'state', 
                                     'zip', 'phone', 'inspection', 'met survey', 'months as', 
@@ -206,11 +244,41 @@ def extract_tables_from_pdf(pdf_path: Path) -> Dict[str, List[List[str]]]:
                                 first_cell = clean_row[0] if clean_row else ''
                                 if re.match(r'^\d{6}', first_cell):
                                     all_rows.append(clean_row)
+                        if stop_table:
+                            break
+                if stop_table:
+                    break
             
             # If no tables were extracted, try text extraction as fallback
             if not all_rows or len(all_rows) <= 1:
                 print(f"  No tables found with pdfplumber, trying text extraction...")
                 all_rows = extract_table_from_text(pdf, table_type, start_page - 1, min(end_page, len(pdf.pages)))
+            elif table_type == 'c':
+                # Table C can spill onto page 10 and be partially missed by table extraction.
+                table_c_text_rows = extract_table_c_rows_from_text(pdf, start_page - 1, min(end_page, len(pdf.pages)))
+                if len(table_c_text_rows) > len(all_rows):
+                    print(f"  Table C text parser found {len(table_c_text_rows) - 1} rows; using it.")
+                    all_rows = table_c_text_rows
+            
+            if table_type == 'c' and all_rows:
+                # Strictly keep only valid Table C rows:
+                # Provider, Name, Address, City, State, Zip, Phone, Date of Termination, Months as an SFF
+                header = all_rows[0]
+                filtered = [header]
+                date_pattern = re.compile(r'^\d{2}/\d{2}/\d{4}$')
+                months_pattern = re.compile(r'^\d{1,3}$')
+                for row in all_rows[1:]:
+                    if not row:
+                        continue
+                    # Normalize row width
+                    r = list(row) + [''] * max(0, 9 - len(row))
+                    term_date = (r[7] or '').strip()
+                    months = (r[8] or '').strip()
+                    if date_pattern.match(term_date) and months_pattern.match(months):
+                        filtered.append(r[:9])
+                if len(filtered) != len(all_rows):
+                    print(f"  Filtered Table C rows: {len(all_rows) - 1} -> {len(filtered) - 1}")
+                all_rows = filtered
             
             tables[table_type] = all_rows
             print(f"  Found {len(all_rows) - 1} data rows (plus header)")
@@ -382,14 +450,79 @@ def parse_text_row(line: str, ccn: str, table_type: str) -> Optional[List[str]]:
     
     return row
 
+
+def extract_table_c_rows_from_text(pdf, start_page: int, end_page: int) -> List[List[str]]:
+    """Targeted parser for Table C rows, including page-boundary spillover."""
+    headers = [
+        'Provider Number', 'Facility Name', 'Address', 'City', 'State', 'Zip',
+        'Phone Number', 'Date of Termination', 'Months as an SFF'
+    ]
+    rows: List[List[str]] = [headers]
+    seen_ccn = set()
+
+    pattern = re.compile(
+        r'^(?P<ccn>\d{6})\s+'
+        r'(?P<name>.+?)\s+'
+        r'(?P<address>\d+.+?)\s+'
+        r'(?P<city>[A-Za-z .\'-]+?)\s+'
+        r'(?P<state>[A-Z]{2})\s+'
+        r'(?P<zip>\d{5}(?:-\d{4})?)\s+'
+        r'(?P<phone>\d{3}-\d{3}-\d{4})\s+'
+        r'(?P<term>\d{2}/\d{2}/\d{4})\s+'
+        r'(?P<months>\d{1,3})\s*$'
+    )
+
+    in_table_c = False
+    for page_num in range(start_page, end_page):
+        text = pdf.pages[page_num].extract_text() or ''
+        for raw_line in text.split('\n'):
+            line = re.sub(r'\s+', ' ', raw_line).strip()
+            if not line:
+                continue
+            lower = line.lower()
+            if 'table c' in lower and 'no longer participating' in lower:
+                in_table_c = True
+                continue
+            if in_table_c and 'table d' in lower and 'candidate' in lower:
+                return rows
+            if not in_table_c:
+                continue
+
+            match = pattern.match(line)
+            if not match:
+                continue
+
+            ccn = match.group('ccn')
+            if ccn in seen_ccn:
+                continue
+            seen_ccn.add(ccn)
+            rows.append([
+                ccn,
+                match.group('name').strip(),
+                match.group('address').strip(),
+                match.group('city').strip(),
+                match.group('state').strip(),
+                match.group('zip').strip(),
+                match.group('phone').strip(),
+                match.group('term').strip(),
+                match.group('months').strip(),
+            ])
+    return rows
+
 def main():
-    # Default: January 2026 posting; override with CLI arg: python extract_sff_tables_to_csv.py path/to/other.pdf
-    default_name = 'sff-posting-with-candidate-list-january-2026_0.pdf'
+    # Default: newest SFF posting PDF in pbj-wrapped/public.
+    # Override with CLI arg: python extract_sff_tables_to_csv.py path/to/other.pdf
     if len(sys.argv) > 1:
         pdf_path = Path(sys.argv[1]).resolve()
     else:
         repo_root = Path(__file__).resolve().parent
-        pdf_path = repo_root / 'pbj-wrapped' / 'public' / default_name
+        public_dir = repo_root / 'pbj-wrapped' / 'public'
+        latest_pdf = find_latest_sff_pdf(public_dir)
+        if latest_pdf is None:
+            print(f"Error: No matching SFF PDF found in {public_dir}")
+            print("Usage: python extract_sff_tables_to_csv.py [path/to/sff-posting.pdf]")
+            sys.exit(1)
+        pdf_path = latest_pdf
 
     if not pdf_path.exists():
         print(f"Error: PDF file not found at {pdf_path}")

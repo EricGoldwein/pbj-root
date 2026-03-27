@@ -22,6 +22,35 @@ US_STATES = {
     'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'
 }
 
+MONTH_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+
+
+def extract_pdf_date_parts(filename: str) -> Optional[tuple[int, int]]:
+    """Extract sortable (year, month_num) from an SFF PDF filename."""
+    match = re.search(r'candidate-list-([a-z]+)-(\d{4})', filename.lower())
+    if not match:
+        return None
+    month_num = MONTH_TO_NUM.get(match.group(1))
+    if not month_num:
+        return None
+    return (int(match.group(2)), month_num)
+
+
+def find_latest_sff_pdf(public_dir: Path) -> Optional[Path]:
+    """Pick latest SFF PDF by month/year in name; fallback to newest file timestamp."""
+    candidates = [p for p in public_dir.glob('sff-posting*candidate-list*.pdf') if p.is_file()]
+    if not candidates:
+        return None
+    parsed = [(p, extract_pdf_date_parts(p.name)) for p in candidates]
+    valid = [(p, parts) for p, parts in parsed if parts is not None]
+    if valid:
+        return max(valid, key=lambda x: x[1])[0]
+    return max(candidates, key=lambda p: p.stat().st_mtime)
+
 def extract_text_from_pdf(pdf_path):
     """Extract all text from PDF, preserving page structure."""
     pages = []
@@ -532,10 +561,10 @@ def extract_table_data(pages: List[Dict]) -> Dict:
     }
 
 def main():
-    pdf_path = Path(__file__).parent.parent / 'public' / 'sff-posting-with-candidate-list-january-2026_0.pdf'
-    
-    if not pdf_path.exists():
-        print(f"Error: PDF file not found at {pdf_path}")
+    public_dir = Path(__file__).parent.parent / 'public'
+    pdf_path = find_latest_sff_pdf(public_dir)
+    if pdf_path is None:
+        print(f"Error: No matching SFF PDF found in {public_dir}")
         sys.exit(1)
     
     print(f"Extracting from {pdf_path.name}...")

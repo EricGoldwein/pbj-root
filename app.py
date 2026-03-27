@@ -3145,7 +3145,9 @@ _CHAIN_PERF_TTL = 300  # 5 min
 
 def load_chain_performance():
     """Load chain/entity performance data from CMS Chain Performance CSV.
-    Prefers 2025-11/Chain_Performance_20260218.csv (canonical; commit to git). Used for entity PBJ takeaway and key metrics.
+    Auto-selects the latest local CMS chain performance CSV (prefers official
+    Nursing_Home_Chain_Performance_Measures* naming when present). Used for
+    entity PBJ takeaway and key metrics.
     Returns dict mapping entity_id (int) -> row dict with keys matching CSV columns (strip-spaced)."""
     global _CHAIN_PERF_CACHE, _CHAIN_PERF_AT, _CHAIN_PERF_TTL
     now = time.time()
@@ -3154,19 +3156,58 @@ def load_chain_performance():
     if not HAS_PANDAS:
         return {}
     import glob
-    # Prefer the canonical Chain Performance file (track in git: 2025-11/Chain_Performance_20260218.csv)
-    canonical_path = os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_20260218.csv')
+
+    def _parse_chain_file_date(path):
+        """Best-effort date extraction from chain-performance filename."""
+        base = os.path.basename(path)
+        # Pattern: *_20260218.csv
+        m = re.search(r'(\d{8})', base)
+        if m:
+            try:
+                return datetime.strptime(m.group(1), '%Y%m%d')
+            except Exception:
+                pass
+        # Pattern: *_Feb_2026.csv or *_February_2026.csv
+        m = re.search(r'(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)[\s_-]*(\d{4})', base, re.IGNORECASE)
+        if m:
+            month_map = {
+                'jan': 1, 'january': 1, 'feb': 2, 'february': 2, 'mar': 3, 'march': 3,
+                'apr': 4, 'april': 4, 'may': 5, 'jun': 6, 'june': 6, 'jul': 7, 'july': 7,
+                'aug': 8, 'august': 8, 'sep': 9, 'sept': 9, 'september': 9,
+                'oct': 10, 'october': 10, 'nov': 11, 'november': 11, 'dec': 12, 'december': 12
+            }
+            mon = month_map.get(m.group(1).lower())
+            yr = int(m.group(2))
+            if mon:
+                try:
+                    return datetime(yr, mon, 1)
+                except Exception:
+                    pass
+        # Fallback to mtime
+        try:
+            return datetime.fromtimestamp(os.path.getmtime(path))
+        except Exception:
+            return datetime.min
+
+    def _chain_file_priority(path):
+        base = os.path.basename(path).lower()
+        if base.startswith('nursing_home_chain_performance_measures'):
+            return 2
+        if base.startswith('chain_performance'):
+            return 1
+        return 0
+
     paths = []
-    if os.path.isfile(canonical_path):
-        paths.append(canonical_path)
     for g in [
+        os.path.join(APP_ROOT, '2025-11', 'Nursing_Home_Chain_Performance_Measures*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_*.csv'),
-        os.path.join(APP_ROOT, 'chain_performance.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain*.csv'),
+        os.path.join(APP_ROOT, 'chain_performance.csv'),
     ]:
         paths.extend(glob.glob(g))
     seen = set()
-    paths = [p for p in paths if p not in seen and not seen.add(p)]
+    paths = [p for p in paths if p not in seen and not seen.add(p) and os.path.isfile(p)]
+    paths.sort(key=lambda p: (_chain_file_priority(p), _parse_chain_file_date(p)), reverse=True)
     for path in paths:
         if not os.path.isfile(path):
             continue

@@ -3269,6 +3269,26 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     base_url = 'https://pbj320.com'
     n = len(facilities)
     subtitle = f"{n} nursing home{'s' if n != 1 else ''}"
+    provider_info = load_provider_info() or {}
+
+    def _facility_census_numeric(fac_dict):
+        """Avg. daily census: prefer provider file (Care Compare / latest combined row), else PBJ quarter."""
+        ccn_k = str(fac_dict.get('ccn') or '').strip().zfill(6)
+        if ccn_k:
+            raw_pi = (provider_info.get(ccn_k) or {}).get('avg_residents_per_day')
+            if raw_pi is not None and str(raw_pi).strip() != '':
+                try:
+                    if not (isinstance(raw_pi, float) and pd.isna(raw_pi)):
+                        return float(raw_pi)
+                except (TypeError, ValueError):
+                    pass
+        raw_pbj = fac_dict.get('avg_daily_census')
+        if raw_pbj is not None and not (isinstance(raw_pbj, float) and pd.isna(raw_pbj)):
+            try:
+                return float(raw_pbj)
+            except (TypeError, ValueError):
+                pass
+        return None
 
     # Chain-level metrics from latest quarter (aggregate across facilities)
     states_set = set()
@@ -3291,10 +3311,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         c = fac.get('Contract_Percentage')
         if c is not None and not (isinstance(c, float) and pd.isna(c)):
             contract_vals.append(float(c))
-        census = fac.get('avg_daily_census')
-        if census is not None and not (isinstance(census, float) and pd.isna(census)):
+        cnum = _facility_census_numeric(fac)
+        if cnum is not None:
             try:
-                _c = round_half_up(float(census), 0)
+                _c = round_half_up(cnum, 0)
                 total_residents += int(_c) if _c is not None else 0
             except (TypeError, ValueError):
                 pass
@@ -3557,7 +3577,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         chain_metrics_html += '</div>'
 
     PAGE_SIZE = 20
-    provider_info = load_provider_info() or {}
     rows = []
     for fac in facilities:
         ccn = fac.get('ccn', '')
@@ -3573,6 +3592,13 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         rn = fac.get('RN_HPRD')
         tn_num = float(tn) if tn is not None and not (isinstance(tn, float) and pd.isna(tn)) else None
         rn_num = float(rn) if rn is not None and not (isinstance(rn, float) and pd.isna(rn)) else None
+        census_num = _facility_census_numeric(fac)
+        census_disp = '—'
+        census_sort = ''
+        if census_num is not None:
+            _ci = int(round_half_up(census_num, 0))
+            census_disp = f'{_ci:,}'
+            census_sort = str(_ci)
         info = provider_info.get(ccn, {}) if ccn else {}
         _overall = info.get('overall_rating')
         _staff = info.get('staffing_rating')
@@ -3589,7 +3615,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
         if risk_flag and risk_reason:
             facility_cell += f' <span class="pbj-high-risk-help-wrap entity-facility-risk-wrap" style="position:relative;display:inline-flex;align-items:center;vertical-align:middle;"><span class="entity-facility-risk-icon" aria-label="High risk" style="color:#fca5a5;font-size:0.85em;cursor:help;margin-left:2px;">⚠</span><span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">{html.escape(risk_reason)}</span></span>'
-        cells = [state_cell, facility_cell, city or '—']
+        cells = [state_cell, facility_cell, city or '—', census_disp]
         if tn is not None:
             cells.append(format_metric_value(tn, 'Total_Nurse_HPRD'))
         else:
@@ -3600,9 +3626,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             cells.append('—')
         cells.append(str(overall_num) if overall_num is not None else '—')
         cells.append(str(staff_num) if staff_num is not None else '—')
-        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
+        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-census="{census_sort}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
         rows.append('<tr class="' + row_class + '"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
-    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
+    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" class="entity-col-census" data-sort="census">Census</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
     tbody = '\n'.join(rows)
     show_more_btn = ''
     if n > PAGE_SIZE:
@@ -3681,7 +3707,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
-<style>.entity-facilities-table {{ font-size: 0.875rem; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.8rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.4rem 0.35rem; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; }} }}</style>
+<style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
 <tbody>

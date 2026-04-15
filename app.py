@@ -642,6 +642,32 @@ NEWSLETTER_POSTS_JSON = 'newsletter_posts.json'
 NEWSLETTER_CACHE_SECONDS = 600  # 10 min
 _newsletter_cache = None
 _newsletter_cache_time = 0
+NEWSLETTER_PBJ_KEYWORDS = (
+    'pbj',
+    'payroll-based journal',
+    'payroll based journal',
+    'cms-671',
+    'cms 671',
+    'five-star',
+    'five star',
+    'nursing home staffing',
+    'staffing hours',
+    'staffing threshold',
+    'weekend staffing',
+    'rn coverage',
+    'registered nurse',
+    'licensed practical nurse',
+    'certified nursing assistant',
+    'cna',
+    'snf',
+    'skilled nursing',
+    'medicaid staffing',
+    'medicare staffing',
+    'long-term care',
+    'long term care',
+    'nursing facility',
+    'nursing homes',
+)
 
 
 def _strip_html_fragment(raw: str, max_len: int = 480) -> str:
@@ -683,6 +709,22 @@ def _local_tag(tag: str) -> str:
     return tag.split('}')[-1] if '}' in tag else tag
 
 
+def _is_pbj_related_post(row: dict) -> bool:
+    """Heuristic filter so newsletter only shows PBJ/nursing-home staffing posts."""
+    if not isinstance(row, dict):
+        return False
+    haystack_parts = [
+        row.get('title') or '',
+        row.get('description') or '',
+        row.get('url') or '',
+    ]
+    categories = row.get('categories') or []
+    if isinstance(categories, list):
+        haystack_parts.extend(c for c in categories if isinstance(c, str))
+    haystack = ' '.join(haystack_parts).lower()
+    return any(keyword in haystack for keyword in NEWSLETTER_PBJ_KEYWORDS)
+
+
 def _parse_rss_item(item_el) -> dict | None:
     """Extract title, link, description, pubDate, image from an RSS <item>. Iterate children so namespaces don't break find()."""
     title = ''
@@ -692,6 +734,7 @@ def _parse_rss_item(item_el) -> dict | None:
     raw_date = ''
     image_url = ''
     encoded_full = ''
+    categories = []
     for el in item_el:
         local = _local_tag(getattr(el, 'tag', ''))
         txt = (el.text or '').strip() or _elem_text(el)
@@ -715,17 +758,28 @@ def _parse_rss_item(item_el) -> dict | None:
         elif local == 'date':
             if not raw_date:
                 raw_date = txt
+        elif local == 'category':
+            if txt:
+                categories.append(txt)
     if not link:
         link = link_from_href
     if not title or not link:
         return None
     if encoded_full and len(encoded_full) > len(description or ''):
         description = _strip_html_fragment(encoded_full)
-    return {'title': title, 'url': link, 'description': description, 'date': raw_date, 'source': 'substack', 'image_url': image_url or None}
+    return {
+        'title': title,
+        'url': link,
+        'description': description,
+        'date': raw_date,
+        'source': 'substack',
+        'image_url': image_url or None,
+        'categories': categories,
+    }
 
 
 def _fetch_substack_posts() -> list:
-    """Fetch Substack RSS and return all items (The 320 feed is nursing-home focused)."""
+    """Fetch Substack RSS and return only PBJ/nursing-home staffing items."""
     out = []
     try:
         req = Request(NEWSLETTER_SUBSTACK_FEED, headers={'User-Agent': 'PBJ320-Newsletter/1.0'})
@@ -738,6 +792,8 @@ def _fetch_substack_posts() -> list:
         for item_el in items:
             row = _parse_rss_item(item_el)
             if not row:
+                continue
+            if not _is_pbj_related_post(row):
                 continue
             raw = row.get('date') or ''
             try:

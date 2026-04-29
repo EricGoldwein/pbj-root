@@ -86,30 +86,49 @@ def _run_git(args: List[str]) -> str:
 
 
 def _latest_provider_months() -> Tuple[Optional[str], Optional[str], Optional[Path]]:
-    candidates = []
-    latest_path = None
-    provider_files = list((REPO_ROOT / "provider_info").glob("NH_ProviderInfo_*.csv"))
-    for p in provider_files:
+    """Latest / previous provider snapshot months; file path is the newest (y, mo), then mtime."""
+    provider_dir = REPO_ROOT / "provider_info"
+    dated: List[Tuple[int, int, Path]] = []
+    for p in provider_dir.glob("*.csv"):
         parsed = _parse_provider_filename(p)
         if parsed:
             y, mo = parsed
-            candidates.append((y, mo))
-    if provider_files:
-        latest_path = max(provider_files, key=lambda p: p.stat().st_mtime)
-    if not candidates:
-        return None, None, latest_path
-    uniq = sorted(set(candidates), reverse=True)
-    latest = _format_month_year(uniq[0][0], uniq[0][1])
-    previous = _format_month_year(uniq[1][0], uniq[1][1]) if len(uniq) > 1 else latest
+            dated.append((y, mo, p))
+    if not dated:
+        return None, None, None
+    try:
+        dated.sort(key=lambda t: (t[0], t[1], t[2].stat().st_mtime), reverse=True)
+    except OSError:
+        dated.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    latest_path = dated[0][2]
+    uniq_months: List[Tuple[int, int]] = []
+    seen: set[Tuple[int, int]] = set()
+    for y, mo, _ in sorted(dated, key=lambda t: (t[0], t[1]), reverse=True):
+        if (y, mo) not in seen:
+            seen.add((y, mo))
+            uniq_months.append((y, mo))
+    latest = _format_month_year(uniq_months[0][0], uniq_months[0][1])
+    previous = _format_month_year(uniq_months[1][0], uniq_months[1][1]) if len(uniq_months) > 1 else latest
     return latest, previous, latest_path
 
 
 def _latest_provider_snapshot_file() -> Optional[Path]:
     provider_dir = REPO_ROOT / "provider_info"
-    snaps = list(provider_dir.glob("NH_ProviderInfo_*.csv"))
-    if not snaps:
+    scored: List[Tuple[int, int, float, Path]] = []
+    for p in provider_dir.glob("*.csv"):
+        parsed = _parse_provider_filename(p)
+        if not parsed:
+            continue
+        y, mo = parsed
+        try:
+            mt = p.stat().st_mtime
+        except OSError:
+            mt = 0.0
+        scored.append((y, mo, mt, p))
+    if not scored:
         return None
-    return max(snaps, key=lambda p: p.stat().st_mtime)
+    scored.sort(key=lambda t: (t[0], t[1], t[2]), reverse=True)
+    return scored[0][3]
 
 
 def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
@@ -178,8 +197,8 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
 
     if inferred_provider_file and selected_provider_file and selected_provider_file.resolve() != inferred_provider_file.resolve():
         errors.append(
-            "owner dashboard provider snapshot path is not latest by mtime: "
-            f"selected={selected_provider_file.name}, latest={inferred_provider_file.name}"
+            "owner dashboard provider snapshot path does not match latest inferred snapshot: "
+            f"selected={selected_provider_file.name}, inferred={inferred_provider_file.name}"
         )
     if inferred_ownership_file and selected_ownership_file and selected_ownership_file.resolve() != inferred_ownership_file.resolve():
         errors.append(
@@ -223,7 +242,7 @@ def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[
     snap = _latest_provider_snapshot_file()
     search_index_path = REPO_ROOT / "search_index.json"
     if snap is None:
-        notes.append("Skipped entity-count check: no NH_ProviderInfo snapshot found.")
+        notes.append("Skipped entity-count check: no provider_info snapshot found.")
         return
     if not search_index_path.exists():
         errors.append("search_index.json missing (cannot validate entity counts).")
@@ -239,15 +258,21 @@ def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[
     except Exception as exc:
         errors.append(f"could not read latest provider snapshot {snap.name}: {exc}")
         return
-    if "Chain ID" not in df.columns or "CMS Certification Number (CCN)" not in df.columns:
-        errors.append(f"latest provider snapshot missing expected columns: {snap.name}")
+    chain_col = "Chain ID" if "Chain ID" in df.columns else ("chain_id" if "chain_id" in df.columns else None)
+    ccn_col = (
+        "CMS Certification Number (CCN)"
+        if "CMS Certification Number (CCN)" in df.columns
+        else ("ccn" if "ccn" in df.columns else None)
+    )
+    if not chain_col or not ccn_col:
+        errors.append(f"latest provider snapshot missing Chain ID / CCN columns: {snap.name}")
         return
 
     # chain_id -> unique ccn count
     ccns_by_chain: Dict[int, set] = {}
     for _, row in df.iterrows():
-        raw_chain = str(row.get("Chain ID") or "").strip()
-        raw_ccn = str(row.get("CMS Certification Number (CCN)") or "").strip()
+        raw_chain = str(row.get(chain_col) or "").strip()
+        raw_ccn = str(row.get(ccn_col) or "").strip()
         if not raw_chain or not raw_ccn:
             continue
         try:

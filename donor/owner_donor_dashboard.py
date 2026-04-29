@@ -105,7 +105,7 @@ PROVIDER_INFO_COMBINED_LATEST = BASE_DIR / "provider_info_combined_latest.csv"
 if PROVIDER_INFO_COMBINED_LATEST.exists():
     if (not PROVIDER_INFO.exists()) or (PROVIDER_INFO_COMBINED_LATEST.stat().st_mtime >= PROVIDER_INFO.stat().st_mtime):
         PROVIDER_INFO = PROVIDER_INFO_COMBINED_LATEST
-PROVIDER_INFO_DIR = BASE_DIR / "provider_info"  # NH_ProviderInfo_<Month><Year>.csv — we use the most recent
+PROVIDER_INFO_DIR = BASE_DIR / "provider_info"  # NH_ProviderInfo_* and ProviderInfoNorm_* — latest by (year, month)
 # Fallback if no file in provider_info/ (e.g. old deploy)
 PROVIDER_INFO_LATEST_FALLBACK = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
@@ -231,12 +231,21 @@ def _get_methodology_source_line():
 
 def _get_latest_provider_info_path():
     """
-    Return (path, label) for the most recent NH_ProviderInfo_<Month><Year>.csv in provider_info/.
-    label is e.g. "Feb. 2026" for display. Returns (None, None) if no matching file.
+    Return (path, label) for the most recent provider snapshot in provider_info/:
+    - NH_ProviderInfo_<Mon><Year>.csv (CMS-style)
+    - ProviderInfoNorm_YYYY_MM.csv (normalized monthly extracts)
+    label is e.g. "Apr. 2026". Returns (None, None) if no matching file.
     """
     if not PROVIDER_INFO_DIR.is_dir():
         return (None, None)
     candidates = []
+
+    def _mtime(p: Path) -> float:
+        try:
+            return p.stat().st_mtime
+        except OSError:
+            return 0.0
+
     for p in PROVIDER_INFO_DIR.glob("NH_ProviderInfo_*.csv"):
         stem = p.stem  # e.g. NH_ProviderInfo_Feb2026
         prefix = "NH_ProviderInfo_"
@@ -250,13 +259,37 @@ def _get_latest_provider_info_path():
                     year = int(year_str)
                     candidates.append((p, (year, i), mon, year))
                     break
+
+    for p in PROVIDER_INFO_DIR.glob("ProviderInfoNorm_*.csv"):
+        m = re.match(r"(?i)ProviderInfoNorm_(\d{4})_(\d{2})\.csv$", p.name)
+        if not m:
+            continue
+        year, mon_num = int(m.group(1)), int(m.group(2))
+        if 1 <= mon_num <= 12:
+            mon = _PROVIDER_INFO_MONTHS[mon_num - 1]
+            candidates.append((p, (year, mon_num), mon, year))
+
     if not candidates:
         return (None, None)
-    # Sort by (year, month) descending; take latest
-    candidates.sort(key=lambda x: (x[1][0], x[1][1]), reverse=True)
+    # Newest (year, month) first; same month → newer file on disk wins
+    candidates.sort(key=lambda x: (x[1][0], x[1][1], _mtime(x[0])), reverse=True)
     path, _, mon, year = candidates[0]
     label = f"{mon}. {year}"
     return (path, label)
+
+
+def _normalize_provider_snapshot_df(df):
+    """Map ProviderInfoNorm / snake_case columns to names the dashboard expects (NH_ProviderInfo-style)."""
+    if df is None or getattr(df, "empty", True):
+        return df
+    renames = {}
+    if "Legal Business Name" not in df.columns and "legal_business_name" in df.columns:
+        renames["legal_business_name"] = "Legal Business Name"
+    if "Provider Name" not in df.columns and "provider_name" in df.columns:
+        renames["provider_name"] = "Provider Name"
+    if renames:
+        return df.rename(columns=renames)
+    return df
 
 
 def _read_csv_safe(path):
@@ -432,7 +465,7 @@ def get_provider_info_df():
 
 
 def get_provider_info_latest_df():
-    """Lazy-load latest NH_ProviderInfo CSV (Legal Business Name). Sets provider_info_source_label. Load only when first needed."""
+    """Lazy-load latest provider snapshot (NH_ProviderInfo_* or ProviderInfoNorm_*). Sets provider_info_source_label."""
     global provider_info_latest_df, provider_info_source_label
     with _provider_info_latest_df_lock:
         if provider_info_latest_df is not None:
@@ -460,6 +493,7 @@ def get_provider_info_latest_df():
                         provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8-sig')
                     except UnicodeDecodeError:
                         provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='latin-1')
+                provider_info_latest_df = _normalize_provider_snapshot_df(provider_info_latest_df)
                 provider_info_source_label = latest_label or "Provider Info"
             except Exception as e:
                 print(f"[FAIL] Error loading latest provider info: {e}")
@@ -1504,7 +1538,7 @@ def load_data():
                 provider_info_df = pd.DataFrame()
     
     # Load latest provider info with Legal Business Name (for facility matching)
-    # Use most recent NH_ProviderInfo_<Month><Year>.csv in provider_info/
+    # Use most recent NH_ProviderInfo_* or ProviderInfoNorm_* in provider_info/
     global provider_info_latest_df, provider_info_source_label
     provider_info_source_label = None
     latest_path, latest_label = _get_latest_provider_info_path()
@@ -1530,6 +1564,7 @@ def load_data():
                     provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='utf-8-sig')
                 except UnicodeDecodeError:
                     provider_info_latest_df = pd.read_csv(latest_path, dtype=str, low_memory=False, encoding='latin-1')
+            provider_info_latest_df = _normalize_provider_snapshot_df(provider_info_latest_df)
             provider_info_source_label = latest_label or "Provider Info"
             print(f"[OK] Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name) — {provider_info_source_label}")
             # Validate expected columns so renames/missing columns fail fast
@@ -1547,7 +1582,7 @@ def load_data():
             provider_info_latest_df = pd.DataFrame()
     else:
         if latest_path is None:
-            print(f"[WARN] No NH_ProviderInfo_<Month><Year>.csv found in {PROVIDER_INFO_DIR}")
+            print(f"[WARN] No NH_ProviderInfo_* or ProviderInfoNorm_* snapshot found in {PROVIDER_INFO_DIR}")
         else:
             print(f"[WARN] Latest provider info not found: {latest_path}")
         provider_info_latest_df = pd.DataFrame()

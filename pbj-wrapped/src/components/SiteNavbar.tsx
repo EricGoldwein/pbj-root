@@ -1,6 +1,6 @@
 /**
  * Site-wide navbar. Single source of truth for PBJ320 nav.
- * Matches index.html: About, Dashboard, Insights, Report, PBJ Explained, Ownership.
+ * Matches primary site nav: About, Report, Insights, PBJ Explained, Ownership.
  * Use this on Index, SFF, and any other page that needs the main nav.
  */
 
@@ -11,17 +11,16 @@ const BASE = 'https://pbj320.com';
 
 const NAV_LINKS: { href: string; label: string; external?: boolean }[] = [
   { href: `${BASE}/about`, label: 'About' },
-  { href: `${BASE}/`, label: 'Dashboard' },
-  { href: `${BASE}/insights`, label: 'Insights' },
   { href: `${BASE}/report`, label: 'Report' },
-  { href: '/phoebe', label: 'PBJ Explained', external: true },
+  { href: `${BASE}/insights`, label: 'Insights' },
+  { href: `${BASE}/phoebe`, label: 'PBJ Explained' },
   { href: `${BASE}/owners`, label: 'Ownership' },
 ];
 
 interface SiteNavbarProps {
   /** Called when a link is clicked (e.g. to close mobile menu) */
   onLinkClick?: () => void;
-  /** Optional tracking when Dashboard link is clicked */
+  /** Optional tracking callback (retained for compatibility) */
   onDashboardClick?: () => void;
 }
 
@@ -57,7 +56,7 @@ export const SiteNavbar: React.FC<SiteNavbarProps> = ({ onLinkClick, onDashboard
                 className={linkClass}
                 target={external ? '_blank' : undefined}
                 rel={external ? 'noopener noreferrer' : undefined}
-                onClick={label === 'Dashboard' ? onDashboardClick : undefined}
+                onClick={onDashboardClick}
               >
                 {label}
               </a>

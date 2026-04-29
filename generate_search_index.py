@@ -14,6 +14,7 @@ import csv
 import json
 import os
 import re
+import glob
 
 # State full name to abbreviation (for states list and URLs)
 STATE_NAME_TO_ABBR = {
@@ -134,13 +135,16 @@ def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     os.chdir(script_dir)
 
-    # Prefer quarter-aligned provider_info_combined / _latest (have CY_Qtr/quarter). NH_ProviderInfo is fallback (no quarter).
-    provider_paths = [
+    # Prefer latest provider snapshot for current facility roster/counts in search labels.
+    # Combined files can include broader historical memberships.
+    provider_paths = []
+    snap_glob = os.path.join(script_dir, 'provider_info', 'NH_ProviderInfo_*.csv')
+    snap_candidates = [p for p in sorted(glob.glob(snap_glob), key=os.path.getmtime, reverse=True)]
+    provider_paths.extend(snap_candidates)
+    provider_paths.extend([
         'provider_info_combined_latest.csv',
         'provider_info_combined.csv',
-        os.path.join(script_dir, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
-        'provider_info/NH_ProviderInfo_Jan2026.csv',
-    ]
+    ])
     provider_path = None
     for p in provider_paths:
         if os.path.exists(p):

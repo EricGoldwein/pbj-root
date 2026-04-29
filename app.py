@@ -4610,15 +4610,16 @@ def load_entity_facilities(entity_id):
     global _PROVIDER_INFO_ENTITY_CACHE, _PROVIDER_INFO_ENTITY_AT
     if not HAS_PANDAS:
         return '', []
-    # Prefer quarter-aligned data (provider_info_combined_latest has CY_Qtr/quarter). NH_ProviderInfo is fallback (no quarter).
-    paths = [
+    # Prefer latest provider snapshot for current facility roster/counts; fall back to combined files.
+    # Combined files can include broader longitudinal/entity memberships and overstate current roster counts.
+    paths = _provider_snapshot_candidate_paths() + [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
-    ] + _provider_snapshot_candidate_paths()
+    ]
     now = time.time()
     df = None
     used_path = None

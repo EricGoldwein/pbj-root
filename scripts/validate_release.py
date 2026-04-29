@@ -15,7 +15,7 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -102,6 +102,14 @@ def _latest_provider_months() -> Tuple[Optional[str], Optional[str], Optional[Pa
     latest = _format_month_year(uniq[0][0], uniq[0][1])
     previous = _format_month_year(uniq[1][0], uniq[1][1]) if len(uniq) > 1 else latest
     return latest, previous, latest_path
+
+
+def _latest_provider_snapshot_file() -> Optional[Path]:
+    provider_dir = REPO_ROOT / "provider_info"
+    snaps = list(provider_dir.glob("NH_ProviderInfo_*.csv"))
+    if not snaps:
+        return None
+    return max(snaps, key=lambda p: p.stat().st_mtime)
 
 
 def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
@@ -210,6 +218,96 @@ def _check_api_dates_consistency(errors: List[str], notes: List[str]) -> None:
     notes.append(f"/api/dates pbj_quarter_display={actual_display or 'n/a'}")
 
 
+def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[str]) -> None:
+    """Ensure search_index entity counts align to latest provider snapshot roster."""
+    snap = _latest_provider_snapshot_file()
+    search_index_path = REPO_ROOT / "search_index.json"
+    if snap is None:
+        notes.append("Skipped entity-count check: no NH_ProviderInfo snapshot found.")
+        return
+    if not search_index_path.exists():
+        errors.append("search_index.json missing (cannot validate entity counts).")
+        return
+    try:
+        import pandas as pd  # pylint: disable=import-error
+    except Exception:
+        notes.append("Skipped entity-count check: pandas unavailable in validator runtime.")
+        return
+
+    try:
+        df = pd.read_csv(snap, dtype=str, low_memory=False)
+    except Exception as exc:
+        errors.append(f"could not read latest provider snapshot {snap.name}: {exc}")
+        return
+    if "Chain ID" not in df.columns or "CMS Certification Number (CCN)" not in df.columns:
+        errors.append(f"latest provider snapshot missing expected columns: {snap.name}")
+        return
+
+    # chain_id -> unique ccn count
+    ccns_by_chain: Dict[int, set] = {}
+    for _, row in df.iterrows():
+        raw_chain = str(row.get("Chain ID") or "").strip()
+        raw_ccn = str(row.get("CMS Certification Number (CCN)") or "").strip()
+        if not raw_chain or not raw_ccn:
+            continue
+        try:
+            chain_id = int(float(raw_chain))
+        except Exception:
+            continue
+        ccn = raw_ccn.split(".")[0].zfill(6)
+        ccns_by_chain.setdefault(chain_id, set()).add(ccn)
+    expected = {k: len(v) for k, v in ccns_by_chain.items()}
+
+    try:
+        with search_index_path.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+        entities = payload.get("e") or []
+    except Exception as exc:
+        errors.append(f"could not parse search_index.json: {exc}")
+        return
+
+    # Validate canonical entries only (no linkId alias rows).
+    mismatches = []
+    for ent in entities:
+        if not isinstance(ent, dict):
+            continue
+        if ent.get("linkId") is not None:
+            continue
+        eid = ent.get("id")
+        fc = ent.get("fc")
+        try:
+            eid_i = int(eid)
+            fc_i = int(fc)
+        except Exception:
+            continue
+        exp = expected.get(eid_i)
+        if exp is None:
+            continue
+        if fc_i != exp:
+            mismatches.append((eid_i, fc_i, exp))
+    if mismatches:
+        sample = ", ".join([f"{eid}:index={idx} expected={exp}" for eid, idx, exp in mismatches[:8]])
+        errors.append(f"search_index entity count mismatch vs latest provider snapshot ({snap.name}): {sample}")
+    else:
+        notes.append(f"Entity counts in search_index align to latest provider snapshot ({snap.name}).")
+
+
+def _check_owners_autocomplete_health(errors: List[str], notes: List[str]) -> None:
+    """Smoke-check owners autocomplete endpoint via main app test client."""
+    import app as app_module  # pylint: disable=import-error
+
+    client = app_module.app.test_client()
+    resp = client.get("/owners/api/autocomplete?q=Ben&type=all")
+    if resp.status_code != 200:
+        errors.append(f"/owners/api/autocomplete returned status {resp.status_code}")
+        return
+    payload = resp.get_json(silent=True) or {}
+    if "suggestions" not in payload or not isinstance(payload.get("suggestions"), list):
+        errors.append("/owners/api/autocomplete payload missing suggestions list")
+    else:
+        notes.append(f"/owners/api/autocomplete ok ({len(payload.get('suggestions', []))} suggestions).")
+
+
 def _check_staged_large_non_lfs(errors: List[str], notes: List[str]) -> None:
     try:
         staged = [p for p in _run_git(["diff", "--cached", "--name-only"]).splitlines() if p.strip()]
@@ -268,6 +366,8 @@ def main() -> int:
     try:
         _check_displayed_source_months(errors, notes)
         _check_api_dates_consistency(errors, notes)
+        _check_entity_counts_against_latest_snapshot(errors, notes)
+        _check_owners_autocomplete_health(errors, notes)
         _check_required_lfs_configuration(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script

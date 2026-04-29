@@ -410,11 +410,11 @@ def detect_table_boundaries(pages: List[Dict]) -> Dict[str, tuple]:
     
     return result
 
-def extract_table_data(pages: List[Dict]) -> Dict:
+def extract_table_data(pages: List[Dict], source_pdf_name: str = '') -> Dict:
     """Extract all table data from PDF pages using page-based boundaries."""
     # Extract document date
-    doc_month = 12
-    doc_year = 2025
+    doc_month = 0
+    doc_year = 0
     month_map = {
         'january': 1, 'jan': 1, 'february': 2, 'feb': 2,
         'march': 3, 'mar': 3, 'april': 4, 'apr': 4,
@@ -424,24 +424,27 @@ def extract_table_data(pages: List[Dict]) -> Dict:
         'december': 12, 'dec': 12
     }
     
-    # Look for "December 10, 2025" or "December 2025" specifically first
+    # Prefer filename date (e.g., sff-posting-with-candidate-list-april-2026.pdf)
+    parsed_from_name = extract_pdf_date_parts(source_pdf_name or '')
+    if parsed_from_name is not None:
+        doc_year, doc_month = parsed_from_name
+
+    # Otherwise, detect month/year from early PDF pages.
     for page in pages[:5]:
         page_text = page['text']
         page_lower = page_text.lower()
-        
-        # Prioritize December 2025
-        if 'december' in page_lower and '2025' in page_text:
-            doc_month = 12
-            year_match = re.search(r'2025', page_text)
+        if doc_month == 0:
+            for month_name, month_num in month_map.items():
+                if month_name in page_lower:
+                    doc_month = month_num
+                    break
+        if doc_year == 0:
+            year_match = re.search(r'\b(20\d{2})\b', page_text)
             if year_match:
-                doc_year = 2025
-            break
-        
-        # Also check for "list updated Dec. 10, 2025" or similar
-        dec_pattern = re.search(r'dec\.?\s+10,?\s+2025|december\s+10,?\s+2025', page_lower)
-        if dec_pattern:
-            doc_month = 12
-            doc_year = 2025
+                year_candidate = int(year_match.group(1))
+                if 2000 <= year_candidate <= 2100:
+                    doc_year = year_candidate
+        if doc_month and doc_year:
             break
     
     # If not found, search for any month
@@ -458,7 +461,7 @@ def extract_table_data(pages: List[Dict]) -> Dict:
                 if 2000 <= year_candidate <= 2100:
                     doc_year = year_candidate
     
-    # Default to December 2025 if not found
+    # Safe defaults if nothing was detected.
     if doc_month == 0:
         doc_month = 12
     if doc_year == 0:
@@ -571,7 +574,7 @@ def main():
     pages = extract_text_from_pdf(pdf_path)
     
     print("Extracting table data...")
-    data = extract_table_data(pages)
+    data = extract_table_data(pages, pdf_path.name)
     
     print(f"\nSummary:")
     print(f"  Table A (Current SFF): {data['summary']['current_sff_count']}")

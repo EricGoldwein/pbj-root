@@ -4372,10 +4372,14 @@
               <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="nurseAideHPRD"><span class="desktop-text">Nurse Aide<br/>HPRD</span><span class="mobile-text">NA</span></th>
               <th rowspan="2" class="col-contract sortable" data-sort="contract"><span class="desktop-text">% Contract</span><span class="mobile-text">% Ctr</span></th>
               <th rowspan="2" class="col-forprofit sortable" data-sort="forProfit">For Profit</th>
+              <th rowspan="2" class="col-highrisk sortable" data-sort="highRisk">
+                <span class="desktop-text">High-Risk<br/>NHs</span>
+                <span class="mobile-text">Risk</span>
+              </th>
             </tr>
           </thead>
           <tbody id="stateTableBody">
-            <tr><td colspan="9" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
+            <tr><td colspan="11" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -5326,7 +5330,7 @@
         console.error('Error loading data:', error);
         document.getElementById('usSummary').innerHTML = '<div class="loading">Error loading data. Please refresh the page.</div>';
         const isMobileError = window.innerWidth <= 600;
-        const errorColspan = isMobileError ? '12' : '11';
+        const errorColspan = '11';
         document.getElementById('stateTableBody').innerHTML = `<tr><td colspan="${errorColspan}" class="loading">Error loading data.</td></tr>`;
       }
     }
@@ -6462,30 +6466,6 @@
         facilityCountDiv.textContent = state.facility_count.toLocaleString();
         facilitiesCell.appendChild(facilityCountDiv);
         
-        // Add "View Risk List" button if there are high-risk facilities
-        if (hasSFF) {
-          let riskListButton;
-          const isDesktop = window.innerWidth > 768;
-          const buttonText = isDesktop ? 'View Risk List' : 'Risk List';
-        if (currentTableView === 'region') {
-            riskListButton = createButton(buttonText, () => openRegionSFFModal(state.name, state.regionNumber || ''), false);
-        } else {
-            riskListButton = createButton(buttonText, () => openSFFModal(state.name, stateAbbr), false);
-        }
-          riskListButton.style.padding = isDesktop ? '4px 6px' : '3px 4px';
-          riskListButton.style.fontSize = isDesktop ? '0.7rem' : '0.55rem';
-          riskListButton.style.marginTop = '4px';
-          riskListButton.style.marginLeft = 'auto';
-          riskListButton.style.marginRight = 'auto';
-          riskListButton.style.display = 'block';
-          riskListButton.style.maxWidth = '100%';
-          riskListButton.style.boxSizing = 'border-box';
-          riskListButton.style.whiteSpace = 'nowrap';
-          riskListButton.style.overflow = 'hidden';
-          riskListButton.style.textOverflow = 'ellipsis';
-          facilitiesCell.appendChild(riskListButton);
-        }
-        
         tr.appendChild(facilitiesCell);
         
         // Residents cell
@@ -6547,6 +6527,33 @@
         const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : '-';
         const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
         tr.appendChild(forProfitCell);
+        
+        // High-Risk column (dedicated; matches .desktop-risk-list-button / mobile-risk-list-cell CSS)
+        const highRiskTd = document.createElement('td');
+        highRiskTd.className = 'col-highrisk';
+        if (hasSFF) {
+          const isDesktopRisk = window.innerWidth > 600;
+          const buttonText = isDesktopRisk ? 'View Risk List' : 'Risk List';
+          const onClick = currentTableView === 'region'
+            ? () => openRegionSFFModal(state.name, state.regionNumber || '')
+            : () => openSFFModal(state.name, stateAbbr);
+          const riskBtn = createButton(
+            buttonText,
+            onClick,
+            false,
+            isDesktopRisk ? 'desktop-risk-list-button' : 'btn-sff-mobile'
+          );
+          if (!isDesktopRisk) {
+            highRiskTd.classList.add('mobile-risk-list-cell');
+          }
+          highRiskTd.appendChild(riskBtn);
+        } else {
+          const muted = document.createElement('span');
+          muted.className = 'text-muted';
+          muted.textContent = '-';
+          highRiskTd.appendChild(muted);
+        }
+        tr.appendChild(highRiskTd);
         
         // Append row to tbody
         tbody.appendChild(tr);

@@ -7,8 +7,40 @@ This creates a single, efficient JSON file for fast loading.
 import csv
 import json
 import os
+import re
 from pathlib import Path
 from typing import Dict, List, Any
+
+MONTH_TO_NUM = {
+    'january': 1, 'february': 2, 'march': 3, 'april': 4,
+    'may': 5, 'june': 6, 'july': 7, 'august': 8,
+    'september': 9, 'october': 10, 'november': 11, 'december': 12,
+}
+
+
+def _extract_pdf_date_parts(filename: str):
+    m = re.search(r'candidate-list-([a-z]+)-(\d{4})', filename.lower())
+    if not m:
+        return None
+    month_name = m.group(1)
+    month_num = MONTH_TO_NUM.get(month_name)
+    if not month_num:
+        return None
+    return int(m.group(2)), month_num, month_name.capitalize()
+
+
+def _detect_latest_sff_posting_date(public_dir: Path):
+    candidates = [p for p in public_dir.glob('sff-posting*candidate-list*.pdf') if p.is_file()]
+    parsed = []
+    for p in candidates:
+        parts = _extract_pdf_date_parts(p.name)
+        if parts is not None:
+            year, month_num, month_name = parts
+            parsed.append((year, month_num, month_name))
+    if not parsed:
+        return 3, 2026, 'March'
+    year, month_num, month_name = max(parsed, key=lambda x: (x[0], x[1]))
+    return month_num, year, month_name
 
 def parse_csv_file(csv_path: str, category: str) -> List[Dict[str, Any]]:
     """Parse a CSV file and return list of facilities with category."""
@@ -101,12 +133,13 @@ def main():
         counts[category] = len(facilities)
         print(f"Loaded {csv_file}: {len(facilities)} facilities ({category})")
     
-    # Create combined JSON structure (update month/year when re-running from a new CMS posting PDF)
+    month_num, year_num, month_name = _detect_latest_sff_posting_date(public_dir)
+    # Create combined JSON structure
     output_data = {
         'document_date': {
-            'month': 3,
-            'year': 2026,
-            'month_name': 'March'
+            'month': month_num,
+            'year': year_num,
+            'month_name': month_name
         },
         'facilities': all_facilities,
         'summary': {

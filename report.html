@@ -5080,24 +5080,6 @@
             });
           }
           
-          // Ensure for-profit percentages are populated even when provider CSV downloads are blocked.
-          try {
-            const forProfitResp = await fetch('/api/report/for-profit-by-state');
-            if (forProfitResp.ok) {
-              const forProfitPayload = await forProfitResp.json();
-              const byState = (forProfitPayload && forProfitPayload.states) || {};
-              Object.keys(stateData).forEach(stateName => {
-                const stateAbbr = (stateData[stateName] && stateData[stateName].state) || '';
-                const entry = byState[stateAbbr];
-                if (entry && entry.percent !== null && entry.percent !== undefined) {
-                  stateData[stateName].forProfitPercent = parseFloat(entry.percent);
-                }
-              });
-            }
-          } catch (e) {
-            console.warn('Could not load for-profit state percentages from API:', e);
-          }
-
           // First, calculate 10th percentile HPRD for each state (for understaffing criteria)
           const stateHPRDValues = {};
           recentData.forEach(row => {
@@ -5208,6 +5190,25 @@
             }
           });
         }
+
+          // Ensure for-profit percentages are populated even when provider CSV downloads are blocked.
+          // This must run outside providerText processing so it still works if provider CSVs are unavailable.
+          try {
+            const forProfitResp = await fetch('/api/report/for-profit-by-state');
+            if (forProfitResp.ok) {
+              const forProfitPayload = await forProfitResp.json();
+              const byState = (forProfitPayload && forProfitPayload.states) || {};
+              Object.keys(stateData).forEach(stateName => {
+                const stateAbbr = (stateData[stateName] && stateData[stateName].state) || '';
+                const entry = byState[stateAbbr];
+                if (entry && entry.percent !== null && entry.percent !== undefined && Number.isFinite(entry.percent)) {
+                  stateData[stateName].forProfitPercent = parseFloat(entry.percent);
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Could not load for-profit state percentages from API:', e);
+          }
 
           // Process national data
           if (q2NationalData) {

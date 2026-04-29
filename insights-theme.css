@@ -1,0 +1,90 @@
+/**
+ * PBJ320 insights surfaces — shared palette (hub + native articles).
+ * Tune colors here so navbar, canvas, panels, CTAs, and footer stay coherent.
+ */
+:root {
+  /* Page layers — slightly lifted from near-black for readability */
+  --pbj-canvas: #121a2a;
+  --pbj-chrome: #0f172a;
+  --pbj-chrome-border: #1d4ed8;
+  --pbj-panel-top: #1c2738;
+  --pbj-panel-bottom: #182132;
+
+  /* Lines & veils */
+  --pbj-border-panel: rgba(100, 116, 139, 0.38);
+  --pbj-border-panel-strong: rgba(100, 116, 139, 0.45);
+  --pbj-border-row: rgba(100, 116, 139, 0.5);
+  --pbj-divider-chrome: rgba(59, 130, 246, 0.35);
+  --pbj-veil: rgba(30, 41, 59, 0.55);
+  --pbj-veil-deep: rgba(30, 41, 59, 0.62);
+  --pbj-pill-bg: rgba(30, 58, 138, 0.35);
+  --pbj-pill-ring: rgba(59, 130, 246, 0.35);
+  --pbj-pill-ring-soft: rgba(59, 130, 246, 0.28);
+  --pbj-avatar-ring: rgba(96, 165, 250, 0.35);
+
+  /* Blue ramp (links, hovers, bars, accents) */
+  --pbj-blue-600: #2563eb;
+  --pbj-blue-500: #3b82f6;
+  --pbj-sky: #60a5fa;
+  --pbj-sky-400: #38bdf8;
+  --pbj-sky-bright: #7dd3fc;
+  --pbj-sky-soft: #93c5fd;
+  --pbj-sky-pale: #bae6fd;
+  --pbj-btn-border: rgba(37, 99, 235, 0.5);
+
+  /* Typography — higher contrast for long-form */
+  --pbj-text: #e2e8f0;
+  --pbj-text-muted: #a8b9cf;
+  --pbj-heading: #f8fafc;
+  --pbj-heading-soft: #f1f5f9;
+  --pbj-slate-200: #e2e8f0;
+  --pbj-slate-400: #94a3b8;
+  --pbj-slate-600: #475569;
+  --pbj-slate-700: #334155;
+  --pbj-slate-800: #1e293b;
+  --pbj-on-light-button: #0f172a;
+
+  /* Nav */
+  --pbj-nav-fg: rgba(255, 255, 255, 0.82);
+  --pbj-nav-fg-hub: rgba(255, 255, 255, 0.8);
+  --pbj-white: #ffffff;
+
+  /* Shadows */
+  --pbj-shadow-elev: 0 12px 36px rgba(0, 0, 0, 0.28);
+  --pbj-shadow-card: 0 10px 28px rgba(0, 0, 0, 0.26);
+  --pbj-shadow-header: 0 8px 24px rgba(0, 0, 0, 0.26);
+  --pbj-shadow-nav: 0 2px 12px rgba(0, 0, 0, 0.28);
+  --pbj-shadow-site-up: 0 -8px 28px rgba(0, 0, 0, 0.28);
+
+  /* Primary pills (native read / dashboards / hub native read) */
+  --pbj-btn-primary-top: #60a5fa;
+  --pbj-btn-primary-bot: #3b82f6;
+  --pbj-btn-heavy-top: #2563eb;
+  --pbj-btn-heavy-bot: #1d4ed8;
+
+  /* Substack accent (external posts) */
+  --pbj-substack-top: #fdba74;
+  --pbj-substack-bot: #f97316;
+  --pbj-substack-border: rgba(194, 65, 12, 0.45);
+  --pbj-substack-fg: #431407;
+
+  /* Subscribe band copy */
+  --pbj-subscribe-heading: #eff6ff;
+  --pbj-subscribe-body: #bfdbfe;
+  --pbj-subscribe-muted: rgba(191, 219, 254, 0.85);
+
+  /* Status */
+  --pbj-danger: #f87171;
+
+  /* Sticky chrome (native article footer strip) */
+  --pbj-sticky-bg: rgba(15, 23, 42, 0.94);
+  --pbj-sticky-border: #1d4ed8;
+
+  /* Universal footer copy (injected markup inherits where inline styles allow) */
+  --pbj-footer-text: rgba(226, 232, 240, 0.82);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

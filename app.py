@@ -3690,9 +3690,9 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     <p>Formula basis: <code>Adjusted Hours = (Reported / Case-Mix) × National Case-Mix Average</code>. <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#93c5fd;">CMS User Guide</a>.</p>
   </div>
 </div>
-''' + (below_reported_casemix or '') + '''
 </div>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
+''' + (below_reported_casemix or '') + '''
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract Staff %', 'chartContract') + '''
@@ -3981,8 +3981,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         county = (str(facility_df.iloc[0].get('COUNTY_NAME') or '')).strip() or '—'
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     canonical_slug = get_canonical_slug(state_code) if state_code else ''
-    # Use canonical latest quarter so we match state/entity pages; only if facility has no row for it use facility's max
+    # Use canonical latest quarter so we match state/entity pages. If facility PBJ rows do not
+    # include canonical quarter, still prefer canonical quarter when provider-info has a match.
     canonical_q = get_canonical_latest_quarter()
+    pi_quarter = None
     if canonical_q is not None and not facility_df.empty and 'CY_Qtr' in facility_df.columns:
         match = facility_df[facility_df['CY_Qtr'].astype(str) == str(canonical_q)]
         if not match.empty:
@@ -3991,6 +3993,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         else:
             latest = facility_df.sort_values('CY_Qtr', ascending=False).iloc[0]
             raw_quarter = latest.get('CY_Qtr', '') if latest is not None else ''
+            # If provider_info has canonical quarter, use that for the narrative card.
+            # (Charts still reflect available PBJ longitudinal quarters in facility_df.)
+            pi_quarter = get_provider_info_for_quarter(prov, canonical_q)
+            if pi_quarter:
+                raw_quarter = canonical_q
     else:
         latest = facility_df.sort_values('CY_Qtr', ascending=False).iloc[0] if not facility_df.empty else None
         raw_quarter = latest.get('CY_Qtr', '') if latest is not None else ''
@@ -4024,7 +4031,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     # Residents count for subtitle (census_int set later; we need it here for location line)
     # Prefer provider info for the same quarter as the page so case-mix matches displayed HPRD quarter
     pi = provider_info_row or {}
-    pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
+    if pi_quarter is None:
+        pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
     pi_metrics = (pi_quarter or pi)
     def _safe(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -4080,8 +4088,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if _qd_esc
         else '<div class="section-header">Reported vs. CMS Case-Mix (Acuity)</div>'
     )
-    reported_vs_casemix_section = f'{_casemix_hdr}<p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: rgba(226,232,240,0.8);">{methodology}</p>'
-    chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=below_reported_casemix)
+    reported_vs_casemix_section = f'<div style="margin:0.25rem 0 1rem 0;">{_casemix_hdr}<p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: rgba(226,232,240,0.8);">{methodology}</p></div>'
+    chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=reported_vs_casemix_section)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     casemix_str = format_metric_value(case_mix_total, 'Total_Nurse_HPRD') if case_mix_total is not None else '—'
     above_below_state = _classify(reported_total or 0, None)
@@ -4378,8 +4386,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 {pbj_takeaway_card}
 
-{reported_vs_casemix_section}
-
 {chart_section}
 
 {custom_report_cta_html}
@@ -4544,6 +4550,8 @@ def load_entity_facilities(entity_id):
 _CHAIN_PERF_CACHE = None
 _CHAIN_PERF_AT = 0
 _CHAIN_PERF_TTL = 300  # 5 min
+_CHAIN_PERF_SOURCE_LABEL = ''
+_CHAIN_PERF_SOURCE_PATH = ''
 
 def load_chain_performance():
     """Load chain/entity performance data from CMS Chain Performance CSV.
@@ -4551,9 +4559,9 @@ def load_chain_performance():
     Nursing_Home_Chain_Performance_Measures* naming when present). Used for
     entity PBJ takeaway and key metrics.
     Returns dict mapping entity_id (int) -> row dict with keys matching CSV columns (strip-spaced)."""
-    global _CHAIN_PERF_CACHE, _CHAIN_PERF_AT, _CHAIN_PERF_TTL
+    global _CHAIN_PERF_CACHE, _CHAIN_PERF_AT, _CHAIN_PERF_TTL, _CHAIN_PERF_SOURCE_LABEL, _CHAIN_PERF_SOURCE_PATH
     now = time.time()
-    if _CHAIN_PERF_CACHE is not None and (now - _CHAIN_PERF_AT) < _CHAIN_PERF_TTL:
+    if _CHAIN_PERF_CACHE is not None and _CHAIN_PERF_SOURCE_LABEL and (now - _CHAIN_PERF_AT) < _CHAIN_PERF_TTL:
         return _CHAIN_PERF_CACHE
     if not HAS_PANDAS:
         return {}
@@ -4599,11 +4607,38 @@ def load_chain_performance():
             return 1
         return 0
 
+    def _chain_source_label(path):
+        base = os.path.basename(path or '')
+        m = re.search(r'(\d{8})', base)
+        if m:
+            try:
+                dt = datetime.strptime(m.group(1), '%Y%m%d')
+                return dt.strftime('%B %Y')
+            except Exception:
+                pass
+        m = re.search(r'(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)[\s_-]*(\d{4})', base, re.IGNORECASE)
+        if m:
+            month_map = {
+                'jan': 'January', 'january': 'January', 'feb': 'February', 'february': 'February',
+                'mar': 'March', 'march': 'March', 'apr': 'April', 'april': 'April', 'may': 'May',
+                'jun': 'June', 'june': 'June', 'jul': 'July', 'july': 'July', 'aug': 'August', 'august': 'August',
+                'sep': 'September', 'sept': 'September', 'september': 'September', 'oct': 'October', 'october': 'October',
+                'nov': 'November', 'november': 'November', 'dec': 'December', 'december': 'December',
+            }
+            mon = month_map.get(m.group(1).lower())
+            return f'{mon} {m.group(2)}' if mon else ''
+        return ''
+
     paths = []
     for g in [
+        os.path.join(APP_ROOT, 'ownership', 'Nursing_Home_Chain_Performance_Measures*.csv'),
+        os.path.join(APP_ROOT, 'ownership', 'Chain_Performance_*.csv'),
+        os.path.join(APP_ROOT, 'ownership', 'Chain*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Nursing_Home_Chain_Performance_Measures*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain*.csv'),
+        os.path.join(APP_ROOT, 'Nursing_Home_Chain_Performance_Measures*.csv'),
+        os.path.join(APP_ROOT, 'Chain_Performance_*.csv'),
         os.path.join(APP_ROOT, 'chain_performance.csv'),
     ]:
         paths.extend(glob.glob(g))
@@ -4630,11 +4665,20 @@ def load_chain_performance():
                 out[eid_int] = row.to_dict()
             _CHAIN_PERF_CACHE = out
             _CHAIN_PERF_AT = now
+            _CHAIN_PERF_SOURCE_PATH = path
+            _CHAIN_PERF_SOURCE_LABEL = _chain_source_label(path)
             return out
         except Exception as e:
             print(f"Error loading chain performance from {path}: {e}")
             continue
     return {}
+
+
+def get_chain_performance_source_label() -> str:
+    # Ensure cache/source metadata is initialized.
+    if _CHAIN_PERF_CACHE is None:
+        load_chain_performance()
+    return _CHAIN_PERF_SOURCE_LABEL or ''
 
 def _chain_val(row, *keys, default=None):
     """Get value from chain row trying multiple column names; return default if missing/invalid."""
@@ -5125,7 +5169,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(59,130,246,0.15);">
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
-<p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data for facility list and staffing. Chain-level metrics (ratings, fines, SFF, ownership) from CMS Care Compare chain performance data. <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>
+<p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data for facility list and staffing. Chain-level metrics (ratings, fines, SFF, ownership) from CMS Care Compare chain performance data (<a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">CMS{f' ({get_chain_performance_source_label()})' if get_chain_performance_source_label() else ''}</a>). <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:

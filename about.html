@@ -1177,7 +1177,7 @@
           </tr>
           <tr>
             <td><strong>Ownership Group</strong></td>
-            <td>Essential data on any chain and its facilities (e.g., <strong><a href="https://pbj320.com/entity/237">Genesis</a></strong> → 202 facilities in 19 states, 2.3-star average)</td>
+            <td id="ownership-group-copy">Loading latest ownership-group snapshot...</td>
           </tr>
         </tbody>
       </table>
@@ -1431,6 +1431,46 @@
         .catch(error => {
           console.error('Error fetching quarter count:', error);
           // Keep the default value (33) if fetch fails
+        });
+
+      Promise.all([
+        fetch('/api/entity-summary/237').then(response => response.ok ? response.json() : Promise.reject(new Error('Entity summary unavailable'))),
+        fetch('/search_index.json').then(response => response.ok ? response.json() : Promise.resolve({}))
+      ])
+        .then(([data, searchIndex]) => {
+          const ownershipCopyElement = document.getElementById('ownership-group-copy');
+          if (!ownershipCopyElement) return;
+          const fCount = Number(data && data.facilities_count);
+          const sCount = Number(data && data.states_count);
+          const avgStar = (data && data.average_overall_rating !== null && data.average_overall_rating !== undefined)
+            ? Number(data.average_overall_rating)
+            : null;
+          const entityId = Number(data && data.entity_id);
+          let entityName = String((data && data.entity_name) || '').trim();
+          try {
+            const entities = (searchIndex && Array.isArray(searchIndex.e)) ? searchIndex.e : [];
+            const canonical = entities.find(e => Number(e && e.id) === entityId || Number(e && e.linkId) === entityId);
+            if (canonical && canonical.n) {
+              entityName = String(canonical.n).trim();
+            }
+          } catch (error) {
+            console.error('Error reading canonical entity name from search index:', error);
+          }
+          if (!entityName) entityName = 'this ownership group';
+          const fText = Number.isFinite(fCount) ? fCount.toLocaleString('en-US') : '—';
+          const sText = Number.isFinite(sCount) ? sCount.toLocaleString('en-US') : '—';
+          const starText = (avgStar !== null && Number.isFinite(avgStar)) ? avgStar.toFixed(1) + '-star average' : 'ratings available';
+          const safeEntityName = entityName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+          const entityLink = Number.isFinite(entityId)
+            ? '<strong><a href="https://pbj320.com/entity/' + entityId + '">' + safeEntityName + '</a></strong>'
+            : '<strong>' + safeEntityName + '</strong>';
+          ownershipCopyElement.innerHTML = 'Essential data on any chain and its facilities (e.g., ' + entityLink + ' \u2192 ' + fText + ' facilities in ' + sText + ' states, ' + starText + ')';
+        })
+        .catch(error => {
+          console.error('Error fetching ownership group summary:', error);
+          const ownershipCopyElement = document.getElementById('ownership-group-copy');
+          if (!ownershipCopyElement) return;
+          ownershipCopyElement.innerHTML = 'Essential data on any chain and its facilities.';
         });
     });
   </script>

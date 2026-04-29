@@ -20,19 +20,48 @@ donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
     sys.path.insert(0, str(donor_dir))
 
-from fec_api_client import (
-    query_donations_by_name,
-    query_donations_by_committee,
-    query_donations_by_committee_chunked,
-    normalize_fec_donation,
-    add_conduit_attribution,
-    compute_conduit_diagnostics,
-    build_schedule_a_docquery_link,
-    correct_docquery_url_for_form_type,
-    is_valid_docquery_schedule_a_url,
-    FEC_API_KEY,
-    FEC_API_BASE_URL,
-)
+try:
+    from fec_api_client import (
+        query_donations_by_name,
+        query_donations_by_committee,
+        query_donations_by_committee_chunked,
+        normalize_fec_donation,
+        add_conduit_attribution,
+        compute_conduit_diagnostics,
+        build_schedule_a_docquery_link,
+        correct_docquery_url_for_form_type,
+        is_valid_docquery_schedule_a_url,
+        FEC_API_KEY,
+        FEC_API_BASE_URL,
+    )
+except ImportError:
+    # Backward compatibility: some local branches have an older fec_api_client.py
+    # without committee chunking/conduit helper functions.
+    from fec_api_client import (  # type: ignore[reportMissingImports]
+        query_donations_by_name,
+        query_donations_by_committee,
+        normalize_fec_donation,
+        FEC_API_KEY,
+        FEC_API_BASE_URL,
+    )
+
+    def query_donations_by_committee_chunked(*args, **kwargs):
+        return query_donations_by_committee(*args, **kwargs)
+
+    def add_conduit_attribution(rows, *args, **kwargs):
+        return rows
+
+    def compute_conduit_diagnostics(*args, **kwargs):
+        return {}
+
+    def build_schedule_a_docquery_link(*args, **kwargs):
+        return ""
+
+    def correct_docquery_url_for_form_type(url, *_args, **_kwargs):
+        return url or ""
+
+    def is_valid_docquery_schedule_a_url(url):
+        return bool(url)
 from fec_indiv_bulk import (
     get_contributions_by_committee_from_bulk,
     get_bulk_manifest,
@@ -68,10 +97,14 @@ app = Flask(__name__, template_folder='templates')
 BASE_DIR = Path(__file__).parent.parent
 OWNERS_DB = BASE_DIR / "donor" / "output" / "owners_database.csv"
 OWNERS_PARQUET = BASE_DIR / "donor" / "output" / "owners_database.parquet"  # Built by build_owner_cache.py
-OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Full 250k CSV
+OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Fallback only; latest is discovered dynamically.
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
 OWNERSHIP_NORM_PARQUET = BASE_DIR / "donor" / "output" / "ownership_normalized.parquet"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
+PROVIDER_INFO_COMBINED_LATEST = BASE_DIR / "provider_info_combined_latest.csv"
+if PROVIDER_INFO_COMBINED_LATEST.exists():
+    if (not PROVIDER_INFO.exists()) or (PROVIDER_INFO_COMBINED_LATEST.stat().st_mtime >= PROVIDER_INFO.stat().st_mtime):
+        PROVIDER_INFO = PROVIDER_INFO_COMBINED_LATEST
 PROVIDER_INFO_DIR = BASE_DIR / "provider_info"  # NH_ProviderInfo_<Month><Year>.csv — we use the most recent
 # Fallback if no file in provider_info/ (e.g. old deploy)
 PROVIDER_INFO_LATEST_FALLBACK = BASE_DIR / "provider_info" / "NH_ProviderInfo_Jan2026.csv"
@@ -111,6 +144,7 @@ ownership_raw_df = None  # Raw ownership file for provider matching
 provider_info_df = None
 provider_info_latest_df = None  # Latest provider info with Legal Business Name
 provider_info_source_label = None  # e.g. "Feb. 2026" for display under facilities table
+ownership_source_label = None  # e.g. "Apr. 2026" for methodology source line
 facility_name_mapping_df = None  # Pre-computed mapping
 entity_lookup_df = None
 donations_df = None
@@ -137,6 +171,62 @@ _PROVIDER_INFO_MONTHS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ]
+_MONTH_ABBR_TO_NUM = {m: i for i, m in enumerate(_PROVIDER_INFO_MONTHS, start=1)}
+
+
+def _get_latest_ownership_raw_path():
+    """
+    Return (path, label) for latest SNF_All_Owners* file in ownership/.
+    Supports names like:
+      - SNF_All_Owners_Jan_2026.csv
+      - SNF_All_Owners_2026.04.01.csv
+      - SNF_All_Owners_2026_04_01.csv
+    """
+    ownership_dir = BASE_DIR / "ownership"
+    if not ownership_dir.is_dir():
+        return (OWNERSHIP_RAW if OWNERSHIP_RAW.exists() else None, None)
+
+    candidates = []
+    for p in ownership_dir.glob("SNF_All_Owners*.csv"):
+        stem = p.stem
+        # Pattern A: ..._Jan_2026 / ..._January_2026
+        m_word = re.search(r'_([A-Za-z]{3,9})[_-](\d{4})$', stem)
+        if m_word:
+            mon_txt = m_word.group(1).strip()[:3].title()
+            yr = int(m_word.group(2))
+            mon = _MONTH_ABBR_TO_NUM.get(mon_txt)
+            if mon:
+                candidates.append((p, (yr, mon), f"{mon_txt}. {yr}"))
+                continue
+        # Pattern B: ..._2026.04.01 or ..._2026_04_01
+        m_num = re.search(r'_(\d{4})[._-](\d{1,2})(?:[._-](\d{1,2}))?$', stem)
+        if m_num:
+            yr = int(m_num.group(1))
+            mon = int(m_num.group(2))
+            if 1 <= mon <= 12:
+                mon_txt = _PROVIDER_INFO_MONTHS[mon - 1]
+                candidates.append((p, (yr, mon), f"{mon_txt}. {yr}"))
+                continue
+
+    if not candidates:
+        return (OWNERSHIP_RAW if OWNERSHIP_RAW.exists() else None, None)
+    candidates.sort(key=lambda x: (x[1][0], x[1][1]), reverse=True)
+    best = candidates[0]
+    return (best[0], best[2])
+
+
+def _get_methodology_source_line():
+    """Build dynamic source line shown in methodology card."""
+    global ownership_source_label
+    if ownership_source_label is None:
+        _, ownership_source_label = _get_latest_ownership_raw_path()
+    _, provider_label = _get_latest_provider_info_path()
+    own = ownership_source_label or "Latest"
+    prov = provider_label or "Latest"
+    return (
+        f"Ownership: {own} | Provider info: {prov} | "
+        "Owner search: FEC API | Committee: local bulk when available"
+    )
 
 
 def _get_latest_provider_info_path():
@@ -261,25 +351,28 @@ def get_ownership_df():
 
 def get_ownership_raw_df():
     """Lazy-load raw ownership for provider matching. Skipped on RENDER to save memory."""
-    global ownership_raw_df
+    global ownership_raw_df, ownership_source_label
     with _ownership_raw_df_lock:
         if ownership_raw_df is not None:
             return ownership_raw_df
         _log_mem_donor("get_ownership_raw_df_before")
+        ownership_raw_path, ownership_label = _get_latest_ownership_raw_path()
+        if ownership_label:
+            ownership_source_label = ownership_label
         if os.environ.get("RENDER") == "true":
             ownership_raw_df = pd.DataFrame()
-        elif OWNERSHIP_RAW.exists():
+        elif ownership_raw_path is not None and ownership_raw_path.exists():
             try:
                 try:
-                    ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
+                    ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
                 except UnicodeDecodeError:
                     try:
-                        ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8-sig', nrows=None)
+                        ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='utf-8-sig', nrows=None)
                     except UnicodeDecodeError:
                         try:
-                            ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
+                            ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
                         except UnicodeDecodeError:
-                            ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
+                            ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
             except Exception as e:
                 print(f"[FAIL] Error loading raw ownership: {e}")
                 ownership_raw_df = pd.DataFrame()
@@ -1310,25 +1403,28 @@ def load_data():
     
     # Load raw ownership file for provider matching (needed for ORGANIZATION NAME matching)
     # This is a large file (55MB+) - skip on Render to avoid OOM; owner search still works
-    global ownership_raw_df
+    global ownership_raw_df, ownership_source_label
+    ownership_raw_path, ownership_label = _get_latest_ownership_raw_path()
+    if ownership_label:
+        ownership_source_label = ownership_label
     if os.environ.get("RENDER") == "true":
         print("  (Skipping raw ownership on Render to save memory; provider name matching limited)")
         ownership_raw_df = pd.DataFrame()
-    elif OWNERSHIP_RAW.exists():
+    elif ownership_raw_path is not None and ownership_raw_path.exists():
         try:
-            print(f"Loading raw ownership file for provider matching: {OWNERSHIP_RAW}")
+            print(f"Loading raw ownership file for provider matching: {ownership_raw_path}")
             print("  (This is a large file and may take a moment...)")
             try:
                 # Use chunksize for very large files to manage memory
-                ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
+                ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='utf-8', nrows=None)
             except UnicodeDecodeError:
                 try:
-                    ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='utf-8-sig', nrows=None)
+                    ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='utf-8-sig', nrows=None)
                 except UnicodeDecodeError:
                     try:
-                        ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
+                        ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='cp1252', nrows=None)
                     except UnicodeDecodeError:
-                        ownership_raw_df = pd.read_csv(OWNERSHIP_RAW, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
+                        ownership_raw_df = pd.read_csv(ownership_raw_path, dtype=str, low_memory=False, encoding='latin-1', nrows=None)
             print(f"[OK] Loaded {len(ownership_raw_df)} raw ownership records for provider matching")
         except MemoryError as e:
             print(f"[FAIL] Memory error loading raw ownership file: {e}")
@@ -1340,7 +1436,7 @@ def load_data():
             traceback.print_exc()
             ownership_raw_df = pd.DataFrame()
     else:
-        print(f"[WARN] Raw ownership file not found: {OWNERSHIP_RAW}")
+        print(f"[WARN] Raw ownership file not found: {ownership_raw_path or OWNERSHIP_RAW}")
         print("  Provider search by name/CCN will have limited functionality")
         ownership_raw_df = pd.DataFrame()
     
@@ -1532,13 +1628,19 @@ def load_data():
 @app.route('/')
 def index():
     """Main dashboard page"""
-    return render_template('owner_donor_dashboard.html')
+    return render_template(
+        'owner_donor_dashboard.html',
+        owner_methodology_source_line=_get_methodology_source_line(),
+    )
 
 
 @app.route('/test')
 def index_test():
     """Test page with Committee search mode (additive, isolated)"""
-    return render_template('owner_donor_dashboard_test.html')
+    return render_template(
+        'owner_donor_dashboard_test.html',
+        owner_methodology_source_line=_get_methodology_source_line(),
+    )
 
 
 def _normalize_associate_id(val):
@@ -1671,7 +1773,11 @@ def owner_page(owner_id):
         from flask import abort
         abort(404)
     # Pass CMS ID so template can load owner and set GA page_path
-    return render_template('owner_donor_dashboard.html', initial_owner_id=normalized)
+    return render_template(
+        'owner_donor_dashboard.html',
+        initial_owner_id=normalized,
+        owner_methodology_source_line=_get_methodology_source_line(),
+    )
 
 
 @app.route('/api/autocomplete')

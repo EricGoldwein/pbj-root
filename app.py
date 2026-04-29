@@ -229,14 +229,31 @@ def get_dynamic_dates():
         return get_latest_data_periods()
     except Exception as e:
         print(f"Warning: Could not get dynamic dates: {e}")
+        current_year = datetime.now().year
         return {
-            'data_range': '2017-2025',
+            'data_range': f'2017-{current_year}',
             'quarter_count': 33,
-            'provider_info_latest': 'February 2026',
-            'provider_info_previous': 'January 2026',
-            'affiliated_entity_latest': 'July 2025',
-            'current_year': 2025
+            'provider_info_latest': 'Latest available',
+            'provider_info_previous': 'Prior available',
+            'affiliated_entity_latest': 'Latest available',
+            'current_year': current_year
         }
+
+
+def _api_dates_fallback_quarters():
+    """Return resilient fallback quarter display and quarter list."""
+    try:
+        q = get_canonical_latest_quarter()
+        if isinstance(q, str) and re.match(r'^\d{4}Q[1-4]$', q.strip()):
+            q = q.strip()
+            y, n = int(q[:4]), int(q[5])
+            prev_n = n - 1 if n > 1 else 4
+            prev_y = y if n > 1 else y - 1
+            return format_quarter(q), [q, f'{prev_y}Q{prev_n}']
+    except Exception:
+        pass
+    # Avoid stale hardcoded quarter literals in runtime fallback path.
+    return 'N/A', []
 
 @app.route('/api/dates')
 def api_dates():
@@ -244,15 +261,16 @@ def api_dates():
     Returns quarters: list of quarter IDs that have pre-built JSON (e.g. ["2025Q1", "2025Q2"]).
     Frontend should only request JSON files for these quarters; no CSV fallback."""
     data = get_dynamic_dates()
+    fallback_display, fallback_quarters = _api_dates_fallback_quarters()
     # Add PBJ quarter, SFF posting, and list of available quarters for JSON discovery
     try:
         quarter_path = os.path.join(os.path.dirname(__file__), 'latest_quarter_data.json')
         if os.path.exists(quarter_path):
             with open(quarter_path, 'r', encoding='utf-8') as f:
                 q = json.load(f)
-            data['pbj_quarter_display'] = q.get('quarter_display', 'Q3 2025')
+            data['pbj_quarter_display'] = q.get('quarter_display', fallback_display)
             # Available quarters: include current quarter from "quarter"; merge with "quarters" list if present
-            current = q.get('quarter', '2025Q3')
+            current = q.get('quarter')
             if isinstance(q.get('quarters'), list) and len(q['quarters']) > 0:
                 quarters_list = [str(x) for x in q['quarters']]
                 if isinstance(current, str) and current.strip() and current not in quarters_list:
@@ -265,16 +283,74 @@ def api_dates():
                 prev_y = y if n > 1 else y - 1
                 data['quarters'] = [current, f'{prev_y}Q{prev_n}']
             else:
-                data['quarters'] = ['2025Q3', '2025Q2']
+                data['quarters'] = fallback_quarters
         else:
-            data['pbj_quarter_display'] = 'Q3 2025'
-            data['quarters'] = ['2025Q3', '2025Q2']
+            data['pbj_quarter_display'] = fallback_display
+            data['quarters'] = fallback_quarters
     except Exception:
-        data['pbj_quarter_display'] = 'Q3 2025'
-        data['quarters'] = ['2025Q3', '2025Q2']
+        data['pbj_quarter_display'] = fallback_display
+        data['quarters'] = fallback_quarters
     data['sff_posting'] = get_sff_posting_display()
     data['sff_source_url'] = get_sff_source_url()
     return jsonify(data)
+
+@app.route('/api/entity-summary/<int:entity_id>')
+def api_entity_summary(entity_id):
+    """Return lightweight entity summary stats for static pages (e.g., /about)."""
+    try:
+        entity_name, facilities = load_entity_facilities(entity_id)
+        canonical_name = get_entity_name_from_search_index(entity_id)
+        if canonical_name:
+            entity_name = canonical_name
+        if not facilities:
+            return jsonify({'error': 'entity not found'}), 404
+        chain_perf = load_chain_performance() or {}
+        row = chain_perf.get(int(entity_id)) or {}
+        state_set = {str((f or {}).get('state') or '').strip() for f in facilities if str((f or {}).get('state') or '').strip()}
+        states_count = len(state_set)
+        facilities_count = len(facilities)
+        # Prefer canonical CMS chain-performance counts when available.
+        for k in ('Number of facilities', 'number_of_facilities'):
+            v = row.get(k)
+            try:
+                if v is not None and str(v).strip() != '':
+                    facilities_count = int(float(v))
+                    break
+            except Exception:
+                pass
+        for k in ('Number of states and territories with operations', 'number_of_states_and_territories_with_operations'):
+            v = row.get(k)
+            try:
+                if v is not None and str(v).strip() != '':
+                    states_count = int(float(v))
+                    break
+            except Exception:
+                pass
+        avg_star = None
+        for key in (
+            'Average overall 5-star rating',
+            'Average Overall Rating',
+            'avg_overall_rating',
+            'average_overall_rating',
+        ):
+            v = row.get(key)
+            if v is None or str(v).strip() == '':
+                continue
+            try:
+                avg_star = round(float(v), 1)
+                break
+            except Exception:
+                continue
+        return jsonify({
+            'entity_id': int(entity_id),
+            'entity_name': entity_name or '',
+            'facilities_count': facilities_count,
+            'states_count': states_count,
+            'average_overall_rating': avg_star
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/state/<state_code>/chart-data')
 def api_state_chart_data(state_code):
@@ -329,6 +405,37 @@ def get_facility_risk_from_search_index(ccn):
     except Exception:
         pass
     return 0, ''
+
+
+def get_entity_name_from_search_index(entity_id):
+    """Return canonical entity name for an entity ID from search_index.json."""
+    global _SEARCH_INDEX_CACHE, _SEARCH_INDEX_AT
+    try:
+        target = int(entity_id)
+    except Exception:
+        return ''
+    path = os.path.join(APP_ROOT, 'search_index.json')
+    if not os.path.isfile(path):
+        return ''
+    now = time.time()
+    if _SEARCH_INDEX_CACHE is None or (now - _SEARCH_INDEX_AT) >= _SEARCH_INDEX_TTL:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                _SEARCH_INDEX_CACHE = json.load(f)
+                _SEARCH_INDEX_AT = now
+        except Exception:
+            return ''
+    try:
+        for row in (_SEARCH_INDEX_CACHE.get('e') or []):
+            rid = row.get('id')
+            rlink = row.get('linkId')
+            if (rid is not None and int(rid) == target) or (rlink is not None and int(rlink) == target):
+                nm = str(row.get('n') or '').strip()
+                if nm:
+                    return capitalize_entity_name(nm)
+    except Exception:
+        return ''
+    return ''
 
 @app.before_request
 def _ensure_pandas():
@@ -2549,6 +2656,25 @@ _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
 # Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
 _LATEST_PROVIDER_QUARTERS = 4
 
+
+def _provider_snapshot_candidate_paths():
+    """Discover provider snapshots dynamically (ProviderInfoNorm_* and NH_ProviderInfo_*)."""
+    out = []
+    provider_dir = os.path.join(APP_ROOT, 'provider_info')
+    try:
+        names = [n for n in os.listdir(provider_dir) if n.lower().endswith('.csv')]
+    except Exception:
+        names = []
+    snapshot_names = [
+        n for n in names
+        if n.startswith('ProviderInfoNorm_') or n.startswith('NH_ProviderInfo_')
+    ]
+    # Prefer latest snapshots first by filename sort (newer naming conventions are sortable).
+    for n in sorted(snapshot_names, reverse=True):
+        out.append(os.path.join(provider_dir, n))
+        out.append(f'provider_info/{n}')
+    return out
+
 def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
     """Discover the latest n_quarters distinct quarter values (CY_Qtr form) by reading only the quarter column(s)."""
     try:
@@ -2585,21 +2711,13 @@ def load_provider_info():
         return _LOAD_PROVIDER_INFO_CACHE
     # Prefer quarter-aligned data: provider_info_combined_latest (from extract_latest_quarter.py) has CY_Qtr/quarter.
     # NH_ProviderInfo is a single snapshot (no quarter); use only when combined/latest are not present.
-    provider_paths = [
-        os.path.join(APP_ROOT, 'provider_info', 'ProviderInfoNorm_2026_04.csv'),
-        'provider_info/ProviderInfoNorm_2026_04.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'ProviderInfoNorm_2026_03.csv'),
-        'provider_info/ProviderInfoNorm_2026_03.csv',
+    provider_paths = _provider_snapshot_candidate_paths() + [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Feb2026.csv'),
-        'provider_info/NH_ProviderInfo_Feb2026.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
-        'provider_info/NH_ProviderInfo_Jan2026.csv',
     ]
     if not HAS_PANDAS:
         return {}
@@ -4500,11 +4618,7 @@ def load_entity_facilities(entity_id):
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Feb2026.csv'),
-        'provider_info/NH_ProviderInfo_Feb2026.csv',
-        os.path.join(APP_ROOT, 'provider_info', 'NH_ProviderInfo_Jan2026.csv'),
-        'provider_info/NH_ProviderInfo_Jan2026.csv',
-    ]
+    ] + _provider_snapshot_candidate_paths()
     now = time.time()
     df = None
     used_path = None
@@ -4572,6 +4686,10 @@ def load_entity_facilities(entity_id):
         entity_name = (sub[name_col].iloc[0] if name_col in sub.columns else '') or "—"
         entity_name = str(entity_name).strip() if entity_name else "—"
         entity_name = capitalize_entity_name(entity_name) if entity_name and entity_name != "—" else entity_name
+        # Canonicalize by entity ID to avoid alias drift between snapshots
+        canonical_name = get_entity_name_from_search_index(entity_id)
+        if canonical_name:
+            entity_name = canonical_name
         # One row per CCN (latest by processing_date or CY_Qtr if present)
         ccn_col = 'ccn' if 'ccn' in sub.columns else 'PROVNUM'
         if 'processing_date' in sub.columns:
@@ -7226,6 +7344,10 @@ def _entity_page_impl(entity_id):
     if not HAS_PANDAS:
         return "Pandas not available. Entity pages require pandas.", 503
     entity_name, facilities = load_entity_facilities(entity_id)
+    # Final canonical guardrail at render edge: entity ID -> canonical display name.
+    canonical_name = get_entity_name_from_search_index(entity_id)
+    if canonical_name:
+        entity_name = canonical_name
     if not facilities:
         abort(404)
     chain_perf = load_chain_performance()

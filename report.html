@@ -20,7 +20,7 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://pbj-320.onrender.com/report">
+  <meta property="og:url" content="https://pbj320.com/report">
   <meta property="og:title" content="State and Regional Staffing Rankings" id="og-title">
   <meta property="og:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="og-description">
   <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
@@ -98,7 +98,7 @@
       }
       
       // Fetch the most recent quarter from CSV and update meta tags
-      fetch('state_quarterly_metrics.csv')
+      fetch('/state_quarterly_metrics.csv')
         .then(response => response.text())
         .then(text => {
           const lines = text.split('\n').filter(line => line.trim());
@@ -4230,6 +4230,11 @@
         padding-right: 4px !important;
       }
     }
+    /* State column uses max-height + overflow:hidden on small viewports; that clips the risk-list button. */
+    #stateTable tbody td.col-state.state-cell-has-risk {
+      max-height: none !important;
+      overflow: visible !important;
+    }
   </style>
 </head>
 <body>
@@ -4372,14 +4377,10 @@
               <th rowspan="2" class="col-hprd sortable hprd-header" data-sort="nurseAideHPRD"><span class="desktop-text">Nurse Aide<br/>HPRD</span><span class="mobile-text">NA</span></th>
               <th rowspan="2" class="col-contract sortable" data-sort="contract"><span class="desktop-text">% Contract</span><span class="mobile-text">% Ctr</span></th>
               <th rowspan="2" class="col-forprofit sortable" data-sort="forProfit">For Profit</th>
-              <th rowspan="2" class="col-highrisk sortable" data-sort="highRisk">
-                <span class="desktop-text">High-Risk<br/>NHs</span>
-                <span class="mobile-text">Risk</span>
-              </th>
             </tr>
           </thead>
           <tbody id="stateTableBody">
-            <tr><td colspan="11" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
+            <tr><td colspan="10" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
           </tbody>
         </table>
       </div>
@@ -4692,12 +4693,33 @@
     // Load data
     async function loadData() {
       try {
+        /** Absolute URL on this origin (path must start with /). */
+        function apiAbs(path) {
+          return new URL(path, window.location.origin).href;
+        }
+        /** Report JSON/CSV via same path as the HTML page: ``GET /report?p=...`` (avoids extra path segments that 404 behind some proxies). */
+        function reportEmbedUrl(pCode, extraQueryNoLeadingAmp) {
+          let u = apiAbs('/report') + '?p=' + encodeURIComponent(pCode);
+          if (extraQueryNoLeadingAmp) u += '&' + extraQueryNoLeadingAmp;
+          return u;
+        }
+        async function fetchReportJson(pCode, extraQueryNoLeadingAmp) {
+          const r = await fetch(reportEmbedUrl(pCode, extraQueryNoLeadingAmp), { cache: 'no-store' });
+          if (!r.ok) return null;
+          const raw = await r.text();
+          if (raw.trimStart().startsWith('<')) return null;
+          try {
+            return JSON.parse(raw);
+          } catch (_) {
+            return null;
+          }
+        }
         const [stateResponse, nationalResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
-          fetch('state_quarterly_metrics.csv'),
-          fetch('national_quarterly_metrics.csv'),
-          fetch('cms_region_state_mapping.csv'),
-          fetch('facility_quarterly_metrics_latest.csv'),
-          fetch('cms_region_quarterly_metrics.csv')
+          fetch('/state_quarterly_metrics.csv'),
+          fetch('/national_quarterly_metrics.csv'),
+          fetch('/cms_region_state_mapping.csv'),
+          fetch('/facility_quarterly_metrics_latest.csv'),
+          fetch('/cms_region_quarterly_metrics.csv')
         ]);
 
         if (!stateResponse.ok || !nationalResponse.ok) {
@@ -4707,20 +4729,16 @@
         const stateText = await stateResponse.text();
         const nationalText = await nationalResponse.text();
         let providerText = '';
-        // Prefer smaller _latest file; avoid 206 Partial Content (incomplete CSV)
-        const providerUrl = 'provider_info_combined_latest.csv';
-        const providerFallbackUrl = 'provider_info_combined.csv';
-        let providerResponse = await fetch(providerUrl);
-        if (!providerResponse.ok && providerResponse.status === 404) {
-          providerResponse = await fetch(providerFallbackUrl);
-        }
+        // Newest NH_ProviderInfo_* / ProviderInfoNorm_* from provider_info/ (same source as Flask load_provider_info)
+        const providerResp = await fetch(reportEmbedUrl('pi', ''), { cache: 'no-store' });
         let isProviderLatestFile = false;
-        if (providerResponse.ok && providerResponse.status === 200) {
-          providerText = await providerResponse.text();
-          isProviderLatestFile = providerUrl === 'provider_info_combined_latest.csv';
+        if (providerResp.ok && providerResp.status === 200) {
+          const providerRaw = await providerResp.text();
+          if (!providerRaw.trimStart().toLowerCase().startsWith('<!')) {
+            providerText = providerRaw;
+            isProviderLatestFile = true;
+          }
         }
-        
-        // provider_info_combined.csv has all quarters; we filter to most recent quarter in code
         
         // Load facility quarterly metrics (for facility-level direct care data)
         let facilityQuarterlyText = '';
@@ -4790,11 +4808,28 @@
         if (facilityQuarterlyText) {
           const facilityQuarterlyRows = parseCSV(facilityQuarterlyText);
           // Filter for the most recent quarter (if using full file, otherwise already filtered)
-          const q2FacilityData = facilityQuarterlyRows.filter(row => {
+          let q2FacilityData = facilityQuarterlyRows.filter(row => {
             // If file is pre-filtered (_latest.csv), use all rows; otherwise filter by quarter
             const rowQuarter = row.CY_Qtr?.trim();
             return !rowQuarter || rowQuarter === mostRecentQuarter;
           });
+          // State PBJ quarter can lead facility_quarterly_metrics_latest by one quarter; use latest CY_Qtr in file when empty.
+          if (q2FacilityData.length === 0 && facilityQuarterlyRows.length > 0) {
+            const fqSet = new Set();
+            facilityQuarterlyRows.forEach(row => {
+              const q = (row.CY_Qtr || '').trim();
+              if (q) fqSet.add(q);
+            });
+            const fqList = Array.from(fqSet).sort().reverse();
+            const fallbackQ = fqList[0];
+            if (fallbackQ) {
+              console.warn(`Facility metrics: no rows for state quarter ${mostRecentQuarter}; using file quarter ${fallbackQ}`);
+              q2FacilityData = facilityQuarterlyRows.filter(row => {
+                const rowQuarter = row.CY_Qtr?.trim();
+                return !rowQuarter || rowQuarter === fallbackQ;
+              });
+            }
+          }
           
           // Store facility-level direct care data keyed by CCN (PROVNUM)
           q2FacilityData.forEach(row => {
@@ -4814,7 +4849,8 @@
             }
           });
           
-          console.log(`✓ Loaded ${Object.keys(facilityQuarterlyData).length} facilities with direct care data for quarter ${mostRecentQuarter}`);
+          const facilityQtrLabel = (q2FacilityData[0] && q2FacilityData[0].CY_Qtr) ? String(q2FacilityData[0].CY_Qtr).trim() : mostRecentQuarter;
+          console.log(`✓ Loaded ${Object.keys(facilityQuarterlyData).length} facilities with direct care data (CY_Qtr ${facilityQtrLabel})`);
         }
         
         // Filter for the most recent quarter; exclude Puerto Rico so rankings are 51 (50 states + DC)
@@ -4860,7 +4896,7 @@
         });
 
         // Process provider info data for SFF/SFF Candidate facilities and case-mix
-        // provider_info_combined.csv contains all quarters; filter to most recent quarter in code
+        // Provider snapshot from /api/provider-info/latest.csv is one CMS drop; match quarter to state PBJ quarter below
         if (providerText) {
           const lines = providerText.split('\n');
           const headers = parseCSVLine(lines[0]);
@@ -4869,10 +4905,19 @@
           // Check if using pre-filtered _latest.csv file
           const isLatestFile = isProviderLatestFile;
           
-          // Find index of quarter column
-          const quarterIdx = headers.indexOf('quarter');
+          function providerQuarterToCyQtr(s) {
+            const t = (s || '').trim();
+            if (!t) return '';
+            if (/^\d{4}Q[1-4]$/.test(t)) return t;
+            const m = t.match(/^Q([1-4])\s+(\d{4})$/);
+            if (m) return `${m[2]}Q${m[1]}`;
+            return '';
+          }
+          function rowProviderQuarter(row) {
+            return (row.CY_Qtr || row.quarter || '').trim();
+          }
           
-          // Collect all data
+          // Collect all data (use CY_Qtr and quarter — Norm drops may populate either)
           let mostRecentQuarterInProvider = '';
           const allQuartersInProvider = new Set();
           
@@ -4881,17 +4926,16 @@
             if (!line) continue;
             
             const values = parseCSVLine(line);
-            if (values.length > quarterIdx && values[quarterIdx]) {
-              const quarter = values[quarterIdx].trim();
-              if (quarter) {
-                allQuartersInProvider.add(quarter);
-              }
-            }
-            
             const row = {};
             headers.forEach((header, idx) => {
               row[header] = values[idx] || '';
             });
+            const rq = rowProviderQuarter(row);
+            if (rq) {
+              allQuartersInProvider.add(rq);
+              const cy = providerQuarterToCyQtr(rq);
+              if (cy) allQuartersInProvider.add(cy);
+            }
             allData.push(row);
           }
           
@@ -4948,7 +4992,7 @@
           // Filter for the EXACT matching quarter (only if we have a match, or use all if _latest.csv)
           const recentData = (matchingQuarter || isLatestFile) ? allData.filter(row => {
             if (isLatestFile) return true; // Use all rows if pre-filtered
-            const quarter = (row.quarter || '').trim();
+            const quarter = rowProviderQuarter(row);
             // Try exact match first
             if (quarter === mostRecentQuarterInProvider) return true;
             // Try format conversion: "2025Q2" <-> "Q2 2025"
@@ -5198,10 +5242,9 @@
           // Ensure for-profit percentages are populated even when provider CSV downloads are blocked.
           // This must run outside providerText processing so it still works if provider CSVs are unavailable.
           try {
-            const forProfitResp = await fetch('/api/report/for-profit-by-state');
-            if (forProfitResp.ok) {
-              const forProfitPayload = await forProfitResp.json();
-              const byState = (forProfitPayload && forProfitPayload.states) || {};
+            const forProfitPayload = await fetchReportJson('fp', '');
+            if (forProfitPayload) {
+              const byState = forProfitPayload.states || {};
               Object.keys(stateData).forEach(stateName => {
                 const stateAbbr = (stateData[stateName] && stateData[stateName].state) || '';
                 const entry = byState[stateAbbr];
@@ -5212,6 +5255,46 @@
             }
           } catch (e) {
             console.warn('Could not load for-profit state percentages from API:', e);
+          }
+
+          // High-risk lists (SFF, abuse, 1-star, understaffing) are built from provider CSV in-browser.
+          // Merge server JSON when provider is missing, nothing qualified in-browser, or any state still has empty buckets (partial client parse).
+          try {
+            let anyHighRisk = false;
+            let anyEmptyHighRiskBuckets = false;
+            Object.keys(stateData).forEach(sn => {
+              const s = stateData[sn];
+              const n = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
+                + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
+              if (n > 0) anyHighRisk = true;
+              else anyEmptyHighRiskBuckets = true;
+            });
+            if (mostRecentQuarter && (!providerText || !anyHighRisk || anyEmptyHighRiskBuckets)) {
+              const hrPayload = await fetchReportJson(
+                'hrs',
+                'quarter=' + encodeURIComponent(mostRecentQuarter)
+              );
+              if (hrPayload) {
+                const by = hrPayload.states || {};
+                Object.keys(by).forEach(abbr => {
+                  const stateName = abbrToName[abbr];
+                  if (!stateName || !stateData[stateName]) return;
+                  const s = stateData[stateName];
+                  const cur = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
+                    + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
+                  if (cur > 0) return;
+                  const b = by[abbr];
+                  if (!b || typeof b !== 'object') return;
+                  if (Array.isArray(b.sff) && b.sff.length) s.sff = b.sff;
+                  if (Array.isArray(b.sffCandidates) && b.sffCandidates.length) s.sffCandidates = b.sffCandidates;
+                  if (Array.isArray(b.abuse) && b.abuse.length) s.abuse = b.abuse;
+                  if (Array.isArray(b.oneStarOverall) && b.oneStarOverall.length) s.oneStarOverall = b.oneStarOverall;
+                  if (Array.isArray(b.oneStarStaffing) && b.oneStarStaffing.length) s.oneStarStaffing = b.oneStarStaffing;
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load high-risk facility lists from API:', e);
           }
 
           // Process national data
@@ -5317,6 +5400,64 @@
           
           // Aggregate region data
           aggregateRegionData();
+
+          // CMS region high-risk from server (rollup of all states; merge fills gaps when PBJ state rows omit states)
+          try {
+            let anyHighRiskState = false;
+            let anyEmptyStateBuckets = false;
+            Object.keys(stateData).forEach(sn => {
+              const s = stateData[sn];
+              const n = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
+                + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
+              if (n > 0) anyHighRiskState = true;
+              else anyEmptyStateBuckets = true;
+            });
+            let anyRegionRisk = false;
+            let anyEmptyRegionBuckets = false;
+            Object.keys(regionData).forEach(rk => {
+              const r = regionData[rk];
+              const n = (r.sff || []).length + (r.sffCandidates || []).length + (r.abuse || []).length
+                + (r.oneStarOverall || []).length + (r.oneStarStaffing || []).length;
+              if (n > 0) anyRegionRisk = true;
+              else anyEmptyRegionBuckets = true;
+            });
+            const needRegionHrApi = mostRecentQuarter && (
+              !providerText || !anyHighRiskState || anyEmptyStateBuckets
+              || !anyRegionRisk || anyEmptyRegionBuckets
+            );
+            if (needRegionHrApi) {
+              const regPayload = await fetchReportJson(
+                'hrr',
+                'quarter=' + encodeURIComponent(mostRecentQuarter)
+              );
+              if (regPayload) {
+                const byReg = regPayload.regions || {};
+                const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing'];
+                Object.keys(regionData).forEach(rk => {
+                  const b = byReg[rk];
+                  if (!b || typeof b !== 'object') return;
+                  const region = regionData[rk];
+                  const seen = new Set();
+                  catKeys.forEach(k => (region[k] || []).forEach(f => {
+                    if (f && f.ccn) seen.add(String(f.ccn));
+                  }));
+                  catKeys.forEach(k => {
+                    const src = b[k];
+                    if (!Array.isArray(src)) return;
+                    if (!region[k]) region[k] = [];
+                    src.forEach(f => {
+                      const ccn = f && f.ccn ? String(f.ccn) : '';
+                      if (!ccn || seen.has(ccn)) return;
+                      seen.add(ccn);
+                      region[k].push(f);
+                    });
+                  });
+                });
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load high-risk CMS region lists from API:', e);
+          }
           
           // Render everything
           renderUSSummary();
@@ -5330,7 +5471,7 @@
         console.error('Error loading data:', error);
         document.getElementById('usSummary').innerHTML = '<div class="loading">Error loading data. Please refresh the page.</div>';
         const isMobileError = window.innerWidth <= 600;
-        const errorColspan = '11';
+        const errorColspan = '10';
         document.getElementById('stateTableBody').innerHTML = `<tr><td colspan="${errorColspan}" class="loading">Error loading data.</td></tr>`;
       }
     }
@@ -6266,8 +6407,10 @@
       if (onclick) {
         a.onclick = onclick;
         a.href = '#';
+      } else if (href && href.startsWith('http')) {
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
       }
-      a.target = '_blank';
       return a;
     }
     
@@ -6284,6 +6427,10 @@
     function renderStateTable() {
       const tbody = document.getElementById('stateTableBody');
       if (!tbody) return;
+      if (currentSort.column === 'highRisk') {
+        currentSort.column = 'rank';
+        currentSort.direction = 'desc';
+      }
       
       // Update Total HPRD header text based on excludeAdminDON toggle
       updateTotalHPRDHeader();
@@ -6435,25 +6582,46 @@
         // Rank cell
         tr.appendChild(createTableCell(rank, 'col-rank rank'));
         
-        // State cell
+        // State cell (state/region name + risk-list modal button when there are high-risk NHs)
         const stateCell = document.createElement('td');
         stateCell.className = 'col-state state';
+        const stateInner = document.createElement('div');
+        stateInner.style.display = 'flex';
+        stateInner.style.flexDirection = 'column';
+        stateInner.style.alignItems = 'flex-start';
+        stateInner.style.gap = '4px';
         if (currentTableView === 'region') {
-          // Region name - may have HTML for two-line display
           if (displayName.includes('<br/>')) {
-            stateCell.innerHTML = displayName;
-            // Add class to identify region cells for CSS targeting
+            stateInner.innerHTML = displayName;
             stateCell.classList.add('region-cell');
           } else {
-            stateCell.textContent = displayName;
+            stateInner.textContent = displayName;
             stateCell.classList.add('region-cell');
           }
         } else {
-          // State name with link - abbreviate for mobile
           const displayStateName = abbreviateStateNameForMobile(state.name);
           const stateLinkEl = createLink(stateLink, displayStateName, '');
-          stateCell.appendChild(stateLinkEl);
+          stateInner.appendChild(stateLinkEl);
         }
+        if (hasSFF) {
+          stateCell.classList.add('state-cell-has-risk');
+          const isDesktopRisk = window.innerWidth > 600;
+          const buttonText = isDesktopRisk ? 'View Risk List' : 'Risk List';
+          const onClick = currentTableView === 'region'
+            ? () => openRegionSFFModal(state.name, state.regionNumber || '')
+            : () => openSFFModal(state.name, stateAbbr);
+          const riskBtn = createButton(
+            buttonText,
+            onClick,
+            false,
+            isDesktopRisk ? 'desktop-risk-list-button' : 'btn-sff-mobile'
+          );
+          if (!isDesktopRisk) {
+            stateCell.classList.add('mobile-risk-list-cell');
+          }
+          stateInner.appendChild(riskBtn);
+        }
+        stateCell.appendChild(stateInner);
         tr.appendChild(stateCell);
         
         // Facilities cell
@@ -6527,33 +6695,6 @@
         const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : '-';
         const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
         tr.appendChild(forProfitCell);
-        
-        // High-Risk column (dedicated; matches .desktop-risk-list-button / mobile-risk-list-cell CSS)
-        const highRiskTd = document.createElement('td');
-        highRiskTd.className = 'col-highrisk';
-        if (hasSFF) {
-          const isDesktopRisk = window.innerWidth > 600;
-          const buttonText = isDesktopRisk ? 'View Risk List' : 'Risk List';
-          const onClick = currentTableView === 'region'
-            ? () => openRegionSFFModal(state.name, state.regionNumber || '')
-            : () => openSFFModal(state.name, stateAbbr);
-          const riskBtn = createButton(
-            buttonText,
-            onClick,
-            false,
-            isDesktopRisk ? 'desktop-risk-list-button' : 'btn-sff-mobile'
-          );
-          if (!isDesktopRisk) {
-            highRiskTd.classList.add('mobile-risk-list-cell');
-          }
-          highRiskTd.appendChild(riskBtn);
-        } else {
-          const muted = document.createElement('span');
-          muted.className = 'text-muted';
-          muted.textContent = '-';
-          highRiskTd.appendChild(muted);
-        }
-        tr.appendChild(highRiskTd);
         
         // Append row to tbody
         tbody.appendChild(tr);

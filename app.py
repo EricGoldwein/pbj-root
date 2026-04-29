@@ -365,6 +365,7 @@ def api_state_chart_data(state_code):
 
 
 @app.route('/api/report/for-profit-by-state')
+@app.route('/api/report/for-profit-by-state/')
 def api_report_for_profit_by_state():
     """Return state-level for-profit percentages for /report without exposing raw CSV downloads."""
     try:
@@ -391,6 +392,345 @@ def api_report_for_profit_by_state():
         return jsonify({'states': out})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+_HIGH_RISK_BY_STATE_CACHE_KEY = None
+_HIGH_RISK_BY_STATE_CACHE_VAL = None
+_HIGH_RISK_BY_STATE_CACHE_AT = 0.0
+_HIGH_RISK_BY_STATE_TTL = 600.0
+
+
+def _pick_provider_csv_column(headers, *candidates):
+    lowmap = {str(h).strip().lower(): h for h in headers}
+    for cand in candidates:
+        k = str(cand).strip().lower()
+        if k in lowmap:
+            return lowmap[k]
+    return None
+
+
+def _build_high_risk_provider_usecols(headers):
+    """Map logical fields to actual CSV column names for high-risk scan."""
+    picks = {
+        'ccn': _pick_provider_csv_column(headers, 'ccn', 'provnum', 'CCN', 'CMS Certification Number (CCN)'),
+        'state': _pick_provider_csv_column(headers, 'state', 'STATE', 'State'),
+        'cy_qtr': _pick_provider_csv_column(headers, 'CY_Qtr'),
+        'quarter': _pick_provider_csv_column(headers, 'quarter'),
+        'provider_name': _pick_provider_csv_column(headers, 'provider_name', 'PROVNAME', 'Provider Name'),
+        'city': _pick_provider_csv_column(headers, 'city', 'CITY', 'City'),
+        'sff_status': _pick_provider_csv_column(headers, 'sff_status', 'Special Focus Status'),
+        'overall_rating': _pick_provider_csv_column(headers, 'overall_rating'),
+        'staffing_rating': _pick_provider_csv_column(headers, 'staffing_rating'),
+        'abuse_icon': _pick_provider_csv_column(headers, 'abuse_icon', 'Abuse Icon'),
+        'has_abuse_icon': _pick_provider_csv_column(headers, 'has_abuse_icon'),
+        'reported_total': _pick_provider_csv_column(
+            headers, 'reported_total_nurse_hrs_per_resident_per_day', 'Total_Nurse_HPRD'
+        ),
+        'case_mix_total': _pick_provider_csv_column(headers, 'case_mix_total_nurse_hrs_per_resident_per_day'),
+    }
+    usecols = []
+    col_refs = {}
+    for canon, actual in picks.items():
+        if actual and actual not in usecols:
+            usecols.append(actual)
+            col_refs[canon] = actual
+    return usecols, col_refs
+
+
+def _row_cy_qtr_for_high_risk(row, col_refs, pd_local):
+    ccy = col_refs.get('cy_qtr')
+    cqu = col_refs.get('quarter')
+    if ccy:
+        v = row.get(ccy)
+        if v is not None and not (isinstance(v, float) and pd_local.isna(v)):
+            s = str(v).strip()
+            if re.match(r'^\d{4}Q[1-4]$', s):
+                return s
+    if cqu:
+        v = row.get(cqu)
+        if v is not None and not (isinstance(v, float) and pd_local.isna(v)):
+            s = str(v).strip()
+            if re.match(r'^\d{4}Q[1-4]$', s):
+                return s
+            qn = _quarter_display_to_cy_qtr(s)
+            if qn:
+                return qn
+    return None
+
+
+def _high_risk_facility_payload_from_row(row, col_refs, pd_local):
+    """Build one facility dict matching /report.html modal shape."""
+    c = col_refs
+
+    def _cell(col_key):
+        name = c.get(col_key)
+        if not name:
+            return ''
+        v = row.get(name)
+        if v is None or (isinstance(v, float) and pd_local.isna(v)):
+            return ''
+        return str(v).strip()
+
+    raw_ccn = _cell('ccn').replace('.0', '')
+    if not raw_ccn:
+        return None
+    ccn = raw_ccn.zfill(6)
+    st = _cell('state').upper()[:2]
+    if len(st) != 2:
+        return None
+    sff_raw = _cell('sff_status')
+    try:
+        overall_rating = int(float(_cell('overall_rating') or 0))
+    except (TypeError, ValueError):
+        overall_rating = 0
+    try:
+        staffing_rating = int(float(_cell('staffing_rating') or 0))
+    except (TypeError, ValueError):
+        staffing_rating = 0
+    ai = _cell('abuse_icon').upper()
+    hai = _cell('has_abuse_icon').upper()
+    has_abuse = ai in ('Y', '1') or hai in ('Y', '1')
+    try:
+        total_hprd = float(_cell('reported_total') or 0)
+    except (TypeError, ValueError):
+        total_hprd = 0.0
+    try:
+        case_mix_hprd = float(_cell('case_mix_total') or 0)
+    except (TypeError, ValueError):
+        case_mix_hprd = 0.0
+    fac = {
+        'ccn': ccn,
+        'name': _cell('provider_name') or 'Unknown provider',
+        'city': _cell('city'),
+        'state': st,
+        'overall_rating': _cell('overall_rating') or '',
+        'staffing_rating': _cell('staffing_rating') or '',
+        'status': sff_raw,
+        'hasAbuse': has_abuse,
+        'total_nurse_hprd': total_hprd if total_hprd > 0 else None,
+        'case_mix_total_hprd': case_mix_hprd if case_mix_hprd > 0 else None,
+        'categories': [],
+    }
+    return fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st
+
+
+def _compute_high_risk_by_state_for_quarter(cy_qtr):
+    """Scan provider CSV on disk; return { state_abbr: { sff, sffCandidates, ... } }."""
+    global _HIGH_RISK_BY_STATE_CACHE_KEY, _HIGH_RISK_BY_STATE_CACHE_VAL, _HIGH_RISK_BY_STATE_CACHE_AT
+    pd_local = get_pd()
+    if not cy_qtr or not re.match(r'^\d{4}Q[1-4]$', str(cy_qtr).strip()):
+        return {}
+    cy_qtr = str(cy_qtr).strip()
+    provider_paths = _provider_info_snapshot_paths_newest_first()
+    if not provider_paths:
+        return {}
+    now = time.time()
+    for path_used in provider_paths:
+        if not os.path.isfile(path_used):
+            continue
+        is_snapshot = _provider_csv_is_cms_snapshot(path_used)
+        try:
+            mtime = os.path.getmtime(path_used)
+        except Exception:
+            mtime = 0.0
+        cache_key = (path_used, mtime, cy_qtr if not is_snapshot else '__cms_snapshot__')
+        if (
+            _HIGH_RISK_BY_STATE_CACHE_VAL is not None
+            and _HIGH_RISK_BY_STATE_CACHE_KEY == cache_key
+            and (now - _HIGH_RISK_BY_STATE_CACHE_AT) < _HIGH_RISK_BY_STATE_TTL
+        ):
+            return _HIGH_RISK_BY_STATE_CACHE_VAL
+
+        try:
+            head = pd_local.read_csv(path_used, nrows=0)
+            headers = list(head.columns)
+            usecols, col_refs = _build_high_risk_provider_usecols(headers)
+            if not col_refs.get('ccn') or not col_refs.get('state'):
+                continue
+            if not is_snapshot and not col_refs.get('cy_qtr') and not col_refs.get('quarter'):
+                continue
+
+            state_hprds = {}
+            slim_rows = []
+            for chunk in pd_local.read_csv(path_used, usecols=usecols, low_memory=False, chunksize=100000):
+                for row in chunk.to_dict('records'):
+                    rq = _row_cy_qtr_for_high_risk(row, col_refs, pd_local)
+                    if not is_snapshot and rq != cy_qtr:
+                        continue
+                    parsed = _high_risk_facility_payload_from_row(row, col_refs, pd_local)
+                    if not parsed:
+                        continue
+                    _fac, _sff, _overall_rt, _sr, _ha, th, _cm, st_abbr = parsed
+                    if th and th > 0:
+                        state_hprds.setdefault(st_abbr, []).append(th)
+                    slim_rows.append(parsed)
+
+            state_bottom10 = {}
+            for st_abbr, vals in state_hprds.items():
+                arr = sorted([v for v in vals if v and v > 0])
+                if arr:
+                    idx = int(len(arr) * 0.1)
+                    state_bottom10[st_abbr] = arr[idx] if idx < len(arr) else arr[-1]
+                else:
+                    state_bottom10[st_abbr] = 0.0
+
+            out = {}
+            for parsed in slim_rows:
+                fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
+                bottom = state_bottom10.get(st_abbr) or 0.0
+                is_understaffed = (
+                    staffing_rating == 1
+                    or (
+                        case_mix_hprd > 0
+                        and total_hprd > 0
+                        and (total_hprd / case_mix_hprd) < 0.8
+                    )
+                    or (bottom > 0 and total_hprd > 0 and total_hprd <= bottom)
+                )
+                sff_trim = (sff_raw or '').strip()
+                qualifies = (
+                    fac['ccn']
+                    and st_abbr
+                    and (
+                        sff_trim == 'SFF'
+                        or sff_trim == 'SFF Candidate'
+                        or has_abuse
+                        or overall_rating == 1
+                        or is_understaffed
+                    )
+                )
+                if not qualifies:
+                    continue
+                fac['categories'] = []
+                if sff_trim == 'SFF':
+                    fac['categories'].append('sff')
+                if sff_trim == 'SFF Candidate':
+                    fac['categories'].append('candidate')
+                if has_abuse:
+                    fac['categories'].append('abuse')
+                if overall_rating == 1:
+                    fac['categories'].append('oneStarOverall')
+                if is_understaffed:
+                    fac['categories'].append('understaffing')
+
+                bucket = out.setdefault(
+                    st_abbr,
+                    {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': [], 'oneStarStaffing': []},
+                )
+                if sff_trim == 'SFF':
+                    bucket['sff'].append(fac)
+                elif sff_trim == 'SFF Candidate':
+                    bucket['sffCandidates'].append(fac)
+                elif has_abuse:
+                    bucket['abuse'].append(fac)
+                elif overall_rating == 1:
+                    bucket['oneStarOverall'].append(fac)
+                elif is_understaffed:
+                    bucket['oneStarStaffing'].append(fac)
+
+            _HIGH_RISK_BY_STATE_CACHE_KEY = cache_key
+            _HIGH_RISK_BY_STATE_CACHE_VAL = out
+            _HIGH_RISK_BY_STATE_CACHE_AT = now
+            return out
+        except Exception as e:
+            print(f"high-risk scan failed for {path_used}: {e}", flush=True)
+            continue
+    return {}
+
+
+def _load_state_abbr_to_cms_region_full():
+    """State_Code -> CMS_Region_Full (e.g. CT -> Region 1 - Boston)."""
+    path = os.path.join(APP_ROOT, 'cms_region_state_mapping.csv')
+    out = {}
+    if not os.path.isfile(path):
+        return out
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            for row in csv.DictReader(f):
+                abbr = (row.get('State_Code') or '').strip().upper()
+                rfull = (row.get('CMS_Region_Full') or '').strip()
+                if abbr and rfull:
+                    out[abbr] = rfull
+    except Exception as e:
+        print(f"cms_region_state_mapping read failed: {e}", flush=True)
+    return out
+
+
+def _rollup_high_risk_states_to_regions(states_by_abbr):
+    """Merge state-level high-risk buckets into CMS_Region_Full keys (same keys as report.html regionData)."""
+    mm = _load_state_abbr_to_cms_region_full()
+    keys = ('sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing')
+    regions = {}
+    for abbr, bucket in (states_by_abbr or {}).items():
+        if not isinstance(bucket, dict):
+            continue
+        rfull = mm.get(str(abbr).strip().upper())
+        if not rfull:
+            continue
+        rb = regions.setdefault(
+            rfull,
+            {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': [], 'oneStarStaffing': []},
+        )
+        for k in keys:
+            for fac in bucket.get(k) or []:
+                rb[k].append(fac)
+    return regions
+
+
+def _compute_high_risk_by_cms_region_for_quarter(cy_qtr):
+    """Same scan as by-state, rolled up to CMS_Region_Full for /report region view."""
+    states = _compute_high_risk_by_state_for_quarter(cy_qtr)
+    return _rollup_high_risk_states_to_regions(states)
+
+
+@app.route('/api/provider-info/latest.csv')
+def api_provider_info_latest_csv():
+    """Serve the newest provider snapshot from ``provider_info/`` for /report (same file load_provider_info prefers)."""
+    p = _latest_provider_info_snapshot_path()
+    if not p or not os.path.isfile(p):
+        return jsonify({'error': 'No NH_ProviderInfo_* or ProviderInfoNorm_* CSV in provider_info/'}), 404
+    return send_file(p, mimetype='text/csv', max_age=3600, download_name=os.path.basename(p))
+
+
+@app.route('/api/report/high-risk-by-state')
+@app.route('/api/report/high-risk-by-state/')
+def api_report_high_risk_by_state():
+    """High-risk facility lists by state for /report when browser cannot load provider CSV."""
+    try:
+        cy_qtr = (request.args.get('quarter') or '').strip()
+        if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+            cq = get_canonical_latest_quarter()
+            cy_qtr = str(cq).strip() if cq else ''
+        if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+            return jsonify({'error': 'invalid or missing quarter', 'quarter': cy_qtr, 'states': {}}), 400
+        pd_local = get_pd()
+        if pd_local is None:
+            return jsonify({'error': 'pandas unavailable', 'quarter': cy_qtr, 'states': {}}), 503
+        states = _compute_high_risk_by_state_for_quarter(cy_qtr)
+        return jsonify({'quarter': cy_qtr, 'states': states})
+    except Exception as e:
+        return jsonify({'error': str(e), 'states': {}}), 500
+
+
+@app.route('/api/report/high-risk-by-cms-region')
+@app.route('/api/report/high-risk-by-cms-region/')
+def api_report_high_risk_by_cms_region():
+    """High-risk facility lists by CMS region (CMS_Region_Full) for /report region tab."""
+    try:
+        cy_qtr = (request.args.get('quarter') or '').strip()
+        if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+            cq = get_canonical_latest_quarter()
+            cy_qtr = str(cq).strip() if cq else ''
+        if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+            return jsonify({'error': 'invalid or missing quarter', 'quarter': cy_qtr, 'regions': {}}), 400
+        pd_local = get_pd()
+        if pd_local is None:
+            return jsonify({'error': 'pandas unavailable', 'quarter': cy_qtr, 'regions': {}}), 503
+        regions = _compute_high_risk_by_cms_region_for_quarter(cy_qtr)
+        return jsonify({'quarter': cy_qtr, 'regions': regions})
+    except Exception as e:
+        return jsonify({'error': str(e), 'regions': {}}), 500
+
 
 @app.route('/search_index.json')
 def search_index():
@@ -776,6 +1116,16 @@ def pbj_sample():
 @app.route('/report')
 @app.route('/report/')
 def report():
+    """HTML report, or JSON/CSV when ``?p=`` is set (same URL as the page — survives stacks that only route ``/report``)."""
+    p = (request.args.get('p') or '').strip().lower()
+    if p == 'fp':
+        return api_report_for_profit_by_state()
+    if p == 'hrs':
+        return api_report_high_risk_by_state()
+    if p == 'hrr':
+        return api_report_high_risk_by_cms_region()
+    if p == 'pi':
+        return api_provider_info_latest_csv()
     return send_file('report.html', mimetype='text/html')
 
 
@@ -1381,13 +1731,9 @@ def _resolve_chain_id_from_name(chain_name: str):
     nm = str(chain_name).strip().lower()
     if not nm:
         return None
-    paths = [
-        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
-        'provider_info_combined_latest.csv',
-        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
-        'provider_info_combined.csv',
-    ]
-    for path in paths:
+    paths = _provider_info_snapshot_paths_newest_first()
+    for raw in paths:
+        path = raw if os.path.isabs(raw) else os.path.join(APP_ROOT, raw)
         if not os.path.isfile(path):
             continue
         try:
@@ -2530,7 +2876,7 @@ def load_csv_data(filename):
         if now - cached_at < _LOAD_CSV_TTL:
             return data
     # Prefer APP_ROOT for known large data files so provider pages always use repo data regardless of cwd
-    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv', 'provider_info_combined.csv')
+    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv')
     if filename in app_root_first:
         possible_paths = [
             os.path.join(APP_ROOT, filename),
@@ -2682,27 +3028,65 @@ _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
 _LOAD_PROVIDER_INFO_TTL = 900  # 15 min
 _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
-# Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
+# Multi-quarter combined provider CSV is optional; app reads only provider_info/ snapshots (see below).
 _LATEST_PROVIDER_QUARTERS = 4
+_PROVIDER_INFO_SNAPSHOT_MONTH_ABBRS = (
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+)
 
 
-def _provider_snapshot_candidate_paths():
-    """Discover provider snapshots dynamically (ProviderInfoNorm_* and NH_ProviderInfo_*)."""
-    out = []
+def _snapshot_mtime(path):
+    try:
+        return os.path.getmtime(path)
+    except OSError:
+        return 0.0
+
+
+def _provider_info_snapshot_paths_newest_first():
+    """
+    Absolute paths under APP_ROOT/provider_info for CMS facility snapshots only, newest (year, month) first.
+    Matches donor dashboard ordering: NH_ProviderInfo_<Mon><Year>.csv, ProviderInfoNorm_YYYY_MM.csv.
+    """
     provider_dir = os.path.join(APP_ROOT, 'provider_info')
+    if not os.path.isdir(provider_dir):
+        return []
+    candidates = []
     try:
         names = [n for n in os.listdir(provider_dir) if n.lower().endswith('.csv')]
-    except Exception:
-        names = []
-    snapshot_names = [
-        n for n in names
-        if n.startswith('ProviderInfoNorm_') or n.startswith('NH_ProviderInfo_')
-    ]
-    # Prefer latest snapshots first by filename sort (newer naming conventions are sortable).
-    for n in sorted(snapshot_names, reverse=True):
-        out.append(os.path.join(provider_dir, n))
-        out.append(f'provider_info/{n}')
-    return out
+    except OSError:
+        return []
+    for name in names:
+        path = os.path.join(provider_dir, name)
+        nl = name.lower()
+        if name.startswith('NH_ProviderInfo_'):
+            stem = name[:-4]
+            rest = stem[len('NH_ProviderInfo_'):]
+            for i, mon in enumerate(_PROVIDER_INFO_SNAPSHOT_MONTH_ABBRS, start=1):
+                if rest.startswith(mon) and len(rest) > len(mon):
+                    ys = rest[len(mon):]
+                    if ys.isdigit() and len(ys) == 4:
+                        candidates.append((path, (int(ys), i), _snapshot_mtime(path)))
+                        break
+        elif nl.startswith('providerinfonorm_'):
+            m = re.match(r'providerinfonorm_(\d{4})_(\d{2})\.csv$', nl)
+            if m:
+                y, mn = int(m.group(1)), int(m.group(2))
+                if 1 <= mn <= 12:
+                    candidates.append((path, (y, mn), _snapshot_mtime(path)))
+    candidates.sort(key=lambda x: (x[1][0], x[1][1], x[2]), reverse=True)
+    return [p for p, _, _ in candidates]
+
+
+def _latest_provider_info_snapshot_path():
+    paths = _provider_info_snapshot_paths_newest_first()
+    return paths[0] if paths else None
+
+
+def _provider_csv_is_cms_snapshot(path):
+    """True for a CMS facility snapshot file (NH_ProviderInfo_* / ProviderInfoNorm_*)."""
+    base = os.path.basename(str(path)).lower()
+    return base.startswith('providerinfonorm_') or base.startswith('nh_providerinfo_')
+
 
 def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
     """Discover the latest n_quarters distinct quarter values (CY_Qtr form) by reading only the quarter column(s)."""
@@ -2733,21 +3117,17 @@ def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
         return None
 
 def load_provider_info():
-    """Load provider info for facility details (ownership, entity, residents, city). Loads only the latest few quarters from provider_info_combined.csv. Cached 15 min."""
+    """Load provider info for facility pages (ownership, entity, residents, city). Cached 15 min.
+
+    Uses only ``provider_info/NH_ProviderInfo_*.csv`` and ``provider_info/ProviderInfoNorm_*.csv``,
+    newest (year, month) first (same ordering as the owner dashboard). Rows are keyed by quarter using
+    ``CY_Qtr`` or ``quarter`` with ``_quarter_display_to_cy_qtr`` when present.
+    """
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
     now = time.time()
     if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
         return _LOAD_PROVIDER_INFO_CACHE
-    # Prefer quarter-aligned data: provider_info_combined_latest (from extract_latest_quarter.py) has CY_Qtr/quarter.
-    # NH_ProviderInfo is a single snapshot (no quarter); use only when combined/latest are not present.
-    provider_paths = _provider_snapshot_candidate_paths() + [
-        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
-        'provider_info_combined_latest.csv',
-        'pbj-wrapped/public/data/provider_info_combined_latest.csv',
-        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
-        'provider_info_combined.csv',
-        'pbj-wrapped/public/data/provider_info_combined.csv',
-    ]
+    provider_paths = _provider_info_snapshot_paths_newest_first()
     if not HAS_PANDAS:
         return {}
     def _row_val(r, *keys):
@@ -2765,8 +3145,11 @@ def load_provider_info():
         if re.match(r'^\d{4}Q[1-4]$', s):
             return s
         return _quarter_display_to_cy_qtr(s)
+    if not provider_paths:
+        print('Warning: No NH_ProviderInfo_* or ProviderInfoNorm_* CSV in provider_info/', flush=True)
+        return {}
     for path in provider_paths:
-        if not os.path.exists(path):
+        if not os.path.isfile(path):
             continue
         try:
             header_cols = set(pd.read_csv(path, nrows=0).columns)
@@ -2795,12 +3178,8 @@ def load_provider_info():
                 )
             )
             usecols = [c for c in header_cols if c in keep_cols]
-            # _latest or NH_ProviderInfo snapshot: one snapshot; skip quarter discovery and filtering.
-            is_latest_file = (
-                'provider_info_combined_latest' in path or path.replace('\\', '/').endswith('_latest.csv')
-                or 'NH_ProviderInfo' in path
-                or 'ProviderInfoNorm_' in path
-            )
+            # Snapshots are a single CMS drop; load all rows (quarter columns still populate by_quarter cache).
+            is_latest_file = _provider_csv_is_cms_snapshot(path)
             latest_quarters = None if is_latest_file else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
             provider_dict = {}
             provider_dict_by_quarter = {}
@@ -4639,16 +5018,8 @@ def load_entity_facilities(entity_id):
     global _PROVIDER_INFO_ENTITY_CACHE, _PROVIDER_INFO_ENTITY_AT
     if not HAS_PANDAS:
         return '', []
-    # Prefer latest provider snapshot for current facility roster/counts; fall back to combined files.
-    # Combined files can include broader longitudinal/entity memberships and overstate current roster counts.
-    paths = _provider_snapshot_candidate_paths() + [
-        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
-        'provider_info_combined_latest.csv',
-        'pbj-wrapped/public/data/provider_info_combined_latest.csv',
-        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
-        'provider_info_combined.csv',
-        'pbj-wrapped/public/data/provider_info_combined.csv',
-    ]
+    # Newest CMS snapshot under provider_info/ only (NH_ProviderInfo_* / ProviderInfoNorm_*).
+    paths = _provider_info_snapshot_paths_newest_first()
     now = time.time()
     df = None
     used_path = None
@@ -9119,6 +9490,16 @@ def pbj_wrapped_static(path):
 
 @app.route('/<path:filename>')
 def static_files(filename):
+    # Some stacks match this catch-all before explicit /api/report/* routes; never treat API paths as disk files.
+    fn = (filename or '').strip().rstrip('/')
+    if fn == 'api/report/high-risk-by-state' or fn == 'report/api/report/high-risk-by-state':
+        return api_report_high_risk_by_state()
+    if fn == 'api/report/high-risk-by-cms-region' or fn == 'report/api/report/high-risk-by-cms-region':
+        return api_report_high_risk_by_cms_region()
+    if fn == 'api/report/for-profit-by-state' or fn == 'report/api/report/for-profit-by-state':
+        return api_report_for_profit_by_state()
+    if fn == 'api/provider-info/latest.csv' or fn == 'report/api/provider-info/latest.csv':
+        return api_provider_info_latest_csv()
     if _is_blocked_public_filename(filename):
         from flask import abort
         abort(404)
@@ -9164,11 +9545,28 @@ def static_files(filename):
             return send_file(json_path, mimetype='application/json')
         from flask import abort
         abort(404)
-    # Handle CSV files
+    # Handle CSV files (try APP_ROOT first so /report loads data even when cwd is not the repo root)
     elif filename.endswith('.csv'):
-        csv_path = os.path.join('.', filename)
-        if os.path.isfile(csv_path):
-            return send_file(csv_path, mimetype='text/csv')
+        cwd = None
+        try:
+            cwd = os.getcwd()
+        except Exception:
+            pass
+        candidates = [
+            os.path.join(APP_ROOT, filename),
+            os.path.join(APP_ROOT, 'data', filename),
+            os.path.join('.', filename),
+        ]
+        if cwd and cwd != APP_ROOT:
+            candidates.extend(
+                [
+                    os.path.join(cwd, filename),
+                    os.path.join(cwd, 'data', filename),
+                ]
+            )
+        for csv_path in candidates:
+            if csv_path and os.path.isfile(csv_path):
+                return send_file(csv_path, mimetype='text/csv')
         from flask import abort
         abort(404)
     # Handle video files (e.g. press/wtvr-twin-lakes-clip.mp4)

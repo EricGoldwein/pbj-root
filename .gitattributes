@@ -1,3 +1,4 @@
 # Normalize line endings to LF so Git doesn't show false "modified" on Windows
 # when the editor uses LF and core.autocrlf is true.
 * text=auto eol=lf
+facility_quarterly_metrics.csv filter=lfs diff=lfs merge=lfs -text

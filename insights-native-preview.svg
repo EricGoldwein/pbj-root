@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Staffing chart preview">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1220"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="lineA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#60a5fa"/>
+      <stop offset="100%" stop-color="#93c5fd"/>
+    </linearGradient>
+    <linearGradient id="lineB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#38bdf8"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g opacity="0.18" stroke="#93c5fd" stroke-width="1">
+    <path d="M80 500H1120"/>
+    <path d="M80 430H1120"/>
+    <path d="M80 360H1120"/>
+    <path d="M80 290H1120"/>
+    <path d="M80 220H1120"/>
+    <path d="M80 150H1120"/>
+    <path d="M80 80H1120"/>
+  </g>
+  <g opacity="0.28" stroke="#93c5fd" stroke-width="1">
+    <path d="M160 60V540"/>
+    <path d="M300 60V540"/>
+    <path d="M440 60V540"/>
+    <path d="M580 60V540"/>
+    <path d="M720 60V540"/>
+    <path d="M860 60V540"/>
+    <path d="M1000 60V540"/>
+  </g>
+  <polyline points="90,390 210,365 330,335 450,355 570,320 690,348 810,305 930,330 1050,292" fill="none" stroke="url(#lineA)" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="90,430 210,402 330,420 450,382 570,410 690,376 810,396 930,364 1050,388" fill="none" stroke="url(#lineB)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="72" y="38" width="1056" height="554" fill="none" stroke="#60a5fa" stroke-opacity="0.35" stroke-width="2" rx="16"/>
+  <circle cx="1050" cy="292" r="7" fill="#60a5fa"/>
+  <circle cx="930" cy="330" r="7" fill="#60a5fa"/>
+  <circle cx="810" cy="305" r="7" fill="#60a5fa"/>
+  <circle cx="930" cy="364" r="6" fill="#22d3ee"/>
+  <circle cx="810" cy="396" r="6" fill="#22d3ee"/>
+</svg>

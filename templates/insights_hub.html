@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PBJ320 Insights | Nursing Home Staffing Intelligence</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#121a2a">
+  <meta name="description" content="Nursing home staffing intelligence from PBJ320: on-site analyses and The 320 newsletter.">
+  <link rel="canonical" href="{{ site_base|e }}/insights">
+  <link rel="alternate" type="application/rss+xml" title="The 320 on Substack" href="{{ substack_feed_url|e }}">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="PBJ320 Insights | Nursing Home Staffing Intelligence">
+  <meta property="og:description" content="Nursing home staffing intelligence from PBJ320: on-site analyses and The 320 newsletter.">
+  <meta property="og:url" content="{{ site_base|e }}/insights">
+  <meta property="og:image" content="{{ og_image|e }}">
+  <meta property="og:site_name" content="PBJ320">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="PBJ320 Insights | Nursing Home Staffing Intelligence">
+  <meta name="twitter:description" content="Nursing home staffing intelligence from PBJ320: on-site analyses and The 320 newsletter.">
+  <meta name="twitter:image" content="{{ og_image|e }}">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/insights-theme.css?v=2">
+  {{ itemlist_json_ld|safe }}
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--pbj-canvas); color: var(--pbj-text); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
+    .skip-link { position: absolute; top: -100px; left: 1rem; z-index: 10000; padding: 0.75rem 1rem; background: var(--pbj-chrome-border); color: var(--pbj-white); font-weight: 600; text-decoration: none; border-radius: 8px; transition: top 0.2s ease; }
+    .skip-link:focus { top: 1rem; }
+    .navbar { background: var(--pbj-chrome); position: sticky; top: 0; z-index: 1000; box-shadow: var(--pbj-shadow-nav); border-bottom: 2px solid var(--pbj-chrome-border); }
+    .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }
+    .nav-brand a { color: white; text-decoration: none; display: flex; align-items: center; font-size: 1.2rem; font-weight: 700; }
+    .nav-brand a:hover { color: #e2e8f0; }
+    .nav-menu { display: flex; gap: 30px; align-items: center; }
+    .nav-link { color: var(--pbj-nav-fg-hub); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 0.5rem 0; min-height: 44px; display: inline-flex; align-items: center; }
+    .nav-link:hover, .nav-link.active { color: var(--pbj-sky); }
+    .nav-link:focus-visible, .nav-toggle:focus-visible { outline: 2px solid var(--pbj-sky); outline-offset: 2px; border-radius: 4px; }
+    .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; padding: 12px; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
+    .nav-toggle span { width: 25px; height: 3px; background: white; }
+    .content { flex: 1; max-width: 1080px; margin: 0 auto; padding: 24px 16px 40px; width: 100%; }
+    .header { margin-bottom: 1rem; background: linear-gradient(180deg, var(--pbj-panel-top) 0%, var(--pbj-panel-bottom) 100%); border: 1px solid var(--pbj-border-panel); border-radius: 12px; box-shadow: var(--pbj-shadow-header); padding: 0.9rem 1rem; }
+    .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.35rem; }
+    .header-title-row img { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--pbj-avatar-ring); object-fit: cover; }
+    .header h1 { color: var(--pbj-heading); font-size: clamp(1.65rem, 3.2vw, 2rem); line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
+    .brand-pbj { color: var(--pbj-heading); }
+    .brand-320 { color: var(--pbj-sky); }
+    .header-tagline { color: var(--pbj-text-muted); font-size: 0.94rem; line-height: 1.45; margin: 0; max-width: none; }
+    @media (min-width: 960px) {
+      .header { display: flex; flex-direction: row; align-items: center; gap: 1.25rem 1.75rem; }
+      .header-title-row { margin-bottom: 0; flex: 0 0 auto; }
+      .header-tagline { flex: 1; min-width: 0; font-size: 0.93rem; }
+    }
+    .hub-meta-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.65rem 1rem; margin-bottom: 0.75rem; font-size: 0.82rem; color: var(--pbj-text-muted); }
+    .hub-meta-row a { color: var(--pbj-sky-bright); text-decoration: none; font-weight: 500; }
+    .hub-meta-row a:hover { text-decoration: underline; }
+    .feed-heading { font-size: 1.15rem; font-weight: 700; color: var(--pbj-heading-soft); margin: 0 0 0.65rem; letter-spacing: -0.01em; }
+    .insights-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0.85rem; align-items: center; }
+    .insights-toolbar .filter-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pbj-text-muted); margin-right: 0.25rem; }
+    .filter-btn { cursor: pointer; border: 1px solid var(--pbj-border-panel); background: var(--pbj-veil); color: var(--pbj-text); padding: 0.38rem 0.75rem; border-radius: 999px; font-size: 0.84rem; font-weight: 600; transition: background 0.15s ease, border-color 0.15s ease; }
+    .filter-btn:hover { border-color: var(--pbj-pill-ring); color: var(--pbj-sky-bright); }
+    .filter-btn.active { background: var(--pbj-pill-bg); border-color: var(--pbj-pill-ring); color: var(--pbj-sky-soft); }
+    .feed { list-style: none; display: grid; gap: 18px; }
+    .card.insights-filter-hidden { display: none !important; }
+    .card { border-radius: 14px; overflow: hidden; border: 1px solid var(--pbj-border-panel); background: linear-gradient(180deg, var(--pbj-panel-top) 0%, var(--pbj-panel-bottom) 100%); box-shadow: var(--pbj-shadow-card); }
+    .card-shell { display: grid; grid-template-columns: minmax(250px, 35%) 1fr; min-height: 228px; }
+    .card-media-wrap { background: var(--pbj-chrome); }
+    .featured { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .card-body { padding: 1.05rem 1.15rem 1rem; display: flex; flex-direction: column; }
+    .tag-row { margin-bottom: 0.6rem; }
+    .card-tag { display: inline-flex; align-items: center; font-size: 0.69rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-radius: 999px; padding: 4px 10px; border: 1px solid var(--pbj-pill-ring); background: var(--pbj-pill-bg); color: var(--pbj-sky-soft); }
+    .card h2 { font-size: clamp(1.08rem, 1.8vw, 1.28rem); line-height: 1.3; margin-bottom: 0.5rem; }
+    .card h2 a { color: var(--pbj-heading-soft); text-decoration: none; }
+    .card h2 a:hover { color: var(--pbj-sky-bright); text-decoration: underline; }
+    .meta { color: var(--pbj-text-muted); font-size: 0.71rem; letter-spacing: 0.08em; font-variant-caps: all-small-caps; text-transform: lowercase; margin-bottom: 0.58rem; font-weight: 600; }
+    .desc { color: var(--pbj-text); margin-bottom: 0.84rem; font-size: 0.95rem; line-height: 1.58; }
+    .card-actions { margin-top: auto; }
+    .read-action { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; font-weight: 600; font-size: 0.9rem; letter-spacing: 0.01em; color: var(--pbj-on-light-button); background: linear-gradient(135deg, var(--pbj-btn-primary-top), var(--pbj-btn-primary-bot)); padding: 0.45rem 0.95rem; border-radius: 999px; border: 1px solid var(--pbj-btn-border); min-width: 0; transition: filter 0.16s ease; }
+    .read-action:hover { filter: brightness(1.08); }
+    .read-action img { width: 20px; height: 20px; border-radius: 4px; display: inline-block; }
+    .read-action.substack {
+      background: rgba(30, 41, 59, 0.92);
+      border: 1px solid rgba(251, 146, 60, 0.55);
+      color: #ffedd5;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .read-action.substack:hover { filter: brightness(1.07); border-color: rgba(253, 186, 116, 0.85); }
+    .read-action-icon-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 26px;
+      height: 26px;
+      background: #fff;
+      border-radius: 6px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    .read-action.substack .read-action-icon-wrap img { width: 18px; height: 18px; border-radius: 3px; }
+    .site-base { margin-top: auto; width: 100%; background: var(--pbj-chrome); border-top: 2px solid var(--pbj-chrome-border); box-shadow: var(--pbj-shadow-site-up); }
+    .site-base-inner { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+    .subscribe-panel { margin: 0; border-radius: 0; background: transparent; color: var(--pbj-subscribe-body); border: none; border-bottom: 1px solid var(--pbj-divider-chrome); box-shadow: none; padding: 22px 0 20px; display: flex; gap: 14px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+    .subscribe-panel h3 { margin: 0; font-size: 1.02rem; color: var(--pbj-subscribe-heading); }
+    .subscribe-panel p { margin: 0; color: var(--pbj-subscribe-body); }
+    .subscribe-button { text-decoration: none; font-weight: 700; color: var(--pbj-white); background: linear-gradient(135deg, var(--pbj-btn-heavy-top), var(--pbj-btn-heavy-bot)); padding: 0.62rem 0.96rem; border-radius: 999px; white-space: nowrap; }
+    .subscribe-button:hover { filter: brightness(1.08); }
+    .subscribe-subtle { width: 100%; margin-top: 0.15rem; font-size: 0.82rem; color: var(--pbj-subscribe-muted); }
+    .subscribe-subtle a { color: var(--pbj-sky-soft); text-decoration: none; }
+    .subscribe-subtle a:hover { text-decoration: underline; }
+    .site-base .footer { padding: 1.25rem 0 1.5rem; background: transparent; color: var(--pbj-footer-text); }
+    .site-base .footer a { color: var(--pbj-sky); }
+    .loading, .error { padding: 0.5rem 0; font-size: 0.88rem; }
+    .loading { color: var(--pbj-text-muted); display: none; }
+    .loading.is-visible { display: block; }
+    .error { color: var(--pbj-danger); }
+    @media (max-width: 900px) { .card-shell { grid-template-columns: 1fr; } .card-media-wrap { height: 210px; } }
+    @media (max-width: 768px) { .nav-toggle { display: flex; } .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: var(--pbj-chrome); padding: 1rem; gap: 12px; } .nav-menu.active { display: flex; } }
+  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <nav class="navbar" aria-label="Main">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link active">Insights</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Ownership</a>
+      </div>
+      <div class="nav-toggle" id="navToggle" aria-label="Toggle menu" role="button" tabindex="0">
+        <span></span><span></span><span></span>
+      </div>
+    </div>
+  </nav>
+
+  <main class="content" id="main-content">
+    <header class="header">
+      <div class="header-title-row">
+        <img src="/phoebe.png" alt="Phoebe J">
+        <h1><span class="brand-pbj">PBJ</span><span class="brand-320">320</span> Insights</h1>
+      </div>
+    </header>
+
+    <section aria-labelledby="latest-insights">
+      <h2 class="feed-heading" id="latest-insights">Latest</h2>
+      <div class="insights-toolbar" role="group" aria-label="Filter posts">
+        <span class="filter-label">Show</span>
+        <button type="button" class="filter-btn active" data-filter="all">All</button>
+        <button type="button" class="filter-btn" data-filter="native">PBJ320</button>
+        <button type="button" class="filter-btn" data-filter="external">Substack</button>
+      </div>
+      <p id="loading" class="loading" aria-live="polite">Checking for updates…</p>
+      <p id="error" class="error" style="display:none;"></p>
+      <ul id="feed" class="feed">{{ feed_html|safe }}</ul>
+    </section>
+  </main>
+
+  <div class="site-base" aria-label="Site footer">
+    <div class="site-base-inner">
+      <section class="subscribe-panel" aria-label="PBJ320 call to action">
+        <div>
+          <h3>Follow the staffing signal.</h3>
+          <p>Independent PBJ reporting for journalists, researchers, public-interest attorneys, and data-curious readers.</p>
+        </div>
+        <a class="subscribe-button" href="/report">Explore PBJ320</a>
+        <div class="subscribe-subtle">For weekly field notes, follow <a href="https://320insight.substack.com/" target="_blank" rel="noopener">The 320 on Substack</a>.</div>
+      </section>
+      <footer class="footer" id="site-footer"></footer>
+    </div>
+  </div>
+  <script src="/pbj-site-universal.js?v=2"></script>
+  <script>
+    (function() {
+      var listEl = document.getElementById('feed');
+      var loadingEl = document.getElementById('loading');
+      var errorEl = document.getElementById('error');
+
+      function esc(text) {
+        return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function decodeEntities(text) {
+        var s = String(text || '');
+        if (!s) return '';
+        var t = document.createElement('textarea');
+        t.innerHTML = s;
+        return t.value;
+      }
+      function formatDate(raw) {
+        if (!raw) return '';
+        try {
+          var d = new Date(raw);
+          if (isNaN(d.getTime())) return raw;
+          return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) { return raw; }
+      }
+      function inferReadTime(p) {
+        var rt = (p.read_time || '').trim();
+        if (rt) return rt;
+        var words = String(p.description || '').trim().split(/\s+/).filter(Boolean).length;
+        if (words <= 16) return '4 min read';
+        if (words <= 32) return '6 min read';
+        return '8 min read';
+      }
+      function inferIndustryTag(p) {
+        var allowed = ['Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends'];
+        var ext = String(p.external_url || p.url || '').toLowerCase();
+        if (ext.indexOf('the-other-3000-days-at-seagate') !== -1) return 'PBJ Deep Dive';
+        var raw = p.tags;
+        var tags = Array.isArray(raw) ? raw : String(raw || '').split(',');
+        for (var i = 0; i < tags.length; i++) {
+          var t = String(tags[i] || '').trim();
+          if (allowed.indexOf(t) >= 0) return t;
+        }
+        var combined = (String(p.title || '') + ' ' + String(p.description || '') + ' ' + String((p.categories || []).join(' '))).toLowerCase();
+        if (/owner|ownership|chain|entity|investor/.test(combined)) return 'Owners';
+        if (/cna|nurse assistant|90-day|90 day/.test(combined)) return '90-Day CNA';
+        if (/cms|star|care compare/.test(combined)) return 'CMS';
+        if (/state|states|national|trend|quarter|q[1-4]/.test(combined)) return 'State Trends';
+        return 'PBJ Deep Dive';
+      }
+      function renderCard(p) {
+        var title = esc(p.title);
+        var desc = esc(decodeEntities(p.description || ''));
+        var date = esc(formatDate(p.date || p.sort_date || ''));
+        var readTime = esc(inferReadTime(p));
+        var image = esc(p.image_url || p.preview_image || '/insights-native-preview.svg');
+        var type = (p.type || 'external').toLowerCase();
+        var tag = esc(inferIndustryTag(p));
+        var metaLine = date ? (date + ' · ' + readTime) : readTime;
+        if (type === 'native') {
+          var nativeUrl = esc(p.url || ('/insights/' + String(p.slug || '').trim()));
+          return '<li class="card native" data-post-type="native"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Staffing chart snapshot" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + nativeUrl + '">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action" href="' + nativeUrl + '" aria-label="View this PBJ320 insight"><img src="/pbj_favicon.png" alt="" width="20" height="20">View</a></div></div></article></li>';
+        }
+        var externalUrl = esc(p.external_url || p.url || '#');
+        return '<li class="card external" data-post-type="external"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Feature story preview" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + externalUrl + '" target="_blank" rel="noopener">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action substack" href="' + externalUrl + '" target="_blank" rel="noopener" aria-label="Open this article on Substack (new tab)"><span class="read-action-icon-wrap"><img src="/substack.png" alt="" width="18" height="18"></span>Open article</a></div></div></article></li>';
+      }
+      function applyFilter(mode) {
+        var items = listEl.querySelectorAll('.card[data-post-type]');
+        for (var i = 0; i < items.length; i++) {
+          var li = items[i];
+          var t = li.getAttribute('data-post-type') || '';
+          if (mode === 'all' || t === mode) li.classList.remove('insights-filter-hidden');
+          else li.classList.add('insights-filter-hidden');
+        }
+      }
+      var toolbar = document.querySelector('.insights-toolbar');
+      if (toolbar) {
+        toolbar.addEventListener('click', function(e) {
+          var btn = e.target.closest('.filter-btn');
+          if (!btn) return;
+          var mode = btn.getAttribute('data-filter') || 'all';
+          var buttons = toolbar.querySelectorAll('.filter-btn');
+          for (var j = 0; j < buttons.length; j++) buttons[j].classList.remove('active');
+          btn.classList.add('active');
+          applyFilter(mode);
+        });
+      }
+      fetch('/api/insights')
+        .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error('Feed unavailable')); })
+        .then(function(data) {
+          loadingEl.classList.remove('is-visible');
+          var posts = (data && data.posts) ? data.posts : [];
+          listEl.innerHTML = posts.length ? posts.map(renderCard).join('') : '<li class="card"><div class="card-body"><p class="desc">No insights yet. Check back soon.</p></div></li>';
+          var active = document.querySelector('.insights-toolbar .filter-btn.active');
+          applyFilter(active ? (active.getAttribute('data-filter') || 'all') : 'all');
+        })
+        .catch(function() {
+          loadingEl.classList.remove('is-visible');
+          if (!listEl.querySelector('li.card')) {
+            errorEl.textContent = 'Could not load insights right now. Please try again shortly.';
+            errorEl.style.display = 'block';
+          }
+        });
+      var navToggle = document.getElementById('navToggle');
+      var navMenu = document.getElementById('navMenu');
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function() { navMenu.classList.toggle('active'); });
+        navToggle.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navMenu.classList.toggle('active'); }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

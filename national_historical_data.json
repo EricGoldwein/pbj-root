@@ -34,7 +34,8 @@
     "Q4 2024",
     "Q1 2025",
     "Q2 2025",
-    "Q3 2025"
+    "Q3 2025",
+    "Q4 2025"
   ],
   "hprd_values": [
     3.707,
@@ -71,9 +72,10 @@
     3.749,
     3.73,
     3.781,
-    3.774
+    3.774,
+    3.762
   ],
-  "latest_quarter": "2025Q3",
-  "latest_quarter_display": "Q3 2025",
-  "latest_hprd": 3.774
+  "latest_quarter": "2025Q4",
+  "latest_quarter_display": "Q4 2025",
+  "latest_hprd": 3.762
 }

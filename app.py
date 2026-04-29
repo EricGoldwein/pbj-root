@@ -22,10 +22,11 @@ import json
 import sqlite3
 from pathlib import Path
 from datetime import datetime
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib.request import urlopen, Request
 import xml.etree.ElementTree as ET
 import html
+from html.parser import HTMLParser
 import time
 import gzip
 
@@ -603,6 +604,32 @@ def about():
 @app.route('/insights')
 @app.route('/insights/')
 def insights():
+    """Insights hub with server-rendered feed (SEO), JSON-LD ItemList, and client refresh."""
+    posts = _get_dual_track_insights_posts()
+    base = _public_site_origin()
+    feed_html = _render_insights_hub_feed_html(posts)
+    itemlist_json_ld = _insights_hub_item_list_json_ld(posts, base)
+    og_image = f'{base}/og-image-1200x630.png'
+    return render_template(
+        'insights_hub.html',
+        feed_html=feed_html,
+        itemlist_json_ld=itemlist_json_ld,
+        site_base=base,
+        og_image=og_image,
+        substack_feed_url=NEWSLETTER_SUBSTACK_FEED,
+    )
+
+
+@app.route('/insights-theme.css')
+def insights_theme_css():
+    """Shared palette for /insights hub and native /insights/<slug> articles."""
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'insights-theme.css', mimetype='text/css'))
+
+
+@app.route('/insights-visualizations')
+@app.route('/insights-visualizations/')
+def insights_visualizations():
+    """Legacy interactive visualizations now housed under the Insights article track."""
     return send_file('insights.html', mimetype='text/html')
 
 @app.route('/pbj-sample')
@@ -635,13 +662,16 @@ def phoebe():
 
 
 # ---------------------------------------------------------------------------
-# Newsletter: Substack feed (nursing-home-only) + manual posts
+# Insights Hub: dual-track feed (external Substack + native on-site analyses)
 # ---------------------------------------------------------------------------
 NEWSLETTER_SUBSTACK_FEED = 'https://320insight.substack.com/feed'
 NEWSLETTER_POSTS_JSON = 'newsletter_posts.json'
 NEWSLETTER_CACHE_SECONDS = 600  # 10 min
 _newsletter_cache = None
 _newsletter_cache_time = 0
+_native_insights_cache = None
+_native_insights_cache_time = 0
+_NATIVE_INSIGHTS_CACHE_TTL = 60
 NEWSLETTER_PBJ_KEYWORDS = (
     'pbj',
     'payroll-based journal',
@@ -668,6 +698,229 @@ NEWSLETTER_PBJ_KEYWORDS = (
     'nursing facility',
     'nursing homes',
 )
+
+INSIGHTS_NATIVE_DIR = os.path.join(APP_ROOT, 'insights_posts')
+
+_INSIGHTS_NATIVE_PAGE_TEMPLATE = """
+<!doctype html>
+<html lang="en" class="pbj-insights-article">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} | PBJ320 Insights</title>
+  <meta name="description" content="{{ description|e }}">
+  <link rel="canonical" href="{{ canonical_url|e }}">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ (title ~ ' | PBJ320 Insights')|e }}">
+  <meta property="og:description" content="{{ og_description|e }}">
+  <meta property="og:url" content="{{ og_url|e }}">
+  <meta property="og:image" content="{{ og_image|e }}">
+  <meta property="og:site_name" content="PBJ320">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ (title ~ ' | PBJ320 Insights')|e }}">
+  <meta name="twitter:description" content="{{ og_description|e }}">
+  <meta name="twitter:image" content="{{ og_image|e }}">
+  {% if iso_published %}<meta property="article:published_time" content="{{ iso_published }}">{% endif %}
+  {% if iso_modified %}<meta property="article:modified_time" content="{{ iso_modified }}">{% endif %}
+  <meta name="theme-color" content="#121a2a">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/insights-theme.css?v=2">
+  {{ article_json_ld|safe }}
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--pbj-canvas);
+      color: var(--pbj-text);
+      line-height: 1.62;
+    }
+    .navbar { background: var(--pbj-chrome); border-bottom: 2px solid var(--pbj-chrome-border); position: sticky; top: 0; z-index: 1000; box-shadow: var(--pbj-shadow-nav); }
+    .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; height: 60px; display: flex; align-items: center; justify-content: space-between; }
+    .brand { color: var(--pbj-white); text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+    .brand img { height: 28px; width: auto; }
+    .nav-links { display: flex; align-items: center; gap: 30px; }
+    .nav-links a { color: var(--pbj-nav-fg); text-decoration: none; font-weight: 500; }
+    .nav-links a.active, .nav-links a:hover { color: var(--pbj-sky); }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 28px 16px 96px; }
+    .article-shell {
+      max-width: 720px;
+      margin: 0 auto;
+      background: linear-gradient(180deg, var(--pbj-panel-top) 0%, var(--pbj-panel-bottom) 100%);
+      border: 1px solid var(--pbj-border-panel);
+      border-radius: 14px;
+      box-shadow: var(--pbj-shadow-elev);
+      padding: clamp(1.25rem, 3vw, 2rem) clamp(1.1rem, 3vw, 2rem);
+    }
+    .eyebrow {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--pbj-sky-soft);
+      background: var(--pbj-pill-bg);
+      border: 1px solid var(--pbj-pill-ring);
+      padding: 0.28rem 0.55rem;
+      border-radius: 6px;
+      margin: 0 0 0.75rem;
+    }
+    h1 { margin: 0 0 0.5rem; font-size: clamp(1.65rem, 3.5vw, 2.1rem); line-height: 1.2; color: var(--pbj-heading); letter-spacing: -0.02em; font-weight: 700; }
+    .meta { color: var(--pbj-text-muted); font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1rem; font-weight: 600; }
+    .lead { color: var(--pbj-text); font-size: 1.02rem; margin-bottom: 1.5rem; line-height: 1.6; border-left: 3px solid var(--pbj-blue-500); padding-left: 0.85rem; }
+    .article-body { font-size: 1.03rem; color: var(--pbj-text); max-width: 65ch; line-height: 1.72; }
+    .article-body h2, .article-body h3 { color: var(--pbj-heading-soft); margin-top: 1.75rem; line-height: 1.28; font-weight: 700; }
+    .article-body p { margin: 0.95rem 0; }
+    .article-body ul, .article-body ol { margin: 0.9rem 0 0.9rem 1.15rem; }
+    .article-body table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.94rem; }
+    .article-body th, .article-body td { border: 1px solid var(--pbj-slate-700); padding: 0.5rem 0.55rem; text-align: left; }
+    .article-body th { background: var(--pbj-slate-800); color: var(--pbj-slate-200); font-weight: 600; }
+    .article-body a { color: var(--pbj-sky-bright); text-decoration: none; font-weight: 500; }
+    .article-body a:hover { text-decoration: underline; color: var(--pbj-sky-pale); }
+    .article-body code { background: var(--pbj-slate-800); color: var(--pbj-slate-200); border-radius: 4px; padding: 0.12rem 0.35rem; font-size: 0.9em; }
+    .article-body pre { background: var(--pbj-chrome); color: var(--pbj-slate-200); border: 1px solid var(--pbj-slate-600); border-radius: 8px; padding: 14px; overflow: auto; font-size: 0.88rem; }
+    .dashboard-callout {
+      margin: 1.35rem 0;
+      padding: 1rem 1.1rem;
+      border-radius: 12px;
+      border: 1px solid var(--pbj-pill-ring-soft);
+      background: var(--pbj-veil-deep);
+    }
+    .dashboard-callout-title { margin: 0 0 0.35rem; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--pbj-sky-soft); }
+    .dashboard-callout-desc { margin: 0 0 0.75rem; font-size: 0.92rem; color: var(--pbj-text-muted); line-height: 1.5; }
+    .dashboard-callout-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--pbj-on-light-button);
+      background: linear-gradient(135deg, var(--pbj-btn-primary-top), var(--pbj-btn-primary-bot));
+      text-decoration: none;
+      padding: 0.5rem 0.95rem;
+      border-radius: 999px;
+      border: 1px solid var(--pbj-btn-border);
+    }
+    .dashboard-callout-btn:hover { filter: brightness(1.06); }
+    .niche-reference-box, .niche-evidence {
+      margin: 0 0 1.1rem;
+      padding: 1rem 1rem 1rem 1.05rem;
+      border-radius: 10px;
+      border: 1px solid var(--pbj-border-panel-strong);
+      background: var(--pbj-veil);
+      border-left: 4px solid var(--pbj-blue-500);
+    }
+    .niche-reference-box h2, .niche-evidence h2 { margin: 0 0 0.5rem; font-size: 1.05rem; color: var(--pbj-heading-soft); font-weight: 700; }
+    .niche-reference-box p, .niche-evidence p { margin: 0; color: var(--pbj-text-muted); font-size: 0.95rem; }
+    .niche-reference-box a { color: var(--pbj-sky-bright); font-weight: 600; }
+    .niche-follow { margin: 1rem 0 0; padding-top: 0.85rem; border-top: 1px solid var(--pbj-border-row); font-size: 0.9rem; }
+    .niche-follow a { color: var(--pbj-sky-bright); font-weight: 600; text-decoration: none; }
+    .niche-follow a:hover { text-decoration: underline; }
+    .niche-follow-muted { color: var(--pbj-text-muted); }
+    .niche-evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    .niche-evidence-table { width: 100%; border-collapse: collapse; background: var(--pbj-veil); border-radius: 8px; overflow: hidden; }
+    .niche-evidence-table th, .niche-evidence-table td { border: 1px solid var(--pbj-slate-700); padding: 0.45rem 0.55rem; font-size: 0.88rem; color: var(--pbj-text); }
+    .niche-evidence-table th { background: var(--pbj-slate-800); color: var(--pbj-slate-200); font-weight: 600; }
+    .niche-chart-box h3 { margin: 0 0 0.4rem; color: var(--pbj-slate-200); font-size: 0.92rem; font-weight: 700; }
+    .niche-bar-row { display: grid; grid-template-columns: 88px 1fr 52px; align-items: center; gap: 8px; margin-bottom: 7px; }
+    .niche-bar-track { height: 8px; background: var(--pbj-slate-700); border-radius: 999px; overflow: hidden; }
+    .niche-bar-fill { height: 100%; background: linear-gradient(90deg, var(--pbj-blue-600), var(--pbj-sky-400)); }
+    .niche-bar-label, .niche-bar-value { font-size: 0.8rem; color: var(--pbj-text-muted); }
+    .niche-stars { margin: 0; font-size: 0.9rem; color: var(--pbj-text); line-height: 1.55; }
+    .subscribe-cta-sticky { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1200; background: var(--pbj-sticky-bg); border-top: 2px solid var(--pbj-sticky-border); backdrop-filter: blur(8px); }
+    .subscribe-cta-inner { max-width: 1100px; margin: 0 auto; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; justify-content: space-between; }
+    .subscribe-cta-copy { color: var(--pbj-subscribe-body); font-weight: 500; font-size: 0.95rem; }
+    .subscribe-cta-link { color: var(--pbj-white); text-decoration: none; background: linear-gradient(135deg, var(--pbj-btn-heavy-top), var(--pbj-btn-heavy-bot)); border-radius: 999px; padding: 0.58rem 0.95rem; font-weight: 700; white-space: nowrap; }
+    .subscribe-cta-link:hover { filter: brightness(1.08); }
+    .breadcrumb { margin: 0 0 0.75rem; font-size: 0.82rem; color: var(--pbj-text-muted); }
+    .breadcrumb ol { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
+    .breadcrumb li { display: inline; }
+    .breadcrumb li:not(:last-child)::after { content: "/"; margin-left: 0.35rem; color: var(--pbj-slate-600); }
+    .breadcrumb a { color: var(--pbj-sky-bright); text-decoration: none; font-weight: 500; }
+    .breadcrumb a:hover { text-decoration: underline; }
+    .breadcrumb .bc-current { color: var(--pbj-text-muted); font-weight: 500; max-width: 42ch; display: inline-block; vertical-align: bottom; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .article-nav-back { margin: 0 0 0.85rem; }
+    .article-nav-back a { color: var(--pbj-sky-bright); text-decoration: none; font-size: 0.88rem; font-weight: 600; }
+    .article-nav-back a:hover { text-decoration: underline; }
+    .byline { margin: 0 0 0.35rem; font-size: 0.88rem; color: var(--pbj-text-muted); }
+    .byline-author { font-weight: 600; color: var(--pbj-text); }
+    .byline-org { margin-left: 0.35rem; }
+    .meta-sep { margin: 0 0.25rem; opacity: 0.85; }
+    .related-insights { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--pbj-border-row); }
+    .related-insights-title { font-size: 1rem; color: var(--pbj-heading-soft); margin: 0 0 0.65rem; font-weight: 700; }
+    .related-insights ul { list-style: none; margin: 0; padding: 0; }
+    .related-insights li { margin: 0.45rem 0; }
+    .related-insights a { color: var(--pbj-sky-bright); text-decoration: none; font-weight: 500; }
+    .related-insights a:hover { text-decoration: underline; }
+    .related-meta { display: block; font-size: 0.78rem; color: var(--pbj-text-muted); margin-top: 0.12rem; }
+    @media (max-width: 760px) {
+      .nav-links { gap: 12px; font-size: 0.92rem; }
+      .article-shell { padding: 1.1rem; }
+      .article-body { font-size: 0.98rem; }
+      .niche-evidence-grid { grid-template-columns: 1fr; }
+    }
+    /* Native article only: one cohesive “polish” pass (card edge + system UI + selection). */
+    .pbj-insights-article { color-scheme: dark; }
+    .pbj-insights-article .article-shell {
+      border-color: rgba(148, 163, 184, 0.22);
+      box-shadow: var(--pbj-shadow-elev), inset 0 1px 0 rgba(255, 255, 255, 0.055);
+    }
+    .pbj-insights-article ::selection {
+      background: rgba(59, 130, 246, 0.38);
+      color: var(--pbj-heading);
+    }
+    .pbj-insights-article .article-body a:focus-visible,
+    .pbj-insights-article .article-nav-back a:focus-visible,
+    .pbj-insights-article .breadcrumb a:focus-visible {
+      outline: 2px solid var(--pbj-sky);
+      outline-offset: 2px;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar" aria-label="Main">
+    <div class="nav-container">
+      <a class="brand" href="/">
+        <img src="/pbj_favicon.png" alt="PBJ320">
+        <span><span style="color:var(--pbj-white);">PBJ</span><span style="color:var(--pbj-sky);">320</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/about">About</a>
+        <a href="/report">Report</a>
+        <a href="/insights" class="active">Insights</a>
+        <a href="/phoebe">PBJ Explained</a>
+        <a href="/owners">Ownership</a>
+      </div>
+    </div>
+  </nav>
+  <main class="wrap">
+    <article class="article-shell">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li><a href="{{ site_base }}/insights">Insights</a></li>
+          <li><span class="bc-current">{{ title }}</span></li>
+        </ol>
+      </nav>
+      <p class="article-nav-back"><a href="{{ site_base }}/insights">← All insights</a></p>
+      <p class="eyebrow">Insight</p>
+      <h1>{{ title }}</h1>
+      <p class="byline"><span class="byline-author">{{ author_name }}</span><span class="byline-org">· 320 Consulting / PBJ320</span></p>
+      <p class="meta">Published {{ formatted_date }}{% if show_updated %}<span class="meta-sep">·</span>Updated {{ formatted_updated }}{% endif %}</p>
+      <p class="lead">{{ description }}</p>
+      <section class="article-body">{{ content_html|safe }}</section>
+      {{ related_html|safe }}
+    </article>
+  </main>
+  <aside class="subscribe-cta-sticky" aria-label="Substack subscription prompt">
+    <div class="subscribe-cta-inner">
+      <div class="subscribe-cta-copy">Want the story behind the data? Subscribe to The 320 on Substack.</div>
+      <a class="subscribe-cta-link" href="https://320insight.substack.com/" target="_blank" rel="noopener">Subscribe to The 320</a>
+    </div>
+  </aside>
+</body>
+</html>
+"""
 
 
 def _strip_html_fragment(raw: str, max_len: int = 480) -> str:
@@ -725,6 +978,24 @@ def _is_pbj_related_post(row: dict) -> bool:
     return any(keyword in haystack for keyword in NEWSLETTER_PBJ_KEYWORDS)
 
 
+def _slugify_insights(raw: str) -> str:
+    if not raw:
+        return ''
+    slug = re.sub(r'[^a-z0-9]+', '-', raw.strip().lower())
+    return re.sub(r'-{2,}', '-', slug).strip('-')
+
+
+def _to_sort_date(raw_date: str) -> str:
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(raw_date or '')
+        return dt.strftime('%Y-%m-%dT%H:%M:%S')
+    except Exception:
+        if re.match(r'^\d{4}-\d{2}-\d{2}', raw_date or ''):
+            return (raw_date or '1970-01-01')[:10] + 'T00:00:00'
+        return raw_date or '1970-01-01'
+
+
 def _parse_rss_item(item_el) -> dict | None:
     """Extract title, link, description, pubDate, image from an RSS <item>. Iterate children so namespaces don't break find()."""
     title = ''
@@ -770,6 +1041,8 @@ def _parse_rss_item(item_el) -> dict | None:
     return {
         'title': title,
         'url': link,
+        'external_url': link,
+        'type': 'external',
         'description': description,
         'date': raw_date,
         'source': 'substack',
@@ -808,8 +1081,253 @@ def _fetch_substack_posts() -> list:
     return out
 
 
+def _star_icons_from_rating(val) -> str:
+    if val is None:
+        return "—"
+    try:
+        _n = round_half_up(float(val), 0)
+        n = int(_n) if _n is not None else None
+        if n is not None and 1 <= n <= 5:
+            return "★" * n
+    except (TypeError, ValueError):
+        pass
+    return "—"
+
+
+def _ensure_pandas_loaded_for_insights() -> bool:
+    global pd
+    if pd is None:
+        pd = get_pd()
+    return pd is not None
+
+
+_INSIGHTS_ALLOWED_TAGS = {
+    'p', 'a', 'strong', 'em', 'ul', 'ol', 'li', 'blockquote',
+    'code', 'pre', 'h2', 'h3', 'h4', 'hr', 'br',
+    'table', 'thead', 'tbody', 'tr', 'th', 'td'
+}
+_INSIGHTS_ALLOWED_ATTRS = {
+    'a': {'href', 'title'},
+    'th': {'colspan', 'rowspan'},
+    'td': {'colspan', 'rowspan'},
+}
+_INSIGHTS_BLOCKED_TAGS = {'script', 'style', 'iframe', 'object', 'embed'}
+
+
+def _sanitize_nav_or_external_url(raw_url: str, allow_relative: bool = True) -> str:
+    url = (raw_url or '').strip()
+    if not url:
+        return ''
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or '').lower()
+    if scheme in ('http', 'https', 'mailto'):
+        return url
+    if allow_relative and url.startswith('/'):
+        return url
+    if allow_relative and url.startswith('#'):
+        return url
+    return ''
+
+
+class _InsightsHTMLSanitizer(HTMLParser):
+    """Allowlist-based sanitizer for author-provided native insight HTML."""
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.out = []
+        self.skip_depth = 0
+
+    def handle_starttag(self, tag, attrs):
+        t = (tag or '').lower()
+        if t in _INSIGHTS_BLOCKED_TAGS:
+            self.skip_depth += 1
+            return
+        if self.skip_depth > 0:
+            return
+        if t not in _INSIGHTS_ALLOWED_TAGS:
+            return
+        allowed = _INSIGHTS_ALLOWED_ATTRS.get(t, set())
+        clean_attrs = []
+        for key, value in (attrs or []):
+            k = (key or '').lower()
+            if k not in allowed:
+                continue
+            v = '' if value is None else str(value)
+            if t == 'a' and k == 'href':
+                v = _sanitize_nav_or_external_url(v, allow_relative=True)
+                if not v:
+                    continue
+            clean_attrs.append((k, html.escape(v, quote=True)))
+        attrs_str = ''.join([f' {k}="{v}"' for (k, v) in clean_attrs])
+        self.out.append(f'<{t}{attrs_str}>')
+
+    def handle_endtag(self, tag):
+        t = (tag or '').lower()
+        if t in _INSIGHTS_BLOCKED_TAGS and self.skip_depth > 0:
+            self.skip_depth -= 1
+            return
+        if self.skip_depth > 0:
+            return
+        if t in _INSIGHTS_ALLOWED_TAGS:
+            self.out.append(f'</{t}>')
+
+    def handle_data(self, data):
+        if self.skip_depth > 0:
+            return
+        self.out.append(html.escape(data or ''))
+
+    def handle_entityref(self, name):
+        if self.skip_depth == 0:
+            self.out.append(f'&{name};')
+
+    def handle_charref(self, name):
+        if self.skip_depth == 0:
+            self.out.append(f'&#{name};')
+
+    def handle_comment(self, data):
+        return
+
+
+def _sanitize_insights_html(raw_html: str) -> str:
+    if not raw_html:
+        return ''
+    parser = _InsightsHTMLSanitizer()
+    try:
+        parser.feed(raw_html)
+        parser.close()
+    except Exception:
+        return html.escape(raw_html)
+    return ''.join(parser.out)
+
+
+def _extract_markdown_front_matter(raw_text: str) -> tuple[dict, str]:
+    if not raw_text.startswith('---\n'):
+        return {}, raw_text
+    end_idx = raw_text.find('\n---\n', 4)
+    if end_idx < 0:
+        return {}, raw_text
+    header = raw_text[4:end_idx]
+    body = raw_text[end_idx + 5:]
+    out = {}
+    for line in header.splitlines():
+        if ':' not in line:
+            continue
+        key, value = line.split(':', 1)
+        out[key.strip()] = value.strip().strip('"').strip("'")
+    return out, body.strip()
+
+
+def _parse_tags_field(raw_tags) -> list:
+    if raw_tags is None:
+        return []
+    if isinstance(raw_tags, list):
+        return [str(t).strip() for t in raw_tags if str(t).strip()]
+    txt = str(raw_tags).strip()
+    if not txt:
+        return []
+    return [part.strip() for part in txt.split(',') if part.strip()]
+
+
+def _latest_quarter_refresh_date_iso() -> str:
+    """Best-effort YYYY-MM-DD date from latest_quarter_data.json file update time."""
+    path = os.path.join(APP_ROOT, 'latest_quarter_data.json')
+    try:
+        ts = os.path.getmtime(path)
+        return datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+    except Exception:
+        return datetime.utcnow().strftime('%Y-%m-%d')
+
+
+def _resolve_chain_id_from_name(chain_name: str):
+    if not chain_name:
+        return None
+    if not _ensure_pandas_loaded_for_insights():
+        return None
+    nm = str(chain_name).strip().lower()
+    if not nm:
+        return None
+    paths = [
+        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
+        'provider_info_combined_latest.csv',
+        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
+        'provider_info_combined.csv',
+    ]
+    for path in paths:
+        if not os.path.isfile(path):
+            continue
+        try:
+            df = pd.read_csv(path, low_memory=False)
+        except Exception:
+            continue
+        for name_col, id_col in (('chain_name', 'chain_id'), ('affiliated_entity_name', 'affiliated_entity_id')):
+            if name_col not in df.columns or id_col not in df.columns:
+                continue
+            sub = df[df[name_col].astype(str).str.strip().str.lower() == nm]
+            if sub.empty:
+                continue
+            try:
+                return int(float(sub.iloc[0].get(id_col)))
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _load_native_insights_markdown_posts() -> list:
+    posts = []
+    if not os.path.isdir(INSIGHTS_NATIVE_DIR):
+        return posts
+    try:
+        filenames = [f for f in os.listdir(INSIGHTS_NATIVE_DIR) if f.lower().endswith('.md') and not f.startswith('_')]
+    except Exception:
+        return posts
+    for filename in filenames:
+        path = os.path.join(INSIGHTS_NATIVE_DIR, filename)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                raw = f.read()
+        except Exception:
+            continue
+        front, body_md = _extract_markdown_front_matter(raw)
+        title = (front.get('title') or '').strip()
+        slug = (front.get('slug') or '').strip() or _slugify_insights(os.path.splitext(filename)[0])
+        if not title or not slug:
+            continue
+        raw_date = (front.get('date') or '').strip()
+        dynamic_from_pbj_refresh = str(front.get('dateFromLatestQuarterUpdate') or '').strip().lower() in ('1', 'true', 'yes')
+        if dynamic_from_pbj_refresh:
+            raw_date = _latest_quarter_refresh_date_iso()
+        target_entity = (front.get('targetEntity') or '').strip()
+        target_entity_type = (front.get('targetEntityType') or '').strip().lower()
+        explicit_url = (front.get('url') or '').strip()
+        hide_from_hub = str(front.get('hideFromHub') or '').strip().lower() in ('1', 'true', 'yes')
+        post = {
+            'type': 'native',
+            'title': title,
+            'slug': slug,
+            'url': explicit_url or f'/insights/{slug}',
+            'description': (front.get('description') or '').strip(),
+            'date': raw_date,
+            'sort_date': _to_sort_date(raw_date),
+            'updated': (front.get('updated') or front.get('lastModified') or '').strip(),
+            'author': (front.get('author') or '').strip(),
+            'source': 'native-markdown',
+            'preview_image': (front.get('previewImage') or '').strip() or '/insights-native-preview.svg',
+            'read_time': (front.get('readTime') or front.get('read_time') or '').strip(),
+            'tags': _parse_tags_field(front.get('tags')),
+            'reference_title': (front.get('referenceTitle') or '').strip(),
+            'reference_url': (front.get('referenceUrl') or '').strip(),
+            'targetEntity': target_entity,
+            'targetEntityType': target_entity_type,
+            'content_markdown': body_md.strip(),
+            'hide_from_hub': hide_from_hub,
+        }
+        if target_entity and not post['targetEntityType']:
+            post['targetEntityType'] = 'provider' if target_entity.isdigit() and len(target_entity) <= 6 else 'chain'
+        posts.append(post)
+    return posts
+
+
 def _load_manual_newsletter_posts() -> list:
-    """Load manually added posts from newsletter_posts.json in project root."""
+    """Load manual external/native entries from newsletter_posts.json in project root."""
     path = os.path.join(APP_ROOT, NEWSLETTER_POSTS_JSON)
     if not os.path.isfile(path):
         return []
@@ -825,62 +1343,663 @@ def _load_manual_newsletter_posts() -> list:
     for entry in data:
         if not isinstance(entry, dict):
             continue
+        row_type = (entry.get('type') or 'external').strip().lower()
+        if row_type not in ('external', 'native'):
+            row_type = 'external'
         title = entry.get('title') or ''
-        url = entry.get('url') or ''
-        if not title or not url:
+        if not title:
             continue
+        raw_date = entry.get('date') or ''
         row = {
+            'type': row_type,
             'title': title,
-            'url': url,
             'description': (entry.get('description') or '').strip(),
-            'date': entry.get('date') or '',
+            'date': raw_date,
+            'sort_date': _to_sort_date(raw_date),
             'source': 'manual',
             'image_url': (entry.get('image_url') or '').strip() or None,
+            'read_time': (entry.get('read_time') or entry.get('readTime') or '').strip(),
+            'tags': _parse_tags_field(entry.get('tags')),
         }
-        raw_date = row['date']
-        try:
-            from email.utils import parsedate_to_datetime
-            dt = parsedate_to_datetime(raw_date)
-            row['sort_date'] = dt.strftime('%Y-%m-%dT%H:%M:%S')
-        except Exception:
-            # Accept ISO date (YYYY-MM-DD) for manual entries
-            if re.match(r'^\d{4}-\d{2}-\d{2}', raw_date or ''):
-                row['sort_date'] = (raw_date or '1970-01-01')[:10] + 'T00:00:00'
-            else:
-                row['sort_date'] = raw_date or '1970-01-01'
+        if row_type == 'native':
+            slug = (entry.get('slug') or '').strip() or _slugify_insights(title)
+            if not slug:
+                continue
+            row.update({
+                'slug': slug,
+                'url': f'/insights/{slug}',
+                'preview_image': (entry.get('preview_image') or '').strip() or '/insights-native-preview.svg',
+                'content_markdown': (entry.get('content_markdown') or '').strip(),
+                'content_html': (entry.get('content_html') or '').strip(),
+                'updated': (entry.get('updated') or entry.get('lastModified') or '').strip(),
+                'author': (entry.get('author') or '').strip(),
+            })
+        else:
+            url = (entry.get('url') or '').strip()
+            if not url:
+                continue
+            row.update({
+                'url': url,
+                'external_url': url,
+            })
         out.append(row)
     return out
 
 
-def _get_newsletter_posts() -> list:
-    """Merge Substack feed and manual posts, sorted by date descending. Cached."""
+def _get_external_insights_posts() -> list:
+    """Merge Substack feed and manual external entries, sorted by date descending. Cached."""
     global _newsletter_cache, _newsletter_cache_time
     now = time.time()
     if _newsletter_cache is not None and (now - _newsletter_cache_time) < NEWSLETTER_CACHE_SECONDS:
         return _newsletter_cache
     substack = _fetch_substack_posts()
-    manual = _load_manual_newsletter_posts()
+    manual = [p for p in _load_manual_newsletter_posts() if p.get('type') == 'external']
     merged = substack + manual
+    for row in merged:
+        row['type'] = 'external'
+        row['external_url'] = row.get('external_url') or row.get('url')
+        row['sort_date'] = row.get('sort_date') or _to_sort_date(row.get('date') or '')
     merged.sort(key=lambda x: x.get('sort_date') or '', reverse=True)
-    # Only cache when we have data (or after successful fetch); avoid caching empty on transient failure
     if substack or manual or _newsletter_cache is not None:
         _newsletter_cache = merged
         _newsletter_cache_time = now
     return merged
 
 
+def _get_native_insights_posts() -> list:
+    """Native deep dives from markdown files + manual JSON entries."""
+    global _native_insights_cache, _native_insights_cache_time
+    now = time.time()
+    if _native_insights_cache is not None and (now - _native_insights_cache_time) < _NATIVE_INSIGHTS_CACHE_TTL:
+        return _native_insights_cache
+    out = []
+    manual_native = [p for p in _load_manual_newsletter_posts() if p.get('type') == 'native']
+    markdown_native = _load_native_insights_markdown_posts()
+    out.extend(markdown_native)
+    out.extend(manual_native)
+    seen = set()
+    deduped = []
+    for row in sorted(out, key=lambda x: x.get('sort_date') or '', reverse=True):
+        slug = (row.get('slug') or '').strip()
+        if not slug or slug in seen:
+            continue
+        seen.add(slug)
+        deduped.append(row)
+    _native_insights_cache = deduped
+    _native_insights_cache_time = now
+    return deduped
+
+
+def _resolve_target_entity_context(post: dict) -> dict | None:
+    target_entity = (post.get('targetEntity') or '').strip()
+    if not target_entity:
+        return None
+    if not _ensure_pandas_loaded_for_insights():
+        return None
+    target_type = (post.get('targetEntityType') or '').strip().lower()
+    if not target_type:
+        target_type = 'provider' if target_entity.isdigit() and len(target_entity) <= 6 else 'chain'
+
+    if target_type == 'provider':
+        prov = normalize_ccn(target_entity)
+        if not prov:
+            return None
+        facility_df = load_facility_quarterly_for_provider(prov)
+        if facility_df is None or facility_df.empty:
+            return None
+        provider_info_row = (load_provider_info() or {}).get(prov, {})
+        facility_name = capitalize_facility_name((provider_info_row.get('provider_name') or '').strip() or (facility_df.iloc[-1].get('PROVNAME') or '').strip() or prov)
+        state_code = (provider_info_row.get('state') or '').strip().upper()[:2]
+        if not state_code and 'STATE' in facility_df.columns:
+            state_code = str(facility_df.iloc[-1].get('STATE') or '').strip().upper()[:2]
+        canonical_q = get_canonical_latest_quarter()
+        if canonical_q is not None and 'CY_Qtr' in facility_df.columns:
+            match = facility_df[facility_df['CY_Qtr'].astype(str) == str(canonical_q)]
+            latest = match.iloc[0] if not match.empty else facility_df.sort_values('CY_Qtr', ascending=False).iloc[0]
+        else:
+            latest = facility_df.sort_values('CY_Qtr', ascending=False).iloc[0]
+        def _fv(key):
+            v = latest.get(key)
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                return None
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                return None
+        reported_total = _fv('Total_Nurse_HPRD')
+        reported_rn = _fv('RN_HPRD')
+        reported_lpn = _fv('LPN_HPRD')
+        reported_na = _fv('Nurse_Assistant_HPRD')
+        case_mix_total = None
+        state_total = None
+        raw_quarter = str(latest.get('CY_Qtr') or '')
+        try:
+            pi_q = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else (provider_info_row or {})
+            case_mix_total = float(pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')) if pi_q and pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day') is not None else None
+        except Exception:
+            case_mix_total = None
+        if state_code and raw_quarter:
+            try:
+                sd = load_csv_data('state_quarterly_metrics.csv')
+                if sd is not None and not sd.empty:
+                    m = sd[(sd['STATE'].astype(str).str.upper() == state_code) & (sd['CY_Qtr'].astype(str) == raw_quarter)]
+                    if not m.empty and m.iloc[0].get('Total_Nurse_HPRD') is not None:
+                        state_total = float(m.iloc[0].get('Total_Nurse_HPRD'))
+            except Exception:
+                pass
+        return {
+            'target_type': 'provider',
+            'provider_id': prov,
+            'display_name': facility_name,
+            'state_code': state_code,
+            'quarter': raw_quarter,
+            'reported_total': reported_total,
+            'reported_rn': reported_rn,
+            'reported_lpn': reported_lpn,
+            'reported_na': reported_na,
+            'case_mix_total': case_mix_total,
+            'state_total': state_total,
+            'staffing_rating': (provider_info_row or {}).get('staffing_rating'),
+            'overall_rating': (provider_info_row or {}).get('overall_rating'),
+            'report_url': f'/provider/{prov}',
+        }
+
+    chain_name = target_entity
+    entity_id = _resolve_chain_id_from_name(chain_name)
+    if entity_id is None:
+        return None
+    entity_name, facilities = load_entity_facilities(entity_id)
+    if not facilities:
+        return None
+    total_vals = [float(f.get('Total_Nurse_HPRD')) for f in facilities if f.get('Total_Nurse_HPRD') is not None]
+    reported_total = (sum(total_vals) / len(total_vals)) if total_vals else None
+    state_avgs = []
+    try:
+        sd = load_csv_data('state_quarterly_metrics.csv')
+        q = facilities[0].get('quarter')
+        if sd is not None and not sd.empty and q:
+            sub = sd[sd['CY_Qtr'].astype(str) == str(q)]
+            for fac in facilities:
+                st = (fac.get('state') or '').strip().upper()
+                m = sub[sub['STATE'].astype(str).str.upper() == st]
+                if not m.empty and m.iloc[0].get('Total_Nurse_HPRD') is not None:
+                    state_avgs.append(float(m.iloc[0].get('Total_Nurse_HPRD')))
+    except Exception:
+        pass
+    state_total = (sum(state_avgs) / len(state_avgs)) if state_avgs else None
+    chain_perf = load_chain_performance() or {}
+    row = chain_perf.get(int(entity_id)) or {}
+    def _f_num(v):
+        try:
+            return float(v)
+        except (TypeError, ValueError):
+            return None
+    case_mix_total = _f_num(row.get('Average case-mix total nurse hours per resident per day'))
+    if reported_total is None:
+        reported_total = _f_num(row.get('Average reported total nurse hours per resident per day'))
+    return {
+        'target_type': 'chain',
+        'entity_id': entity_id,
+        'display_name': capitalize_entity_name(entity_name or chain_name),
+        'quarter': facilities[0].get('quarter') or '',
+        'reported_total': reported_total,
+        'reported_rn': None,
+        'reported_lpn': None,
+        'reported_na': None,
+        'case_mix_total': case_mix_total,
+        'state_total': state_total,
+        'staffing_rating': _f_num(row.get('Average staffing 5-star rating')),
+        'overall_rating': _f_num(row.get('Average overall 5-star rating')),
+        'report_url': f'/entity/{int(entity_id)}',
+    }
+
+
+def _render_niche_insight_sections(post: dict) -> dict:
+    ctx = _resolve_target_entity_context(post)
+    if not ctx:
+        return {'reference': '', 'evidence': ''}
+    ref_title = (post.get('reference_title') or 'Source story').strip()
+    ref_url = _sanitize_nav_or_external_url((post.get('reference_url') or '').strip(), allow_relative=False)
+    reference_box = ''
+    if ref_url:
+        reference_box = (
+            '<section class="niche-reference-box">'
+            '<h2>Source</h2>'
+            f'<p>Related coverage: <a href="{html.escape(ref_url, quote=True)}" target="_blank" rel="noopener">{html.escape(ref_title)}</a></p>'
+            '</section>'
+        )
+    facility_val = ctx.get('reported_total')
+    case_mix_val = ctx.get('case_mix_total')
+    state_val = ctx.get('state_total')
+    bars = [('Reported', facility_val), ('Case-Mix', case_mix_val), ('State Avg', state_val)]
+    max_v = max([v for _, v in bars if isinstance(v, (int, float))] + [1.0])
+    bar_html = []
+    for label, value in bars:
+        display = f'{value:.2f}' if isinstance(value, (int, float)) else '—'
+        pct = ((float(value) / max_v) * 100.0) if isinstance(value, (int, float)) and max_v > 0 else 0.0
+        bar_html.append(
+            '<div class="niche-bar-row">'
+            f'<span class="niche-bar-label">{html.escape(label)}</span>'
+            f'<div class="niche-bar-track"><div class="niche-bar-fill" style="width:{pct:.1f}%"></div></div>'
+            f'<span class="niche-bar-value">{display}</span>'
+            '</div>'
+        )
+    staffing_stars = _star_icons_from_rating(ctx.get('staffing_rating'))
+    overall_stars = _star_icons_from_rating(ctx.get('overall_rating'))
+    evidence_table = (
+        '<table class="niche-evidence-table">'
+        '<thead><tr><th>Metric</th><th>Entity</th><th>State Avg</th></tr></thead>'
+        '<tbody>'
+        f'<tr><td>Total HPRD</td><td>{f"{facility_val:.2f}" if isinstance(facility_val, (int, float)) else "—"}</td><td>{f"{state_val:.2f}" if isinstance(state_val, (int, float)) else "—"}</td></tr>'
+        f'<tr><td>Case-Mix HPRD</td><td>{f"{case_mix_val:.2f}" if isinstance(case_mix_val, (int, float)) else "—"}</td><td>—</td></tr>'
+        f'<tr><td>Staffing Stars</td><td>{html.escape(staffing_stars)}</td><td>—</td></tr>'
+        f'<tr><td>Overall Stars</td><td>{html.escape(overall_stars)}</td><td>—</td></tr>'
+        '</tbody></table>'
+    )
+    report_url = ctx.get('report_url') or ''
+    follow_label = 'Open facility profile' if ctx.get('target_type') == 'provider' else 'Open chain profile'
+    follow_html = ''
+    if report_url:
+        follow_html = (
+            '<p class="niche-follow">'
+            f'<a href="{html.escape(report_url, quote=True)}">{html.escape(follow_label)}</a>'
+            ' <span class="niche-follow-muted">· CMS PBJ + star ratings</span>'
+            '</p>'
+        )
+    evidence_section = (
+        '<section class="niche-evidence">'
+        '<h2>Evidence</h2>'
+        '<div class="niche-evidence-grid">'
+        f'<div>{evidence_table}</div>'
+        '<div class="niche-chart-box">'
+        '<h3>Reported vs. CMS case-mix</h3>'
+        + ''.join(bar_html) +
+        '<h3 style="margin-top:14px;">CMS star ratings</h3>'
+        f'<p class="niche-stars">Staffing: {html.escape(staffing_stars)}<br>Overall: {html.escape(overall_stars)}</p>'
+        '</div></div>'
+        + follow_html +
+        '</section>'
+    )
+    return {'reference': reference_box, 'evidence': evidence_section}
+
+
+def _render_native_content(post: dict) -> str:
+    chart_embed_html = (
+        '<aside class="dashboard-callout" role="note">'
+        '<p class="dashboard-callout-title">Interactive dashboards</p>'
+        '<p class="dashboard-callout-desc">Maps and quarter-by-quarter staffing open in a full window—clearer than nesting the whole tool inside this article.</p>'
+        '<a class="dashboard-callout-btn" href="/insights-visualizations" target="_blank" rel="noopener">Open dashboards</a>'
+        '</aside>'
+    )
+    content_html = (post.get('content_html') or '').strip()
+    if content_html:
+        rendered = _sanitize_insights_html(content_html)
+    else:
+        md_content = (post.get('content_markdown') or post.get('content') or '').strip()
+        if HAS_MARKDOWN and markdown is not None and md_content:
+            rendered = _sanitize_insights_html(markdown.markdown(md_content, extensions=['extra', 'fenced_code', 'tables']))
+        elif md_content:
+            chunks = [f'<p>{html.escape(part.strip())}</p>' for part in md_content.split('\n\n') if part.strip()]
+            rendered = '\n'.join(chunks)
+        else:
+            rendered = '<p>This analysis is being prepared.</p>'
+    rendered = rendered.replace('[PBJ_CHARTS]', chart_embed_html)
+    niche = _render_niche_insight_sections(post)
+    # Source → facility evidence → narrative and charts (readability for reporting readers).
+    return (niche.get('reference') or '') + (niche.get('evidence') or '') + rendered
+
+
+def _get_recent_niche_insights_for_provider(ccn: str, limit: int = 4) -> list:
+    prov = normalize_ccn(ccn)
+    out = []
+    for post in _get_native_insights_posts():
+        target_entity = (post.get('targetEntity') or '').strip()
+        target_type = (post.get('targetEntityType') or '').strip().lower()
+        if not target_entity:
+            continue
+        if target_type in ('', 'provider'):
+            if normalize_ccn(target_entity) == prov:
+                out.append(post)
+    out.sort(key=lambda x: x.get('sort_date') or '', reverse=True)
+    return out[:limit]
+
+
+def _render_recent_insights_sidebar_for_provider(ccn: str) -> str:
+    posts = _get_recent_niche_insights_for_provider(ccn, limit=4)
+    if not posts:
+        return ''
+    items = []
+    for post in posts:
+        title = html.escape(post.get('title') or 'PBJ Insight')
+        url = html.escape(post.get('url') or '#', quote=True)
+        dt = html.escape(post.get('date') or '')
+        items.append(f'<li><a href="{url}">{title}</a><span class="pbj-recent-insights-date">{dt}</span></li>')
+    return (
+        '<aside class="pbj-recent-insights" aria-label="Recent Niche Insights">'
+        '<div class="pbj-recent-insights-title">Recent Insights</div>'
+        '<ul>' + ''.join(items) + '</ul>'
+        '</aside>'
+    )
+
+
+def _find_native_insight(slug: str) -> dict | None:
+    if not slug:
+        return None
+    for row in _get_native_insights_posts():
+        if (row.get('slug') or '').strip() == slug:
+            return row
+    return None
+
+
+def _get_dual_track_insights_posts() -> list:
+    native = [p for p in _get_native_insights_posts() if not bool(p.get('hide_from_hub'))]
+    merged = _get_external_insights_posts() + native
+    merged.sort(key=lambda x: x.get('sort_date') or '', reverse=True)
+    return merged
+
+
+def _public_site_origin() -> str:
+    """Public https origin for canonical URLs, OG tags, and JSON-LD."""
+    for key in ('PBJ_PUBLIC_BASE_URL', 'PUBLIC_BASE_URL'):
+        v = (os.environ.get(key) or '').strip().rstrip('/')
+        if v:
+            return v
+    try:
+        root = getattr(request, 'url_root', None) or ''
+        root = str(root).rstrip('/')
+        if root:
+            return root
+    except Exception:
+        pass
+    return 'https://pbj320.com'
+
+
+def _absolute_public_url(base: str, path: str) -> str:
+    if not path:
+        return ''
+    p = str(path).strip()
+    if p.lower().startswith(('http://', 'https://')):
+        return p
+    if not p.startswith('/'):
+        p = '/' + p
+    return f'{base}{p}'
+
+
+def _format_insights_hub_date(raw) -> str:
+    if not raw:
+        return ''
+    try:
+        dt = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+        return f'{dt.strftime("%b")} {dt.day}, {dt.year}'
+    except Exception:
+        return str(raw)[:32]
+
+
+def _infer_insights_read_time(post: dict) -> str:
+    rt = (post.get('read_time') or post.get('readTime') or '').strip()
+    if rt:
+        return rt
+    words = len(str(post.get('description') or '').strip().split())
+    if words <= 16:
+        return '4 min read'
+    if words <= 32:
+        return '6 min read'
+    return '8 min read'
+
+
+def _infer_insights_industry_tag(post: dict) -> str:
+    allowed = {'Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends'}
+    ext_url = str(post.get('external_url') or post.get('url') or '').lower()
+    if 'the-other-3000-days-at-seagate' in ext_url:
+        return 'PBJ Deep Dive'
+    tags = post.get('tags') or []
+    if isinstance(tags, str):
+        tags = [t.strip() for t in tags.split(',') if t.strip()]
+    for t in tags:
+        if str(t).strip() in allowed:
+            return str(t).strip()
+    cats = post.get('categories') or []
+    cat_str = ' '.join(str(c) for c in cats) if isinstance(cats, list) else ''
+    combined = f'{post.get("title") or ""} {post.get("description") or ""} {cat_str}'.lower()
+    if re.search(r'owner|ownership|chain|entity|investor', combined):
+        return 'Owners'
+    if re.search(r'cna|nurse assistant|90-day|90 day', combined):
+        return '90-Day CNA'
+    if re.search(r'cms|star|care compare', combined):
+        return 'CMS'
+    if re.search(r'state|states|national|trend|quarter|q[1-4]', combined):
+        return 'State Trends'
+    return 'PBJ Deep Dive'
+
+
+def _render_insights_hub_card_html(post: dict) -> str:
+    title = html.escape(post.get('title') or '')
+    desc_raw = (post.get('description') or '').strip()
+    desc = html.escape(html.unescape(desc_raw)) if desc_raw else ''
+    date_raw = post.get('date') or post.get('sort_date') or ''
+    date_disp = html.escape(_format_insights_hub_date(date_raw))
+    read_time = html.escape(_infer_insights_read_time(post))
+    image = post.get('image_url') or post.get('preview_image') or '/insights-native-preview.svg'
+    image_esc = html.escape(str(image), quote=True)
+    ptype = (post.get('type') or 'external').lower()
+    tag = html.escape(_infer_insights_industry_tag(post))
+    meta_line = f'{date_disp} · {read_time}' if date_disp else read_time
+    if ptype == 'native':
+        native_url = html.escape(post.get('url') or f'/insights/{post.get("slug") or ""}', quote=True)
+        return (
+            f'<li class="card native" data-post-type="native"><article class="card-shell">'
+            f'<div class="card-media-wrap"><img class="featured" src="{image_esc}" alt="Staffing chart snapshot" loading="lazy"></div>'
+            f'<div class="card-body"><div class="tag-row"><span class="card-tag">{tag}</span></div>'
+            f'<h2><a href="{native_url}">{title}</a></h2><p class="meta">{meta_line}</p>'
+            + (f'<p class="desc">{desc}</p>' if desc else '')
+            + f'<div class="card-actions"><a class="read-action" href="{native_url}" aria-label="View this PBJ320 insight">'
+            f'<img src="/pbj_favicon.png" alt="" width="20" height="20">View</a></div></div></article></li>'
+        )
+    ext_url = html.escape(post.get('external_url') or post.get('url') or '#', quote=True)
+    return (
+        f'<li class="card external" data-post-type="external"><article class="card-shell">'
+        f'<div class="card-media-wrap"><img class="featured" src="{image_esc}" alt="Feature story preview" loading="lazy"></div>'
+        f'<div class="card-body"><div class="tag-row"><span class="card-tag">{tag}</span></div>'
+        f'<h2><a href="{ext_url}" target="_blank" rel="noopener">{title}</a></h2><p class="meta">{meta_line}</p>'
+        + (f'<p class="desc">{desc}</p>' if desc else '')
+        + f'<div class="card-actions"><a class="read-action substack" href="{ext_url}" target="_blank" rel="noopener" '
+        f'aria-label="Open this article on Substack (new tab)"><span class="read-action-icon-wrap">'
+        f'<img src="/substack.png" alt="" width="18" height="18"></span>Open article</a></div></div></article></li>'
+    )
+
+
+def _render_insights_hub_feed_html(posts: list) -> str:
+    if not posts:
+        return '<li class="card"><div class="card-body"><p class="desc">No insights yet. Check back soon.</p></div></li>'
+    return ''.join(_render_insights_hub_card_html(p) for p in posts if isinstance(p, dict))
+
+
+def _insights_hub_item_list_json_ld(posts: list, base_url: str, max_items: int = 24) -> str:
+    items = []
+    for idx, p in enumerate(posts[:max_items], start=1):
+        if not isinstance(p, dict):
+            continue
+        path = (p.get('url') or p.get('external_url') or '').strip()
+        if path.startswith('/'):
+            item_url = f'{base_url}{path}'
+        else:
+            item_url = path or base_url + '/insights'
+        items.append({'@type': 'ListItem', 'position': idx, 'name': (p.get('title') or '')[:240], 'url': item_url})
+    doc = {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        'name': 'PBJ320 Insights',
+        'description': 'Nursing home staffing intelligence from PBJ320 and The 320 newsletter.',
+        'itemListElement': items,
+    }
+    return f'<script type="application/ld+json">{json.dumps(doc, ensure_ascii=True)}</script>'
+
+
+def _insight_datetime_iso(raw: str) -> str | None:
+    if not raw or not str(raw).strip():
+        return None
+    s = str(raw).strip().replace('Z', '+00:00')
+    try:
+        dt = datetime.fromisoformat(s)
+        return dt.strftime('%Y-%m-%dT%H:%M:%SZ')
+    except Exception:
+        try:
+            d = datetime.strptime(s[:10], '%Y-%m-%d')
+            return d.strftime('%Y-%m-%dT00:00:00Z')
+        except Exception:
+            return None
+
+
+def _insights_native_article_json_ld(
+    post: dict,
+    *,
+    base_url: str,
+    page_url: str,
+    iso_published: str | None,
+    iso_modified: str | None,
+    author_name: str,
+) -> str:
+    title = post.get('title') or 'PBJ320 Insight'
+    desc = (post.get('description') or '').strip() or 'PBJ320 native insight.'
+    img = _absolute_public_url(base_url, post.get('preview_image') or '/insights-native-preview.svg')
+    doc: dict = {
+        '@context': 'https://schema.org',
+        '@type': 'NewsArticle',
+        'headline': title[:200],
+        'description': desc[:500],
+        'url': page_url,
+        'mainEntityOfPage': {'@type': 'WebPage', '@id': page_url},
+        'image': [img],
+        'author': {'@type': 'Person', 'name': author_name},
+        'publisher': {
+            '@type': 'Organization',
+            'name': '320 Consulting',
+            'url': 'https://www.320insight.com/',
+        },
+    }
+    if iso_published:
+        doc['datePublished'] = iso_published
+    if iso_modified:
+        doc['dateModified'] = iso_modified
+    elif iso_published:
+        doc['dateModified'] = iso_published
+    return f'<script type="application/ld+json">{json.dumps(doc, ensure_ascii=True)}</script>'
+
+
+def _related_native_insights_html(current_slug: str, post: dict, base_url: str, limit: int = 3) -> str:
+    slug = (current_slug or '').strip()
+    my_tags = set(post.get('tags') or []) if isinstance(post.get('tags'), list) else set()
+    scored = []
+    for other in _get_native_insights_posts():
+        if not isinstance(other, dict):
+            continue
+        os_slug = (other.get('slug') or '').strip()
+        if not os_slug or os_slug == slug:
+            continue
+        ot = set(other.get('tags') or []) if isinstance(other.get('tags'), list) else set()
+        score = len(my_tags & ot) if my_tags else 0
+        scored.append((score, other.get('sort_date') or '', other))
+    scored.sort(key=lambda x: (x[0], x[1] or ''), reverse=True)
+    picked = [x[2] for x in scored[:limit]]
+    if len(picked) < limit:
+        seen = {slug} | {((p.get('slug') or '').strip()) for p in picked}
+        for other in _get_native_insights_posts():
+            if not isinstance(other, dict):
+                continue
+            os_slug = (other.get('slug') or '').strip()
+            if not os_slug or os_slug in seen:
+                continue
+            picked.append(other)
+            seen.add(os_slug)
+            if len(picked) >= limit:
+                break
+    if not picked:
+        return ''
+    lis = []
+    for o in picked[:limit]:
+        t = html.escape(o.get('title') or 'Insight')
+        u = html.escape(o.get('url') or f'/insights/{o.get("slug") or ""}', quote=True)
+        d = html.escape(_format_insights_hub_date(o.get('date') or o.get('sort_date') or ''))
+        lis.append(f'<li><a href="{u}">{t}</a><span class="related-meta">{d}</span></li>')
+    return (
+        '<aside class="related-insights" aria-label="Related on-site insights">'
+        '<h2 class="related-insights-title">More on-site insights</h2><ul>'
+        + ''.join(lis) + '</ul></aside>'
+    )
+
+
+@app.route('/api/insights')
 @app.route('/api/newsletter')
-def api_newsletter():
-    """JSON feed of newsletter posts: Substack (nursing-home only) + manual entries."""
-    posts = _get_newsletter_posts()
+def api_insights():
+    """Dual-track insights feed: external newsletter posts + native deep dives."""
+    posts = _get_dual_track_insights_posts()
     return jsonify({'posts': posts})
+
+
+@app.route('/insights/<slug>')
+def insights_article(slug):
+    post = _find_native_insight((slug or '').strip())
+    if not post:
+        from flask import abort
+        abort(404)
+    date_raw = post.get('date') or post.get('sort_date') or ''
+    try:
+        dt = datetime.fromisoformat(str(date_raw).replace('Z', ''))
+        formatted_date = dt.strftime('%B %d, %Y')
+    except Exception:
+        formatted_date = date_raw or 'Latest update'
+    updated_raw = (post.get('updated') or '').strip()
+    formatted_updated = ''
+    if updated_raw:
+        try:
+            du = datetime.fromisoformat(str(updated_raw).replace('Z', ''))
+            formatted_updated = du.strftime('%B %d, %Y')
+        except Exception:
+            formatted_updated = updated_raw
+    base = _public_site_origin()
+    slug_clean = (post.get('slug') or slug or '').strip()
+    page_url = f'{base}/insights/{slug_clean}'
+    og_image = _absolute_public_url(base, post.get('preview_image') or '/insights-native-preview.svg')
+    desc_plain = (post.get('description') or 'PBJ320 native insight.').strip()
+    iso_pub = _insight_datetime_iso(str(date_raw)) if date_raw else None
+    iso_mod = _insight_datetime_iso(updated_raw) if updated_raw else iso_pub
+    author_name = (post.get('author') or '').strip() or 'PBJ320'
+    article_json_ld = _insights_native_article_json_ld(
+        post,
+        base_url=base,
+        page_url=page_url,
+        iso_published=iso_pub,
+        iso_modified=iso_mod or iso_pub,
+        author_name=author_name,
+    )
+    related_html = _related_native_insights_html(slug_clean, post, base, limit=3)
+    return render_template_string(
+        _INSIGHTS_NATIVE_PAGE_TEMPLATE,
+        title=(post.get('title') or 'PBJ320 Insight'),
+        description=desc_plain,
+        formatted_date=formatted_date,
+        formatted_updated=formatted_updated,
+        show_updated=bool(updated_raw and formatted_updated and formatted_updated != formatted_date),
+        content_html=_render_native_content(post),
+        slug=slug_clean,
+        site_base=base,
+        canonical_url=page_url,
+        og_url=page_url,
+        og_image=og_image,
+        og_description=desc_plain[:300],
+        article_json_ld=article_json_ld,
+        author_name=author_name,
+        related_html=related_html,
+        iso_published=iso_pub or '',
+        iso_modified=(iso_mod or iso_pub or ''),
+    )
 
 
 @app.route('/newsletter')
 @app.route('/newsletter/')
 def newsletter_page():
-    """Newsletter section: The 320 (Substack) nursing-home posts + manual posts."""
-    return send_file('newsletter.html', mimetype='text/html')
+    """Legacy route maintained for compatibility."""
+    return redirect('/insights', code=301)
 
 
 @app.route('/LI-In-Bug.png')
@@ -1128,13 +2247,17 @@ def sitemap():
         ('/', '1.0', 'weekly'),
         ('/about', '0.8', 'monthly'),
         ('/insights', '0.9', 'weekly'),
-        ('/newsletter', '0.85', 'weekly'),
+        ('/insights-visualizations', '0.75', 'monthly'),
         ('/report', '0.9', 'weekly'),
         ('/press', '0.8', 'monthly'),
         ('/attorneys', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
     ]:
         urls.append(f'  <url><loc>{base}{path}</loc><lastmod>{today}</lastmod><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>')
+    for post in _get_native_insights_posts():
+        slug = (post.get('slug') or '').strip()
+        if slug:
+            urls.append(f'  <url><loc>{base}/insights/{slug}</loc><lastmod>{today}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>')
     # Canonical state/provider/entity pages (pbj320.com/state/pa, /provider/xxx, /entity/123)
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
@@ -1676,6 +2799,55 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-metric-card .delta {{ font-size: 0.8em; color: rgba(226,232,240,0.6); margin-top: 2px; }}
 .pbj-chart-container {{ margin: 20px 0; border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; padding: 20px; background: rgba(30,41,59,0.5); }}
 .pbj-chart-wrapper {{ height: 260px; position: relative; width: 100%; }}
+.pbj-casemix-row {{ display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin: 0 0 0.35rem 0; }}
+.pbj-casemix-legend {{ display: flex; flex-wrap: wrap; gap: 0.65rem 1rem; align-items: center; font-size: 0.68rem; line-height: 1.35; color: rgba(226,232,240,0.72); margin: 0 0 0.45rem 0; padding: 0.35rem 0.45rem; border-radius: 6px; background: rgba(15,23,42,0.45); border: 1px solid rgba(148,163,184,0.18); }}
+.pbj-casemix-legend-item {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
+.pbj-casemix-legend-swatch {{ width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(148,163,184,0.35); }}
+.pbj-casemix-legend-swatch.track {{ background: linear-gradient(180deg, #334155 0%, #1e293b 100%); }}
+.pbj-casemix-legend-swatch.fill {{ background: linear-gradient(180deg, #7dd3fc 0%, #3b82f6 100%); border-color: rgba(30,58,138,0.55); }}
+.pbj-casemix-actions {{ display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }}
+.pbj-casemix-info-btn {{ border: 1px solid rgba(59,130,246,0.35); background: rgba(30,64,175,0.22); color: #bfdbfe; font-size: 0.72rem; font-weight: 600; border-radius: 999px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }}
+.pbj-casemix-info-btn:hover {{ background: rgba(59,130,246,0.28); color: #dbeafe; }}
+.pbj-casemix-hero {{ margin-bottom: 0.15rem; }}
+.pbj-casemix-breakdown {{ border-top: 1px solid rgba(148,163,184,0.22); padding-top: 0.35rem; margin-left: 18px; padding-left: 10px; position: relative; }}
+.pbj-casemix-breakdown::before {{ content: ''; position: absolute; left: -2px; top: 0; bottom: 0.3rem; width: 1px; background: rgba(148,163,184,0.35); }}
+.pbj-casemix-breakdown-head {{ display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.2rem; }}
+.pbj-casemix-breakdown-title {{ font-size: 0.76rem; color: rgba(226,232,240,0.9); font-weight: 600; }}
+.pbj-casemix-mix-help {{ font-size: 0.7rem; color: #93c5fd; text-decoration: none; border-bottom: 1px dotted rgba(147,197,253,0.65); cursor: help; }}
+.pbj-casemix-bars {{ display: grid; gap: 0.55rem; }}
+.pbj-casemix-metric {{ min-width: 0; }}
+.pbj-casemix-metric-head {{ font-size: 0.78rem; font-weight: 600; color: rgba(226,232,240,0.92); margin: 0 0 0.28rem 0; line-height: 1.35; font-variant-numeric: tabular-nums; }}
+.pbj-casemix-metric-hprd {{ color: #bae6fd; font-weight: 700; }}
+.pbj-casemix-metric-pct {{ color: #93c5fd; font-weight: 600; }}
+.pbj-casemix-metric-muted {{ color: rgba(148,163,184,0.95); font-weight: 500; }}
+.pbj-casemix-metric.total .pbj-casemix-metric-head {{ font-size: 0.88rem; font-weight: 600; }}
+.pbj-casemix-bar-cell {{ display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; }}
+.pbj-casemix-track-rail {{ display: flex; align-items: stretch; min-width: 0; width: 100%; }}
+.pbj-casemix-track {{ position: relative; background: linear-gradient(180deg, #3d4f63 0%, #1e293b 100%); border-radius: 8px; overflow: hidden; flex: 1 1 auto; min-width: 0; border: 1px solid rgba(15,23,42,0.85); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }}
+.pbj-casemix-track.pbj-casemix-track-meets {{ box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(96,165,250,0.45); }}
+.pbj-casemix-fill {{ position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #7dd3fc 0%, #3b82f6 55%, #2563eb 100%); z-index: 1; border-right: 1px solid rgba(30,58,138,0.65); }}
+.pbj-casemix-fill.over {{ background: linear-gradient(180deg, #38bdf8 0%, #2563eb 50%, #1d4ed8 100%); border-right-color: rgba(30,64,175,0.75); }}
+.pbj-casemix-cms-block {{ position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 2; text-align: right; pointer-events: none; max-width: 52%; padding: 0.18rem 0.45rem 0.2rem; border-radius: 7px; background: rgba(15,23,42,0.94); border: 1px solid rgba(100,116,139,0.45); box-shadow: 0 1px 3px rgba(0,0,0,0.35); }}
+.pbj-casemix-cms-block.pbj-casemix-cms-compact {{ display: inline-flex; flex-wrap: nowrap; align-items: baseline; gap: 0.15em; padding: 0.08rem 0.4rem; max-width: 60%; }}
+.pbj-casemix-cms-inline {{ display: inline; font-size: 0.58rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; color: #94a3b8; white-space: nowrap; line-height: 1.2; }}
+.pbj-casemix-cms-sub-num {{ font-size: 0.68rem; font-weight: 600; color: #f1f5f9; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.2; white-space: nowrap; }}
+.pbj-casemix-cms-title {{ display: block; font-size: 0.6rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; line-height: 1.2; }}
+.pbj-casemix-cms-num {{ display: block; font-size: 0.875rem; font-weight: 600; color: #f1f5f9; font-variant-numeric: tabular-nums; line-height: 1.3; letter-spacing: -0.02em; }}
+.pbj-casemix-metric.total .pbj-casemix-cms-num {{ font-size: 0.98rem; font-weight: 600; }}
+.pbj-casemix-track.total, .pbj-casemix-track-rail.total {{ height: 48px; }}
+.pbj-casemix-track.sub, .pbj-casemix-track-rail.sub {{ height: 18px; border-radius: 6px; }}
+.pbj-casemix-zoom {{ display: none; }}
+.pbj-casemix-zoom-line-left, .pbj-casemix-zoom-line-right {{ position: absolute; top: 1px; width: 42%; height: 12px; border-top: 1px solid rgba(226,232,240,0.25); }}
+.pbj-casemix-zoom-line-left {{ left: 9%; transform: skewY(8deg); transform-origin: top left; }}
+.pbj-casemix-zoom-line-right {{ right: 9%; transform: skewY(-8deg); transform-origin: top right; }}
+.pbj-casemix-modal {{ position: fixed; inset: 0; background: rgba(2,6,23,0.72); z-index: 10020; display: none; align-items: center; justify-content: center; padding: 1rem; }}
+.pbj-casemix-modal[aria-hidden="false"] {{ display: flex; }}
+.pbj-casemix-modal-card {{ width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); overflow: auto; border-radius: 12px; background: #1e293b; border: 1px solid rgba(96,165,250,0.35); box-shadow: 0 24px 60px rgba(0,0,0,0.5); padding: 1rem 1rem 0.85rem; position: relative; }}
+.pbj-casemix-modal-close {{ position: absolute; top: 0.5rem; right: 0.6rem; border: 0; background: transparent; color: rgba(226,232,240,0.85); font-size: 1.45rem; cursor: pointer; width: 36px; height: 36px; border-radius: 8px; }}
+.pbj-casemix-modal-close:hover {{ background: rgba(59,130,246,0.16); color: #e2e8f0; }}
+.pbj-casemix-modal-card h3 {{ margin: 0 2rem 0.45rem 0; font-size: 1rem; color: #bfdbfe; }}
+.pbj-casemix-modal-card p {{ margin: 0.4rem 0; font-size: 0.83rem; line-height: 1.45; color: rgba(226,232,240,0.9); }}
+.pbj-casemix-modal-card code {{ color: #dbeafe; background: rgba(59,130,246,0.16); border: 1px solid rgba(96,165,250,0.2); border-radius: 6px; padding: 1px 6px; }}
 /* Provider charts: desktop = one line "Census: Facility Name"; mobile = two rows */
 .pbj-chart-header-oneline {{ display: none; }}
 .pbj-chart-header-twoline {{ display: block; }}
@@ -1788,6 +2960,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   .pbj-page-footer {{ margin-top: 1.5rem; padding-top: 0.4rem; }}
   .entity-chain-metrics {{ grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }}
   .pbj-chart-container {{ padding: 12px; }}
+  .pbj-casemix-row {{ align-items: center; gap: 0.45rem; flex-wrap: wrap; }}
+  .pbj-casemix-actions {{ width: 100%; justify-content: flex-end; }}
+  .pbj-casemix-zoom {{ display: none; }}
+  .pbj-casemix-breakdown {{ margin-left: 0; padding-left: 0; }}
+  .pbj-casemix-breakdown::before {{ display: none; }}
+  .pbj-casemix-metric-head {{ font-size: 0.74rem; }}
+  .pbj-casemix-metric.total .pbj-casemix-metric-head {{ font-size: 0.82rem; }}
   /* Entity page: hide " – Genesis Healthcare" (etc.) in subsection headers on mobile */
   .pbj-section-header-entity-name {{ display: none !important; }}
 }}
@@ -2402,7 +3581,7 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
     out['reportedCaseMix'] = {
         'labels': ['Total', 'RN', 'LPN', 'Nurse aide'],
         'reported': [_round_val(reported_total), _round_val(reported_rn), _round_val(reported_lpn), _round_val(reported_na)],
-        'caseMix': None
+        'caseMix': None,
     }
     if case_mix_total is not None or case_mix_rn is not None or case_mix_lpn is not None or case_mix_na is not None:
         out['reportedCaseMix']['caseMix'] = [
@@ -2485,7 +3664,32 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     return '''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-<div class="pbj-chart-container" style="margin-bottom:1.5rem;"><div class="pbj-chart-wrapper"><canvas id="chartReportedCaseMix"></canvas></div>
+<div class="pbj-chart-container" style="margin-bottom:1.5rem;">
+<div class="pbj-casemix-row">
+  <span class="pbj-casemix-actions">
+    <button type="button" class="pbj-casemix-info-btn" id="pbjCaseMixInfoBtn">What is CMS Case-Mix?</button>
+  </span>
+</div>
+<div class="pbj-casemix-legend">
+  <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch track" aria-hidden="true"></span>Slate bar = CMS case-mix (full bar / acuity benchmark)</span>
+  <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch fill" aria-hidden="true"></span>Blue fill = reported HPRD (share of case-mix)</span>
+</div>
+<div class="pbj-casemix-hero">
+  <div id="pbjCaseMixHeroBars" class="pbj-casemix-bars"></div>
+</div>
+<div class="pbj-casemix-breakdown">
+  <div class="pbj-casemix-breakdown-head"><span class="pbj-casemix-breakdown-title">Staffing Mix Breakdown</span><span class="pbj-casemix-mix-help" title="Total staffing provides the general volume, but the breakdown below shows the specific clinical skill mix relative to resident needs.">Staffing Mix</span></div>
+  <div id="pbjCaseMixBreakdownBars" class="pbj-casemix-bars"></div>
+</div>
+<div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
+  <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
+    <button type="button" class="pbj-casemix-modal-close" id="pbjCaseMixModalClose" aria-label="Close CMS Case-Mix info">×</button>
+    <h3 id="pbjCaseMixModalTitle">What is CMS Case-Mix?</h3>
+    <p>CMS Case-Mix is an acuity-based benchmark derived from each facility's resident mix, using PDPM nursing categories (CMGs/CMIs) and national staffing averages.</p>
+    <p>CMS publishes this to compare reported staffing against resident acuity; it is a comparison benchmark, not a staffing mandate.</p>
+    <p>Formula basis: <code>Adjusted Hours = (Reported / Case-Mix) × National Case-Mix Average</code>. <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#93c5fd;">CMS User Guide</a>.</p>
+  </div>
+</div>
 ''' + (below_reported_casemix or '') + '''
 </div>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
@@ -2524,46 +3728,130 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   function timeTickCallback(quarters) {
     var spanYears = getSpanYears(quarters);
     var showQuarters = spanYears < 2;
-    var isMobile = window.innerWidth < 768;
-    return function(value) {
+    return function(value, index, ticks) {
       var d = new Date(value);
       if (showQuarters) {
-        var y = d.getFullYear();
+        var yq = d.getFullYear();
         var q = Math.floor(d.getMonth() / 3) + 1;
-        return y + ' Q' + q;
+        return yq + ' Q' + q;
       }
-      if (d.getMonth() !== 0 || d.getDate() !== 1) return '';
+      // Year-only: show the calendar year when it advances vs the previous tick (no Jan-1-only filter).
       var y = d.getFullYear();
-      return '' + y;
+      if (typeof index !== 'number' || index === 0) return '' + y;
+      if (!ticks || !ticks[index - 1]) return '';
+      var prevY = ticks[index - 1].value != null ? new Date(ticks[index - 1].value).getFullYear() : null;
+      if (prevY !== y) return '' + y;
+      return '';
     };
   }
-  function makeBar(id, labels, reported, caseMix) {
-    var ctx = document.getElementById(id);
-    if (!ctx) return;
-    var datasets = [{ label: 'Reported', data: reported, backgroundColor: '#1e40af' }];
-    if (caseMix && caseMix.length) datasets.push({ label: 'Case-Mix (Acuity)', data: caseMix, backgroundColor: '#dc2626' });
-    new Chart(ctx.getContext('2d'), {
-      type: 'bar',
-      data: { labels: labels, datasets: datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          title: { display: false },
-          legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
-          tooltip: {
-            callbacks: {
-              label: function(context) {{
-                var v = context.parsed.y;
-                if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + (Math.round(v * 100) / 100).toFixed(2);
-                return context.dataset.label + ': ' + (v != null ? v : '');
-              }}
-            }
-          }
-        },
-        scales: { y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } }, x: { ticks: { color: textColor, maxTicksLimit: 10, autoSkip: true, font: { size: 11 } }, grid: { color: gridColor } } }
+  function hprd(v) {
+    return (v == null || isNaN(v)) ? '—' : Number(v).toFixed(2);
+  }
+  function appendMetricHeadline(el, label, actual, caseMix, hasCaseMix) {
+    while (el.firstChild) el.removeChild(el.firstChild);
+    var titles = { 'Total': 'Total HPRD', 'RN': 'RN HPRD', 'LPN': 'LPN HPRD', 'Aide': 'Nurse aide HPRD' };
+    var title = titles[label] || (label + ' HPRD');
+    el.appendChild(document.createTextNode(title + ': '));
+    if (actual == null || isNaN(actual)) {
+      var m0 = document.createElement('span');
+      m0.className = 'pbj-casemix-metric-muted';
+      m0.textContent = hprd(actual);
+      el.appendChild(m0);
+      return;
+    }
+    var val = document.createElement('span');
+    val.className = 'pbj-casemix-metric-hprd';
+    val.textContent = hprd(actual);
+    el.appendChild(val);
+    if (!hasCaseMix || caseMix == null || isNaN(caseMix) || Number(caseMix) <= 0) {
+      el.appendChild(document.createTextNode(' '));
+      var note = document.createElement('span');
+      note.className = 'pbj-casemix-metric-muted';
+      note.textContent = '(no CMS case-mix for this row)';
+      el.appendChild(note);
+      return;
+    }
+    var pct = Math.round(100 * Number(actual) / Number(caseMix));
+    el.appendChild(document.createTextNode(' ('));
+    var pSpan = document.createElement('span');
+    pSpan.className = 'pbj-casemix-metric-pct';
+    pSpan.textContent = pct + '%';
+    el.appendChild(pSpan);
+    el.appendChild(document.createTextNode(' of case-mix)'));
+  }
+  function renderCaseMixRow(opts) {
+    var label = opts.label || '';
+    var actual = opts.actual;
+    var caseMix = opts.caseMix;
+    var maxScale = opts.maxScale > 0 ? opts.maxScale : 1;
+    var isTotal = !!opts.isTotal;
+    var wrap = document.createElement('div');
+    wrap.className = 'pbj-casemix-metric' + (isTotal ? ' total' : '');
+    var head = document.createElement('div');
+    head.className = 'pbj-casemix-metric-head';
+    var hasCaseMix = (caseMix != null && !isNaN(caseMix) && Number(caseMix) > 0);
+    appendMetricHeadline(head, label, actual, caseMix, hasCaseMix);
+    wrap.appendChild(head);
+    var barCell = document.createElement('div');
+    barCell.className = 'pbj-casemix-bar-cell';
+    var rail = document.createElement('div');
+    rail.className = 'pbj-casemix-track-rail' + (isTotal ? ' total' : ' sub');
+    var track = document.createElement('div');
+    track.className = 'pbj-casemix-track' + (isTotal ? ' total' : ' sub');
+    var fill = document.createElement('div');
+    fill.className = 'pbj-casemix-fill';
+    var fillPct = 0;
+    if (actual != null && !isNaN(actual)) {
+      if (hasCaseMix) {
+        fillPct = Math.max(0, Math.min(100, (Number(actual) / Number(caseMix)) * 100));
+      } else if (maxScale > 0) {
+        fillPct = Math.max(0, Math.min(100, (Number(actual) / Number(maxScale)) * 100));
       }
-    });
+    }
+    if (hasCaseMix && actual != null && !isNaN(actual) && Number(actual) > Number(caseMix)) fill.classList.add('over');
+    fill.style.width = fillPct.toFixed(2) + '%';
+    if (hasCaseMix && actual != null && !isNaN(actual) && Number(actual) >= Number(caseMix) * 0.999) {
+      track.classList.add('pbj-casemix-track-meets');
+    }
+    track.appendChild(fill);
+    if (hasCaseMix) {
+      var cmsBlock = document.createElement('div');
+      cmsBlock.className = 'pbj-casemix-cms-block' + (isTotal ? '' : ' pbj-casemix-cms-compact');
+      if (isTotal) {
+        var cmsT = document.createElement('span');
+        cmsT.className = 'pbj-casemix-cms-title';
+        cmsT.textContent = 'CMS case-mix';
+        var cmsN = document.createElement('span');
+        cmsN.className = 'pbj-casemix-cms-num';
+        cmsN.textContent = hprd(caseMix);
+        cmsBlock.appendChild(cmsT);
+        cmsBlock.appendChild(cmsN);
+      } else {
+        var cmsLab = document.createElement('span');
+        cmsLab.className = 'pbj-casemix-cms-inline';
+        cmsLab.textContent = 'CMS case-mix';
+        var cmsSub = document.createElement('span');
+        cmsSub.className = 'pbj-casemix-cms-sub-num';
+        cmsSub.textContent = hprd(caseMix);
+        cmsBlock.appendChild(cmsLab);
+        cmsBlock.appendChild(cmsSub);
+      }
+      track.appendChild(cmsBlock);
+    }
+    rail.appendChild(track);
+    barCell.appendChild(rail);
+    wrap.appendChild(barCell);
+    var tooltipLines = [];
+    if (actual != null && caseMix != null && !isNaN(actual) && !isNaN(caseMix)) {
+      var gap = actual - caseMix;
+      tooltipLines.push('CMS case-mix: ' + hprd(caseMix) + ' HPRD');
+      tooltipLines.push('Reported: ' + hprd(actual) + ' HPRD');
+      tooltipLines.push('Gap: ' + (gap >= 0 ? '+' : '') + hprd(gap) + ' HPRD');
+      wrap.title = tooltipLines.join('\\n');
+    } else if (actual != null && !isNaN(actual)) {
+      wrap.title = 'Reported: ' + hprd(actual) + ' HPRD\\nCMS case-mix not reported for this row.';
+    }
+    return wrap;
   }
   function makeLineTime(id, quarters, datasets, yTitle, quartersRef) {
     var ctx = document.getElementById(id);
@@ -2613,7 +3901,33 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: opts });
   }
   var rc = d.reportedCaseMix;
-  if (rc && rc.labels) makeBar('chartReportedCaseMix', rc.labels, rc.reported || [null, null, null, null], rc.caseMix);
+  var heroWrap = document.getElementById('pbjCaseMixHeroBars');
+  var breakdownWrap = document.getElementById('pbjCaseMixBreakdownBars');
+  if (heroWrap) heroWrap.innerHTML = '';
+  if (breakdownWrap) breakdownWrap.innerHTML = '';
+  if (rc && rc.reported && rc.reported.length >= 4) {
+    var reportedAll = rc.reported;
+    var caseMixAll = (rc.caseMix && rc.caseMix.length >= 4) ? rc.caseMix : [null, null, null, null];
+    var totalMax = Math.max(caseMixAll[0] || 0, reportedAll[0] || 0, 0.1);
+    var breakdownVals = [caseMixAll[1], caseMixAll[2], caseMixAll[3], reportedAll[1], reportedAll[2], reportedAll[3]].filter(function(v){ return v != null && !isNaN(v); });
+    var breakdownMax = breakdownVals.length ? Math.max.apply(null, breakdownVals) : totalMax;
+    if (heroWrap) heroWrap.appendChild(renderCaseMixRow({ label: 'Total', actual: reportedAll[0], caseMix: caseMixAll[0], maxScale: totalMax, isTotal: true }));
+    if (breakdownWrap) {
+      breakdownWrap.appendChild(renderCaseMixRow({ label: 'RN', actual: reportedAll[1], caseMix: caseMixAll[1], maxScale: breakdownMax, isTotal: false }));
+      breakdownWrap.appendChild(renderCaseMixRow({ label: 'LPN', actual: reportedAll[2], caseMix: caseMixAll[2], maxScale: breakdownMax, isTotal: false }));
+      breakdownWrap.appendChild(renderCaseMixRow({ label: 'Aide', actual: reportedAll[3], caseMix: caseMixAll[3], maxScale: breakdownMax, isTotal: false }));
+    }
+  }
+  var modal = document.getElementById('pbjCaseMixModal');
+  var modalBtn = document.getElementById('pbjCaseMixInfoBtn');
+  var modalClose = document.getElementById('pbjCaseMixModalClose');
+  function closeCaseMixModal() { if (modal) modal.setAttribute('aria-hidden', 'true'); }
+  if (modalBtn && modal) modalBtn.addEventListener('click', function(){ modal.setAttribute('aria-hidden', 'false'); });
+  if (modalClose) modalClose.addEventListener('click', closeCaseMixModal);
+  if (modal) {
+    modal.addEventListener('click', function(e){ if (e.target === modal) closeCaseMixModal(); });
+    document.addEventListener('keydown', function(e){ if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') closeCaseMixModal(); });
+  }
   var th = d.totalHprd;
   if (th && th.quarters && th.quarters.length) {
     var ds = [{ label: 'Total', data: th.total, borderColor: '#1e40af', tension: 0.3, fill: false, spanGaps: false },
@@ -2758,18 +4072,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na)
-    methodology = 'Case-mix is a CMS metric based on resident acuity.'
+    methodology = 'CMS Case-Mix is an acuity-based benchmark derived from resident PDPM nursing categories.'
     below_reported_casemix = ''
-    note_style = 'margin-top: 0.35rem; margin-bottom: 0.5rem; font-size: 0.7rem; color: rgba(226,232,240,0.75);'
-    if case_mix_total is not None and (reported_total or 0) is not None and case_mix_total > 0:
-        reported_hprd_fmt = f'{round_half_up(reported_total or 0, 2):.2f}'
-        casemix_hprd_fmt = f'{round_half_up(case_mix_total, 2):.2f}'
-        pct_fmt = f'{100 * (reported_total or 0) / case_mix_total:.1f}'
-        line1 = f'<p class="pbj-percentile" style="{note_style}">Reported HPRD ({reported_hprd_fmt}) is {pct_fmt}% of case-mix ({casemix_hprd_fmt}).</p>'
-        below_reported_casemix = f'<div class="pbj-chart-notes">{line1}</div>'
-    elif case_mix_total is None:
-        below_reported_casemix = f'<div class="pbj-chart-notes"><p class="pbj-percentile" style="{note_style}">CMS did not report case-mix (acuity) data for this quarter. Chart shows reported staffing only.</p></div>'
-    reported_vs_casemix_section = f'<div class="section-header">Reported vs. Case-Mix (Acuity)</div><p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: rgba(226,232,240,0.8);">{methodology}</p>'
+    _qd_esc = html.escape(str(quarter_display)) if quarter_display else ''
+    _casemix_hdr = (
+        f'<div class="section-header">Reported vs. CMS Case-Mix (Acuity) — {_qd_esc}</div>'
+        if _qd_esc
+        else '<div class="section-header">Reported vs. CMS Case-Mix (Acuity)</div>'
+    )
+    reported_vs_casemix_section = f'{_casemix_hdr}<p class="pbj-subtitle" style="font-style: italic; margin-bottom: 8px; font-size: 0.8rem; color: rgba(226,232,240,0.8);">{methodology}</p>'
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, below_reported_casemix=below_reported_casemix)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     casemix_str = format_metric_value(case_mix_total, 'Total_Nurse_HPRD') if case_mix_total is not None else '—'
@@ -2797,9 +4108,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         put_another_way = f'On a typical <strong>30-bed floor</strong> at {facility_name} you’d see about <strong>{floor_staff:.1f}</strong> staff, including {floor_aides:.1f} nurse aides. For the entire {census_int:,}-resident facility, that’s about {total_staff:.1f} total staff, including {aides:.1f} nurse aides.'
     else:
         put_another_way = f'Staffing counts depend on census and HPRD; see key metrics above for this facility’s reported HPRD.'
-    narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its case-mix (acuity) {casemix_str} HPRD.'
+    narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its CMS Case-Mix (acuity) {casemix_str} HPRD.'
     if case_mix_total is None:
-        narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report case-mix data for this quarter.'
+        narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report CMS Case-Mix data this quarter.'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     sff_entry = next((f for f in (sff_facilities_list or []) if (str(f.get('provider_number') or '').strip().zfill(6)) == prov), None)
@@ -2828,7 +4139,27 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
-    total_direct_badge = f"{hprd_val} HPRD ({direct_hprd_val} Direct HPRD)"
+    total_direct_badge = f"{hprd_val} HPRD (Direct: {direct_hprd_val})"
+    total_hprd_badge_title = html.escape(
+        'Total nurse staffing hours per resident day (HPRD), including direct care and admin/supervisory nursing roles.',
+        quote=True
+    )
+    direct_hprd_badge_title = html.escape(
+        'Shows total nurse HPRD, with direct care HPRD in parentheses (direct care excludes admin and Director of Nursing time).',
+        quote=True
+    )
+    residents_badge_title = html.escape(
+        'Average daily resident census reported by CMS for this quarter.',
+        quote=True
+    )
+    staffing_badge_title = html.escape(
+        'CMS staffing star rating (1-5), where more stars indicate stronger staffing performance.',
+        quote=True
+    )
+    overall_badge_title = html.escape(
+        'CMS overall star rating (1-5), based on health inspections, staffing, and quality measures.',
+        quote=True
+    )
     # CMS star ratings (1-5): show as "Overall: ★" or "Overall: ★★★★" (number of stars only)
     def _star_icons(val):
         if val is None or (isinstance(val, float) and pd.isna(val)):
@@ -2859,8 +4190,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     except (TypeError, ValueError):
         is_1_star_overall = False
     overall_badge_style = badge_span_red if is_1_star_overall else badge_span
-    overall_badge_html = f'<span style="{overall_badge_style}">{overall_star_label}</span>'
-    staffing_badge_html = f'<span style="{badge_span}">{staffing_star_label}</span>'
+    overall_badge_html = f'<span style="{overall_badge_style}" title="{overall_badge_title}">{overall_star_label}</span>'
+    staffing_badge_html = f'<span style="{badge_span}" title="{staffing_badge_title}">{staffing_star_label}</span>'
     state_percentile_total, _ = get_facility_state_percentile(prov, state_code, raw_quarter, reported_total or 0, reported_rn)
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
@@ -2977,7 +4308,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(96,165,250,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-header" style="font-size: 16px; font-weight: bold; color: #e2e8f0;">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(facility_name)}</span></div>
 </div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-only" style="{badge_span}">{hprd_val} HPRD</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
+<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}<span class="pbj-badge-mobile-only" style="{badge_span}" title="{total_hprd_badge_title}">{hprd_val} HPRD</span><span class="pbj-badge-mobile-hide" style="{badge_span}" title="{direct_hprd_badge_title}">{total_direct_badge}</span><span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
 <p class="pbj-takeaway-put-another-way" style="margin: 0.5rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.9);"><strong>Put another way…</strong> {put_another_way}</p>
@@ -3026,9 +4357,24 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span><span class="pbj-subtitle-mobile-row2">{_row2}</span>'
     else:
         subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
+    recent_insights_sidebar = _render_recent_insights_sidebar_for_provider(prov)
+    recent_insights_styles = """
+<style>
+.pbj-recent-insights { margin: 0.75rem 0 1rem; padding: 0.8rem 0.95rem; border-radius: 8px; border: 1px solid rgba(59,130,246,0.35); background: rgba(15,23,42,0.55); }
+.pbj-recent-insights-title { font-size: 0.95rem; font-weight: 700; color: #dbeafe; margin: 0 0 0.35rem; }
+.pbj-recent-insights ul { margin: 0; padding: 0 0 0 1rem; }
+.pbj-recent-insights li { margin: 0.3rem 0; color: #bfdbfe; }
+.pbj-recent-insights a { color: #93c5fd; text-decoration: none; }
+.pbj-recent-insights a:hover { text-decoration: underline; }
+.pbj-recent-insights-date { display: inline-block; margin-left: 0.45rem; font-size: 0.75rem; color: rgba(191,219,254,0.75); }
+</style>
+"""
     inner = f"""
+{recent_insights_styles}
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
+
+{recent_insights_sidebar}
 
 {pbj_takeaway_card}
 
@@ -4299,7 +5645,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     _macpac_info = get_macpac_chart_info(state_code) if state_code else None
     if _macpac_info is not None and _macpac_info.get('line_value') is not None and _macpac_info['line_value'] > 1.5:
         label_short = _macpac_info.get('label_short') or f"{state_code} Min. ~{_macpac_info['line_value']:.2f}"
-        state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;">{label_short} HPRD</span>'
+        state_standard_badge = f'<span style="display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;" title="State minimum staffing benchmark (MACPAC estimate).">{label_short} HPRD</span>'
 
     # Get basics: prefer facility count from facility_quarterly for this same quarter; fall back to state_quarterly (same quarter). Never show 0 when both missing; no synthetic data.
     _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
@@ -4689,7 +6035,19 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Badge order: HPRD (rank), RN HPRD, contract %, then state min
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
     _bs = 'display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; background: rgba(96,165,250,0.15); color: #b8d4f0;'
-    badges_line = f'<span style="{_bs}">{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})</span><span class="pbj-badge-mobile-hide" style="{_bs}">{rn_hprd_val} RN HPRD</span><span class="pbj-badge-mobile-hide" style="{_bs}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>{state_standard_badge}'
+    state_total_hprd_badge_title = html.escape(
+        'Average total nurse staffing hours per resident day (HPRD) for this state, including rank among states.',
+        quote=True
+    )
+    state_rn_hprd_badge_title = html.escape(
+        'Average registered nurse (RN) staffing hours per resident day (HPRD) for this state.',
+        quote=True
+    )
+    state_contract_badge_title = html.escape(
+        'Share of reported nursing hours delivered by contract staff in this state.',
+        quote=True
+    )
+    badges_line = f'<span style="{_bs}" title="{state_total_hprd_badge_title}">{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})</span><span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_rn_hprd_badge_title}">{rn_hprd_val} RN HPRD</span><span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_contract_badge_title}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>{state_standard_badge}'
     # State outline: D3 + TopoJSON (will be placed inside PBJ takeaway card)
     state_code_esc = html.escape(state_code, quote=True)
     state_name_esc = html.escape(state_name, quote=True)

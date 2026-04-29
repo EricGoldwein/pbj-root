@@ -5030,28 +5030,19 @@
             providerDataByState[stateName].push(row);
           });
           
-          // Calculate for-profit percentage for each state
+          // Calculate for-profit percentage for each state from provider rows when available.
           Object.keys(stateData).forEach(stateName => {
             const state = stateData[stateName];
             const stateFacilities = providerDataByState[stateName] || [];
             const totalFacilities = state.facility_count || 0;
-            
             if (stateFacilities.length === 0 || totalFacilities === 0) {
               stateData[stateName].forProfitPercent = null;
               return;
             }
-            
-            // Count for-profit facilities from provider data
-            // For-profit types typically include: "For profit - Corporation", "For profit - Partnership", 
-            // "For profit - Individual", "For profit - Limited Liability company", etc.
             const forProfitCount = stateFacilities.filter(row => {
               const ownershipType = (row.ownership_type || '').toLowerCase().trim();
               return ownershipType.includes('for profit') || ownershipType.includes('for-profit');
             }).length;
-            
-            // Use state.facility_count as denominator to match what's displayed in the table
-            // Note: providerDataByState may have a different count due to data inconsistencies
-            // (e.g., facilities in provider data but not in state aggregates, or vice versa)
             const forProfitPercent = (forProfitCount / totalFacilities) * 100;
             stateData[stateName].forProfitPercent = forProfitPercent;
           });
@@ -5089,6 +5080,24 @@
             });
           }
           
+          // Ensure for-profit percentages are populated even when provider CSV downloads are blocked.
+          try {
+            const forProfitResp = await fetch('/api/report/for-profit-by-state');
+            if (forProfitResp.ok) {
+              const forProfitPayload = await forProfitResp.json();
+              const byState = (forProfitPayload && forProfitPayload.states) || {};
+              Object.keys(stateData).forEach(stateName => {
+                const stateAbbr = (stateData[stateName] && stateData[stateName].state) || '';
+                const entry = byState[stateAbbr];
+                if (entry && entry.percent !== null && entry.percent !== undefined) {
+                  stateData[stateName].forProfitPercent = parseFloat(entry.percent);
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Could not load for-profit state percentages from API:', e);
+          }
+
           // First, calculate 10th percentile HPRD for each state (for understaffing criteria)
           const stateHPRDValues = {};
           recentData.forEach(row => {
@@ -5657,17 +5666,20 @@
         // Aggregate facility counts from states in the region
         let totalFacilities = 0;
         let forProfitFacilities = 0;
+        let facilitiesWithKnownForProfit = 0;
         region.states.forEach(stateName => {
           const state = stateData[stateName];
           if (state && state.facility_count) {
             totalFacilities += state.facility_count;
             // Calculate for-profit count from state's for-profit percentage
-            if (state.forProfitPercent !== null && state.forProfitPercent !== undefined) {
+            if (state.forProfitPercent !== null && state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent)) {
               forProfitFacilities += Math.round((state.forProfitPercent / 100) * state.facility_count);
+              facilitiesWithKnownForProfit += state.facility_count;
             }
           }
         });
-        region.forProfitPercent = totalFacilities > 0 ? (forProfitFacilities / totalFacilities) * 100 : null;
+        // Keep unknown values unknown; don't coerce missing state data to 0%.
+        region.forProfitPercent = facilitiesWithKnownForProfit > 0 ? (forProfitFacilities / facilitiesWithKnownForProfit) * 100 : null;
         const totalResidentDays = region.total_resident_days;
         
         if (totalResidentDays > 0) {
@@ -6528,7 +6540,9 @@
         tr.appendChild(contractCell);
         
         // For-Profit % cell
-        const forProfitPercent = state.forProfitPercent !== undefined ? state.forProfitPercent : null;
+        const forProfitPercent = (state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent))
+          ? state.forProfitPercent
+          : null;
         const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : '-';
         const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
         tr.appendChild(forProfitCell);

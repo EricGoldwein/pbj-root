@@ -363,6 +363,35 @@ def api_state_chart_data(state_code):
         return jsonify({'error': 'no data'}), 404
     return jsonify(d)
 
+
+@app.route('/api/report/for-profit-by-state')
+def api_report_for_profit_by_state():
+    """Return state-level for-profit percentages for /report without exposing raw CSV downloads."""
+    try:
+        providers = load_provider_info() or {}
+        counts = {}  # state -> {total, for_profit}
+        for rec in providers.values():
+            state = str((rec or {}).get('state') or '').strip().upper()
+            if len(state) != 2:
+                continue
+            bucket = counts.setdefault(state, {'total': 0, 'for_profit': 0})
+            bucket['total'] += 1
+            ownership_raw = str((rec or {}).get('ownership_type') or '').strip().lower()
+            if 'for profit' in ownership_raw or 'for-profit' in ownership_raw:
+                bucket['for_profit'] += 1
+        out = {}
+        for state, c in counts.items():
+            total = int(c.get('total') or 0)
+            fp = int(c.get('for_profit') or 0)
+            out[state] = {
+                'total': total,
+                'for_profit': fp,
+                'percent': ((fp / total) * 100.0) if total > 0 else None,
+            }
+        return jsonify({'states': out})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/search_index.json')
 def search_index():
     """Serve search index for home page autocomplete (facility, entity, state)"""
@@ -2981,7 +3010,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-casemix-legend-item {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
 .pbj-casemix-legend-swatch {{ width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(148,163,184,0.35); }}
 .pbj-casemix-legend-swatch.track {{ background: linear-gradient(180deg, #334155 0%, #1e293b 100%); }}
-.pbj-casemix-legend-swatch.fill {{ background: linear-gradient(180deg, #7dd3fc 0%, #3b82f6 100%); border-color: rgba(30,58,138,0.55); }}
+.pbj-casemix-legend-swatch.fill {{ background: linear-gradient(180deg, #f3a3a3 0%, #de5e5e 55%, #b64343 100%); border-color: rgba(127,29,29,0.58); }}
 .pbj-casemix-actions {{ display: inline-flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }}
 .pbj-casemix-info-btn {{ border: 1px solid rgba(59,130,246,0.35); background: rgba(30,64,175,0.22); color: #bfdbfe; font-size: 0.72rem; font-weight: 600; border-radius: 999px; padding: 4px 10px; cursor: pointer; white-space: nowrap; }}
 .pbj-casemix-info-btn:hover {{ background: rgba(59,130,246,0.28); color: #dbeafe; }}
@@ -3002,7 +3031,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-casemix-track-rail {{ display: flex; align-items: stretch; min-width: 0; width: 100%; }}
 .pbj-casemix-track {{ position: relative; background: linear-gradient(180deg, #3d4f63 0%, #1e293b 100%); border-radius: 8px; overflow: hidden; flex: 1 1 auto; min-width: 0; border: 1px solid rgba(15,23,42,0.85); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }}
 .pbj-casemix-track.pbj-casemix-track-meets {{ box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(96,165,250,0.45); }}
-.pbj-casemix-fill {{ position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #fca5a5 0%, #ef4444 55%, #b91c1c 100%); z-index: 1; border-right: 1px solid rgba(127,29,29,0.7); }}
+.pbj-casemix-fill {{ position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #f3a3a3 0%, #de5e5e 55%, #b64343 100%); z-index: 1; border-right: 1px solid rgba(127,29,29,0.7); }}
 .pbj-casemix-fill.over {{ background: linear-gradient(180deg, #c4b5fd 0%, #8b5cf6 55%, #6d28d9 100%); border-right-color: rgba(76,29,149,0.8); }}
 .pbj-casemix-cms-block {{ display: none; }}
 .pbj-casemix-cmi-block {{ display: none; }}

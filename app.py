@@ -7397,6 +7397,9 @@ def test_entity_redirect(entity_id):
 @app.route('/<state_slug>')
 def canonical_state_page(state_slug):
     """Canonical state page route (e.g., /tn, /new-york)"""
+    if _is_blocked_public_filename(state_slug):
+        from flask import abort
+        abort(404)
     # Handle JSON files first - serve them directly
     if state_slug.endswith('.json'):
         json_path = os.path.join(APP_ROOT, state_slug)
@@ -8861,6 +8864,9 @@ def data_files(path):
     path_normalized = path.strip('/')
     if not path_normalized and path:
         path_normalized = path
+    if _is_blocked_public_filename(path_normalized):
+        from flask import abort
+        abort(404)
 
     # Build list of data dirs: APP_ROOT-relative first, then cwd-relative (for deploy where cwd may differ)
     cwd = None
@@ -8892,7 +8898,7 @@ def data_files(path):
         filename = os.path.basename(path_normalized)
         allowed_csv = {
             'facility_quarterly_metrics.csv', 'state_quarterly_metrics.csv', 'national_quarterly_metrics.csv',
-            'cms_region_quarterly_metrics.csv', 'cms_region_state_mapping.csv', 'provider_info_combined.csv',
+            'cms_region_quarterly_metrics.csv', 'cms_region_state_mapping.csv',
         }
         if filename in allowed_csv:
             # Try multiple locations so /data/X.csv works wherever CSVs are deployed (root or data/)
@@ -9052,6 +9058,9 @@ def pbj_wrapped_static(path):
     # Check if it's a static asset (has extension)
     file_path = os.path.join(wrapped_dist, path)
     if os.path.isfile(file_path):
+        if _is_blocked_public_filename(path):
+            from flask import abort
+            abort(404)
         # Serve the static file with proper MIME types
         if path.endswith('.js'):
             return send_file(file_path, mimetype='application/javascript')
@@ -9081,6 +9090,9 @@ def pbj_wrapped_static(path):
 
 @app.route('/<path:filename>')
 def static_files(filename):
+    if _is_blocked_public_filename(filename):
+        from flask import abort
+        abort(404)
     # Don't handle routes that are already defined (exact or prefix)
     if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner']:
         from flask import abort
@@ -9145,6 +9157,28 @@ def static_files(filename):
 # Gzip compress responses for text content (faster transfer; many hosts don't gzip by default)
 _COMPRESSIBLE_TYPES = ('text/html', 'text/css', 'application/javascript', 'application/json', 'application/xml', 'text/plain')
 _MIN_SIZE_TO_COMPRESS = 256
+_BLOCKED_PUBLIC_FILENAMES = {
+    'provider_info_combined.csv',
+    'provider_info_combined_latest.csv',
+    'provider_info_combined_latest-old.csv',
+}
+
+
+def _is_blocked_public_filename(path_value: str) -> bool:
+    """Return True when filename is explicitly blocked from public serving."""
+    try:
+        base = os.path.basename(str(path_value or '')).strip().lower()
+    except Exception:
+        return False
+    if base in _BLOCKED_PUBLIC_FILENAMES:
+        return True
+    # Block whole family of proprietary combined extracts and raw ownership dumps.
+    if base.endswith('.csv'):
+        if base.startswith('provider_info_combined'):
+            return True
+        if base.startswith('snf_all_owners'):
+            return True
+    return False
 
 @app.after_request
 def compress_response(response):

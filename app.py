@@ -2455,7 +2455,7 @@ def get_canonical_latest_quarter():
     if q is None:
         # Prefer full file so we get 2025Q3 when present; _latest may only have through Q2 2025
         fq = load_csv_data('facility_quarterly_metrics.csv')
-        if fq is None or not isinstance(fq, pd.DataFrame):
+        if fq is None or not (HAS_PANDAS and isinstance(fq, pd.DataFrame)):
             fq = load_csv_data('facility_quarterly_metrics_latest.csv')
         if fq is not None and HAS_PANDAS and isinstance(fq, pd.DataFrame) and 'CY_Qtr' in fq.columns:
             q = fq['CY_Qtr'].max()
@@ -2586,6 +2586,10 @@ def load_provider_info():
     # Prefer quarter-aligned data: provider_info_combined_latest (from extract_latest_quarter.py) has CY_Qtr/quarter.
     # NH_ProviderInfo is a single snapshot (no quarter); use only when combined/latest are not present.
     provider_paths = [
+        os.path.join(APP_ROOT, 'provider_info', 'ProviderInfoNorm_2026_04.csv'),
+        'provider_info/ProviderInfoNorm_2026_04.csv',
+        os.path.join(APP_ROOT, 'provider_info', 'ProviderInfoNorm_2026_03.csv'),
+        'provider_info/ProviderInfoNorm_2026_03.csv',
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
@@ -2618,16 +2622,43 @@ def load_provider_info():
         if not os.path.exists(path):
             continue
         try:
+            header_cols = set(pd.read_csv(path, nrows=0).columns)
+            keep_cols = {
+                'ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)',
+                'CY_Qtr', 'quarter',
+                'chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID',
+                'entity_name', 'affiliated_entity', 'Entity Name', 'chain_name', 'affiliated_entity_name', 'Chain Name',
+                'CITY', 'city', 'City', 'state', 'STATE', 'State',
+                'ownership_type', 'Ownership_Type',
+                'avg_residents_per_day',
+                'provider_name', 'PROVNAME', 'Provider Name',
+                'reported_total_nurse_hrs_per_resident_per_day', 'Total_Nurse_HPRD',
+                'reported_rn_hrs_per_resident_per_day', 'reported_na_hrs_per_resident_per_day', 'reported_lpn_hrs_per_resident_per_day',
+                'case_mix_total_nurse_hrs_per_resident_per_day', 'case_mix_rn_hrs_per_resident_per_day',
+                'case_mix_na_hrs_per_resident_per_day', 'case_mix_lpn_hrs_per_resident_per_day',
+                'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
+                'overall_rating', 'staffing_rating',
+            }
+            # Keep any chain/entity id/name variants we didn't enumerate explicitly.
+            keep_cols.update(
+                c for c in header_cols
+                if (
+                    (('chain' in str(c).lower() or 'entity' in str(c).lower()) and ('id' in str(c).lower() or 'name' in str(c).lower()))
+                    or str(c).lower() in ('affiliated_entity', 'chain name')
+                )
+            )
+            usecols = [c for c in header_cols if c in keep_cols]
             # _latest or NH_ProviderInfo snapshot: one snapshot; skip quarter discovery and filtering.
             is_latest_file = (
                 'provider_info_combined_latest' in path or path.replace('\\', '/').endswith('_latest.csv')
                 or 'NH_ProviderInfo' in path
+                or 'ProviderInfoNorm_' in path
             )
             latest_quarters = None if is_latest_file else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
             provider_dict = {}
             provider_dict_by_quarter = {}
             # Stream CSV in chunks and keep only rows from latest quarters
-            for chunk in pd.read_csv(path, low_memory=False, chunksize=150000):
+            for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
                 if latest_quarters is not None:
                     # Filter to latest quarters: CY_Qtr or quarter (normalized)
                     qcol = 'CY_Qtr' if 'CY_Qtr' in chunk.columns else 'quarter'
@@ -2686,11 +2717,20 @@ def load_provider_info():
                         'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
                         'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
                         'case_mix_lpn_hrs_per_resident_per_day': row.get('case_mix_lpn_hrs_per_resident_per_day'),
+                        'nursing_case_mix_index': row.get('nursing_case_mix_index'),
+                        'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
+                        '_processing_date': row.get('processing_date'),
                     }
-                    if provnum not in provider_dict:
+                    existing = provider_dict.get(provnum)
+                    if existing is None:
                         provider_dict[provnum] = row_dict
+                    else:
+                        old_dt = pd.to_datetime(existing.get('_processing_date'), errors='coerce')
+                        new_dt = pd.to_datetime(row_dict.get('_processing_date'), errors='coerce')
+                        if pd.notna(new_dt) and (pd.isna(old_dt) or new_dt >= old_dt):
+                            provider_dict[provnum] = row_dict
                     quarter_cy = _quarter_from_row(row)
                     if quarter_cy:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
@@ -2714,6 +2754,25 @@ def get_provider_info_for_quarter(ccn, raw_quarter):
         return None
     key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
     return _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
+
+
+def get_latest_provider_info_for_ccn(ccn):
+    """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
+    if not ccn:
+        return None, None
+    load_provider_info()
+    if not _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        return None, None
+    prov = str(ccn).strip().zfill(6)
+    best_q = None
+    best_row = None
+    for (k_ccn, k_q), row in _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.items():
+        if k_ccn != prov:
+            continue
+        if best_q is None or str(k_q) > str(best_q):
+            best_q = k_q
+            best_row = row
+    return best_q, best_row
 
 def get_pbj_site_layout(page_title, meta_description, canonical_url):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
@@ -2800,7 +2859,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-chart-container {{ margin: 20px 0; border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; padding: 20px; background: rgba(30,41,59,0.5); }}
 .pbj-chart-wrapper {{ height: 260px; position: relative; width: 100%; }}
 .pbj-casemix-row {{ display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; margin: 0 0 0.35rem 0; }}
-.pbj-casemix-legend {{ display: flex; flex-wrap: wrap; gap: 0.65rem 1rem; align-items: center; font-size: 0.68rem; line-height: 1.35; color: rgba(226,232,240,0.72); margin: 0 0 0.45rem 0; padding: 0.35rem 0.45rem; border-radius: 6px; background: rgba(15,23,42,0.45); border: 1px solid rgba(148,163,184,0.18); }}
+.pbj-casemix-legend {{ display: flex; flex-wrap: wrap; gap: 0.65rem 1rem; align-items: center; font-size: 0.68rem; line-height: 1.35; color: rgba(226,232,240,0.72); margin: 0; padding: 0.25rem 0.45rem; border-radius: 6px; background: rgba(15,23,42,0.45); border: 1px solid rgba(148,163,184,0.18); flex: 1 1 auto; min-width: 0; }}
 .pbj-casemix-legend-item {{ display: inline-flex; align-items: center; gap: 0.35rem; }}
 .pbj-casemix-legend-swatch {{ width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; border: 1px solid rgba(148,163,184,0.35); }}
 .pbj-casemix-legend-swatch.track {{ background: linear-gradient(180deg, #334155 0%, #1e293b 100%); }}
@@ -2825,10 +2884,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-casemix-track-rail {{ display: flex; align-items: stretch; min-width: 0; width: 100%; }}
 .pbj-casemix-track {{ position: relative; background: linear-gradient(180deg, #3d4f63 0%, #1e293b 100%); border-radius: 8px; overflow: hidden; flex: 1 1 auto; min-width: 0; border: 1px solid rgba(15,23,42,0.85); box-shadow: inset 0 1px 0 rgba(255,255,255,0.06); }}
 .pbj-casemix-track.pbj-casemix-track-meets {{ box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1px rgba(96,165,250,0.45); }}
-.pbj-casemix-fill {{ position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #7dd3fc 0%, #3b82f6 55%, #2563eb 100%); z-index: 1; border-right: 1px solid rgba(30,58,138,0.65); }}
-.pbj-casemix-fill.over {{ background: linear-gradient(180deg, #38bdf8 0%, #2563eb 50%, #1d4ed8 100%); border-right-color: rgba(30,64,175,0.75); }}
-.pbj-casemix-cms-block {{ position: absolute; right: 6px; top: 50%; transform: translateY(-50%); z-index: 2; text-align: right; pointer-events: none; max-width: 52%; padding: 0.18rem 0.45rem 0.2rem; border-radius: 7px; background: rgba(15,23,42,0.94); border: 1px solid rgba(100,116,139,0.45); box-shadow: 0 1px 3px rgba(0,0,0,0.35); }}
-.pbj-casemix-cms-block.pbj-casemix-cms-compact {{ display: inline-flex; flex-wrap: nowrap; align-items: baseline; gap: 0.15em; padding: 0.08rem 0.4rem; max-width: 60%; }}
+.pbj-casemix-fill {{ position: absolute; inset: 0 auto 0 0; background: linear-gradient(180deg, #fca5a5 0%, #ef4444 55%, #b91c1c 100%); z-index: 1; border-right: 1px solid rgba(127,29,29,0.7); }}
+.pbj-casemix-fill.over {{ background: linear-gradient(180deg, #c4b5fd 0%, #8b5cf6 55%, #6d28d9 100%); border-right-color: rgba(76,29,149,0.8); }}
+.pbj-casemix-cms-block {{ display: none; }}
+.pbj-casemix-cmi-block {{ display: none; }}
+.pbj-casemix-cms-block.pbj-casemix-cms-compact {{ display: none; }}
 .pbj-casemix-cms-inline {{ display: inline; font-size: 0.58rem; font-weight: 500; letter-spacing: 0.03em; text-transform: uppercase; color: #94a3b8; white-space: nowrap; line-height: 1.2; }}
 .pbj-casemix-cms-sub-num {{ font-size: 0.68rem; font-weight: 600; color: #f1f5f9; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; line-height: 1.2; white-space: nowrap; }}
 .pbj-casemix-cms-title {{ display: block; font-size: 0.6rem; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #94a3b8; line-height: 1.2; }}
@@ -3415,11 +3475,22 @@ def load_facility_quarterly_for_provider(ccn):
             if 'PROVNUM' not in chunk.columns:
                 continue
             normalized = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            if normalized.empty:
+                continue
+            # File is sorted by PROVNUM; skip irrelevant chunks and stop once we've passed target.
+            chunk_min = normalized.iloc[0]
+            chunk_max = normalized.iloc[-1]
+            if chunk_max < prov:
+                continue
+            if chunk_min > prov:
+                break
             match = chunk.loc[normalized == prov]
             if not match.empty:
                 out_match = match.copy()
                 out_match['PROVNUM'] = out_match['PROVNUM'].astype(str).str.strip().str.zfill(6)
                 chunks_list.append(out_match)
+                # Contiguous provider rows are complete after this chunk in sorted data.
+                break
     except Exception as e:
         print(f"Error streaming facility_quarterly from {path}: {e}")
         _log_mem("facility_quarterly_stream_end")
@@ -3571,7 +3642,7 @@ def _series_to_list_rounded(ser, decimals=2):
             out.append(r if r is not None else None)
     return out
 
-def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na):
+def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index=None, case_mix_index_ratio=None):
     """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide."""
     def _round_val(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -3582,6 +3653,8 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
         'labels': ['Total', 'RN', 'LPN', 'Nurse aide'],
         'reported': [_round_val(reported_total), _round_val(reported_rn), _round_val(reported_lpn), _round_val(reported_na)],
         'caseMix': None,
+        'caseMixIndex': _round_val(case_mix_index),
+        'caseMixIndexRatio': _round_val(case_mix_index_ratio),
     }
     if case_mix_total is not None or case_mix_rn is not None or case_mix_lpn is not None or case_mix_na is not None:
         out['reportedCaseMix']['caseMix'] = [
@@ -3664,15 +3737,17 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     return '''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
+''' + (below_reported_casemix or '') + '''
 <div class="pbj-chart-container" style="margin-bottom:1.5rem;">
 <div class="pbj-casemix-row">
+  <div class="pbj-casemix-legend">
+    <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch track" aria-hidden="true"></span>Slate bar = CMS case-mix benchmark</span>
+    <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch fill" aria-hidden="true"></span>Fill = reported HPRD (red; purple at 100%+)</span>
+  </div>
   <span class="pbj-casemix-actions">
     <button type="button" class="pbj-casemix-info-btn" id="pbjCaseMixInfoBtn">What is CMS Case-Mix?</button>
   </span>
-</div>
-<div class="pbj-casemix-legend">
-  <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch track" aria-hidden="true"></span>Slate bar = CMS case-mix (full bar / acuity benchmark)</span>
-  <span class="pbj-casemix-legend-item"><span class="pbj-casemix-legend-swatch fill" aria-hidden="true"></span>Blue fill = reported HPRD (share of case-mix)</span>
 </div>
 <div class="pbj-casemix-hero">
   <div id="pbjCaseMixHeroBars" class="pbj-casemix-bars"></div>
@@ -3685,14 +3760,12 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
     <button type="button" class="pbj-casemix-modal-close" id="pbjCaseMixModalClose" aria-label="Close CMS Case-Mix info">×</button>
     <h3 id="pbjCaseMixModalTitle">What is CMS Case-Mix?</h3>
-    <p>CMS Case-Mix is an acuity-based benchmark derived from each facility's resident mix, using PDPM nursing categories (CMGs/CMIs) and national staffing averages.</p>
+    <p>CMS Case-Mix compares reported staffing to an acuity benchmark built from PDPM nursing groups, their nursing case-mix indexes (CMIs), and national average staffing.</p>
     <p>CMS publishes this to compare reported staffing against resident acuity; it is a comparison benchmark, not a staffing mandate.</p>
     <p>Formula basis: <code>Adjusted Hours = (Reported / Case-Mix) × National Case-Mix Average</code>. <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#93c5fd;">CMS User Guide</a>.</p>
   </div>
 </div>
 </div>
-''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
-''' + (below_reported_casemix or '') + '''
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract Staff %', 'chartContract') + '''
@@ -3747,7 +3820,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
   function hprd(v) {
     return (v == null || isNaN(v)) ? '—' : Number(v).toFixed(2);
   }
-  function appendMetricHeadline(el, label, actual, caseMix, hasCaseMix) {
+  function appendMetricHeadline(el, label, actual, caseMix, hasCaseMix, isTotal) {
     while (el.firstChild) el.removeChild(el.firstChild);
     var titles = { 'Total': 'Total HPRD', 'RN': 'RN HPRD', 'LPN': 'LPN HPRD', 'Aide': 'Nurse aide HPRD' };
     var title = titles[label] || (label + ' HPRD');
@@ -3777,7 +3850,18 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     pSpan.className = 'pbj-casemix-metric-pct';
     pSpan.textContent = pct + '%';
     el.appendChild(pSpan);
-    el.appendChild(document.createTextNode(' of case-mix)'));
+    el.appendChild(document.createTextNode(' of CMS case-mix: ' + hprd(caseMix) + ')'));
+    if (isTotal) {
+      var cmi = (d && d.reportedCaseMix) ? d.reportedCaseMix.caseMixIndex : null;
+      var cmiRatio = (d && d.reportedCaseMix) ? d.reportedCaseMix.caseMixIndexRatio : null;
+      if (cmi != null && !isNaN(cmi)) {
+        var cmiLabel = (window.innerWidth <= 768) ? 'CM index (CMI)' : 'Case-mix index (CMI)';
+        el.appendChild(document.createTextNode(' | ' + cmiLabel + ': ' + Number(cmi).toFixed(2)));
+      }
+      if (cmiRatio != null && !isNaN(cmiRatio)) {
+        el.appendChild(document.createTextNode(' | CMI Ratio: ' + Number(cmiRatio).toFixed(2)));
+      }
+    }
   }
   function renderCaseMixRow(opts) {
     var label = opts.label || '';
@@ -3790,7 +3874,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
     var head = document.createElement('div');
     head.className = 'pbj-casemix-metric-head';
     var hasCaseMix = (caseMix != null && !isNaN(caseMix) && Number(caseMix) > 0);
-    appendMetricHeadline(head, label, actual, caseMix, hasCaseMix);
+    appendMetricHeadline(head, label, actual, caseMix, hasCaseMix, isTotal);
     wrap.appendChild(head);
     var barCell = document.createElement('div');
     barCell.className = 'pbj-casemix-bar-cell';
@@ -3814,30 +3898,7 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
       track.classList.add('pbj-casemix-track-meets');
     }
     track.appendChild(fill);
-    if (hasCaseMix) {
-      var cmsBlock = document.createElement('div');
-      cmsBlock.className = 'pbj-casemix-cms-block' + (isTotal ? '' : ' pbj-casemix-cms-compact');
-      if (isTotal) {
-        var cmsT = document.createElement('span');
-        cmsT.className = 'pbj-casemix-cms-title';
-        cmsT.textContent = 'CMS case-mix';
-        var cmsN = document.createElement('span');
-        cmsN.className = 'pbj-casemix-cms-num';
-        cmsN.textContent = hprd(caseMix);
-        cmsBlock.appendChild(cmsT);
-        cmsBlock.appendChild(cmsN);
-      } else {
-        var cmsLab = document.createElement('span');
-        cmsLab.className = 'pbj-casemix-cms-inline';
-        cmsLab.textContent = 'CMS case-mix';
-        var cmsSub = document.createElement('span');
-        cmsSub.className = 'pbj-casemix-cms-sub-num';
-        cmsSub.textContent = hprd(caseMix);
-        cmsBlock.appendChild(cmsLab);
-        cmsBlock.appendChild(cmsSub);
-      }
-      track.appendChild(cmsBlock);
-    }
+    // Inline text now carries case-mix and CMI details; no overlay badges inside bars.
     rail.appendChild(track);
     barCell.appendChild(rail);
     wrap.appendChild(barCell);
@@ -3956,11 +4017,16 @@ def _provider_charts_html(chart_data, facility_name='', below_reported_casemix='
 
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
     """Generate HTML for facility (provider) page per pbj-page-guide: header block, key metrics, longitudinal chart, basic info, full table, summary."""
+    if not HAS_PANDAS:
+        return "Pandas not available. Provider pages require pandas."
     try:
         from pbj_format import format_metric_value, format_quarter_display
     except ImportError:
         format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
         format_quarter_display = format_quarter
+    # Defensive fallback so direct callers don't crash on missing provider rows.
+    if facility_df is None or not isinstance(facility_df, pd.DataFrame):
+        facility_df = pd.DataFrame()
     prov = normalize_ccn(ccn)
     facility_name = ''
     state_code = ''
@@ -4033,7 +4099,14 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pi = provider_info_row or {}
     if pi_quarter is None:
         pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
-    pi_metrics = (pi_quarter or pi)
+    pi_latest_q, pi_latest_row = (None, None)
+    # If exact quarter row is unavailable, prefer snapshot provider row first (often the newest refresh),
+    # then quarter-index fallback.
+    if pi_quarter is None:
+        pi_latest_q, pi_latest_row = get_latest_provider_info_for_ccn(prov)
+    pi_metrics = (pi_quarter or pi or pi_latest_row)
+    if isinstance(pi_metrics, dict):
+        pi_metrics = {k: v for k, v in pi_metrics.items() if k != '_processing_date'}
     def _safe(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return None
@@ -4049,6 +4122,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     case_mix_rn = _safe(pi_metrics.get('case_mix_rn_hrs_per_resident_per_day'))
     case_mix_lpn = _safe(pi_metrics.get('case_mix_lpn_hrs_per_resident_per_day'))
     case_mix_na = _safe(pi_metrics.get('case_mix_na_hrs_per_resident_per_day'))
+    case_mix_index = _safe(pi_metrics.get('nursing_case_mix_index'))
+    case_mix_index_ratio = _safe(pi_metrics.get('nursing_case_mix_index_ratio'))
     census_num = _safe(pi_metrics.get('avg_residents_per_day'))
     if census_num is None and latest is not None:
         census_num = _safe(latest.get('avg_daily_census'))
@@ -4079,7 +4154,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if r < b * 0.95:
             return 'below'
         return 'around'
-    chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na)
+    chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index, case_mix_index_ratio)
     methodology = 'CMS Case-Mix is an acuity-based benchmark derived from resident PDPM nursing categories.'
     below_reported_casemix = ''
     _qd_esc = html.escape(str(quarter_display)) if quarter_display else ''
@@ -4119,6 +4194,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> (≈ {residents_per_staff} residents per total staff) in {quarter_display}. This level is {above_below_casemix} its CMS Case-Mix (acuity) {casemix_str} HPRD.'
     if case_mix_total is None:
         narrative = f'<strong>{facility_name}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS did not report CMS Case-Mix data this quarter.'
+    elif pi_quarter is None and not pi and pi_latest_q and str(pi_latest_q) != str(raw_quarter):
+        narrative += f' <span style="color: rgba(226,232,240,0.72);">Case-mix benchmark shown from latest available provider-info quarter ({format_quarter_display(pi_latest_q)}).</span>'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     sff_entry = next((f for f in (sff_facilities_list or []) if (str(f.get('provider_number') or '').strip().zfill(6)) == prov), None)
@@ -4347,7 +4424,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     if ownership_short and ownership_short.strip():
         _loc_parts.append(ownership_short)
     _loc_sub = ' &bull; '.join(_loc_parts) if _loc_parts else _residents_sub
-    subtitle_one_line = _loc_sub + (f' &bull; Entity: {entity_link}' if (entity_id and entity_name) else '')
+    subtitle_one_line = _loc_sub + (f' &bull; {entity_link}' if (entity_id and entity_name) else '')
     # Mobile subtitle: row 1 = Brooklyn, NY • 2.90 HPRD • 351 residents; row 2 = For Profit • Entity link (no bullet after residents)
     _row1_parts = []
     if _city_state.strip():
@@ -7127,7 +7204,7 @@ def _provider_page_impl(ccn):
     if facility_df is None or facility_df.empty:
         abort(404)
     provider_info = load_provider_info()
-    provider_info_row = provider_info.get(prov, {})
+    provider_info_row = provider_info.get(prov, {}) if isinstance(provider_info, dict) else {}
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
     _PROVIDER_PAGE_CACHE[prov] = (now, html)
     _log_mem("route_provider_after")
@@ -8975,5 +9052,6 @@ _log_mem("app_startup")
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
+    # Keep local dev responsive when one expensive route is loading.
+    app.run(host='0.0.0.0', port=port, threaded=True)
 

@@ -1837,7 +1837,8 @@ def autocomplete():
             results['_has_pac'] = pac_ok.astype(int)
         results['_n_fac'] = results['facilities'].fillna('').str.split(',').map(lambda x: len([f for f in x if str(f).strip()]))
         sort_cols = ['_has_pac', '_n_fac'] if '_has_pac' in results.columns else ['_n_fac']
-        results = results.sort_values(sort_cols, ascending=[False, False]).drop_duplicates(subset=['owner_name_original'], keep='first').drop(columns=[c for c in ['_n_fac', '_has_pac'] if c in results.columns], errors='ignore').head(10)
+        asc_flags = [False] * len(sort_cols)
+        results = results.sort_values(sort_cols, ascending=asc_flags).drop_duplicates(subset=['owner_name_original'], keep='first').drop(columns=[c for c in ['_n_fac', '_has_pac'] if c in results.columns], errors='ignore').head(10)
         
         suggestions = []
         for _, row in results.iterrows():

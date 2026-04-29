@@ -1457,6 +1457,11 @@
             console.error('Error reading canonical entity name from search index:', error);
           }
           if (!entityName) entityName = 'this ownership group';
+          if (entityName === entityName.toUpperCase()) {
+            entityName = entityName
+              .toLowerCase()
+              .replace(/\b\w/g, c => c.toUpperCase());
+          }
           const fText = Number.isFinite(fCount) ? fCount.toLocaleString('en-US') : '—';
           const sText = Number.isFinite(sCount) ? sCount.toLocaleString('en-US') : '—';
           const starText = (avgStar !== null && Number.isFinite(avgStar)) ? avgStar.toFixed(1) + '-star average' : 'ratings available';

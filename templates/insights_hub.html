@@ -146,8 +146,7 @@
       </div>
     </header>
 
-    <section aria-labelledby="latest-insights">
-      <h2 class="feed-heading" id="latest-insights">Latest</h2>
+    <section aria-label="Insights feed">
       <div class="insights-toolbar" role="group" aria-label="Filter posts">
         <span class="filter-label">Show</span>
         <button type="button" class="filter-btn active" data-filter="all">All</button>
@@ -168,7 +167,7 @@
           <p>Independent PBJ reporting for journalists, researchers, public-interest attorneys, and data-curious readers.</p>
         </div>
         <a class="subscribe-button" href="/report">Explore PBJ320</a>
-        <div class="subscribe-subtle">For weekly field notes, follow <a href="https://320insight.substack.com/" target="_blank" rel="noopener">The 320 on Substack</a>.</div>
+        <div class="subscribe-subtle">Follow <a href="https://320insight.substack.com/" target="_blank" rel="noopener">The 320 on Substack</a>.</div>
       </section>
       <footer class="footer" id="site-footer"></footer>
     </div>
@@ -234,10 +233,10 @@
         var metaLine = date ? (date + ' · ' + readTime) : readTime;
         if (type === 'native') {
           var nativeUrl = esc(p.url || ('/insights/' + String(p.slug || '').trim()));
-          return '<li class="card native" data-post-type="native"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Staffing chart snapshot" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + nativeUrl + '">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action" href="' + nativeUrl + '" aria-label="View this PBJ320 insight"><img src="/pbj_favicon.png" alt="" width="20" height="20">View</a></div></div></article></li>';
+          return '<li class="card native" data-post-type="native"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Staffing chart snapshot" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + nativeUrl + '">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action" href="' + nativeUrl + '" aria-label="Read this PBJ320 insight"><img src="/pbj_favicon.png" alt="" width="20" height="20">Read</a></div></div></article></li>';
         }
         var externalUrl = esc(p.external_url || p.url || '#');
-        return '<li class="card external" data-post-type="external"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Feature story preview" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + externalUrl + '" target="_blank" rel="noopener">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action substack" href="' + externalUrl + '" target="_blank" rel="noopener" aria-label="Open this article on Substack (new tab)"><span class="read-action-icon-wrap"><img src="/substack.png" alt="" width="18" height="18"></span>Open article</a></div></div></article></li>';
+        return '<li class="card external" data-post-type="external"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Feature story preview" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + externalUrl + '" target="_blank" rel="noopener">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action substack" href="' + externalUrl + '" target="_blank" rel="noopener" aria-label="Read this article on Substack (new tab)"><span class="read-action-icon-wrap"><img src="/substack.png" alt="" width="18" height="18"></span>Read</a></div></div></article></li>';
       }
       function applyFilter(mode) {
         var items = listEl.querySelectorAll('.card[data-post-type]');

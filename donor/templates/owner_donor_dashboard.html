@@ -3122,7 +3122,6 @@
                             <div class="owner-name">${escapeHtml(result.owner_name)}</div>
                             <span class="owner-type ${result.owner_type.toLowerCase()}">${result.owner_type}</span>
                         </div>
-                        <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.25rem;">View owner page →</div>
                     </div>
                     ${result.facilities.length > 0 ? `
                         <div class="facilities-list">
@@ -3132,7 +3131,7 @@
                     ` : ''}
                     <div style="display: flex; gap: 0.5rem; margin-top: 1rem;" onclick="event.stopPropagation();">
                         <button type="button" onclick="event.stopPropagation(); event.preventDefault(); queryFecApiForOwner('${ownerNameForApi}', '${result.owner_type}')" class="query-fec-btn" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">View Political Contributions</button>
-                        <button type="button" class="back-btn show-owner-providers-btn" data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Providers (${result.num_facilities})</button>
+                        <button type="button" class="back-btn show-owner-providers-btn" data-owner-name="${escapeHtml(result.owner_name).replace(/"/g, '&quot;')}" onclick="event.stopPropagation(); event.preventDefault(); goToOwnerPageByName('${ownerNameForApi}')" style="flex: 1; padding: 0.6rem; font-size: 0.9rem;">Providers (${result.num_facilities})</button>
                     </div>
                 `;
                 return `<div class="result-card">${cardInner}</div>`;

@@ -2,12 +2,18 @@
 """
 Extract only the most recent quarter's data from large CSV files
 to create smaller files for deployment.
-Finds the most recent quarter that exists in ALL files (state, provider, facility).
+
+- facility_quarterly_metrics_latest.csv: **always** the newest CY_Qtr present in
+  facility_quarterly_metrics.csv (never held back by stale provider combined).
+
+- provider_info_combined_latest.csv: most recent quarter that exists in state,
+  facility, and provider_info_combined.csv (unchanged alignment logic).
 """
 
 import pandas as pd
 import os
 import re
+import sys
 
 
 def quarter_sort_key(quarter: str) -> tuple[int, int]:
@@ -95,6 +101,23 @@ def find_most_recent_common_quarter():
     most_recent = max(common_quarters, key=quarter_sort_key)
     print(f"\nMost recent common quarter (all files): {most_recent}")
     return most_recent
+
+
+def find_latest_quarter_in_facility_csv():
+    """Newest CY_Qtr in facility_quarterly_metrics.csv only (for _latest slice)."""
+    facility_df = pd.read_csv(
+        'facility_quarterly_metrics.csv',
+        usecols=lambda c: c == 'CY_Qtr',
+        low_memory=False,
+    )
+    qset = set()
+    for q in facility_df['CY_Qtr'].dropna().astype(str).str.strip():
+        if re.fullmatch(r'\d{4}Q[1-4]', q):
+            qset.add(q)
+    if not qset:
+        return None
+    return max(qset, key=quarter_sort_key)
+
 
 def extract_facility_quarterly_latest(target_quarter):
     """Extract specified quarter from facility_quarterly_metrics.csv"""
@@ -234,19 +257,21 @@ def extract_provider_info_latest(target_quarter_state_format):
     print(f"Size reduction: {after_count/total_rows*100:.1f}% of original")
 
 if __name__ == '__main__':
-    # Find most recent quarter that exists in ALL files
+    facility_quarter = find_latest_quarter_in_facility_csv()
+    if not facility_quarter:
+        print('ERROR: No valid CY_Qtr values in facility_quarterly_metrics.csv', file=sys.stderr)
+        sys.exit(1)
+    print(f"\nfacility_quarterly_metrics_latest.csv <- newest quarter in facility file: {facility_quarter}")
+    extract_facility_quarterly_latest(facility_quarter)
+
+    # Provider slice still follows intersection with state + provider (facility max can run ahead)
     most_recent_quarter = find_most_recent_common_quarter()
-    
-    print(f"\nUsing quarter for all files: {most_recent_quarter}")
-    
-    # Extract facility data for the most recent common quarter
-    extract_facility_quarterly_latest(most_recent_quarter)
-    
-    # Extract provider info for the most recent common quarter
+    print(f"\nprovider_info_combined_latest.csv <- common quarter (state & facility & provider): {most_recent_quarter}")
     extract_provider_info_latest(most_recent_quarter)
-    
-    print("\nDone! Created:")
-    print("  - facility_quarterly_metrics_latest.csv")
-    print("  - provider_info_combined_latest.csv")
-    print(f"\nBoth files now contain data for: {most_recent_quarter}")
-    print("You can now use these files instead of the full datasets.")
+
+    print('\nDone! Created:')
+    print('  - facility_quarterly_metrics_latest.csv')
+    print(f'      CY_Qtr: {facility_quarter}')
+    print('  - provider_info_combined_latest.csv')
+    print(f'      quarter: {most_recent_quarter}')
+    print('\nRe-run this script after updating facility_quarterly_metrics.csv or provider_info_combined.csv.')

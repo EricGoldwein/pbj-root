@@ -1069,14 +1069,8 @@
         <a href="https://www.320insight.com/phoebe" target="_blank"><img src="phoebe.png" alt="Phoebe J" class="phoebe-avatar"></a>
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
-          <div class="phoebe-text">
-            <strong>When someone says your state's staffing is "3.55 HPRD," ask: by what metric?</strong>
-            <ol>
-              <li><strong>National/state staffing ratio (Weighted Mean):</strong> Aggregates census and staffing hours so a 600-bed facility counts more than a 30-bed facility.</li>
-              <li><strong>Median:</strong> The typical (middle value) nursing home, less affected by outliers.</li>
-              <li><strong>Simple Mean:</strong> Averages staffing levels by nursing home so a 600-bed facility and a 30-bed facility count the same.</li>
-            </ol>
-            The distribution is right-skewed, with most facilities clustered around 3.0-4.0 HPRD but a long tail extending to higher values. This skewness means the simple mean (3.89) is pulled upward by outliers, while the median (3.67) better represents typical facilities.
+          <div class="phoebe-text" id="hprdMetricsTakeaway">
+            <p><em>Loading takeaway from the same quarter as the charts above…</em></p>
           </div>
         </div>
       </div>
@@ -1636,14 +1630,112 @@
         }
       };
     }
-    
-    
+
+    function formatQuarterLabel(cyQtr) {
+      if (!cyQtr) return '';
+      const m = String(cyQtr).match(/(\d{4})Q(\d)/);
+      return m ? `Q${m[2]} ${m[1]}` : String(cyQtr);
+    }
+
+    function parseHprdBinLabel(label) {
+      const s = String(label).trim();
+      if (!s) return null;
+      if (s.includes('+')) {
+        const low = parseFloat(s.replace(/\+.*$/, ''));
+        if (Number.isNaN(low)) return null;
+        return { label: s, low, high: null };
+      }
+      const m = s.match(/^([\d.]+)\s*-\s*([\d.]+)/);
+      if (!m) return null;
+      const low = parseFloat(m[1]);
+      const high = parseFloat(m[2]);
+      if (Number.isNaN(low) || Number.isNaN(high)) return null;
+      return { label: s, low, high };
+    }
+
+    function hprdMiddleHalfRange(bins, counts) {
+      const total = counts.reduce((a, b) => a + b, 0);
+      if (!total) return null;
+      let cum = 0;
+      let lo = null;
+      let hi = null;
+      for (let i = 0; i < bins.length; i++) {
+        cum += counts[i] || 0;
+        if (lo == null && cum / total >= 0.25) {
+          const p = parseHprdBinLabel(bins[i]);
+          if (p) lo = p.low;
+        }
+        if (cum / total >= 0.75) {
+          const p = parseHprdBinLabel(bins[i]);
+          if (p) hi = p.high != null ? p.high : p.low + 0.5;
+          break;
+        }
+      }
+      if (lo == null || hi == null) return null;
+      return { lo, hi };
+    }
+
+    function fmtHprd(x) {
+      if (x == null || Number.isNaN(Number(x))) return '—';
+      return (Math.round(Number(x) * 100) / 100).toFixed(2);
+    }
+
+    function updateHprdMetricsTakeaway(data) {
+      const el = document.getElementById('hprdMetricsTakeaway');
+      if (!el || !data || !data.hprd) return;
+      const wm = Number(data.hprd.weighted_mean);
+      const med = Number(data.hprd.median);
+      const sm = Number(data.hprd.simple_average);
+      const qLabel = formatQuarterLabel(data.latestQuarter);
+      const hist = data.distributions && data.distributions.hprd;
+      const range = hist && hist.bins && hist.counts ? hprdMiddleHalfRange(hist.bins, hist.counts) : null;
+
+      if (Number.isNaN(wm) || Number.isNaN(med) || Number.isNaN(sm)) {
+        el.innerHTML = '<p><em>HPRD takeaway unavailable for this data load.</em></p>';
+        return;
+      }
+
+      const exampleHprd = fmtHprd(wm);
+      let clusterP = '';
+      if (range && !Number.isNaN(range.lo) && !Number.isNaN(range.hi)) {
+        clusterP = `Across nursing homes in <strong>${qLabel}</strong>, the middle half of the distribution in the histogram above falls roughly between <strong>${fmtHprd(range.lo)}</strong> and <strong>${fmtHprd(range.hi)} HPRD</strong> (25th–75th percentile by bin). `;
+      } else {
+        clusterP = `The histogram above uses the same underlying facility distribution as <strong>${qLabel}</strong>. `;
+      }
+
+      let skewP;
+      const diff = sm - med;
+      if (diff > 0.02) {
+        skewP = `The curve is <strong>right-skewed</strong>: the simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) sits above the median (<strong>${fmtHprd(med)} HPRD</strong>), pulled up by the tail toward higher HPRD.`;
+      } else if (diff < -0.02) {
+        skewP = `The curve is <strong>left-skewed</strong>: the simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) sits below the median (<strong>${fmtHprd(med)} HPRD</strong>).`;
+      } else {
+        skewP = `The simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) and median (<strong>${fmtHprd(med)} HPRD</strong>) are nearly the same for this quarter—the bulk of the distribution is fairly symmetric.`;
+      }
+
+      el.innerHTML = `
+    <p>For <strong>${qLabel}</strong>—the same quarter shown in the two charts above—the US <strong>staffing ratio</strong> (weighted by census) is <strong>${exampleHprd} HPRD</strong> (red <strong>Ratio</strong> bar).</p>
+    <p><strong>When someone cites an HPRD figure for the US or a state (for example, "${exampleHprd} HPRD"), ask which metric they mean.</strong></p>
+    <ol>
+      <li><strong>National/state staffing ratio (Weighted Mean):</strong> Aggregates census and staffing hours so a 600-bed facility counts more than a 30-bed facility.</li>
+      <li><strong>Median:</strong> The typical (middle value) nursing home, less affected by outliers (orange bar: <strong>${fmtHprd(med)} HPRD</strong>).</li>
+      <li><strong>Simple Mean:</strong> Averages staffing levels equally across facilities so a 600-bed home and a 30-bed home count the same (green bar: <strong>${fmtHprd(sm)} HPRD</strong>).</li>
+    </ol>
+    <p>${clusterP}${skewP}</p>
+  `;
+    }
+
     function showError() {
       const chartContainers = document.querySelectorAll('.chart-container');
       chartContainers.forEach(container => {
         container.innerHTML = '<div class="error"><h4>📊 Data Unavailable</h4><p>Unable to load PBJ data files</p></div>';
       });
-      
+
+      const hprdTakeawayEl = document.getElementById('hprdMetricsTakeaway');
+      if (hprdTakeawayEl) {
+        hprdTakeawayEl.innerHTML = '<p><em>Could not load data for a dynamic takeaway.</em></p>';
+      }
+
       const statValues = document.querySelectorAll('.stat-value');
       statValues.forEach(stat => {
         stat.textContent = 'N/A';
@@ -2432,6 +2524,8 @@
           }
         }
       });
+
+      updateHprdMetricsTakeaway(pbjData);
 
       // 7. State Evolution Chart (Animated)
       initializeStateEvolutionChart();

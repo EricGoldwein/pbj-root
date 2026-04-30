@@ -4690,6 +4690,14 @@
     let regionMapping = {}; // stateAbbr -> region info
     let regionData = {}; // region name -> aggregated data
 
+    function reportEmbedDebug() {
+      try {
+        return new URLSearchParams(window.location.search).get('debug') === '1';
+      } catch (_) {
+        return false;
+      }
+    }
+
     // Load data
     async function loadData() {
       try {
@@ -4697,20 +4705,60 @@
         function apiAbs(path) {
           return new URL(path, window.location.origin).href;
         }
-        /** Report JSON/CSV via same path as the HTML page: ``GET /report?p=...`` (avoids extra path segments that 404 behind some proxies). */
-        function reportEmbedUrl(pCode, extraQueryNoLeadingAmp) {
+        /** Legacy ``GET /report?p=…`` (older servers). */
+        function reportEmbedUrlLegacy(pCode, extraQueryNoLeadingAmp) {
           let u = apiAbs('/report') + '?p=' + encodeURIComponent(pCode);
-          if (extraQueryNoLeadingAmp) u += '&' + extraQueryNoLeadingAmp;
+          if (extraQueryNoLeadingAmp) {
+            u += '&' + extraQueryNoLeadingAmp;
+          }
           return u;
         }
+        /** Prefer ``/report/embed/…`` when the server has those routes; avoids ``?p=`` stripped by some proxies. */
+        function reportEmbedUrl(pCode, extraQueryNoLeadingAmp) {
+          const pc = String(pCode || '').trim().toLowerCase();
+          const pathByCode = { fp: '/report/embed/fp', hrs: '/report/embed/hrs', hrr: '/report/embed/hrr', pi: '/report/embed/pi' };
+          const path = pathByCode[pc];
+          if (!path) {
+            return reportEmbedUrlLegacy(pCode, extraQueryNoLeadingAmp);
+          }
+          let u = apiAbs(path);
+          if (extraQueryNoLeadingAmp) {
+            u += (u.indexOf('?') === -1 ? '?' : '&') + extraQueryNoLeadingAmp;
+          }
+          return u;
+        }
+        /** GET embed path, then legacy ``/report?p=`` if the server returns 404 (old deployment without ``/report/embed/*``). */
+        async function fetchReportEmbedResponse(pCode, extraQueryNoLeadingAmp) {
+          const primary = reportEmbedUrl(pCode, extraQueryNoLeadingAmp);
+          const legacy = reportEmbedUrlLegacy(pCode, extraQueryNoLeadingAmp);
+          const urls = primary === legacy ? [primary] : [primary, legacy];
+          let r;
+          let url = primary;
+          for (let i = 0; i < urls.length; i++) {
+            url = urls[i];
+            r = await fetch(url, { cache: 'no-store' });
+            if (r.status !== 404 || i === urls.length - 1) {
+              break;
+            }
+          }
+          return { r, url };
+        }
         async function fetchReportJson(pCode, extraQueryNoLeadingAmp) {
-          const r = await fetch(reportEmbedUrl(pCode, extraQueryNoLeadingAmp), { cache: 'no-store' });
-          if (!r.ok) return null;
+          const { r, url } = await fetchReportEmbedResponse(pCode, extraQueryNoLeadingAmp);
           const raw = await r.text();
-          if (raw.trimStart().startsWith('<')) return null;
+          const prefix = raw.trimStart().slice(0, 120).replace(/\s+/g, ' ');
+          if (!r.ok) {
+            console.warn(`[report embed ${pCode}] HTTP ${r.status}`, url, prefix);
+            return null;
+          }
+          if (raw.trimStart().startsWith('<')) {
+            console.warn(`[report embed ${pCode}] HTML response (expected JSON)`, url, prefix);
+            return null;
+          }
           try {
             return JSON.parse(raw);
-          } catch (_) {
+          } catch (e) {
+            console.warn(`[report embed ${pCode}] JSON.parse failed`, url, (e && e.message) || e, prefix);
             return null;
           }
         }
@@ -4730,13 +4778,22 @@
         const nationalText = await nationalResponse.text();
         let providerText = '';
         // Newest NH_ProviderInfo_* / ProviderInfoNorm_* from provider_info/ (same source as Flask load_provider_info)
-        const providerResp = await fetch(reportEmbedUrl('pi', ''), { cache: 'no-store' });
-        let isProviderLatestFile = false;
+        const { r: providerResp } = await fetchReportEmbedResponse('pi', '');
         if (providerResp.ok && providerResp.status === 200) {
           const providerRaw = await providerResp.text();
-          if (!providerRaw.trimStart().toLowerCase().startsWith('<!')) {
+          const rawTrim = providerRaw.trimStart();
+          const looksHtml = rawTrim.toLowerCase().startsWith('<!');
+          let rejectBody = false;
+          if (rawTrim.startsWith('{')) {
+            try {
+              JSON.parse(providerRaw);
+              rejectBody = true;
+            } catch (_) {
+              rejectBody = false;
+            }
+          }
+          if (!looksHtml && !rejectBody) {
             providerText = providerRaw;
-            isProviderLatestFile = true;
           }
         }
         
@@ -4751,7 +4808,7 @@
           const regionText = await regionResponse.text();
           const regionRows = parseCSV(regionText);
           regionRows.forEach(row => {
-            const stateAbbr = row.State_Code?.trim();
+            const stateAbbr = String(row.State_Code || '').trim().toUpperCase().slice(0, 2);
             if (stateAbbr) {
               regionMapping[stateAbbr] = {
                 regionNumber: parseInt(row.CMS_Region_Number) || 0,
@@ -4797,11 +4854,21 @@
         const stateRows = parseCSV(stateText);
         const nationalRows = parseCSV(nationalText);
 
-        // Find the most recent quarter from state data
-        const allQuarters = stateRows.map(row => row.CY_Qtr).filter(q => q);
-        const mostRecentQuarter = allQuarters.sort().reverse()[0] || null; // Will be determined dynamically
-        
-        console.log(`Using most recent quarter: ${mostRecentQuarter}`);
+        // Single PBJ quarter for state table + /report embeds (fallback: national CSV)
+        const allQuarters = stateRows.map(row => (row.CY_Qtr || '').trim()).filter(q => q);
+        let mostRecentQuarter = allQuarters.sort().reverse()[0] || null;
+        if (!mostRecentQuarter && nationalRows.length) {
+          const nq = nationalRows.map(r => (r.CY_Qtr || '').trim()).filter(Boolean).sort().reverse()[0];
+          mostRecentQuarter = nq || null;
+        }
+        if (!mostRecentQuarter && facilityQuarterlyText) {
+          const fqRows = parseCSV(facilityQuarterlyText);
+          const fqs = [...new Set(fqRows.map(r => (r.CY_Qtr || '').trim()).filter(Boolean))].sort().reverse();
+          mostRecentQuarter = fqs[0] || null;
+        }
+        if (reportEmbedDebug() && mostRecentQuarter) {
+          console.log(`Report quarter (PBJ): ${mostRecentQuarter}`);
+        }
         
         // Parse and store facility quarterly metrics (for facility-level direct care data)
         // Note: If using _latest.csv files, they already contain only the most recent quarter
@@ -4859,10 +4926,11 @@
 
         // Process state data
         q2StateData.forEach(row => {
-          const stateName = abbrToName[row.STATE] || row.STATE;
+          const stateAbbrRaw = (row.STATE || '').trim().toUpperCase();
+          const stateName = abbrToName[stateAbbrRaw] || row.STATE;
           if (stateName) {
             stateData[stateName] = {
-              state: row.STATE,
+              state: stateAbbrRaw.length === 2 ? stateAbbrRaw : String(row.STATE || '').trim(),
               facility_count: parseInt(row.facility_count) || 0,
               Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
               RN_HPRD: parseFloat(row.RN_HPRD) || 0,
@@ -4895,410 +4963,66 @@
           }
         });
 
-        // Process provider info data for SFF/SFF Candidate facilities and case-mix
-        // Provider snapshot from /api/provider-info/latest.csv is one CMS drop; match quarter to state PBJ quarter below
+        // Provider snapshot from GET /report?p=pi — case-mix, for-profit, in-browser high-risk lists
         if (providerText) {
-          const lines = providerText.split('\n');
-          const headers = parseCSVLine(lines[0]);
-          const allData = [];
-          
-          // Check if using pre-filtered _latest.csv file
-          const isLatestFile = isProviderLatestFile;
-          
-          function providerQuarterToCyQtr(s) {
-            const t = (s || '').trim();
-            if (!t) return '';
-            if (/^\d{4}Q[1-4]$/.test(t)) return t;
-            const m = t.match(/^Q([1-4])\s+(\d{4})$/);
-            if (m) return `${m[2]}Q${m[1]}`;
-            return '';
-          }
-          function rowProviderQuarter(row) {
-            return (row.CY_Qtr || row.quarter || '').trim();
-          }
-          
-          // Collect all data (use CY_Qtr and quarter — Norm drops may populate either)
-          let mostRecentQuarterInProvider = '';
-          const allQuartersInProvider = new Set();
-          
-          for (let i = 1; i < lines.length; i++) {
-            const line = lines[i].trim();
-            if (!line) continue;
-            
-            const values = parseCSVLine(line);
-            const row = {};
-            headers.forEach((header, idx) => {
-              row[header] = values[idx] || '';
-            });
-            const rq = rowProviderQuarter(row);
-            if (rq) {
-              allQuartersInProvider.add(rq);
-              const cy = providerQuarterToCyQtr(rq);
-              if (cy) allQuartersInProvider.add(cy);
-            }
-            allData.push(row);
-          }
-          
-          let matchingQuarter = null;
-          
-          // If using _latest.csv, use all data (already filtered)
-          if (isLatestFile) {
-            // Find any quarter in the data (should all be the same)
-            matchingQuarter = Array.from(allQuartersInProvider)[0] || mostRecentQuarter;
-            console.log(`Using pre-filtered _latest.csv file - all data is for quarter: ${matchingQuarter || 'unknown'}`);
-          } else {
-          // Find the most recent quarter that MATCHES the state/national quarter
-          // Convert mostRecentQuarter (e.g., "2025Q2") to provider format (e.g., "Q2 2025")
-          const quarterMatch = mostRecentQuarter.match(/(\d{4})Q(\d)/);
-          
-          if (quarterMatch) {
-            // Convert "2025Q2" to "Q2 2025" format (provider data format)
-            const providerFormat = `Q${quarterMatch[2]} ${quarterMatch[1]}`;
-            
-            // Try exact match with converted format
-            if (allQuartersInProvider.has(providerFormat)) {
-              matchingQuarter = providerFormat;
-            } else {
-              // Try to find by parsing and comparing year/quarter
-              for (const providerQuarter of allQuartersInProvider) {
-                // Try "Q2 2025" format
-                const providerMatch = providerQuarter.match(/Q(\d)\s+(\d{4})/);
-                if (providerMatch && providerMatch[2] === quarterMatch[1] && providerMatch[1] === quarterMatch[2]) {
-                  matchingQuarter = providerQuarter;
-                  break;
-                }
-                // Try "2025Q2" format (in case provider has both)
-                const providerMatch2 = providerQuarter.match(/(\d{4})Q(\d)/);
-                if (providerMatch2 && providerMatch2[1] === quarterMatch[1] && providerMatch2[2] === quarterMatch[2]) {
-                  matchingQuarter = providerQuarter;
-                  break;
-                }
-              }
-            }
-          }
-          
-            // If no exact match, do not use any provider data (will show N/A)
-          if (!matchingQuarter) {
-            console.warn(`⚠ WARNING: Provider data missing for quarter ${mostRecentQuarter}`);
-            console.warn(`State/National quarter: ${mostRecentQuarter}`);
-            console.warn(`Available provider quarters:`, Array.from(allQuartersInProvider).sort().reverse().slice(0, 10));
-              console.warn(`⚠ No exact quarter match found. Facility-level data will show N/A.`);
-              matchingQuarter = null;
-            }
-          }
-          
-          mostRecentQuarterInProvider = matchingQuarter;
-          
-          // Filter for the EXACT matching quarter (only if we have a match, or use all if _latest.csv)
-          const recentData = (matchingQuarter || isLatestFile) ? allData.filter(row => {
-            if (isLatestFile) return true; // Use all rows if pre-filtered
-            const quarter = rowProviderQuarter(row);
-            // Try exact match first
-            if (quarter === mostRecentQuarterInProvider) return true;
-            // Try format conversion: "2025Q2" <-> "Q2 2025"
-            const match1 = mostRecentQuarterInProvider.match(/(\d{4})Q(\d)/);
-            const match2 = quarter.match(/(\d{4})Q(\d)/);
-            if (match1 && match2) {
-              // Both in "2025Q2" format
-              if (match1[1] === match2[1] && match1[2] === match2[2]) return true;
-            }
-            // Try "Q2 2025" format
-            const match3 = quarter.match(/Q(\d)\s+(\d{4})/);
-            if (match1 && match3) {
-              if (match1[1] === match3[2] && match1[2] === match3[1]) return true;
-            }
-            return false;
-          }) : []; // Empty array if no matching quarter
-          
-          if (matchingQuarter) {
-          console.log(`✓ State/National quarter: ${mostRecentQuarter}`);
-          console.log(`✓ Provider quarter matched: ${mostRecentQuarterInProvider}`);
-          console.log(`✓ Using provider info data for quarter: ${mostRecentQuarterInProvider} (${recentData.length} facilities)`);
-          } else {
-            console.log(`✓ State/National quarter: ${mostRecentQuarter}`);
-            console.log(`⚠ No matching provider quarter found - facility-level data will show N/A`);
-          }
-            
-            // Calculate case-mix weighted averages by state
-            // Using case_mix fields from provider_info
-            const stateCaseMix = {};
-            recentData.forEach(row => {
-            const stateAbbr = row.state?.trim();
-            const stateName = abbrToName[stateAbbr];
-            if (!stateName || !stateData[stateName]) return;
-            
-            const census = parseFloat(row.avg_residents_per_day) || 0;
-            const caseMixTotal = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
-            const caseMixRN = parseFloat(row.case_mix_rn_hrs_per_resident_per_day) || 0;
-            const caseMixNA = parseFloat(row.case_mix_na_hrs_per_resident_per_day) || 0;
-            
-            // Only include valid data (census > 0 and at least one case-mix value > 0)
-            if (census > 0 && (caseMixTotal > 0 || caseMixRN > 0 || caseMixNA > 0)) {
-              if (!stateCaseMix[stateName]) {
-                stateCaseMix[stateName] = { 
-                  totalWeighted: 0, 
-                  rnWeighted: 0,
-                  naWeighted: 0,
-                  totalCensus: 0 
-                };
-              }
-              // Weight by census: larger facilities contribute more
-              if (caseMixTotal > 0) {
-                stateCaseMix[stateName].totalWeighted += caseMixTotal * census;
-              }
-              if (caseMixRN > 0) {
-                stateCaseMix[stateName].rnWeighted += caseMixRN * census;
-              }
-              if (caseMixNA > 0) {
-                stateCaseMix[stateName].naWeighted += caseMixNA * census;
-              }
-              stateCaseMix[stateName].totalCensus += census;
-            }
-          });
-          
-          // Set weighted averages
-          Object.keys(stateCaseMix).forEach(stateName => {
-            const data = stateCaseMix[stateName];
-            if (data.totalCensus > 0) {
-              stateData[stateName].caseMixTotalHPRD = data.totalWeighted / data.totalCensus;
-              stateData[stateName].caseMixRNHPRD = data.rnWeighted / data.totalCensus;
-              stateData[stateName].caseMixNurseAideHPRD = data.naWeighted / data.totalCensus;
-            }
-          });
-          
-          // Store provider data by state for admin/DON calculations
-          recentData.forEach(row => {
-            const stateAbbr = row.state?.trim();
-            const stateName = abbrToName[stateAbbr];
-            if (!stateName || !stateData[stateName]) return;
-            
-            if (!providerDataByState[stateName]) {
-              providerDataByState[stateName] = [];
-            }
-            providerDataByState[stateName].push(row);
-          });
-          
-          // Calculate for-profit percentage for each state from provider rows when available.
-          Object.keys(stateData).forEach(stateName => {
-            const state = stateData[stateName];
-            const stateFacilities = providerDataByState[stateName] || [];
-            const totalFacilities = state.facility_count || 0;
-            if (stateFacilities.length === 0 || totalFacilities === 0) {
-              stateData[stateName].forProfitPercent = null;
-              return;
-            }
-            const forProfitCount = stateFacilities.filter(row => {
-              const ownershipType = (row.ownership_type || '').toLowerCase().trim();
-              return ownershipType.includes('for profit') || ownershipType.includes('for-profit');
-            }).length;
-            const forProfitPercent = (forProfitCount / totalFacilities) * 100;
-            stateData[stateName].forProfitPercent = forProfitPercent;
-          });
-          
-          // Debug: log Alaska case-mix calculation
-          if (stateData['Alaska']) {
-            const akFacilities = recentData.filter(r => r.state?.trim() === 'AK');
-            const akWithCaseMix = akFacilities.filter(r => {
-              const census = parseFloat(r.avg_residents_per_day) || 0;
-              const caseMix = parseFloat(r.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
-              return census > 0 && caseMix > 0;
-            });
-            
-            let totalWeighted = 0;
-            let totalCensus = 0;
-            akWithCaseMix.forEach(r => {
-              const census = parseFloat(r.avg_residents_per_day);
-              const caseMix = parseFloat(r.case_mix_total_nurse_hrs_per_resident_per_day);
-              totalWeighted += caseMix * census;
-              totalCensus += census;
-            });
-            
-            console.log('Alaska case-mix calculation:', {
-              totalFacilities: akFacilities.length,
-              facilitiesWithCaseMix: akWithCaseMix.length,
-              totalWeighted: totalWeighted,
-              totalCensus: totalCensus,
-              calculatedValue: totalCensus > 0 ? (Math.round((totalWeighted / totalCensus) * 100) / 100).toFixed(2) : 'N/A',
-              storedValue: (Math.round(stateData['Alaska'].caseMixTotalHPRD * 100) / 100).toFixed(2),
-              sampleFacilities: akWithCaseMix.slice(0, 3).map(r => ({
-                name: r.provider_name,
-                census: r.avg_residents_per_day,
-                caseMix: r.case_mix_total_nurse_hrs_per_resident_per_day
-              }))
-            });
-          }
-          
-          // First, calculate 10th percentile HPRD for each state (for understaffing criteria)
-          const stateHPRDValues = {};
-          recentData.forEach(row => {
-            if (row.ccn && row.state) {
-              const stateAbbr = row.state.trim();
-              const stateName = abbrToName[stateAbbr];
-              const hprd = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day);
-              if (stateName && !isNaN(hprd) && hprd > 0) {
-                if (!stateHPRDValues[stateName]) {
-                  stateHPRDValues[stateName] = [];
-                }
-                stateHPRDValues[stateName].push(hprd);
-              }
-            }
-          });
-          
-          // Calculate 10th percentile threshold for each state
-          const stateBottom10Percentile = {};
-          Object.keys(stateHPRDValues).forEach(stateName => {
-            const values = stateHPRDValues[stateName].sort((a, b) => a - b);
-            const percentileIndex = Math.floor(values.length * 0.1);
-            stateBottom10Percentile[stateName] = values[percentileIndex] || 0;
-          });
-          
-          // Filter for all high-risk facilities
-          const highRiskFacilities = recentData.filter(row => {
-            const sffStatus = (row.sff_status || '').trim();
-            const overallRating = parseInt(row.overall_rating) || 0;
-            const staffingRating = parseInt(row.staffing_rating) || 0;
-            const hasAbuse = row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1';
-            
-            // Check understaffing criteria
-            const stateAbbr = row.state ? row.state.trim() : '';
-            const stateName = abbrToName[stateAbbr];
-            const totalHPRD = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || 0;
-            const caseMixHPRD = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
-            const isUnderstaffed = staffingRating === 1 || 
-                                   (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
-                                   (stateName && stateBottom10Percentile[stateName] && totalHPRD <= stateBottom10Percentile[stateName]);
-            
-            return row.ccn && row.state && (
-              sffStatus === 'SFF' || 
-              sffStatus === 'SFF Candidate' ||
-              hasAbuse ||
-              overallRating === 1 ||
-              isUnderstaffed
-            );
-          });
-          
-          // Group by state and categorize
-          highRiskFacilities.forEach(row => {
-            const stateAbbr = row.state.trim();
-            const stateName = abbrToName[stateAbbr];
-            if (stateName && stateData[stateName]) {
-              const facility = {
-                ccn: row.ccn.trim(),
-                name: row.provider_name || 'Unknown provider',
-                city: row.city || '',
-                state: row.state ? row.state.trim() : '',
-                overall_rating: row.overall_rating || '',
-                staffing_rating: row.staffing_rating || '',
-                status: row.sff_status ? row.sff_status.trim() : '',
-                hasAbuse: row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1',
-                total_nurse_hprd: parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || null,
-                case_mix_total_hprd: parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || null,
-                categories: [] // Track which categories this facility belongs to
-              };
-              
-              // Determine categories (in priority order: SFF, Candidate, Abuse, 1-star overall, understaffing)
-              // Add to first matching category, but track all categories for "multiple criteria" note
-              const overallRating = parseInt(row.overall_rating) || 0;
-              const staffingRating = parseInt(row.staffing_rating) || 0;
-              const totalHPRD = facility.total_nurse_hprd || 0;
-              const caseMixHPRD = facility.case_mix_total_hprd || 0;
-              const isUnderstaffed = staffingRating === 1 || 
-                                     (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
-                                     (stateBottom10Percentile[stateName] && totalHPRD > 0 && totalHPRD <= stateBottom10Percentile[stateName]);
-              
-              // Track all categories this facility belongs to
-              if (row.sff_status && row.sff_status.trim() === 'SFF') {
-                facility.categories.push('sff');
-              }
-              if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') {
-                facility.categories.push('candidate');
-              }
-              if (facility.hasAbuse) {
-                facility.categories.push('abuse');
-              }
-              if (overallRating === 1) {
-                facility.categories.push('oneStarOverall');
-              }
-              if (isUnderstaffed) {
-                facility.categories.push('understaffing');
-              }
-              
-              // Add to first matching category only (priority order)
-              if (row.sff_status && row.sff_status.trim() === 'SFF') {
-                stateData[stateName].sff.push(facility);
-              } else if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') {
-                stateData[stateName].sffCandidates.push(facility);
-              } else if (facility.hasAbuse) {
-                stateData[stateName].abuse.push(facility);
-              } else if (overallRating === 1) {
-                stateData[stateName].oneStarOverall.push(facility);
-              } else if (isUnderstaffed) {
-                stateData[stateName].oneStarStaffing.push(facility);
-              }
-            }
-          });
+          applyProviderSnapshotCsv(providerText, mostRecentQuarter);
         }
 
-          // Ensure for-profit percentages are populated even when provider CSV downloads are blocked.
-          // This must run outside providerText processing so it still works if provider CSVs are unavailable.
-          try {
-            const forProfitPayload = await fetchReportJson('fp', '');
-            if (forProfitPayload) {
-              const byState = forProfitPayload.states || {};
-              Object.keys(stateData).forEach(stateName => {
-                const stateAbbr = (stateData[stateName] && stateData[stateName].state) || '';
-                const entry = byState[stateAbbr];
-                if (entry && entry.percent !== null && entry.percent !== undefined && Number.isFinite(entry.percent)) {
-                  stateData[stateName].forProfitPercent = parseFloat(entry.percent);
-                }
+        // Ensure for-profit percentages when provider CSV is missing or slice has no rows
+        try {
+          const forProfitPayload = await fetchReportJson(
+            'fp',
+            mostRecentQuarter ? 'quarter=' + encodeURIComponent(mostRecentQuarter) : ''
+          );
+          if (forProfitPayload) {
+            const byState = forProfitPayload.states || {};
+            Object.keys(stateData).forEach(stateName => {
+              const raw = (stateData[stateName] && stateData[stateName].state) || '';
+              const stateAbbr = String(raw).trim().toUpperCase().slice(0, 2);
+              const entry = byState[stateAbbr];
+              if (entry && entry.percent !== null && entry.percent !== undefined && Number.isFinite(entry.percent)) {
+                stateData[stateName].forProfitPercent = parseFloat(entry.percent);
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Could not load for-profit state percentages from API:', e);
+        }
+
+        // Merge server high-risk JSON when provider is missing, in-browser lists empty, or any state bucket still empty
+        try {
+          if (mostRecentQuarter) {
+            const hrPayload = await fetchReportJson(
+              'hrs',
+              'quarter=' + encodeURIComponent(mostRecentQuarter)
+            );
+            if (hrPayload) {
+              const by = hrPayload.states || {};
+              const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing'];
+              Object.keys(by).forEach(abbrRaw => {
+                const abbr = String(abbrRaw || '').trim().toUpperCase().slice(0, 2);
+                const stateName = abbrToName[abbr];
+                if (!stateName || !stateData[stateName]) return;
+                const s = stateData[stateName];
+                const b = by[abbrRaw] || by[abbr];
+                if (!b || typeof b !== 'object') return;
+                catKeys.forEach(k => {
+                  const have = s[k];
+                  const curLen = Array.isArray(have) ? have.length : 0;
+                  const srv = b[k];
+                  if (curLen === 0 && Array.isArray(srv) && srv.length) {
+                    s[k] = srv;
+                  }
+                });
               });
             }
-          } catch (e) {
-            console.warn('Could not load for-profit state percentages from API:', e);
           }
+        } catch (e) {
+          console.warn('Could not load high-risk facility lists from API:', e);
+        }
 
-          // High-risk lists (SFF, abuse, 1-star, understaffing) are built from provider CSV in-browser.
-          // Merge server JSON when provider is missing, nothing qualified in-browser, or any state still has empty buckets (partial client parse).
-          try {
-            let anyHighRisk = false;
-            let anyEmptyHighRiskBuckets = false;
-            Object.keys(stateData).forEach(sn => {
-              const s = stateData[sn];
-              const n = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
-                + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
-              if (n > 0) anyHighRisk = true;
-              else anyEmptyHighRiskBuckets = true;
-            });
-            if (mostRecentQuarter && (!providerText || !anyHighRisk || anyEmptyHighRiskBuckets)) {
-              const hrPayload = await fetchReportJson(
-                'hrs',
-                'quarter=' + encodeURIComponent(mostRecentQuarter)
-              );
-              if (hrPayload) {
-                const by = hrPayload.states || {};
-                Object.keys(by).forEach(abbr => {
-                  const stateName = abbrToName[abbr];
-                  if (!stateName || !stateData[stateName]) return;
-                  const s = stateData[stateName];
-                  const cur = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
-                    + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
-                  if (cur > 0) return;
-                  const b = by[abbr];
-                  if (!b || typeof b !== 'object') return;
-                  if (Array.isArray(b.sff) && b.sff.length) s.sff = b.sff;
-                  if (Array.isArray(b.sffCandidates) && b.sffCandidates.length) s.sffCandidates = b.sffCandidates;
-                  if (Array.isArray(b.abuse) && b.abuse.length) s.abuse = b.abuse;
-                  if (Array.isArray(b.oneStarOverall) && b.oneStarOverall.length) s.oneStarOverall = b.oneStarOverall;
-                  if (Array.isArray(b.oneStarStaffing) && b.oneStarStaffing.length) s.oneStarStaffing = b.oneStarStaffing;
-                });
-              }
-            }
-          } catch (e) {
-            console.warn('Could not load high-risk facility lists from API:', e);
-          }
-
-          // Process national data
-          if (q2NationalData) {
+        // Process national data
+        if (q2NationalData) {
             nationalData = {
               facility_count: parseInt(q2NationalData.facility_count) || 0,
               Total_Nurse_HPRD: parseFloat(q2NationalData.Total_Nurse_HPRD) || 0,
@@ -5643,6 +5367,208 @@
       return rows;
     }
 
+    /**
+     * Parse GET /report?p=pi CSV: match CY_Qtr to reportQuarterLabel (PBJ), else latest quarter in file.
+     * Mutates stateData (case-mix, for-profit, high-risk buckets) and providerDataByState.
+     */
+    function applyProviderSnapshotCsv(providerText, reportQuarterLabel) {
+      if (!providerText) return;
+      const allData = parseCSV(providerText);
+      function providerQuarterToCyQtr(s) {
+        const t = (s || '').trim();
+        if (!t) return '';
+        if (/^\d{4}Q[1-4]$/.test(t)) return t;
+        const m = t.match(/^Q([1-4])\s+(\d{4})$/);
+        if (m) return `${m[2]}Q${m[1]}`;
+        return '';
+      }
+      function rowProviderQuarter(row) {
+        return (row.CY_Qtr || row.cy_qtr || row.quarter || '').trim();
+      }
+      function cyQtrSortKey(q) {
+        const m = String(q || '').trim().match(/^(\d{4})Q([1-4])$/);
+        if (!m) return [0, 0];
+        return [parseInt(m[1], 10), parseInt(m[2], 10)];
+      }
+      function maxCyQtrInSet(set) {
+        let best = '';
+        let bestK = null;
+        set.forEach(q => {
+          const k = cyQtrSortKey(q);
+          if (!bestK || k[0] > bestK[0] || (k[0] === bestK[0] && k[1] > bestK[1])) {
+            best = q;
+            bestK = k;
+          }
+        });
+        return best;
+      }
+      const cyQuartersInFile = new Set();
+      allData.forEach(row => {
+        const cy = providerQuarterToCyQtr(rowProviderQuarter(row));
+        if (cy) cyQuartersInFile.add(cy);
+      });
+      const want = (reportQuarterLabel || '').trim();
+      let targetCyQtr = '';
+      if (want && /^\d{4}Q[1-4]$/.test(want) && cyQuartersInFile.has(want)) {
+        targetCyQtr = want;
+      } else if (cyQuartersInFile.size > 0) {
+        targetCyQtr = maxCyQtrInSet(cyQuartersInFile);
+        if (want && /^\d{4}Q[1-4]$/.test(want) && want !== targetCyQtr && reportEmbedDebug()) {
+          console.warn(`[report] Provider CSV: PBJ quarter ${want} not in file; using ${targetCyQtr}`);
+        }
+      }
+      const recentData = targetCyQtr
+        ? allData.filter(row => providerQuarterToCyQtr(rowProviderQuarter(row)) === targetCyQtr)
+        : [];
+      if (reportEmbedDebug() && targetCyQtr) {
+        console.log(`[report] Provider rows for CY_Qtr ${targetCyQtr}: ${recentData.length}`);
+      }
+      function ownershipIsForProfit(s) {
+        const low = (s || '').toString().trim().toLowerCase();
+        if (!low) return false;
+        if (/for[\s_-]*profit/i.test(low)) return true;
+        const compact = low.replace(/[\s_-]/g, '');
+        if (compact.includes('forprofit')) return true;
+        return false;
+      }
+      function providerStateAbbr(v) {
+        return String(v || '').trim().toUpperCase().slice(0, 2);
+      }
+      const stateCaseMix = {};
+      recentData.forEach(row => {
+        const stateAbbr = providerStateAbbr(row.state);
+        const stateName = abbrToName[stateAbbr];
+        if (!stateName || !stateData[stateName]) return;
+        const census = parseFloat(row.avg_residents_per_day) || 0;
+        const caseMixTotal = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
+        const caseMixRN = parseFloat(row.case_mix_rn_hrs_per_resident_per_day) || 0;
+        const caseMixNA = parseFloat(row.case_mix_na_hrs_per_resident_per_day) || 0;
+        if (census > 0 && (caseMixTotal > 0 || caseMixRN > 0 || caseMixNA > 0)) {
+          if (!stateCaseMix[stateName]) {
+            stateCaseMix[stateName] = {
+              totalWeighted: 0,
+              rnWeighted: 0,
+              naWeighted: 0,
+              totalCensus: 0
+            };
+          }
+          if (caseMixTotal > 0) stateCaseMix[stateName].totalWeighted += caseMixTotal * census;
+          if (caseMixRN > 0) stateCaseMix[stateName].rnWeighted += caseMixRN * census;
+          if (caseMixNA > 0) stateCaseMix[stateName].naWeighted += caseMixNA * census;
+          stateCaseMix[stateName].totalCensus += census;
+        }
+      });
+      Object.keys(stateCaseMix).forEach(stateName => {
+        const data = stateCaseMix[stateName];
+        if (data.totalCensus > 0) {
+          stateData[stateName].caseMixTotalHPRD = data.totalWeighted / data.totalCensus;
+          stateData[stateName].caseMixRNHPRD = data.rnWeighted / data.totalCensus;
+          stateData[stateName].caseMixNurseAideHPRD = data.naWeighted / data.totalCensus;
+        }
+      });
+      recentData.forEach(row => {
+        const stateAbbr = providerStateAbbr(row.state);
+        const stateName = abbrToName[stateAbbr];
+        if (!stateName || !stateData[stateName]) return;
+        if (!providerDataByState[stateName]) {
+          providerDataByState[stateName] = [];
+        }
+        providerDataByState[stateName].push(row);
+      });
+      Object.keys(stateData).forEach(stateName => {
+        const stateFacilities = providerDataByState[stateName] || [];
+        const nRows = stateFacilities.length;
+        stateData[stateName].providerInfoRowCount = nRows;
+        if (nRows === 0) {
+          stateData[stateName].forProfitPercent = null;
+          return;
+        }
+        const forProfitCount = stateFacilities.filter(row => ownershipIsForProfit(row.ownership_type)).length;
+        stateData[stateName].forProfitPercent = (forProfitCount / nRows) * 100;
+      });
+      const stateHPRDValues = {};
+      recentData.forEach(row => {
+        if (row.ccn && row.state) {
+          const stateAbbr = providerStateAbbr(row.state);
+          const stateName = abbrToName[stateAbbr];
+          const hprd = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day);
+          if (stateName && !isNaN(hprd) && hprd > 0) {
+            if (!stateHPRDValues[stateName]) {
+              stateHPRDValues[stateName] = [];
+            }
+            stateHPRDValues[stateName].push(hprd);
+          }
+        }
+      });
+      const stateBottom10Percentile = {};
+      Object.keys(stateHPRDValues).forEach(stateName => {
+        const values = stateHPRDValues[stateName].sort((a, b) => a - b);
+        const percentileIndex = Math.floor(values.length * 0.1);
+        stateBottom10Percentile[stateName] = values[percentileIndex] || 0;
+      });
+      const highRiskFacilities = recentData.filter(row => {
+        const sffStatus = (row.sff_status || '').trim();
+        const overallRating = parseInt(row.overall_rating) || 0;
+        const staffingRating = parseInt(row.staffing_rating) || 0;
+        const hasAbuse = row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1';
+        const stateAbbr = providerStateAbbr(row.state);
+        const stateName = abbrToName[stateAbbr];
+        const totalHPRD = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || 0;
+        const caseMixHPRD = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
+        const isUnderstaffed = staffingRating === 1 ||
+          (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
+          (stateName && stateBottom10Percentile[stateName] && totalHPRD <= stateBottom10Percentile[stateName]);
+        return row.ccn && row.state && (
+          sffStatus === 'SFF' ||
+          sffStatus === 'SFF Candidate' ||
+          hasAbuse ||
+          overallRating === 1 ||
+          isUnderstaffed
+        );
+      });
+      highRiskFacilities.forEach(row => {
+        const stateAbbr = providerStateAbbr(row.state);
+        const stateName = abbrToName[stateAbbr];
+        if (!stateName || !stateData[stateName]) return;
+        const facility = {
+          ccn: row.ccn.trim(),
+          name: row.provider_name || 'Unknown provider',
+          city: row.city || '',
+          state: row.state ? row.state.trim() : '',
+          overall_rating: row.overall_rating || '',
+          staffing_rating: row.staffing_rating || '',
+          status: row.sff_status ? row.sff_status.trim() : '',
+          hasAbuse: row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1',
+          total_nurse_hprd: parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || null,
+          case_mix_total_hprd: parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || null,
+          categories: []
+        };
+        const overallRating = parseInt(row.overall_rating) || 0;
+        const staffingRating = parseInt(row.staffing_rating) || 0;
+        const totalHPRD = facility.total_nurse_hprd || 0;
+        const caseMixHPRD = facility.case_mix_total_hprd || 0;
+        const isUnderstaffed = staffingRating === 1 ||
+          (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
+          (stateBottom10Percentile[stateName] && totalHPRD > 0 && totalHPRD <= stateBottom10Percentile[stateName]);
+        if (row.sff_status && row.sff_status.trim() === 'SFF') facility.categories.push('sff');
+        if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') facility.categories.push('candidate');
+        if (facility.hasAbuse) facility.categories.push('abuse');
+        if (overallRating === 1) facility.categories.push('oneStarOverall');
+        if (isUnderstaffed) facility.categories.push('understaffing');
+        if (row.sff_status && row.sff_status.trim() === 'SFF') {
+          stateData[stateName].sff.push(facility);
+        } else if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') {
+          stateData[stateName].sffCandidates.push(facility);
+        } else if (facility.hasAbuse) {
+          stateData[stateName].abuse.push(facility);
+        } else if (overallRating === 1) {
+          stateData[stateName].oneStarOverall.push(facility);
+        } else if (isUnderstaffed) {
+          stateData[stateName].oneStarStaffing.push(facility);
+        }
+      });
+    }
+
     function calculateMedian(values) {
       const sorted = values.filter(v => !isNaN(v)).sort((a, b) => a - b);
       const mid = Math.floor(sorted.length / 2);
@@ -5737,7 +5663,7 @@
       // Puerto Rico is included in region calculations (not filtered here)
       Object.keys(stateData).forEach(stateName => {
         const state = stateData[stateName];
-        const stateAbbr = state.state;
+        const stateAbbr = String(state.state || '').trim().toUpperCase().slice(0, 2);
         const regionInfo = regionMapping[stateAbbr];
         
         if (!regionInfo) return;
@@ -5815,13 +5741,12 @@
         let facilitiesWithKnownForProfit = 0;
         region.states.forEach(stateName => {
           const state = stateData[stateName];
-          if (state && state.facility_count) {
-            totalFacilities += state.facility_count;
-            // Calculate for-profit count from state's for-profit percentage
-            if (state.forProfitPercent !== null && state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent)) {
-              forProfitFacilities += Math.round((state.forProfitPercent / 100) * state.facility_count);
-              facilitiesWithKnownForProfit += state.facility_count;
-            }
+          if (!state) return;
+          const denom = (state.providerInfoRowCount > 0) ? state.providerInfoRowCount : (state.facility_count || 0);
+          if (denom > 0 && state.forProfitPercent !== null && state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent)) {
+            totalFacilities += denom;
+            forProfitFacilities += (state.forProfitPercent / 100) * denom;
+            facilitiesWithKnownForProfit += denom;
           }
         });
         // Keep unknown values unknown; don't coerce missing state data to 0%.
@@ -6736,20 +6661,6 @@
       const staffingRating = f.staffing_rating ? `Staffing: ${parseInt(f.staffing_rating)}★` : '';
       const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');
       let staffingText = '';
-      
-      // Debug: Log raw values for SIRO facility
-      if (f.name && f.name.includes('SIRO') && f.city && f.city.includes('HORMIGUEROS')) {
-        console.log('SIRO Facility Debug:', {
-          name: f.name,
-          city: f.city,
-          state: f.state,
-          ccn: f.ccn,
-          raw_total_nurse_hprd: f.total_nurse_hprd,
-          raw_case_mix_total_hprd: f.case_mix_total_hprd,
-          total_nurse_hprd_type: typeof f.total_nurse_hprd,
-          case_mix_total_hprd_type: typeof f.case_mix_total_hprd
-        });
-      }
       
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
         const ratio = f.case_mix_total_hprd > 0 ? (f.total_nurse_hprd / f.case_mix_total_hprd * 100).toFixed(0) : '0';
@@ -7847,7 +7758,7 @@
               <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', stateAbbr)).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', '')).join('')}
             </ul>
           </div>
         `;
@@ -7868,7 +7779,7 @@
               <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', stateAbbr)).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', '')).join('')}
             </ul>
           </div>
         `;
@@ -7889,7 +7800,7 @@
               <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', stateAbbr)).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', '')).join('')}
             </ul>
           </div>
         `;
@@ -7910,7 +7821,7 @@
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', stateAbbr)).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', '')).join('')}
             </ul>
           </div>
         `;
@@ -7932,7 +7843,7 @@
             </h4>
             <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
             <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', stateAbbr)).join('')}
+              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', '')).join('')}
             </ul>
           </div>
         `;

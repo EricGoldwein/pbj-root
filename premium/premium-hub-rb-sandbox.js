@@ -316,13 +316,49 @@
 
     function wireBookingAnchors() {
 
-        document.querySelectorAll('a[href="#booking"][data-request-type]').forEach(function (link) {
+        document.querySelectorAll('a[href="#booking"]').forEach(function (link) {
 
-            link.addEventListener("click", function () {
+            link.addEventListener("click", function (e) {
 
-                if (hubRequestType) {
+                var rt = link.getAttribute("data-request-type");
 
-                    hubRequestType.value = link.getAttribute("data-request-type") || "custom";
+                if (rt && hubRequestType) {
+
+                    hubRequestType.value = rt;
+
+                } else if (link.classList.contains("pbj-audit-demo-cta__link") && hubRequestType) {
+
+                    hubRequestType.value = "pilot_dashboard";
+
+                }
+
+                var booking = document.getElementById("booking");
+
+                if (booking) {
+
+                    e.preventDefault();
+
+                    booking.scrollIntoView({ behavior: "smooth", block: "start" });
+
+                    window.setTimeout(function () {
+
+                        var focusEl = ccnInput || document.getElementById("hub-pro-email");
+
+                        if (focusEl) {
+
+                            try {
+
+                                focusEl.focus({ preventScroll: true });
+
+                            } catch (err) {
+
+                                focusEl.focus();
+
+                            }
+
+                        }
+
+                    }, 350);
 
                 }
 

@@ -84,7 +84,7 @@
                         <section id="starting-point" class="pbj-audit-pricing anchor-target" aria-labelledby="audit-pricing-heading">
                             <h2 id="audit-pricing-heading" class="pbj-audit-pricing__heading">Choose a starting point</h2>
                             <div class="row g-3 pbj-audit-pricing__row">
-                                <div class="col-lg-6 d-flex">
+                                <div class="col-12 col-lg-6 d-flex">
                                     <article class="pbj-audit-pricing-card pbj-audit-pricing-card--primary" aria-labelledby="pricing-pilot-title">
                                         <div class="pbj-audit-pricing-card__badge">Pilot offer: $250</div>
                                         <h3 id="pricing-pilot-title" class="pbj-audit-pricing-card__title">Facility Dashboard + 45-Minute Consult</h3>
@@ -212,6 +212,49 @@
                                 <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-acuity">See evidence</button>
                             </article>
                         </div>
+                    </div>
+                    <div class="pbj-audit-features__carousel d-md-none" role="region" aria-label="Dashboard capabilities" aria-roledescription="carousel">
+                        <div class="pbj-audit-features__track" id="audit-features-track" tabindex="0">
+                            <article class="pbj-audit-card pbj-audit-features__slide">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="/premium-assets/media/state-compliance.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Compliance Logic</h3>
+                                <p class="pbj-audit-card__text">Daily PBJ totals flagged against state minimums, RN rules, and custom HPRD thresholds—CMS-reported, facility-level.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-compliance">See evidence</button>
+                            </article>
+                            <article class="pbj-audit-card pbj-audit-features__slide">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="/premium-assets/media/roster-modal.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Forensic Roster</h3>
+                                <p class="pbj-audit-card__text">Individual employee tenure and daily hours from CMS employee-detail PBJ, where published for the CCN.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-roster">See evidence</button>
+                            </article>
+                            <article class="pbj-audit-card pbj-audit-features__slide">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="/premium-assets/media/case-mix.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Acuity &amp; Case-Mix</h3>
+                                <p class="pbj-audit-card__text">Compare a facility&rsquo;s staffing to CMS case-mix (acuity), expected staffing, and other advanced metrics.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-acuity">See evidence</button>
+                            </article>
+                        </div>
+                        <div class="pbj-audit-features__dots" id="audit-features-dots" role="tablist" aria-label="Capability slides">
+                            <button type="button" class="pbj-audit-features__dot is-active" role="tab" aria-selected="true" aria-label="Compliance Logic" data-slide="0"></button>
+                            <button type="button" class="pbj-audit-features__dot" role="tab" aria-selected="false" aria-label="Forensic Roster" data-slide="1"></button>
+                            <button type="button" class="pbj-audit-features__dot" role="tab" aria-selected="false" aria-label="Acuity and Case-Mix" data-slide="2"></button>
+                        </div>
+                    </div>
+                    <div class="pbj-audit-pricing-custom--mobile d-lg-none">
+                        <article class="pbj-audit-pricing-card pbj-audit-pricing-card--secondary" aria-labelledby="pricing-custom-title-mobile">
+                            <div class="pbj-audit-pricing-card__badge pbj-audit-pricing-card__badge--custom-pbj" role="group" aria-label="Custom PBJ320">Custom PBJ320</div>
+                            <h3 id="pricing-custom-title-mobile" class="pbj-audit-pricing-card__title">Analysis + Dashboards</h3>
+                            <p class="pbj-audit-pricing-card__text">Ownership and operator analysis, portfolio comparisons, and advanced staffing analytics—plus branded deliverables and litigation support for your facility, operator, or case.</p>
+                            <div class="pbj-audit-pricing-card__actions">
+                                <a class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" href="#booking" data-request-type="custom" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</a>
+                            </div>
+                        </article>
                     </div>
                     <p class="pbj-audit-demo-cta">
                         <a class="pbj-audit-demo-cta__link" href="#booking">Request a free 45-minute consult</a>

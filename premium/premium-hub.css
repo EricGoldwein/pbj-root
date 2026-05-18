@@ -2154,10 +2154,24 @@ button.pbj-audit-hero-actions__primary {
     white-space: nowrap;
 }
 
+.pbj-audit-booking-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+}
+
+.pbj-audit-mobile-pilot-card {
+    margin: 0;
+}
+
 .pbj-audit-demo-cta {
     margin: 1.15rem 0 0;
     padding: 0;
     text-align: center;
+}
+
+.pbj-audit-bottom .pbj-audit-demo-cta {
+    margin: 0.85rem 0 0;
 }
 
 .pbj-audit-command__pilot-intro {
@@ -2206,6 +2220,14 @@ button.pbj-audit-hero-actions__primary {
 }
 
 @media (max-width: 767px) {
+    .pbj-audit-hero-sample-btn.d-md-inline-flex {
+        display: none !important;
+    }
+
+    .pbj-audit-mobile-pilot-card {
+        margin-bottom: 0.15rem;
+    }
+
     .pbj-audit-hero-sample-btn {
         display: inline-flex;
         align-items: center;
@@ -2310,6 +2332,7 @@ button.pbj-audit-hero-actions__primary {
     }
 }
 
+.pbj-audit-demo-cta__btn,
 .pbj-audit-demo-cta__link {
     display: inline-flex;
     align-items: center;
@@ -2332,6 +2355,13 @@ button.pbj-audit-hero-actions__primary {
         transform 0.12s ease;
 }
 
+.pbj-audit-demo-cta__btn {
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1.2;
+}
+
+.pbj-audit-demo-cta__btn:hover,
 .pbj-audit-demo-cta__link:hover {
     color: #312e81;
     border-color: rgba(99, 102, 241, 0.85);
@@ -2340,6 +2370,7 @@ button.pbj-audit-hero-actions__primary {
     transform: translateY(-1px);
 }
 
+.pbj-audit-demo-cta__btn:focus-visible,
 .pbj-audit-demo-cta__link:focus-visible {
     outline: 2px solid #c4b5fd;
     outline-offset: 2px;
@@ -2709,7 +2740,9 @@ button.pbj-audit-hero-actions__primary {
 .pbj-audit-features__track {
     display: flex;
     gap: 0;
+    width: 100%;
     overflow-x: auto;
+    overflow-y: hidden;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
@@ -2723,11 +2756,13 @@ button.pbj-audit-hero-actions__primary {
 
 .pbj-audit-features__slide {
     flex: 0 0 100%;
+    width: 100%;
+    min-width: 100%;
     max-width: 100%;
     scroll-snap-align: start;
     scroll-snap-stop: always;
     box-sizing: border-box;
-    padding: 0 0.15rem;
+    padding: 0;
 }
 
 .pbj-audit-features__dots {

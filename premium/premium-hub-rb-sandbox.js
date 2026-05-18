@@ -570,7 +570,7 @@
 
 
 
-            if (cfg.requestType === "premium_inquiry") {
+            if (cfg.requestType === "premium_inquiry" || cfg.requestType === "demo_request") {
 
                 var ccnRaw = strip(document.getElementById(cfg.ccnId).value);
 
@@ -705,6 +705,36 @@
         leadId: "modal-custom-work-lead",
 
         requestType: "custom_work",
+
+    });
+
+
+
+    wireInquiryModal({
+
+        formId: "hub-demo-request-form",
+
+        statusId: "hub-demo-form-status",
+
+        submitId: "hub-demo-submit",
+
+        successId: "hub-demo-success",
+
+        successEmailId: "hub-demo-success-email",
+
+        honeypotId: "hub-demo-website",
+
+        emailId: "hub-demo-email",
+
+        nameId: "hub-demo-name",
+
+        ccnId: "hub-demo-ccn",
+
+        notesId: "hub-demo-notes",
+
+        leadId: "modal-request-demo-lead",
+
+        requestType: "demo_request",
 
     });
 

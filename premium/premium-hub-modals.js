@@ -16,11 +16,31 @@
     var lastFocus = null;
 
     function resetInquiryModal(id) {
-        if (id !== "request-premium" && id !== "custom-work") return;
-        var formId = id === "request-premium" ? "hub-premium-inquiry-form" : "hub-custom-work-form";
-        var successId = id === "request-premium" ? "hub-premium-success" : "hub-custom-success";
-        var leadId = id === "request-premium" ? "modal-request-premium-lead" : "modal-custom-work-lead";
-        var statusId = id === "request-premium" ? "hub-premium-form-status" : "hub-custom-form-status";
+        if (id !== "request-premium" && id !== "custom-work" && id !== "request-demo") return;
+        var formId =
+            id === "request-premium"
+                ? "hub-premium-inquiry-form"
+                : id === "request-demo"
+                  ? "hub-demo-request-form"
+                  : "hub-custom-work-form";
+        var successId =
+            id === "request-premium"
+                ? "hub-premium-success"
+                : id === "request-demo"
+                  ? "hub-demo-success"
+                  : "hub-custom-success";
+        var leadId =
+            id === "request-premium"
+                ? "modal-request-premium-lead"
+                : id === "request-demo"
+                  ? "modal-request-demo-lead"
+                  : "modal-custom-work-lead";
+        var statusId =
+            id === "request-premium"
+                ? "hub-premium-form-status"
+                : id === "request-demo"
+                  ? "hub-demo-form-status"
+                  : "hub-custom-form-status";
         var form = document.getElementById(formId);
         var success = document.getElementById(successId);
         var lead = document.getElementById(leadId);
@@ -154,7 +174,19 @@
         var timer = null;
         var pauseUntil = 0;
 
+        function syncSlideWidths() {
+            var w = track.clientWidth;
+            if (!w) return;
+            slides.forEach(function (slide) {
+                slide.style.flexBasis = w + "px";
+                slide.style.width = w + "px";
+                slide.style.maxWidth = w + "px";
+                slide.style.minWidth = w + "px";
+            });
+        }
+
         function scrollToIndex(i, behavior) {
+            syncSlideWidths();
             index = ((i % slides.length) + slides.length) % slides.length;
             var slide = slides[index];
             if (!slide) return;
@@ -210,8 +242,13 @@
             pauseUntil = Date.now() + 8000;
         }, { passive: true });
 
+        syncSlideWidths();
         scrollToIndex(0, "auto");
         scheduleAuto();
+        window.addEventListener("resize", function () {
+            syncSlideWidths();
+            scrollToIndex(index, "auto");
+        });
     }
 
     if (document.readyState === "loading") {

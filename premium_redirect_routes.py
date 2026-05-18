@@ -173,6 +173,9 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
                 return jsonify({'ok': False, 'error': 'CCN or provider required'}), 400
             if len(ccn) != 6:
                 ccn = ''
+        elif req_type == 'demo_request':
+            if len(ccn) != 6:
+                ccn = ''
         elif len(ccn) != 6:
             return jsonify({'ok': False, 'error': 'Valid 6-digit CCN required'}), 400
         payload = {

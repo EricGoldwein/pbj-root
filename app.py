@@ -37,6 +37,7 @@ from pbj_ai_config import (
     pbj_ai_sample_enabled,
     pbj_ai_zip_download_enabled,
 )
+from premium_redirect_routes import register_premium_routes
 from pbj_ai_support import (
     CLAUDE_INSTALL_INSTRUCTIONS,
     CLAUDE_SKILL_BLURB,
@@ -1051,46 +1052,7 @@ def pbj_ai_support_js():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-ai-support.js', mimetype='application/javascript'))
 
 
-@app.route('/premium/tips')
-@app.route('/premium/tips/')
-def premium_tips():
-    path = os.path.join(APP_ROOT, 'premium', 'tips', 'index.html')
-    if not os.path.isfile(path):
-        from flask import abort
-        abort(404)
-    with open(path, encoding='utf-8') as f:
-        page_html = f.read()
-    resp = make_response(page_html)
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    return resp
-
-
-@app.route('/premium/methods')
-@app.route('/premium/methods/')
-def premium_methods():
-    path = os.path.join(APP_ROOT, 'premium', 'methods', 'index.html')
-    if not os.path.isfile(path):
-        from flask import abort
-        abort(404)
-    with open(path, encoding='utf-8') as f:
-        page_html = f.read()
-    resp = make_response(page_html)
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    return resp
-
-
-@app.route('/premium/<path:asset_path>')
-def premium_static(asset_path):
-    """Serve premium-site.css, premium-toc.js, and other premium static assets."""
-    safe = asset_path.replace('\\', '/').lstrip('/')
-    if '..' in safe.split('/'):
-        from flask import abort
-        abort(404)
-    full = os.path.join(APP_ROOT, 'premium', safe.replace('/', os.sep))
-    if not os.path.isfile(full):
-        from flask import abort
-        abort(404)
-    return send_file(full)
+register_premium_routes(app, APP_ROOT)
 
 
 @app.route('/static/downloads/pbj320-staffing-review.zip')

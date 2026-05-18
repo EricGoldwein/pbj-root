@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBJ320 — CCN 320365</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+            font-size: 13px;
+            color: #0f172a;
+            background: #f1f5f9;
+            min-width: 960px;
+        }
+        .nav-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.45rem 0.75rem;
+            background: #fff;
+            border-bottom: 1px solid #e2e8f0;
+            flex-wrap: wrap;
+        }
+        .nav-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-right: 0.5rem;
+        }
+        .nav-brand img { width: 20px; height: 20px; }
+        .nav-link {
+            font-size: 0.72rem;
+            color: #475569;
+            padding: 0.25rem 0.45rem;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+        .nav-link:hover { background: #f1f5f9; color: #0f172a; }
+        .nav-link--rb {
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
+            color: #fff !important;
+            font-weight: 600;
+        }
+        .facility-hero {
+            background: linear-gradient(165deg, #eef2ff 0%, #f8fafc 55%, #fff 100%);
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.85rem 1rem 0.75rem;
+        }
+        .facility-hero h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0 0 0.2rem;
+            letter-spacing: -0.02em;
+        }
+        .facility-hero .sub {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin: 0 0 0.45rem;
+        }
+        .facility-hero .dek {
+            font-size: 0.68rem;
+            color: #94a3b8;
+            max-width: 42rem;
+            margin: 0 0 0.55rem;
+            line-height: 1.45;
+        }
+        .btn-pbj {
+            display: inline-block;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #4338ca);
+            border: none;
+            border-radius: 8px;
+            padding: 0.38rem 0.85rem;
+            text-decoration: none;
+        }
+        .summary-wrap {
+            padding: 0.65rem 0.75rem 0.85rem;
+        }
+        .summary-head {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin: 0 0 0.55rem;
+        }
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr 1fr 1fr;
+            gap: 0.55rem;
+            align-items: stretch;
+        }
+        .period-card, .metric-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.55rem 0.65rem;
+        }
+        .period-card .lbl {
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #64748b;
+            margin-bottom: 0.35rem;
+        }
+        .tabs {
+            display: flex;
+            gap: 0.2rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.45rem;
+        }
+        .tab {
+            font-size: 0.65rem;
+            padding: 0.2rem 0.45rem;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #64748b;
+        }
+        .tab.active {
+            background: #4f46e5;
+            border-color: #4f46e5;
+            color: #fff;
+            font-weight: 600;
+        }
+        .field-lbl { font-size: 0.62rem; color: #64748b; margin-bottom: 0.15rem; }
+        .field-val {
+            font-size: 0.72rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 0.28rem 0.4rem;
+            background: #f8fafc;
+            font-family: ui-monospace, monospace;
+        }
+        .metric-card h3 {
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin: 0 0 0.35rem;
+            color: #334155;
+        }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 0.5rem;
+            font-size: 0.7rem;
+            margin-bottom: 0.22rem;
+            line-height: 1.35;
+        }
+        .metric-row strong { color: #0f172a; }
+        .metric-row .muted { color: #64748b; }
+        .stars { color: #f59e0b; letter-spacing: -0.05em; }
+        .bar-wrap {
+            height: 8px;
+            background: #fee2e2;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0.35rem 0;
+        }
+        .bar-fill {
+            height: 100%;
+            width: 63%;
+            background: linear-gradient(90deg, #f97316, #dc2626);
+            border-radius: 4px;
+        }
+        .chart-card {
+            grid-column: 1 / -1;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 0.55rem 0.65rem 0.35rem;
+        }
+        .chart-tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 0.35rem;
+        }
+        .chart-tabs .tab { font-size: 0.68rem; }
+        .chart-tabs .tab.active { background: #334155; border-color: #334155; }
+        svg.chart { width: 100%; height: auto; display: block; }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            font-size: 0.65rem;
+            color: #475569;
+            margin-top: 0.25rem;
+        }
+        .legend span { display: inline-flex; align-items: center; gap: 0.3rem; }
+        .swatch { width: 14px; height: 3px; border-radius: 2px; display: inline-block; }
+        .swatch--total { background: #dc2626; }
+        .swatch--direct { background: #7c3aed; }
+        .swatch--min { background: transparent; border-top: 2px dashed #ca8a04; height: 0; width: 14px; }
+    </style>
+</head>
+<body>
+    <nav class="nav-bar" aria-label="Dashboard">
+        <span class="nav-brand">
+            <img src="https://www.pbj320.com/pbj_favicon.png" alt="">
+            <span>PBJ320</span>
+        </span>
+        <a class="nav-link" href="#">Compliance</a>
+        <a class="nav-link" href="#">Acuity</a>
+        <a class="nav-link" href="#">Trends</a>
+        <a class="nav-link" href="#">Red Flags</a>
+        <a class="nav-link" href="#">Employee Tracker</a>
+        <a class="nav-link" href="#">Daily PBJ</a>
+        <a class="nav-link nav-link--rb" href="#">Report Builder</a>
+    </nav>
+
+    <header class="facility-hero">
+        <h1>CCN 320365</h1>
+        <p class="sub">Brooklyn, NY</p>
+        <p class="dek">CMS Payroll-Based Journal (PBJ) staffing dashboard. Data from CMS-reported files; not independently verified.</p>
+        <a class="btn-pbj" href="#">Build Custom PBJ Report</a>
+    </header>
+
+    <section class="summary-wrap" aria-label="PBJ Summary">
+        <h2 class="summary-head">1. PBJ Summary</h2>
+        <div class="summary-grid">
+            <div class="period-card">
+                <div class="lbl">Summary &amp; period</div>
+                <div class="tabs" role="tablist">
+                    <span class="tab">Years</span>
+                    <span class="tab">Quarters</span>
+                    <span class="tab active">Months</span>
+                    <span class="tab">Custom</span>
+                    <span class="tab">Day</span>
+                </div>
+                <div class="field-lbl">Start month</div>
+                <div class="field-val mb-2">June 2021</div>
+                <div class="field-lbl">End month</div>
+                <div class="field-val">September 2025</div>
+            </div>
+
+            <div class="metric-card">
+                <h3>Profile</h3>
+                <div class="metric-row"><span class="muted">Location</span><strong>Brooklyn, NY</strong></div>
+                <div class="metric-row"><span class="muted">Ownership</span><strong>For profit</strong></div>
+                <div class="metric-row"><span class="muted">Census</span><strong>351.1 <span class="muted">(360 beds)</span></strong></div>
+                <div class="metric-row"><span class="muted">Overall</span><span class="stars">★★☆☆☆</span></div>
+                <div class="metric-row"><span class="muted">Staffing</span><span class="stars">★☆☆☆☆</span></div>
+                <div class="metric-row"><span class="muted">Scope</span><span class="muted">Jun 2021 – Sep 2025</span></div>
+            </div>
+
+            <div class="metric-card">
+                <h3>PBJ basics</h3>
+                <div class="metric-row"><span class="muted">Total HPRD</span><strong>2.89 <span class="muted">(2.74 direct)</span></strong></div>
+                <div class="metric-row"><span class="muted">NY minimum</span><span class="muted">~3.56</span></div>
+                <div class="metric-row"><span class="muted">RN HPRD</span><strong>0.28 <span class="muted">(0.12 direct RN)</span></strong></div>
+                <div class="metric-row"><span class="muted">Nurse aide HPRD</span><strong>2.12</strong></div>
+                <div class="metric-row"><span class="muted">Contract</span><strong>11.4%</strong></div>
+            </div>
+
+            <div class="metric-card">
+                <h3>Acuity &amp; compliance</h3>
+                <div class="metric-row"><span class="muted">CMS case-mix</span><strong>63.2% direct 59.5%</strong></div>
+                <div class="bar-wrap" aria-hidden="true"><div class="bar-fill"></div></div>
+                <div class="metric-row"><span class="muted">&lt; 3.56 HPRD</span><strong>1,583 days</strong></div>
+                <div class="metric-row"><span class="muted">&lt; 8h RN</span><strong>0 days</strong></div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-tabs">
+                    <span class="tab">Daily</span>
+                    <span class="tab active">Monthly</span>
+                    <span class="tab">Quarterly</span>
+                    <span class="tab">Annually</span>
+                </div>
+                <svg class="chart" viewBox="0 0 900 220" role="img" aria-label="Monthly HPRD trend below New York minimum">
+                    <rect width="900" height="220" fill="#fff"/>
+                    <g stroke="#f1f5f9">
+                        <line x1="50" y1="30" x2="870" y2="30"/><line x1="50" y1="70" x2="870" y2="70"/>
+                        <line x1="50" y1="110" x2="870" y2="110"/><line x1="50" y1="150" x2="870" y2="150"/>
+                    </g>
+                    <line x1="50" y1="42" x2="870" y2="42" stroke="#ca8a04" stroke-width="2" stroke-dasharray="6 4"/>
+                    <text x="48" y="38" font-size="9" fill="#a16207" text-anchor="end">3.56</text>
+                    <polyline fill="none" stroke="#dc2626" stroke-width="2.25" points="50,125 95,118 140,122 185,115 230,120 275,117 320,123 365,116 410,121 455,118 500,124 545,117 590,122 635,119 680,125 725,118 770,122 815,120 860,123"/>
+                    <polyline fill="none" stroke="#7c3aed" stroke-width="2.25" points="50,138 95,132 140,136 185,130 230,134 275,131 320,137 365,130 410,135 455,132 500,138 545,131 590,136 635,133 680,139 725,132 770,136 815,134 860,137"/>
+                    <text x="50" y="210" font-size="8" fill="#64748b">Jun 2021</text>
+                    <text x="250" y="210" font-size="8" fill="#64748b">2022</text>
+                    <text x="450" y="210" font-size="8" fill="#64748b">2023</text>
+                    <text x="650" y="210" font-size="8" fill="#64748b">2024</text>
+                    <text x="820" y="210" font-size="8" fill="#64748b">Sep 2025</text>
+                    <text x="12" y="115" font-size="9" fill="#64748b" transform="rotate(-90 12 115)">HPRD</text>
+                </svg>
+                <div class="legend">
+                    <span><i class="swatch swatch--total"></i> Total</span>
+                    <span><i class="swatch swatch--direct"></i> Direct</span>
+                    <span><i class="swatch swatch--min"></i> NY min. (~3.56)</span>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PBJ320 Premium — Staffing audit</title>
+    <meta name="description" content="PBJ320 Premium: staffing discovery, roster audit, and evidentiary reports for any US nursing home (CMS PBJ). Pilot $250.">
+    <meta name="theme-color" content="#312e81">
+    <meta name="color-scheme" content="light">
+    <meta name="pbj-premium-booking-url" content="/api/premium/dashboard-request">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://www.pbj320.com/premium">
+    <meta property="og:title" content="PBJ320 Premium — Staffing audit">
+    <meta property="og:description" content="Identify staffing patterns, audit employee rosters, and generate reports from CMS PBJ and related sources.">
+    <meta property="og:image" content="https://www.pbj320.com/pbj.seo.png">
+    <meta property="og:locale" content="en_US">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="PBJ320 Premium — Staffing audit">
+    <meta name="twitter:description" content="Staffing discovery and evidentiary-grade CMS reports for US nursing homes.">
+    <meta name="twitter:image" content="https://www.pbj320.com/pbj.seo.png">
+    <link rel="canonical" href="https://www.pbj320.com/premium">
+    <link rel="icon" type="image/png" href="https://www.pbj320.com/pbj_favicon.png">
+    <link rel="apple-touch-icon" href="https://www.pbj320.com/pbj_favicon.png">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="premium-site.css">
+    <link rel="stylesheet" href="premium-hub.css">
+</head>
+<body class="pbj-premium-hub pbj-premium-hub--audit">
+    <a href="#main-content" class="visually-hidden-focusable btn btn-sm btn-primary position-fixed top-0 start-0 m-2" style="z-index:1080;">Skip to main content</a>
+    <div class="pbj-premium-nav-wrap">
+        <nav class="pbj-premium-nav-inner pbj-premium-nav-inner--minimal" aria-label="Premium">
+            <a class="pbj-premium-brand" href="https://www.pbj320.com/" aria-label="PBJ320 home">
+                <img src="https://www.pbj320.com/pbj_favicon.png" width="22" height="22" alt="" class="pbj-premium-brand-icon">
+                <span class="pbj-premium-brand-mark"><span class="pbj-premium-brand-pbj">PBJ</span><span class="pbj-premium-brand-320">320</span></span>
+            </a>
+            <div class="pbj-premium-nav-scroll">
+                <div class="pbj-premium-nav-links">
+                    <a class="nav-pill active" href="https://www.pbj320.com/premium" aria-current="page">Premium</a>
+                    <a class="nav-pill" href="https://www.pbj320.com/premium/335513">Sample Dashboard</a>
+                    <a class="nav-pill" href="https://www.pbj320.com/about">About</a>
+                </div>
+            </div>
+        </nav>
+    
+    </div>
+
+    <div class="pbj-premium-shell">
+        <article class="pbj-premium-main pbj-audit-shell">
+            <main id="main-content">
+                <div class="pbj-audit-stage">
+                    <div class="pbj-audit-stage__bg pbj-audit-stage__bg--dashboard" aria-hidden="true"></div>
+                    <div class="pbj-audit-stage__content">
+                        <header class="pbj-audit-hero">
+                            <p class="pbj-audit-hero__eyebrow">
+                                <span class="pbj-premium-brand-mark" aria-label="PBJ320">
+                                    <span class="pbj-premium-brand-pbj">PBJ</span><span class="pbj-premium-brand-320">320</span>
+                                </span><span class="pbj-audit-hero__eyebrow-suffix">Premium</span>
+                            </p>
+                            <h1 class="pbj-audit-hero__title">Staffing Discovery, Simplified.</h1>
+                            <p class="pbj-audit-hero__sub">Identify daily staffing patterns, audit employee rosters, and generate evidentiary-grade reports for any US nursing home.</p>
+                            <div class="pbj-audit-hero-actions" role="group" aria-label="Get started with PBJ320 Premium">
+                                <a class="pbj-audit-hero-actions__primary" href="#booking">Request PBJ320 Premium</a>
+                                <p class="pbj-audit-hero-actions__meta">
+                                    <a class="pbj-audit-hero-actions__meta-link" href="#starting-point">Pilot: $250<span class="pbj-audit-hero-actions__detail"> (dashboard + 30-minute consult)</span></a>
+                                    <span class="pbj-audit-hero-actions__dot" aria-hidden="true">·</span>
+                                    <a class="pbj-audit-hero-actions__meta-link" href="https://www.pbj320.com/premium/335513">Sample dashboard</a>
+                                </p>
+                            </div>
+                            <div class="pbj-audit-hero-visual">
+                                <div class="pbj-audit-hero-visual__media">
+                                    <img
+                                        class="pbj-audit-hero-dashboard-img"
+                                        src="demo/demo.png"
+                                        alt="PBJ320 Premium facility dashboard — PBJ summary and daily staffing"
+                                        width="1887"
+                                        height="1159"
+                                        decoding="async"
+                                    >
+                                </div>
+                            </div>
+                        </header>
+
+                        <section id="starting-point" class="pbj-audit-pricing anchor-target" aria-labelledby="audit-pricing-heading">
+                            <h2 id="audit-pricing-heading" class="pbj-audit-pricing__heading">Choose a starting point</h2>
+                            <div class="row g-3 pbj-audit-pricing__row">
+                                <div class="col-lg-6 d-flex">
+                                    <article class="pbj-audit-pricing-card pbj-audit-pricing-card--primary" aria-labelledby="pricing-pilot-title">
+                                        <div class="pbj-audit-pricing-card__badge">Pilot offer: $250</div>
+                                        <h3 id="pricing-pilot-title" class="pbj-audit-pricing-card__title">Facility Dashboard + 30-Minute Consult</h3>
+                                        <p class="pbj-audit-pricing-card__text">Early pilot pricing for one facility's premium PBJ320 dashboard, plus a 30-minute consult to review key staffing patterns, warning signs, and follow-up questions.</p>
+                                        <div class="pbj-audit-pricing-card__actions">
+                                            <a id="pilot-dashboard-request" class="btn pbj-audit-generate w-100 fw-semibold" href="#booking">Request dashboard access</a>
+                                        </div>
+                                    </article>
+                                </div>
+                                <div class="col-lg-6 d-flex">
+                                    <article class="pbj-audit-pricing-card pbj-audit-pricing-card--secondary" aria-labelledby="pricing-custom-title">
+                                        <div class="pbj-audit-pricing-card__badge pbj-audit-pricing-card__badge--custom-pbj" role="group" aria-label="Custom PBJ320">Custom PBJ320</div>
+                                        <h3 id="pricing-custom-title" class="pbj-audit-pricing-card__title">Analysis + Dashboards</h3>
+                                        <p class="pbj-audit-pricing-card__text">Ownership and operator analysis, portfolio comparisons, and advanced staffing analytics—plus branded deliverables and litigation support for your facility, operator, or case.</p>
+                                        <div class="pbj-audit-pricing-card__actions">
+                                            <a class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" href="#booking" data-request-type="custom" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</a>
+                                        </div>
+                                    </article>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="booking" class="pbj-audit-command anchor-target" aria-labelledby="audit-command-heading">
+                            <div class="pbj-audit-command__chrome">
+                                <div class="pbj-audit-command__bar">
+                                    <span class="pbj-audit-command__dot" aria-hidden="true"></span>
+                                    <span class="pbj-audit-command__dot" aria-hidden="true"></span>
+                                    <span class="pbj-audit-command__dot" aria-hidden="true"></span>
+                                    <span class="pbj-audit-command__title" id="audit-command-heading">Command center</span>
+                                </div>
+                                <div class="pbj-audit-command__body">
+                                    <form id="hub-rb-sandbox-form" class="pbj-audit-form" novalidate>
+                                        <input type="hidden" id="hub-request-type" name="request_type" value="pilot_dashboard">
+                                        <div class="visually-hidden" aria-hidden="true">
+                                            <label for="hub-website">Website</label>
+                                            <input type="text" id="hub-website" name="website" tabindex="-1" autocomplete="off">
+                                        </div>
+                                        <div id="hub-request-success" class="pbj-hub-request-success" hidden role="status" aria-live="polite">
+                                            <p class="pbj-hub-request-success__title mb-1">Request received</p>
+                                            <p class="pbj-hub-request-success__body mb-0">We'll follow up at <strong id="hub-request-success-email"></strong> within one business day.</p>
+                                        </div>
+                                        <div id="hub-request-fields">
+                                        <div class="pbj-audit-ccn-row">
+                                            <label class="pbj-audit-control-strip__lbl" for="ccn">CCN or provider</label>
+                                            <div class="pbj-audit-ccn-combo">
+                                                <input type="text" class="form-control form-control-sm pbj-datatech-input" id="ccn" name="ccn" maxlength="120" autocomplete="off" placeholder="6-digit CCN or type provider name" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ccn-suggest-list" aria-haspopup="listbox">
+                                                <div id="ccn-suggest-panel" class="pbj-audit-ccn-suggest" hidden role="listbox" aria-label="Matching facilities">
+                                                    <ul id="ccn-suggest-list" class="pbj-audit-ccn-suggest__ul" role="none"></ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="pbj-audit-control-strip pbj-audit-control-strip--dates">
+                                            <div class="pbj-audit-control-strip__field">
+                                                <label class="pbj-audit-control-strip__lbl" for="audit-from">Start</label>
+                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-from" name="audit_from" value="2025-06-29" required>
+                                            </div>
+                                            <div class="pbj-audit-control-strip__field">
+                                                <label class="pbj-audit-control-strip__lbl" for="audit-to">End</label>
+                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-to" name="audit_to" value="2025-10-05" required>
+                                            </div>
+                                            
+                                        </div>
+                                        <div class="pbj-audit-command__contact">
+                                            <div class="pbj-audit-command__contact-field pbj-audit-command__contact-field--email">
+                                                <label for="hub-pro-email" class="pbj-audit-control-strip__lbl">Email <span class="text-danger">*</span></label>
+                                                <input type="email" class="form-control form-control-sm pbj-datatech-input" id="hub-pro-email" name="email" required autocomplete="email" placeholder="you@example.com">
+                                                <div class="invalid-feedback">Enter a valid email.</div>
+                                            </div>
+                                            <div class="pbj-audit-command__contact-field pbj-audit-command__contact-field--times">
+                                                <label for="hub-consult-times" class="pbj-audit-control-strip__lbl">Consult times <span class="pbj-audit-command__opt">optional</span></label>
+                                                <input type="text" id="hub-consult-times" class="form-control form-control-sm" name="consult_times" maxlength="200" autocomplete="off" placeholder="e.g. Tue 9–12 ET">
+                                            </div>
+                                        
+                                        </div>
+                                        <div class="pbj-audit-command__submit">
+                                            <button type="submit" id="hub-generate-pdf-btn" class="btn pbj-audit-generate w-100 fw-semibold">Request facility dashboard</button>
+                                        </div>
+                                        <p class="pbj-audit-command__foot mb-0">
+                                            <span class="pbj-audit-command__foot-note">Custom report generators for memos and exhibits. <a class="pbj-audit-command__sample-dek-link" href="samples/pbj320-report-demo-335513.html" target="_blank" rel="noopener">Sample report preview<span class="pbj-audit-command__sample-dek-arrow" aria-hidden="true"> →</span></a></span>
+                                        </p>
+                                        </div>
+                                        <div id="form-status" class="pbj-hub-form-status pbj-hub-form-status--on-light mt-2" role="status" aria-live="polite"></div>
+                                    </form>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
+
+                <section class="pbj-audit-features anchor-target" aria-labelledby="audit-cap-heading">
+                    <h2 id="audit-cap-heading" class="pbj-audit-features__heading">Capabilities</h2>
+                    <p class="pbj-audit-features__dek">Each Premium dashboard is built for one facility (CCN) on secure hosting with password access. You get daily nurse and non-nurse PBJ aligned to CMS Provider Information, case-mix and compliance views, employee-detail analytics where CMS publishes them, and Report Builder exports for counsel and operations.</p>
+                    <div class="row g-3 pbj-audit-features__row">
+                        <div class="col-md-4 d-flex">
+                            <article class="pbj-audit-card">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="media/state-compliance.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Compliance Logic</h3>
+                                <p class="pbj-audit-card__text">Daily PBJ totals flagged against state minimums, RN rules, and custom HPRD thresholds—CMS-reported, facility-level.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-compliance">See evidence</button>
+                            </article>
+                        </div>
+                        <div class="col-md-4 d-flex">
+                            <article class="pbj-audit-card">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="media/roster-modal.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Forensic Roster</h3>
+                                <p class="pbj-audit-card__text">Individual employee tenure and daily hours from CMS employee-detail PBJ, where published for the CCN.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-roster">See evidence</button>
+                            </article>
+                        </div>
+                        <div class="col-md-4 d-flex">
+                            <article class="pbj-audit-card">
+                                <div class="pbj-audit-card__thumb-wrap">
+                                    <img class="pbj-audit-card__thumb" src="media/case-mix.jpg" alt="" width="400" height="225" loading="lazy" decoding="async">
+                                </div>
+                                <h3 class="pbj-audit-card__title">Acuity &amp; Case-Mix</h3>
+                                <p class="pbj-audit-card__text">Compare a facility&rsquo;s staffing to CMS case-mix (acuity), expected staffing, and other advanced metrics.</p>
+                                <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-acuity">See evidence</button>
+                            </article>
+                        </div>
+                    </div>
+                    <p class="pbj-audit-demo-cta">
+                        <a class="pbj-audit-demo-cta__link" href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20%E2%80%94%20free%2015%20min%20demo">Request a free 15-minute demo</a>
+                    </p>
+                </section>
+
+                <p class="pbj-audit-media-note">Press &amp; advocates: quick staffing-data questions are often <strong>free</strong>—<a href="mailto:eric@320insight.com?subject=PBJ320%20%E2%80%94%20media%20%2F%20advocacy%20question">email</a> with CCN and deadline.</p>
+                <aside class="pbj-audit-oss-panel" aria-label="Open-source PBJ320">
+                    <p class="pbj-audit-oss-note">Check out <a href="https://www.pbj320.com/">PBJ320&rsquo;s open-source nursing home staffing dashboard</a> with Payroll-Based Journal (PBJ) staffing data across 15,000+ U.S. facilities.</p>
+                </aside>
+            </main>
+
+            <footer class="pbj-audit-foot" role="contentinfo">
+                <div class="pbj-audit-foot__inner">
+                    <div class="pbj-audit-foot__row">
+                        <div class="pbj-audit-foot__cluster">
+                            <span class="pbj-audit-foot__tag">Sources</span>
+                            <span class="pbj-audit-foot__cluster-links">
+                                <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">PBJ</a>
+                                <span aria-hidden="true">·</span>
+                                <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">Provider Info</a>
+                                <span aria-hidden="true">·</span>
+                                <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing" target="_blank" rel="noopener">Employee Detail</a>
+                                <span aria-hidden="true">·</span>
+                                <a href="https://www.pbj320.com/">PBJ320</a>
+                                <span aria-hidden="true">·</span>
+                                <a href="https://www.320insight.com/" target="_blank" rel="noopener">320 Consulting</a>
+                                <span aria-hidden="true">·</span>
+                                <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20inquiry">Contact</a>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="pbj-audit-foot__bottom">
+                        <p class="pbj-audit-foot__copyright">© 2026 <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer">320 Consulting</a></p>
+                        <p class="pbj-audit-foot__fine">PBJ320 surfaces CMS-reported data; it does not verify submissions. <strong>Not legal, medical, or care-quality advice.</strong></p>
+                    </div>
+                </div>
+            </footer>
+        </article>
+    </div>
+
+    <div id="modal-evidence-roster" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-roster-title">
+        <div class="pbj-hub-modal__backdrop" data-modal-backdrop="true" tabindex="-1"></div>
+        <div class="pbj-hub-modal__dialog pbj-hub-modal__dialog--wide" role="document">
+            <div class="pbj-hub-modal__head">
+                <h2 id="modal-evidence-roster-title">Forensic roster</h2>
+                <button type="button" class="pbj-hub-modal__close" data-modal-close aria-label="Close">&times;</button>
+            </div>
+            <div class="pbj-hub-modal__body">
+                <p class="small text-muted mb-2">CMS employee-detail PBJ (where published) lists job code, work date, and reported hours per employee ID.</p>
+                <figure class="pbj-hub-modal__figure mb-3">
+                    <img src="media/roster-modal.jpg" alt="Employee roster modal with job codes and daily hours" width="1200" height="675" loading="lazy" decoding="async">
+                </figure>
+                <p class="mb-2">Premium ties those rows to facility quarters so you can scan tenure, concentration of hours, and day-level recurrence—useful for roster verification and incident windows.</p>
+                <p class="mb-0"><a href="https://www.pbj320.com/premium/335513">Open live sample dashboard</a> and use the employee tracker.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-evidence-compliance" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-compliance-title">
+        <div class="pbj-hub-modal__backdrop" data-modal-backdrop="true" tabindex="-1"></div>
+        <div class="pbj-hub-modal__dialog pbj-hub-modal__dialog--wide" role="document">
+            <div class="pbj-hub-modal__head">
+                <h2 id="modal-evidence-compliance-title">Compliance logic</h2>
+                <button type="button" class="pbj-hub-modal__close" data-modal-close aria-label="Close">&times;</button>
+            </div>
+            <div class="pbj-hub-modal__body">
+                <p class="small text-muted mb-2">State standards, RN minimums, and custom HPRD rules applied to CMS-reported daily totals.</p>
+                <figure class="pbj-hub-modal__figure mb-3">
+                    <img src="media/state-compliance.jpg" alt="Daily total HPRD line chart with state reference threshold" width="1200" height="675" loading="lazy" decoding="async">
+                </figure>
+                <p class="mb-2">See which days fall below each rule on daily and quarterly views—built from CMS-reported PBJ hours.</p>
+                <p class="mb-0"><a href="https://www.pbj320.com/premium/335513">Open live sample dashboard</a> and run compliance views.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-evidence-acuity" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-acuity-title">
+        <div class="pbj-hub-modal__backdrop" data-modal-backdrop="true" tabindex="-1"></div>
+        <div class="pbj-hub-modal__dialog pbj-hub-modal__dialog--wide" role="document">
+            <div class="pbj-hub-modal__head">
+                <h2 id="modal-evidence-acuity-title">Acuity &amp; case-mix</h2>
+                <button type="button" class="pbj-hub-modal__close" data-modal-close aria-label="Close">&times;</button>
+            </div>
+            <div class="pbj-hub-modal__body">
+                <p class="small text-muted mb-2">Provider Information: CMS case-mix index and expected nurse staffing. PBJ: reported daily hours, aligned by quarter.</p>
+                <figure class="pbj-hub-modal__figure mb-3">
+                    <img src="media/case-mix.jpg" alt="CMS case-mix acuity chart with reported and expected nurse staffing by quarter" width="1200" height="675" loading="lazy" decoding="async">
+                </figure>
+                <p class="mb-2">Charts put reported staffing next to case-mix and expected metrics—acuity context from CMS data, not a clinical adequacy call.</p>
+                <p class="mb-0"><a href="https://www.pbj320.com/premium/335513">Open live sample dashboard</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="premium-hub-modals.js" defer></script>
+    <script src="premium-hub-rb-sandbox.js" defer></script>
+</body>
+</html>

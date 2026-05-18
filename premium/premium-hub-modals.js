@@ -175,7 +175,8 @@
         var pauseUntil = 0;
 
         function syncSlideWidths() {
-            var w = track.clientWidth;
+            var frame = track.parentElement;
+            var w = frame && frame.clientWidth ? frame.clientWidth : track.clientWidth;
             if (!w) return;
             slides.forEach(function (slide) {
                 slide.style.flexBasis = w + "px";

@@ -1,4 +1,11 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "redirects": [
+    {
+      "source": "/premium/",
+      "destination": "https://www.pbj320.com/premium",
+      "permanent": true
+    }
+  ]
 }

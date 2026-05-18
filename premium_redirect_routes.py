@@ -7,8 +7,9 @@ Production routing (www.pbj320.com):
   - ``/premium/`` and ``/premium/*`` (other) → often Vercel/edge → 404 unless Cloudflare
     is updated to send non-CCN paths to Render
 
-Use ``/premium`` and ``/premium-assets/`` in links (not ``/premium/``) until Cloudflare
-routes non-CCN ``/premium/*`` to Render. Facility dashboards stay at ``/premium/<CCN>``.
+Use ``/premium`` (no trailing slash) for the marketing hub in links. ``/premium/`` alone
+404s on Vercel; Flask and ``premium/vercel.json`` redirect it to ``/premium``. Facility
+dashboards stay at ``/premium/<CCN>`` (no trailing slash after the CCN).
 """
 
 from __future__ import annotations
@@ -215,12 +216,12 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
 
     @app.route('/premium')
     def premium_landing():
-        # Do not 301 to /premium/ — Cloudflare often routes /premium/* to Vercel (404).
         return _serve_premium_landing(app_root)
 
     @app.route('/premium/')
     def premium_landing_slash():
-        return _serve_premium_landing(app_root)
+        # Trailing slash alone must not be used in links: /premium/* often routes to Vercel (404).
+        return redirect('/premium', code=301)
 
     @app.route(f'{PREMIUM_ASSETS_PREFIX}/<path:asset_path>')
     def premium_public_assets(asset_path: str):

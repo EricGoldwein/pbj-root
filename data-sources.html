@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Data sources | PBJ320</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Public CMS data sources used by PBJ320 for nursing home staffing analysis. Operated by 320 Consulting LLC.">
+  <link rel="canonical" href="https://pbj320.com/data-sources">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/public-trust.css">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="PBJ320" width="32" height="32" style="margin-right:8px;">
+          <span><span style="color:white;">PBJ</span><span style="color:#60a5fa;">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
+        <a href="/contact" class="nav-link">Contact</a>
+      </div>
+      <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
+    </div>
+  </nav>
+
+  <main class="content">
+    <div class="content-box">
+      <h1>Data sources</h1>
+      <p class="meta">Last updated: May 2026</p>
+
+      <p>PBJ320 uses public CMS Payroll-Based Journal (PBJ) staffing data. PBJ is a federal reporting system for nursing home staffing hours and census.</p>
+
+      <p>PBJ320 uses CMS Provider Information and related public CMS datasets where relevant for facility identifiers, locations, and context shown alongside staffing metrics.</p>
+
+      <p>PBJ320 is operated by <strong>320 Consulting LLC</strong>. PBJ320 is independent and is not CMS, Medicare.gov Care Compare, a state survey agency, a regulator, or a law firm.</p>
+
+      <h2>How to use this site</h2>
+      <p>PBJ320 is an analytical screening tool. It is not proof of care quality, legal liability, neglect, causation, or regulatory noncompliance. Rankings, charts, and summaries can reflect reporting errors, missing data, or limitations in the underlying public files.</p>
+
+      <p>Before relying on any output for research, advocacy, litigation, or operational decisions, verify figures against official CMS sources, Care Compare, and the underlying PBJ and Provider Information files.</p>
+
+      <h2>Official references</h2>
+      <ul>
+        <li><a href="https://data.cms.gov/provider-data/" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
+        <li><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ daily nurse staffing data</a></li>
+        <li><a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a></li>
+      </ul>
+
+      <p>Questions about methodology or custom analysis: <a href="mailto:eric@320insight.com">eric@320insight.com</a> or the <a href="/contact">contact form</a>.</p>
+
+      <p class="trust-nav-links">
+        <a href="/about">About</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/contact">Contact</a>
+      </p>
+    </div>
+  </main>
+
+  <footer class="footer" id="site-footer" style="padding:1.25rem 1rem;"></footer>
+  <script src="/pbj-site-universal.js?v=16"></script>
+  <script>
+    (function () {
+      var t = document.getElementById('navToggle');
+      var m = document.getElementById('navMenu');
+      if (t && m) t.addEventListener('click', function () { m.classList.toggle('active'); });
+    })();
+  </script>
+</body>
+</html>

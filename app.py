@@ -38,6 +38,12 @@ from pbj_ai_config import (
     pbj_ai_zip_download_enabled,
 )
 from premium_redirect_routes import register_premium_routes
+from site_public_config import (
+    PUBLIC_SITE_ORIGIN,
+    ROBOTS_TXT,
+    SECURITY_HEADER_VALUES,
+    SITEMAP_TRUST_PAGES,
+)
 from pbj_ai_support import (
     CLAUDE_INSTALL_INSTRUCTIONS,
     CLAUDE_SKILL_BLURB,
@@ -625,18 +631,25 @@ def health():
 # Simple email format check (not RFC-strict; rejects obviously invalid)
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
-@app.route('/')
-def index():
-    path = os.path.join(APP_ROOT, 'index.html')
+def _serve_public_html(filename: str, *, inject_csrf: bool = False):
+    """Serve a root-level public HTML file with optional CSRF token injection."""
+    path = os.path.join(APP_ROOT, filename)
+    if not os.path.isfile(path):
+        from flask import abort
+        abort(404)
     with open(path, 'r', encoding='utf-8') as f:
         html_content = f.read()
-    if HAS_CSRF and generate_csrf:
-        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
-    else:
-        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    if inject_csrf:
+        token = generate_csrf() if (HAS_CSRF and generate_csrf) else ''
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', token)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
     return resp
+
+
+@app.route('/')
+def index():
+    return _serve_public_html('index.html', inject_csrf=True)
 
 @app.errorhandler(400)
 def bad_request(err):
@@ -860,13 +873,32 @@ def contact():
         if _send_contact_email(email, name, message, is_press=is_press):
             return _contact_redirect(next_url, 'contact_sent=1')
         return _contact_redirect(next_url, 'contact_error=1')
-    # Contact page not public: GET redirects to home. Form is only via popup (POST).
-    return redirect('/')
+    return _serve_public_html('contact.html', inject_csrf=True)
 
 
 @app.route('/about')
 def about():
     return send_file('about.html', mimetype='text/html')
+
+
+@app.route('/data-sources')
+def data_sources_page():
+    return _serve_public_html('data-sources.html')
+
+
+@app.route('/privacy')
+def privacy_page():
+    return _serve_public_html('privacy.html')
+
+
+@app.route('/terms')
+def terms_page():
+    return _serve_public_html('terms.html')
+
+
+@app.route('/robots.txt')
+def robots_txt():
+    return ROBOTS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 @app.route('/insights')
 @app.route('/insights/')
@@ -3922,21 +3954,26 @@ def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
 @app.route('/sitemap.xml')
 def sitemap():
     """Dynamic sitemap: static pages + /state/<slug> for all states + provider/entity from search_index."""
-    base = 'https://pbj320.com'
+    base = PUBLIC_SITE_ORIGIN or 'https://pbj320.com'
     today = datetime.now().strftime('%Y-%m-%d')
     quarter_lastmod = _cy_qtr_to_iso_date(get_canonical_latest_quarter())
     urls = []
-    # Static pages (from original sitemap.xml)
-    for path, priority, changefreq in [
+    static_pages = [
         ('/', '1.0', 'weekly'),
-        ('/about', '0.8', 'monthly'),
+        ('/report', '0.9', 'weekly'),
         ('/insights', '0.9', 'weekly'),
         ('/insights-visualizations', '0.75', 'monthly'),
-        ('/report', '0.9', 'weekly'),
+        ('/premium', '0.7', 'monthly'),
         ('/press', '0.8', 'monthly'),
         ('/attorneys', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
-    ]:
+    ]
+    seen_paths = {p for p, _, _ in static_pages}
+    for path, priority, changefreq in SITEMAP_TRUST_PAGES:
+        if path not in seen_paths:
+            static_pages.append((path, priority, changefreq))
+            seen_paths.add(path)
+    for path, priority, changefreq in static_pages:
         lastmod = quarter_lastmod if path == '/report' else today
         urls.append(f'  <url><loc>{base}{path}</loc><lastmod>{lastmod}</lastmod><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>')
     for post in _get_native_insights_posts():
@@ -13277,7 +13314,12 @@ def static_files(filename):
         from flask import abort
         abort(404)
     # Don't handle routes that are already defined (exact or prefix)
-    if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium']:
+    if filename in [
+        'insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample',
+        'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
+        'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium', 'contact',
+        'data-sources', 'privacy', 'terms', 'public-trust.css',
+    ]:
         from flask import abort
         abort(404)
     # Fallback: premium marketing assets (Render-safe paths; see premium_redirect_routes.py)
@@ -13379,6 +13421,20 @@ def _is_blocked_public_filename(path_value: str) -> bool:
     except Exception:
         return False
     return base in _BLOCKED_PUBLIC_FILENAMES
+
+@app.after_request
+def apply_public_security_headers(response):
+    """Baseline security headers for public pages (conservative; no CSP)."""
+    try:
+        proto = (request.headers.get('X-Forwarded-Proto') or request.scheme or '').lower()
+        if proto == 'https':
+            for name, value in SECURITY_HEADER_VALUES.items():
+                if name not in response.headers:
+                    response.headers[name] = value
+    except Exception:
+        pass
+    return response
+
 
 @app.after_request
 def compress_response(response):

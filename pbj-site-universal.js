@@ -12,7 +12,24 @@
     email: 'eric@320insight.com'
   };
 
-  var FOOTER_BOILERPLATE = '<p class="footer-boilerplate" style="margin:0 0 1rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto"><strong>320 Consulting</strong> maintains PBJ320, an open-access resource tracking federal nursing home staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>';
+  var FOOTER_TRUST_BLURB =
+    'PBJ320 is a nursing-home staffing data platform operated by 320 Consulting LLC. ' +
+    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information. ' +
+    'Contact: <a href="mailto:' + CONTACT.email + '" style="color:#93c5fd">' + CONTACT.email + '</a>.';
+
+  var FOOTER_BOILERPLATE =
+    '<p class="footer-boilerplate" style="margin:0 0 0.75rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto">' +
+    FOOTER_TRUST_BLURB +
+    '</p>';
+
+  var FOOTER_TRUST_LINKS =
+    '<p class="footer-trust-links" style="margin:0 0 1rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
+    '<a href="/about" style="color:rgba(148,163,184,0.95)">About</a> · ' +
+    '<a href="/data-sources" style="color:rgba(148,163,184,0.95)">Data sources</a> · ' +
+    '<a href="/privacy" style="color:rgba(148,163,184,0.95)">Privacy</a> · ' +
+    '<a href="/terms" style="color:rgba(148,163,184,0.95)">Terms</a> · ' +
+    '<a href="/contact" style="color:rgba(148,163,184,0.95)">Contact</a>' +
+    '</p>';
 
   var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
@@ -31,10 +48,8 @@
 
   function injectFooter(el) {
     if (!el) return;
-    var path = typeof location !== 'undefined' && location.pathname ? location.pathname.replace(/\/$/, '') : '';
-    var isIndex = path === '' || path === '/';
     var body = FOOTER_CORE + footerSignoffHtml();
-    el.innerHTML = isIndex ? FOOTER_BOILERPLATE + body : body;
+    el.innerHTML = FOOTER_BOILERPLATE + FOOTER_TRUST_LINKS + body;
   }
 
   /** Copy email to clipboard and show a short confirmation. Accessible and works when mailto fails. */

@@ -2,8 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Request PBJ Analysis | PBJ320</title>
+  <title>Contact | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Contact 320 Consulting LLC about PBJ320 nursing home staffing data and analysis.">
+  <link rel="canonical" href="https://pbj320.com/contact">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -154,13 +156,15 @@
 
   <main class="content">
     <div class="content-box">
-      <h1>Request PBJ Analysis</h1>
+      <h1>Contact</h1>
+      <p>Questions about PBJ320, data sources, or custom analysis. Operated by 320 Consulting LLC.</p>
 
       <div id="contact-success" class="message success" role="status" style="display: none;">Message sent. We’ll be in touch.</div>
       <div id="contact-error" class="message error" role="alert" style="display: none;">Something went wrong. Please try again.</div>
 
       <form action="/contact" method="POST" id="contact-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
+        <input type="hidden" name="next" value="/contact">
         <div class="form-group">
           <label for="contact-name">Name <span style="color: #f87171;">*</span></label>
           <input type="text" id="contact-name" name="name" required autocomplete="name" maxlength="200" aria-required="true">
@@ -186,18 +190,18 @@
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"></footer>
 
-  <script src="/pbj-site-universal.js?v=15"></script>
+  <script src="/pbj-site-universal.js?v=16"></script>
   <script>
     (function() {
       var params = new URLSearchParams(window.location.search);
       var successEl = document.getElementById('contact-success');
       var errorEl = document.getElementById('contact-error');
       var formEl = document.getElementById('contact-form');
-      if (params.get('sent') === '1' && successEl) {
+      if ((params.get('contact_sent') === '1' || params.get('sent') === '1') && successEl) {
         successEl.style.display = 'block';
         if (formEl) formEl.style.display = 'none';
       }
-      if (params.get('error') && errorEl) {
+      if ((params.get('contact_error') === '1' || params.get('error')) && errorEl) {
         errorEl.style.display = 'block';
       }
       var messageInput = document.getElementById('contact-message');

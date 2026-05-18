@@ -12,23 +12,29 @@
     email: 'eric@320insight.com'
   };
 
-  var FOOTER_BOILERPLATE = '<p class="footer-boilerplate" style="margin:0 0 1rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto"><strong>320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>';
+  var FOOTER_BOILERPLATE = '<p class="footer-boilerplate" style="margin:0 0 1rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto"><strong>320 Consulting</strong> maintains PBJ320, an open-access resource tracking federal nursing home staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.</p>';
 
-  var FOOTER_TAGLINE = [
-    '<p class="footer-tagline" style="margin:0 0 1rem 0;font-size:0.8rem;text-align:center;letter-spacing:0.03em"><a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:none;font-weight:700">320 Consulting</a>: Turning Spreadsheets into Stories.</p>',
+  var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
     '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="display:inline-block;transition:opacity 0.3s ease" title="Email: ' + CONTACT.email + '" aria-label="Email ' + CONTACT.email + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>',
     '<a href="' + CONTACT.smsHref + '" style="display:inline-block;transition:opacity 0.3s ease" title="SMS: ' + CONTACT.phoneDisplay + '" aria-label="Text ' + CONTACT.phoneDisplay + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>',
     '<a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" style="width:24px;height:24px;object-fit:contain;opacity:0.7"/></a>',
     '<a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" style="width:24px;height:24px;object-fit:contain;opacity:0.7"/></a>',
-    '</div>'
+    '</div>',
+    '<div class="footer-press-nav"><a href="/press">Press</a> <a href="/premium">PBJ320 Premium</a></div>'
   ].join('');
+
+  function footerSignoffHtml() {
+    var y = new Date().getFullYear();
+    return '<p class="footer-signoff">\u00a9 ' + y + ', <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a>. Turning Spreadsheets into Stories.</p>';
+  }
 
   function injectFooter(el) {
     if (!el) return;
     var path = typeof location !== 'undefined' && location.pathname ? location.pathname.replace(/\/$/, '') : '';
     var isIndex = path === '' || path === '/';
-    el.innerHTML = isIndex ? FOOTER_BOILERPLATE + FOOTER_TAGLINE : FOOTER_TAGLINE;
+    var body = FOOTER_CORE + footerSignoffHtml();
+    el.innerHTML = isIndex ? FOOTER_BOILERPLATE + body : body;
   }
 
   /** Copy email to clipboard and show a short confirmation. Accessible and works when mailto fails. */
@@ -64,7 +70,7 @@
     toast.setAttribute('role', 'status');
     toast.setAttribute('aria-live', 'polite');
     toast.textContent = 'Email copied.';
-    toast.style.cssText = 'position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);color:#93c5fd;padding:0.5rem 1rem;border-radius:8px;font-size:0.875rem;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);border:1px solid rgba(96,165,250,0.3);';
+    toast.style.cssText = 'position:fixed;bottom:1.25rem;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.95);color:#a5b4fc;padding:0.5rem 1rem;border-radius:8px;font-size:0.875rem;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);border:1px solid rgba(129,140,248,0.3);';
     document.body.appendChild(toast);
     setTimeout(function() { toast.remove(); }, 2500);
     if (nearEl && nearEl.focus) nearEl.focus();
@@ -86,8 +92,8 @@
     modal.innerHTML = '<h2 id="pbj-contact-modal-title" style="margin:0 0 1rem 0;font-size:1.1rem;">Contact</h2>' +
       '<p style="margin:0 0 0.75rem 0;font-size:0.9rem;">' + CONTACT.email + '</p>' +
       '<div style="display:flex;gap:0.75rem;flex-wrap:wrap;">' +
-      '<button type="button" id="pbj-contact-modal-copy" class="pbj-copy-email" data-email="' + CONTACT.email + '" style="padding:0.4rem 0.75rem;background:rgba(96,165,250,0.2);color:#93c5fd;border:1px solid rgba(96,165,250,0.4);border-radius:6px;cursor:pointer;font-size:0.875rem;">Copy email</button>' +
-      '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="padding:0.4rem 0.75rem;background:rgba(96,165,250,0.2);color:#93c5fd;border:1px solid rgba(96,165,250,0.4);border-radius:6px;text-decoration:none;font-size:0.875rem;">Open mail app</a>' +
+      '<button type="button" id="pbj-contact-modal-copy" class="pbj-copy-email" data-email="' + CONTACT.email + '" style="padding:0.4rem 0.75rem;background:rgba(129,140,248,0.2);color:#a5b4fc;border:1px solid rgba(129,140,248,0.4);border-radius:6px;cursor:pointer;font-size:0.875rem;">Copy email</button>' +
+      '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="padding:0.4rem 0.75rem;background:rgba(129,140,248,0.2);color:#a5b4fc;border:1px solid rgba(129,140,248,0.4);border-radius:6px;text-decoration:none;font-size:0.875rem;">Open mail app</a>' +
       '<button type="button" id="pbj-contact-modal-close" style="padding:0.4rem 0.75rem;background:transparent;color:rgba(226,232,240,0.8);border:1px solid rgba(148,163,184,0.3);border-radius:6px;cursor:pointer;font-size:0.875rem;">Close</button>' +
       '</div>';
     backdrop.appendChild(modal);
@@ -151,8 +157,59 @@
     if (document.getElementById('pbj-contact-cta-styles')) return;
     var style = document.createElement('style');
     style.id = 'pbj-contact-cta-styles';
-    style.textContent = '.pbj-copy-email{background:none;border:none;padding:0;font:inherit;cursor:pointer;text-decoration:underline;-webkit-appearance:none;appearance:none;}.pbj-copy-email:hover{opacity:0.9;}.pbj-copy-email:focus-visible{outline:2px solid #60a5fa;outline-offset:2px;}#pbj-contact-modal button:focus-visible,#pbj-contact-modal a:focus-visible{outline:2px solid #60a5fa;outline-offset:2px;}';
+    style.textContent = '.pbj-copy-email{background:none;border:none;padding:0;font:inherit;cursor:pointer;text-decoration:underline;-webkit-appearance:none;appearance:none;}.pbj-copy-email:hover{opacity:0.9;}.pbj-copy-email:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}#pbj-contact-modal button:focus-visible,#pbj-contact-modal a:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}';
     document.head.appendChild(style);
+  }
+
+  /** Footer press row — scoped under .footer so rules win over generic .footer a */
+  function injectFooterPressNavStyles() {
+    if (document.getElementById('pbj-footer-press-nav-styles')) return;
+    var style = document.createElement('style');
+    style.id = 'pbj-footer-press-nav-styles';
+    style.textContent = [
+      '.footer .footer-press-nav{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px 24px;margin:14px 0 0 0;font-size:0.78rem;}',
+      '.footer .footer-press-nav a{color:#a8b4c4;text-decoration:underline;text-underline-offset:3px;transition:color .15s ease,opacity .15s ease;}',
+      '.footer .footer-press-nav a:hover,.footer .footer-press-nav a:focus-visible{color:#cbd5e1;}',
+      '.footer .footer-press-nav a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
+      '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(148,163,184,0.72);}',
+      '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
+      '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
+      '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}'
+    ].join('');
+    document.head.appendChild(style);
+  }
+
+  /** Highlight nav link for current route (desktop + mobile). */
+  function markActiveNavLink() {
+    var path = (typeof location !== 'undefined' && location.pathname)
+      ? location.pathname.replace(/\/$/, '') || '/'
+      : '/';
+    var links = document.querySelectorAll('.navbar .nav-link[href], .navbar .nav-links a[href]');
+    for (var i = 0; i < links.length; i++) {
+      var a = links[i];
+      a.classList.remove('active');
+      var href = a.getAttribute('href');
+      if (!href || href.charAt(0) === '#') continue;
+      var linkPath = href.replace(/\/$/, '') || '/';
+      var match = path === linkPath;
+      if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
+      if (!match && linkPath === '/owners-test' && (path === '/owners-test' || path.indexOf('/owners-test/') === 0)) match = true;
+      if (!match && linkPath === '/insights' && path.indexOf('/insights') === 0) match = true;
+      if (!match && linkPath === '/report' && path.indexOf('/report') === 0) match = true;
+      if (!match && linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) match = true;
+      if (!match && linkPath === '/about' && path.indexOf('/about') === 0) match = true;
+      if (match) a.classList.add('active');
+    }
+  }
+
+  function preloadNavFavicon() {
+    if (document.querySelector('link[data-pbj-nav-favicon-preload]')) return;
+    var link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = '/pbj_favicon.png';
+    link.setAttribute('data-pbj-nav-favicon-preload', '');
+    document.head.appendChild(link);
   }
 
   /**
@@ -166,24 +223,39 @@
     style.id = 'pbj-site-shell-styles';
     style.textContent = [
       'html{overflow-y:scroll;scrollbar-gutter:stable;}',
+      '.navbar{background:rgba(10,15,26,0.92)!important;backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;box-shadow:inset 0 -1px 0 rgba(255,255,255,0.08)!important;border-bottom:1px solid rgba(148,163,184,0.28)!important;}',
       '.navbar .nav-container{max-width:1200px !important;margin:0 auto !important;padding:0 20px !important;height:60px !important;}',
       '.navbar .nav-brand,.navbar .nav-link{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif !important;}',
       '.navbar .nav-menu{gap:30px !important;align-items:center !important;}',
-      '.navbar .nav-link{padding:8px 0 !important;font-size:16px !important;line-height:1.25 !important;font-weight:500 !important;}',
+      '.navbar .nav-link{padding:8px 0 !important;font-size:16px !important;line-height:1.25 !important;font-weight:500 !important;color:rgba(255,255,255,0.88) !important;}',
+      '.navbar .nav-link:hover{color:#93c5fd !important;}',
+      '.navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;}',
+      '.navbar .nav-link.active:hover{color:#60a5fa !important;}',
+      '.navbar .nav-links a{color:rgba(255,255,255,0.88) !important;font-weight:500 !important;text-decoration:none !important;}',
+      '.navbar .nav-links a:hover{color:#93c5fd !important;}',
+      '.navbar .nav-links a.active{color:#60a5fa !important;font-weight:600 !important;}',
+      '.navbar .nav-links a.active:hover{color:#60a5fa !important;}',
+      '.navbar .nav-brand a{display:flex !important;align-items:center !important;gap:0 !important;}',
+      '.navbar .nav-brand img{width:32px !important;height:32px !important;min-width:32px !important;min-height:32px !important;margin-right:8px !important;object-fit:contain !important;flex-shrink:0 !important;display:block !important;vertical-align:middle !important;}',
       '@media (max-width:768px){',
-      '  .navbar .nav-menu{height:calc(100vh - 60px) !important;top:60px !important;left:-100% !important;padding:0 !important;gap:0 !important;justify-content:flex-start !important;align-items:stretch !important;border-top:1px solid rgba(255,255,255,0.1) !important;}',
+      '  .navbar .nav-menu{height:calc(100vh - 60px) !important;top:60px !important;left:-100% !important;padding:0 !important;gap:0 !important;justify-content:flex-start !important;align-items:stretch !important;border-top:1px solid rgba(71,85,105,0.45) !important;background:rgba(10,15,26,0.98) !important;backdrop-filter:blur(12px) !important;-webkit-backdrop-filter:blur(12px) !important;}',
       '  .navbar .nav-menu.active{left:0 !important;}',
-      '  .navbar .nav-link{padding:18px 24px !important;border-bottom:1px solid rgba(255,255,255,0.1) !important;text-align:left !important;font-size:1rem !important;color:rgba(255,255,255,0.9) !important;background:transparent !important;transition:all 0.2s ease !important;}',
-      '  .navbar .nav-link:hover,.navbar .nav-link.active{background:rgba(96,165,250,0.1) !important;color:#60a5fa !important;border-left:3px solid #60a5fa !important;}',
+      '  .navbar .nav-link{padding:18px 24px !important;border-bottom:1px solid rgba(30,41,59,0.55) !important;text-align:left !important;font-size:1rem !important;color:rgba(255,255,255,0.88) !important;background:transparent !important;transition:color 0.2s ease !important;}',
+      '  .navbar .nav-link:hover{background:transparent !important;color:#93c5fd !important;}',
+      '  .navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;background:transparent !important;border-left:none !important;}',
+      '  .navbar .nav-link.active:hover{color:#60a5fa !important;}',
       '}'
     ].join('');
     document.head.appendChild(style);
   }
 
   function run() {
+    preloadNavFavicon();
     var footer = document.getElementById('site-footer');
+    injectFooterPressNavStyles();
     if (footer) injectFooter(footer);
     injectSiteShellStyles();
+    markActiveNavLink();
     injectContactCtaStyles();
     bindContactFallbacks();
   }

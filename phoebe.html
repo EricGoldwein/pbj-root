@@ -50,8 +50,8 @@
     }
     .nav-brand { display: flex; align-items: center; color: white; font-size: 1.2rem; font-weight: 700; }
     .nav-menu { display: flex; gap: 30px; align-items: center; }
-    .nav-link { color: rgba(255,255,255,0.8); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0; }
-    .nav-link:hover, .nav-link.active { color: #60a5fa; }
+    .nav-link { color: #e2e8f0; text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 8px 0; }
+    .nav-link:hover { color: #818cf8; }
     .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; }
     .nav-toggle span { width: 25px; height: 3px; background: white; transition: all 0.3s ease; }
     .phoebe-main {
@@ -201,7 +201,7 @@
       }
       .nav-menu.active { left: 0; }
       .nav-link { padding: 18px 24px; border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; }
-      .nav-link:hover, .nav-link.active { background: rgba(96, 165, 250, 0.1); border-left: 3px solid #60a5fa; }
+      .nav-link:hover { background: rgba(99, 102, 241, 0.08); color: #a5b4fc; }
       .nav-toggle { display: flex; }
       .nav-toggle.active span:nth-child(1) { transform: rotate(45deg) translate(5px, 5px); }
       .nav-toggle.active span:nth-child(2) { opacity: 0; }
@@ -234,7 +234,7 @@
         <a href="/about" class="nav-link">About</a>
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
-        <a href="/phoebe" class="nav-link active">PBJ Explained</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
       <div class="nav-toggle" id="navToggle"><span></span><span></span><span></span></div>
@@ -280,7 +280,7 @@
 
   <footer class="footer" id="site-footer"></footer>
 
-  <script src="/pbj-site-universal.js?v=2"></script>
+  <script src="/pbj-site-universal.js?v=15"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const navToggle = document.getElementById('navToggle');

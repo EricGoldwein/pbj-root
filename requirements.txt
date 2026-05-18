@@ -17,4 +17,5 @@ PyYAML>=6.0
 flask-cors>=4.0.0
 requests>=2.31.0  # For FEC API client
 gunicorn>=21.2.0  # WSGI server for production deployment
+pdfplumber>=0.11.0  # SFF PDF table extraction
 # weasyprint>=62.0  # Optional: Better PDF generation but requires GTK+ on Windows

@@ -7,7 +7,7 @@
   <meta name="description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, data visualizations">
   <meta name="author" content="320 Consulting">
-  <link rel="canonical" href="https://pbj320.com/insights">
+  <link rel="canonical" href="https://pbj320.com/insights-visualizations">
   <link rel="icon" type="image/png" href="phoebe.png">
   
   <!-- Google tag (gtag.js) -->
@@ -22,20 +22,20 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://pbj320.com/insights">
+  <meta property="og:url" content="https://pbj320.com/insights-visualizations">
   <meta property="og:title" content="PBJ Insights - Nursing Home Data Visualizations">
   <meta property="og:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
-  <meta property="og:image" content="https://pbj320.com/phoebe.png">
+  <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:site_name" content="PBJ Dashboard">
+  <meta property="og:site_name" content="PBJ320">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://pbj320.com/insights">
+  <meta property="twitter:url" content="https://pbj320.com/insights-visualizations">
   <meta property="twitter:title" content="PBJ Insights - Nursing Home Data Visualizations">
   <meta property="twitter:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
-  <meta property="twitter:image" content="https://pbj320.com/phoebe.png">
+  <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
   
   <!-- Performance: DNS prefetch for external resources -->
   <link rel="dns-prefetch" href="https://d3js.org">
@@ -57,7 +57,7 @@
     "@context": "https://schema.org",
     "@type": "WebPage",
     "name": "PBJ Insights - Nursing Home Data Visualizations",
-    "url": "https://pbj320.com/insights",
+    "url": "https://pbj320.com/insights-visualizations",
     "description": "Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.",
     "isPartOf": {
       "@type": "WebSite",
@@ -309,13 +309,15 @@
     
     /* Navigation Styles */
     .navbar {
-      background: #0f172a;
+      background: rgba(10, 15, 26, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       padding: 0;
       position: sticky;
       top: 0;
       z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      border-bottom: 2px solid #1e40af;
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.28);
     }
     
     .nav-container {
@@ -343,16 +345,20 @@
     }
     
     .nav-link {
-      color: rgba(255,255,255,0.8);
+      color: rgba(255, 255, 255, 0.88);
       text-decoration: none;
       font-weight: 500;
-      transition: color 0.3s ease;
+      transition: color 0.2s ease;
       padding: 8px 0;
     }
     
-    .nav-link:hover,
+    .nav-link:hover {
+      color: #93c5fd;
+    }
+
     .nav-link.active {
       color: #60a5fa;
+      font-weight: 600;
     }
     
     .nav-toggle {
@@ -401,11 +407,16 @@
         transition: all 0.2s ease;
       }
       
-      .nav-link:hover,
+      .nav-link:hover {
+        background: transparent;
+        color: #93c5fd;
+      }
+
       .nav-link.active {
-        background: rgba(96, 165, 250, 0.1);
         color: #60a5fa;
-        border-left: 3px solid #60a5fa;
+        font-weight: 600;
+        background: transparent;
+        border-left: none;
       }
       
       .nav-toggle {
@@ -855,7 +866,7 @@
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
         <a href="/report" class="nav-link">Report</a>
-        <a href="/insights" class="nav-link active">Insights</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
@@ -1357,7 +1368,7 @@
     </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
-  <script src="/pbj-site-universal.js?v=2"></script>
+  <script src="/pbj-site-universal.js?v=15"></script>
   <script>
     (function() {
       var overlay = document.getElementById('contact-overlay');

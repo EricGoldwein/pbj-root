@@ -1,4 +1,7 @@
 """SEO metadata helper functions for Flask templates"""
+import json
+import os
+import re
 
 STATE_ABBR_TO_NAME = {
     'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
@@ -37,6 +40,29 @@ def get_region_name(region_num):
     return region_names.get(int(region_num), f'Region {region_num}')
 
 
+def _latest_pbj_quarter_labels():
+    """Return tuple (display, compact) like ('Q4 2025', '2025Q4')."""
+    fallback_display = 'latest PBJ quarter'
+    fallback_compact = 'latest quarter'
+    q_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'latest_quarter_data.json')
+    try:
+        if not os.path.exists(q_path):
+            return fallback_display, fallback_compact
+        with open(q_path, 'r', encoding='utf-8') as f:
+            q_data = json.load(f)
+        display = str(q_data.get('quarter_display') or '').strip()
+        compact = str(q_data.get('quarter') or '').strip()
+        if not display and compact and re.match(r'^\d{4}Q[1-4]$', compact):
+            display = f"Q{compact[5]} {compact[:4]}"
+        if not compact and display:
+            m = re.match(r'^Q([1-4])\s+(\d{4})$', display)
+            if m:
+                compact = f"{m.group(2)}Q{m.group(1)}"
+        return display or fallback_display, compact or fallback_compact
+    except Exception:
+        return fallback_display, fallback_compact
+
+
 def get_seo_metadata(path):
     """
     Get SEO metadata based on the request path.
@@ -44,12 +70,14 @@ def get_seo_metadata(path):
     """
     base_url = 'https://pbj320.com'
     
+    quarter_display, _ = _latest_pbj_quarter_labels()
+
     # Default values for wrapped pages
     default_metadata = {
-        'title': 'PBJ Wrapped Q2 2025 — Nursing Home Staffing Data by State and Region | PBJ320',
-        'description': 'Explore Q2 2025 nursing home staffing data across all 50 states, CMS regions, and the United States. Interactive staffing insights from CMS Payroll-Based Journal (PBJ) data. Comprehensive analysis of 15,000+ nursing homes and long-term care facilities.',
-        'og_title': 'PBJ Wrapped Q2 2025 — Nursing Home Staffing Data',
-        'og_description': 'Interactive nursing home staffing data for Q2 2025. Explore staffing levels, trends, and insights by state, region, and nationally from CMS PBJ data.',
+        'title': f'PBJ Wrapped {quarter_display} — Nursing Home Staffing Data by State and Region | PBJ320',
+        'description': f'Explore {quarter_display} nursing home staffing data across all 50 states, CMS regions, and the United States. Interactive staffing insights from CMS Payroll-Based Journal (PBJ) data. Comprehensive analysis of 15,000+ nursing homes and long-term care facilities.',
+        'og_title': f'PBJ Wrapped {quarter_display} — Nursing Home Staffing Data',
+        'og_description': f'Interactive nursing home staffing data for {quarter_display}. Explore staffing levels, trends, and insights by state, region, and nationally from CMS PBJ data.',
         'canonical_url': base_url + '/wrapped',
         'og_url': base_url + '/wrapped',
         'include_image': True,
@@ -71,9 +99,9 @@ def get_seo_metadata(path):
         if path == '/sff/usa' or path == '/sff/usa/':
             return {
                 'title': 'Special Focus Facilities Program — United States | PBJ320',
-                'description': 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                'description': f'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                 'og_title': 'Special Focus Facilities Program — United States',
-                'og_description': 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                'og_description': f'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                 'canonical_url': base_url + '/sff/usa',
                 'og_url': base_url + '/sff/usa',
                 'include_image': True,
@@ -86,9 +114,9 @@ def get_seo_metadata(path):
             region_num = region_match.group(1) if region_match else ''
             return {
                 'title': f'SFF Program: CMS Region {region_num} | PBJ320',
-                'description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                'description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                 'og_title': f'SFF Program: CMS Region {region_num}',
-                'og_description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                'og_description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                 'canonical_url': base_url + path.rstrip('/'),
                 'og_url': base_url + path.rstrip('/'),
                 'include_image': True,
@@ -103,9 +131,9 @@ def get_seo_metadata(path):
                     state_name = get_state_name(state_code)
                     return {
                         'title': f'{state_name} Special Focus Facilities | PBJ320',
-                        'description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                        'description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                         'og_title': f'{state_name} Special Focus Facilities',
-                        'og_description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.',
+                        'og_description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
                         'canonical_url': base_url + path.rstrip('/'),
                         'og_url': base_url + path.rstrip('/'),
                         'include_image': True,
@@ -121,10 +149,10 @@ def get_seo_metadata(path):
             region_num = region_match.group(1)
             region_name = get_region_name(int(region_num))
             return {
-                'title': f'PBJ Wrapped Q2 2025 — CMS Region {region_num} ({region_name}) Nursing Home Staffing Data | PBJ320',
-                'description': f'Q2 2025 nursing home staffing data for CMS Region {region_num} ({region_name}). Explore regional staffing levels, rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data.',
-                'og_title': f'PBJ Wrapped Q2 2025 — CMS Region {region_num} Nursing Home Staffing',
-                'og_description': f'CMS Region {region_num} ({region_name}) nursing home staffing data and trends for Q2 2025. Staffing levels, rankings, and insights from CMS PBJ data.',
+                'title': f'PBJ Wrapped {quarter_display} — CMS Region {region_num} ({region_name}) Nursing Home Staffing Data | PBJ320',
+                'description': f'{quarter_display} nursing home staffing data for CMS Region {region_num} ({region_name}). Explore regional staffing levels, rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data.',
+                'og_title': f'PBJ Wrapped {quarter_display} — CMS Region {region_num} Nursing Home Staffing',
+                'og_description': f'CMS Region {region_num} ({region_name}) nursing home staffing data and trends for {quarter_display}. Staffing levels, rankings, and insights from CMS PBJ data.',
                 'canonical_url': base_url + path.rstrip('/'),
                 'og_url': base_url + path.rstrip('/'),
                 'include_image': True,
@@ -143,10 +171,10 @@ def get_seo_metadata(path):
                 not identifier.startswith('region')):
                 state_name = get_state_name(identifier)
                 return {
-                    'title': f'PBJ Wrapped Q2 2025 — {state_name} Nursing Home Staffing Data | PBJ320',
-                    'description': f'Q2 2025 nursing home staffing data for {state_name}. Explore state-level staffing levels, rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Analysis of nursing homes and long-term care facilities in {state_name}.',
-                    'og_title': f'PBJ Wrapped Q2 2025 — {state_name} Nursing Home Staffing',
-                    'og_description': f'{state_name} nursing home staffing data and trends for Q2 2025. Staffing levels, rankings, and insights from CMS PBJ data.',
+                    'title': f'PBJ Wrapped {quarter_display} — {state_name} Nursing Home Staffing Data | PBJ320',
+                    'description': f'{quarter_display} nursing home staffing data for {state_name}. Explore state-level staffing levels, rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Analysis of nursing homes and long-term care facilities in {state_name}.',
+                    'og_title': f'PBJ Wrapped {quarter_display} — {state_name} Nursing Home Staffing',
+                    'og_description': f'{state_name} nursing home staffing data and trends for {quarter_display}. Staffing levels, rankings, and insights from CMS PBJ data.',
                     'canonical_url': base_url + path.rstrip('/'),
                     'og_url': base_url + path.rstrip('/'),
                     'include_image': True,

@@ -1,0 +1,62 @@
+{
+
+  "version": 3,
+
+  "caveat": "PBJ is screening and context data — not proof of neglect or causation. CMS case-mix/reference values are not legal minimums. Verify statutes, regulations, waivers, and calculation rules before making compliance claims.",
+
+  "baseline": "Using the attached PBJ staffing data, explain what the numbers show, what they may suggest, what they cannot prove, and what should be verified next. Cite exact HPRD and census figures. Do not claim neglect, harm, or causation from PBJ alone.",
+
+  "prompts": [
+
+    {
+
+      "id": "ombudsman",
+
+      "label": "Ombudsman",
+
+      "description": "Resident-centered triage — practical questions for visits and complaints.",
+
+      "text": "Give a concise Connecticut Long-Term Care Ombudsman-style prep note from this PBJ staffing material: what the pattern may suggest for resident experience (not proof), neutral questions for residents, families, staff, and administrators, and practical next steps. Connecticut LTCOP: https://portal.ct.gov/LTCOP · contact https://portal.ct.gov/ltcop/content/contact-us/contact · toll-free 1-866-388-1888 · main 860-424-5200 · ltcop@ct.gov. If MACPAC/state minimum context appears, treat ~3.06 HPRD (MACPAC total estimated) and 3.00 HPRD direct-care policy reference as orientation only — verify current DPH rules and calculation methods before any compliance claim; PBJ HPRD alone is not proof of meeting Connecticut law. CMS case-mix reference values are not legal minimums. PBJ is a screening layer — not proof of noncompliance, neglect, or causation. Cite exact HPRD/census numbers shown."
+
+    },
+
+    {
+
+      "id": "family",
+
+      "label": "Family",
+
+      "description": "Plain English and questions for the administrator.",
+
+      "text": "Explain this facility's PBJ staffing data in plain English. What stands out, what cannot be concluded, and what should I ask the administrator? PBJ is context only — not proof of neglect or causation. Verify against CMS records and the facility's response."
+
+    },
+
+    {
+
+      "id": "journalist",
+
+      "label": "Journalist",
+
+      "description": "Story angle, limits, and records to pull before you publish.",
+
+      "text": "Summarize staffing patterns, comparison points, and limits of this PBJ data. Identify the strongest data-supported angle and records needed before publication. Do not claim neglect or causation from PBJ alone. Cite exact HPRD/census numbers."
+
+    }
+
+  ],
+
+  "links": {
+
+    "premium": "https://pbj320.com/premium",
+
+    "cms_pbj_dataset": "https://data.cms.gov/provider-data/dataset/4pq5-n9py",
+
+    "care_compare": "https://www.medicare.gov/care-compare/",
+
+    "propublica": "https://projects.propublica.org/nursing-homes/"
+
+  }
+
+}
+

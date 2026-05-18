@@ -24,7 +24,15 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 # Required columns per data source (app.py contract)
 FACILITY_QUARTERLY_REQUIRED = ['PROVNUM', 'CY_Qtr', 'STATE', 'Total_Nurse_HPRD']
-FACILITY_QUARTERLY_OPTIONAL = ['RN_HPRD', 'Nurse_Assistant_HPRD', 'Nurse_Care_HPRD', 'Contract_Percentage', 'avg_daily_census', 'Avg_Daily_Census']
+FACILITY_QUARTERLY_OPTIONAL = [
+    'RN_HPRD',
+    'LPN_HPRD',
+    'Nurse_Assistant_HPRD',
+    'Nurse_Care_HPRD',
+    'Contract_Percentage',
+    'avg_daily_census',
+    'Avg_Daily_Census',
+]
 
 STATE_QUARTERLY_REQUIRED = ['STATE', 'CY_Qtr', 'Total_Nurse_HPRD']
 STATE_QUARTERLY_OPTIONAL = ['Nurse_Care_HPRD', 'RN_HPRD', 'RN_Care_HPRD', 'avg_daily_census', 'Avg_Daily_Census', 'Contract_Percentage']

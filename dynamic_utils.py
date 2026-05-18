@@ -7,21 +7,22 @@ import sys
 import re
 from datetime import datetime
 
-# Add the PBJapp directory to the path so we can import the date utilities
-sys.path.append(r'C:\Users\egold\PycharmProjects\PBJapp')
+# Prefer local pbj-root date utilities.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 try:
     from utils.date_utils import get_latest_data_periods
 except ImportError:
     # Fallback if we can't import the date utilities
     def get_latest_data_periods():
+        current_year = datetime.now().year
         return {
-            'data_range': '2017-2025',
+            'data_range': f'2017-{current_year}',
             'quarter_count': 33,
-            'provider_info_latest': 'September 2025',
-            'provider_info_previous': 'June 2025',
-            'affiliated_entity_latest': 'July 2025',
-            'current_year': 2025
+            'provider_info_latest': 'Latest available',
+            'provider_info_previous': 'Prior available',
+            'affiliated_entity_latest': 'Latest available',
+            'current_year': current_year
         }
 
 def get_dynamic_dates():
@@ -32,13 +33,14 @@ def get_dynamic_dates():
     except Exception as e:
         print(f"Warning: Could not get dynamic dates: {e}")
         # Return fallback dates
+        current_year = datetime.now().year
         return {
-            'data_range': '2017-2025',
+            'data_range': f'2017-{current_year}',
             'quarter_count': 33,
-            'provider_info_latest': 'September 2025',
-            'provider_info_previous': 'June 2025',
-            'affiliated_entity_latest': 'July 2025',
-            'current_year': 2025
+            'provider_info_latest': 'Latest available',
+            'provider_info_previous': 'Prior available',
+            'affiliated_entity_latest': 'Latest available',
+            'current_year': current_year
         }
 
 def update_html_file(file_path, replacements):
@@ -73,10 +75,8 @@ def update_pbj_root_files():
     # Define replacements for about.html
     about_replacements = {
         '33 quarters of daily data': f'{dates["quarter_count"]} quarters of daily data',
-        '(July 2025)': f'({dates["affiliated_entity_latest"]})',
         'from 2017 to 2025': f'from {dates["data_range"]}',
-        '(September 2025, June 2025)': f'({dates["provider_info_latest"]}, {dates["provider_info_previous"]})',
-        '(July 2025)': f'({dates["affiliated_entity_latest"]})'
+        'from 2017-2025': f'from {dates["data_range"]}'
     }
     
     # Update files

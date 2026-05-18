@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="Cost reports and staffing context">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <text x="600" y="260" text-anchor="middle" fill="#e2e8f0" font-size="42" font-weight="700" font-family="system-ui,sans-serif">PBJ + cost reports</text>
+  <text x="600" y="330" text-anchor="middle" fill="#94a3b8" font-size="24" font-family="system-ui,sans-serif">Staffing hours meet operating context</text>
+  <path d="M 120 480 L 240 360 L 360 400 L 480 300 L 600 340 L 720 260 L 840 300 L 960 280 L 1080 320" fill="none" stroke="#60a5fa" stroke-width="4"/>
+</svg>

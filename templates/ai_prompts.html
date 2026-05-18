@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" class="pbj-ai-prompts-page">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PBJ prompts for AI | PBJ320</title>
+  <meta name="description" content="Copyable prompts for reviewing nursing home PBJ staffing data with Claude, ChatGPT, or other AI tools — with limits and verification built in.">
+  <link rel="canonical" href="{{ site_base|e }}/ai/prompts">
+  <meta name="theme-color" content="#f6f7f9">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/insights-theme.css?v=23">
+</head>
+<body>
+  <nav class="navbar" aria-label="Main">
+    <div class="nav-container">
+      <a class="brand" href="/">
+        <img src="/pbj_favicon.png" alt="PBJ320">
+        <span><span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span></span>
+      </a>
+      <div class="nav-links">
+        <a href="/about">About</a>
+        <a href="/report">Report</a>
+        <a href="/insights">Insights</a>
+        <a href="/pbj-ai-support">AI guide</a>
+      </div>
+    </div>
+  </nav>
+  <main class="wrap">
+    <article class="article-shell">
+      <header class="prompts-masthead">
+        <p class="prompts-masthead__crumb"><a href="/insights/use-pbj-data-with-ai">← PBJ + AI article</a></p>
+        <h1>Copyable PBJ prompts</h1>
+        <p class="prompts-masthead__lead">Starter text for Claude, ChatGPT, or similar tools. Attach a facility page, CSV, or screenshot first — then paste one of these prompts.</p>
+      </header>
+      <p class="prompts-caveat">{{ caveat|e }}</p>
+      <div class="prompts-list">
+        {{ prompt_cards_html|safe }}
+      </div>
+      <footer class="prompts-footer">
+        <p>More workflows (Claude Skill, facility handoff): <a href="/pbj-ai-support">PBJ320 AI Support</a>. Background: <a href="/insights/use-pbj-data-with-ai">How to use PBJ data with AI</a>.</p>
+      </footer>
+    </article>
+  </main>
+  <footer class="footer" id="site-footer"></footer>
+  <script src="/pbj-site-universal.js?v=14"></script>
+  <script>
+    document.querySelectorAll('.prompt-copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = btn.getAttribute('data-copy-target');
+        var el = id ? document.getElementById(id) : null;
+        if (!el) return;
+        var text = (el.textContent || '').trim();
+        var done = function () {
+          var t = btn.textContent;
+          btn.textContent = 'Copied';
+          setTimeout(function () { btn.textContent = t; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

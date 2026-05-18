@@ -2,3 +2,5 @@
 # when the editor uses LF and core.autocrlf is true.
 * text=auto eol=lf
 facility_quarterly_metrics.csv filter=lfs diff=lfs merge=lfs -text
+provider_info_combined.csv filter=lfs diff=lfs merge=lfs -text
+provider_info_combined_latest.csv filter=lfs diff=lfs merge=lfs -text

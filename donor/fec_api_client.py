@@ -2,36 +2,20 @@
 FEC API Client Module
 
 This module provides functions to query the Federal Election Commission (FEC) API
-to look up political donations by contributor name and to build docquery links for
-Schedule A receipts.
+to look up political donations by contributor name.
 
 USAGE:
 1. Add your FEC API key to the FEC_API_KEY constant below, or set it as an environment variable
 2. Use the query_donations_by_name() function to search for donations by contributor name
-3. Use build_schedule_a_docquery_link() to reliably construct docquery URLs (uses
-   image_number from Schedule A when present, else fetches from /filings/ for the same committee/period)
-4. The module handles rate limiting and API response parsing
-
-Docquery path by form type (from FEC convention; no guesswork):
-- F13 (Form 13 - Inaugural Committee): itemized donations on Schedule 13-A -> path "f132".
-- All other forms with itemized contributions (F3, F3P, F3X, etc.): Schedule A -> path "sa/ALL".
-See FORM_TYPES_USE_SCHEDULE_13A and docquery_path_for_form_type() below.
-Example Schedule A: https://docquery.fec.gov/cgi-bin/forms/C00892471/1930534/sa/ALL
-Example Form 13: https://docquery.fec.gov/cgi-bin/forms/C00894162/1889684/f132
-Path segment is file_number from OpenFEC. Do NOT use image_number (long page id) or sub_id from Schedule A.
+3. The module handles rate limiting and API response parsing
 
 FEC API Documentation: https://api.open.fec.gov/developers/
-
-Schedule A pagination: This endpoint is NOT paginated by page number. You must use last_index AND
-last_contribution_receipt_date for each subsequent page (see https://github.com/fecgov/openFEC/issues/3396).
-Omitting last_contribution_receipt_date can drop pages and records.
 """
 
 import requests
 import time
 import os
-from functools import lru_cache
-from typing import Dict, List, Optional, Any, Tuple
+from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
 import pandas as pd
@@ -63,70 +47,8 @@ load_env_file()
 # The .env file is gitignored and won't be committed
 FEC_API_KEY = os.getenv("FEC_API_KEY", "YOUR_API_KEY_HERE")
 
-# Timeout in seconds for FEC API requests (env FEC_API_TIMEOUT)
-FEC_API_TIMEOUT = int(os.getenv("FEC_API_TIMEOUT", "90"))
-
 # FEC API Base URL
 FEC_API_BASE_URL = "https://api.open.fec.gov/v1"
-
-# Docquery base URL for Schedule A receipt viewer (no trailing slash)
-DOCQUERY_BASE_URL = "https://docquery.fec.gov/cgi-bin/forms"
-
-# Docquery path by form type. Deterministic formula only (no fuzzy matching).
-# Source: FEC docquery itself uses path "f132" for Form 13 Schedule 13-A (e.g. inaugural committees).
-# Example: https://docquery.fec.gov/cgi-bin/forms/C00894162/1889684/f132 shows "SCHEDULE 13-A".
-# Form 13 = Report of Donations Accepted for Inaugural Committee -> Schedule 13-A -> path "f132".
-# All other forms (F3, F3P, F3X, F3L, etc.) use Schedule A for itemized contributions -> path "sa/ALL".
-# Rule: form_type string exactly "F13" (case-normalized) -> "f132"; else -> "sa/ALL".
-#
-# Coverage (itemized contributions / receipts only): F13 -> f132; all other form types -> sa/ALL.
-# Why we use sa/ALL for non-F13: (1) Live docquery URLs use .../sa/ALL for Schedule A and return
-# "SCHEDULE A - ITEMIZED RECEIPTS" (e.g. C00892471/1930534/sa/ALL = MAGA Inc. Form 3X;
-# C00828541/1700115/sa/ALL = other committee). (2) Only Form 13 uses a different schedule name (13-A)
-# and docquery path (f132); sa/ALL fails for Form 13 with "Invalid Page Number". We have no official
-# FEC spec listing docquery paths by form type; this is based on observed docquery behavior.
-# If a non-F13 filing ever fails with sa/ALL, add that form type to a separate path set here.
-FORM_TYPES_USE_SCHEDULE_13A = frozenset({"F13"})
-DOCQUERY_PATH_SCHEDULE_13A = "f132"
-DOCQUERY_PATH_SCHEDULE_A = "sa/ALL"
-
-
-def docquery_path_for_form_type(form_type: Optional[str]) -> str:
-    """
-    Return the docquery schedule path for the given form_type. Pure formula: no API, no fuzzy match.
-    F13 (exact, case-normalized) -> f132. Any other or missing form_type -> sa/ALL.
-    """
-    if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
-        return DOCQUERY_PATH_SCHEDULE_13A
-    return DOCQUERY_PATH_SCHEDULE_A
-
-
-def correct_docquery_url_for_form_type(url: str, form_type_known: Optional[str] = None) -> Optional[str]:
-    """
-    If url is a docquery URL ending with /sa/ALL, return the correct .../f132 URL when the filing is Form 13
-    (e.g. Trump Vance Inaugural C00894162) so the link works. Uses form_type_known when provided (no API);
-    otherwise looks up form_type via the API. When API fails or form_type is not F13, returns None (keep url).
-    """
-    if not url or not isinstance(url, str) or "docquery.fec.gov" not in url or "/sa/ALL" not in url:
-        return None
-    parts = url.rstrip("/").split("/")
-    try:
-        idx = parts.index("forms")
-        if idx + 2 >= len(parts):
-            return None
-        committee_id = (parts[idx + 1] or "").strip()
-        file_number = (parts[idx + 2] or "").strip()
-        if not committee_id or not _is_valid_filing_image_id(file_number):
-            return None
-        form_type = (form_type_known or "").strip() or None
-        if not form_type or str(form_type).strip().upper() not in FORM_TYPES_USE_SCHEDULE_13A:
-            form_type = get_form_type_for_filing(committee_id, file_number)
-        if form_type and str(form_type).strip().upper() in FORM_TYPES_USE_SCHEDULE_13A:
-            path = docquery_path_for_form_type(form_type)
-            return f"{DOCQUERY_BASE_URL}/{committee_id}/{file_number}/{path}"
-    except (ValueError, IndexError):
-        pass
-    return None
 
 # Rate limiting: FEC API allows 120 requests per minute
 REQUESTS_PER_MINUTE = 120
@@ -216,7 +138,7 @@ def query_donations_by_name(
             params["max_date"] = max_date
         
         try:
-            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
+            response = requests.get(endpoint, params=params, timeout=30)
             
             # Check for errors and show details
             if response.status_code != 200:
@@ -240,7 +162,7 @@ def query_donations_by_name(
                     # Retry without contributor_type filter
                     params_no_type = params.copy()
                     params_no_type.pop("contributor_type", None)
-                    retry_response = requests.get(endpoint, params=params_no_type, timeout=FEC_API_TIMEOUT)
+                    retry_response = requests.get(endpoint, params=params_no_type, timeout=30)
                     if retry_response.status_code == 200:
                         response = retry_response
                     else:
@@ -255,17 +177,6 @@ def query_donations_by_name(
             
             if not results:
                 break
-            
-            # Debug: Check for corrupted dates in FEC API response
-            for r in results[:3]:  # Check first 3 results
-                date_val = r.get("contribution_receipt_date", "")
-                if date_val:
-                    import re
-                    year_match = re.match(r'^(\d{4})-', str(date_val))
-                    if year_match:
-                        year = int(year_match.group(1))
-                        if 2030 <= year <= 2040:
-                            print(f"[WARNING] FEC API returned suspicious date: {date_val} (year: {year})")
             
             all_results.extend(results)
             
@@ -295,8 +206,7 @@ def query_donations_by_committee(
     min_date: Optional[str] = None,
     max_date: Optional[str] = None,
     per_page: int = 100,
-    max_pages: Optional[int] = None,
-    timeout: Optional[int] = None,
+    max_pages: Optional[int] = None
 ) -> List[Dict[str, Any]]:
     """
     Query FEC API for donations to a specific committee.
@@ -319,620 +229,52 @@ def query_donations_by_committee(
     
     all_results = []
     page = 1
-    last_index = None
-    last_contribution_receipt_date = None
-
+    
     while True:
         _rate_limit()
-
+        
         endpoint = f"{FEC_API_BASE_URL}/schedules/schedule_a"
-
-        params = {
-            "api_key": FEC_API_KEY,
-            "committee_id": committee_id,
-            "per_page": min(per_page, 100),
-            "sort": "-contribution_receipt_date"
-        }
-        # OpenFEC schedule_a: NOT paginated by page number. Next page MUST use last_index AND last_contribution_receipt_date
-        # (see https://github.com/fecgov/openFEC/issues/3396). Omitting the date can drop pages/records (e.g. Landa).
-        if last_index is not None:
-            params["last_index"] = str(last_index)
-            date_val = last_contribution_receipt_date or ""
-            if isinstance(date_val, str) and "T" in date_val:
-                date_val = date_val[:10]  # YYYY-MM-DD
-            if date_val:
-                params["last_contribution_receipt_date"] = str(date_val)
-        else:
-            params["page"] = page
-
-        if min_date:
-            params["min_date"] = min_date
-
-        if max_date:
-            params["max_date"] = max_date
-
-        timeout_sec = timeout if timeout is not None else FEC_API_TIMEOUT
-        try:
-            response = requests.get(endpoint, params=params, timeout=timeout_sec)
-            response.raise_for_status()
-
-            data = response.json()
-            results = data.get("results", [])
-
-            if not results:
-                break
-
-            # Safety: when using page fallback, if this batch's first record matches previous batch's first, API may be returning same page — stop
-            if last_index is None and page > 1 and all_results and len(all_results) >= len(results):
-                this_first_id = (results[0].get("sub_id") if results else None)
-                prev_batch_start = len(all_results) - len(results)
-                prev_first_id = all_results[prev_batch_start].get("sub_id") if prev_batch_start >= 0 else None
-                if this_first_id is not None and this_first_id == prev_first_id:
-                    break
-            all_results.extend(results)
-
-            pagination = data.get("pagination") or {}
-            if not isinstance(pagination, dict):
-                break
-            total_pages = pagination.get("pages", 0) or 0
-            # API sometimes omits has_more_pages; infer from total_pages so we don't stop after page 1
-            has_more = pagination.get("has_more_pages")
-            if has_more is None or has_more is False:
-                has_more = bool(total_pages and page < total_pages)
-            last_indexes = pagination.get("last_indexes")
-            if not isinstance(last_indexes, dict):
-                last_indexes = {}
-            # Cursor: API may return last_index as number or string; try multiple keys
-            next_last = last_indexes.get("last_index") or last_indexes.get("index") or pagination.get("last_index")
-            next_date = last_indexes.get("last_contribution_receipt_date")
-            if next_last is not None and next_last != "":
-                next_last = str(next_last)
-            else:
-                next_last = None
-
-            if not has_more or (total_pages and page >= total_pages):
-                break
-
-            if max_pages and page >= max_pages:
-                break
-
-            page += 1
-            # Use cursor when API provides it. FEC requires last_contribution_receipt_date with last_index; if API omits it, derive from last record.
-            if next_last:
-                last_index = next_last
-                if next_date is not None and str(next_date).strip():
-                    last_contribution_receipt_date = str(next_date).strip()
-                    if "T" in last_contribution_receipt_date:
-                        last_contribution_receipt_date = last_contribution_receipt_date[:10]
-                else:
-                    last_rec = results[-1] if results else {}
-                    last_contribution_receipt_date = (last_rec.get("contribution_receipt_date") or "").strip()
-                    if last_contribution_receipt_date and "T" in last_contribution_receipt_date:
-                        last_contribution_receipt_date = last_contribution_receipt_date[:10]
-                    if not last_contribution_receipt_date:
-                        print(f"[FEC] committee {committee_id}: no last_contribution_receipt_date from API or last record; stopping pagination to avoid incomplete results")
-                        break
-            else:
-                # API says has_more but no cursor; log once per committee so we can debug
-                if has_more and page == 1:
-                    print(f"[FEC] committee {committee_id}: has_more=True but no last_indexes; pagination keys={list(pagination.keys())!r}")
-                last_index = None
-                last_contribution_receipt_date = None
-
-        except requests.exceptions.Timeout:
-            raise
-        except requests.exceptions.RequestException as e:
-            print(f"Error querying FEC API for committee '{committee_id}': {e}")
-            break
-        except Exception as e:
-            print(f"Unexpected error parsing FEC API response for committee '{committee_id}': {e}")
-            break
-
-    return all_results
-
-
-# Longer timeout for chunked committee fetch (major conduits); single request can be slow
-FEC_CHUNKED_TIMEOUT = int(os.getenv("FEC_CHUNKED_TIMEOUT", "180"))
-
-
-def query_donations_by_committee_chunked(
-    committee_id: str,
-    max_pages_per_period: Optional[int] = None,
-    years: Optional[List[int]] = None,
-    per_page: int = 100,
-) -> Tuple[List[Dict[str, Any]], List[int]]:
-    """
-    Fetch committee donations in year-sized chunks (newest year first).
-    Fetches all pages per year (no cap) until the API has no more or a request times out.
-    Caller can show years_included so users know what's in the data.
-
-    Args:
-        committee_id: FEC committee ID (e.g. "C00401224").
-        max_pages_per_period: Max pages per year (None = fetch all pages per year).
-        years: List of years to fetch (default last 5 calendar years, newest first).
-        per_page: Results per page (max 100).
-
-    Returns:
-        (merged list of donation records deduplicated by sub_id, list of years we got data for)
-    """
-    from datetime import date
-    current_year = date.today().year
-    if years is None:
-        years = [current_year, current_year - 1, current_year - 2, current_year - 3, current_year - 4]
-    seen_sub_ids = set()
-    merged = []
-    years_included = []
-    for y in years:
-        min_date = f"{y}-01-01"
-        max_date = f"{y}-12-31"
-        try:
-            chunk = query_donations_by_committee(
-                committee_id,
-                min_date=min_date,
-                max_date=max_date,
-                per_page=per_page,
-                max_pages=max_pages_per_period,
-                timeout=FEC_CHUNKED_TIMEOUT,
-            )
-        except requests.exceptions.Timeout:
-            print(f"FEC API timeout for committee {committee_id} year {y}, skipping year")
-            continue
-        if chunk:
-            years_included.append(y)
-        for r in chunk:
-            sub_id = r.get("sub_id")
-            if sub_id is not None and sub_id != "":
-                if sub_id in seen_sub_ids:
-                    continue
-                seen_sub_ids.add(sub_id)
-            merged.append(r)
-    return merged, years_included
-
-
-def query_filings_by_committee(
-    committee_id: str,
-    min_date: Optional[str] = None,
-    max_date: Optional[str] = None,
-    form_type: Optional[str] = None,
-    file_number: Optional[Any] = None,
-    per_page: int = 100,
-    max_pages: Optional[int] = None,
-) -> List[Dict[str, Any]]:
-    """
-    Query OpenFEC /filings/ for a committee to obtain filing metadata including image_number.
-
-    Use this when a Schedule A record does not include image_number: call this with the same
-    committee_id and period (min_date/max_date) to get the filing's image_number for building
-    the docquery URL. For inaugural committees pass form_type="F13" to get Form 13 filings.
-
-    Args:
-        committee_id: FEC committee ID (e.g. "C00892471").
-        min_date: Optional minimum filing date (YYYY-MM-DD).
-        max_date: Optional maximum filing date (YYYY-MM-DD).
-        form_type: Optional form type filter (e.g. "F13" for Form 13 / inaugural).
-        file_number: Optional file number to filter (if API supports it).
-        per_page: Results per page (max 100).
-        max_pages: Max pages to fetch (None for all).
-
-    Returns:
-        List of filing dicts; each may include "file_number" (use for docquery), "image_number",
-        "receipt_date", "report_type", etc. Prefer file_number for docquery when present.
-    """
-    if FEC_API_KEY == "YOUR_API_KEY_HERE":
-        raise ValueError(
-            "FEC API key not set. Set FEC_API_KEY environment variable or update fec_api_client.py"
-        )
-
-    all_filings = []
-    page = 1
-
-    while True:
-        _rate_limit()
-
-        endpoint = f"{FEC_API_BASE_URL}/filings"
+        
         params = {
             "api_key": FEC_API_KEY,
             "committee_id": committee_id,
             "per_page": min(per_page, 100),
             "page": page,
-            "sort": "-receipt_date",
+            "sort": "-contribution_receipt_date"
         }
+        
         if min_date:
-            params["min_receipt_date"] = min_date
+            params["min_date"] = min_date
+        
         if max_date:
-            params["max_receipt_date"] = max_date
-        if form_type:
-            params["form_type"] = form_type
-        if file_number is not None:
-            fn = str(file_number).strip()
-            if fn.upper().startswith("FEC-"):
-                fn = fn[4:].strip()
-            if fn:
-                params["file_number"] = fn
-
+            params["max_date"] = max_date
+        
         try:
-            response = requests.get(endpoint, params=params, timeout=FEC_API_TIMEOUT)
+            response = requests.get(endpoint, params=params, timeout=30)
             response.raise_for_status()
+            
             data = response.json()
             results = data.get("results", [])
+            
             if not results:
                 break
-            all_filings.extend(results)
+            
+            all_results.extend(results)
+            
             pagination = data.get("pagination", {})
             if not pagination.get("has_more_pages", False):
                 break
+            
             if max_pages and page >= max_pages:
                 break
+            
             page += 1
+            
         except requests.exceptions.RequestException as e:
+            print(f"Error querying FEC API for committee '{committee_id}': {e}")
             break
-
-    return all_filings
-
-
-@lru_cache(maxsize=500)
-def _get_form_type_for_filing_impl(committee_id: str, file_number_str: str) -> Optional[str]:
-    """Cached lookup by (committee_id, file_number). One API call per unique filing per process."""
-    try:
-        filings = query_filings_by_committee(
-            committee_id,
-            file_number=file_number_str,
-            per_page=100,
-            max_pages=2,
-        )
-        for f in filings:
-            im = f.get("file_number") or f.get("image_number")
-            if im is not None and str(im).strip() == file_number_str:
-                return (f.get("form_type") or "").strip() or None
-    except Exception:
-        pass
-    return None
-
-
-def get_form_type_for_filing(committee_id: str, file_number: Any) -> Optional[str]:
-    """
-    Look up the form_type for a given filing (e.g. F13, F3X) from the OpenFEC filings API.
-    Used to build the correct docquery path (f132 vs sa/ALL). Results are cached by (committee_id, file_number)
-    so one request with many donations from the same filing only hits the API once.
-    """
-    if not committee_id or not _is_valid_filing_image_id(file_number):
-        return None
-    raw = str(file_number).strip()
-    if raw.upper().startswith("FEC-"):
-        raw = raw[4:].strip()
-    if not raw:
-        return None
-    return _get_form_type_for_filing_impl(committee_id, raw)
-
-
-def build_schedule_a_docquery_link(
-    committee_id: str,
-    image_number: Optional[str] = None,
-    schedule_a_record: Optional[Dict[str, Any]] = None,
-    min_date: Optional[str] = None,
-    max_date: Optional[str] = None,
-    form_type: Optional[str] = None,
-    verify_link: bool = False,
-) -> Dict[str, Any]:
-    """
-    Reliably construct the FEC docquery URL for itemized contributions (Schedule A or Form 13 Schedule 13-A).
-
-    Path is determined by form_type from the filing/record: F13 -> .../f132; all other form types -> .../sa/ALL.
-    See docquery_path_for_form_type() and FORM_TYPES_USE_SCHEDULE_13A. Path segment is file_number from OpenFEC.
-
-    Args:
-        committee_id: FEC committee identifier (e.g. "C00892471").
-        image_number: Optional numeric filing ID; if set, used directly.
-        schedule_a_record: Optional Schedule A record; used for file_number and contribution_receipt_date.
-        min_date, max_date: Optional date range for filings fallback.
-        form_type: Optional form type (e.g. "F13") when known; avoids extra API call.
-        verify_link: If True, perform HEAD request to confirm the URL loads.
-
-    Returns:
-        Dict with:
-          - url: The constructed docquery URL (or fallback receipts search URL if no image_number).
-          - committee_id: Normalized committee_id.
-          - image_number: The image_number used (empty if none).
-          - source: "argument" | "schedule_a" | "filings" | "none".
-          - api_endpoint_used: OpenFEC endpoint used to obtain image_number, or "".
-          - link_verified: True if verify_link was True and HEAD succeeded; else False/absent.
-    """
-    committee_id = str(committee_id).strip() if committee_id else ""
-    if not committee_id:
-        return {
-            "url": "",
-            "committee_id": "",
-            "image_number": "",
-            "source": "none",
-            "api_endpoint_used": "",
-        }
-
-    resolved_image_number = None
-    source = "none"
-    api_endpoint_used = ""
-
-    def norm_filing_id(val: Any) -> Optional[str]:
-        if not val or not _is_valid_filing_image_id(val):
-            return None
-        raw = str(val).strip()
-        if raw.upper().startswith("FEC-"):
-            raw = raw[4:].strip()
-        return raw if raw else None
-
-    period_min = min_date
-    period_max = max_date
-    if not (period_min or period_max) and schedule_a_record and isinstance(schedule_a_record, dict) and schedule_a_record.get("contribution_receipt_date"):
-        rd = schedule_a_record.get("contribution_receipt_date")
-        if rd:
-            period_min = rd
-            period_max = rd
-
-    resolved_form_type = (form_type or "").strip() or None
-
-    # 1. Explicit image_number
-    if image_number:
-        raw = norm_filing_id(image_number)
-        if raw:
-            resolved_image_number = raw
-            source = "argument"
-
-    # 2. Schedule A record file_number (and form_type from record if API returns it)
-    if resolved_image_number is None and schedule_a_record and isinstance(schedule_a_record, dict):
-        candidate = schedule_a_record.get("file_number")
-        raw = norm_filing_id(candidate)
-        if raw:
-            resolved_image_number = raw
-            source = "schedule_a"
-            api_endpoint_used = "/schedules/schedule_a/"
-            if not resolved_form_type:
-                resolved_form_type = (schedule_a_record.get("form_type") or "").strip() or None
-
-    # 3. Fallback: fetch filings for committee/period (we get form_type from the filing)
-    if resolved_image_number is None and (period_min or period_max):
-        try:
-            filings = query_filings_by_committee(
-                committee_id,
-                min_date=period_min,
-                max_date=period_max,
-                per_page=100,
-                max_pages=1,
-            )
-            for f in filings:
-                im = f.get("file_number") or f.get("image_number")
-                raw = norm_filing_id(im) if im is not None else None
-                if raw:
-                    resolved_image_number = raw
-                    resolved_form_type = (f.get("form_type") or "").strip() or resolved_form_type
-                    source = "filings"
-                    api_endpoint_used = "/filings/"
-                    break
-        except Exception:
-            pass
-
-    # Resolve form_type when we have file_number but no form_type (so we pick correct path)
-    if resolved_image_number and not resolved_form_type:
-        resolved_form_type = get_form_type_for_filing(committee_id, resolved_image_number)
-
-    form_path = docquery_path_for_form_type(resolved_form_type)
-    if resolved_image_number:
-        url = f"{DOCQUERY_BASE_URL}/{committee_id}/{resolved_image_number}/{form_path}"
-    else:
-        url = f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
-
-    out = {
-        "url": url,
-        "committee_id": committee_id,
-        "image_number": resolved_image_number or "",
-        "source": source,
-        "api_endpoint_used": api_endpoint_used,
-    }
-
-    if verify_link and url and resolved_image_number:
-        out["link_verified"] = _verify_docquery_link(url)
-
-    return out
-
-
-def _is_valid_filing_image_id(val: Any) -> bool:
-    """
-    Docquery URLs use the filing image number (short, e.g. 1930534), not the Schedule A
-    line-item sub_id (long, e.g. 4012020261302797845). Return True only for IDs that
-    look like valid filing numbers (all digits, 4–12 chars).
-    """
-    if val is None:
-        return False
-    s = str(val).strip()
-    if s.upper().startswith("FEC-"):
-        s = s[4:].strip()
-    if not s or not s.isdigit():
-        return False
-    return 4 <= len(s) <= 12
-
-
-def is_valid_docquery_schedule_a_url(url: str) -> bool:
-    """
-    Return True only if the URL looks like a valid Schedule A (or Form 13 Schedule 13-A)
-    docquery link (short filing image number in path). Rejects URLs built with long line-item sub_ids.
-    Accepts /sa, /sa/ALL, and /f132 (Form 13 Schedule 13-A for inaugural committees).
-    """
-    if not url or not isinstance(url, str) or "docquery.fec.gov" not in url:
-        return False
-    u = url.rstrip("/")
-    # Accept .../sa, .../sa/ALL, or .../f132
-    if not (u.endswith("/sa") or "/sa/ALL" in url or u.endswith("/f132")):
-        return False
-    parts = u.split("/")
-    if len(parts) < 2:
-        return False
-    # Form path is last segment; image_number is the one before it
-    for form_name in ("sa", "f132"):
-        try:
-            idx = parts.index(form_name)
-            if idx >= 1:
-                image_part = parts[idx - 1]
-                if _is_valid_filing_image_id(image_part):
-                    return True
-        except ValueError:
-            continue
-    return False
-
-
-def _verify_docquery_link(url: str, timeout: int = 5) -> bool:
-    """Perform a HEAD request to confirm the docquery URL is reachable. Returns True if status is 2xx.
-    Some servers may not support HEAD; the link may still load in a browser."""
-    if not url or not url.startswith("https://docquery.fec.gov/"):
-        return False
-    try:
-        resp = requests.head(url, timeout=timeout, allow_redirects=True)
-        return 200 <= resp.status_code < 300
-    except Exception:
-        return False
-
-
-def _build_docquery_url(committee_id: str, image_number: Any, form_type: Optional[str] = None) -> str:
-    """
-    Build FEC docquery URL when we have the real filing image number (e.g. 1930534).
-    Form type from data: F13 -> .../f132 (Form 13 Schedule 13-A); else -> .../sa/ALL (Schedule A).
-    When form_type is unknown, defaults to sa/ALL.
-    """
-    committee_id = str(committee_id).strip() if committee_id else ""
-    if not committee_id:
-        return ""
-    form_path = docquery_path_for_form_type(form_type)
-    if image_number and _is_valid_filing_image_id(image_number):
-        raw = str(image_number).strip()
-        if raw.upper().startswith("FEC-"):
-            raw = raw[4:].strip()
-        if raw:
-            return f"{DOCQUERY_BASE_URL}/{committee_id}/{raw}/{form_path}"
-    return f"https://www.fec.gov/data/receipts/?data_type=efiling&committee_id={committee_id}"
-
-
-# ---------------------------------------------------------------------------
-# Conduit committee handling: national fundraising platforms (ActBlue, WinRed)
-# that route donations to ultimate recipients. We flag earmarked/conduit rows
-# and attribute to ultimate recipient when possible for aggregation/reporting.
-# ---------------------------------------------------------------------------
-
-CONDUIT_COMMITTEES = (
-    {"committee_id": "C00401224", "committee_name": "ActBlue", "conduit_flag": True},
-    {"committee_id": "C00694323", "committee_name": "WinRed", "conduit_flag": True},
-)
-CONDUIT_COMMITTEE_IDS = {c["committee_id"] for c in CONDUIT_COMMITTEES}
-
-# Earmark/conduit keywords in memo_text (case-insensitive)
-_EARMARK_MEMO_KEYWORDS = ("earmark", "via", "processed by")
-
-
-def is_earmarked_transaction(record: Dict[str, Any]) -> bool:
-    """
-    True if this Schedule A row is conduit-related: memo_code 'X' (earmark)
-    or memo_text contains earmark/via/processed by. Used for attribution.
-    """
-    if not record or not isinstance(record, dict):
-        return False
-    memo_code = (record.get("memo_code") or "").strip().upper()
-    if memo_code == "X":
-        return True
-    memo_text = (record.get("memo_text") or "").strip().lower()
-    if not memo_text:
-        return False
-    return any(kw in memo_text for kw in _EARMARK_MEMO_KEYWORDS)
-
-
-def add_conduit_attribution(record: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Add conduit/attribution fields to a normalized donation record.
-    Preserves committee_id, committee_name for audit.
-    Adds: is_earmarked_transaction, donation_attribution_type,
-    ultimate_recipient_id, ultimate_recipient_name.
-    """
-    if not record or not isinstance(record, dict):
-        return record
-    out = dict(record)
-    recipient_id = (out.get("committee_id") or "").strip()
-    recipient_is_conduit = recipient_id in CONDUIT_COMMITTEE_IDS
-    earmarked = is_earmarked_transaction(out)
-
-    # Direct: not conduit and not earmarked
-    if not recipient_is_conduit and not earmarked:
-        out["is_earmarked_transaction"] = False
-        out["donation_attribution_type"] = "direct"
-        out["ultimate_recipient_id"] = recipient_id
-        out["ultimate_recipient_name"] = (out.get("committee_name") or "").strip()
-        return out
-
-    # Conduit or earmarked: try to resolve ultimate recipient from linked candidate
-    out["is_earmarked_transaction"] = earmarked
-    cand_id = (out.get("candidate_id") or "").strip()
-    cand_name = (out.get("candidate_name") or "").strip()
-    if cand_id or cand_name:
-        out["donation_attribution_type"] = "conduit_resolved"
-        out["ultimate_recipient_id"] = cand_id
-        out["ultimate_recipient_name"] = cand_name
-    else:
-        out["donation_attribution_type"] = "conduit_unresolved"
-        out["ultimate_recipient_id"] = ""
-        out["ultimate_recipient_name"] = ""
-    return out
-
-
-def compute_conduit_diagnostics(
-    records: List[Dict[str, Any]],
-) -> Dict[str, Any]:
-    """
-    From a list of normalized + conduit-attributed records, return diagnostics:
-    total donations, % via conduit, % resolved vs unresolved, top 10 ultimate recipients.
-    """
-    total_amt = sum(float(r.get("donation_amount") or 0) for r in records)
-    n = len(records)
-    conduit_count = 0
-    conduit_amt = 0.0
-    resolved_count = 0
-    resolved_amt = 0.0
-    unresolved_count = 0
-    unresolved_amt = 0.0
-    # Aggregate by ultimate recipient (id or name) for top 10
-    by_recipient: Dict[str, float] = {}
-
-    for r in records:
-        amt = float(r.get("donation_amount") or 0)
-        att = (r.get("donation_attribution_type") or "direct").strip()
-        rid = (r.get("ultimate_recipient_id") or "").strip()
-        rname = (r.get("ultimate_recipient_name") or "").strip()
-        key = rid or rname or "(direct)"
-        by_recipient[key] = by_recipient.get(key, 0) + amt
-
-        if att == "direct":
-            continue
-        conduit_count += 1
-        conduit_amt += amt
-        if att == "conduit_resolved":
-            resolved_count += 1
-            resolved_amt += amt
-        else:
-            unresolved_count += 1
-            unresolved_amt += amt
-
-    top_recipients = sorted(
-        [{"id_or_name": k, "total": round(v, 2)} for k, v in by_recipient.items()],
-        key=lambda x: -x["total"],
-    )[:10]
-
-    return {
-        "total_donations": n,
-        "total_amount": round(total_amt, 2),
-        "conduit_count": conduit_count,
-        "conduit_amount": round(conduit_amt, 2),
-        "pct_via_conduit": round(100.0 * conduit_count / n, 1) if n else 0,
-        "conduit_resolved_count": resolved_count,
-        "conduit_resolved_amount": round(resolved_amt, 2),
-        "pct_resolved": round(100.0 * resolved_count / conduit_count, 1) if conduit_count else 0,
-        "conduit_unresolved_count": unresolved_count,
-        "conduit_unresolved_amount": round(unresolved_amt, 2),
-        "pct_unresolved": round(100.0 * unresolved_count / conduit_count, 1) if conduit_count else 0,
-        "top_ultimate_recipients": top_recipients,
-    }
+    
+    return all_results
 
 
 def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -945,36 +287,6 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Normalized dictionary with standard field names
     """
-    # Safety check: ensure record is a dict
-    if not record or not isinstance(record, dict):
-        return {
-            "donor_name": "", "donor_type": "", "donor_city": "", "donor_state": "", "donor_zip": "",
-            "employer": "", "occupation": "", "donation_amount": 0, "donation_date": "",
-            "committee_id": "", "committee_name": "", "committee_type": "",
-            "candidate_id": "", "candidate_name": "", "candidate_office": "", "candidate_party": "",
-            "fec_record_id": "", "fec_file_number": "", "fec_docquery_url": "", "form_type": "",
-            "memo_code": "", "memo_text": "", "receipt_type": "", "line_number": ""
-        }
-    
-    # Safely get nested objects (committee and candidate can be None)
-    committee = record.get("committee") or {}
-    candidate = record.get("candidate") or {}
-    
-    # Ensure they're dicts
-    if not isinstance(committee, dict):
-        committee = {}
-    if not isinstance(candidate, dict):
-        candidate = {}
-    
-    # Committee ID: API can return in committee object or at top level
-    committee_id = (committee.get("committee_id", "") or record.get("committee_id", "")) if isinstance(committee, dict) else (record.get("committee_id", "") or "")
-    # Docquery URL uses file_number; use form_type when present (F13 -> f132). Do NOT call get_form_type_for_filing
-    # here for every record or search will timeout (N API calls). Dashboard corrects sa/ALL -> f132 when needed.
-    file_num = record.get("file_number")
-    url_id = file_num if _is_valid_filing_image_id(file_num) else None
-    fec_record_id = record.get("sub_id") or record.get("image_number") or ""
-    form_type = (record.get("form_type") or "").strip() or None
-
     return {
         "donor_name": record.get("contributor_name", ""),
         "donor_type": record.get("contributor_type", ""),
@@ -983,19 +295,16 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "donor_zip": record.get("contributor_zip", ""),
         "employer": record.get("contributor_employer", ""),
         "occupation": record.get("contributor_occupation", ""),
-        "donation_amount": record.get("contribution_receipt_amount") or 0,
-        "donation_date": record.get("contribution_receipt_date") or "",
-        "committee_id": committee_id,
-        "committee_name": committee.get("name", "") if isinstance(committee, dict) else "",
-        "committee_type": committee.get("committee_type", "") if isinstance(committee, dict) else "",
-        "candidate_id": candidate.get("candidate_id", "") if isinstance(candidate, dict) else "",
-        "candidate_name": candidate.get("name", "") if isinstance(candidate, dict) else "",
-        "candidate_office": candidate.get("office", "") if isinstance(candidate, dict) else "",
-        "candidate_party": candidate.get("party", "") if isinstance(candidate, dict) else "",
-        "fec_record_id": fec_record_id,
-        "fec_file_number": str(file_num) if file_num is not None else "",
-        "fec_docquery_url": _build_docquery_url(committee_id, url_id, form_type=form_type),
-        "form_type": form_type or "",
+        "donation_amount": record.get("contribution_receipt_amount", 0),
+        "donation_date": record.get("contribution_receipt_date", ""),
+        "committee_id": record.get("committee", {}).get("committee_id", ""),
+        "committee_name": record.get("committee", {}).get("name", ""),
+        "committee_type": record.get("committee", {}).get("committee_type", ""),
+        "candidate_id": record.get("candidate", {}).get("candidate_id", ""),
+        "candidate_name": record.get("candidate", {}).get("name", ""),
+        "candidate_office": record.get("candidate", {}).get("office", ""),
+        "candidate_party": record.get("candidate", {}).get("party", ""),
+        "fec_record_id": record.get("sub_id", ""),
         "memo_code": record.get("memo_code", ""),
         "memo_text": record.get("memo_text", ""),
         "receipt_type": record.get("receipt_type", ""),

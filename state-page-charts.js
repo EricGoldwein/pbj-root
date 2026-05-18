@@ -11,8 +11,8 @@
     .then(function(r) { return r.ok ? r.json() : Promise.reject(new Error("no data")); })
     .then(function(d) {
       if (!d || !d.raw_quarters || !d.raw_quarters.length) return;
-      var textColor = "rgba(226,232,240,0.9)";
-      var gridColor = "rgba(148,163,184,0.2)";
+      var textColor = "rgba(226, 232, 240, 0.95)";
+      var gridColor = "rgba(51, 65, 85, 0.55)";
       if (typeof Chart !== "undefined") { Chart.defaults.color = textColor; Chart.defaults.borderColor = gridColor; }
 
       function quarterToDate(q) {
@@ -44,15 +44,19 @@
       function timeTickCallback(quarters) {
         var spanYears = getSpanYears(quarters);
         var showQuarters = spanYears < 2;
-        return function(value) {
+        return function(value, index, ticks) {
           var date = new Date(value);
           if (showQuarters) {
             var y = date.getFullYear();
             var q = Math.floor(date.getMonth() / 3) + 1;
             return y + " Q" + q;
           }
-          if (date.getMonth() !== 0 || date.getDate() !== 1) return "";
-          return "" + date.getFullYear();
+          var y = date.getFullYear();
+          if (typeof index !== "number" || index === 0) return "" + y;
+          if (!ticks || !ticks[index - 1]) return "";
+          var prevY = ticks[index - 1].value != null ? new Date(ticks[index - 1].value).getFullYear() : null;
+          if (prevY !== y) return "" + y;
+          return "";
         };
       }
 
@@ -146,28 +150,28 @@
       var directCareTip = "Via MACPAC; estimate.";
       if (d.total && d.total.length) {
         var ds = [
-          { label: "Total", data: d.total, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false },
-          { label: "Direct", data: d.direct || [], borderColor: "#6366f1", borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false }
+          { label: "Total", data: d.total, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false },
+          { label: "Direct", data: d.direct || [], borderColor: "rgba(161,161,170,0.9)", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false }
         ];
         makeLineTime("stateChartTotal", quarters, ds, "Hours per resident day", directCareTip);
       }
       if (d.rn && d.rn.length) {
         var rnDs = [
-          { label: "Total RN", data: d.rn, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false }
+          { label: "Total RN", data: d.rn, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }
         ];
         if (d.rn_care && d.rn_care.length) {
-          rnDs.push({ label: "RN (excl. Admin/DON)", data: d.rn_care, borderColor: "#6366f1", borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false });
+          rnDs.push({ label: "RN (excl. Admin/DON)", data: d.rn_care, borderColor: "rgba(161,161,170,0.9)", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false });
         }
         makeLineTime("stateChartRN", quarters, rnDs, "Hours per resident day", directCareTip);
       }
       if (d.census && d.census.length) {
         makeLineTime("stateChartCensus", quarters, [
-          { label: "Resident census", data: d.census, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false }
+          { label: "Resident census", data: d.census, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }
         ], "Resident census", null, true);
       }
       if (d.contract && d.contract.length) {
         makeLineTime("stateChartContract", quarters, [
-          { label: "Contract %", data: d.contract, borderColor: "#1e40af", tension: 0.3, fill: false, spanGaps: false }
+          { label: "Contract %", data: d.contract, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }
         ], "Contract %", null);
       }
     })

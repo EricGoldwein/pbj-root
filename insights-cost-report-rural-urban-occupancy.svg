@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" role="img" aria-labelledby="t2">
+  <title id="t2">Rural vs urban median occupancy proxy, 2019 to 2023</title>
+  <rect width="100%" height="100%" fill="#0f172a"/>
+  <text x="360.0" y="30" text-anchor="middle" fill="#e2e8f0" font-size="16" font-weight="700"
+    font-family="system-ui,sans-serif">Rural vs urban median occupancy</text>
+  <line x1="64" y1="320" x2="660" y2="320" stroke="#334155"/>
+  <line x1="64" y1="52" x2="64" y2="320" stroke="#334155"/>
+  <path d="M 64.0,167.2 L 213.0,216.4 L 362.0,253.4 L 511.0,235.3 L 660.0,208.5" fill="none" stroke="#34d399" stroke-width="2.5"/>
+  <path d="M 64.0,123.7 L 213.0,191.8 L 362.0,209.2 L 511.0,178.8 L 660.0,149.1" fill="none" stroke="#a78bfa" stroke-width="2.5"/>
+  <text x="64.0" y="342" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">2019</text><text x="213.0" y="342" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">2020</text><text x="362.0" y="342" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">2021</text><text x="511.0" y="342" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">2022</text><text x="660.0" y="342" text-anchor="middle" fill="#94a3b8" font-size="12" font-family="system-ui,sans-serif">2023</text>
+  <text x="660" y="72" text-anchor="end" fill="#34d399" font-size="11"
+    font-family="system-ui,sans-serif">Rural</text>
+  <text x="660" y="88" text-anchor="end" fill="#a78bfa" font-size="11"
+    font-family="system-ui,sans-serif">Urban</text>
+</svg>

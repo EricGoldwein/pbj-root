@@ -30,6 +30,7 @@ macpac_state_standards_clean.csv
 # Exclude old/duplicate versions
 *_old.csv
 *_latest.csv
+facility_quarterly_metrics_archive.csv
 *_updated.csv
 # Exclude provider info files, but allow specific ones needed for owner dashboard
 NH_ProviderInfo_*.csv
@@ -73,6 +74,7 @@ Thumbs.db
 # Temporary files
 test.txt
 *.tmp
+pytest-cache-files-*/
 
 # Draft / not ready to commit
 attorneys.html
@@ -86,4 +88,16 @@ FIXES_SUMMARY.md
 !facility_quarterly_metrics.csv
 !state_quarterly_metrics.csv
 !provider_info_combined_latest.csv
+
+# Local/generated artifacts from one-off update workflows (keep out of release commits)
+donor/output/
+insights_hub.html
+insights-burns-chart-preview.svg
+provider_info_combined_latest-old.csv
+prov_info_quarter_map.py
+unified_interval_quarter_mapping.csv
+zip_file_inventory.csv
+zip_to_quarter_mapping.csv
+nursing_homes_including_rehab_services_*.zip
+ownership/*.zip
 

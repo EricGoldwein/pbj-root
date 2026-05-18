@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>State and Regional Staffing Rankings</title>
+  <title>__REPORT_SSR_DOCUMENT_TITLE__</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <meta name="description" content="Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. Staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.">
+  <meta name="description" content="__REPORT_SSR_META_DESCRIPTION__">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, state rankings, regional rankings">
   <link rel="canonical" href="https://pbj320.com/report">
   
@@ -21,14 +21,14 @@
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj320.com/report">
-  <meta property="og:title" content="State and Regional Staffing Rankings" id="og-title">
-  <meta property="og:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="og-description">
+  <meta property="og:title" content="__REPORT_SSR_OG_TITLE__" id="og-title">
+  <meta property="og:description" content="__REPORT_SSR_OG_DESCRIPTION__" id="og-description">
   <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:title" content="State and Regional Staffing Rankings" id="twitter-title">
-  <meta property="twitter:description" content="Nursing home staffing rankings by state and CMS region with comprehensive analysis, ratios, medians, and interactive map." id="twitter-description">
+  <meta property="twitter:title" content="__REPORT_SSR_OG_TITLE__" id="twitter-title">
+  <meta property="twitter:description" content="__REPORT_SSR_OG_DESCRIPTION__" id="twitter-description">
   <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
   
   <!-- Performance: DNS prefetch for external resources -->
@@ -50,10 +50,10 @@
   {
     "@context": "https://schema.org",
     "@type": "Report",
-    "name": "State and Regional Staffing Rankings",
+    "name": "__REPORT_SSR_JSONLD_NAME__",
     "url": "https://pbj320.com/report",
-    "description": "Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map.",
-    "datePublished": "2025-01-27",
+    "description": "__REPORT_SSR_META_DESCRIPTION__",
+    "datePublished": "__REPORT_SSR_DATE_PUBLISHED__",
     "isPartOf": {
       "@type": "WebSite",
       "name": "PBJ Nursing Home Staffing Dashboard",
@@ -234,16 +234,20 @@
     }
     
     .nav-link {
-      color: rgba(255,255,255,0.8);
+      color: rgba(255, 255, 255, 0.88);
       text-decoration: none;
       font-weight: 500;
-      transition: color 0.3s ease;
+      transition: color 0.2s ease;
       padding: 8px 0;
     }
     
-    .nav-link:hover,
+    .nav-link:hover {
+      color: #93c5fd;
+    }
+
     .nav-link.active {
       color: #60a5fa;
+      font-weight: 600;
     }
     
     .nav-toggle {
@@ -1596,11 +1600,14 @@
         min-height: 48px; /* Touch target */
       }
       
-      .nav-link:hover,
+      .nav-link:hover {
+        background: transparent;
+        color: #93c5fd;
+      }
+
       .nav-link.active {
-        background: rgba(96, 165, 250, 0.1);
         color: #60a5fa;
-        border-left: 3px solid #60a5fa;
+        font-weight: 600;
       }
       
       .nav-toggle {
@@ -4248,7 +4255,7 @@
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
-        <a href="/report" class="nav-link active">Report</a>
+        <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
@@ -4263,7 +4270,7 @@
 
   <div class="container">
     <div class="page-header">
-      <h1 id="pageTitle">US Nursing Home Payroll-Based Journal Staffing Report (Loading...)</h1>
+      <h1 id="pageTitle">__REPORT_SSR_H1__</h1>
     </div>
 
     <!-- US Summary - now displayed as small box on map -->
@@ -4309,7 +4316,7 @@
     <!-- Data Tables -->
     <div class="data-section">
       <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
-        <h2 id="stateDataTitle" style="margin: 0;">US Nursing Home PBJ Staffing Data (Loading...)</h2>
+        <h2 id="stateDataTitle" style="margin: 0;">__REPORT_SSR_TABLE_HEADING__</h2>
         <div id="viewTabsContainer" style="display: flex; gap: 8px; margin-left: auto;">
           <button id="stateViewTab" class="view-tab active" onclick="switchTableView('state')">State</button>
           <button id="regionViewTab" class="view-tab" onclick="switchTableView('region')">CMS Region</button>
@@ -4380,7 +4387,7 @@
             </tr>
           </thead>
           <tbody id="stateTableBody">
-            <tr><td colspan="10" class="loading" id="loadingRow" style="display: table-cell;">Loading data...</td></tr>
+__REPORT_SSR_TABLE_ROWS__
           </tbody>
         </table>
       </div>
@@ -4504,7 +4511,7 @@
     </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
-  <script src="/pbj-site-universal.js?v=2"></script>
+  <script src="/pbj-site-universal.js?v=13"></script>
   <script>
     (function() {
       var overlay = document.getElementById('contact-overlay');

@@ -8,6 +8,7 @@
     <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
     <link rel="canonical" href="https://www.pbj320.com/owners{% if initial_owner_id %}/{{ initial_owner_id }}{% endif %}">
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
+    <link rel="preload" href="/pbj_favicon.png" as="image">
     
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -57,11 +58,11 @@
 
         html {
             min-height: 100%;
-            background: #0b1220;
+            background: #0d121f;
         }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #0b1220;
+            background: #0d121f;
             min-height: 100vh;
             padding: 0;
             margin: 0;
@@ -75,7 +76,7 @@
 
         /* Navigation - keep identical structure/tokens to report/insights */
         .navbar {
-            background: #0f172a;
+            background: #111827;
             padding: 0;
             position: sticky;
             top: 0;
@@ -124,8 +125,7 @@
             padding: 8px 0;
         }
 
-        .nav-link:hover,
-        .nav-link.active {
+        .nav-link:hover {
             color: #60a5fa;
         }
 
@@ -1031,7 +1031,7 @@
                 max-width: min(260px, calc(100vw - 2rem));
             }
             .donor-popup {
-                background: #0f172a;
+                background: #111827;
                 border: 2px solid rgba(102, 126, 234, 0.6);
                 box-shadow: 0 8px 32px rgba(0,0,0,0.7);
                 z-index: 99999;
@@ -1266,38 +1266,49 @@
             font-size: 1.2rem;
         }
         
-        /* Methodology section */
-        #methodology details {
-            cursor: pointer;
+        /* Methodology collapsible */
+        .methodology-details {
+            margin-top: 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 8px;
+            background: rgba(17, 24, 39, 0.55);
+            overflow: hidden;
         }
-        
-        #methodology details summary {
+        .methodology-details-summary {
             list-style: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.7rem 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            user-select: none;
+            transition: background 0.15s ease;
         }
-        
-        #methodology details summary::-webkit-details-marker {
+        .methodology-details-summary::-webkit-details-marker,
+        .methodology-details-summary::marker {
             display: none;
         }
-        
-        #methodology details summary::marker {
-            display: none;
+        .methodology-details-summary:hover {
+            background: rgba(51, 65, 85, 0.35);
         }
-        
+        .methodology-details-body {
+            padding: 1rem 1.1rem 1.15rem;
+            border-top: 1px solid rgba(148, 163, 184, 0.22);
+        }
         .methodology-caret {
             display: inline-block;
-            transition: transform 0.3s ease;
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.7);
+            flex-shrink: 0;
+            transition: transform 0.2s ease;
+            font-size: 0.65rem;
+            color: rgba(148, 163, 184, 0.9);
         }
-        
-        #methodology details[open] .methodology-caret {
+        .methodology-details[open] .methodology-caret {
             transform: rotate(180deg);
-        }
-        
-        @media (max-width: 768px) {
-            .methodology-caret {
-                color: #ffffff !important;
-            }
+            color: #a5b4fc;
         }
         
         /* Mobile menu toggle */
@@ -1322,13 +1333,13 @@
                 left: -100%;
                 width: 100%;
                 height: calc(100vh - 60px);
-                background: #0f172a;
+                background: #111827;
                 flex-direction: column;
                 justify-content: flex-start;
                 align-items: stretch;
                 padding: 0;
                 transition: left 0.3s ease;
-                border-top: 1px solid rgba(255,255,255,0.1);
+                border-top: 1px solid rgba(148,163,184,0.2);
                 gap: 0;
             }
             
@@ -1346,11 +1357,9 @@
                 transition: all 0.2s ease;
             }
 
-            .nav-link:hover,
-            .nav-link.active {
-                background: rgba(96, 165, 250, 0.1);
-                color: #60a5fa;
-                border-left: 3px solid #60a5fa;
+            .nav-link:hover {
+                background: rgba(99, 102, 241, 0.08);
+                color: #a5b4fc;
             }
             
             .nav-toggle {
@@ -1380,7 +1389,7 @@
         <div class="nav-container">
             <div class="nav-brand">
                 <a href="https://pbj320.com/">
-                    <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
+                    <img src="/pbj_favicon.png" alt="" width="32" height="32" decoding="async" fetchpriority="high" style="height: 32px; width: 32px; vertical-align: middle; margin-right: 8px;">
                     <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
                 </a>
             </div>
@@ -1389,7 +1398,7 @@
                 <a href="/report" class="nav-link">Report</a>
                 <a href="/insights" class="nav-link">Insights</a>
                 <a href="/phoebe" class="nav-link">PBJ Explained</a>
-                <a href="/owners" class="nav-link active">Ownership</a>
+                <a href="/owners" class="nav-link">Ownership</a>
             </div>
             <div class="nav-toggle" id="navToggle">
                 <span></span>
@@ -1497,12 +1506,12 @@
                 <div style="font-size: 0.8rem; color: rgba(255,255,255,0.7); margin-top: 0.5rem;">{{ owner_methodology_source_line or 'Latest · Owner search: FEC API · Committee: local bulk when available' }}</div>
             </div>
             
-            <details>
-                <summary style="cursor: pointer; font-size: 1rem; font-weight: 600; color: white; margin-top: 1rem; padding: 0.75rem 0; list-style: none; display: flex; align-items: center; justify-content: center; gap: 0.5rem; text-align: center;">
-                    <span>Details</span>
-                    <span class="methodology-caret" style="display: inline-block; transition: transform 0.3s ease; font-size: 0.9rem; color: rgba(255,255,255,0.7);">▼</span>
-            </summary>
-                <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+            <details class="methodology-details">
+                <summary class="methodology-details-summary">
+                    <span>Methodology &amp; data sources</span>
+                    <span class="methodology-caret" aria-hidden="true">▼</span>
+                </summary>
+                <div class="methodology-details-body">
                     <h3 style="color: white; font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; margin-top: 1.5rem;">Matching methodology</h3>
                 <p style="margin-bottom: 1rem;">
                         We match owner names to FEC records as follows:
@@ -1856,7 +1865,7 @@
         }
         
         // Keep methodology collapsed by default (both mobile and desktop)
-        const methodologyDetails = document.querySelector('#methodology details');
+        const methodologyDetails = document.querySelector('#methodology .methodology-details');
         if (methodologyDetails) {
             methodologyDetails.removeAttribute('open');
         }
@@ -3265,10 +3274,17 @@
                                         }
                                     }
                                     
-                                    // Add entity link if available
-                                    let entityLink = '';
+                                    // Entity chain link (name when available from provider info)
+                                    let entityLinkHtml = '';
                                     if (f.entity_id) {
-                                        entityLink = `https://pbj320.com/entity/${f.entity_id}`;
+                                        const entHref = `https://pbj320.com/entity/${f.entity_id}`;
+                                        const rawEntName = f.entity_name && String(f.entity_name).trim();
+                                        const entUpper = rawEntName ? rawEntName.toUpperCase() : '';
+                                        if (rawEntName && entUpper !== 'NAN' && entUpper !== 'NONE' && entUpper !== 'N/A') {
+                                            entityLinkHtml = `<br><a href="${entHref}" target="_blank" rel="noopener" style="font-size: 0.8rem; color: #93c5fd; text-decoration: none;">${escapeHtml(toTitleCase(rawEntName))} ↗</a>`;
+                                        } else {
+                                            entityLinkHtml = `<br><a href="${entHref}" target="_blank" rel="noopener" style="font-size: 0.8rem; color: #93c5fd; text-decoration: none;">Entity ${escapeHtml(String(f.entity_id))} ↗</a>`;
+                                        }
                                     }
                                     
                                     // Format rating badge
@@ -3316,7 +3332,7 @@
                                             <td>${escapeHtml(legalBusinessNameDisplay)}</td>
                                             <td title="${escapeHtml(legalBusinessName)}" style="cursor: help;">
                                                 ${dashboardLink ? `<a href="${dashboardLink}" target="_blank" style="color: #a5b4fc; text-decoration: none; font-weight: 500;">${escapeHtml(providerNameDisplay)}</a>` : escapeHtml(providerNameDisplay)}
-                                                ${entityLink ? `<br><a href="${entityLink}" target="_blank" style="font-size: 0.8rem; color: #93c5fd; text-decoration: none;">Entity ${f.entity_id} ↗</a>` : ''}
+                                                ${entityLinkHtml}
                                             </td>
                                             <td>${escapeHtml(locationDisplay)}</td>
                                             <td>${ratingBadge}</td>
@@ -4087,6 +4103,6 @@
             }
         })();
     </script>
-    <script src="/pbj-site-universal.js?v=2"></script>
+    <script src="/pbj-site-universal.js?v=15"></script>
 </body>
 </html>

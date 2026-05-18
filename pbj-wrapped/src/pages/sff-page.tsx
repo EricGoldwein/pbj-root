@@ -144,10 +144,10 @@ export default function SFFPage() {
     const baseUrl = 'https://pbj320.com';
     const currentPath = scope === 'usa' ? '/sff/usa' : scope ? `/sff/${scope}` : '/sff';
     const fullUrl = `${baseUrl}${currentPath}`;
-    const qLabel = sourceDates?.pbjQuarter ?? 'Q3 2025';
+    const qLabel = sourceDates?.pbjQuarter ?? 'latest quarter';
     
     let title = 'Special Focus Facilities Program | PBJ320';
-    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'Jan. 2026'}; CMS PBJ (${qLabel}).`;
+    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'latest posting'}; CMS PBJ (${qLabel}).`;
     
     if (scope === 'usa') {
       title = 'Special Focus Facilities Program — United States | PBJ320';
@@ -202,7 +202,7 @@ export default function SFFPage() {
               const tableD = jsonData.facilities.filter((f: any) => f.category === 'Candidate');
               
               setCandidateJSON({
-                document_date: jsonData.document_date || { month: 12, year: 2025, month_name: 'December' },
+                document_date: jsonData.document_date || { month: new Date().getMonth() + 1, year: new Date().getFullYear(), month_name: 'Unknown' },
                 table_a_current_sff: tableA,
                 table_b_graduated: tableB,
                 table_c_no_longer_participating: tableC,
@@ -242,7 +242,7 @@ export default function SFFPage() {
         // Provider/facility quarterly: q1 = prior quarter (2025Q2), q2 = current quarter (2025Q3)
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
-        const facilityQ2 = data.facilityData.q2 || []; // Q3 2025 facility metrics (Census, HPRD)
+        const facilityQ2 = data.facilityData.q2 || []; // Current-quarter facility metrics (Census, HPRD)
         
         // Debug: Log data counts for troubleshooting
         console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
@@ -1098,7 +1098,7 @@ export default function SFFPage() {
             )}
           </div>
             <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
-              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'Jan. 2026'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'latest posting'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
           </div>
         </div>
@@ -1422,7 +1422,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'Q3 2025'})
+              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">
@@ -1458,7 +1458,7 @@ export default function SFFPage() {
                   <strong className="text-blue-300">Multi-Category Facilities:</strong> Some facilities appear in multiple CMS SFF categories (e.g., Graduate and Candidate, or Candidate and SFF) due to status changes over time. For clarity, facilities are shown once using the highest priority category: Decertified {'>'} SFF {'>'} Candidate {'>'} Graduate. This keeps Table C terminations in the Decertified bucket when a facility appears in more than one category.
                 </div>
                 <div className="pt-2 border-t border-gray-700">
-                  <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have {sourceDates?.pbjQuarter ?? 'Q3 2025'} PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.
+                  <strong className="text-blue-300">Data Availability:</strong> Some facilities may not have {sourceDates?.pbjQuarter ?? 'the latest'} PBJ data available, which is why certain metrics (Census, HPRD, % Case-Mix) may show as "N/A" for those facilities.
                 </div>
               </div>
             )}

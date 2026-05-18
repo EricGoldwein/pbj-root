@@ -8,24 +8,20 @@ import React from 'react';
 const FOOTER_PHONE_DISPLAY = '(929) 804-4996';
 const FOOTER_SMS_HREF = 'sms:+19298084996';
 
-export const SiteFooter: React.FC = () => (
+export const SiteFooter: React.FC = () => {
+  const year = new Date().getFullYear();
+  return (
   <footer
-    className="mt-6 md:mt-8 pt-6 md:pt-8 text-center"
-    style={{ background: '#0f172a', padding: '1.25rem 1rem', marginTop: '60px' }}
+    className="footer text-center w-full box-border"
+    style={{
+      background: '#0a0f1a',
+      padding: '32px 20px 40px',
+      marginTop: 0,
+      borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+      color: '#94a3b8',
+      fontSize: '0.9rem',
+    }}
   >
-    {/* Brand */}
-    <p
-      style={{
-        margin: '0 0 1rem 0',
-        color: 'rgba(255,255,255,0.55)',
-        fontSize: '0.8rem',
-        textAlign: 'center',
-        letterSpacing: '0.03em',
-      }}
-    >
-      <strong>320 Consulting</strong>: Turning Spreadsheets into Stories.
-    </p>
-
     {/* Social Icons */}
     <div
       style={{
@@ -73,5 +69,24 @@ export const SiteFooter: React.FC = () => (
         <img src="/substack.png" alt="Substack" style={{ width: 24, height: 24, objectFit: 'contain', opacity: 0.7, transition: 'opacity 0.3s ease' }} />
       </a>
     </div>
+
+    <div className="footer-press-nav">
+      <a href="/press">Press</a>
+      <a href="/premium">PBJ320 Premium</a>
+    </div>
+
+    <p className="footer-signoff">
+      © {year},{' '}
+      <a
+        href="https://www.320insight.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="footer-signoff-brand"
+      >
+        320 Consulting
+      </a>
+      . Turning Spreadsheets into Stories.
+    </p>
   </footer>
-);
+  );
+};

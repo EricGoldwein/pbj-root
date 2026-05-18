@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="pbj-insights-hub">
 <head>
   <meta charset="utf-8">
   <title>PBJ320 Insights | Nursing Home Staffing Intelligence</title>
@@ -19,20 +19,21 @@
   <meta name="twitter:description" content="Nursing home staffing intelligence from PBJ320: on-site analyses and The 320 newsletter.">
   <meta name="twitter:image" content="{{ og_image|e }}">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
-  <link rel="stylesheet" href="/insights-theme.css?v=2">
+  <link rel="stylesheet" href="/insights-theme.css?v=7">
   {{ itemlist_json_ld|safe }}
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--pbj-canvas); color: var(--pbj-text); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
     .skip-link { position: absolute; top: -100px; left: 1rem; z-index: 10000; padding: 0.75rem 1rem; background: var(--pbj-chrome-border); color: var(--pbj-white); font-weight: 600; text-decoration: none; border-radius: 8px; transition: top 0.2s ease; }
     .skip-link:focus { top: 1rem; }
-    .navbar { background: var(--pbj-chrome); position: sticky; top: 0; z-index: 1000; box-shadow: var(--pbj-shadow-nav); border-bottom: 2px solid var(--pbj-chrome-border); }
+    .navbar { position: sticky; top: 0; z-index: 1000; }
     .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }
-    .nav-brand a { color: white; text-decoration: none; display: flex; align-items: center; font-size: 1.2rem; font-weight: 700; }
+    .nav-brand a { color: var(--pbj-white); text-decoration: none; display: flex; align-items: center; font-size: 1.2rem; font-weight: 700; }
     .nav-brand a:hover { color: #e2e8f0; }
     .nav-menu { display: flex; gap: 30px; align-items: center; }
-    .nav-link { color: var(--pbj-nav-fg-hub); text-decoration: none; font-weight: 500; transition: color 0.3s ease; padding: 0.5rem 0; min-height: 44px; display: inline-flex; align-items: center; }
-    .nav-link:hover, .nav-link.active { color: var(--pbj-sky); }
+    .nav-link { color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; transition: color 0.2s ease; padding: 8px 0; min-height: 44px; display: inline-flex; align-items: center; }
+    .nav-link:hover { color: #93c5fd; }
+    .nav-link.active { color: #60a5fa; font-weight: 600; }
     .nav-link:focus-visible, .nav-toggle:focus-visible { outline: 2px solid var(--pbj-sky); outline-offset: 2px; border-radius: 4px; }
     .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; padding: 12px; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
     .nav-toggle span { width: 25px; height: 3px; background: white; }
@@ -41,7 +42,7 @@
     .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.35rem; }
     .header-title-row img { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--pbj-avatar-ring); object-fit: cover; }
     .header h1 { color: var(--pbj-heading); font-size: clamp(1.65rem, 3.2vw, 2rem); line-height: 1.1; font-weight: 700; letter-spacing: -0.01em; }
-    .brand-pbj { color: var(--pbj-heading); }
+    .brand-pbj { color: var(--pbj-white); }
     .brand-320 { color: var(--pbj-sky); }
     .header-tagline { color: var(--pbj-text-muted); font-size: 0.94rem; line-height: 1.45; margin: 0; max-width: none; }
     @media (min-width: 960px) {
@@ -112,7 +113,7 @@
     .loading.is-visible { display: block; }
     .error { color: var(--pbj-danger); }
     @media (max-width: 900px) { .card-shell { grid-template-columns: 1fr; } .card-media-wrap { height: 210px; } }
-    @media (max-width: 768px) { .nav-toggle { display: flex; } .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: var(--pbj-chrome); padding: 1rem; gap: 12px; } .nav-menu.active { display: flex; } }
+    @media (max-width: 768px) { .nav-toggle { display: flex; } .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: var(--pbj-chrome); border-bottom: 1px solid var(--pbj-border-panel); padding: 1rem; gap: 12px; box-shadow: var(--pbj-shadow-card); } .nav-menu.active { display: flex; } }
   </style>
 </head>
 <body>
@@ -122,13 +123,13 @@
       <div class="nav-brand">
         <a href="/">
           <img src="/pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
-          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+          <span><span class="brand-pbj">PBJ</span><span class="brand-320">320</span></span>
         </a>
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
         <a href="/report" class="nav-link">Report</a>
-        <a href="/insights" class="nav-link active">Insights</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
       </div>
@@ -172,7 +173,7 @@
       <footer class="footer" id="site-footer"></footer>
     </div>
   </div>
-  <script src="/pbj-site-universal.js?v=2"></script>
+  <script src="/pbj-site-universal.js?v=14"></script>
   <script>
     (function() {
       var listEl = document.getElementById('feed');
@@ -206,7 +207,7 @@
         return '8 min read';
       }
       function inferIndustryTag(p) {
-        var allowed = ['Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends'];
+        var allowed = ['Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends', 'Cost Reports'];
         var ext = String(p.external_url || p.url || '').toLowerCase();
         if (ext.indexOf('the-other-3000-days-at-seagate') !== -1) return 'PBJ Deep Dive';
         var raw = p.tags;

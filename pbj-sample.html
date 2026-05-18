@@ -48,6 +48,13 @@
       padding: 0;
     }
     .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+    .pbj-ai-chip { position: relative; display: inline-flex; }
+    .pbj-ai-chip__icons { display: inline-flex; gap: 0.2rem; }
+    .pbj-ai-icon-btn { width: 1.85rem; height: 1.85rem; padding: 0.2rem; border-radius: 7px; border: 1px solid rgba(203,213,225,0.55); background: #f8fafc; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.12); }
+    .pbj-ai-popover { position: absolute; right: 0; bottom: calc(100% + 6px); z-index: 50; min-width: 9.5rem; padding: 0.3rem; border-radius: 8px; background: #1e293b; border: 1px solid rgba(129,140,248,0.35); box-shadow: 0 8px 24px rgba(0,0,0,0.35); display: flex; flex-direction: column; gap: 0.15rem; }
+    .pbj-ai-popover[hidden] { display: none !important; }
+    .pbj-ai-popover__item, .pbj-ai-popover__link { font: inherit; font-size: 0.72rem; font-weight: 600; padding: 0.38rem 0.5rem; border: none; border-radius: 5px; background: transparent; color: #e2e8f0; cursor: pointer; text-decoration: none; text-align: left; width: 100%; }
+    .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
     
     /* Navigation Styles */
     .navbar {
@@ -92,9 +99,8 @@
       padding: 8px 0;
     }
     
-    .nav-link:hover,
-    .nav-link.active {
-      color: #60a5fa;
+    .nav-link:hover {
+      color: #818cf8;
     }
     
     .nav-toggle {
@@ -142,11 +148,9 @@
         transition: all 0.2s ease;
       }
       
-      .nav-link:hover,
-      .nav-link.active {
-        background: rgba(96, 165, 250, 0.1);
-        color: #60a5fa;
-        border-left: 3px solid #60a5fa;
+      .nav-link:hover {
+        background: rgba(99, 102, 241, 0.08);
+        color: #a5b4fc;
       }
       
       .nav-toggle {
@@ -1131,6 +1135,26 @@
       <p class="sample-note">320 Consulting provides detailed PBJ analytics and other key metrics for every nursing home in the United States.</p>
     </div>
 
+    <!-- PBJ_AI_SAMPLE_BLOCK -->
+    <div class="pbj-sample-ai-row" id="pbj-sample-ai-wrap" data-pbj-track="ai_helper_view" style="display:flex;justify-content:flex-end;margin:0 0 0.75rem;">
+      <span class="pbj-ai-chip">
+        <span class="pbj-ai-chip__icons" role="group" aria-label="Open in Claude or ChatGPT">
+          <button type="button" class="pbj-ai-icon-btn pbj-ai-launch" data-ai="claude" data-handoff-id="pbj-ai-handoff-sample" title="Open Claude with prompt prefilled" aria-label="Claude"><img src="/ai-icons/claude.svg" alt="" width="16" height="16" class="pbj-ai-brand-icon"></button>
+          <button type="button" class="pbj-ai-icon-btn pbj-ai-launch" data-ai="chatgpt" data-handoff-id="pbj-ai-handoff-sample" title="Open ChatGPT with prompt prefilled" aria-label="ChatGPT"><img src="/ai-icons/chatgpt.svg" alt="" width="16" height="16" class="pbj-ai-brand-icon"></button>
+          <button type="button" class="pbj-ai-icon-btn pbj-ai-chip__menu" aria-expanded="false" aria-controls="pbj-ai-menu-sample" title="Copy options" aria-label="AI copy options"><span aria-hidden="true">⋯</span></button>
+        </span>
+        <span id="pbj-ai-menu-sample" class="pbj-ai-popover" role="menu" hidden>
+          <button type="button" class="pbj-ai-popover__item pbj-ai-copy-prompt" role="menuitem" data-prompt-id="pbj-ai-prompt-sample">Copy prompt</button>
+          <button type="button" class="pbj-ai-popover__item pbj-ai-copy-context" role="menuitem" data-context-id="pbj-ai-context-sample">Copy context</button>
+          <a href="/pbj-ai-support" class="pbj-ai-popover__link">Guide</a>
+        </span>
+        <textarea id="pbj-ai-context-sample" class="pbj-ai-context-data" hidden aria-hidden="true"></textarea>
+        <textarea id="pbj-ai-prompt-sample" class="pbj-ai-prompt-data" hidden aria-hidden="true">__PBJ_AI_PROMPT_QUICK__</textarea>
+        <textarea id="pbj-ai-handoff-sample" class="pbj-ai-handoff-data" hidden aria-hidden="true"></textarea>
+      </span>
+    </div>
+    <!-- /PBJ_AI_SAMPLE_BLOCK -->
+
     <div class="search-section">
       <h2 style="color: #60a5fa; margin-bottom: 20px;" class="search-title">Search Staffing Data by Date Range or Day</h2>
       <div class="search-controls">
@@ -1320,7 +1344,7 @@
 
   <div class="footer" id="site-footer"></div>
 
-  <script src="/pbj-site-universal.js?v=2"></script>
+  <script src="/pbj-site-universal.js?v=15"></script>
   <script>
     // Global variables
     let facilityData = [];
@@ -2755,6 +2779,48 @@
       resultsSection.classList.add('show');
       resultsSection.innerHTML = `<div class="error">${message}</div>`;
     }
+
+    function buildSampleDashboardContext() {
+      const latest = (typeof facilityData !== 'undefined' && facilityData.length) ? facilityData[facilityData.length - 1] : null;
+      let totalHprd = '';
+      let rnHprd = '';
+      if (latest && latest.census > 0) {
+        const totalHrs = (latest.rn || 0) + (latest.lpn || 0) + (latest.cna || 0);
+        totalHprd = (totalHrs / latest.census).toFixed(2);
+        if (latest.rn) rnHprd = (latest.rn / latest.census).toFixed(2);
+      }
+      const lines = [
+        'PBJ320 page context',
+        '',
+        'Facility: Seagate Rehabilitation and Nursing Center',
+        'CCN: 335513',
+        'State: NY',
+        'PBJ320 URL: ' + window.location.href,
+        'Date copied: ' + new Date().toISOString().slice(0, 10),
+        '',
+        'Key metrics shown on this page:'
+      ];
+      if (rnHprd) lines.push('- RN HPRD: ' + rnHprd);
+      if (totalHprd) lines.push('- Total nurse HPRD: ' + totalHprd);
+      lines.push('- Main PBJ320 summary: Sample premium dashboard (Seagate, CCN 335513) with daily PBJ staffing search.');
+      lines.push('', 'Important limitations:', 'PBJ data can show reported staffing hours, role mix, facility-level patterns, and changes over time. It cannot prove what happened on a specific shift, whether a specific resident received care, whether staffing caused an injury, or whether a legal standard was violated.');
+      lines.push('', 'Definitions: https://www.pbj320.com/premium/methods · AI support: https://www.pbj320.com/pbj-ai-support');
+      return lines.join('\n');
+    }
+
+    function refreshSampleAiContext() {
+      const ctx = buildSampleDashboardContext();
+      const contextEl = document.getElementById('pbj-ai-context-sample');
+      const handoffEl = document.getElementById('pbj-ai-handoff-sample');
+      const promptEl = document.getElementById('pbj-ai-prompt-sample');
+      const prompt = promptEl ? promptEl.value : '';
+      if (contextEl) contextEl.value = ctx;
+      if (handoffEl) handoffEl.value = prompt ? (prompt + '\n\n' + ctx) : ctx;
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      if (typeof facilityData !== 'undefined') refreshSampleAiContext();
+    });
   </script>
+  <script src="/pbj-ai-support.js?v=7"></script>
 </body>
 </html>

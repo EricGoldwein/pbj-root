@@ -39,6 +39,7 @@ from pbj_ai_config import (
 )
 from premium_redirect_routes import register_premium_routes
 from site_public_config import (
+    PBJ_SITE_UNIVERSAL_JS_VERSION,
     PUBLIC_SITE_ORIGIN,
     ROBOTS_TXT,
     SECURITY_HEADER_VALUES,
@@ -2354,7 +2355,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
     </div>
   </aside>
   <footer class="footer" id="site-footer"></footer>
-  <script src="/pbj-site-universal.js?v=13"></script>
+  <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
   <script>
     (function () {
       document.querySelectorAll('.insight-prompt-copy').forEach(function (btn) {
@@ -5940,6 +5941,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .nav-link {{ color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; padding: 8px 0; transition: color 0.2s ease; }}
 .nav-link:hover {{ color: #93c5fd; }}
 .nav-link.active {{ color: #60a5fa; font-weight: 600; }}
+.nav-link--premium-mobile {{ display: none !important; }}
 .nav-toggle {{ display: none; flex-direction: column; cursor: pointer; gap: 4px; }}
 .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
 .footer-section-hr {{ border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); height: 0; margin: clamp(20px, 3vw, 32px) 0 0 0; width: 100%; }}
@@ -5959,9 +5961,39 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-content-box h1 {{ font-size: 1.5rem; }}
   .pbj-content-box h2 {{ font-size: 1.2rem; }}
   .section-header {{ font-size: 1.2em; }}
-  .nav-menu {{ display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: rgba(2, 6, 23, 0.98); backdrop-filter: blur(12px); padding: 1rem; gap: 12px; border-bottom: 1px solid rgba(30, 41, 59, 0.5); }}
-  .nav-menu.active {{ display: flex; }}
-  .nav-link {{ padding: 12px 0; min-height: 44px; display: flex; align-items: center; }}
+  .navbar {{ position: relative; }}
+  .nav-menu {{
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 60px;
+    left: -100%;
+    right: 0;
+    width: 100%;
+    max-width: 100%;
+    height: calc(100vh - 60px);
+    background: rgba(10, 15, 26, 0.98);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 0;
+    gap: 0;
+    border-top: 1px solid rgba(71, 85, 105, 0.45);
+    border-bottom: none;
+    z-index: 999;
+    transition: left 0.25s ease;
+    align-items: stretch;
+    justify-content: flex-start;
+  }}
+  .nav-menu.active {{ left: 0; }}
+  .nav-link {{
+    padding: 18px 24px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(30, 41, 59, 0.55);
+    font-size: 1rem;
+  }}
+  .nav-link--premium-mobile {{ display: flex !important; }}
   .nav-toggle {{ display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; cursor: pointer; }}
   .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
   .nav-toggle.active span:nth-child(1) {{ transform: rotate(45deg) translate(5px,5px); }}
@@ -6053,6 +6085,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         <a href="/report" class="nav-link">Report</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
+        <a href="/premium" class="nav-link nav-link--premium-mobile">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
     </div>
@@ -6095,7 +6128,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       </form>
     </div>
   </div>
-  <script src="/pbj-site-universal.js?v=13"></script>
+  <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
   <script>
   (function(){ var t=document.getElementById('navToggle'); var m=document.getElementById('navMenu'); if(t&&m){ t.addEventListener('click',function(){ m.classList.toggle('active'); t.classList.toggle('active'); document.body.style.overflow=m.classList.contains('active')?'hidden':''; }); } })();
   </script>
@@ -11504,7 +11537,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             }}
         }})();
     </script>
-    <script src="/pbj-site-universal.js"></script>
+    <script src="/pbj-site-universal.js?v={PBJ_SITE_UNIVERSAL_JS_VERSION}"></script>
 </body>
 </html>"""
 

@@ -1079,9 +1079,6 @@ def pbj_ai_support_js():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-ai-support.js', mimetype='application/javascript'))
 
 
-register_premium_routes(app, APP_ROOT)
-
-
 @app.route('/static/downloads/pbj320-staffing-review.zip')
 @app.route('/downloads/pbj320-staffing-review.zip')
 def download_pbj_claude_skill_zip():
@@ -11601,7 +11598,10 @@ def canonical_state_page(state_slug):
         abort(404)
     
     # Check if this is a known route first (avoid conflicts)
-    known_routes = ['pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml', 'owner', 'owners', 'ownership', 'provider', 'state', 'entity']
+    known_routes = [
+        'pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml',
+        'owner', 'owners', 'ownership', 'provider', 'state', 'entity', 'premium',
+    ]
     if state_slug.lower() in known_routes:
         # Let Flask continue to next route by aborting (Flask will handle 404)
         from flask import abort
@@ -13277,7 +13277,16 @@ def static_files(filename):
         from flask import abort
         abort(404)
     # Don't handle routes that are already defined (exact or prefix)
-    if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads']:
+    if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium']:
+        from flask import abort
+        abort(404)
+    # Fallback: serve marketing assets if /premium/<path> route missed (e.g. older deploy proxies)
+    if filename.startswith('premium/'):
+        from premium_redirect_routes import try_serve_premium_asset
+        sub = filename[len('premium/'):]
+        served = try_serve_premium_asset(APP_ROOT, sub)
+        if served is not None:
+            return served
         from flask import abort
         abort(404)
     # Entity and provider/state pages are served by their own routes; avoid serving as static path
@@ -13379,6 +13388,9 @@ def compress_response(response):
             pass
     return response
 
+
+# Premium marketing page + assets — register after other /<slug> routes so /premium is not treated as a state.
+register_premium_routes(app, APP_ROOT)
 
 _log_mem("app_startup")
 

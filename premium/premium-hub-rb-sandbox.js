@@ -728,7 +728,7 @@
 
 
 
-    fetch("premium-nursing-homes.json", { credentials: "same-origin" })
+    fetch("/premium/premium-nursing-homes.json", { credentials: "same-origin" })
 
         .then(function (r) {
 

@@ -17,17 +17,13 @@ OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 
 FOOTER_TRUST_BLURB = (
     f'PBJ320 is a nursing-home staffing data platform operated by {OPERATOR_LEGAL_NAME}. '
-    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information. '
-    f'Contact: <a href="mailto:{PUBLIC_CONTACT_EMAIL}">{PUBLIC_CONTACT_EMAIL}</a>.'
+    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information.'
 )
 
 # Static trust pages included in sitemap (path, priority, changefreq).
 SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/about', '0.8', 'monthly'),
     ('/contact', '0.7', 'monthly'),
-    ('/data-sources', '0.8', 'monthly'),
-    ('/privacy', '0.5', 'yearly'),
-    ('/terms', '0.5', 'yearly'),
 )
 
 ROBOTS_TXT = f"""User-agent: *

@@ -14,8 +14,7 @@
 
   var FOOTER_TRUST_BLURB =
     'PBJ320 is a nursing-home staffing data platform operated by 320 Consulting LLC. ' +
-    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information. ' +
-    'Contact: <a href="mailto:' + CONTACT.email + '" style="color:#93c5fd">' + CONTACT.email + '</a>.';
+    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information.';
 
   var FOOTER_BOILERPLATE =
     '<p class="footer-boilerplate" style="margin:0 0 0.75rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto">' +
@@ -25,9 +24,8 @@
   var FOOTER_TRUST_LINKS =
     '<p class="footer-trust-links" style="margin:0 0 1rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
     '<a href="/about" style="color:rgba(148,163,184,0.95)">About</a> · ' +
-    '<a href="/data-sources" style="color:rgba(148,163,184,0.95)">Data sources</a> · ' +
-    '<a href="/privacy" style="color:rgba(148,163,184,0.95)">Privacy</a> · ' +
-    '<a href="/terms" style="color:rgba(148,163,184,0.95)">Terms</a> · ' +
+    '<a href="/press" style="color:rgba(148,163,184,0.95)">Press</a> · ' +
+    '<a href="/premium" style="color:rgba(148,163,184,0.95)">Premium</a> · ' +
     '<a href="/contact" style="color:rgba(148,163,184,0.95)">Contact</a>' +
     '</p>';
 
@@ -38,7 +36,6 @@
     '<a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" style="width:24px;height:24px;object-fit:contain;opacity:0.7"/></a>',
     '<a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" style="width:24px;height:24px;object-fit:contain;opacity:0.7"/></a>',
     '</div>',
-    '<div class="footer-press-nav"><a href="/press">Press</a> <a href="/premium">PBJ320 Premium</a></div>'
   ].join('');
 
   function footerSignoffHtml() {
@@ -176,16 +173,15 @@
     document.head.appendChild(style);
   }
 
-  /** Footer press row — scoped under .footer so rules win over generic .footer a */
-  function injectFooterPressNavStyles() {
-    if (document.getElementById('pbj-footer-press-nav-styles')) return;
+  /** Footer signoff + trust link polish */
+  function injectFooterStyles() {
+    if (document.getElementById('pbj-footer-styles')) return;
     var style = document.createElement('style');
-    style.id = 'pbj-footer-press-nav-styles';
+    style.id = 'pbj-footer-styles';
     style.textContent = [
-      '.footer .footer-press-nav{display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:12px 24px;margin:14px 0 0 0;font-size:0.78rem;}',
-      '.footer .footer-press-nav a{color:#a8b4c4;text-decoration:underline;text-underline-offset:3px;transition:color .15s ease,opacity .15s ease;}',
-      '.footer .footer-press-nav a:hover,.footer .footer-press-nav a:focus-visible{color:#cbd5e1;}',
-      '.footer .footer-press-nav a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
+      '.footer .footer-trust-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
+      '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;}',
+      '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
       '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(148,163,184,0.72);}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
@@ -213,8 +209,20 @@
       if (!match && linkPath === '/report' && path.indexOf('/report') === 0) match = true;
       if (!match && linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) match = true;
       if (!match && linkPath === '/about' && path.indexOf('/about') === 0) match = true;
+      if (!match && linkPath === '/premium' && path.indexOf('/premium') === 0) match = true;
       if (match) a.classList.add('active');
     }
+  }
+
+  /** Premium last in mobile hamburger menu only (desktop nav unchanged). */
+  function injectMobilePremiumNavLink() {
+    var menu = document.querySelector('.navbar .nav-menu');
+    if (!menu || menu.querySelector('.nav-link--premium-mobile')) return;
+    var link = document.createElement('a');
+    link.href = '/premium';
+    link.className = 'nav-link nav-link--premium-mobile';
+    link.textContent = 'Premium';
+    menu.appendChild(link);
   }
 
   function preloadNavFavicon() {
@@ -246,6 +254,7 @@
       '.navbar .nav-link:hover{color:#93c5fd !important;}',
       '.navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;}',
       '.navbar .nav-link.active:hover{color:#60a5fa !important;}',
+      '.navbar .nav-link--premium-mobile{display:none !important;}',
       '.navbar .nav-links a{color:rgba(255,255,255,0.88) !important;font-weight:500 !important;text-decoration:none !important;}',
       '.navbar .nav-links a:hover{color:#93c5fd !important;}',
       '.navbar .nav-links a.active{color:#60a5fa !important;font-weight:600 !important;}',
@@ -259,6 +268,7 @@
       '  .navbar .nav-link:hover{background:transparent !important;color:#93c5fd !important;}',
       '  .navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;background:transparent !important;border-left:none !important;}',
       '  .navbar .nav-link.active:hover{color:#60a5fa !important;}',
+      '  .navbar .nav-link--premium-mobile{display:block !important;}',
       '}'
     ].join('');
     document.head.appendChild(style);
@@ -267,9 +277,10 @@
   function run() {
     preloadNavFavicon();
     var footer = document.getElementById('site-footer');
-    injectFooterPressNavStyles();
+    injectFooterStyles();
     if (footer) injectFooter(footer);
     injectSiteShellStyles();
+    injectMobilePremiumNavLink();
     markActiveNavLink();
     injectContactCtaStyles();
     bindContactFallbacks();

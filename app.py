@@ -882,18 +882,24 @@ def about():
 
 
 @app.route('/data-sources')
+@app.route('/data-sources/')
 def data_sources_page():
-    return _serve_public_html('data-sources.html')
+    from flask import abort
+    abort(404)
 
 
 @app.route('/privacy')
+@app.route('/privacy/')
 def privacy_page():
-    return _serve_public_html('privacy.html')
+    from flask import abort
+    abort(404)
 
 
 @app.route('/terms')
+@app.route('/terms/')
 def terms_page():
-    return _serve_public_html('terms.html')
+    from flask import abort
+    abort(404)
 
 
 @app.route('/robots.txt')
@@ -13458,6 +13464,10 @@ _BLOCKED_PUBLIC_FILENAMES = {
     'provider_info_combined.csv',
     'provider_info_combined_latest.csv',
     'provider_info_combined_latest-old.csv',
+    'data-sources.html',
+    'privacy.html',
+    'terms.html',
+    'public-trust.css',
 }
 
 

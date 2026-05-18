@@ -22,6 +22,24 @@ export const SiteFooter: React.FC = () => {
       fontSize: '0.9rem',
     }}
   >
+    <p
+      className="footer-trust-links"
+      style={{
+        margin: '0 0 1rem 0',
+        fontSize: '0.75rem',
+        textAlign: 'center',
+        color: 'rgba(148, 163, 184, 0.95)',
+      }}
+    >
+      <a href="/about" style={{ color: 'rgba(148, 163, 184, 0.95)' }}>About</a>
+      {' · '}
+      <a href="/press" style={{ color: 'rgba(148, 163, 184, 0.95)' }}>Press</a>
+      {' · '}
+      <a href="/premium" style={{ color: 'rgba(148, 163, 184, 0.95)' }}>Premium</a>
+      {' · '}
+      <a href="/contact" style={{ color: 'rgba(148, 163, 184, 0.95)' }}>Contact</a>
+    </p>
+
     {/* Social Icons */}
     <div
       style={{
@@ -68,11 +86,6 @@ export const SiteFooter: React.FC = () => {
       >
         <img src="/substack.png" alt="Substack" style={{ width: 24, height: 24, objectFit: 'contain', opacity: 0.7, transition: 'opacity 0.3s ease' }} />
       </a>
-    </div>
-
-    <div className="footer-press-nav">
-      <a href="/press">Press</a>
-      <a href="/premium">PBJ320 Premium</a>
     </div>
 
     <p className="footer-signoff">

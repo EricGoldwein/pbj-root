@@ -52,7 +52,7 @@ export const LowestStaffingCard: React.FC<LowestStaffingCardProps> = ({ data }) 
         {location && (
             <div className="text-xs text-gray-500">{location}</div>
         )}
-          {facility.staffingRating && (
+          {facility.staffingRating && facility.staffingRating !== 'N/A' && Number(facility.staffingRating) >= 1 && (
             <div className="text-xs text-gray-400">
               Staffing: {facility.staffingRating}★
             </div>

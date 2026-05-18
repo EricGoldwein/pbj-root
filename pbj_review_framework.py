@@ -70,17 +70,17 @@ AUDIENCE_DETECTION_PATTERNS: tuple[tuple[str, str], ...] = (
 
 PBJ_SOURCE_LEVEL_COPY: dict[str, str] = {
     'free_facility': (
-        'Free PBJ320 provider page / quarterly CSV. This supports quarterly facility-level review only. '
+        'PBJ320 provider page / quarterly CSV. This supports quarterly facility-level review only. '
         'Do not assume daily staffing, weekend patterns, agency reliance, mean/median tables, incident-window analysis, '
         'employee-level staffing, or 90-day aide/CNA day counts unless shown.'
     ),
     'free_state': (
-        'Free PBJ320 state page. This page provides state-level quarterly staffing context, visible aggregate metrics, '
+        'PBJ320 state page. This page provides state-level quarterly staffing context, visible aggregate metrics, '
         'and facility comparison context where shown. Do not assume daily staffing, incident-window detail, '
         'employee-level data, or facility-specific conclusions unless those data are explicitly provided.'
     ),
     'free': (
-        'Free PBJ320 page: quarterly staffing context and visible metrics on the page. '
+        'PBJ320 page: quarterly staffing context and visible metrics on the page. '
         'Do not assume daily staffing or premium-only fields unless shown.'
     ),
     'premium': (
@@ -168,7 +168,7 @@ PBJ_QUICK_PROMPT_TEXT = """Use the PBJ320 Staffing Review Framework to review th
 
 First identify:
 1. the likely audience or use case: family, advocate, ombudsman, journalist, attorney, policymaker, operator, researcher, or general analyst;
-2. whether this appears to be a free quarterly PBJ320 page, state page, or premium daily/export view.
+2. whether this appears to be a quarterly PBJ320 provider or state page, or a premium daily/export view.
 
 Then explain:
 - what the material shows,
@@ -178,9 +178,9 @@ Then explain:
 
 Check for sample size, mean vs median, outliers, census/denominator effects, comparison group, bad or incomplete data, and whether the available source is deep enough for the question.
 
-If the material covers or compares across **2020 through 2023**, apply **pandemic-era PBJ context**: do not describe higher HPRD as “staffing improved” without census and total hours; treat contract staffing as a workforce/continuity signal, not proof of poor care; flag weak trend baselines in peak-COVID quarters; do not substitute national narratives for facility-specific evidence; on free quarterly pages, do not infer daily contract or weekend patterns without those fields.
+If the material covers or compares across **2020 through 2023**, apply **pandemic-era PBJ context**: do not describe higher HPRD as “staffing improved” without census and total hours; treat contract staffing as a workforce/continuity signal, not proof of poor care; flag weak trend baselines in peak-COVID quarters; do not substitute national narratives for facility-specific evidence; on quarterly pages, do not infer daily contract or weekend patterns without those fields.
 
-If reviewing a free PBJ320 facility page, focus on quarterly staffing context and visible facility-level metrics. Do not assume daily staffing, weekend patterns, 90-day aide/CNA day counts, agency reliance, mean/median tables, or incident-window detail unless shown.
+If reviewing a PBJ320 facility page, focus on quarterly staffing context and visible facility-level metrics. Do not assume daily staffing, weekend patterns, 90-day aide/CNA day counts, agency reliance, mean/median tables, or incident-window detail unless shown.
 
 If reviewing a PBJ320 state page, focus on state-level quarterly patterns, visible comparison metrics, distribution/percentile context, and what facility-level or premium data would be needed to support more specific claims. Do not infer individual facility conditions unless facility-level data is provided.
 
@@ -676,9 +676,9 @@ PBJ_AUDIENCE_MODE_INSTRUCTIONS: dict[str, str] = {
 }
 
 PBJ_SOURCE_TYPE_LABELS: dict[str, str] = {
-    'free_facility': 'FREE PROVIDER PAGE (quarterly facility-level)',
-    'free_state': 'FREE STATE PAGE (quarterly state-level)',
-    'free': 'FREE PBJ320 PAGE (quarterly context)',
+    'free_facility': 'PBJ320 PROVIDER PAGE (quarterly facility-level)',
+    'free_state': 'PBJ320 STATE PAGE (quarterly state-level)',
+    'free': 'PBJ320 PAGE (quarterly context)',
     'premium': 'PREMIUM DASHBOARD / EXPORT',
 }
 
@@ -801,6 +801,16 @@ PBJ_REVIEW_GUARDRAILS_SHARED = [
     'When the page text includes **Contract staff %** (quarterly PBJ aggregate share of contract hours in total facility hours), use it as facility-level context for that quarter; it is not daily agency billing detail and does not replace timecards or vendor invoices.',
     'When census, certified beds, ownership, SFF status, abuse icon, or star ratings appear in the page text, treat them as basic facility context alongside PBJ — especially for advocate, ombudsman, and family readers.',
 ]
+
+PBJ320_SCREENING_FLAGS_BLOCK = (
+    '**PBJ320 screening flags (brief — do not let this dominate):** When the pasted PBJ320 context lists the '
+    '**PBJ320 high-risk badge** and/or echoed **Care Compare** fields (SFF or SFF Candidate, abuse icon, overall or '
+    'staffing Five-Star of 1), add a **short** early note (one sentence or up to three bullets) labeled something like '
+    '"PBJ320 screening flags" before the main staffing analysis. These are **screening signals PBJ320 surfaces** from '
+    'public CMS/provider data — not proof of harm, neglect, violations, or causation. **PBJ staffing remains the primary focus.** '
+    'If SFF is listed and star ratings are missing on the page, note that stars may be unavailable — do not invent ratings. '
+    'Do not restructure the entire answer around flags when the user is asking about HPRD or trends.'
+)
 
 # --- Audience modes: labels, emphasis, response sections, mode-specific instructions ---
 
@@ -1366,6 +1376,9 @@ def compose_layered_review_prompt(
             'Important source limits:',
             compose_source_limits_block(page_type),
             '',
+            'PBJ320 screening flags (when present in context):',
+            PBJ320_SCREENING_FLAGS_BLOCK,
+            '',
             'Pandemic-era longitudinal context (2020–2023 overlap):',
             PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK,
             '',
@@ -1694,6 +1707,8 @@ def framework_export_for_js() -> dict[str, Any]:
             'audienceModeDisplay': PBJ_AUDIENCE_MODE_DISPLAY,
             'audienceModeInstructions': PBJ_AUDIENCE_MODE_INSTRUCTIONS,
             'audienceTimingEmphasis': PBJ_AUDIENCE_TIMING_EMPHASIS_BLOCK,
+            'pbj320ScreeningFlagsBlock': PBJ320_SCREENING_FLAGS_BLOCK,
+            'cmsRiskScreeningBlock': PBJ320_SCREENING_FLAGS_BLOCK,
             'historicalContextBlock': PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK,
             'sourceTypeLabels': PBJ_SOURCE_TYPE_LABELS,
         },

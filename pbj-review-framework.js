@@ -155,7 +155,7 @@
   function sourceTypeLabel(pageType, pageKind) {
     var labels = layeredBundle().sourceTypeLabels || {};
     var key = sourceLevelKey(pageType, pageKind);
-    return labels[key] || labels.free || 'FREE PBJ320 PAGE (quarterly context)';
+    return labels[key] || labels.free || 'PBJ320 PAGE (quarterly context)';
   }
 
   function audienceModeDisplay(lens, audience) {
@@ -179,7 +179,7 @@
     var lines = [];
     if (ptype === 'facility' || ptype === 'provider') {
       lines.push(
-        '- If this is a free provider page, use it only as quarterly facility-level staffing context.'
+        '- If this is a provider page, use it only as quarterly facility-level staffing context.'
       );
       lines.push(
         '- Do not infer daily staffing, weekend staffing, employee-level staffing, agency use, incident-window staffing, or resident-level care unless explicitly shown.'
@@ -275,6 +275,13 @@
       composeSourceLimitsBlock(pageType),
       ''
     );
+    if (layer.pbj320ScreeningFlagsBlock || layer.cmsRiskScreeningBlock) {
+      parts.push(
+        '',
+        'PBJ320 screening flags (when present in context):',
+        layer.pbj320ScreeningFlagsBlock || layer.cmsRiskScreeningBlock
+      );
+    }
     if (layer.historicalContextBlock) {
       parts.push(
         '',

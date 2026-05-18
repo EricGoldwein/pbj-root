@@ -39,6 +39,22 @@
   var ONESHOT_OPTIONAL_CHATGPT =
     '\n\n(Optional: attach the downloaded PBJ320 snapshot .txt in ChatGPT for full page context and embedded quarterly data.)';
 
+  function isAndroidUa() {
+    try {
+      return /Android/i.test(navigator.userAgent || '');
+    } catch (eAnd) {
+      return false;
+    }
+  }
+
+  function isIOSUa() {
+    try {
+      return /iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+    } catch (eIos) {
+      return false;
+    }
+  }
+
   function isMobileHandoff() {
     try {
       if (global.matchMedia) {
@@ -126,6 +142,45 @@
     if (p === 'claude') return 'https://claude.ai/new?q=' + q;
     if (p === 'chatgpt') return 'https://chatgpt.com/?q=' + q;
     return null;
+  }
+
+  /** Prefer Claude Android app; on iOS use https (universal link) without noopener, which blocks some app handoffs. */
+  function resolveAiOpenUrl(provider, httpsUrl) {
+    if (!httpsUrl) return httpsUrl;
+    var p = String(provider || '').toLowerCase();
+    if (p !== 'claude' || !isMobileHandoff()) return httpsUrl;
+    if (isAndroidUa()) {
+      try {
+        var parsed = new URL(httpsUrl);
+        var pathQ = parsed.pathname + (parsed.search || '');
+        return (
+          'intent://claude.ai' +
+          pathQ +
+          '#Intent;scheme=https;package=com.anthropic.claude;S.browser_fallback_url=' +
+          encodeURIComponent(httpsUrl) +
+          ';end'
+        );
+      } catch (eIntent) {
+        return httpsUrl;
+      }
+    }
+    return httpsUrl;
+  }
+
+  function openAiLaunchUrl(url, provider) {
+    if (!url) return false;
+    var p = String(provider || '').toLowerCase();
+    var launchUrl = resolveAiOpenUrl(p, url);
+    if (p === 'claude' && isMobileHandoff()) {
+      var w = window.open(launchUrl, '_blank');
+      if (!w && isIOSUa()) {
+        window.location.href = launchUrl;
+        return true;
+      }
+      return !!w;
+    }
+    var opened = window.open(launchUrl, '_blank', 'noopener,noreferrer');
+    return !!opened;
   }
 
   function copyForLaunch(text) {
@@ -407,7 +462,7 @@
     var lines = ['Always follow these rules:'];
     if (ptype === 'facility' || ptype === 'provider') {
       lines.push(
-        '- If this is a free PBJ320 provider page, treat it as quarterly staffing context and visible facility-level metrics only.'
+        '- If this is a PBJ320 provider page, treat it as quarterly staffing context and visible facility-level metrics only.'
       );
     }
     if (ptype === 'state') {
@@ -1354,7 +1409,7 @@
       gptCopied = true;
     }
     var url = prefillUrl || AI_URLS[providerNorm] || AI_URLS.claude;
-    var opened = window.open(url, '_blank', 'noopener,noreferrer');
+    var opened = openAiLaunchUrl(url, providerNorm);
     if (!opened) {
       showToast('Popup blocked — allow popups for this site, then try again.');
       return;
@@ -1368,6 +1423,9 @@
         snapshot: snapDownloaded,
         clipboard: gptCopied,
       });
+    } else if (providerNorm === 'claude' && mobileHandoff) {
+      msg =
+        'Opened Claude — full prompt on clipboard. If Safari/Chrome opened instead of the app, switch to Claude and paste (Ctrl+V / Cmd+V).';
     } else if (!prefillUrl) {
       msg = LAUNCH_MSG_CLIPBOARD.claude;
     } else if (isProvBar && urlPick.tier !== 'full') {
@@ -1467,8 +1525,12 @@
     if (providerNorm === 'claude' && snapDownloaded) {
       msg += ' Facility snapshot (.txt) downloaded for upload.';
     }
+    if (providerNorm === 'claude' && mobileHandoff && isProviderLaunch) {
+      msg =
+        'Opened Claude — full prompt on clipboard. If the browser opened instead of the app, switch to Claude and paste.';
+    }
 
-    var opened = window.open(url, '_blank', 'noopener,noreferrer');
+    var opened = openAiLaunchUrl(url, providerNorm);
     if (!opened) {
       showToast('Popup blocked — allow popups for this site, then try again.');
       return;

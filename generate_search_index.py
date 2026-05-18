@@ -216,16 +216,16 @@ def main():
             rating = 0
         sff_status = (row.get('sff_status') or '').strip()
         reasons = []
-        if abuse == 'Y':
-            reasons.append('Abuse')
-        if rating == 1:
-            reasons.append('1 star')
         if sff_status and 'Candidate' in sff_status:
             reasons.append('SFF Candidate')
         elif sff_status and 'SFF' in sff_status.upper():
             reasons.append('SFF')
         if ccn in sff_ccn_to_category and not any(r in ('SFF', 'SFF Candidate') for r in reasons):
             reasons.append('SFF Candidate' if sff_ccn_to_category[ccn] == 'Candidate' else 'SFF')
+        if abuse == 'Y':
+            reasons.append('Abuse')
+        if rating == 1:
+            reasons.append('1 star')
         high_risk = 1 if reasons else 0
         high_risk_reason = ', '.join(reasons) if reasons else ''
 

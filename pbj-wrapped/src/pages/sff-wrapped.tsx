@@ -150,7 +150,7 @@ export default function SFFWrapped() {
                 {facility.name}
               </a>
               <div className="text-xs text-gray-400">{location}</div>
-              {facility.overallRating && (
+              {facility.overallRating && facility.overallRating !== 'N/A' && Number(facility.overallRating) >= 1 && (
                 <div className="text-xs text-gray-500 mt-0.5">
                   Rating: {facility.overallRating}
                 </div>

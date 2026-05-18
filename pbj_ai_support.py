@@ -138,7 +138,7 @@ PBJ_AI_RESPONSIBLE_PRINCIPLES: tuple[tuple[str, str], ...] = (
     ),
     (
         'Respect the limits of the source',
-        'Free PBJ320 pages summarize quarterly staffing. Premium exports and dashboards may support '
+        'PBJ320 pages summarize quarterly staffing. Premium exports and dashboards may support '
         'finer timing analysis, but still require records, context, and judgment.',
     ),
     (
@@ -155,7 +155,7 @@ PBJ_AI_HELPER_BODY = (
 )
 
 PBJ_FACILITY_CSV_LIMITATIONS = (
-    'Free PBJ320 provider pages and CSVs provide quarterly staffing context and visible facility-level metrics. '
+    'PBJ320 provider pages and CSVs provide quarterly staffing context and visible facility-level metrics. '
     'They do not show daily staffing, weekend patterns, 90-day aide/CNA low-day counts, mean/median/outlier tables, '
     'incident-window analysis, employee-level staffing, or resident-level care.'
 )
@@ -177,7 +177,7 @@ PBJ_ROLE_HPRD_SEMANTICS = (
 PBJ_CSV_ATTACHMENT_NOTE = (
     'If you attach a PBJ320 quarterly CSV, use it as structured quarterly context. Do not infer daily staffing '
     'patterns, weekend staffing, 90-day aide/CNA patterns, mean/median tables, or incident-window details from '
-    'this free quarterly CSV.'
+    'this quarterly CSV.'
 )
 
 PBJ_FACILITY_HANDOFF_CSV_NOTE = (
@@ -421,7 +421,7 @@ PBJ_DEFINITIONS_BLOCK = [
 
 PBJ_FACILITY_INTERPRETATION_CHECKS = [
     'This is a quarterly snapshot, not a daily staffing review.',
-    'Check whether averages are hiding daily variation, but daily data is not shown on this free page unless explicitly provided.',
+    'Check whether averages are hiding daily variation, but daily data is not shown on this page unless explicitly provided.',
     'Check whether census/denominator changes affect HPRD if census data is available.',
     'State averages can mask wide within-state variation.',
     'Treat red flags as screening signals, not findings.',
@@ -438,7 +438,7 @@ PBJ_STATE_INTERPRETATION_CHECKS = [
 
 PBJ_FACILITY_LIMITATIONS = (
     'PBJ data can show reported staffing hours, role mix, facility-level patterns, and changes over time. '
-    'This free page cannot prove what happened on a specific shift, whether a specific resident received care, '
+    'This page cannot prove what happened on a specific shift, whether a specific resident received care, '
     'whether staffing caused an injury, or whether a legal standard was violated.'
 )
 
@@ -700,6 +700,7 @@ def build_page_context(
     contract_staff_pct: Any = None,
     entity_portfolio_summary: str = '',
     facility_snapshot_context: str = '',
+    cms_risk_screening_line: str = '',
     **kwargs: Any,
 ) -> str:
     """Structured page context for copy/paste into any AI tool."""
@@ -759,6 +760,7 @@ def build_page_context(
             contract_staff_pct=contract_staff_pct,
             entity_portfolio_summary=(entity_portfolio_summary or '').strip(),
             facility_snapshot_context=(facility_snapshot_context or '').strip(),
+            cms_risk_screening_line=(cms_risk_screening_line or '').strip(),
         )
 
     return _build_generic_page_context(
@@ -810,6 +812,7 @@ def _build_facility_page_context(
     contract_staff_pct: Any = None,
     entity_portfolio_summary: str = '',
     facility_snapshot_context: str = '',
+    cms_risk_screening_line: str = '',
 ) -> str:
     lines: list[str] = ['PBJ320 page context', '']
     if facility_name:
@@ -847,6 +850,10 @@ def _build_facility_page_context(
             s = (sub or '').strip()
             if s:
                 lines.append(s)
+    _cms_risk = (cms_risk_screening_line or '').strip()
+    if _cms_risk:
+        lines.append('')
+        lines.append(_cms_risk)
     lines.append(format_source_level_block('facility', page_kind, page_url))
     lines.append(f'Date copied: {copied_date}')
     lines.append('')
@@ -901,7 +908,7 @@ def _build_facility_page_context(
     def _fact_line(label: str, val: str) -> Optional[str]:
         v = (val or '').strip()
         if not v:
-            return f'- {label}: [not included on this free page]'
+            return f'- {label}: [not included on this page]'
         return f'- {label}: {v}'
 
     lines.extend([
@@ -1095,6 +1102,8 @@ def _compact_facility_material(
                 'Ownership type (Care Compare',
                 'CMS Special Focus',
                 'CMS abuse icon',
+                'PBJ320 screening flags',
+                'PBJ320 high-risk',
             )
         ):
             if line not in seen:
@@ -1447,7 +1456,7 @@ TREND_EMBED_CSV_COLUMNS: tuple[str, ...] = tuple(
 )
 
 PBJ_FACILITY_SOURCE_LEVEL = (
-    'Free PBJ320 provider page / quarterly CSV. This supports quarterly facility-level review only.'
+    'PBJ320 provider page / quarterly CSV. This supports quarterly facility-level review only.'
 )
 
 
@@ -1900,8 +1909,8 @@ def _render_lens_select(active_lens: str) -> str:
         opts.append(f'<option value="{html.escape(lid)}"{sel}>{html.escape(lbl)}</option>')
     return (
         '<label class="pbj-ai-lens-wrap">'
-        '<span class="pbj-ai-lens-label">Reviewing as</span>'
-        '<select class="pbj-ai-lens-select" data-pbj-lens-select aria-label="Reviewing as, audience">'
+        '<span class="pbj-ai-lens-label">Review as</span>'
+        '<select class="pbj-ai-lens-select" data-pbj-lens-select aria-label="Review as, audience">'
         f'{"".join(opts)}</select></label>'
     )
 
@@ -1964,8 +1973,8 @@ def render_pbj_ai_beta_modal(helper_uid: str = 'default') -> str:
         '<h4>What PBJ cannot prove</h4>'
         '<ul class="pbj-ai-beta-list">'
         '<li>Quarterly PBJ is a <strong>screening layer</strong> — not neglect, causation, noncompliance, or care quality.</li>'
-        '<li>CMS <strong>case-mix</strong> and state policy references are benchmarks — not legal minimums without verification.</li>'
-        '<li>No shift-level, resident-level, or incident-window proof unless you supply other records.</li>'
+        '<li>CMS <strong>case-mix</strong> and state policy references are benchmarks — not legal minimums.</li>'
+        '<li class="pbj-ai-beta-list-item--desktop-only">No shift-level, resident-level, or incident-window proof unless you supply other records.</li>'
         '</ul>'
         '<p class="pbj-ai-beta-foot"><button type="button" class="pbj-ai-beta-got-it" data-pbj-ai-beta-close>'
         'Got it</button></p>'
@@ -2210,9 +2219,12 @@ def render_ai_minimal_bar(
         f'<span class="pbj-ai-provider-bar__share">{share_block}</span>' if share_block else ''
     )
     return f"""<div class="pbj-ai-provider-bar pbj-ai-page-helper" data-pbj-track="ai_helper_view" {data_attrs}>
+<div class="pbj-ai-provider-bar__row pbj-ai-provider-bar__row--top">
 {pbjai_info_btn}
 <span class="pbj-ai-provider-bar__sep" aria-hidden="true">|</span>
 {lens_sel}
+</div>
+<div class="pbj-ai-provider-bar__row pbj-ai-provider-bar__row--actions">
 <span class="pbj-ai-provider-bar__actions">
 <span class="pbj-ai-provider-bar__cta" role="group" aria-label="Review this staffing page with AI">
 <button type="button" class="pbj-ai-provider-ai pbj-ai-provider-ai--cta pbj-ai-launch pbj-ai-launch-packet" data-ai="claude" data-handoff-id="{handoff_id}" title="Open Claude with this facility review prefilled"><img src="/ai-icons/claude.svg" alt="" width="14" height="14" class="pbj-ai-brand-icon" aria-hidden="true"><span>Ask Claude</span></button>
@@ -2222,6 +2234,7 @@ def render_ai_minimal_bar(
 </span>
 <span class="pbj-ai-provider-bar__spacer" aria-hidden="true"></span>
 {share_wrapped}
+</div>
 <textarea id="{handoff_id}" class="pbj-ai-handoff-data" readonly hidden aria-hidden="true">{html.escape(handoff)}</textarea>
 <textarea id="{prefill_id}" class="pbj-ai-prefill-data" readonly hidden aria-hidden="true">{html.escape(oneshot_prefill)}</textarea>
 <textarea id="{extended_id}" class="pbj-ai-extended-data" readonly hidden aria-hidden="true">{html.escape(extended_context)}</textarea>

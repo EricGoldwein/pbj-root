@@ -509,7 +509,34 @@ _SEARCH_INDEX_CACHE = None
 _SEARCH_INDEX_AT = 0
 _SEARCH_INDEX_TTL = 300  # 5 min
 
-HIGH_RISK_CRITERIA_TOOLTIP = 'PBJ320 assigns nursing homes as high-risk when CMS designates them as: Special Focus Facility (SFF), SFF candidate, 1-star overall rating, or with an abuse icon.'
+HIGH_RISK_CRITERIA_TOOLTIP = (
+    'PBJ320 high-risk badge when the page shows: Special Focus Facility (SFF) or SFF candidate, '
+    '1-star overall rating (Care Compare), or abuse icon flagged yes (Care Compare).'
+)
+FACILITY_RISK_BADGE_TOOLTIP = (
+    f'{HIGH_RISK_CRITERIA_TOOLTIP} '
+    'SFF facilities often have no star ratings on the page; staffing and overall stars are hidden when not reported.'
+)
+
+
+def _sort_risk_reason_display(label: str) -> str:
+    """Order multi-reason risk labels with SFF before Abuse, etc."""
+    text = (label or '').strip()
+    if not text or ',' not in text:
+        return text
+
+    def _prio(part: str) -> int:
+        pl = part.strip().lower()
+        if 'sff' in pl:
+            return 0
+        if 'abuse' in pl:
+            return 1
+        if '1 star' in pl or '1-star' in pl:
+            return 2
+        return 3
+
+    parts = [p.strip() for p in text.split(',') if p.strip()]
+    return ', '.join(sorted(parts, key=_prio))
 
 def get_facility_risk_from_search_index(ccn):
     """Return (risk_flag, reason_str) for a facility CCN from search_index.json (same logic as home search). Cached 2 min."""
@@ -5112,6 +5139,22 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; min-width: 260px; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
 .entity-section-tooltip {{ max-width: 360px; max-height: 200px; overflow-y: auto; }}
 .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}
+.pbj-risk-badge-group {{
+  display: inline-flex; align-items: center; gap: 0.2rem; flex-wrap: nowrap;
+}}
+.pbj-risk-badge-info-wrap {{ margin-left: 0.05rem; }}
+.pbj-risk-badge-info {{
+  font: inherit; font-size: 0.72rem; font-weight: 700; line-height: 1;
+  padding: 0.1rem 0.28rem; border-radius: 999px; cursor: help;
+  color: rgba(252, 165, 165, 0.95); background: rgba(127, 29, 29, 0.35);
+  border: 1px solid rgba(248, 113, 113, 0.45);
+}}
+.pbj-risk-badge-group .pbj-risk-badge-info:hover {{
+  color: #fee2e2; border-color: rgba(252, 165, 165, 0.75);
+}}
+.pbj-risk-badge-info-wrap.is-open .pbj-high-risk-tooltip {{
+  opacity: 1; pointer-events: auto;
+}}
 .pbj-details-content {{ padding: 1rem 1.1rem 1.15rem; border-top: none; background: rgba(15, 23, 42, 0.35); }}
 .pbj-details-content p:first-child {{ margin-top: 0; }}
 .pbj-details-content p:last-child {{ margin-bottom: 0; }}
@@ -5262,6 +5305,10 @@ button.pbj-takeaway-share-btn:hover {{
   margin-top: 0.4rem; display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem 0.45rem;
   font-size: 0.72rem;
 }}
+.pbj-ai-provider-bar__row--top,
+.pbj-ai-provider-bar__row--actions {{
+  display: contents;
+}}
 .pbj-ai-provider-bar__sep {{
   color: rgba(100, 116, 139, 0.8); user-select: none; flex-shrink: 0; font-weight: 300;
 }}
@@ -5289,9 +5336,12 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-ai-pbjai-mark {{ display: inline-flex; align-items: baseline; gap: 0; letter-spacing: 0.01em; }}
 .pbj-ai-pbjai-pbj {{ color: #ffffff; font-weight: 800; }}
-.pbj-ai-pbjai-ai {{ color: #a5b4fc; font-weight: 800; }}
+.pbj-ai-pbjai-ai {{ color: #8b5cf6; font-weight: 800; }}
 .pbj-ai-beta-modal .pbj-ai-pbjai-pbj {{ color: #f8fafc; }}
-.pbj-ai-beta-modal .pbj-ai-pbjai-ai {{ color: #c7d2fe; }}
+.pbj-ai-beta-modal .pbj-ai-pbjai-ai {{ color: #a78bfa; }}
+.pbj-ai-beta-modal h3 {{
+  display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.4rem; line-height: 1.2;
+}}
 .pbj-ai-pbjai-hint {{
   display: inline-flex; align-items: center; justify-content: center;
   width: 1rem; height: 1rem; border-radius: 999px; font-size: 0.62rem; font-weight: 800;
@@ -5441,8 +5491,12 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-ai-beta-tag {{
   display: inline-block; margin-left: 0.15rem; padding: 0.05rem 0.35rem; border-radius: 4px;
   font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
-  color: rgba(203, 213, 225, 0.92); background: rgba(51, 65, 85, 0.65);
-  border: 1px solid rgba(100, 116, 139, 0.5);
+  vertical-align: middle; line-height: 1.15;
+  color: #fcd34d; background: rgba(251, 191, 36, 0.16);
+  border: 1px solid rgba(251, 191, 36, 0.42);
+}}
+.pbj-ai-pbjai-info .pbj-ai-beta-tag {{
+  align-self: center;
 }}
 .pbj-casemix-modal.pbj-ai-beta-modal {{
   z-index: 10200 !important;
@@ -5450,9 +5504,10 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-casemix-modal.pbj-ai-beta-modal .pbj-casemix-modal-card {{
   margin-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
-  max-height: min(82vh, 540px);
+  max-height: min(78vh, 480px);
   box-shadow: 0 20px 56px rgba(0, 0, 0, 0.55);
 }}
+.pbj-ai-beta-list-item--desktop-only {{ display: list-item; }}
 .pbj-ai-beta-modal .pbj-ai-beta-lead {{ margin-top: 0; color: rgba(203, 213, 225, 0.95); }}
 .pbj-ai-beta-verify {{
   margin: 0.55rem 0 0.65rem; padding: 0.5rem 0.6rem; border-radius: 6px; font-size: 0.78rem; line-height: 1.45;
@@ -5518,36 +5573,44 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
   .pbj-ai-lens-wrap, .pbj-ai-length-wrap {{ justify-content: space-between; }}
   .pbj-ai-lens-select, .pbj-ai-length-select {{ flex: 1; min-width: 0; }}
   .pbj-ai-provider-bar {{
-    display: grid;
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "beta"
-      "lens"
-      "actions";
-    gap: 0.42rem 0.5rem;
-    align-items: center;
+    display: flex; flex-direction: column; align-items: stretch; gap: 0.38rem;
   }}
-  .pbj-ai-provider-bar .pbj-ai-pbjai-info {{ grid-area: beta; justify-self: start; }}
+  .pbj-ai-provider-bar__row--top,
+  .pbj-ai-provider-bar__row--actions {{
+    display: flex;
+  }}
+  .pbj-ai-provider-bar__row--top {{
+    display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; width: 100%;
+  }}
+  .pbj-ai-provider-bar__row--actions {{
+    display: flex; align-items: center; width: 100%;
+  }}
   .pbj-ai-provider-bar__share {{ display: none !important; }}
   .pbj-ai-provider-bar__sep {{ display: none; }}
   .pbj-ai-provider-bar .pbj-ai-lens-wrap {{
-    grid-area: lens; width: 100%; justify-content: flex-start;
+    flex: 1 1 auto; min-width: 0; justify-content: flex-end;
   }}
-  .pbj-ai-provider-bar .pbj-ai-lens-select {{ flex: 1; min-width: 0; max-width: none; }}
+  .pbj-ai-provider-bar .pbj-ai-lens-select {{ flex: 1; min-width: 0; max-width: 11.5rem; }}
   .pbj-ai-provider-bar__actions {{
-    grid-area: actions; display: flex; flex-wrap: wrap; align-items: center;
-    justify-content: space-between; gap: 0.4rem 0.35rem; width: 100%;
+    display: flex; flex-wrap: nowrap; align-items: center;
+    justify-content: space-between; gap: 0.28rem; width: 100%; min-width: 0;
   }}
   .pbj-ai-provider-bar__cta {{
-    display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 0.35rem; min-width: 0;
+    display: flex; flex: 1 1 auto; flex-wrap: nowrap; gap: 0.28rem; min-width: 0;
   }}
   .pbj-ai-provider-bar__spacer {{ display: none; }}
   .pbj-ai-provider-bar__cta .pbj-ai-provider-ai {{
-    flex: 1 1 calc(50% - 0.2rem); min-width: 7.25rem; justify-content: center;
+    flex: 1 1 0; min-width: 0; padding: 0.34rem 0.42rem; justify-content: center;
+    font-size: 0.66rem;
   }}
+  .pbj-ai-provider-bar__cta .pbj-ai-provider-ai span {{ white-space: nowrap; }}
   .pbj-ai-provider-bar .pbj-ai-length-mode {{
-    flex: 0 0 auto; margin-left: auto;
+    flex: 0 0 auto; margin-left: 0.15rem;
   }}
+  .pbj-ai-provider-bar .pbj-ai-length-mode__btn {{
+    padding: 0.26rem 0.38rem; font-size: 0.62rem;
+  }}
+  .pbj-ai-beta-list-item--desktop-only {{ display: none; }}
 }}
 .pbj-casemix-help-label {{ font-size: 0.72rem; font-weight: 500; color: inherit; white-space: nowrap; }}
 .pbj-casemix-info-icon {{ display: inline-flex; align-items: center; justify-content: center; width: 1.15rem; height: 1.15rem; font-size: 0.72rem; font-weight: 700; font-style: italic; font-family: Georgia, 'Times New Roman', serif; color: rgba(226,232,240,0.9); flex-shrink: 0; }}
@@ -6147,6 +6210,29 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         });
         wrap.addEventListener('mouseleave', function() { clearTooltipShift(tooltip); });
       });
+      document.querySelectorAll('.pbj-risk-badge-info').forEach(function(btn) {
+        var wrap = btn.closest('.pbj-risk-badge-info-wrap');
+        if (!wrap) return;
+        var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var open = wrap.classList.toggle('is-open');
+          if (open && tooltip) {
+            requestAnimationFrame(function() { clampTooltipToViewport(tooltip); });
+          } else if (tooltip) {
+            clearTooltipShift(tooltip);
+          }
+        });
+      });
+      document.addEventListener('click', function(e) {
+        if (e.target && e.target.closest && e.target.closest('.pbj-risk-badge-info-wrap')) return;
+        document.querySelectorAll('.pbj-risk-badge-info-wrap.is-open').forEach(function(wrap) {
+          wrap.classList.remove('is-open');
+          var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
+          if (tooltip) clearTooltipShift(tooltip);
+        });
+      });
     });
   })();
   </script>
@@ -6157,8 +6243,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         content_close = content_close.replace(
             '</body>\n</html>',
             f'  <script>window.__PBJ_REVIEW_FRAMEWORK__={_fw_json};</script>\n'
-            '  <script src="/pbj-review-framework.js?v=14"></script>\n'
-            '  <script src="/pbj-ai-support.js?v=46"></script>\n</body>\n</html>',
+            '  <script src="/pbj-review-framework.js?v=15"></script>\n'
+            '  <script src="/pbj-ai-support.js?v=48"></script>\n</body>\n</html>',
             1,
         )
     return {'head': head, 'nav': nav, 'content_open': content_open, 'content_close': content_close}
@@ -7612,6 +7698,73 @@ def _provider_ai_facility_snapshot_context(
     return '\n'.join(lines).strip()
 
 
+def _cms_risk_screening_line_for_ai(
+    *,
+    risk_reason: str = '',
+    risk_flag: int = 0,
+    is_sff: bool = False,
+    is_sff_candidate: bool = False,
+    pi_metrics: dict | None = None,
+    overall_rating_raw=None,
+    staffing_rating_raw=None,
+) -> str:
+    """PBJ320 screening flags for AI context (Care Compare fields + PBJ320 high-risk badge)."""
+    flags: list[str] = []
+    pi = dict(pi_metrics or {})
+
+    sff = str(pi.get('sff_status') or '').strip()
+    if sff:
+        flags.append(f'SFF status (Care Compare on page): {sff}')
+    elif is_sff_candidate:
+        flags.append('SFF Candidate (PBJ320 SFF list)')
+    elif is_sff:
+        flags.append('Special Focus Facility (PBJ320 SFF list)')
+
+    ab = str(pi.get('abuse_icon') or '').strip().upper()
+    ha = str(pi.get('has_abuse_icon') or '').strip().upper()
+    if ab in ('Y', 'YES', '1', 'TRUE') or ha in ('Y', 'YES', '1', 'TRUE'):
+        flags.append('Abuse icon (Care Compare on page): flagged yes')
+
+    rr = (risk_reason or '').strip()
+    if rr:
+        flags.append(f'PBJ320 high-risk badge: {_sort_risk_reason_display(rr)}')
+    elif risk_flag:
+        flags.append('PBJ320 high-risk badge: shown on page')
+
+    def _star_n(raw):
+        if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+            return None
+        try:
+            n = int(round_half_up(float(raw), 0))
+            if n is not None and 1 <= n <= 5:
+                return n
+        except (TypeError, ValueError):
+            return None
+        return None
+
+    on = _star_n(overall_rating_raw)
+    if on == 1:
+        flags.append('Overall Five-Star (Care Compare on page): 1')
+    sn = _star_n(staffing_rating_raw)
+    if sn == 1:
+        flags.append('Staffing Five-Star (Care Compare on page): 1')
+
+    if not flags:
+        return ''
+    sff_note = (
+        ' Star ratings may be omitted on the page for some SFFs — do not invent ratings.'
+        if (sff or is_sff or is_sff_candidate) and on is None and sn is None
+        else ''
+    )
+    return (
+        'PBJ320 screening flags on this page (mention briefly early; PBJ staffing stays primary; '
+        'screening signals from Care Compare / PBJ320 rules — not proof of harm or violations): '
+        + '; '.join(flags)
+        + '.'
+        + sff_note
+    )
+
+
 def _state_total_nurse_hprd_for_quarter(state_code, q_raw):
     """State average/metric total nurse HPRD for a CY_Qtr from state_quarterly_metrics."""
     if not HAS_PANDAS or not state_code or not q_raw:
@@ -8063,7 +8216,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     is_sff = sff_entry is not None
     is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
     if risk_flag and risk_reason:
-        risk_badge_label = risk_reason
+        risk_badge_label = _sort_risk_reason_display(risk_reason)
     elif risk_flag:
         risk_badge_label = 'Meets high-risk criteria'
     elif is_sff:
@@ -8084,6 +8237,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         risk_badge = f'<span style="{badge_style}">{risk_badge_content}</span>'
     else:
         risk_badge = (f'<span style="{badge_style}">{risk_badge_label}</span>') if risk_badge_label else ''
+    if risk_badge:
+        _risk_info_icon = (
+            '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+            '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">ⓘ</button>'
+            f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(FACILITY_RISK_BADGE_TOOLTIP)}</span>'
+            '</span>'
+        )
+        risk_badge = (
+            f'<span class="pbj-risk-badge-group">{risk_badge}{_risk_info_icon}</span>'
+        )
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
@@ -8136,9 +8299,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     except (TypeError, ValueError):
         is_1_star_overall = False
     overall_badge_style = badge_span_red if is_1_star_overall else badge_span
-    overall_badge_html = f'<span style="{overall_badge_style}" title="{overall_badge_title}">{overall_star_label}</span>'
+    overall_badge_html = (
+        f'<span style="{overall_badge_style}" title="{overall_badge_title}">{overall_star_label}</span>'
+        if overall_star_icons != '—' else ''
+    )
     _staff_stars_html = f'<span class="pbj-staffing-stars">{staffing_star_icons}</span>' if staffing_star_icons != '—' else staffing_star_icons
-    staffing_badge_html = f'<span style="{badge_span}" title="{staffing_badge_title}">Staffing: {_staff_stars_html}</span>'
+    staffing_badge_html = (
+        f'<span style="{badge_span}" title="{staffing_badge_title}">Staffing: {_staff_stars_html}</span>'
+        if staffing_star_icons != '—' else ''
+    )
     casemix_badge_html = ''
     if case_mix_total is not None and casemix_str and casemix_str != '—':
         casemix_badge_title = html.escape(
@@ -8337,11 +8506,20 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         cms_overall_line=_cms_overall_line,
         cms_staffing_line=_cms_staffing_star_line,
     )
+    _cms_risk_ai = _cms_risk_screening_line_for_ai(
+        risk_reason=risk_reason or '',
+        risk_flag=int(risk_flag or 0),
+        is_sff=is_sff,
+        is_sff_candidate=is_sff_candidate,
+        pi_metrics=pi_metrics if isinstance(pi_metrics, dict) else {},
+        overall_rating_raw=_overall_raw,
+        staffing_rating_raw=_staffing_raw,
+    )
     _facility_ai_ctx = build_dashboard_context(
         page_type='facility',
         page_url=_facility_page_url,
         period=quarter_display or '',
-        page_kind='Free PBJ320 provider page (quarterly)',
+        page_kind='PBJ320 provider page (quarterly)',
         summary=narrative,
         facility_name=facility_name or '',
         ccn=prov,
@@ -8364,10 +8542,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         macpac_reference_line=_macpac_factset_line,
         cms_overall_star_line=_cms_overall_line,
         cms_staffing_star_line=_cms_staffing_star_line,
-        premium_dashboard_note='Premium PBJ320 daily-staffing dashboards and exports are not included in this free page URL.',
+        premium_dashboard_note='Premium PBJ320 daily-staffing dashboards and exports are not included in this page URL.',
         contract_staff_pct=_contract_ai,
         entity_portfolio_summary=_entity_portfolio_ai,
         facility_snapshot_context=_facility_snapshot_ai,
+        cms_risk_screening_line=_cms_risk_ai,
     )
     _state_hprd_csv = (
         format_metric_value(state_hprd_numeric, 'Total_Nurse_HPRD')
@@ -9019,7 +9198,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
         staff_val = (f"{staff_rating:.1f}" if staff_rating is not None else "—")
         overall_val = (f"{overall_rating:.1f}" if overall_rating is not None else "—")
-        tier1_badges += f'<span class="pbj-overall-badge" style="{_badge}">Avg. Overall Rating: {overall_val}</span><span class="pbj-badge-mobile-hide" style="{_badge}">Avg. Staffing Rating: {staff_val}</span><span class="pbj-badge-mobile-only" style="{_badge}">Staffing Rating: {staff_val}</span>'
+        tier1_badges += f'<span class="pbj-overall-badge" style="{_badge}">Avg. Overall Rating: {overall_val}</span>'
+        if staff_val != '—':
+            tier1_badges += (
+                f'<span class="pbj-badge-mobile-hide" style="{_badge}">Avg. Staffing Rating: {staff_val}</span>'
+                f'<span class="pbj-badge-mobile-only" style="{_badge}">Staffing Rating: {staff_val}</span>'
+            )
 
         risk_parts = []
         if sff is not None and sff > 0:

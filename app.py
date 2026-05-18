@@ -5173,18 +5173,19 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; min-width: 260px; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
 .entity-section-tooltip {{ max-width: 360px; max-height: 200px; overflow-y: auto; }}
 .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}
-.pbj-risk-badge-group {{
-  display: inline-flex; align-items: center; gap: 0.2rem; flex-wrap: nowrap;
+.pbj-risk-badge-with-info {{
+  display: inline-flex; align-items: center; gap: 0.22rem; flex-wrap: nowrap;
 }}
-.pbj-risk-badge-info-wrap {{ margin-left: 0.05rem; }}
+.pbj-risk-badge-info-wrap {{ margin-left: 0.12rem; }}
 .pbj-risk-badge-info {{
-  font: inherit; font-size: 0.72rem; font-weight: 700; line-height: 1;
-  padding: 0.1rem 0.28rem; border-radius: 999px; cursor: help;
-  color: rgba(252, 165, 165, 0.95); background: rgba(127, 29, 29, 0.35);
-  border: 1px solid rgba(248, 113, 113, 0.45);
+  font: inherit; font-size: 0.78em; font-weight: 700; font-style: italic; line-height: 1;
+  font-family: Georgia, "Times New Roman", serif;
+  padding: 0; margin: 0; border: none; border-radius: 0; cursor: help;
+  color: inherit; background: transparent; opacity: 0.82;
+  vertical-align: baseline;
 }}
-.pbj-risk-badge-group .pbj-risk-badge-info:hover {{
-  color: #fee2e2; border-color: rgba(252, 165, 165, 0.75);
+.pbj-risk-badge-with-info .pbj-risk-badge-info:hover {{
+  opacity: 1; text-decoration: underline; text-underline-offset: 2px;
 }}
 .pbj-risk-badge-info-wrap.is-open .pbj-high-risk-tooltip {{
   opacity: 1; pointer-events: auto;
@@ -5369,18 +5370,15 @@ button.pbj-takeaway-share-btn:hover {{
   border-color: rgba(203, 213, 225, 0.88); background: rgba(51, 65, 85, 0.98);
 }}
 .pbj-ai-pbjai-mark {{ display: inline-flex; align-items: baseline; gap: 0; letter-spacing: 0.01em; }}
-.pbj-ai-pbjai-pbj {{ color: #ffffff; font-weight: 800; }}
-.pbj-ai-pbjai-ai {{ color: #8b5cf6; font-weight: 800; }}
+.pbj-ai-pbjai-pbj {{ color: #f8fafc; font-weight: 700; }}
+.pbj-ai-pbjai-ai {{ color: #a5b4fc; font-weight: 700; }}
 .pbj-ai-beta-modal .pbj-ai-pbjai-pbj {{ color: #f8fafc; }}
 .pbj-ai-beta-modal .pbj-ai-pbjai-ai {{ color: #a78bfa; }}
 .pbj-ai-beta-modal h3 {{
   display: flex; align-items: center; flex-wrap: wrap; gap: 0.35rem 0.4rem; line-height: 1.2;
 }}
 .pbj-ai-pbjai-hint {{
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1rem; height: 1rem; border-radius: 999px; font-size: 0.62rem; font-weight: 800;
-  color: rgba(203, 213, 225, 0.9); background: rgba(51, 65, 85, 0.75);
-  border: 1px solid rgba(100, 116, 139, 0.55);
+  display: none;
 }}
 .pbj-ai-length-mode {{
   display: inline-flex; align-items: center; gap: 0.2rem; flex-shrink: 0;
@@ -5414,23 +5412,20 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-hprd-badge__val--wide {{ display: none; }}
 .pbj-hprd-badge__hint {{
-  display: inline-flex; align-items: center; gap: 0.28rem; margin-left: 0.08rem;
+  display: inline-flex; align-items: center; align-self: center;
+  margin-left: 0.08rem; margin-top: -0.12rem;
   color: rgba(148, 163, 184, 0.88); transition: color 0.15s;
 }}
 .pbj-hprd-badge__hint-mark {{
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 1rem; height: 1rem; border-radius: 999px;
-  border: 1px solid rgba(148, 163, 184, 0.55);
-  background: rgba(15, 23, 42, 0.45);
-  font: 700 0.62rem/1 Georgia, "Times New Roman", serif;
+  display: inline; font: 700 0.72em/1 Georgia, "Times New Roman", serif;
   font-style: italic; color: rgba(226, 232, 240, 0.92);
+  border: none; background: transparent; padding: 0;
 }}
 .pbj-hprd-badge--help:hover .pbj-hprd-badge__hint {{
   color: rgba(226, 232, 240, 0.98);
 }}
 .pbj-hprd-badge--help:hover .pbj-hprd-badge__hint-mark {{
-  border-color: rgba(203, 213, 225, 0.75);
-  background: rgba(30, 41, 59, 0.65);
+  color: rgba(248, 250, 252, 0.98);
 }}
 .pbj-hprd-badge--help:focus-visible {{
   outline: 2px solid rgba(148, 163, 184, 0.55); outline-offset: 2px;
@@ -5451,7 +5446,11 @@ button.pbj-takeaway-share-btn:hover {{
   color: rgba(148, 163, 184, 0.95);
   border-left: 2px solid rgba(99, 102, 241, 0.35); padding-left: 0.45rem;
 }}
-.pbj-ai-provider-bar .pbj-ai-lens-wrap {{ margin: 0; flex: 0 1 auto; min-width: 0; }}
+.pbj-ai-provider-bar .pbj-ai-lens-wrap {{ margin: 0; flex: 0 1 auto; min-width: 0; gap: 0.28rem; }}
+.pbj-ai-provider-bar .pbj-ai-lens-label {{ font-size: 0.68rem; letter-spacing: 0.03em; }}
+.pbj-ai-provider-bar .pbj-ai-lens-select {{
+  padding: 0.18rem 1.45rem 0.18rem 0.34rem; font-size: 0.7rem;
+}}
 .pbj-ai-provider-bar .pbj-ai-length-mode {{
   flex-shrink: 0; margin-left: 0;
 }}
@@ -5523,11 +5522,11 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-ai-beta-info__label {{ font-weight: 700; }}
 .pbj-ai-beta-tag {{
-  display: inline-block; margin-left: 0.15rem; padding: 0.05rem 0.35rem; border-radius: 4px;
-  font-size: 0.58rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
+  display: inline-block; margin-left: 0.15rem; padding: 0.04rem 0.32rem; border-radius: 4px;
+  font-size: 0.56rem; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
   vertical-align: middle; line-height: 1.15;
-  color: #fcd34d; background: rgba(251, 191, 36, 0.16);
-  border: 1px solid rgba(251, 191, 36, 0.42);
+  color: rgba(203, 213, 225, 0.78); background: rgba(148, 163, 184, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.28);
 }}
 .pbj-ai-pbjai-info .pbj-ai-beta-tag {{
   align-self: center;
@@ -5624,7 +5623,17 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
   .pbj-ai-provider-bar .pbj-ai-lens-wrap {{
     flex: 1 1 auto; min-width: 0; justify-content: flex-end;
   }}
-  .pbj-ai-provider-bar .pbj-ai-lens-select {{ flex: 1; min-width: 0; max-width: 11.5rem; }}
+  .pbj-ai-provider-bar .pbj-ai-lens-select {{ flex: 1; min-width: 0; max-width: 13.25rem; padding-right: 1.35rem; }}
+  .pbj-ai-provider-bar .pbj-ai-lens-label {{ font-size: 0.6rem; letter-spacing: 0.04em; }}
+  .pbj-ai-provider-bar .pbj-ai-pbjai-info {{
+    padding: 0.28rem 0.48rem; font-size: 0.66rem;
+  }}
+  .pbj-takeaway-badges {{
+    gap: 6px 5px;
+  }}
+  .pbj-risk-badge-with-info {{
+    max-width: 100%;
+  }}
   .pbj-ai-provider-bar__actions {{
     display: flex; flex-wrap: nowrap; align-items: center;
     justify-content: space-between; gap: 0.28rem; width: 100%; min-width: 0;
@@ -8257,30 +8266,36 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         risk_badge_label = 'SFF Candidate' if is_sff_candidate else 'SFF'
     else:
         risk_badge_label = ''
-    badge_style_abuse = 'display:inline-block;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fb7185;background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.2);'
-    badge_style_sff = 'display:inline-block;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fbbf24;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);'
+    badge_style_abuse = 'display:inline-flex;align-items:center;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fb7185;background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.2);'
+    badge_style_sff = 'display:inline-flex;align-items:center;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fbbf24;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);'
     _risk_reason_lower = (risk_reason or '').strip().lower()
     badge_style = badge_style_abuse if (risk_badge_label and 'abuse' in _risk_reason_lower) else badge_style_sff
     sff_candidate_spans = '<span class="pbj-badge-mobile-hide">SFF Candidate</span><span class="pbj-badge-mobile-only">SFF Cand.</span>'
     use_sff_candidate_badge = (risk_badge_label == 'SFF Candidate')
+    _risk_tip = html.escape(FACILITY_RISK_BADGE_TOOLTIP)
+    _risk_info_inner = (
+        '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+        '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">i</button>'
+        f'<span class="pbj-high-risk-tooltip" role="tooltip">{_risk_tip}</span>'
+        '</span>'
+    )
+
+    def _risk_badge_with_info(inner_html: str) -> str:
+        if not inner_html:
+            return ''
+        return (
+            f'<span class="pbj-risk-badge-with-info" style="{badge_style}">'
+            f'{inner_html}{_risk_info_inner}</span>'
+        )
+
     if use_sff_candidate_badge:
-        risk_badge = f'<span style="{badge_style}">{sff_candidate_spans}</span>'
+        risk_badge = _risk_badge_with_info(sff_candidate_spans)
     elif is_sff_candidate and risk_badge_label and 'SFF' in risk_badge_label:
         # Combined reason (e.g. "1 star, SFF") – show SFF as SFF Candidate responsively
         risk_badge_content = risk_badge_label.replace('SFF', sff_candidate_spans)
-        risk_badge = f'<span style="{badge_style}">{risk_badge_content}</span>'
+        risk_badge = _risk_badge_with_info(risk_badge_content)
     else:
-        risk_badge = (f'<span style="{badge_style}">{risk_badge_label}</span>') if risk_badge_label else ''
-    if risk_badge:
-        _risk_info_icon = (
-            '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
-            '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">ⓘ</button>'
-            f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(FACILITY_RISK_BADGE_TOOLTIP)}</span>'
-            '</span>'
-        )
-        risk_badge = (
-            f'<span class="pbj-risk-badge-group">{risk_badge}{_risk_info_icon}</span>'
-        )
+        risk_badge = _risk_badge_with_info(risk_badge_label) if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"

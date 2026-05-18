@@ -11,7 +11,7 @@ import os
 import re
 from typing import TYPE_CHECKING
 
-from flask import abort, make_response, send_file
+from flask import abort, make_response, redirect, send_file
 
 if TYPE_CHECKING:
     from flask import Flask
@@ -23,6 +23,10 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
     """Register /premium landing page + assets required by premium/index.html."""
 
     @app.route('/premium')
+    def premium_landing_redirect():
+        # Relative assets (premium-site.css, media/…) resolve under /premium/ only with a trailing slash.
+        return redirect('/premium/', code=301)
+
     @app.route('/premium/')
     def premium_landing():
         path = os.path.join(app_root, 'premium', 'index.html')

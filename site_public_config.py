@@ -35,6 +35,11 @@ Disallow: /owners/
 Disallow: /owner/
 Disallow: /api/
 Disallow: /test/
+Disallow: /premium/
+Disallow: /report
+Disallow: /report_builder
+Disallow: /admin
+Disallow: /static/data/raw
 
 Sitemap: {PUBLIC_SITE_ORIGIN}/sitemap.xml
 """

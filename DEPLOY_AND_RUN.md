@@ -68,6 +68,17 @@ Add any other env vars your app or data paths expect (e.g. if you load files fro
 - Your site URL will be something like `https://your-service.onrender.com`.
 - Owners / Political Contributions: **https://your-service.onrender.com/owners**
 - **Warm-up (recommended):** After deploy, open or curl `https://your-service.onrender.com/owners` once so the owner dashboard is loaded. Otherwise the first visitor to `/owners` may see a slow response while the app loads. The `/health` check is side-effect free and does not trigger this load.
+- **Post-deploy smoke checks (production):**
+  ```bash
+  curl -I https://www.pbj320.com/
+  curl -I https://www.pbj320.com/search_index.json
+  curl -I https://www.pbj320.com/provider/075325
+  curl -I https://www.pbj320.com/health
+  curl -I https://www.pbj320.com/warmup
+  curl -I https://www.pbj320.com/robots.txt
+  curl -I https://www.pbj320.com/pbj_favicon.png
+  ```
+  Expect `200` (or `301`/`302` for redirects). `/warmup` returns JSON with `search_index` and a known CCN lookup (`075325`).
 - When a user clicks **“View Political Contributions”**, the app calls the FEC API and shows contributions; each row that has FEC data will show a **“View on FEC”** link to the FEC docquery page.
 
 ---

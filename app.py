@@ -29,6 +29,7 @@ import html
 from html.parser import HTMLParser
 import time
 import gzip
+from functools import lru_cache
 
 from pbj_review_framework import public_framework_json_for_js
 from pbj_ai_config import (
@@ -508,8 +509,8 @@ def search_index():
     """Serve search index for home page autocomplete (facility, entity, state)"""
     path = os.path.join(os.path.dirname(__file__), 'search_index.json')
     if os.path.isfile(path):
-        return send_file(path, mimetype='application/json')
-    return jsonify({'f': [], 'e': [], 's': []})
+        return _json_cache_headers(send_file(path, mimetype='application/json'))
+    return _json_cache_headers(jsonify({'f': [], 'e': [], 's': []}))
 
 
 _SEARCH_INDEX_CACHE = None
@@ -607,7 +608,7 @@ def get_entity_name_from_search_index(entity_id):
 @app.before_request
 def _ensure_pandas():
     """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
-    if request.path == '/health':
+    if request.path in ('/health', '/warmup'):
         return
     global pd
     if pd is None:
@@ -628,6 +629,45 @@ def _csrf_protect_selectively():
 def health():
     """Lightweight health check for Render. Side-effect free (best practice for public sites)."""
     return 'ok', 200
+
+
+_WARMUP_TEST_CCN = '075325'
+
+
+@app.route('/warmup')
+def warmup():
+    """Readiness probe: exercise search_index without rendering provider HTML or loading pandas."""
+    checks = {'app': 'ok'}
+    ok = True
+    path = os.path.join(APP_ROOT, 'search_index.json')
+    try:
+        if not os.path.isfile(path):
+            checks['search_index'] = {'ok': False, 'error': 'missing'}
+            ok = False
+        else:
+            with open(path, encoding='utf-8') as f:
+                data = json.load(f)
+            facilities = data.get('f') or []
+            checks['search_index'] = {'ok': True, 'facility_count': len(facilities)}
+            test_ccn = _WARMUP_TEST_CCN.zfill(6)
+            match = next(
+                (x for x in facilities if str(x.get('c', '')).strip().zfill(6) == test_ccn),
+                None,
+            )
+            if match:
+                checks['provider_lookup'] = {
+                    'ok': True,
+                    'ccn': test_ccn,
+                    'name': (match.get('n') or '')[:120],
+                }
+            else:
+                checks['provider_lookup'] = {'ok': False, 'ccn': test_ccn, 'error': 'not in search_index'}
+                ok = False
+    except Exception as e:
+        checks['error'] = str(e)
+        ok = False
+    return jsonify({'ok': ok, 'checks': checks}), (200 if ok else 503)
+
 
 # Simple email format check (not RFC-strict; rejects obviously invalid)
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
@@ -3726,6 +3766,22 @@ def _static_cache_headers(resp, max_age=3600):
         resp.headers['Cache-Control'] = f'public, max-age={max_age}'
     return resp
 
+
+_PUBLIC_JSON_CACHE_SECONDS = int(os.environ.get('PBJ_PUBLIC_JSON_CACHE_SECONDS', '900'))
+_FAVICON_CACHE_SECONDS = int(os.environ.get('PBJ_FAVICON_CACHE_SECONDS', '604800'))
+
+
+def _json_cache_headers(resp, max_age=None):
+    """Modest cache for public JSON blobs (search index, historical charts)."""
+    if max_age is None:
+        max_age = _PUBLIC_JSON_CACHE_SECONDS
+    return _static_cache_headers(resp, max_age=max_age)
+
+
+def _favicon_cache_headers(resp):
+    """Long cache for small favicon assets (replace files to bust)."""
+    return _static_cache_headers(resp, max_age=_FAVICON_CACHE_SECONDS)
+
 @app.route('/substack.png')
 def serve_substack():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'substack.png', mimetype='image/png'))
@@ -6609,15 +6665,18 @@ def _facility_quarterly_csv_path():
 
 
 def load_facility_quarterly_for_provider(ccn):
-    """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None.
-    Prefers full facility_quarterly_metrics.csv so we include 2025Q3 when present; _latest may only have through Q2 2025.
-    This is the source for provider page longitudinal charts (staffing, census, contract); all quarters are kept.
-    Streams CSV in chunks so the full file is never loaded; peak memory stays low."""
-    pdm = get_pd()
-    if pdm is None:
-        return None
+    """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None."""
     prov = normalize_ccn(ccn)
     if not prov:
+        return None
+    return _load_facility_quarterly_for_provider_cached(prov)
+
+
+@lru_cache(maxsize=128)
+def _load_facility_quarterly_for_provider_cached(prov):
+    """Cached per-process slice from facility_quarterly_metrics.csv (keyed by normalized CCN)."""
+    pdm = get_pd()
+    if pdm is None:
         return None
     path = _facility_quarterly_csv_path()
     if not path:
@@ -11699,7 +11758,7 @@ def canonical_state_page(state_slug):
     if state_slug.endswith('.json'):
         json_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(json_path):
-            return send_file(json_path, mimetype='application/json')
+            return _json_cache_headers(send_file(json_path, mimetype='application/json'))
         from flask import abort
         abort(404)
     
@@ -11723,7 +11782,7 @@ def canonical_state_page(state_slug):
     # Check if this is a known route first (avoid conflicts)
     known_routes = [
         'pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml',
-        'owner', 'owners', 'ownership', 'provider', 'state', 'entity', 'premium',
+        'owner', 'owners', 'ownership', 'provider', 'state', 'entity', 'premium', 'warmup',
     ]
     if state_slug.lower() in known_routes:
         # Let Flask continue to next route by aborting (Flask will handle 404)
@@ -13109,38 +13168,35 @@ def pbjpedia_page(page):
     except Exception as e:
         return f"Error rendering page: {str(e)}", 500
 
-# Serve favicon with no-cache headers
 @app.route('/favicon.ico')
 def favicon():
-    """Serve favicon with no-cache headers to ensure updates are visible"""
-    favicon_path = 'pbj_favicon.png'
-    if os.path.exists(favicon_path):
-        response = send_file(favicon_path, mimetype='image/png')
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
-    # Fallback to favicon.ico if it exists
-    if os.path.exists('favicon.ico'):
-        response = send_file('favicon.ico', mimetype='image/x-icon')
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
+    """Serve favicon.ico (multi-size ICO) with long-lived cache."""
+    ico_path = os.path.join(APP_ROOT, 'favicon.ico')
+    if os.path.isfile(ico_path):
+        return _favicon_cache_headers(send_file(ico_path, mimetype='image/x-icon'))
+    png_path = os.path.join(APP_ROOT, 'pbj_favicon.png')
+    if os.path.isfile(png_path):
+        return _favicon_cache_headers(send_file(png_path, mimetype='image/png'))
     from flask import abort
     abort(404)
 
-# Serve pbj_favicon.png with no-cache headers
+
 @app.route('/pbj_favicon.png')
 def pbj_favicon():
-    """Serve pbj_favicon.png with no-cache headers"""
-    favicon_path = 'pbj_favicon.png'
-    if os.path.exists(favicon_path):
-        response = send_file(favicon_path, mimetype='image/png')
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers['Pragma'] = 'no-cache'
-        response.headers['Expires'] = '0'
-        return response
+    """Serve 32x32 PNG favicon with long-lived cache."""
+    favicon_path = os.path.join(APP_ROOT, 'pbj_favicon.png')
+    if os.path.isfile(favicon_path):
+        return _favicon_cache_headers(send_file(favicon_path, mimetype='image/png'))
+    from flask import abort
+    abort(404)
+
+
+@app.route('/apple-touch-icon.png')
+def apple_touch_icon():
+    """Serve 180x180 apple-touch-icon with long-lived cache."""
+    icon_path = os.path.join(APP_ROOT, 'apple-touch-icon.png')
+    if os.path.isfile(icon_path):
+        return _favicon_cache_headers(send_file(icon_path, mimetype='image/png'))
     from flask import abort
     abort(404)
 
@@ -13446,13 +13502,11 @@ def static_files(filename):
     
     # Handle images with proper headers (including favicon)
     if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico')):
-        response = send_from_directory(APP_ROOT, filename, mimetype='image/png' if filename.endswith('.ico') else 'image/png')
-        if filename.endswith('.ico') or 'favicon' in filename.lower():
-            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response.headers['Pragma'] = 'no-cache'
-            response.headers['Expires'] = '0'
-        else:
-            response.headers['Cache-Control'] = 'public, max-age=3600'
+        mimetype = 'image/x-icon' if filename.endswith('.ico') else 'image/png'
+        response = send_from_directory(APP_ROOT, filename, mimetype=mimetype)
+        if filename.endswith('.ico') or 'favicon' in filename.lower() or filename == 'apple-touch-icon.png':
+            return _favicon_cache_headers(response)
+        response.headers['Cache-Control'] = 'public, max-age=3600'
         return response
     # Handle CSS
     elif filename.endswith('.css'):
@@ -13468,7 +13522,7 @@ def static_files(filename):
     elif filename.endswith('.json'):
         json_path = os.path.join(APP_ROOT, filename)
         if os.path.isfile(json_path):
-            return send_file(json_path, mimetype='application/json')
+            return _json_cache_headers(send_file(json_path, mimetype='application/json'))
         from flask import abort
         abort(404)
     # Handle CSV files

@@ -5313,11 +5313,15 @@ button.pbj-takeaway-share-btn:hover {{
   background: rgba(51, 65, 85, 0.9); color: #f8fafc;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35);
 }}
+.pbj-takeaway-badges {{
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+}}
 .pbj-hprd-badge {{
   display: inline-flex; align-items: center; gap: 0.28rem; font: inherit;
+  align-self: center; line-height: 1.25; box-sizing: border-box;
 }}
 .pbj-hprd-badge--help {{
-  font: inherit; margin: 0; cursor: pointer;
+  font: inherit; margin: 0; cursor: pointer; vertical-align: middle;
   transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
 }}
 .pbj-hprd-badge--help:hover {{

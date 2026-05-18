@@ -9,3 +9,6 @@ services:
     envVars:
       - key: PORT
         value: "10000"
+      # Connecticut facility pages only — not /pbj-ai-support, not other states
+      - key: PBJ_AI_SUPPORT
+        value: "dashboards"

@@ -314,9 +314,99 @@
 
 
 
+    var DEFAULT_AUDIT_FROM = "2020-03-20";
+
+    var DEFAULT_AUDIT_TO = "2025-12-31";
+
+
+
+    function isDesktopDates() {
+
+        return window.matchMedia("(min-width: 768px)").matches;
+
+    }
+
+
+
+    function postPremiumRequest(payload, onDone) {
+
+        var bookingUrl = getBookingUrl();
+
+        if (!bookingUrl) {
+
+            onDone("Request service is not configured. Please try again later.", "error");
+
+            return;
+
+        }
+
+        fetch(bookingUrl, {
+
+            method: "POST",
+
+            headers: {
+
+                Accept: "application/json",
+
+                "Content-Type": "application/json",
+
+            },
+
+            body: JSON.stringify(payload),
+
+        })
+
+            .then(function (res) {
+
+                if (!res.ok) {
+
+                    var err = new Error("bad status");
+
+                    err.status = res.status;
+
+                    throw err;
+
+                }
+
+                return res.json().catch(function () {
+
+                    return {};
+
+                });
+
+            })
+
+            .then(function () {
+
+                onDone(null, "success");
+
+            })
+
+            .catch(function () {
+
+                onDone(
+
+                    "We could not submit your request. Check your connection and try again.",
+
+                    "error"
+
+                );
+
+            });
+
+    }
+
+
+
     function wireBookingAnchors() {
 
         document.querySelectorAll('a[href="#booking"]').forEach(function (link) {
+
+            if (link.closest("[data-open-modal]") || link.getAttribute("data-open-modal")) {
+
+                return;
+
+            }
 
             link.addEventListener("click", function (e) {
 
@@ -383,6 +473,240 @@
 
 
     wireBookingAnchors();
+
+
+
+    function wireInquiryModal(cfg) {
+
+        var form = document.getElementById(cfg.formId);
+
+        if (!form) return;
+
+        var statusNode = document.getElementById(cfg.statusId);
+
+        var submitEl = document.getElementById(cfg.submitId);
+
+        var successEl = document.getElementById(cfg.successId);
+
+        var successEmailEl = document.getElementById(cfg.successEmailId);
+
+        var honeypot = document.getElementById(cfg.honeypotId);
+
+        var submitDefault = submitEl ? submitEl.innerHTML : "";
+
+
+
+        function setModalStatus(message, tone) {
+
+            if (!statusNode) return;
+
+            statusNode.textContent = message || "";
+
+            statusNode.classList.remove("pbj-hub-form-status--error", "pbj-hub-form-status--success");
+
+            if (tone === "error") statusNode.classList.add("pbj-hub-form-status--error");
+
+            if (tone === "success") statusNode.classList.add("pbj-hub-form-status--success");
+
+        }
+
+
+
+        form.addEventListener("submit", function (e) {
+
+            e.preventDefault();
+
+            form.classList.remove("was-validated");
+
+            setModalStatus("", null);
+
+
+
+            if (honeypot && strip(honeypot.value)) {
+
+                return;
+
+            }
+
+
+
+            var emailVal = strip(document.getElementById(cfg.emailId).value);
+
+            var emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
+
+            var emailInput = document.getElementById(cfg.emailId);
+
+            if (emailInput) {
+
+                emailInput.setCustomValidity(emailOk ? "" : "invalid");
+
+            }
+
+
+
+            if (!form.checkValidity()) {
+
+                form.classList.add("was-validated");
+
+                return;
+
+            }
+
+
+
+            var nameVal = strip(document.getElementById(cfg.nameId).value);
+
+            var payload = {
+
+                request_type: cfg.requestType,
+
+                name: nameVal,
+
+                email: emailVal,
+
+                source: "premium_hub",
+
+            };
+
+
+
+            if (cfg.requestType === "premium_inquiry") {
+
+                var ccnRaw = strip(document.getElementById(cfg.ccnId).value);
+
+                var ccnResolved = resolveCcnFromInput(ccnRaw);
+
+                payload.ccn = ccnResolved || null;
+
+                payload.provider_name =
+
+                    ccnResolved && LOOKUP[ccnResolved]
+
+                        ? LOOKUP[ccnResolved].name
+
+                        : ccnRaw || null;
+
+                payload.notes = strip(document.getElementById(cfg.notesId).value) || null;
+
+            } else {
+
+                payload.facility_interest = strip(document.getElementById(cfg.scopeId).value);
+
+                payload.notes = strip(document.getElementById(cfg.notesId).value);
+
+            }
+
+
+
+            if (submitEl) {
+
+                submitEl.disabled = true;
+
+                submitEl.innerHTML =
+
+                    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending…';
+
+            }
+
+
+
+            postPremiumRequest(payload, function (errMsg) {
+
+                if (errMsg) {
+
+                    setModalStatus(errMsg, "error");
+
+                } else {
+
+                    form.hidden = true;
+
+                    if (successEl) {
+
+                        successEl.hidden = false;
+
+                        if (successEmailEl) successEmailEl.textContent = emailVal;
+
+                    }
+
+                    var lead = document.getElementById(cfg.leadId);
+
+                    if (lead) lead.hidden = true;
+
+                }
+
+                if (submitEl) {
+
+                    submitEl.disabled = false;
+
+                    submitEl.innerHTML = submitDefault;
+
+                }
+
+            });
+
+        });
+
+    }
+
+
+
+    wireInquiryModal({
+
+        formId: "hub-premium-inquiry-form",
+
+        statusId: "hub-premium-form-status",
+
+        submitId: "hub-premium-submit",
+
+        successId: "hub-premium-success",
+
+        successEmailId: "hub-premium-success-email",
+
+        honeypotId: "hub-premium-website",
+
+        emailId: "hub-premium-email",
+
+        nameId: "hub-premium-name",
+
+        ccnId: "hub-premium-ccn",
+
+        notesId: "hub-premium-notes",
+
+        leadId: "modal-request-premium-lead",
+
+        requestType: "premium_inquiry",
+
+    });
+
+
+
+    wireInquiryModal({
+
+        formId: "hub-custom-work-form",
+
+        statusId: "hub-custom-form-status",
+
+        submitId: "hub-custom-submit",
+
+        successId: "hub-custom-success",
+
+        successEmailId: "hub-custom-success-email",
+
+        honeypotId: "hub-custom-website",
+
+        emailId: "hub-custom-email",
+
+        nameId: "hub-custom-name",
+
+        scopeId: "hub-custom-scope",
+
+        notesId: "hub-custom-notes",
+
+        leadId: "modal-custom-work-lead",
+
+        requestType: "custom_work",
+
+    });
 
 
 
@@ -560,7 +884,7 @@
 
 
 
-                if (!ccnInput || !auditFrom || !auditTo || !hubEmail) return;
+                if (!ccnInput || !hubEmail) return;
 
 
 
@@ -644,6 +968,28 @@
 
 
 
+                var auditFromVal = DEFAULT_AUDIT_FROM;
+
+                var auditToVal = DEFAULT_AUDIT_TO;
+
+                if (isDesktopDates() && auditFrom && auditTo) {
+
+                    auditFromVal = strip(auditFrom.value) || DEFAULT_AUDIT_FROM;
+
+                    auditToVal = strip(auditTo.value) || DEFAULT_AUDIT_TO;
+
+                    if (!strip(auditFrom.value) || !strip(auditTo.value)) {
+
+                        sandboxForm.classList.add("was-validated");
+
+                        return;
+
+                    }
+
+                }
+
+
+
                 var payload = {
 
                     request_type: hubRequestType ? strip(hubRequestType.value) || "pilot_dashboard" : "pilot_dashboard",
@@ -652,9 +998,9 @@
 
                     provider_name: providerName || null,
 
-                    audit_from: strip(auditFrom.value),
+                    audit_from: auditFromVal,
 
-                    audit_to: strip(auditTo.value),
+                    audit_to: auditToVal,
 
                     email: emailVal,
 
@@ -684,73 +1030,29 @@
 
 
 
-                fetch(bookingUrl, {
+                postPremiumRequest(payload, function (errMsg) {
 
-                    method: "POST",
+                    if (errMsg) {
 
-                    headers: {
+                        setStatus(errMsg, "error");
 
-                        Accept: "application/json",
-
-                        "Content-Type": "application/json",
-
-                    },
-
-                    body: JSON.stringify(payload),
-
-                })
-
-                    .then(function (res) {
-
-                        if (!res.ok) {
-
-                            var err = new Error("bad status");
-
-                            err.status = res.status;
-
-                            throw err;
-
-                        }
-
-                        return res.json().catch(function () {
-
-                            return {};
-
-                        });
-
-                    })
-
-                    .then(function () {
+                    } else {
 
                         showSuccess(emailVal);
 
-                    })
+                    }
 
-                    .catch(function () {
+                    if (submitBtn) {
 
-                        setStatus(
+                        submitBtn.disabled = false;
 
-                            "We could not submit your request. Check your connection and try again.",
+                        submitBtn.classList.remove("is-loading");
 
-                            "error"
+                        submitBtn.innerHTML = submitBtnDefaultHtml;
 
-                        );
+                    }
 
-                    })
-
-                    .finally(function () {
-
-                        if (submitBtn) {
-
-                            submitBtn.disabled = false;
-
-                            submitBtn.classList.remove("is-loading");
-
-                            submitBtn.innerHTML = submitBtnDefaultHtml;
-
-                        }
-
-                    });
+                });
 
             });
 

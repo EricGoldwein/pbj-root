@@ -144,7 +144,22 @@
     return null;
   }
 
-  /** Prefer Claude Android app; on iOS use https (universal link) without noopener, which blocks some app handoffs. */
+  /**
+   * Map https://claude.ai/... to claude://claude.ai/... (Anthropic desktop + mobile app scheme).
+   * claude.ai/new is not in apple-app-site-association, so https often opens Safari on iOS.
+   */
+  function claudeAppSchemeUrl(httpsUrl) {
+    if (!httpsUrl) return null;
+    try {
+      var parsed = new URL(httpsUrl);
+      if (parsed.hostname !== 'claude.ai') return null;
+      return 'claude://claude.ai' + parsed.pathname + (parsed.search || '');
+    } catch (eScheme) {
+      return null;
+    }
+  }
+
+  /** Prefer native Claude app on mobile: Android intent URL, iOS/Android claude:// scheme. */
   function resolveAiOpenUrl(provider, httpsUrl) {
     if (!httpsUrl) return httpsUrl;
     var p = String(provider || '').toLowerCase();
@@ -164,20 +179,48 @@
         return httpsUrl;
       }
     }
-    return httpsUrl;
+    return claudeAppSchemeUrl(httpsUrl) || httpsUrl;
   }
 
   function openAiLaunchUrl(url, provider) {
     if (!url) return false;
     var p = String(provider || '').toLowerCase();
-    var launchUrl = resolveAiOpenUrl(p, url);
+    var httpsUrl = url;
+    var launchUrl = resolveAiOpenUrl(p, httpsUrl);
     if (p === 'claude' && isMobileHandoff()) {
-      var w = window.open(launchUrl, '_blank');
-      if (!w && isIOSUa()) {
-        window.location.href = launchUrl;
-        return true;
+      var appUrl = claudeAppSchemeUrl(httpsUrl);
+      var started = Date.now();
+      var fallbackMs = isIOSUa() ? 900 : 700;
+
+      function scheduleHttpsFallback() {
+        window.setTimeout(function () {
+          if (document.hidden) return;
+          if (Date.now() - started < fallbackMs - 50) return;
+          try {
+            window.location.href = httpsUrl;
+          } catch (eFb) {
+            /* ignore */
+          }
+        }, fallbackMs);
       }
-      return !!w;
+
+      try {
+        window.location.href = launchUrl;
+      } catch (eNav) {
+        if (appUrl) {
+          try {
+            window.location.href = appUrl;
+          } catch (eApp) {
+            return false;
+          }
+        } else {
+          return false;
+        }
+      }
+      if (appUrl && launchUrl !== httpsUrl) {
+        scheduleHttpsFallback();
+      }
+      return true;
     }
     var opened = window.open(launchUrl, '_blank', 'noopener,noreferrer');
     return !!opened;
@@ -1425,7 +1468,7 @@
       });
     } else if (providerNorm === 'claude' && mobileHandoff) {
       msg =
-        'Opened Claude — full prompt on clipboard. If Safari/Chrome opened instead of the app, switch to Claude and paste (Ctrl+V / Cmd+V).';
+        'Opened Claude app (or browser fallback) — full prompt on clipboard. If the browser opened, switch to Claude and paste (Ctrl+V / Cmd+V).';
     } else if (!prefillUrl) {
       msg = LAUNCH_MSG_CLIPBOARD.claude;
     } else if (isProvBar && urlPick.tier !== 'full') {
@@ -1527,7 +1570,7 @@
     }
     if (providerNorm === 'claude' && mobileHandoff && isProviderLaunch) {
       msg =
-        'Opened Claude — full prompt on clipboard. If the browser opened instead of the app, switch to Claude and paste.';
+        'Opened Claude app (or browser fallback) — full prompt on clipboard. If the browser opened, switch to Claude and paste.';
     }
 
     var opened = openAiLaunchUrl(url, providerNorm);

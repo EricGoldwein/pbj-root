@@ -61,9 +61,9 @@
                             <h1 class="pbj-audit-hero__title">Staffing Discovery, Simplified.</h1>
                             <p class="pbj-audit-hero__sub">Identify daily staffing patterns, audit employee rosters, and generate evidentiary-grade reports for any US nursing home.</p>
                             <div class="pbj-audit-hero-actions" role="group" aria-label="Get started with PBJ320 Premium">
-                                <a class="pbj-audit-hero-actions__primary" href="#booking">Request PBJ320 Premium</a>
+                                <button type="button" class="pbj-audit-hero-actions__primary" data-open-modal="request-premium">Request PBJ320 Premium</button>
                                 <p class="pbj-audit-hero-actions__meta">
-                                    <a class="pbj-audit-hero-actions__meta-link" href="#starting-point">Pilot: $250<span class="pbj-audit-hero-actions__detail pbj-audit-hero-actions__detail--desktop"> (dashboard + 45-minute consult)</span><span class="pbj-audit-hero-actions__detail pbj-audit-hero-actions__detail--mobile"> (Dashboard &amp; Consult)</span></a>
+                                    <a class="pbj-audit-hero-actions__meta-link" href="#booking">Pilot: $250<span class="pbj-audit-hero-actions__detail pbj-audit-hero-actions__detail--desktop"> (dashboard + 45-minute consult)</span><span class="pbj-audit-hero-actions__detail pbj-audit-hero-actions__detail--mobile"> (Dashboard &amp; Consult)</span></a>
                                 </p>
                             </div>
                             <div class="pbj-audit-hero-visual">
@@ -76,12 +76,12 @@
                                         height="1159"
                                         decoding="async"
                                     >
-                                    <a class="pbj-audit-hero-sample-btn" href="https://www.pbj320.com/premium/335513">View sample dashboard</a>
                                 </div>
+                                <a class="pbj-audit-hero-sample-btn" href="https://www.pbj320.com/premium/335513">View sample dashboard</a>
                             </div>
                         </header>
 
-                        <section id="starting-point" class="pbj-audit-pricing anchor-target" aria-labelledby="audit-pricing-heading">
+                        <section id="starting-point" class="pbj-audit-pricing anchor-target d-none d-lg-block" aria-labelledby="audit-pricing-heading">
                             <h2 id="audit-pricing-heading" class="pbj-audit-pricing__heading">Choose a starting point</h2>
                             <div class="row g-3 pbj-audit-pricing__row">
                                 <div class="col-12 col-lg-6 d-flex">
@@ -100,7 +100,7 @@
                                         <h3 id="pricing-custom-title" class="pbj-audit-pricing-card__title">Analysis + Dashboards</h3>
                                         <p class="pbj-audit-pricing-card__text">Ownership and operator analysis, portfolio comparisons, and advanced staffing analytics—plus branded deliverables and litigation support for your facility, operator, or case.</p>
                                         <div class="pbj-audit-pricing-card__actions">
-                                            <a class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" href="#booking" data-request-type="custom" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</a>
+                                            <button type="button" class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" data-open-modal="custom-work" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</button>
                                         </div>
                                     </article>
                                 </div>
@@ -118,6 +118,11 @@
                                     <span class="pbj-audit-command__title" id="audit-command-heading">Request PBJ320 Facility Dashboard</span>
                                 </div>
                                 <div class="pbj-audit-command__body">
+                                    <div class="pbj-audit-command__pilot-intro d-lg-none" aria-label="Pilot offer">
+                                        <p class="pbj-audit-command__pilot-badge">Pilot offer: $250</p>
+                                        <p class="pbj-audit-command__pilot-title">Facility Dashboard + 45-Minute Consult</p>
+                                        <p class="pbj-audit-command__pilot-text">Early pilot pricing for one facility&rsquo;s premium PBJ320 dashboard, plus a consult to review key staffing patterns and follow-up questions.</p>
+                                    </div>
                                     <form id="hub-rb-sandbox-form" class="pbj-audit-form" novalidate>
                                         <input type="hidden" id="hub-request-type" name="request_type" value="pilot_dashboard">
                                         <div class="visually-hidden" aria-hidden="true">
@@ -138,14 +143,14 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="pbj-audit-control-strip pbj-audit-control-strip--dates">
+                                        <div class="pbj-audit-control-strip pbj-audit-control-strip--dates d-none d-md-flex">
                                             <div class="pbj-audit-control-strip__field">
                                                 <label class="pbj-audit-control-strip__lbl" for="audit-from">Start</label>
-                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-from" name="audit_from" value="2025-06-29" required>
+                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-from" name="audit_from" value="2020-03-20">
                                             </div>
                                             <div class="pbj-audit-control-strip__field">
                                                 <label class="pbj-audit-control-strip__lbl" for="audit-to">End</label>
-                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-to" name="audit_to" value="2025-10-05" required>
+                                                <input type="date" class="form-control form-control-sm pbj-datatech-input" id="audit-to" name="audit_to" value="2025-12-31">
                                             </div>
                                             
                                         </div>
@@ -214,6 +219,7 @@
                         </div>
                     </div>
                     <div class="pbj-audit-features__carousel d-md-none" role="region" aria-label="Dashboard capabilities" aria-roledescription="carousel">
+                        <div class="pbj-audit-features__carousel-frame">
                         <div class="pbj-audit-features__track" id="audit-features-track" tabindex="0">
                             <article class="pbj-audit-card pbj-audit-features__slide">
                                 <div class="pbj-audit-card__thumb-wrap">
@@ -240,6 +246,7 @@
                                 <button type="button" class="btn btn-link btn-sm p-0 pbj-audit-card__evidence mt-auto" data-open-modal="evidence-acuity">See evidence</button>
                             </article>
                         </div>
+                        </div>
                         <div class="pbj-audit-features__dots" id="audit-features-dots" role="tablist" aria-label="Capability slides">
                             <button type="button" class="pbj-audit-features__dot is-active" role="tab" aria-selected="true" aria-label="Compliance Logic" data-slide="0"></button>
                             <button type="button" class="pbj-audit-features__dot" role="tab" aria-selected="false" aria-label="Forensic Roster" data-slide="1"></button>
@@ -252,7 +259,7 @@
                             <h3 id="pricing-custom-title-mobile" class="pbj-audit-pricing-card__title">Analysis + Dashboards</h3>
                             <p class="pbj-audit-pricing-card__text">Ownership and operator analysis, portfolio comparisons, and advanced staffing analytics—plus branded deliverables and litigation support for your facility, operator, or case.</p>
                             <div class="pbj-audit-pricing-card__actions">
-                                <a class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" href="#booking" data-request-type="custom" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</a>
+                                <button type="button" class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold" data-open-modal="custom-work" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</button>
                             </div>
                         </article>
                     </div>
@@ -283,8 +290,6 @@
                                 <span aria-hidden="true">·</span>
                                 <a href="https://www.pbj320.com/">PBJ320</a>
                                 <span aria-hidden="true">·</span>
-                                <a href="https://www.320insight.com/" target="_blank" rel="noopener">320 Consulting</a>
-                                <span aria-hidden="true">·</span>
                                 <a href="mailto:eric@320insight.com?subject=PBJ320%20Premium%20inquiry">Contact</a>
                             </span>
                         </div>
@@ -296,6 +301,88 @@
                 </div>
             </footer>
         </article>
+    </div>
+
+    <div id="modal-request-premium" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-request-premium-title">
+        <div class="pbj-hub-modal__backdrop" data-modal-backdrop="true" tabindex="-1"></div>
+        <div class="pbj-hub-modal__dialog pbj-hub-modal__dialog--form" role="document">
+            <div class="pbj-hub-modal__head">
+                <h2 id="modal-request-premium-title">Request PBJ320 Premium</h2>
+                <button type="button" class="pbj-hub-modal__close" data-modal-close aria-label="Close">&times;</button>
+            </div>
+            <div class="pbj-hub-modal__body" id="modal-request-premium-body">
+                <p class="pbj-hub-modal-lead mb-3" id="modal-request-premium-lead">Tell us who you are and which facility or provider you need access for. We&rsquo;ll follow up within one business day.</p>
+                <form id="hub-premium-inquiry-form" class="pbj-hub-inquiry-form" novalidate>
+                    <div class="visually-hidden" aria-hidden="true">
+                        <label for="hub-premium-website">Website</label>
+                        <input type="text" id="hub-premium-website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-premium-name">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="hub-premium-name" name="name" required autocomplete="name" maxlength="120" placeholder="Your name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-premium-email">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control form-control-sm" id="hub-premium-email" name="email" required autocomplete="email" placeholder="you@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-premium-ccn">CCN or provider <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="hub-premium-ccn" name="ccn" required maxlength="120" autocomplete="off" placeholder="6-digit CCN or facility name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-premium-notes">Notes <span class="pbj-audit-command__opt">optional</span></label>
+                        <textarea class="form-control form-control-sm" id="hub-premium-notes" name="notes" rows="3" maxlength="2000" placeholder="Timeline, role, or what you want to explore"></textarea>
+                    </div>
+                    <div id="hub-premium-form-status" class="pbj-hub-form-status mb-2" role="status" aria-live="polite"></div>
+                    <button type="submit" class="btn pbj-audit-generate pbj-hub-submit--purple w-100 fw-semibold" id="hub-premium-submit">Send request</button>
+                </form>
+                <div id="hub-premium-success" hidden role="status" aria-live="polite">
+                    <p class="mb-1 fw-semibold">Request received</p>
+                    <p class="mb-0 small text-muted">We&rsquo;ll follow up at <strong id="hub-premium-success-email"></strong> within one business day.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-custom-work" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-custom-work-title">
+        <div class="pbj-hub-modal__backdrop" data-modal-backdrop="true" tabindex="-1"></div>
+        <div class="pbj-hub-modal__dialog pbj-hub-modal__dialog--form" role="document">
+            <div class="pbj-hub-modal__head">
+                <h2 id="modal-custom-work-title">Discuss custom PBJ320 work</h2>
+                <button type="button" class="pbj-hub-modal__close" data-modal-close aria-label="Close">&times;</button>
+            </div>
+            <div class="pbj-hub-modal__body" id="modal-custom-work-body">
+                <p class="pbj-hub-modal-lead mb-3" id="modal-custom-work-lead">Portfolio analysis, operator comparisons, branded deliverables, or litigation support&mdash;tell us about your scope.</p>
+                <form id="hub-custom-work-form" class="pbj-hub-inquiry-form" novalidate>
+                    <div class="visually-hidden" aria-hidden="true">
+                        <label for="hub-custom-website">Website</label>
+                        <input type="text" id="hub-custom-website" name="website" tabindex="-1" autocomplete="off">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-custom-name">Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="hub-custom-name" name="name" required autocomplete="name" maxlength="120" placeholder="Your name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-custom-email">Email <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control form-control-sm" id="hub-custom-email" name="email" required autocomplete="email" placeholder="you@example.com">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-custom-scope">Facility, chain, or region <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-sm" id="hub-custom-scope" name="facility_interest" required maxlength="240" autocomplete="off" placeholder="e.g. 12-facility portfolio, State X, operator name">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="hub-custom-notes">Tell us more <span class="text-danger">*</span></label>
+                        <textarea class="form-control form-control-sm" id="hub-custom-notes" name="notes" rows="4" required maxlength="2000" placeholder="Deliverables, deadlines, case type, or questions"></textarea>
+                    </div>
+                    <div id="hub-custom-form-status" class="pbj-hub-form-status mb-2" role="status" aria-live="polite"></div>
+                    <button type="submit" class="btn pbj-audit-generate pbj-hub-submit--purple w-100 fw-semibold" id="hub-custom-submit">Send inquiry</button>
+                </form>
+                <div id="hub-custom-success" hidden role="status" aria-live="polite">
+                    <p class="mb-1 fw-semibold">Inquiry received</p>
+                    <p class="mb-0 small text-muted">We&rsquo;ll follow up at <strong id="hub-custom-success-email"></strong> within one business day.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="modal-evidence-roster" class="pbj-hub-modal" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="modal-evidence-roster-title">

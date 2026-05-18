@@ -95,17 +95,25 @@ def _send_premium_dashboard_request_email(payload: dict) -> bool:
     ccn = (payload.get('ccn') or '').strip()
     req_type = (payload.get('request_type') or 'pilot_dashboard').strip()
     provider = (payload.get('provider_name') or '').strip()
+    name = (payload.get('name') or '').strip()
+    notes = (payload.get('notes') or '').strip()
+    facility_interest = (payload.get('facility_interest') or '').strip()
     lines = [
-        'PBJ320 Premium dashboard request (premium hub form)',
+        'PBJ320 Premium request (premium hub)',
         '',
         f'Request type: {req_type}',
-        f'CCN: {ccn}',
-        f'Provider: {provider or "(not specified)"}',
+        f'Name: {name or "(not specified)"}',
         f'Email: {email}',
+        f'CCN: {ccn or "(not specified)"}',
+        f'Provider: {provider or "(not specified)"}',
+        f'Facility / chain / region: {facility_interest or "(not specified)"}',
+        f'Notes: {notes or "(none)"}',
         f'Date range: {payload.get("audit_from") or ""} — {payload.get("audit_to") or ""}',
         f'Consult times: {payload.get("consult_times") or "(none)"}',
         f'Care Compare: {payload.get("care_compare_url") or ""}',
         f'Source: {payload.get("source") or "premium_hub"}',
+        '',
+        'Reply to the requester at the email above.',
         '',
         'Full payload:',
         json.dumps(payload, indent=2, default=str),
@@ -119,7 +127,8 @@ def _send_premium_dashboard_request_email(payload: dict) -> bool:
     user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
     password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
     from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
-    subject = f'PBJ320 Premium request — CCN {ccn or "?"} ({req_type})'
+    subject_ccn = ccn or (payload.get('facility_interest') or '')[:40] or '?'
+    subject = f'PBJ320 Premium request — {subject_ccn} ({req_type})'
     msg = (
         f'Subject: {subject}\r\nFrom: {from_addr}\r\nTo: {", ".join(to_list)}\r\n'
         f'Reply-To: {email}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}'
@@ -148,14 +157,31 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
         email = (data.get('email') or '').strip()
         ccn_raw = (data.get('ccn') or '').strip()
         ccn = re.sub(r'\D', '', ccn_raw)[:6]
+        req_type = (data.get('request_type') or 'pilot_dashboard').strip()
         if not email or '@' not in email:
             return jsonify({'ok': False, 'error': 'Valid email required'}), 400
-        if len(ccn) != 6:
+        if req_type == 'custom_work':
+            facility_interest = (data.get('facility_interest') or '').strip()
+            notes = (data.get('notes') or '').strip()
+            if not facility_interest:
+                return jsonify({'ok': False, 'error': 'Facility, chain, or region required'}), 400
+            if not notes:
+                return jsonify({'ok': False, 'error': 'Please describe your request'}), 400
+            ccn = ccn if len(ccn) == 6 else ''
+        elif req_type == 'premium_inquiry':
+            if not ccn_raw:
+                return jsonify({'ok': False, 'error': 'CCN or provider required'}), 400
+            if len(ccn) != 6:
+                ccn = ''
+        elif len(ccn) != 6:
             return jsonify({'ok': False, 'error': 'Valid 6-digit CCN required'}), 400
         payload = {
-            'request_type': (data.get('request_type') or 'pilot_dashboard').strip(),
-            'ccn': ccn,
+            'request_type': req_type,
+            'name': (data.get('name') or '').strip() or None,
+            'ccn': ccn or None,
             'provider_name': (data.get('provider_name') or '').strip() or None,
+            'facility_interest': (data.get('facility_interest') or '').strip() or None,
+            'notes': (data.get('notes') or '').strip() or None,
             'audit_from': (data.get('audit_from') or '').strip(),
             'audit_to': (data.get('audit_to') or '').strip(),
             'email': email,

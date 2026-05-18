@@ -422,7 +422,7 @@ PBJ_DEFINITIONS_BLOCK = [
 PBJ_FACILITY_INTERPRETATION_CHECKS = [
     'This is a quarterly snapshot, not a daily staffing review.',
     'Check whether averages are hiding daily variation, but daily data is not shown on this page unless explicitly provided.',
-    'Check whether census/denominator changes affect HPRD if census data is available.',
+    'When average daily census appears in the context or embedded quarterly CSV, use it for HPRD/denominator interpretation (do not treat census as unavailable).',
     'State averages can mask wide within-state variation.',
     'Treat red flags as screening signals, not findings.',
     PBJ_ROLE_HPRD_SEMANTICS,
@@ -496,8 +496,8 @@ def _casemix_benchmark_phrase(above_below: Optional[str], case_mix_hprd: Any) ->
         return ''
     rel = (above_below or '').strip().lower()
     if rel in ('above', 'below', 'around'):
-        return f'{rel} the CMS case-mix benchmark shown on the page ({cm} total nurse HPRD)'
-    return f'compared with the CMS case-mix benchmark shown on the page ({cm} total nurse HPRD)'
+        return f'{rel} the CMS case-mix benchmark ({cm} total nurse HPRD)'
+    return f'compared with the CMS case-mix benchmark ({cm} total nurse HPRD)'
 
 
 def build_facility_summary_plain(
@@ -873,7 +873,7 @@ def _build_facility_page_context(
                 contract_staff_pct,
             ),
             _metric_line('MACPAC / state minimum reference (chart footnote on this page)', macpac_reference_line),
-            _metric_line('CMS case-mix benchmark shown on page', case_mix_hprd, suffix=' total nurse HPRD'),
+            _metric_line('CMS case-mix benchmark', case_mix_hprd, suffix=' total nurse HPRD'),
             _metric_line('Case-mix index', case_mix_index),
             _metric_line('Case-mix index ratio', case_mix_index_ratio),
             _metric_line('Staffing percentile / comparison group', staffing_percentile),
@@ -1399,6 +1399,7 @@ SNAPSHOT_CSV_COLUMNS: tuple[str, ...] = (
     'quarter',
     'pbj320_url',
     'source_level',
+    'avg_daily_census',
     'rn_hprd',
     'lpn_hprd',
     'nurse_aide_hprd',
@@ -1440,6 +1441,7 @@ TREND_CSV_COLUMNS: tuple[str, ...] = (
     'quarter',
     'pbj320_url',
     'source_level',
+    'avg_daily_census',
     'rn_hprd',
     'lpn_hprd',
     'nurse_aide_hprd',
@@ -1479,6 +1481,7 @@ def build_facility_snapshot_csv_row(
     cms_case_mix_total_nurse_hprd: Any = None,
     ownership_type: str = '',
     certified_beds: Any = None,
+    avg_daily_census: Any = None,
 ) -> dict[str, Any]:
     reported_num = total_nurse_hprd
     case_mix_num = cms_case_mix_total_nurse_hprd
@@ -1490,6 +1493,7 @@ def build_facility_snapshot_csv_row(
         'quarter': quarter_display,
         'pbj320_url': pbj320_url,
         'source_level': PBJ_FACILITY_SOURCE_LEVEL,
+        'avg_daily_census': avg_daily_census,
         'rn_hprd': rn_hprd,
         'lpn_hprd': lpn_hprd,
         'nurse_aide_hprd': nurse_aide_hprd,
@@ -1526,6 +1530,7 @@ def build_facility_trend_csv_row(
     case_mix_index_ratio: Any = None,
     cms_case_mix_total_nurse_hprd: Any = None,
     state_percentile: Any = None,
+    avg_daily_census: Any = None,
 ) -> dict[str, Any]:
     return {
         'ccn': ccn,
@@ -1534,6 +1539,7 @@ def build_facility_trend_csv_row(
         'quarter': quarter_display,
         'pbj320_url': pbj320_url,
         'source_level': PBJ_FACILITY_SOURCE_LEVEL,
+        'avg_daily_census': avg_daily_census,
         'rn_hprd': rn_hprd,
         'lpn_hprd': lpn_hprd,
         'nurse_aide_hprd': nurse_aide_hprd,
@@ -1708,7 +1714,7 @@ def build_facility_longitudinal_context(
     lines.append('--- Quarterly staffing history (CMS PBJ) ---')
     lines.append(f'Quarters in file: {len(rows)} ({quarters[0]} through {quarters[-1]})')
     lines.append(
-        'Tab-separated: quarter, total nurse HPRD, RN, LPN, nurse aide, '
+        'Tab-separated: quarter, avg daily census, total nurse HPRD, RN, LPN, nurse aide, '
         'CMS case-mix total HPRD, state percentile (total nurse).'
     )
     lines.append(PBJ_ROLE_HPRD_SEMANTICS)
@@ -1721,13 +1727,15 @@ def build_facility_longitudinal_context(
             'full quarter rows are embedded in the CSV sections of this same snapshot file.)'
         )
     lines.append('')
-    lines.append('quarter\ttotal\trn\tlpn\tna\tcase_mix\tstate_pctile')
+    lines.append('quarter\tcensus\ttotal\trn\tlpn\tna\tcase_mix\tstate_pctile')
     for row in table_rows:
         q = str(row.get('quarter', '')).strip()
+        census_cell = _csv_cell(row.get('avg_daily_census')) or '—'
         lines.append(
             '\t'.join(
                 [
                     q,
+                    census_cell,
                     _format_hprd_cell(row.get('total_nurse_hprd')),
                     _format_hprd_cell(row.get('rn_hprd')),
                     _format_hprd_cell(row.get('lpn_hprd')),
@@ -1851,8 +1859,8 @@ def build_facility_context_data_file(
         'Quarterly facility aggregates only — not daily or employee-level data.\n'
     )
     guide = (
-        'For quarter-by-quarter numeric staffing (HPRD, CMS case-mix reference value, state percentile), '
-        "prefer the tab-separated block under 'Quarterly staffing history' and/or the "
+        'For quarter-by-quarter numeric staffing (average daily census, HPRD, CMS case-mix reference value, '
+        'state percentile), prefer the tab-separated block under \'Quarterly staffing history\' and/or the '
         '<<<BEGIN_EMBEDDED_CSV>>>…<<<END_EMBEDDED_CSV>>> sections below (embedded CSV wins over narrative if they disagree).'
     )
     parts = [
@@ -2286,8 +2294,8 @@ def render_facility_csv_page_footer(
             parts.append('<span class="pbj-care-footer-sep" aria-hidden="true">·</span>')
         parts.append(
             f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
-            'title="Download quarterly snapshot-detail and trends CSVs" aria-label="Download PBJ spreadsheet CSVs">'
-            'Download PBJ spreadsheet</button>'
+            'title="Download quarterly snapshot-detail and trends CSVs" aria-label="Download PBJ CSVs">'
+            'Download PBJ</button>'
         )
     parts.append('</div>')
     parts.append(''.join(hidden))

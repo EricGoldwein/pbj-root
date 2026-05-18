@@ -200,7 +200,7 @@ PBJ_REVIEW_RESPONSE_STRUCTURE = """Structure your response:
 - What it cannot prove
 - Questions to ask next
 
-Check sample size, mean vs median, outliers, census/denominator effects, comparison group, and data quality. If the period overlaps **2020–2023**, also apply the pandemic-era HPRD/census/contract baseline rules in the full framework (PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK)."""
+Check sample size, mean vs median, outliers, census/denominator effects, comparison group, and data quality. If the period overlaps **2020–2023**, also apply the pandemic-era HPRD/census/contract baseline rules in the prompt (see Pandemic-era longitudinal context)."""
 
 # --- Layered prompt architecture (stable framework + injected context) ---
 
@@ -214,13 +214,13 @@ PBJ_LAYERED_TONE = (
     'causation, or legal violations.'
 )
 
-# When material date range overlaps 2020–2023 or compares across that window (skill reference:
-# `references/pbj320_historical_context.md` in packaged skill).
+# When material date range overlaps 2020–2023 or compares across that window.
 PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK = (
     'Pandemic-era / longitudinal context — apply when any reviewed period overlaps **2020-01-01 through '
     '2023-12-31**, or compares to quarters in that window:\n'
     '- **HPRD vs staffing level:** Rising HPRD can reflect **census / resident-day denominator** drops, '
-    'not increased staffing. Check **total nurse hours** (or category hours) **and** census **before** any '
+    'not increased staffing. Use **average daily census** and HPRD together when both appear in the context '
+    'or embedded quarterly CSV; check **total nurse hours** (or category hours) **before** any '
     '“improvement,” “better staffed,” or “staffing rose” narrative.\n'
     '- **Contract / agency share:** Treat as **workforce supply, turnover, and continuity** signal — **not** '
     'proof of poor care and **not** causal for harm or quality without non-PBJ evidence.\n'
@@ -229,10 +229,9 @@ PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK = (
     'when possible.\n'
     '- **Scale:** National or state aggregate patterns **do not** determine what happened at a **specific '
     'facility** — keep them separate.\n'
-    '- **Source depth:** Free quarterly PBJ320 pages may lack daily contract columns or full census series; '
-    'state what is missing rather than inferring.\n'
-    'Cited national PBJ context and limits: **pbj320_historical_context.md** in the PBJ320 Claude Skill package '
-    '(references/ when installed).'
+    '- **Source depth:** Free quarterly PBJ320 packets include quarterly HPRD, CMS case-mix reference values, '
+    'and average daily census by quarter when CMS reported them. They do not include daily staffing, weekend '
+    'patterns, 90-day aide patterns, or employee-level rows — state what is missing rather than inferring.'
 )
 
 PBJ_AUDIENCE_TIMING_EMPHASIS_BLOCK = (
@@ -1295,6 +1294,11 @@ def compose_source_limits_block(page_type: str = 'facility') -> str:
     if ptype in ('facility', 'provider'):
         lines.append(
             '- If this is a free provider page, use it only as quarterly facility-level staffing context.'
+        )
+        lines.append(
+            '- Average daily census is included in the page context and embedded quarterly CSV when CMS '
+            'reported it — use it for HPRD/denominator interpretation; do not claim census is unavailable '
+            'when it appears in the material.'
         )
         lines.append(
             '- Do not infer daily staffing, weekend staffing, employee-level staffing, agency use, '

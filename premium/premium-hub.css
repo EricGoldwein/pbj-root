@@ -1686,6 +1686,13 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 4px 14px rgba(79, 70, 229, 0.32);
     transition: transform 0.15s ease, box-shadow 0.15s ease;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+button.pbj-audit-hero-actions__primary {
+    appearance: none;
+    -webkit-appearance: none;
 }
 
 .pbj-audit-hero-actions__primary:hover {
@@ -2153,35 +2160,85 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     text-align: center;
 }
 
+.pbj-audit-command__pilot-intro {
+    margin-bottom: 0.85rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.95);
+}
+
+.pbj-audit-command__pilot-badge {
+    display: inline-block;
+    margin: 0 0 0.35rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 6px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #78350f;
+    background: #fffbeb;
+    border: 1px solid #fcd34d;
+}
+
+.pbj-audit-command__pilot-title {
+    margin: 0 0 0.3rem;
+    font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+}
+
+.pbj-audit-command__pilot-text {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: #64748b;
+}
+
+.pbj-hub-modal__dialog--form {
+    max-width: 28rem;
+}
+
+.pbj-hub-inquiry-form textarea {
+    resize: vertical;
+    min-height: 4.5rem;
+}
+
 @media (max-width: 767px) {
     .pbj-audit-hero-sample-btn {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        position: absolute;
-        left: 50%;
-        bottom: 0.7rem;
-        transform: translateX(-50%);
-        z-index: 2;
-        min-height: 2rem;
-        padding: 0.38rem 0.95rem;
-        border-radius: 999px;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        color: #fff !important;
+        position: static;
+        transform: none;
+        margin: 0.45rem auto 0;
+        min-height: 1.75rem;
+        padding: 0.28rem 0.7rem;
+        border-radius: 8px;
+        font-size: 0.68rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: #4338ca !important;
         text-decoration: none !important;
-        background: rgba(15, 23, 42, 0.88);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        box-shadow: 0 4px 16px rgba(15, 23, 42, 0.35);
-        backdrop-filter: blur(6px);
-        -webkit-backdrop-filter: blur(6px);
+        background: rgba(238, 242, 255, 0.9);
+        border: 1px solid rgba(99, 102, 241, 0.28);
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
         white-space: nowrap;
     }
 
     .pbj-audit-hero-sample-btn:hover {
-        color: #fff !important;
-        background: rgba(30, 41, 59, 0.95);
+        color: #3730a3 !important;
+        background: #eef2ff;
+        border-color: rgba(79, 70, 229, 0.45);
+    }
+
+    .pbj-audit-hero-visual {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 
     .pbj-audit-hero-visual__media {
@@ -2632,15 +2689,32 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     margin: 0 0 0.25rem;
 }
 
+.pbj-audit-features__carousel-frame {
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85), 0 4px 14px rgba(15, 23, 42, 0.06);
+    padding: 0.55rem 0.5rem 0.45rem;
+    overflow: hidden;
+}
+
+.pbj-audit-features__carousel-frame .pbj-audit-card {
+    border: none;
+    box-shadow: none;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+}
+
 .pbj-audit-features__track {
     display: flex;
-    gap: 0.65rem;
+    gap: 0;
     overflow-x: auto;
     scroll-snap-type: x mandatory;
     scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
-    padding: 0 0.15rem 0.35rem;
+    padding: 0;
 }
 
 .pbj-audit-features__track::-webkit-scrollbar {
@@ -2648,10 +2722,12 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
 }
 
 .pbj-audit-features__slide {
-    flex: 0 0 88%;
-    max-width: 88%;
-    scroll-snap-align: center;
+    flex: 0 0 100%;
+    max-width: 100%;
+    scroll-snap-align: start;
     scroll-snap-stop: always;
+    box-sizing: border-box;
+    padding: 0 0.15rem;
 }
 
 .pbj-audit-features__dots {

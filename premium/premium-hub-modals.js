@@ -15,6 +15,26 @@
 
     var lastFocus = null;
 
+    function resetInquiryModal(id) {
+        if (id !== "request-premium" && id !== "custom-work") return;
+        var formId = id === "request-premium" ? "hub-premium-inquiry-form" : "hub-custom-work-form";
+        var successId = id === "request-premium" ? "hub-premium-success" : "hub-custom-success";
+        var leadId = id === "request-premium" ? "modal-request-premium-lead" : "modal-custom-work-lead";
+        var statusId = id === "request-premium" ? "hub-premium-form-status" : "hub-custom-form-status";
+        var form = document.getElementById(formId);
+        var success = document.getElementById(successId);
+        var lead = document.getElementById(leadId);
+        var status = document.getElementById(statusId);
+        if (form) {
+            form.hidden = false;
+            form.reset();
+            form.classList.remove("was-validated");
+        }
+        if (success) success.hidden = true;
+        if (lead) lead.hidden = false;
+        if (status) status.textContent = "";
+    }
+
     function openModal(id, options) {
         options = options || {};
         if (!options.skipStoreLastFocus) {
@@ -22,6 +42,7 @@
         }
         var m = modalEl(id);
         if (!m) return;
+        resetInquiryModal(id);
         m.classList.add("is-open");
         m.setAttribute("aria-hidden", "false");
         document.body.style.overflow = "hidden";
@@ -137,8 +158,7 @@
             index = ((i % slides.length) + slides.length) % slides.length;
             var slide = slides[index];
             if (!slide) return;
-            var left = slide.offsetLeft - (track.clientWidth - slide.offsetWidth) / 2;
-            track.scrollTo({ left: Math.max(0, left), behavior: behavior || "smooth" });
+            track.scrollTo({ left: slide.offsetLeft, behavior: behavior || "smooth" });
             dots.forEach(function (dot, di) {
                 var on = di === index;
                 dot.classList.toggle("is-active", on);

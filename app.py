@@ -5178,11 +5178,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 }}
 .pbj-risk-badge-info-wrap {{ margin-left: 0.12rem; }}
 .pbj-risk-badge-info {{
-  font: inherit; font-size: 0.78em; font-weight: 700; font-style: italic; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.05rem; height: 1.05rem; flex-shrink: 0;
+  font: inherit; font-size: 0.62em; font-weight: 700; font-style: italic; line-height: 1;
   font-family: Georgia, "Times New Roman", serif;
-  padding: 0; margin: 0; border: none; border-radius: 0; cursor: help;
-  color: inherit; background: transparent; opacity: 0.82;
-  vertical-align: baseline;
+  padding: 0; margin: 0; border: 1px solid currentColor; border-radius: 50%; cursor: help;
+  color: inherit; background: rgba(15, 23, 42, 0.35); opacity: 0.9;
+  vertical-align: middle;
 }}
 .pbj-risk-badge-with-info .pbj-risk-badge-info:hover {{
   opacity: 1; text-decoration: underline; text-underline-offset: 2px;
@@ -5412,14 +5414,17 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-hprd-badge__val--wide {{ display: none; }}
 .pbj-hprd-badge__hint {{
-  display: inline-flex; align-items: center; align-self: center;
-  margin-left: 0.08rem; margin-top: -0.12rem;
+  display: inline-flex; align-items: center; justify-content: center; align-self: center;
+  margin-left: 0.28rem; margin-top: 0;
   color: rgba(148, 163, 184, 0.88); transition: color 0.15s;
 }}
 .pbj-hprd-badge__hint-mark {{
-  display: inline; font: 700 0.72em/1 Georgia, "Times New Roman", serif;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.05rem; height: 1.05rem;
+  font: 700 0.62em/1 Georgia, "Times New Roman", serif;
   font-style: italic; color: rgba(226, 232, 240, 0.92);
-  border: none; background: transparent; padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.65); border-radius: 50%;
+  background: rgba(15, 23, 42, 0.35); padding: 0; box-sizing: border-box;
 }}
 .pbj-hprd-badge--help:hover .pbj-hprd-badge__hint {{
   color: rgba(226, 232, 240, 0.98);
@@ -5564,9 +5569,16 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-ai-beta-got-it:hover {{ background: rgba(79, 70, 229, 0.45); }}
 body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
 .pbj-care-footer-row {{
-  margin: 0.35rem 0 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
+  margin: 0.35rem 0 0 0; display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem 0.5rem;
   font-size: 0.75rem; line-height: 1.45;
 }}
+.pbj-page-source {{
+  margin: 0.35rem 0 0 0; font-size: 0.8rem; color: rgba(226, 232, 240, 0.6); line-height: 1.45;
+}}
+.pbj-page-source a {{
+  color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
+}}
+.pbj-page-source a:hover {{ color: #a5b4fc; }}
 .pbj-care-footer-sep {{ opacity: 0.45; user-select: none; }}
 .pbj-footer-csv-bundle {{
   font: inherit; font-size: inherit; font-weight: 500; padding: 0; margin: 0; border: none; background: none;
@@ -5783,22 +5795,24 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
 }}
 @media (max-width: 768px) {{
   .pbj-casemix-section-header {{
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: start;
-    gap: 0.35rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
     flex-wrap: nowrap;
   }}
   .pbj-casemix-section-title {{
-    font-size: 1.05em;
+    font-size: 1.02em;
     margin: 0;
     min-width: 0;
     line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }}
   button.pbj-casemix-help-trigger {{
     margin-left: 0;
-    align-self: start;
-    justify-self: end;
+    align-self: flex-start;
     padding: 0.22rem 0.5rem;
     font-size: 0.62rem;
     border-radius: 999px;
@@ -7475,8 +7489,8 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     if (hasCaseMix) {
       var pct2 = Math.round(100 * Number(actual) / Number(caseMix));
       var pctCls = pct2 < 90 ? 'pct-em pct--low' : 'pct-em';
-      var hprdPair = ' <span class="secondary">(' + hprd(actual) + ' ' + roleLbl + ' HPRD / ' + hprd(caseMix) + ' ' + roleLbl + ' Case-Mix)</span>';
-      lab.innerHTML = roleLbl + ' staffing case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>' + (compact ? hprdPair : '');
+      var hprdPair = ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
+      lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>' + (compact ? hprdPair : '');
     } else {
       lab.textContent = roleLbl + ' staffing' + (compact ? ' (' + hprd(actual) + ' HPRD reported)' : '');
     }
@@ -7887,6 +7901,20 @@ def _lpn_hprd_from_facility_quarterly_row(row) -> float | None:
     return max(0.0, total - rn - na)
 
 
+def _facility_quarterly_census_display(row, pi_q, format_metric_value):
+    """Average daily census for a facility quarter (PBJ quarterly metrics or provider info)."""
+    col = 'avg_daily_census' if 'avg_daily_census' in row.index else 'Avg_Daily_Census'
+    v = row.get(col) if col in row.index else None
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        v = (pi_q or {}).get('avg_residents_per_day')
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return None
+    try:
+        return format_metric_value(float(v), 'avg_daily_census')
+    except (TypeError, ValueError):
+        return None
+
+
 def _build_facility_snapshot_csv_rows(
     prov,
     facility_df,
@@ -7967,6 +7995,7 @@ def _build_facility_snapshot_csv_rows(
         if beds is None and isinstance(fallback_latest_provider_row, dict):
             beds = _provider_certified_beds(fallback_latest_provider_row)
         casemix_str = format_metric_value(cm_total, 'Total_Nurse_HPRD') if cm_total is not None else None
+        census_disp = _facility_quarterly_census_display(row, pi_q, format_metric_value)
         rows.append(
             build_facility_snapshot_csv_row(
                 ccn=prov,
@@ -7975,6 +8004,7 @@ def _build_facility_snapshot_csv_rows(
                 city=city or '',
                 quarter_display=q_disp,
                 pbj320_url=page_url,
+                avg_daily_census=census_disp,
                 rn_hprd=format_metric_value(rn, 'RN_HPRD') if rn is not None else None,
                 lpn_hprd=format_metric_value(lpn, 'LPN_HPRD') if lpn is not None else None,
                 nurse_aide_hprd=format_metric_value(na, 'Nurse_Assistant_HPRD') if na is not None else None,
@@ -8060,6 +8090,7 @@ def _build_facility_quarterly_trend_csv_rows(
         pct_total = None
         if rt is not None and state_code:
             pct_total, _ = _percentiles_from_state_slice(state_slice, q_raw, rt, rn)
+        census_disp = _facility_quarterly_census_display(row, pi_q, format_metric_value)
         rows.append(
             build_facility_trend_csv_row(
                 ccn=prov,
@@ -8067,6 +8098,7 @@ def _build_facility_quarterly_trend_csv_rows(
                 state=st_label,
                 quarter_display=q_disp,
                 pbj320_url=page_url,
+                avg_daily_census=census_disp,
                 rn_hprd=format_metric_value(rn, 'RN_HPRD') if rn is not None else None,
                 lpn_hprd=format_metric_value(lpn, 'LPN_HPRD') if lpn is not None else None,
                 nurse_aide_hprd=format_metric_value(na, 'Nurse_Assistant_HPRD') if na is not None else None,
@@ -8247,7 +8279,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _fn_esc = html.escape(facility_name, quote=False)
     narrative = (
         f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. '
-        f'This level is {above_below_casemix} the CMS case-mix benchmark shown on the page ({casemix_str} HPRD).'
+        f'This level is {above_below_casemix} the CMS case-mix benchmark ({casemix_str} HPRD).'
     )
     if case_mix_total is None:
         narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
@@ -8763,8 +8795,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
-<p style="margin: 0 0 0.35rem 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data.</p>
 {_facility_csv_footer}
+<p class="pbj-page-source">Source: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a> (PBJ) data.</p>
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:

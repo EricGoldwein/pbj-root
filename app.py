@@ -13280,7 +13280,23 @@ def static_files(filename):
     if filename in ['insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample', 'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'pbj-wrapped', 'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium']:
         from flask import abort
         abort(404)
-    # Fallback: serve marketing assets if /premium/<path> route missed (e.g. older deploy proxies)
+    # Fallback: premium marketing assets (Render-safe paths; see premium_redirect_routes.py)
+    if filename.startswith('premium-assets/'):
+        from premium_redirect_routes import try_serve_premium_asset
+        sub = filename[len('premium-assets/'):]
+        served = try_serve_premium_asset(APP_ROOT, sub)
+        if served is not None:
+            return served
+        from flask import abort
+        abort(404)
+    if filename.startswith('premium-samples/'):
+        from premium_redirect_routes import try_serve_premium_asset
+        sub = filename[len('premium-samples/'):]
+        served = try_serve_premium_asset(APP_ROOT, f'samples/{sub}')
+        if served is not None:
+            return served
+        from flask import abort
+        abort(404)
     if filename.startswith('premium/'):
         from premium_redirect_routes import try_serve_premium_asset
         sub = filename[len('premium/'):]

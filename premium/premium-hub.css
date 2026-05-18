@@ -2046,11 +2046,12 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
 
 .pbj-audit-command__title {
     margin-left: 0.35rem;
-    font-size: 0.72rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: #475569;
+    font-size: clamp(0.68rem, 1.6vw, 0.78rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-transform: none;
+    line-height: 1.35;
+    color: #334155;
 }
 
 .pbj-audit-command__body {
@@ -2428,16 +2429,21 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
         inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 
-.pbj-audit-media-note {
-    max-width: 36rem;
+.pbj-audit-bottom {
+    max-width: 56rem;
     margin: 0 auto;
-    padding: 0.65rem clamp(0.85rem, 2vw, 1.25rem) 0.35rem;
+    padding: 0 clamp(0.35rem, 1.5vw, 0.5rem) clamp(2rem, 4vw, 2.85rem);
+}
+
+.pbj-audit-media-note {
+    margin: 0;
+    padding: 0.85rem 0 0.5rem;
     border-top: 1px solid #e2e8f0;
     font-size: 0.7rem;
     line-height: 1.45;
     color: #94a3b8;
-    text-align: center;
-    text-wrap: balance;
+    text-align: left;
+    text-wrap: pretty;
 }
 
 .pbj-audit-media-note a {
@@ -2455,13 +2461,18 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     padding: clamp(0.85rem, 2vw, 1.15rem) clamp(0.35rem, 1.5vw, 0.5rem) 1.25rem;
 }
 
+.pbj-audit-features__intro {
+    max-width: 42rem;
+    margin-bottom: 0.15rem;
+}
+
 .pbj-audit-features__dek {
     max-width: 42rem;
-    margin: 0 auto 1rem;
+    margin: 0 0 1rem;
     font-size: 0.9rem;
     line-height: 1.55;
     color: #64748b;
-    text-align: center;
+    text-align: left;
     text-wrap: pretty;
 }
 
@@ -2472,6 +2483,7 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     text-transform: uppercase;
     color: #94a3b8;
     margin: 0 0 0.65rem;
+    text-align: left;
 }
 
 .pbj-audit-features__row {
@@ -2562,22 +2574,30 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
 }
 
 .pbj-audit-oss-panel {
-    max-width: 36rem;
-    margin: 0.85rem auto clamp(1.1rem, 2.5vw, 1.5rem);
-    padding: 0.7rem clamp(0.85rem, 2vw, 1.1rem) 0.85rem;
-    border: 1px solid #e8edf3;
-    border-radius: 10px;
-    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    margin: 0.65rem 0 0;
+    padding: 0.85rem 1rem 0.95rem;
+    border: 1px solid rgba(99, 102, 241, 0.22);
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 48%, #f8fafc 100%);
+    box-shadow: 0 2px 12px rgba(79, 70, 229, 0.06);
+}
+
+.pbj-audit-oss-panel__eyebrow {
+    margin: 0 0 0.35rem;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #6366f1;
 }
 
 .pbj-audit-oss-note {
     margin: 0;
-    font-size: 0.76rem;
+    font-size: 0.82rem;
     line-height: 1.5;
-    color: #64748b;
-    text-align: center;
-    text-wrap: balance;
+    color: #475569;
+    text-align: left;
+    text-wrap: pretty;
 }
 
 .pbj-audit-oss-note a {

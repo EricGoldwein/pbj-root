@@ -1,8 +1,14 @@
 """Serve the Premium marketing page at /premium and its CSS/JS/image assets.
 
-Only ``/premium`` is a public marketing URL. Other paths under ``/premium/`` serve
-files referenced by that page (styles, scripts, media) — not separate subsites.
-Facility dashboards (``/premium/<CCN>``) stay on Vercel/pbjapp.
+Production routing (www.pbj320.com):
+  - ``/premium`` (no trailing slash) → Render (Flask) — marketing landing page
+  - ``/premium-assets/*``, ``/premium-samples/*`` → Render — static files for that page
+  - ``/premium/<6-digit CCN>`` → Vercel — facility dashboards
+  - ``/premium/`` and ``/premium/*`` (other) → often Vercel/edge → 404 unless Cloudflare
+    is updated to send non-CCN paths to Render
+
+Use ``/premium`` and ``/premium-assets/`` in links (not ``/premium/``) until Cloudflare
+routes non-CCN ``/premium/*`` to Render. Facility dashboards stay at ``/premium/<CCN>``.
 """
 
 from __future__ import annotations
@@ -21,6 +27,10 @@ if TYPE_CHECKING:
 _CCN_RE = re.compile(r'^\d{6}$')
 # Subsites we do not expose publicly (linked from old hub only).
 _BLOCKED_FIRST_SEGMENTS = frozenset({'tips', 'methods', 'pricing'})
+
+# Render-safe public prefixes (bypass Cloudflare /premium/* → Vercel rule).
+PREMIUM_ASSETS_PREFIX = '/premium-assets'
+PREMIUM_SAMPLES_PREFIX = '/premium-samples'
 
 
 def _premium_root(app_root: str) -> str:
@@ -59,6 +69,18 @@ def try_serve_premium_asset(app_root: str, asset_path: str) -> Optional['Respons
             mime = 'application/octet-stream'
     resp = send_file(full, mimetype=mime)
     resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return resp
+
+
+def _serve_premium_landing(app_root: str) -> 'Response':
+    path = os.path.join(_premium_root(app_root), 'index.html')
+    if not os.path.isfile(path):
+        abort(404)
+    with open(path, encoding='utf-8') as f:
+        page_html = f.read()
+    resp = make_response(page_html)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
@@ -145,21 +167,45 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
             return jsonify({'ok': False, 'error': 'Could not send request'}), 503
         return jsonify({'ok': True})
 
+    @app.route('/api/premium/routing-check')
+    def premium_routing_check():
+        """Diagnostics: confirms this app serves premium marketing + assets."""
+        index_path = os.path.join(_premium_root(app_root), 'index.html')
+        return jsonify({
+            'ok': True,
+            'marketing_url': '/premium',
+            'assets_prefix': PREMIUM_ASSETS_PREFIX,
+            'samples_prefix': PREMIUM_SAMPLES_PREFIX,
+            'facility_dashboard_pattern': '/premium/<6-digit CCN> (Vercel)',
+            'index_html_present': os.path.isfile(index_path),
+            'note': (
+                'Production: use /premium (no trailing slash) and /premium-assets/* '
+                'unless Cloudflare sends all /premium/* to Render.'
+            ),
+        })
+
     @app.route('/premium')
-    def premium_landing_redirect():
-        return redirect('/premium/', code=301)
+    def premium_landing():
+        # Do not 301 to /premium/ — Cloudflare often routes /premium/* to Vercel (404).
+        return _serve_premium_landing(app_root)
 
     @app.route('/premium/')
-    def premium_landing():
-        path = os.path.join(_premium_root(app_root), 'index.html')
-        if not os.path.isfile(path):
+    def premium_landing_slash():
+        return _serve_premium_landing(app_root)
+
+    @app.route(f'{PREMIUM_ASSETS_PREFIX}/<path:asset_path>')
+    def premium_public_assets(asset_path: str):
+        served = try_serve_premium_asset(app_root, asset_path)
+        if served is None:
             abort(404)
-        with open(path, encoding='utf-8') as f:
-            page_html = f.read()
-        resp = make_response(page_html)
-        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-        resp.headers['Cache-Control'] = 'public, max-age=300'
-        return resp
+        return served
+
+    @app.route(f'{PREMIUM_SAMPLES_PREFIX}/<path:sample_path>')
+    def premium_public_samples(sample_path: str):
+        served = try_serve_premium_asset(app_root, f'samples/{sample_path}')
+        if served is None:
+            abort(404)
+        return served
 
     @app.route('/premium/<path:asset_path>')
     def premium_assets(asset_path: str):

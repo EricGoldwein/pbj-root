@@ -1760,6 +1760,51 @@ def _report_ssr_float_cell(value, decimals: int = 2) -> str:
         return '—'
 
 
+_REPORT_SEO_DEFAULTS = {
+    'document_title': 'U.S. Nursing Home Staffing Rankings by State and Region | PBJ320',
+    'h1': 'U.S. Nursing Home Staffing Rankings by State and Region',
+    'table_heading': 'U.S. Nursing Home PBJ Staffing Rankings by State and Region',
+    'og_title': 'State and Regional Nursing Home Staffing Rankings',
+    'meta_description': (
+        'State and regional nursing home staffing rankings from CMS Payroll-Based Journal (PBJ) data. '
+        'Compare hours per resident day (HPRD) by state and CMS region with an interactive map and quarterly trends.'
+    ),
+    'og_description': (
+        'Nursing home staffing rankings by state and CMS region with HPRD comparisons, '
+        'interactive map, ratios, and medians from CMS PBJ data.'
+    ),
+    'jsonld_name': 'U.S. Nursing Home Staffing Rankings by State and Region',
+    'date_published': datetime.now().strftime('%Y-%m-%d'),
+    'table_rows': '<tr><td colspan="10" class="loading" id="loadingRow">Loading data...</td></tr>',
+}
+
+
+def _report_json_ld_document(seo: dict) -> dict:
+    """WebPage JSON-LD for /report (avoid nested Dataset — triggers GSC Dataset validation)."""
+    return {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        'name': seo['jsonld_name'],
+        'description': seo['meta_description'],
+        'url': 'https://pbj320.com/report',
+        'dateModified': seo['date_published'],
+        'isPartOf': {
+            '@type': 'WebSite',
+            'name': 'PBJ320 Nursing Home Staffing Dashboard',
+            'url': 'https://pbj320.com/',
+        },
+        'publisher': {
+            '@type': 'Organization',
+            'name': '320 Consulting',
+            'url': 'https://www.320insight.com',
+        },
+        'about': {
+            '@type': 'Thing',
+            'name': 'U.S. nursing home staffing rankings by state and CMS region',
+        },
+    }
+
+
 def _build_report_ssr_snapshot() -> dict | None:
     """Build crawler-visible rankings snapshot for /report initial HTML."""
     import csv as _csv
@@ -1812,18 +1857,18 @@ def _build_report_ssr_snapshot() -> dict | None:
     if not quarter or not rows_data:
         return None
     quarter_label = format_quarter(quarter)
-    doc_title = f'{quarter_label} U.S. Nursing Home Staffing Rankings by State'
+    doc_title = f'{quarter_label} U.S. Nursing Home Staffing Rankings by State and Region'
     h1 = doc_title
-    table_heading = f'US Nursing Home PBJ Staffing Data ({quarter_label})'
+    table_heading = f'U.S. Nursing Home PBJ Staffing Rankings by State and Region ({quarter_label})'
     og_title = f'State and Regional Staffing Rankings for {quarter_label}'
     meta_desc = (
-        f'Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. '
-        f'{quarter_label} staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. '
-        f'Brought to you by 320 Consulting.'
+        f'{quarter_label} state and regional nursing home staffing rankings: compare HPRD by state '
+        f'and CMS region with an interactive map, ratios, and medians. '
+        f'CMS Payroll-Based Journal (PBJ) data from 320 Consulting.'
     )
     og_desc = (
-        f'Nursing home staffing rankings by state and CMS region for {quarter_label} '
-        f'with comprehensive analysis, ratios, medians, and interactive map.'
+        f'{quarter_label} nursing home staffing rankings by state and CMS region — HPRD comparisons, '
+        f'interactive map, ratios, and medians from CMS PBJ data.'
     )
     rows = []
     for idx, row in enumerate(rows_data):
@@ -1879,19 +1924,23 @@ def _build_report_ssr_snapshot() -> dict | None:
 
 
 def _inject_report_ssr_html(page_html: str) -> str:
+    seo = dict(_REPORT_SEO_DEFAULTS)
     snap = _build_report_ssr_snapshot()
-    if not snap:
-        return page_html
+    if snap:
+        seo.update({k: snap[k] for k in (
+            'document_title', 'h1', 'table_heading', 'meta_description', 'og_title',
+            'og_description', 'jsonld_name', 'date_published', 'table_rows',
+        )})
     replacements = {
-        '__REPORT_SSR_DOCUMENT_TITLE__': html.escape(snap['document_title']),
-        '__REPORT_SSR_H1__': html.escape(snap['h1']),
-        '__REPORT_SSR_TABLE_HEADING__': html.escape(snap['table_heading']),
-        '__REPORT_SSR_META_DESCRIPTION__': html.escape(snap['meta_description'], quote=True),
-        '__REPORT_SSR_OG_TITLE__': html.escape(snap['og_title'], quote=True),
-        '__REPORT_SSR_OG_DESCRIPTION__': html.escape(snap['og_description'], quote=True),
-        '__REPORT_SSR_JSONLD_NAME__': json.dumps(snap['jsonld_name'])[1:-1],
-        '__REPORT_SSR_DATE_PUBLISHED__': snap['date_published'],
-        '__REPORT_SSR_TABLE_ROWS__': snap['table_rows'],
+        '__REPORT_SSR_DOCUMENT_TITLE__': html.escape(seo['document_title']),
+        '__REPORT_SSR_H1__': html.escape(seo['h1']),
+        '__REPORT_SSR_TABLE_HEADING__': html.escape(seo['table_heading']),
+        '__REPORT_SSR_META_DESCRIPTION__': html.escape(seo['meta_description'], quote=True),
+        '__REPORT_SSR_OG_TITLE__': html.escape(seo['og_title'], quote=True),
+        '__REPORT_SSR_OG_DESCRIPTION__': html.escape(seo['og_description'], quote=True),
+        '__REPORT_SSR_DATE_PUBLISHED__': seo['date_published'],
+        '__REPORT_SSR_TABLE_ROWS__': seo['table_rows'],
+        '__REPORT_SSR_JSON_LD__': json.dumps(_report_json_ld_document(seo), ensure_ascii=True),
     }
     for token, value in replacements.items():
         page_html = page_html.replace(token, value)

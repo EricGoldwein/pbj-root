@@ -45,31 +45,8 @@
   <meta name="author" content="320 Consulting">
   <meta name="referrer" content="no-referrer-when-downgrade">
   
-  <!-- Structured Data (JSON-LD) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "Report",
-    "name": "__REPORT_SSR_JSONLD_NAME__",
-    "url": "https://pbj320.com/report",
-    "description": "__REPORT_SSR_META_DESCRIPTION__",
-    "datePublished": "__REPORT_SSR_DATE_PUBLISHED__",
-    "isPartOf": {
-      "@type": "WebSite",
-      "name": "PBJ Nursing Home Staffing Dashboard",
-      "url": "https://pbj320.com/"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "320 Consulting",
-      "url": "https://www.320insight.com"
-    },
-    "about": {
-      "@type": "Dataset",
-      "name": "CMS Payroll-Based Journal Nursing Home Staffing Data"
-    }
-  }
-  </script>
+  <!-- Structured Data (JSON-LD): WebPage only (nested Dataset triggered GSC Dataset validation) -->
+  <script type="application/ld+json">__REPORT_SSR_JSON_LD__</script>
   
   <!-- Script to update OG tags with dynamic quarter -->
   <script>
@@ -128,7 +105,7 @@
           if (!match) return;
           
           const quarterYear = `Q${match[2]} ${match[1]}`;
-          const title = `State and Regional Staffing Rankings for ${quarterYear}`;
+          const title = `State and Regional Nursing Home Staffing Rankings for ${quarterYear}`;
           
           // Store globally for use throughout the page
           currentQuarterYear = quarterYear;
@@ -145,7 +122,7 @@
           // Update OG description
           const ogDescription = document.getElementById('og-description');
           if (ogDescription) {
-            ogDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+            ogDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           }
           
           // Update Twitter title
@@ -157,13 +134,13 @@
           // Update Twitter description
           const twitterDescription = document.getElementById('twitter-description');
           if (twitterDescription) {
-            twitterDescription.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+            twitterDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           }
           
           // Update meta description
           const metaDesc = document.querySelector('meta[name="description"]');
           if (metaDesc) {
-            metaDesc.setAttribute('content', `Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. ${quarterYear} staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.`);
+            metaDesc.setAttribute('content', `${quarterYear} state and regional nursing home staffing rankings: compare HPRD by state and CMS region with an interactive map, ratios, and medians. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.`);
           }
         })
         .catch(err => {
@@ -5088,26 +5065,25 @@ __REPORT_SSR_TABLE_ROWS__
           }
           
           // Update document title and meta tags (consistent with early script format)
-          const fullTitle = `State and Regional Staffing Rankings for ${quarterYear}`;
-          const fullDescription = `Comprehensive ${quarterYear} nursing home staffing analysis by state with ratios, medians, and interactive map.`;
+          const fullTitle = `State and Regional Nursing Home Staffing Rankings for ${quarterYear}`;
           
           document.title = fullTitle;
           
           // Update meta description
           const metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc) metaDesc.setAttribute('content', `Comprehensive nursing home staffing analysis by state with ratios, medians, and interactive map. ${quarterYear} staffing rankings, trends, and insights from CMS Payroll-Based Journal (PBJ) data. Brought to you by 320 Consulting.`);
+          if (metaDesc) metaDesc.setAttribute('content', `${quarterYear} state and regional nursing home staffing rankings: compare HPRD by state and CMS region with an interactive map, ratios, and medians. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.`);
           
           // Update Open Graph tags
           const ogTitle = document.querySelector('meta[property="og:title"]');
           if (ogTitle) ogTitle.setAttribute('content', fullTitle);
           const ogDesc = document.querySelector('meta[property="og:description"]');
-          if (ogDesc) ogDesc.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+          if (ogDesc) ogDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           
           // Update Twitter tags
           const twitterTitle = document.querySelector('meta[property="twitter:title"]');
           if (twitterTitle) twitterTitle.setAttribute('content', fullTitle);
           const twitterDesc = document.querySelector('meta[property="twitter:description"]');
-          if (twitterDesc) twitterDesc.setAttribute('content', `Nursing home staffing rankings by state and CMS region for ${quarterYear} with comprehensive analysis, ratios, medians, and interactive map.`);
+          if (twitterDesc) twitterDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           
           // Update title on window resize
           window.addEventListener('resize', function() {

@@ -46,6 +46,10 @@
   }
   function closeChowModal() {
     if (!chowDetailModal) return;
+    var active = document.activeElement;
+    if (active && chowDetailModal.contains(active)) {
+      active.blur();
+    }
     chowDetailModal.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('chow-modal-open');
   }

@@ -1670,6 +1670,122 @@ def _high_risk_buckets_for_state_cached(state_code: str) -> dict:
     return {}
 
 
+def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
+    """Build high-risk facility buckets for one state only (avoids national dict + OOM)."""
+    st = (state_code or "").strip().upper()[:2]
+    pd_local = get_pd()
+    if not st or pd_local is None or not cy_qtr or not re.match(r"^\d{4}Q[1-4]$", str(cy_qtr).strip()):
+        return {}
+    cy_qtr = str(cy_qtr).strip()
+    provider_paths = _provider_paths_report_prefer_pinned()
+    if not provider_paths:
+        return {}
+
+    for path_used in provider_paths:
+        if not os.path.isfile(path_used):
+            continue
+        is_snapshot = _provider_csv_is_cms_snapshot(path_used)
+        try:
+            head = pd_local.read_csv(path_used, nrows=0)
+            headers = list(head.columns)
+            usecols, col_refs = _build_high_risk_provider_usecols(headers)
+            if not col_refs.get("ccn") or not col_refs.get("state"):
+                continue
+            if not is_snapshot and not col_refs.get("cy_qtr") and not col_refs.get("quarter"):
+                continue
+
+            if is_snapshot:
+                effective_cy_qtr = cy_qtr
+            else:
+                quarters_in_file = _provider_csv_collect_quarters(path_used, col_refs, pd_local)
+                effective_cy_qtr = _resolve_effective_cy_qtr(cy_qtr, quarters_in_file)
+
+            state_hprds: dict[str, list[float]] = {}
+            slim_rows: list[tuple] = []
+            for chunk in pd_local.read_csv(path_used, usecols=usecols, low_memory=False, chunksize=100000):
+                for row in chunk.to_dict("records"):
+                    rq = _row_cy_qtr_for_high_risk(row, col_refs, pd_local)
+                    if not is_snapshot and rq != effective_cy_qtr:
+                        continue
+                    parsed = _high_risk_facility_payload_from_row(row, col_refs, pd_local)
+                    if not parsed:
+                        continue
+                    fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
+                    if st_abbr != st:
+                        continue
+                    if total_hprd and total_hprd > 0:
+                        state_hprds.setdefault(st_abbr, []).append(total_hprd)
+                    slim_rows.append(parsed)
+
+            state_bottom10 = {}
+            vals = state_hprds.get(st) or []
+            if vals:
+                arr = sorted([v for v in vals if v and v > 0])
+                if arr:
+                    idx = int(len(arr) * 0.1)
+                    state_bottom10[st] = arr[idx] if idx < len(arr) else arr[-1]
+                else:
+                    state_bottom10[st] = 0.0
+
+            out = {
+                "sff": [],
+                "sffCandidates": [],
+                "abuse": [],
+                "oneStarOverall": [],
+                "oneStarStaffing": [],
+            }
+            for parsed in slim_rows:
+                fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
+                bottom = state_bottom10.get(st_abbr) or 0.0
+                is_understaffed = (
+                    staffing_rating == 1
+                    or (
+                        case_mix_hprd > 0
+                        and total_hprd > 0
+                        and (total_hprd / case_mix_hprd) < 0.8
+                    )
+                    or (bottom > 0 and total_hprd > 0 and total_hprd <= bottom)
+                )
+                sff_trim = (sff_raw or "").strip()
+                qualifies = fac["ccn"] and (
+                    sff_trim == "SFF"
+                    or sff_trim == "SFF Candidate"
+                    or has_abuse
+                    or overall_rating == 1
+                    or is_understaffed
+                )
+                if not qualifies:
+                    continue
+                if sff_trim == "SFF":
+                    out["sff"].append(fac)
+                elif sff_trim == "SFF Candidate":
+                    out["sffCandidates"].append(fac)
+                elif has_abuse:
+                    out["abuse"].append(fac)
+                elif overall_rating == 1:
+                    out["oneStarOverall"].append(fac)
+                elif is_understaffed:
+                    out["oneStarStaffing"].append(fac)
+            return out
+        except Exception as e:
+            print(f"high-risk state scan failed for {path_used} ({st}): {e}", flush=True)
+            continue
+    return {}
+
+
+def _high_risk_buckets_for_state_page(state_code: str, cy_qtr: str | None) -> dict:
+    """High-risk buckets for state page: warm cache, else single-state provider scan."""
+    st = (state_code or "").strip().upper()[:2]
+    if not st:
+        return {}
+    cached = _high_risk_buckets_for_state_cached(st)
+    if cached and any(cached.get(k) for k in ("sff", "sffCandidates", "abuse", "oneStarOverall", "oneStarStaffing")):
+        return cached
+    if cy_qtr:
+        return _compute_high_risk_buckets_for_state(st, cy_qtr)
+    return cached
+
+
 def _load_state_abbr_to_cms_region_full():
     path = os.path.join(APP_ROOT, 'cms_region_state_mapping.csv')
     out = {}
@@ -10614,10 +10730,7 @@ def _render_state_pbj_high_risk_section(
     '''
     tab_id_prefix = 'state-hr-tab-'
     panel_id_prefix = 'state-hr-panel-'
-    first_selected = 'all' if buckets.get('all') else next(
-        (k for k, _, _ in tab_defs[1:] if buckets.get(k)),
-        tab_defs[1][0],
-    )
+    first_selected = 'all'
     for cat_key, tab_label, _desc in tab_defs:
         count = len(buckets.get(cat_key) or [])
         tid = tab_id_prefix + cat_key
@@ -10850,9 +10963,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             suffix = 'th'
         total_hprd_display = f"{total_hprd_val} ({rank}{suffix})"
     
-    # Load provider info for SFF facilities
-    provider_info = load_provider_info()
-    
     # Helper to format ownership type
     def format_ownership_type(ownership):
         """Format ownership type: For-Profit, Non Profit, or Government"""
@@ -10874,7 +10984,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         state_name,
         state_code,
         high_risk_buckets,
-        provider_info,
+        {},
         sff_facilities=sff_facilities,
     )
     
@@ -11089,12 +11199,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {state_hprd_modal}
 </div>'''
     try:
-        from ownership.page_integrations import render_state_chow_block, render_state_top_owners_block
+        from ownership.page_integrations import render_state_top_owners_block
         _state_top_owners_line = render_state_top_owners_block(state_code, state_name)
-        _state_chow_line = render_state_chow_block(state_code, state_name)
     except Exception:
         _state_top_owners_line = ''
-        _state_chow_line = ''
+    # CHOW monitor not public yet — do not embed ownership-change tables on state pages.
+    _state_chow_line = ''
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
@@ -12323,8 +12433,7 @@ def generate_state_page(state_code):
     sff_facilities = load_sff_facilities()
     state_sff = [f for f in sff_facilities if f.get('state', '').upper() == state_code]
 
-    # Never run full provider CSV scan here — it OOMs the web service under bot/state load.
-    state_high_risk_buckets = _high_risk_buckets_for_state_cached(state_code)
+    state_high_risk_buckets = _high_risk_buckets_for_state_page(state_code, latest_quarter)
     
     # Rankings use same canonical quarter; exclude PR (51 = 50 states + DC)
     _rank_df = state_df[state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING)]

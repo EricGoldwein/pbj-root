@@ -74,22 +74,32 @@ def _apply_roman_numeral_tokens(s: str) -> str:
     return "".join(out)
 
 
+def _org_name_needs_title_case(s: str) -> bool:
+    if len(s) <= 4:
+        return False
+    if s == s.upper() and re.search(r"[A-Z]", s):
+        return True
+    words = re.findall(r"[A-Za-z]{2,}", s)
+    return any(w.isupper() for w in words)
+
+
 def format_org_display(name: str) -> str:
     if not name:
         return name
     s = str(name).strip()
-    if len(s) > 4 and s == s.upper() and re.search(r"[A-Z]", s):
-        parts = re.split(r"(\s+)", s)
-        out: list[str] = []
-        word_idx = 0
-        for part in parts:
-            if not part.strip():
-                out.append(part)
-                continue
-            out.append(_format_word_token(part, is_first=word_idx == 0))
-            word_idx += 1
-        return _apply_roman_numeral_tokens("".join(out))
-    return _apply_roman_numeral_tokens(s)
+    if not _org_name_needs_title_case(s):
+        return _apply_roman_numeral_tokens(s)
+    parts = re.split(r"(\s+|,|\.|;)", s)
+    out: list[str] = []
+    word_idx = 0
+    for part in parts:
+        if not part or re.fullmatch(r"[\s,\.;]+", part):
+            out.append(part)
+            continue
+        out.append(_format_word_token(part, is_first=word_idx == 0))
+        word_idx += 1
+    formatted = re.sub(r",(?!\s)", ", ", "".join(out))
+    return _apply_roman_numeral_tokens(formatted)
 
 
 def _format_role_segment(seg: str) -> str:

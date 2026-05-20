@@ -234,14 +234,17 @@ CHOW_TABLE_INIT_SCRIPT = """
       '<button type="button" class="chow-detail-modal__close" data-chow-modal-close aria-label="Close">&times;</button></div>' +
       '<div class="chow-detail-modal__body" id="chowDetailModalBody"></div></div>';
     document.body.appendChild(modal);
+    function closeModal(){
+      var active = document.activeElement;
+      if (active && modal.contains(active)) active.blur();
+      modal.setAttribute('aria-hidden','true');
+      document.body.classList.remove('chow-modal-open');
+    }
     modal.querySelectorAll('[data-chow-modal-close]').forEach(function(el){
-      el.addEventListener('click', function(){ modal.setAttribute('aria-hidden','true'); document.body.classList.remove('chow-modal-open'); });
+      el.addEventListener('click', closeModal);
     });
     document.addEventListener('keydown', function(e){
-      if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
-        modal.setAttribute('aria-hidden','true');
-        document.body.classList.remove('chow-modal-open');
-      }
+      if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') closeModal();
     });
   }
   function openDetail(storeId) {

@@ -43,15 +43,25 @@ def _parse_pct_max(pcts: list[str]) -> float | None:
     return best
 
 
+def _provider_info_csv_paths() -> list[Path]:
+    paths: list[Path] = []
+    provider_dir = _REPO / "provider_info"
+    if provider_dir.is_dir():
+        paths.extend(sorted(provider_dir.glob("ProviderInfoNorm_*.csv"), reverse=True))
+    paths.extend(
+        [
+            _REPO / "provider_info_combined_latest.csv",
+            _REPO / "provider_info_norm.csv",
+            _REPO / "provider_info_combined.csv",
+        ]
+    )
+    return paths
+
+
 @lru_cache(maxsize=1)
 def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
     """Latest provider-info row per CCN (state, county, city, beds, HPRD, ratings)."""
-    paths = [
-        _REPO / "provider_info_combined.csv",
-        _REPO / "provider_info_norm.csv",
-        _REPO / "provider_info_combined_latest.csv",
-    ]
-    path = next((p for p in paths if p.is_file()), None)
+    path = next((p for p in _provider_info_csv_paths() if p.is_file()), None)
     if not path:
         return {}
 

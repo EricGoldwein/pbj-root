@@ -214,7 +214,6 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {owner_section_html}
       <h2 class="section-header">Related on PBJ320</h2>
       <ul class="chow-future-list">
-        <li><a href="/chow?state=CT">Connecticut CHOW records</a></li>
         <li><a href="/owners?owner={fec_name}">Political contributions search</a> (FEC)</li>
       </ul>
       <p class="pbj-meta-line" style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;">
@@ -557,7 +556,8 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         '<details class="owner-collapsible owner-associates-collapsible">'
         f'<summary class="owner-associates-summary">'
         f'<span class="owner-associates-summary-label">Frequent associates · {n_show}</span>'
-        f"{associates_help}</summary>"
+        f"</summary>"
+        f'<div class="owner-associates-toolbar">{associates_help}</div>'
         f'<ul class="owner-associate-list">{"".join(items)}</ul>'
         "</details>"
     )
@@ -669,13 +669,15 @@ def _state_county_cells(f: dict[str, Any]) -> tuple[str, str]:
 def _ccn_match_badge(method: str) -> str:
     if method == "name_exact":
         return (
-            '<span class="owner-match-badge" title="Matched via facility DBA or search name, '
-            'not verified legal business name">DBA</span>'
+            '<button type="button" class="owner-match-badge owner-match-badge--tip" '
+            'title="Matched via facility DBA or search name, not verified legal business name" '
+            'aria-label="DBA name match">DBA</button>'
         )
     if method == "fuzzy":
         return (
-            '<span class="owner-match-badge owner-match-badge--warn" '
-            'title="Approximate name match only—verify on CMS before relying on link">~</span>'
+            '<button type="button" class="owner-match-badge owner-match-badge--warn owner-match-badge--tip" '
+            'title="Approximate name match only—verify on CMS before relying on link" '
+            'aria-label="Approximate name match">~</button>'
         )
     return ""
 
@@ -1128,13 +1130,10 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         + "".join(tx_rows)
         + "</tbody></table></div>"
     )
-    link = f'<p class="pbj-meta-line"><a href="/chow?state=CT&amp;q={pac}">Open in Connecticut CHOW records</a></p>'
-
     if is_chow_only:
         return (
             '<h2 class="section-header">Ownership transactions</h2>'
             + inner
-            + link
         )
 
     return (
@@ -1142,7 +1141,6 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         f'<summary>Ownership transactions · {len(chow_rows)} in CMS data'
         f"{'s' if len(chow_rows) != 1 else ''}</summary>"
         + inner
-        + link
         + "</details>"
     )
 

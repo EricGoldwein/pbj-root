@@ -88,10 +88,10 @@
   flex-wrap: wrap;
   align-items: center;
   margin-top: 0.4rem;
-  gap: 0.15rem 0;
+  gap: 0.35rem 0.65rem;
 }
 
-.owner-profile-meta-row > *:not(:first-child)::before {
+.owner-profile-meta-row > *:not(:first-child):not(.owner-states-trigger):not(.owner-state-link)::before {
   content: "·";
   margin: 0 0.45rem;
   color: #64748b;
@@ -382,7 +382,7 @@
 .owner-table-note {
   font-size: 0.82rem;
   color: var(--owner-muted, #94a3b8);
-  margin: -0.35rem 0 1rem;
+  margin: 0.85rem 0 1rem;
   line-height: 1.45;
   max-width: 52rem;
 }
@@ -515,6 +515,20 @@
   color: #cbd5e1;
   background: rgba(100, 116, 139, 0.35);
   border: 1px solid #64748b;
+}
+
+button.owner-match-badge {
+  -webkit-appearance: none;
+  appearance: none;
+  font: inherit;
+  line-height: 1.2;
+  cursor: help;
+}
+
+button.owner-match-badge--tip:hover,
+button.owner-match-badge--tip:focus-visible {
+  outline: 1px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 1px;
 }
 
 .owner-match-badge--warn {
@@ -943,6 +957,12 @@ button.owner-role-pct-btn:focus-visible {
 .owner-associates-summary-label {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+.owner-associates-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin: 0.25rem 0 0.35rem;
 }
 
 .owner-associates-info {

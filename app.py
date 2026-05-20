@@ -1100,8 +1100,7 @@ def data_sources_page():
 @app.route('/privacy')
 @app.route('/privacy/')
 def privacy_page():
-    from flask import abort
-    abort(404)
+    return send_file('privacy.html', mimetype='text/html; charset=utf-8')
 
 
 @app.route('/terms')

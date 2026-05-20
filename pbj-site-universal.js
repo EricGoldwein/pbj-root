@@ -26,6 +26,7 @@
     '<a href="/about" style="color:rgba(148,163,184,0.95)">About</a> · ' +
     '<a href="/press" style="color:rgba(148,163,184,0.95)">Press</a> · ' +
     '<a href="/premium" style="color:rgba(148,163,184,0.95)">Premium</a> · ' +
+    '<a href="/privacy" style="color:rgba(148,163,184,0.95)">Privacy</a> · ' +
     '<a href="/terms" style="color:rgba(148,163,184,0.95)">Terms</a> · ' +
     '<a href="/contact" style="color:rgba(148,163,184,0.95)">Contact</a>' +
     '</p>';

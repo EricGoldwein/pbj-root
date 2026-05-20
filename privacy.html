@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Privacy | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Privacy policy for PBJ320, a nursing home staffing data platform operated by 320 Consulting LLC.">
+  <meta name="description" content="Privacy policy for PBJ320, a public nursing home staffing data platform operated by 320 Consulting LLC.">
   <link rel="canonical" href="https://pbj320.com/privacy">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
   <link rel="stylesheet" href="/public-trust.css">
@@ -32,31 +32,37 @@
       <h1>Privacy policy</h1>
       <p class="meta">Last updated: May 2026</p>
 
-      <p>PBJ320 is operated by <strong>320 Consulting LLC</strong> (“we,” “us”). This page describes how we handle information on the public PBJ320 website at pbj320.com.</p>
+      <p>PBJ320 is operated by <strong>320 Consulting LLC</strong> (we, us). This page describes how we handle information when you use the public PBJ320 website at <a href="https://pbj320.com/">pbj320.com</a>, including facility pages, data summaries, contact forms, and related tools.</p>
 
       <h2>Information we collect</h2>
-      <p>When you use the public site, standard web server and analytics logs may record IP address, browser type, pages visited, and approximate timing. If you submit the <a href="/contact">contact form</a> or subscribe to updates, we receive the information you provide (such as name, email, and message).</p>
+      <p>When you browse the public site, standard web server logs and similar technical records may include IP address, browser type, pages requested, and approximate timing. If you use the <a href="/contact">contact form</a>, request a dashboard or custom report, or subscribe to updates, we receive the information you choose to submit (such as name, email, organization, and message content).</p>
 
       <h2>How we use information</h2>
-      <p>We use contact and subscription information to respond to inquiries and send requested communications. We use aggregated analytics to understand site usage and improve the service.</p>
+      <p>We use submitted information to respond to inquiries, fulfill requested communications, and operate PBJ320. We use aggregated usage information to understand how the site is used and to maintain and improve the service. We do not sell personal information.</p>
+
+      <h2>Public data</h2>
+      <p>Staffing metrics, facility identifiers, provider attributes, and ownership listings displayed on PBJ320 are drawn from public federal and state sources, including CMS Payroll-Based Journal and related CMS provider files, as described on our <a href="/data-sources">data sources</a> page. That information describes nursing homes and related organizations, not visitors to this site. Browsing or searching public facility and state pages does not mean we are collecting personal information about you from those datasets.</p>
+
+      <h2>AI-assisted features</h2>
+      <p>Some PBJ320 features may use automated or AI-assisted tools to produce summaries, takeaways, or draft reports based on public data and information you provide in context (for example, a facility name or question about a page you are viewing). Those tools are meant to help users review public data, not to replace your own verification. Inputs you submit in connection with AI-assisted features may be processed by service providers that support site operations.</p>
 
       <h2>Third-party services</h2>
-      <p>The site may load scripts or assets from content delivery networks and analytics providers (for example, Google Analytics). Those providers may process technical data according to their own policies. Public staffing figures displayed on PBJ320 come from federal CMS public datasets described on our <a href="/data-sources">data sources</a> page.</p>
+      <p>We rely on service providers for hosting, content delivery, security monitoring, analytics, form and email delivery, and related technical operations. Some features may also use AI-assisted processing as described above. Those providers may process technical or submitted information according to their own policies and our instructions where applicable.</p>
 
       <h2>Premium and authenticated areas</h2>
-      <p>Separate terms may apply to PBJ320 Premium dashboards and paid engagements. Access to facility dashboards requires authorization; we do not describe premium authentication details on this public page.</p>
+      <p>Some dashboards, exports, or tools may require authorization or password access. Additional terms or written agreements with 320 Consulting LLC may apply to those areas. This public privacy page does not describe premium authentication or security implementation in detail.</p>
 
       <h2>Retention and security</h2>
-      <p>We retain contact and subscription records as needed to operate the service and meet legal obligations. We use reasonable technical measures appropriate to a public data site; no method of transmission over the Internet is fully secure.</p>
+      <p>We retain contact, subscription, and related operational records for as long as needed to run the service, respond to requests, and meet legal obligations. We use reasonable technical and organizational measures appropriate to a public data site. No method of transmission or storage over the Internet is fully secure.</p>
 
       <h2>Your choices</h2>
-      <p>You may request correction or deletion of personal information you submitted by emailing <a href="mailto:eric@320insight.com">eric@320insight.com</a>.</p>
+      <p>You may request access, correction, or deletion of personal information you submitted to us by emailing <a href="mailto:eric@320insight.com">eric@320insight.com</a> or using the <a href="/contact">contact form</a>. We may need to retain certain records where required by law or for legitimate operational needs.</p>
 
       <h2>Children</h2>
-      <p>PBJ320 is intended for professional and general adult audiences researching nursing home staffing data. It is not directed at children under 13.</p>
+      <p>PBJ320 is intended for professional and general adult audiences researching nursing home staffing and related public data. It is not directed at children under 13.</p>
 
       <h2>Changes</h2>
-      <p>We may update this policy from time to time. The “Last updated” date above will change when we do.</p>
+      <p>We may update this policy from time to time. The Last updated date at the top of this page will change when we do.</p>
 
       <p class="trust-nav-links">
         <a href="/terms">Terms</a>
@@ -68,12 +74,17 @@
   </main>
 
   <footer class="footer" id="site-footer" style="padding:1.25rem 1rem;"></footer>
-  <script src="/pbj-site-universal.js?v=20"></script>
+  <script src="/pbj-site-universal.js?v=23"></script>
   <script>
     (function () {
       var t = document.getElementById('navToggle');
       var m = document.getElementById('navMenu');
-      if (t && m) t.addEventListener('click', function () { m.classList.toggle('active'); });
+      if (t && m) {
+        t.addEventListener('click', function () {
+          m.classList.toggle('active');
+          document.body.style.overflow = m.classList.contains('active') ? 'hidden' : '';
+        });
+      }
     })();
   </script>
 </body>

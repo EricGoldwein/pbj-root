@@ -14,7 +14,7 @@ PUBLIC_SITE_ORIGIN = (
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '22'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '23'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 

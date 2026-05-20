@@ -104,12 +104,17 @@
   </main>
 
   <footer class="footer" id="site-footer" style="padding:1.25rem 1rem;"></footer>
-  <script src="/pbj-site-universal.js?v=21"></script>
+  <script src="/pbj-site-universal.js?v=23"></script>
   <script>
     (function () {
       var t = document.getElementById('navToggle');
       var m = document.getElementById('navMenu');
-      if (t && m) t.addEventListener('click', function () { m.classList.toggle('active'); });
+      if (t && m) {
+        t.addEventListener('click', function () {
+          m.classList.toggle('active');
+          document.body.style.overflow = m.classList.contains('active') ? 'hidden' : '';
+        });
+      }
     })();
   </script>
 </body>

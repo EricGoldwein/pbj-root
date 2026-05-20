@@ -1064,6 +1064,12 @@ def chow_css():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'chow.css', mimetype='text/css'))
 
 
+@app.route('/public-trust.css')
+def public_trust_css():
+    """Styles for /data-sources, /privacy, /terms, and other public trust pages."""
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'public-trust.css', mimetype='text/css'))
+
+
 @app.route('/owner-profile.css')
 def owner_profile_css():
     return _static_cache_headers(
@@ -14757,7 +14763,7 @@ def static_files(filename):
         'insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample',
         'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
         'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium', 'contact',
-        'data-sources', 'privacy', 'terms', 'public-trust.css',
+        'data-sources', 'privacy', 'terms',
         'chow', 'chow.html',
     ]:
         from flask import abort

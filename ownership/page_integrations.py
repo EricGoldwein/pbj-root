@@ -102,43 +102,36 @@ def _render_party_chow_cell(
     side: str,
     state_code: str,
     st_rows: list[dict[str, Any]],
+    *,
+    preview: int = 2,
 ) -> str:
-    """Latest transaction first; older events in one expandable list (consistent layout)."""
     events = _party_chow_events(party, side, state_code, st_rows)
-    n = len(events)
-    if n == 0:
+    if not events:
         return "—"
-
-    events = sorted(events, key=lambda r: str(r.get("effective_date") or ""), reverse=True)
-    latest = events[0]
+    n = len(events)
+    name = _format_org_display(str(party.get("name") or "—"))
     filter_href = html.escape(_chow_filter_url(party, side, state_code))
-
+    latest = events[0]
     latest_block = (
-        '<div class="chow-party-stack">'
-        '<span class="chow-party-stack-label">Latest</span> '
-        f'<div class="chow-party-stack-line">{_chow_event_line(latest, side)}</div>'
-        "</div>"
+        f'<div class="chow-party-ev-latest">{_chow_event_line(latest, side)}</div>'
     )
-
-    if n == 1:
+    if n <= 1:
         return latest_block
-
-    older = events[1:8]
-    items = [f"<li>{_chow_event_line(rec, side)}</li>" for rec in older]
-    if n > 8:
-        items.append(
+    items = "".join(
+        f'<li>{_chow_event_line(r, side)}</li>' for r in events[1 : preview + 1]
+    )
+    if n > preview + 1:
+        items += (
             f'<li class="chow-party-ev-more"><a href="{filter_href}">'
-            f"All {n:,} on CHOW monitor</a></li>"
+            f"+ {n - preview - 1} more</a></li>"
         )
     older_label = f"{n - 1} earlier transaction{'s' if n - 1 != 1 else ''}"
     return (
         latest_block
         + f'<details class="chow-party-roll chow-party-roll--older">'
         f'<summary class="chow-party-roll-summary">{older_label}</summary>'
-        f'<ul class="chow-party-events-list">{"".join(items)}</ul>'
+        f'<ul class="chow-party-events-list">{items}</ul>'
         f"</details>"
-        + f'<p class="chow-party-roll-foot">'
-        f'<a href="{filter_href}">Filter on CHOW monitor</a></p>'
     )
 
 
@@ -185,6 +178,10 @@ def _org_link_from_chow_record(rec: dict[str, Any], side: str) -> str:
     return f'<a href="{href}">{display}</a>'
 
 
+def _facility_col_from_record(rec: dict[str, Any]) -> str:
+    return _facility_link_from_record(rec)
+
+
 def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
     """One row per CMS transaction (not separate buyer/seller party rows)."""
     st = state_code.upper()[:2]
@@ -193,57 +190,47 @@ def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
         return '<p class="pbj-meta-line">No transactions in this state index.</p>'
 
     table_inner = render_chow_events_table(
-        recent, org_link_fn=_org_link_from_chow_record, max_rows=limit
+        recent,
+        org_link_fn=_org_link_from_chow_record,
+        facility_link_fn=_facility_col_from_record,
+        max_rows=limit,
     )
     total = chow_count_for_state(st)
     more = ""
     if total > len(recent):
         more = (
             f'<p class="chow-state-tx-more">'
-            f"Showing {len(recent)} most recent of {total:,}. "
-            f'<a href="/chow?state={html.escape(st)}">Browse all</a></p>'
+            f"Showing {len(recent)} most recent of {total:,} CMS-reported ownership changes in {html.escape(st)}."
+            f"</p>"
         )
 
     return table_inner + more + CHOW_TABLE_INIT_SCRIPT
 
 
 def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
-    """Top ownership organizations in this state (by CHOW transaction count)."""
+    """Top owner/control organizations in this state by linked facility count (CMS SNF All Owners)."""
+    from ownership.owner_profile import top_owner_organizations_for_state
+
     st = str(state_code or "").strip().upper()[:2]
     if not ownership_beta_enabled_for_state(st):
         return ""
     if not st:
         return ""
-    st_rows = chow_records_for_state(st, limit=0)
-    if not st_rows:
-        return ""
 
-    merged: dict[str, dict[str, Any]] = {}
-    for side in ("buyer", "seller"):
-        for p in _party_list_from_records(st_rows, side, 10):
-            key = str(p.get("normalized") or p.get("name") or "").strip()
-            if not key:
-                continue
-            prev = merged.get(key)
-            if not prev or int(p.get("count") or 0) > int(prev.get("count") or 0):
-                merged[key] = {**p, "side": side}
-
-    top = sorted(merged.values(), key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))[:8]
+    top = top_owner_organizations_for_state(st, limit=8)
     if not top:
         return ""
 
     label = html.escape(state_name or st)
     trs: list[str] = []
     for p in top:
-        name = _format_org_display(str(p.get("name") or "—"))
-        side = str(p.get("side") or "buyer")
-        side_lbl = "Buyer" if side == "buyer" else "Seller"
-        cnt = int(p.get("count") or 0)
-        name_cell = _party_org_name_cell(p, side, st, name)
+        name = html.escape(_format_org_display(str(p.get("name") or "—")))
+        cnt = int(p.get("facility_count") or 0)
+        url = html.escape(str(p.get("profile_url") or ""))
+        name_cell = f'<a href="{url}">{name}</a>' if url else name
         trs.append(
-            f"<tr><td class=\"chow-org-name\">{name_cell}</td>"
-            f"<td class=\"num\">{cnt}</td>"
-            f"<td>{html.escape(side_lbl)}</td></tr>"
+            f'<tr><td class="chow-org-name">{name_cell}</td>'
+            f'<td class="num">{cnt}</td></tr>'
         )
 
     return (
@@ -251,10 +238,11 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
         f"Top ownership organizations · {label}</summary>"
         f'<div class="pbj-details-content chow-state-block">'
-        f'<p class="chow-state-lead">Organizations with the most reported ownership transactions in {label}.</p>'
+        f'<p class="chow-state-lead">Organizations with the most nursing homes linked in {label} '
+        f"in the current CMS SNF All Owners snapshot (not limited to ownership-change filings).</p>"
         f'<div class="chow-table-scroll chow-state-owners-scroll">'
         f'<table class="chow-table chow-state-owners-table">'
-        f"<thead><tr><th>Organization</th><th class=\"num\">Txns</th><th>Role</th></tr></thead>"
+        f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
         f"<tbody>{''.join(trs)}</tbody></table></div></div></details>"
     )
 
@@ -291,9 +279,7 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         f'<div class="pbj-details-content chow-state-block">'
         f"{lead}"
         f"{table_html}"
-        f'<p class="chow-state-foot">'
-        f'<a href="/chow?state={html.escape(st)}">Browse all {html.escape(st)} CHOW records</a>'
-        f"</p></div></details>"
+        f"</div></details>"
     )
 
 
@@ -309,8 +295,7 @@ def render_state_chow_line(state_code: str, state_name: str = "") -> str:
     label = html.escape(state_name or state_code)
     return (
         f'<p class="pbj-meta-line" style="margin-top:0.5rem;">'
-        f"<strong>Ownership changes:</strong> {cnt:,} reported CMS CHOW events for {label}. "
-        f'<a href="/chow?state={st}">View {st} CHOW records</a>'
+        f"<strong>Ownership changes:</strong> {cnt:,} reported CMS CHOW events for {label}."
         "</p>"
     )
 
@@ -371,6 +356,7 @@ def _render_provider_chow_block(ccn_norm: str) -> str:
     table = render_chow_events_table(
         rows[:40],
         org_link_fn=_org_link_from_chow_record,
+        facility_link_fn=_facility_col_from_record,
         max_rows=40,
         table_class="chow-table chow-tx-table chow-tx-table--provider",
     )
@@ -428,7 +414,7 @@ def render_provider_ownership_chow_block(
     if ownership_type:
         lines.append(
             f'<p class="pbj-meta-line" style="margin:0 0 0.5rem;">'
-            f"<strong>Ownership type (Care Compare):</strong> {html.escape(ownership_type)}</p>"
+            f"<strong>Ownership type (CMS provider data):</strong> {html.escape(ownership_type)}</p>"
         )
 
     if cms:
@@ -450,7 +436,7 @@ def render_provider_ownership_chow_block(
     if chow_flag == "Y":
         lines.append(
             '<p class="pbj-meta-line" style="margin:0.75rem 0 0.5rem;">'
-            "Care Compare: ownership change in the last 12 months.</p>"
+            "CMS provider data: ownership change reported in the last 12 months.</p>"
         )
     chow_html = _render_provider_chow_block(ccn_norm) if chow_all else ""
 

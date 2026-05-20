@@ -973,6 +973,100 @@ def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
     return profile
 
 
+def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:
+    """Prefer provider-info state for the linked CCN; fall back to owner address state."""
+    ccn_norm = _norm_ccn_key(ccn)
+    if ccn_norm:
+        try:
+            from ownership.owner_portfolio_metrics import _ccn_provider_lookup
+
+            prov = _ccn_provider_lookup().get(ccn_norm) or {}
+            st = str(prov.get("state") or "").strip().upper()[:2]
+            if st:
+                return st
+        except Exception:
+            pass
+    return _clean(row.get("STATE - OWNER")).upper()[:2]
+
+
+@lru_cache(maxsize=16)
+def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[dict[str, Any]]:
+    """Owner/control parties with the most linked nursing homes in a state (CMS SNF All Owners)."""
+    st = (state_code or "").strip().upper()[:2]
+    if not st:
+        return []
+    from ownership.owner_portfolio_metrics import _ccn_provider_lookup
+
+    prov_lookup = _ccn_provider_lookup()
+    legal_ccn = _legal_business_name_to_ccn()
+    name_ccn = _facility_name_to_ccn()
+    owner_ccns: dict[str, set[str]] = {}
+    owner_meta: dict[str, dict[str, Any]] = {}
+
+    def _ingest(row: dict[str, Any]) -> None:
+        fac = _clean(row.get("ORGANIZATION NAME"))
+        if not fac:
+            return
+        key = _norm_org_key(fac)
+        ccn = legal_ccn.get(key) or name_ccn.get(key) or _resolve_ccn_with_method(fac)[0]
+        if not ccn:
+            return
+        ccn_norm = _norm_ccn_key(ccn)
+        prov = prov_lookup.get(ccn_norm) or {}
+        fac_st = str(prov.get("state") or "").strip().upper()[:2]
+        if fac_st != st:
+            return
+        ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
+        if len(ow_pac) != 10:
+            return
+        owner_ccns.setdefault(ow_pac, set()).add(ccn_norm)
+        if ow_pac not in owner_meta:
+            owner_meta[ow_pac] = {
+                "associate_id": ow_pac,
+                "name": _owner_display_name(row),
+                "profile_url": associate_profile_url(ow_pac),
+            }
+
+    conn = _sqlite_conn()
+    if conn:
+        try:
+            for sql_row in conn.execute(f'SELECT * FROM "{_OWNERS_TABLE}"'):
+                _ingest(_sqlite_row_to_dict(sql_row))
+        except Exception:
+            pass
+    else:
+        cols = (
+            ENROLLMENT_PAC_COL,
+            OWNER_PAC_COL,
+            "ORGANIZATION NAME",
+            "ORGANIZATION NAME - OWNER",
+            "FIRST NAME - OWNER",
+            "MIDDLE NAME - OWNER",
+            "LAST NAME - OWNER",
+            "TYPE - OWNER",
+        )
+        try:
+            for chunk in _read_owners_csv_chunks(usecols=cols, chunksize=200_000):
+                for _, r in chunk.iterrows():
+                    _ingest(_row_to_dict(r))
+        except Exception:
+            pass
+
+    out: list[dict[str, Any]] = []
+    for pac, ccns in owner_ccns.items():
+        meta = owner_meta.get(pac) or {}
+        out.append(
+            {
+                "associate_id": pac,
+                "name": meta.get("name") or pac,
+                "facility_count": len(ccns),
+                "profile_url": meta.get("profile_url") or associate_profile_url(pac),
+            }
+        )
+    out.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))
+    return out[: max(1, limit)]
+
+
 def _build_enrollment_profile(pac: str, enrollment_rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
     path = snf_owners_csv_path()
     first = enrollment_rows[0]
@@ -995,7 +1089,7 @@ def _build_enrollment_profile(pac: str, enrollment_rows: Sequence[dict[str, Any]
             {
                 "facility_name": fac_name,
                 "enrollment_id": _clean(row.get("ENROLLMENT ID")),
-                "state": _clean(row.get("STATE - OWNER")),
+                "state": _facility_state_for_row(row, ccn or ""),
                 "city": _clean(row.get("CITY - OWNER")),
                 "ccn": ccn or "",
                 "ccn_match_method": match_method,
@@ -1048,7 +1142,7 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
         facilities.append(
             {
                 "facility_name": fac_name,
-                "state": _clean(row.get("STATE - OWNER")),
+                "state": _facility_state_for_row(row, ccn or ""),
                 "city": _clean(row.get("CITY - OWNER")),
                 "role": format_role_text(_clean(row.get("ROLE TEXT - OWNER"))),
                 "association_date": _clean(row.get("ASSOCIATION DATE - OWNER")),

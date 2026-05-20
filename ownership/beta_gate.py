@@ -97,6 +97,19 @@ def ownership_beta_enabled_for_state(state_code: str | None) -> bool:
 def _profile_state_codes(profile: dict[str, Any] | None) -> list[str]:
     if not profile:
         return []
+    codes: list[str] = []
+    for fac in profile.get("facilities") or []:
+        st = normalize_state_code(fac.get("state"))
+        if st and st not in codes:
+            codes.append(st)
+    ow = profile.get("owner_control_section")
+    if isinstance(ow, dict):
+        for fac in ow.get("facilities") or []:
+            st = normalize_state_code(fac.get("state"))
+            if st and st not in codes:
+                codes.append(st)
+    if codes:
+        return codes
     states = profile.get("states") or []
     if states:
         return [normalize_state_code(s) for s in states if normalize_state_code(s)]

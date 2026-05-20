@@ -951,13 +951,8 @@ def generate_chow_page_html():
 @app.route('/chow')
 @app.route('/chow/')
 def chow_page():
-    """Public CMS SNF Change of Ownership monitor (CT beta: bare /chow → Connecticut state page)."""
-    if not request.args:
-        return redirect('/state/connecticut', code=302)
-    resp = make_response(generate_chow_page_html())
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-    return resp
+    """CHOW monitor page paused — direct users to Connecticut state page (inline CHOW there)."""
+    return redirect('/state/connecticut', code=302)
 
 
 @app.route('/chow.html')
@@ -10478,13 +10473,29 @@ def _render_state_pbj_high_risk_section(
             sff_by_ccn[ccn_k] = sf
 
     tab_defs = [
+        ('all', 'All', 'All PBJ320 high-risk indicators in this state (deduplicated by facility).'),
         ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
         ('sffCandidates', 'SFF candidates', 'Facilities monitored for potential SFF designation.'),
-        ('oneStarOverall', '1-star overall', 'Care Compare overall rating of 1 star.'),
-        ('oneStarStaffing', '1-star staffing', 'Care Compare staffing rating of 1 star.'),
+        ('oneStarOverall', '1-star overall', 'CMS overall rating of 1 star.'),
+        ('oneStarStaffing', '1-star staffing', 'CMS staffing rating of 1 star.'),
         ('abuse', 'Abuse icon', 'Facilities flagged with the CMS abuse icon.'),
     ]
-    total = sum(len(buckets.get(k) or []) for k, _, _ in tab_defs)
+    all_by_ccn: dict[str, dict] = {}
+    for cat_key, _, _ in tab_defs[1:]:
+        for fac in buckets.get(cat_key) or []:
+            ccn = str(fac.get('ccn') or '').strip().zfill(6)[-6:]
+            if not ccn.isdigit():
+                continue
+            if ccn not in all_by_ccn:
+                all_by_ccn[ccn] = dict(fac)
+            else:
+                prev = all_by_ccn[ccn]
+                prev['hasAbuse'] = prev.get('hasAbuse') or fac.get('hasAbuse')
+                for rk in ('overall_rating', 'staffing_rating', 'status'):
+                    if not prev.get(rk) and fac.get(rk):
+                        prev[rk] = fac.get(rk)
+    buckets['all'] = list(all_by_ccn.values())
+    total = len(all_by_ccn) if all_by_ccn else sum(len(buckets.get(k) or []) for k, _, _ in tab_defs[1:])
     if not total and not sff_by_ccn:
         return ''
 
@@ -10492,10 +10503,21 @@ def _render_state_pbj_high_risk_section(
         badges: list[str] = []
         sff_raw = str(fac.get('status') or '').strip()
         sff_up = sff_raw.upper()
+        sf = sff_by_ccn.get(ccn) if ccn else None
+        months_val = sf.get('months_as_sff') if sf else None
+        months_tip = (
+            f' title="Months as SFF: {html.escape(str(months_val))}"'
+            if months_val is not None
+            else ''
+        )
         if sff_up == 'SFF':
-            badges.append('<span class="state-hr-badge state-hr-badge--sff">SFF</span>')
+            badges.append(
+                f'<span class="state-hr-badge state-hr-badge--sff"{months_tip}>SFF</span>'
+            )
         elif 'CANDIDATE' in sff_up:
-            badges.append('<span class="state-hr-badge state-hr-badge--sffc">SFF cand.</span>')
+            badges.append(
+                f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
+            )
         if fac.get('hasAbuse'):
             badges.append('<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon">Abuse</span>')
         try:
@@ -10510,7 +10532,7 @@ def _render_state_pbj_high_risk_section(
             pass
         return ' '.join(badges) if badges else '—'
 
-    def _facility_row(fac: dict, *, show_months: bool = False) -> str:
+    def _facility_row(fac: dict) -> str:
         ccn = str(fac.get('ccn') or '').strip().zfill(6)
         name_raw = fac.get('name') or 'Unknown'
         name = capitalize_facility_name(name_raw)
@@ -10538,18 +10560,9 @@ def _render_state_pbj_high_risk_section(
             + (f' <span class="state-hr-city">({html.escape(city)})</span>' if city else '')
         )
         flags_cell = _risk_flags_html(fac, ccn)
-        extra = ''
-        if show_months:
-            sf = sff_by_ccn.get(ccn) if ccn else None
-            months_val = sf.get('months_as_sff') if sf else None
-            extra = (
-                f'<td class="num">{html.escape(str(months_val))}</td>'
-                if months_val is not None
-                else '<td class="num">—</td>'
-            )
         return (
             f'<tr><td>{facility_cell}</td><td class="state-hr-ratings">{ratings_cell}</td>'
-            f'<td>{flags_cell}</td><td class="num">{hprd_cell}</td>{extra}</tr>'
+            f'<td>{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
         )
 
     tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
@@ -10566,9 +10579,9 @@ def _render_state_pbj_high_risk_section(
     '''
     tab_id_prefix = 'state-hr-tab-'
     panel_id_prefix = 'state-hr-panel-'
-    first_selected = next(
-        (k for k, _, _ in tab_defs if buckets.get(k)),
-        tab_defs[0][0],
+    first_selected = 'all' if buckets.get('all') else next(
+        (k for k, _, _ in tab_defs[1:] if buckets.get(k)),
+        tab_defs[1][0],
     )
     for cat_key, tab_label, _desc in tab_defs:
         count = len(buckets.get(cat_key) or [])
@@ -10601,8 +10614,13 @@ def _render_state_pbj_high_risk_section(
                 f'No {tab_label.lower()} in this state.</p>'
             )
         else:
-            show_months = cat_key in ('sff', 'sffCandidates')
-            months_th = '<th scope="col" class="num">Months</th>' if show_months else ''
+            display_lst = lst[:40] if cat_key == 'all' else lst
+            more_note = ''
+            if cat_key == 'all' and len(lst) > 40:
+                more_note = (
+                    f'<p class="pbj-meta-line" style="margin:0.5rem 0 0;font-size:0.85rem;">'
+                    f'Showing 40 of {len(lst):,} high-risk facilities. Use category tabs to filter.</p>'
+                )
             section += f'''
     <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
     <table class="state-hr-table" style="width:100%; min-width:360px; border-collapse:collapse; font-size:0.875rem;">
@@ -10611,11 +10629,11 @@ def _render_state_pbj_high_risk_section(
       <th scope="col">CMS ratings</th>
       <th scope="col">Indicators</th>
       <th scope="col" class="num">Total HPRD</th>
-      {months_th}
     </tr></thead>
     <tbody>'''
-            for fac in lst:
-                section += _facility_row(fac, show_months=show_months)
+            for fac in display_lst:
+                section += _facility_row(fac)
+            section += more_note
             section += '</tbody></table></div>'
         section += '</div>'
     section += '''
@@ -11065,10 +11083,10 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     </div>
     </details>
     {sff_section}
-    {render_methodology_block()}
     {cta_section}
     {_state_top_owners_line}
     {_state_chow_line}
+    {render_methodology_block()}
     </div>
     """
     

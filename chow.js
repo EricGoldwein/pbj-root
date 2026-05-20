@@ -11,6 +11,44 @@
   var meta = {};
   var filtered = [];
   var expandedId = null;
+  var chowDetailModal = null;
+  function ensureChowModal() {
+    if (chowDetailModal) return chowDetailModal;
+    chowDetailModal = document.getElementById('chowDetailModal');
+    if (!chowDetailModal) {
+      chowDetailModal = document.createElement('div');
+      chowDetailModal.id = 'chowDetailModal';
+      chowDetailModal.className = 'chow-detail-modal';
+      chowDetailModal.setAttribute('aria-hidden', 'true');
+      chowDetailModal.innerHTML =
+        '<div class="chow-detail-modal__backdrop" data-chow-modal-close></div>' +
+        '<div class="chow-detail-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="chowDetailModalTitle">' +
+        '<div class="chow-detail-modal__head"><h3 id="chowDetailModalTitle">Ownership change details</h3>' +
+        '<button type="button" class="chow-detail-modal__close" data-chow-modal-close aria-label="Close">&times;</button></div>' +
+        '<div class="chow-detail-modal__body" id="chowDetailModalBody"></div></div>';
+      document.body.appendChild(chowDetailModal);
+      chowDetailModal.querySelectorAll('[data-chow-modal-close]').forEach(function (el) {
+        el.addEventListener('click', closeChowModal);
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') closeChowModal();
+      });
+    }
+    return chowDetailModal;
+  }
+  function openChowModal(html) {
+    var modal = ensureChowModal();
+    var body = $('chowDetailModalBody');
+    if (!body) return;
+    body.innerHTML = html;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('chow-modal-open');
+  }
+  function closeChowModal() {
+    if (!chowDetailModal) return;
+    chowDetailModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('chow-modal-open');
+  }
   var activeClusterFilter = null;
   var sortKey = 'effective_date';
   var sortDir = 'desc';
@@ -865,11 +903,8 @@
     var html = '';
     slice.forEach(function (r) {
       var id = r.chow_id;
-      var expanded = expandedId === id;
       html +=
-        '<tr class="chow-row' +
-        (expanded ? ' expanded' : '') +
-        '" data-chow-id="' +
+        '<tr class="chow-row" data-chow-id="' +
         esc(id) +
         '">' +
         '<td class="chow-col-expand" aria-hidden="true"></td>' +
@@ -909,12 +944,6 @@
         renderLinks(r) +
         '</td>' +
         '</tr>';
-      if (expanded) {
-        html +=
-          '<tr class="chow-detail-row"><td colspan="10">' +
-          renderDetailRow(r) +
-          '</td></tr>';
-      }
     });
     tbody.innerHTML = html;
     if (loadWrap) {
@@ -924,16 +953,8 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var cid = btn.getAttribute('data-chow-id');
-        expandedId = expandedId === cid ? null : cid;
-        renderTable();
-      });
-    });
-    tbody.querySelectorAll('.chow-row').forEach(function (row) {
-      row.addEventListener('click', function (e) {
-        if (e.target.closest('.chow-view-details, a, button')) return;
-        var cid = row.getAttribute('data-chow-id');
-        expandedId = expandedId === cid ? null : cid;
-        renderTable();
+        var rec = filtered.find(function (x) { return x.chow_id === cid; });
+        if (rec) openChowModal(renderDetailRow(rec));
       });
     });
     tbody.querySelectorAll('.chow-filter-buyer').forEach(function (btn) {

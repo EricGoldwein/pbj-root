@@ -1035,3 +1035,75 @@
   line-height: 1.45;
   color: #94a3b8;
 }
+
+.chow-detail-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.chow-detail-modal[aria-hidden="false"] {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+.chow-detail-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.72);
+}
+
+.chow-detail-modal__dialog {
+  position: relative;
+  z-index: 1;
+  width: min(720px, 100%);
+  max-height: min(85vh, 640px);
+  overflow: auto;
+  background: #0f172a;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.chow-detail-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid rgba(129, 140, 248, 0.25);
+}
+
+.chow-detail-modal__head h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e2e8f0;
+}
+
+.chow-detail-modal__close {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chow-detail-modal__body {
+  padding: 1rem;
+}
+
+body.chow-modal-open {
+  overflow: hidden;
+}
+
+.chow-tx-facility {
+  min-width: 8rem;
+}

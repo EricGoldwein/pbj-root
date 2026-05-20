@@ -1771,6 +1771,11 @@ a.pbj-audit-hero-actions__primary {
     text-align: center;
 }
 
+.pbj-audit-hero-actions__meta-text {
+    color: rgba(226, 232, 240, 0.82);
+    font-size: 0.9rem;
+}
+
 .pbj-audit-hero-actions__meta-link {
     font-weight: 600;
     color: #4338ca !important;

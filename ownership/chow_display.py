@@ -140,20 +140,34 @@ def render_chow_detail_panel(rec: dict[str, Any], *, panel_id: str = "") -> str:
     )
 
 
+def _default_facility_link(rec: dict[str, Any]) -> str:
+    ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
+    fac = format_org_display(
+        rec.get("facility_display_name") or rec.get("buyer_dba_name") or ccn or "—"
+    )
+    if ccn.isdigit():
+        return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
+    return html.escape(fac)
+
+
 def render_chow_table_rows(
     rows: list[dict[str, Any]],
     *,
     org_link_fn,
+    facility_link_fn=None,
     compact: bool = False,
     table_id: str = "",
     max_rows: int = 0,
 ) -> str:
-    """HTML tbody rows: Effective, Buyer, Seller, Details (+ optional expand panel)."""
+    """HTML tbody rows: Effective, Facility, Buyer, Seller, Details (modal)."""
+    fac_fn = facility_link_fn or _default_facility_link
     limit = max_rows if max_rows > 0 else len(rows)
     trs: list[str] = []
+    stores: list[str] = []
     for i, rec in enumerate(rows[:limit]):
         rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
         eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")))
+        facility = fac_fn(rec)
         buyer = org_link_fn(rec, "buyer")
         seller = org_link_fn(rec, "seller")
         summary = chow_change_summary(rec)
@@ -163,43 +177,81 @@ def render_chow_table_rows(
         trs.append(
             f'<tr class="chow-tx-row" data-chow-id="{rid}">'
             f'<td class="num chow-tx-date">{eff}</td>'
+            f'<td class="chow-tx-facility">{facility}</td>'
             f'<td class="chow-tx-org">{buyer}</td>'
             f'<td class="chow-tx-org">{seller}</td>'
             f'<td class="chow-tx-details">'
             f'<span class="chow-tx-summary">{summary_esc}</span> '
             f'<button type="button" class="chow-view-details" '
-            f'data-chow-detail="{panel_id}" aria-expanded="false">View details</button>'
+            f'data-chow-detail-store="{panel_id}" aria-expanded="false">View details</button>'
             f"</td></tr>"
-            f'<tr class="chow-tx-detail-row" id="{panel_id}-row" hidden>'
-            f'<td colspan="4">{panel}</td></tr>'
         )
-    return "".join(trs)
+        stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
+    return "".join(trs), "".join(stores)
 
 
 def render_chow_events_table(
     rows: list[dict[str, Any]],
     *,
     org_link_fn,
+    facility_link_fn=None,
     max_rows: int = 0,
     table_class: str = "chow-table chow-tx-table",
 ) -> str:
-    body = render_chow_table_rows(
-        rows, org_link_fn=org_link_fn, max_rows=max_rows
+    body, stores = render_chow_table_rows(
+        rows,
+        org_link_fn=org_link_fn,
+        facility_link_fn=facility_link_fn,
+        max_rows=max_rows,
     )
     if not body:
         return ""
     return (
+        f'<div class="chow-tx-table-wrap">'
         f'<div class="chow-table-scroll chow-tx-scroll">'
         f'<table class="{table_class}"><thead><tr>'
-        "<th class=\"num\">Effective</th><th>Buyer</th><th>Seller</th><th>Details</th>"
+        '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'
         "</tr></thead><tbody>"
         + body
         + "</tbody></table></div>"
+        f'<div class="chow-detail-stores" hidden aria-hidden="true">{stores}</div>'
+        "</div>"
     )
 
 
 CHOW_TABLE_INIT_SCRIPT = """
 <script>(function(){
+  var modal = document.getElementById('chowDetailModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'chowDetailModal';
+    modal.className = 'chow-detail-modal';
+    modal.setAttribute('aria-hidden', 'true');
+    modal.innerHTML =
+      '<div class="chow-detail-modal__backdrop" data-chow-modal-close></div>' +
+      '<div class="chow-detail-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="chowDetailModalTitle">' +
+      '<div class="chow-detail-modal__head"><h3 id="chowDetailModalTitle">Ownership change details</h3>' +
+      '<button type="button" class="chow-detail-modal__close" data-chow-modal-close aria-label="Close">&times;</button></div>' +
+      '<div class="chow-detail-modal__body" id="chowDetailModalBody"></div></div>';
+    document.body.appendChild(modal);
+    modal.querySelectorAll('[data-chow-modal-close]').forEach(function(el){
+      el.addEventListener('click', function(){ modal.setAttribute('aria-hidden','true'); document.body.classList.remove('chow-modal-open'); });
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape' && modal.getAttribute('aria-hidden') === 'false') {
+        modal.setAttribute('aria-hidden','true');
+        document.body.classList.remove('chow-modal-open');
+      }
+    });
+  }
+  function openDetail(storeId) {
+    var store = document.getElementById(storeId);
+    var body = document.getElementById('chowDetailModalBody');
+    if (!store || !body) return;
+    body.innerHTML = store.innerHTML;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('chow-modal-open');
+  }
   function bind(root){
     if(!root) return;
     root.querySelectorAll('.chow-view-details').forEach(function(btn){
@@ -208,13 +260,8 @@ CHOW_TABLE_INIT_SCRIPT = """
       btn.addEventListener('click', function(e){
         e.preventDefault();
         e.stopPropagation();
-        var pid = btn.getAttribute('data-chow-detail');
-        var row = pid ? document.getElementById(pid + '-row') : null;
-        if(!row) return;
-        var open = row.hidden;
-        row.hidden = !open;
-        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        btn.textContent = open ? 'Hide details' : 'View details';
+        var sid = btn.getAttribute('data-chow-detail-store');
+        if (sid) openDetail(sid);
       });
     });
     root.querySelectorAll('.chow-btn-chow-toggle').forEach(function(btn){
@@ -231,7 +278,7 @@ CHOW_TABLE_INIT_SCRIPT = """
       });
     });
   }
-  document.querySelectorAll('.provider-chow-block, .pbj-ownership-chow-content').forEach(bind);
+  document.querySelectorAll('.provider-chow-block, .pbj-ownership-chow-content, .chow-state-block').forEach(bind);
   bind(document);
 })();</script>
 """

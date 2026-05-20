@@ -41,7 +41,7 @@ _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     ),
     "abuse": (
         "Abuse",
-        "Flagged for abuse on CMS Care Compare.",
+        "Flagged for abuse on CMS provider data.",
     ),
 }
 
@@ -426,9 +426,9 @@ def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
     return (
         f"{kind_line}\n\n"
         "Facility table: reported ownership % and CMS role, PBJ staffing (HPRD), "
-        "Care Compare star ratings, and regulatory flags where data are linked.\n\n"
+        "CMS star ratings, and regulatory flags where data are linked.\n\n"
         f"Sources: {snf_src}; CMS Payroll-Based Journal (PBJ); "
-        "CMS Care Compare; PBJ320 CHOW index (ownership changes and frequent associates)."
+        "CMS provider data; PBJ320 CHOW index (ownership changes and frequent associates)."
     )
 
 

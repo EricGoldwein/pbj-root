@@ -46,6 +46,11 @@ Disallow: /report_builder
 Disallow: /admin
 Disallow: /static/data/raw
 
+User-agent: Claude-SearchBot
+User-agent: SleepBot
+Disallow: /provider/
+Disallow: /entity/
+
 Sitemap: {PUBLIC_SITE_ORIGIN}/sitemap.xml
 """
 

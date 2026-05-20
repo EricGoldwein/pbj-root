@@ -28,6 +28,7 @@ import xml.etree.ElementTree as ET
 import html
 from html.parser import HTMLParser
 import time
+import threading
 import gzip
 from functools import lru_cache
 
@@ -174,6 +175,10 @@ if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
     # Local: preview ownership/CHOW blocks for all states (production stays CT-only unless env set).
     if (os.environ.get('PBJ_OWNERSHIP_PREVIEW') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
         os.environ.setdefault('PBJ_OWNERSHIP_PREVIEW', '1')
+else:
+    # Render: keep rendered provider HTML longer under bot traffic (override via env if needed).
+    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
+    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
 
 # SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in .env or production env.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
@@ -634,6 +639,47 @@ def _csrf_protect_selectively():
         return
     if request.path in ('/subscribe', '/contact') or request.path.startswith('/contact?'):
         csrf_protect.protect()
+
+
+_AGGRESSIVE_BOT_MARKERS = (
+    'claude-searchbot',
+    'sleepbot',
+    'chatgpt-user',
+    'bytespider',
+    'petalbot',
+    'semrushbot',
+    'ahrefsbot',
+    'dotbot',
+    'dataforseo',
+)
+
+
+def _block_aggressive_bots_enabled() -> bool:
+    v = (os.environ.get('PBJ_BLOCK_AGGRESSIVE_BOTS') or '').strip().lower()
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    if v in ('1', 'true', 'yes', 'on'):
+        return True
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _is_aggressive_bot() -> bool:
+    ua = (request.headers.get('User-Agent') or '').lower()
+    return any(m in ua for m in _AGGRESSIVE_BOT_MARKERS)
+
+
+@app.before_request
+def _reject_aggressive_bots_on_heavy_routes():
+    """Cheap 429 for crawlers that hammer /provider and /entity (keeps workers for real users)."""
+    if request.path in ('/health', '/warmup', '/debug/mem'):
+        return
+    if not _block_aggressive_bots_enabled() or not _is_aggressive_bot():
+        return
+    if request.path.startswith('/provider/') or request.path.startswith('/entity/'):
+        return make_response('Too Many Requests', 429, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Retry-After': '3600',
+        })
 
 @app.route('/health')
 def health():
@@ -4923,6 +4969,21 @@ def _resolved_provider_info_paths():
     return out
 
 
+def _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter):
+    """Keep ccn-only / entity partial scans in process cache so provider pages do not re-scan CSV."""
+    global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
+    if not provider_dict:
+        return
+    if _LOAD_PROVIDER_INFO_CACHE is None:
+        _LOAD_PROVIDER_INFO_CACHE = {}
+    _LOAD_PROVIDER_INFO_CACHE.update(provider_dict)
+    _LOAD_PROVIDER_INFO_AT = time.time()
+    if provider_dict_by_quarter:
+        if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
+            _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = {}
+        _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.update(provider_dict_by_quarter)
+
+
 def load_provider_info(ccn_only=None, ccn_set=None):
     """Load provider info for facility details (ownership, entity, residents, city). Cached 15 min.
 
@@ -5088,6 +5149,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         if quarter_cy:
                             provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
                         if partial_targets.issubset(provider_dict.keys()):
+                            _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter)
                             return provider_dict
                         continue
                     existing = provider_dict.get(provnum)
@@ -5102,6 +5164,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                     if quarter_cy:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
             if partial_scan:
+                _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter)
                 return provider_dict
             _LOAD_PROVIDER_INFO_CACHE = provider_dict
             _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
@@ -5279,6 +5342,16 @@ def get_provider_info_for_quarter(ccn, raw_quarter):
     if not ccn or not raw_quarter:
         return None
     key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
+        if hit:
+            return hit
+    snap = (_LOAD_PROVIDER_INFO_CACHE or {}).get(key[0])
+    if snap:
+        return snap
+    row = (load_provider_info(ccn_only=key[0]) or {}).get(key[0])
+    if row:
+        return row
     if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
         hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
         if hit:
@@ -5893,9 +5966,11 @@ def _latest_provider_info_row_for_ccn(ccn: str) -> tuple[str | None, dict | None
                 best_row = row
         if best_row is not None:
             return best_q, best_row
-    if not HAS_PANDAS:
-        row = (load_provider_info(ccn_only=prov) or {}).get(prov)
+    row = (load_provider_info(ccn_only=prov) or {}).get(prov)
+    if row:
         return None, row
+    if not HAS_PANDAS:
+        return None, None
     best_q = None
     best_row = None
     for path in _resolved_provider_info_paths():
@@ -7491,12 +7566,26 @@ def _facility_quarterly_csv_path():
     return None
 
 
+_FACILITY_QUARTERLY_LOAD_LOCKS: dict[str, threading.Lock] = {}
+_FACILITY_QUARTERLY_LOCK_GUARD = threading.Lock()
+
+
+def _facility_quarterly_load_lock(prov: str) -> threading.Lock:
+    with _FACILITY_QUARTERLY_LOCK_GUARD:
+        lock = _FACILITY_QUARTERLY_LOAD_LOCKS.get(prov)
+        if lock is None:
+            lock = threading.Lock()
+            _FACILITY_QUARTERLY_LOAD_LOCKS[prov] = lock
+        return lock
+
+
 def load_facility_quarterly_for_provider(ccn):
     """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None."""
     prov = normalize_ccn(ccn)
     if not prov:
         return None
-    return _load_facility_quarterly_for_provider_cached(prov)
+    with _facility_quarterly_load_lock(prov):
+        return _load_facility_quarterly_for_provider_cached(prov)
 
 
 @lru_cache(maxsize=128)
@@ -12685,6 +12774,18 @@ def pbjpedia_index():
 # Per-CCN provider page HTML cache (TTL overridable for prod vs local tuning)
 _PROVIDER_PAGE_CACHE = {}
 _PROVIDER_PAGE_CACHE_MAX = 150
+_PROVIDER_COLD_RENDER_SEM = None
+
+
+def _provider_cold_render_semaphore():
+    global _PROVIDER_COLD_RENDER_SEM
+    if _PROVIDER_COLD_RENDER_SEM is None:
+        try:
+            slots = max(1, int(os.environ.get('PBJ_PROVIDER_COLD_SLOTS', '2')))
+        except (TypeError, ValueError):
+            slots = 2
+        _PROVIDER_COLD_RENDER_SEM = threading.Semaphore(slots)
+    return _PROVIDER_COLD_RENDER_SEM
 
 
 def _provider_page_cache_max_entries() -> int:
@@ -12756,25 +12857,47 @@ def _provider_page_impl(ccn):
             cached_at, html = cached
             if now - cached_at < _provider_page_cache_ttl_seconds():
                 return html, 200, _provider_page_html_headers(cache_hit=True)
-    facility_df = load_facility_quarterly_for_provider(prov)
-    if facility_df is None or facility_df.empty:
-        abort(404)
-    if (
-        _LOAD_PROVIDER_INFO_CACHE is not None
-        and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
-    ):
-        provider_info_row = (_LOAD_PROVIDER_INFO_CACHE or {}).get(prov, {})
-    else:
-        provider_info_row = (load_provider_info(prov) or {}).get(prov, {})
-    html = generate_provider_page_html(prov, facility_df, provider_info_row)
-    if use_cache:
-        max_entries = _provider_page_cache_max_entries()
-        if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
-            oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
-            _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
-        _PROVIDER_PAGE_CACHE[prov] = (now, html)
-    _log_mem("route_provider_after")
-    return html, 200, _provider_page_html_headers(cache_hit=False)
+
+    sem = _provider_cold_render_semaphore()
+    if not sem.acquire(blocking=False):
+        if use_cache:
+            cached = _PROVIDER_PAGE_CACHE.get(prov)
+            if cached is not None:
+                cached_at, html = cached
+                if now - cached_at < _provider_page_cache_ttl_seconds():
+                    return html, 200, _provider_page_html_headers(cache_hit=True)
+        return make_response('Server busy; retry shortly.', 503, {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Retry-After': '30',
+        })
+    try:
+        if use_cache:
+            cached = _PROVIDER_PAGE_CACHE.get(prov)
+            if cached is not None:
+                cached_at, html = cached
+                if now - cached_at < _provider_page_cache_ttl_seconds():
+                    return html, 200, _provider_page_html_headers(cache_hit=True)
+        facility_df = load_facility_quarterly_for_provider(prov)
+        if facility_df is None or facility_df.empty:
+            abort(404)
+        if (
+            _LOAD_PROVIDER_INFO_CACHE is not None
+            and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
+        ):
+            provider_info_row = (_LOAD_PROVIDER_INFO_CACHE or {}).get(prov, {})
+        else:
+            provider_info_row = (load_provider_info(prov) or {}).get(prov, {})
+        html = generate_provider_page_html(prov, facility_df, provider_info_row)
+        if use_cache:
+            max_entries = _provider_page_cache_max_entries()
+            if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
+                oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
+                _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
+            _PROVIDER_PAGE_CACHE[prov] = (now, html)
+        _log_mem("route_provider_after")
+        return html, 200, _provider_page_html_headers(cache_hit=False)
+    finally:
+        sem.release()
 
 def _state_page_impl(state_slug):
     _log_mem("route_state_before")

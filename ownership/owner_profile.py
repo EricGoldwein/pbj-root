@@ -335,6 +335,16 @@ def _search_index_facility_rows() -> tuple[tuple[str, str, str, str], ...]:
     return tuple(rows)
 
 
+@lru_cache(maxsize=1)
+def _ccn_to_state_from_search_index() -> dict[str, str]:
+    """CCN -> USPS state from search_index.json (works on Render without provider_info CSV)."""
+    out: dict[str, str] = {}
+    for _name, ccn, state, _city in _search_index_facility_rows():
+        if ccn and state and ccn not in out:
+            out[ccn] = state
+    return out
+
+
 def _fuzzy_ccn_for_facility_name(fac_name: str) -> str:
     """Best-effort CCN when enrollment legal name != provider DBA."""
     from ownership.owner_portfolio_metrics import _ccn_provider_lookup
@@ -974,7 +984,7 @@ def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
 
 
 def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:
-    """Prefer provider-info state for the linked CCN; fall back to owner address state."""
+    """Prefer facility CCN state (provider_info or search_index); fall back to owner address state."""
     ccn_norm = _norm_ccn_key(ccn)
     if ccn_norm:
         try:
@@ -986,7 +996,27 @@ def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:
                 return st
         except Exception:
             pass
+        st = _ccn_to_state_from_search_index().get(ccn_norm) or ""
+        if st:
+            return st
     return _clean(row.get("STATE - OWNER")).upper()[:2]
+
+
+_STATE_TOP_OWNERS_GZ = _OWNERSHIP_DIR / "state_top_owners.json.gz"
+
+
+@lru_cache(maxsize=1)
+def _load_state_top_owners_index() -> dict[str, list[dict[str, Any]]] | None:
+    if not _STATE_TOP_OWNERS_GZ.is_file():
+        return None
+    try:
+        with gzip.open(_STATE_TOP_OWNERS_GZ, "rt", encoding="utf-8") as f:
+            raw = json.load(f)
+        if not isinstance(raw, dict):
+            return None
+        return {str(k).upper()[:2]: list(v) for k, v in raw.items() if isinstance(v, list)}
+    except Exception:
+        return None
 
 
 @lru_cache(maxsize=16)
@@ -995,6 +1025,10 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
     st = (state_code or "").strip().upper()[:2]
     if not st:
         return []
+    prebuilt = _load_state_top_owners_index()
+    if prebuilt is not None:
+        return list(prebuilt.get(st) or [])[: max(1, limit)]
+
     from ownership.owner_portfolio_metrics import _ccn_provider_lookup
 
     prov_lookup = _ccn_provider_lookup()
@@ -1014,6 +1048,8 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
         ccn_norm = _norm_ccn_key(ccn)
         prov = prov_lookup.get(ccn_norm) or {}
         fac_st = str(prov.get("state") or "").strip().upper()[:2]
+        if not fac_st:
+            fac_st = _ccn_to_state_from_search_index().get(ccn_norm) or ""
         if fac_st != st:
             return
         ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))

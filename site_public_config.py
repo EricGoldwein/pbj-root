@@ -19,7 +19,7 @@ PBJ_SITE_UNIVERSAL_JS_VERSION = '20'
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 
 FOOTER_TRUST_BLURB = (
-    f'PBJ320 is a nursing-home data platform from {OPERATOR_LEGAL_NAME}, built from CMS Payroll-Based Journal '
+    f'PBJ320 is a nursing home data platform from {OPERATOR_LEGAL_NAME}, built from CMS Payroll-Based Journal '
     'and other public federal and state datasets.'
 )
 

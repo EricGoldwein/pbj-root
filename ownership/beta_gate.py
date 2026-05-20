@@ -108,6 +108,10 @@ def _profile_state_codes(profile: dict[str, Any] | None) -> list[str]:
             st = normalize_state_code(fac.get("state"))
             if st and st not in codes:
                 codes.append(st)
+    for rec in profile.get("chow_transactions") or []:
+        st = normalize_state_code(rec.get("state"))
+        if st and st not in codes:
+            codes.append(st)
     if codes:
         return codes
     states = profile.get("states") or []

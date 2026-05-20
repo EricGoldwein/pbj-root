@@ -1772,8 +1772,31 @@ a.pbj-audit-hero-actions__primary {
 }
 
 .pbj-audit-hero-actions__meta-text {
-    color: rgba(226, 232, 240, 0.82);
-    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    max-width: 22rem;
+    color: rgba(226, 232, 240, 0.88);
+    font-size: 0.86rem;
+    line-height: 1.45;
+    text-align: center;
+}
+
+.pbj-audit-hero-actions__pilot-line {
+    font-weight: 500;
+    color: rgba(226, 232, 240, 0.95);
+}
+
+.pbj-audit-hero-actions__pilot-price {
+    font-weight: 800;
+    color: #e9d5ff;
+}
+
+.pbj-audit-hero-actions__pilot-sub {
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: rgba(148, 163, 184, 0.95);
 }
 
 .pbj-audit-hero-actions__meta-link {
@@ -2706,15 +2729,15 @@ a.pbj-audit-hero-actions__primary {
 }
 
 @media (max-width: 991.98px) {
-    .pbj-audit-pricing-card--primary .pbj-audit-pricing-card__actions {
+    .pbj-audit-pricing-card__actions {
         display: flex;
         flex-direction: column;
-        gap: 0.85rem;
-        padding-top: 0.75rem;
+        gap: 1rem;
+        padding-top: 0.85rem;
     }
 
-    .pbj-audit-pricing-card--primary .pbj-audit-pricing-card__actions .pbj-audit-generate + .pbj-audit-generate {
-        margin-top: 0.15rem;
+    .pbj-audit-pricing-card__actions .pbj-audit-generate + .pbj-audit-generate {
+        margin-top: 0;
     }
 
     .pbj-audit-pricing-card--primary .pbj-audit-pricing-card__text {

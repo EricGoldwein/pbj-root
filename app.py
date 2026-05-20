@@ -664,6 +664,12 @@ def debug_mem():
             'load_csv': len(_LOAD_CSV_CACHE),
             'high_risk_by_state': _HIGH_RISK_BY_STATE_CACHE_VAL is not None,
             'search_index': _SEARCH_INDEX_CACHE is not None,
+            'state_case_mix_medians_quarter': (
+                next(iter(_STATE_CASE_MIX_MEDIANS.keys()), None)
+                if isinstance(_STATE_CASE_MIX_MEDIANS, dict) and _STATE_CASE_MIX_MEDIANS
+                else None
+            ),
+            'provider_info_full_cache': bool(_LOAD_PROVIDER_INFO_CACHE),
         },
     })
 
@@ -4714,6 +4720,17 @@ def _normalize_quarter_to_cy_qtr(quarter_str):
     return _quarter_display_to_cy_qtr(s)
 
 
+def _quarter_from_row(row: dict) -> str | None:
+    """Extract CY_Qtr from a provider-info CSV row dict."""
+    q = row.get('CY_Qtr') or row.get('quarter')
+    if q is None or (isinstance(q, float) and pd.isna(q)):
+        return None
+    s = str(q).strip()
+    if re.match(r'^\d{4}Q[1-4]$', s):
+        return s
+    return _quarter_display_to_cy_qtr(s)
+
+
 def format_percentile_phrase(percentile, state_name):
     """Format facility state percentile as a single phrase for narrative use.
 
@@ -4777,8 +4794,59 @@ _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
 _LOAD_PROVIDER_INFO_TTL = 900  # 15 min
 _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
+_STATE_CASE_MIX_MEDIANS = None  # raw_quarter -> {state_code: median float}
+_STATE_CASE_MIX_MEDIANS_AT = 0.0
+_STATE_CASE_MIX_MEDIANS_KEY = None
+_STATE_CASE_MIX_MEDIANS_TTL = 900
 # Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
 _LATEST_PROVIDER_QUARTERS = 4
+
+
+def _provider_info_scan_usecols(header_cols) -> list[str]:
+    """Narrow column list for targeted provider-info CSV scans (avoid reading 80+ cols per chunk)."""
+    header = set(header_cols)
+    candidates = [
+        'ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)',
+        'CY_Qtr', 'quarter', 'state', 'STATE', 'State', 'city', 'CITY', 'City',
+        'case_mix_total_nurse_hrs_per_resident_per_day',
+        'case_mix_rn_hrs_per_resident_per_day', 'case_mix_lpn_hrs_per_resident_per_day',
+        'case_mix_na_hrs_per_resident_per_day',
+        'reported_total_nurse_hrs_per_resident_per_day', 'Total_Nurse_HPRD',
+        'reported_rn_hrs_per_resident_per_day', 'reported_na_hrs_per_resident_per_day',
+        'reported_lpn_hrs_per_resident_per_day',
+        'overall_rating', 'staffing_rating', 'qm_rating',
+        'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
+        'avg_residents_per_day', 'urban',
+    ]
+    return [c for c in candidates if c in header]
+
+
+def _provider_metrics_from_csv_row(row: dict) -> dict:
+    """Subset of provider-info fields used on provider/state/entity pages."""
+    state_val = (str(row.get('state') or row.get('STATE') or '')).strip().upper()[:2]
+    return {
+        'city': row.get('city') or row.get('CITY') or '',
+        'state': state_val,
+        'avg_residents_per_day': row.get('avg_residents_per_day'),
+        'case_mix_total_nurse_hrs_per_resident_per_day': row.get(
+            'case_mix_total_nurse_hrs_per_resident_per_day'
+        ),
+        'case_mix_rn_hrs_per_resident_per_day': row.get('case_mix_rn_hrs_per_resident_per_day'),
+        'case_mix_lpn_hrs_per_resident_per_day': row.get('case_mix_lpn_hrs_per_resident_per_day'),
+        'case_mix_na_hrs_per_resident_per_day': row.get('case_mix_na_hrs_per_resident_per_day'),
+        'reported_total_nurse_hrs_per_resident_per_day': row.get(
+            'reported_total_nurse_hrs_per_resident_per_day'
+        ),
+        'reported_rn_hrs_per_resident_per_day': row.get('reported_rn_hrs_per_resident_per_day'),
+        'reported_na_hrs_per_resident_per_day': row.get('reported_na_hrs_per_resident_per_day'),
+        'reported_lpn_hrs_per_resident_per_day': row.get('reported_lpn_hrs_per_resident_per_day'),
+        'overall_rating': row.get('overall_rating'),
+        'staffing_rating': row.get('staffing_rating'),
+        'qm_rating': row.get('qm_rating'),
+        'nursing_case_mix_index': row.get('nursing_case_mix_index'),
+        'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
+        'urban': row.get('urban'),
+    }
 
 
 def _provider_snapshot_candidate_paths():
@@ -4893,14 +4961,6 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 if v is not None and not (isinstance(v, float) and pd.isna(v)) and str(v).strip() != '':
                     return v
         return None
-    def _quarter_from_row(row):
-        q = row.get('CY_Qtr') or row.get('quarter')
-        if q is None or (isinstance(q, float) and pd.isna(q)):
-            return None
-        s = str(q).strip()
-        if re.match(r'^\d{4}Q[1-4]$', s):
-            return s
-        return _quarter_display_to_cy_qtr(s)
     for path in provider_paths:
         if not os.path.exists(path):
             continue
@@ -5053,60 +5113,223 @@ def load_provider_info(ccn_only=None, ccn_set=None):
     return {} if not partial_scan else {}
 
 
-def get_provider_info_for_quarter(ccn, raw_quarter):
-    """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
-    Used to show case-mix and reported HPRD for the same quarter as the facility page."""
-    if not ccn or not raw_quarter:
-        return None
-    load_provider_info()
-    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
-        return None
-    key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
-    return _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
-
-
-def get_state_median_case_mix_hprd(state_code, raw_quarter):
-    """Median CMS case-mix total nurse HPRD among in-state facilities for a quarter (provider info)."""
-    if not state_code or not raw_quarter:
-        return None
-    load_provider_info()
-    if not _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
-        return None
-    st = str(state_code).strip().upper()[:2]
-    q = str(raw_quarter).strip()
-    vals = []
-    for (_ccn, kq), row in _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.items():
-        if kq != q:
-            continue
-        if (row.get('state') or '').strip().upper()[:2] != st:
-            continue
-        v = row.get('case_mix_total_nurse_hrs_per_resident_per_day')
-        if v is None or (isinstance(v, float) and pd.isna(v)):
-            continue
-        try:
-            fv = float(v)
-            if fv > 0:
-                vals.append(fv)
-        except (TypeError, ValueError):
-            continue
+def _median_positive(vals: list[float]) -> float | None:
     if not vals:
         return None
-    vals.sort()
+    vals = sorted(vals)
     mid = len(vals) // 2
     if len(vals) % 2 == 0:
         return (vals[mid - 1] + vals[mid]) / 2
     return vals[mid]
 
 
+def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
+    """One CSV pass: per-state median case-mix HPRD for a quarter (no national provider dict)."""
+    global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_AT, _STATE_CASE_MIX_MEDIANS_KEY
+    q = str(raw_quarter or '').strip()
+    if not q or not HAS_PANDAS:
+        return {}
+    now = time.time()
+    paths = _resolved_provider_info_paths()
+    path = paths[0] if paths else ''
+    try:
+        mtime = os.path.getmtime(path) if path and os.path.isfile(path) else 0
+    except OSError:
+        mtime = 0
+    cache_key = (path, mtime, q)
+    if (
+        isinstance(_STATE_CASE_MIX_MEDIANS, dict)
+        and _STATE_CASE_MIX_MEDIANS_KEY == cache_key
+        and q in _STATE_CASE_MIX_MEDIANS
+        and (now - _STATE_CASE_MIX_MEDIANS_AT) < _STATE_CASE_MIX_MEDIANS_TTL
+    ):
+        return _STATE_CASE_MIX_MEDIANS.get(q) or {}
+    by_state: dict[str, list[float]] = {}
+    for csv_path in paths:
+        if not os.path.isfile(csv_path):
+            continue
+        try:
+            header_cols = set(pd.read_csv(csv_path, nrows=0).columns)
+            state_col = next((c for c in header_cols if str(c).lower() in ('state',)), None)
+            qcol = 'CY_Qtr' if 'CY_Qtr' in header_cols else ('quarter' if 'quarter' in header_cols else None)
+            cm_col = 'case_mix_total_nurse_hrs_per_resident_per_day'
+            if cm_col not in header_cols:
+                continue
+            usecols = [c for c in (state_col, qcol, cm_col) if c]
+            if len(usecols) < 2 or not state_col or not qcol:
+                continue
+            is_latest = (
+                'provider_info_combined_latest' in csv_path
+                or csv_path.replace('\\', '/').endswith('_latest.csv')
+                or 'NH_ProviderInfo' in csv_path
+                or 'ProviderInfoNorm_' in csv_path
+            )
+            latest_quarters = None if is_latest else _get_latest_quarter_values(csv_path, _LATEST_PROVIDER_QUARTERS)
+            for chunk in pd.read_csv(csv_path, usecols=usecols, low_memory=False, chunksize=150000):
+                if latest_quarters is not None:
+                    if qcol == 'CY_Qtr':
+                        chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
+                    else:
+                        cy = chunk['quarter'].astype(str).apply(
+                            lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None
+                        )
+                        chunk = chunk[cy.isin(latest_quarters)]
+                if chunk.empty:
+                    continue
+                if qcol == 'CY_Qtr':
+                    chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == q]
+                else:
+                    cy = chunk['quarter'].astype(str).apply(
+                        lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None
+                    )
+                    chunk = chunk[cy == q]
+                if chunk.empty:
+                    continue
+                for _, row in chunk.iterrows():
+                    st = str(row.get(state_col) or '').strip().upper()[:2]
+                    if not st:
+                        continue
+                    v = row.get(cm_col)
+                    if v is None or (isinstance(v, float) and pd.isna(v)):
+                        continue
+                    try:
+                        fv = float(v)
+                        if fv > 0:
+                            by_state.setdefault(st, []).append(fv)
+                    except (TypeError, ValueError):
+                        continue
+            if by_state:
+                break
+        except Exception as e:
+            print(f"Error building state case-mix medians from {csv_path}: {e}")
+            continue
+    medians = {st: m for st, vals in by_state.items() if (m := _median_positive(vals)) is not None}
+    if _STATE_CASE_MIX_MEDIANS is None:
+        _STATE_CASE_MIX_MEDIANS = {}
+    _STATE_CASE_MIX_MEDIANS[q] = medians
+    _STATE_CASE_MIX_MEDIANS_KEY = cache_key
+    _STATE_CASE_MIX_MEDIANS_AT = now
+    return medians
+
+
+def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
+    """Return one provider-info row for CCN+quarter without building the national index."""
+    if not HAS_PANDAS:
+        return None
+    ccn = str(ccn or '').strip().zfill(6)
+    q = str(raw_quarter or '').strip()
+    if len(ccn) != 6 or not q:
+        return None
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get((ccn, q))
+        if hit:
+            return hit
+    for path in _resolved_provider_info_paths():
+        if not os.path.isfile(path):
+            continue
+        try:
+            header_cols = set(pd.read_csv(path, nrows=0).columns)
+            ccn_cols = [c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()]
+            qcol = 'CY_Qtr' if 'CY_Qtr' in header_cols else ('quarter' if 'quarter' in header_cols else None)
+            if not ccn_cols or not qcol:
+                continue
+            usecols = _provider_info_scan_usecols(header_cols)
+            if not usecols:
+                continue
+            is_latest = (
+                'provider_info_combined_latest' in path
+                or path.replace('\\', '/').endswith('_latest.csv')
+                or 'NH_ProviderInfo' in path
+                or 'ProviderInfoNorm_' in path
+            )
+            latest_quarters = None if is_latest else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
+            for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
+                if latest_quarters is not None:
+                    if qcol == 'CY_Qtr':
+                        chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
+                    else:
+                        cy = chunk['quarter'].astype(str).apply(
+                            lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None
+                        )
+                        chunk = chunk[cy.isin(latest_quarters)]
+                if chunk.empty:
+                    continue
+                for row in chunk.to_dict('records'):
+                    raw = None
+                    for k in ('ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)'):
+                        if k in row and row[k] is not None:
+                            raw = row[k]
+                            break
+                    provnum = str(raw or '').strip().replace('.0', '').zfill(6)
+                    if provnum != ccn:
+                        continue
+                    quarter_cy = _quarter_from_row(row)
+                    if quarter_cy != q:
+                        continue
+                    return _provider_metrics_from_csv_row(row)
+        except Exception as e:
+            print(f"Error scanning provider row for {ccn} {q} from {path}: {e}")
+            continue
+    return None
+
+
+def get_provider_info_for_quarter(ccn, raw_quarter):
+    """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
+    Used to show case-mix and reported HPRD for the same quarter as the facility page."""
+    if not ccn or not raw_quarter:
+        return None
+    key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
+        if hit:
+            return hit
+    return _scan_provider_row_for_ccn_quarter(key[0], key[1])
+
+
+def get_state_median_case_mix_hprd(state_code, raw_quarter):
+    """Median CMS case-mix total nurse HPRD among in-state facilities for a quarter (provider info)."""
+    if not state_code or not raw_quarter:
+        return None
+    st = str(state_code).strip().upper()[:2]
+    q = str(raw_quarter).strip()
+    now = time.time()
+    if (
+        _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
+        and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
+    ):
+        vals = []
+        for (_ccn, kq), row in _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.items():
+            if kq != q:
+                continue
+            if (row.get('state') or '').strip().upper()[:2] != st:
+                continue
+            v = row.get('case_mix_total_nurse_hrs_per_resident_per_day')
+            if v is None or (isinstance(v, float) and pd.isna(v)):
+                continue
+            try:
+                fv = float(v)
+                if fv > 0:
+                    vals.append(fv)
+            except (TypeError, ValueError):
+                continue
+        return _median_positive(vals)
+    medians = _ensure_state_case_mix_medians(q)
+    return medians.get(st)
+
+
 def get_rank_for_state_case_mix_median(state_code, raw_quarter):
     """National rank by state median case-mix HPRD (1 = highest acuity)."""
     if not state_code or not raw_quarter:
         return None
-    medians = []
-    for st in STATES_FOR_RANKING:
-        m = get_state_median_case_mix_hprd(st, raw_quarter)
-        if m is not None:
-            medians.append((st, m))
+    q = str(raw_quarter).strip()
+    medians_map = _ensure_state_case_mix_medians(q)
+    if not medians_map and _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        medians_map = {}
+        for st in STATES_FOR_RANKING:
+            m = get_state_median_case_mix_hprd(st, raw_quarter)
+            if m is not None:
+                medians_map[st] = m
+    medians = [(st, medians_map[st]) for st in STATES_FOR_RANKING if st in medians_map]
     if not medians:
         return None
     medians.sort(key=lambda x: x[1], reverse=True)
@@ -5136,30 +5359,65 @@ def _provider_is_rural(urban_val):
 
 def _build_rural_shares_for_quarter(raw_quarter):
     """Return (national_pct, {state: pct}) for share of facilities labeled rural (latest CMS snapshot)."""
+    del raw_quarter  # rural/urban flag is from latest provider snapshot, not PBJ quarter
     national_rural = 0
     national_total = 0
-    by_state = {}
+    by_state: dict[str, list[int]] = {}
+    if not HAS_PANDAS:
+        return None, {}
+    seen_ccn: set[str] = set()
 
-    def _accumulate(rows):
+    def _accumulate_row(state_val: str, urban_val) -> None:
         nonlocal national_rural, national_total
-        for row in rows:
-            is_rural = _provider_is_rural(row.get('urban'))
-            if is_rural is None:
-                continue
-            st = (row.get('state') or '').strip().upper()[:2]
-            if not st:
-                continue
-            bucket = by_state.setdefault(st, [0, 0])
-            bucket[1] += 1
-            national_total += 1
-            if is_rural:
-                bucket[0] += 1
-                national_rural += 1
+        is_rural = _provider_is_rural(urban_val)
+        if is_rural is None:
+            return
+        st = str(state_val or '').strip().upper()[:2]
+        if not st:
+            return
+        bucket = by_state.setdefault(st, [0, 0])
+        bucket[1] += 1
+        national_total += 1
+        if is_rural:
+            bucket[0] += 1
+            national_rural += 1
 
-    load_provider_info()
-    # Rural/urban flag comes from the latest ProviderInfoNorm snapshot, not PBJ quarter alignment.
-    if _LOAD_PROVIDER_INFO_CACHE:
-        _accumulate(_LOAD_PROVIDER_INFO_CACHE.values())
+    if _LOAD_PROVIDER_INFO_CACHE and (time.time() - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
+        for row in _LOAD_PROVIDER_INFO_CACHE.values():
+            ccn = str(row.get('ccn') or '').strip().zfill(6)
+            if len(ccn) == 6 and ccn in seen_ccn:
+                continue
+            if len(ccn) == 6:
+                seen_ccn.add(ccn)
+            _accumulate_row(row.get('state') or '', row.get('urban'))
+    else:
+        for path in _resolved_provider_info_paths():
+            if not os.path.isfile(path):
+                continue
+            try:
+                header_cols = set(pd.read_csv(path, nrows=0).columns)
+                state_col = next((c for c in header_cols if str(c).lower() in ('state',)), None)
+                urban_col = 'urban' if 'urban' in header_cols else None
+                ccn_col = next(
+                    (c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()),
+                    None,
+                )
+                if not state_col or not urban_col or not ccn_col:
+                    continue
+                for chunk in pd.read_csv(
+                    path, usecols=[state_col, urban_col, ccn_col], low_memory=False, chunksize=150000
+                ):
+                    for _, row in chunk.iterrows():
+                        ccn = str(row.get(ccn_col) or '').strip().replace('.0', '').zfill(6)
+                        if len(ccn) != 6 or ccn in seen_ccn:
+                            continue
+                        seen_ccn.add(ccn)
+                        _accumulate_row(str(row.get(state_col) or ''), row.get(urban_col))
+                if seen_ccn:
+                    break
+            except Exception as e:
+                print(f"Error building rural shares from {path}: {e}")
+                continue
     if national_total == 0:
         return None, {}
     nat_pct = round(100.0 * national_rural / national_total, 1)
@@ -5619,23 +5877,84 @@ def render_takeaway_actions_row(hprd_html='', share_html='', ai_html=''):
     )
 
 
-def get_latest_provider_info_for_ccn(ccn):
-    """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
-    if not ccn:
+def _latest_provider_info_row_for_ccn(ccn: str) -> tuple[str | None, dict | None]:
+    """Latest-quarter provider-info row for one CCN without loading the national index."""
+    prov = str(ccn or '').strip().zfill(6)
+    if len(prov) != 6:
         return None, None
-    load_provider_info()
-    if not _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
-        return None, None
-    prov = str(ccn).strip().zfill(6)
+    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
+        best_q = None
+        best_row = None
+        for (k_ccn, k_q), row in _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.items():
+            if k_ccn != prov:
+                continue
+            if best_q is None or str(k_q) > str(best_q):
+                best_q = k_q
+                best_row = row
+        if best_row is not None:
+            return best_q, best_row
+    if not HAS_PANDAS:
+        row = (load_provider_info(ccn_only=prov) or {}).get(prov)
+        return None, row
     best_q = None
     best_row = None
-    for (k_ccn, k_q), row in _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.items():
-        if k_ccn != prov:
+    for path in _resolved_provider_info_paths():
+        if not os.path.isfile(path):
             continue
-        if best_q is None or str(k_q) > str(best_q):
-            best_q = k_q
-            best_row = row
-    return best_q, best_row
+        try:
+            header_cols = set(pd.read_csv(path, nrows=0).columns)
+            qcol = 'CY_Qtr' if 'CY_Qtr' in header_cols else ('quarter' if 'quarter' in header_cols else None)
+            ccn_cols = [c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()]
+            if not qcol or not ccn_cols:
+                continue
+            usecols = _provider_info_scan_usecols(header_cols)
+            if not usecols:
+                continue
+            is_latest = (
+                'provider_info_combined_latest' in path
+                or path.replace('\\', '/').endswith('_latest.csv')
+                or 'NH_ProviderInfo' in path
+                or 'ProviderInfoNorm_' in path
+            )
+            latest_quarters = None if is_latest else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
+            for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
+                if latest_quarters is not None:
+                    if qcol == 'CY_Qtr':
+                        chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
+                    else:
+                        cy = chunk['quarter'].astype(str).apply(
+                            lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None
+                        )
+                        chunk = chunk[cy.isin(latest_quarters)]
+                if chunk.empty:
+                    continue
+                for row in chunk.to_dict('records'):
+                    raw = None
+                    for k in ('ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)'):
+                        if k in row and row[k] is not None:
+                            raw = row[k]
+                            break
+                    p = str(raw or '').strip().replace('.0', '').zfill(6)
+                    if p != prov:
+                        continue
+                    quarter_cy = _quarter_from_row(row)
+                    if not quarter_cy:
+                        continue
+                    if best_q is None or str(quarter_cy) > str(best_q):
+                        best_q = quarter_cy
+                        best_row = _provider_metrics_from_csv_row(row)
+            if best_row is not None:
+                return best_q, best_row
+        except Exception as e:
+            print(f"Error scanning latest provider info for {prov}: {e}")
+            continue
+    row = (load_provider_info(ccn_only=prov) or {}).get(prov)
+    return None, row
+
+
+def get_latest_provider_info_for_ccn(ccn):
+    """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
+    return _latest_provider_info_row_for_ccn(ccn)
 
 def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=''):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""

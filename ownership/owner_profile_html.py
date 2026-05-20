@@ -559,11 +559,9 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
 
     n = ps.get("n_facilities") or 0
     n_matched = ps.get("n_pbj_matched") or 0
-    n_states = ps.get("n_states") or 0
     wmean = ps.get("wmean_hprd")
     umean = ps.get("umean_hprd")
     mean_ovr = ps.get("mean_overall_rating")
-    sff = ps.get("sff_count") or 0
     n_suggested = ps.get("n_pbj_suggested") or 0
 
     hprd_val = "—"
@@ -610,22 +608,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     if qc_bits:
         hprd_help += " " + "; ".join(qc_bits) + "."
 
-    alerts: list[str] = []
-    if sff:
-        alerts.append(f'<span class="owner-portfolio-alert">{sff} SFF</span>')
-    if qc_bits:
-        alerts.append(
-            f'<span class="owner-portfolio-alert owner-portfolio-alert--muted">'
-            f'{"; ".join(qc_bits)}</span>'
-        )
-    alerts_html = (
-        f'<span class="owner-snapshot-alerts">{"".join(alerts)}</span>' if alerts else ""
-    )
-    footer_inner = alerts_html
-    footer_html = (
-        f'<div class="owner-snapshot-footer">{footer_inner}</div>' if footer_inner else ""
-    )
-
     return f"""
       <section class="owner-snapshot-section" aria-label="Portfolio summary">
         <div class="owner-portfolio-grid owner-portfolio-grid--3" aria-label="Portfolio summary metrics">
@@ -642,7 +624,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
             <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
           </div>
         </div>
-        {footer_html}
       </section>"""
 
 
@@ -809,6 +790,20 @@ def _role_kind_hint(role_text: str) -> str:
     return " · ".join(bits)
 
 
+def _pct_fallback_label(role_raw: str) -> str:
+    """CMS often leaves PERCENTAGE OWNERSHIP blank for control roles; show a short label."""
+    r = str(role_raw or "").upper()
+    if "OPERATIONAL" in r and ("MANAGERIAL" in r or "MANAGER" in r):
+        return "Op. ctrl"
+    if "ADP OF THE SNF" in r or r.strip() == "ADP":
+        return "ADP"
+    if "MANAGING EMPLOYEE" in r:
+        return "Mgr."
+    if "5% OR GREATER" in r or "DIRECT OWNERSHIP" in r:
+        return "≥5%"
+    return ""
+
+
 def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     """Ownership %; tap opens CMS role + association date."""
     role_raw = str(f.get("role") or "")
@@ -819,7 +814,7 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
         pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
 
-    pct_display = html.escape(pct) if pct else "—"
+    pct_display = html.escape(pct) if pct else html.escape(_pct_fallback_label(role_raw) or "—")
     has_detail = bool(role_text) or (adate and adate != "—")
     kind_hint = _role_kind_hint(role_text)
     since_html = _role_since_html(f.get("association_date"))
@@ -1069,16 +1064,25 @@ def _facilities_sections_html(
         )
 
     if kind in ("enrollment", "both", "chow_only"):
-        thead_en = (
-            "<th>Facility</th><th>Enrollment ID</th><th>State</th><th>County</th><th>City</th>"
-        )
-        html_out = _table_with_preview(
-            "Linked facilities",
-            thead_en,
-            _facilities_enrollment_rows(facilities),
-            PREVIEW_FACILITIES,
-            "enrollments",
-        )
+        has_ccn = any(str(f.get("ccn") or "").strip() for f in facilities)
+        if kind == "enrollment" and has_ccn:
+            html_out = _owner_facilities_table_html(
+                facilities,
+                profile,
+                pac=str(profile.get("associate_id") or ""),
+            )
+        else:
+            thead_en = (
+                "<th>Facility</th><th>Enrollment ID</th><th>State</th>"
+                "<th>County</th><th>City</th>"
+            )
+            html_out = _table_with_preview(
+                "Linked facilities",
+                thead_en,
+                _facilities_enrollment_rows(facilities),
+                PREVIEW_FACILITIES,
+                "enrollments",
+            )
         if not skip_control_parties:
             cps = profile.get("control_parties") or []
             if cps:

@@ -333,16 +333,9 @@ def owner_page_intro_html(
     state_names: list[str] | None = None,
     profile: dict[str, Any] | None = None,
 ) -> str:
-    del profile
-    name = html.escape((display_name or 'this organization').strip())
-    states = [s for s in (state_names or []) if s]
-    geo = ''
-    if len(states) == 1:
-        geo = f' Facilities on this page are in {html.escape(states[0])}.'
-    elif len(states) > 1:
-        geo = f' Facilities on this page span {len(states)} states.'
-    body = f'CMS-linked profile for <strong>{name}</strong>.{geo}'
-    return f'<p class="pbj-orientation pbj-orientation--compact owner-profile-intro">{body}</p>'
+    """Visible intro removed — name, type, and states already appear in the page header."""
+    del display_name, state_names, profile
+    return ''
 
 
 def owner_page_seo_from_profile(profile: dict[str, Any]) -> tuple[str, str, str]:

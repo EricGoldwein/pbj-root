@@ -48,7 +48,7 @@ When referring to the source, describe it as “the PBJ320 facility page,” “
 Format your response with these sections:
 
 ### Bottom line
-Give a 2–4 sentence plain-English summary of the main staffing takeaway. Be cautious. Do not overstate.
+Open with **PBJ Summary: [facility name]** (not "Plain-English Takeaway"). Give 2–4 cautious sentences plus one compact Markdown table when quarterly numbers are supplied.
 
 ### Key staffing signals
 Identify the most important signals available in the material, including RN staffing, LPN staffing, CNA/nurse aide staffing, total nurse staffing, staffing mix, case-mix context, percentiles, daily patterns, 90-day CNA/aide patterns, red flags, and trends where available. **Provide one concise data-visual outcome** tied to the strongest *supported* finding (tiny table, ASCII/Mermaid sketch, chart-ready Markdown with exact pasted values)—or briefly say why no meaningful visual is possible—for the completeness rule documented in Claude Skill **`references/pbj320_visual_requirement.md`**.

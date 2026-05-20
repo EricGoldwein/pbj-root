@@ -1,0 +1,118 @@
+      <header class="chow-hero">
+        <h1>Skilled Nursing Facility Change of Ownership Monitor</h1>
+        <p class="pbj-subtitle">Track reported nursing home ownership changes and link transactions to facilities, buyers, sellers, and ownership entities.</p>
+        <p id="chowScopeNote" class="chow-scope-note" style="display:none;" role="status"></p>
+      </header>
+      <section class="chow-intro">
+        <p>This page tracks <strong>reported CHOW events</strong> from CMS skilled nursing facility enrollment data. A CHOW identifies a transaction or enrollment ownership change—not proof of quality problems, staffing changes, common ownership, or causation.</p>
+        <p>PBJ320 will later connect these events to staffing, citations, penalties, and ownership-control entities from CMS all-owner records. For now, use this explorer to screen transactions and follow links to facility and owner pages where available.</p>
+      </section>
+      <p id="chowLoading" class="pbj-meta-line">Loading CHOW data…</p>
+      <section class="chow-section" aria-label="Summary metrics">
+        <h2 class="section-header">Snapshot</h2>
+        <div id="chowCards" class="chow-cards"></div>
+      </section>
+      <section class="chow-section" aria-label="Top buyers and sellers">
+        <h2 class="section-header">Top buyers &amp; sellers <span id="chowTopScopeLabel" class="chow-top-scope"></span></h2>
+        <p id="chowTopPartiesNote" class="pbj-meta-line" style="margin-bottom:0.65rem;">Loading…</p>
+        <div class="chow-table-scroll" style="max-height:360px;">
+          <table class="chow-table chow-top-parties-table">
+            <thead id="chowTopPartiesHead">
+              <tr><th>Organization</th><th>Role</th><th>CHOW events</th><th>Facilities</th><th>Owner PAC</th></tr>
+            </thead>
+            <tbody id="chowTopPartiesBody">
+              <tr><td colspan="5" class="chow-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <section class="chow-section" aria-label="Search and filters">
+        <h2 class="section-header">Search and filters</h2>
+        <div class="chow-filters">
+          <label>
+            Search
+            <input type="search" id="chowSearch" placeholder="Facility, CCN, buyer, seller, DBA, IDs…" autocomplete="off">
+          </label>
+          <label>
+            State
+            <select id="chowState"></select>
+          </label>
+          <label>
+            Year
+            <select id="chowYear"></select>
+          </label>
+          <label>
+            CHOW type
+            <select id="chowType"></select>
+          </label>
+          <label>
+            Buyer name contains
+            <input type="text" id="chowBuyerContains" placeholder="e.g. Complete Care">
+          </label>
+          <label>
+            Seller name contains
+            <input type="text" id="chowSellerContains" placeholder="e.g. Harborside">
+          </label>
+          <div class="filter-checks">
+            <label><input type="checkbox" id="chowRecentOnly"> Recent only (last 12 months)</label>
+            <label><input type="checkbox" id="chowRepeatBuyer"> Buyer appears multiple times</label>
+            <label><input type="checkbox" id="chowRepeatSeller"> Seller appears multiple times</label>
+            <label><input type="checkbox" id="chowAcquisitionOperator"> Acquisition Operator LLC (buyer pattern)</label>
+          </div>
+          <div class="chow-clear-wrap">
+            <button type="button" id="chowClearFilters" class="chow-btn chow-btn-secondary">Clear filters</button>
+            <label><input type="checkbox" id="chowShowAllYears"> Show all years (full history)</label>
+          </div>
+        </div>
+        <p id="chowResultMeta" class="pbj-meta-line chow-result-meta"></p>
+      </section>
+      <section class="chow-section" aria-label="Featured name-pattern clusters">
+        <h2 class="section-header">Buy–sell name patterns (screening)</h2>
+        <p class="pbj-meta-line" style="margin-bottom:0.75rem;">Repeated <strong>buyer</strong> or <strong>seller</strong> organization names across CHOW records—not confirmed business partners or common control. Click a row to filter the table below.</p>
+        <div class="chow-table-scroll" style="max-height: 300px;">
+          <table class="chow-clusters-table">
+            <thead>
+              <tr>
+                <th>Cluster / pattern</th>
+                <th>Count</th>
+                <th>Example facilities</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="chowClustersBody"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="chow-section" aria-label="CHOW records table">
+        <h2 class="section-header">CHOW records</h2>
+        <div class="chow-hint-bar">
+          <span><kbd>Click any row</kbd> to expand buyer, seller, IDs, and name-pattern notes.</span>
+          <span>Default: last 12 months, first 50 rows — widen with filters or load more.</span>
+        </div>
+        <div id="chowTableScroll" class="chow-table-scroll">
+          <table class="chow-table" id="chowTable">
+            <thead>
+              <tr>
+                <th class="chow-col-expand" aria-label="Expand" title="Expand row"></th>
+                <th data-sort="effective_date" class="sortable">Effective date <span class="sort-icon"></span></th>
+                <th data-sort="state" class="sortable">State <span class="sort-icon"></span></th>
+                <th data-sort="ccn" class="sortable">CCN <span class="sort-icon"></span></th>
+                <th data-sort="facility_display_name" class="sortable">Facility / DBA <span class="sort-icon"></span></th>
+                <th data-sort="buyer_org_name" class="sortable">Buyer <span class="sort-icon"></span></th>
+                <th data-sort="seller_org_name" class="sortable">Seller <span class="sort-icon"></span></th>
+                <th>Patterns</th>
+                <th>Profiles</th>
+              </tr>
+            </thead>
+            <tbody id="chowTableBody">
+              <tr><td colspan="9" class="chow-empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="chowLoadMoreWrap" class="chow-load-more-wrap" style="display:none;">
+          <button type="button" id="chowLoadMore" class="chow-btn chow-btn-secondary">Load 50 more rows</button>
+        </div>
+      </section>
+      <footer class="chow-caveat">
+        <p><strong>Caveat:</strong> CMS CHOW data identifies reported ownership-change events in federal enrollment records. PBJ320 treats CHOW as a screening signal, not proof of staffing decline, poor care, regulatory violation, or common ownership. Entity-name patterns should be confirmed against CMS all-owner records, role codes, PAC IDs, addresses, and ownership/control relationships.</p>
+      </footer>

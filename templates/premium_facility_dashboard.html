@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ facility_name }} | PBJ320 Premium</title>
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a; --panel: #1e293b; --border: rgba(148,163,184,0.2);
+      --text: #f1f5f9; --muted: #94a3b8; --accent: #818cf8; --accent2: #38bdf8;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg); color: var(--text); line-height: 1.5; }
+    a { color: var(--accent); }
+    .nav { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem;
+      padding: 0.65rem 1.25rem; background: #020617; border-bottom: 2px solid #1e40af; position: sticky; top: 0; z-index: 10; }
+    .nav-brand { font-weight: 700; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .nav-brand img { width: 28px; height: 28px; }
+    .nav-actions { display: flex; gap: 0.75rem; align-items: center; font-size: 0.85rem; }
+    .nav-actions a { text-decoration: none; color: var(--muted); }
+    .nav-actions a:hover { color: #fff; }
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 1.25rem; }
+    .hero { margin-bottom: 1.25rem; }
+    .hero h1 { font-size: 1.45rem; margin: 0 0 0.25rem; letter-spacing: -0.02em; }
+    .hero .meta { color: var(--muted); font-size: 0.9rem; }
+    .badge { display: inline-block; font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.04em; padding: 0.2rem 0.5rem; border-radius: 4px;
+      background: rgba(99,102,241,0.25); color: #c7d2fe; margin-left: 0.35rem; }
+    .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
+    .kpi { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 0.85rem 1rem; }
+    .kpi .label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; }
+    .kpi .val { font-size: 1.35rem; font-weight: 700; margin-top: 0.15rem; }
+    .kpi .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    @media (max-width: 800px) { .grid-2 { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 1rem; }
+    .panel h2 { font-size: 0.95rem; margin: 0 0 0.75rem; color: #e2e8f0; }
+    .chart-box { position: relative; height: 280px; }
+    .chart-box--sm { height: 220px; }
+    .note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    th, td { padding: 0.45rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 600; }
+    .ratings { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .star-pill { background: rgba(251,191,36,0.15); border: 1px solid rgba(251,191,36,0.35);
+      color: #fde68a; padding: 0.35rem 0.6rem; border-radius: 8px; font-size: 0.8rem; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+    select { background: #0f172a; color: #fff; border: 1px solid #475569; border-radius: 6px; padding: 0.35rem 0.5rem; }
+    button.refresh { background: #334155; color: #fff; border: none; border-radius: 6px; padding: 0.35rem 0.65rem; cursor: pointer; font-size: 0.8rem; }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <div class="nav-brand">
+      <img src="/pbj_favicon.png" alt="" width="28" height="28">
+      PBJ320 Premium <span class="badge">Pilot</span>
+    </div>
+    <div class="nav-actions">
+      <a href="/provider/{{ ccn }}" target="_blank" rel="noopener">Public facility page</a>
+      <a href="https://www.medicare.gov/care-compare/details/nursing-home/{{ ccn }}/" target="_blank" rel="noopener">Care Compare</a>
+      <a href="/premium/{{ ccn }}/logout">Sign out</a>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header class="hero">
+      <h1>{{ facility_name }}</h1>
+      <p class="meta">{{ city }}, {{ state }} · CCN {{ ccn }} · Quarterly PBJ staffing dashboard</p>
+    </header>
+
+    <div class="kpis" id="kpiRow"></div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>Total nurse HPRD trend</h2>
+        <div class="toolbar">
+          <label>Highlight quarter
+            <select id="quarterHighlight"></select>
+          </label>
+          <button type="button" class="refresh" id="btnRefresh">Refresh data</button>
+        </div>
+        <div class="chart-box"><canvas id="chartHprd"></canvas></div>
+        <p class="note" id="benchmarkNote"></p>
+      </section>
+      <section class="panel">
+        <h2>Role mix (HPRD)</h2>
+        <div class="chart-box"><canvas id="chartRoles"></canvas></div>
+      </section>
+    </div>
+
+    <div class="grid-2">
+      <section class="panel">
+        <h2>Census trend</h2>
+        <div class="chart-box chart-box--sm"><canvas id="chartCensus"></canvas></div>
+      </section>
+      <section class="panel">
+        <h2>Contract staff share (%)</h2>
+        <div class="chart-box chart-box--sm"><canvas id="chartContract"></canvas></div>
+      </section>
+    </div>
+
+    <section class="panel" style="margin-bottom: 1rem;">
+      <h2>CMS provider snapshot</h2>
+      <div class="ratings" id="ratingsRow"></div>
+      <p class="note" id="providerNote"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Quarterly detail</h2>
+      <div style="overflow-x: auto;">
+        <table id="quarterTable">
+          <thead>
+            <tr>
+              <th>Quarter</th><th>Census</th><th>Total HPRD</th><th>RN</th><th>LPN</th><th>Nurse asst.</th><th>Contract %</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="note" id="dataNote"></p>
+    </section>
+  </div>
+
+  <script id="metrics-bootstrap" type="application/json">{{ metrics_json | tojson }}</script>
+  <script>
+(function() {
+  const boot = JSON.parse(document.getElementById('metrics-bootstrap').textContent || '{}');
+  let data = boot;
+  const charts = {};
+
+  const fmt = (v, d) => (v == null || v === '' ? '—' : Number(v).toFixed(d == null ? 2 : d));
+  const latestIdx = () => (data.quarters && data.quarters.length ? data.quarters.length - 1 : -1);
+
+  function renderKpis() {
+    const i = latestIdx();
+    const q = i >= 0 ? data.quarters[i] : '';
+    const s = data.series || {};
+    const bm = data.state_benchmark || {};
+    const prov = data.provider || {};
+    const items = [
+      { label: 'Latest quarter', val: q || '—', sub: 'PBJ reporting quarter' },
+      { label: 'Total nurse HPRD', val: fmt(s.total_hprd && s.total_hprd[i]), sub: bm.median_total_hprd ? 'CT median ' + fmt(bm.median_total_hprd) : '' },
+      { label: 'RN HPRD', val: fmt(s.rn_hprd && s.rn_hprd[i]), sub: '' },
+      { label: 'Census', val: fmt(s.census && s.census[i], 1), sub: 'Avg daily census' },
+      { label: 'Contract %', val: fmt(s.contract_pct && s.contract_pct[i], 1), sub: 'Of total hours' },
+      { label: 'CMS overall', val: prov.overall_rating || '—', sub: 'Five-Star (snapshot)' },
+    ];
+    document.getElementById('kpiRow').innerHTML = items.map(k =>
+      '<div class="kpi"><div class="label">' + k.label + '</div><div class="val">' + k.val + '</div>' +
+      (k.sub ? '<div class="sub">' + k.sub + '</div>' : '') + '</div>'
+    ).join('');
+  }
+
+  function renderRatings() {
+    const p = data.provider || {};
+    const labels = [
+      ['Overall', p.overall_rating],
+      ['Staffing', p.staffing_rating],
+      ['Health inspection', p.health_inspection_rating],
+      ['Quality measures', p.qm_rating],
+    ];
+    document.getElementById('ratingsRow').innerHTML = labels.filter(x => x[1]).map(x =>
+      '<span class="star-pill">' + x[0] + ': ' + x[1] + ' ★</span>'
+    ).join('') || '<span class="note">No CMS ratings in provider snapshot.</span>';
+    const parts = [];
+    if (p.reported_total_hprd) parts.push('Reported total HPRD ' + p.reported_total_hprd);
+    if (p.case_mix_total_hprd) parts.push('Case-mix ' + p.case_mix_total_hprd);
+    if (p.ownership_type) parts.push(p.ownership_type);
+    document.getElementById('providerNote').textContent = parts.join(' · ');
+  }
+
+  function fillQuarterSelect() {
+    const sel = document.getElementById('quarterHighlight');
+    sel.innerHTML = (data.quarters || []).map((q, idx) =>
+      '<option value="' + idx + '"' + (idx === latestIdx() ? ' selected' : '') + '>' + q + '</option>'
+    ).join('');
+  }
+
+  function renderTable() {
+    const s = data.series || {};
+    const tbody = document.querySelector('#quarterTable tbody');
+    tbody.innerHTML = (data.quarters || []).map((q, i) =>
+      '<tr><td>' + q + '</td><td>' + fmt(s.census && s.census[i], 1) + '</td><td>' + fmt(s.total_hprd && s.total_hprd[i]) +
+      '</td><td>' + fmt(s.rn_hprd && s.rn_hprd[i]) + '</td><td>' + fmt(s.lpn_hprd && s.lpn_hprd[i]) +
+      '</td><td>' + fmt(s.nurse_assistant_hprd && s.nurse_assistant_hprd[i]) + '</td><td>' + fmt(s.contract_pct && s.contract_pct[i], 1) + '</td></tr>'
+    ).join('');
+    document.getElementById('dataNote').textContent = data.data_note || '';
+    const bm = data.state_benchmark;
+    document.getElementById('benchmarkNote').textContent = bm && bm.median_total_hprd
+      ? 'CT median total HPRD (' + bm.quarter + '): ' + fmt(bm.median_total_hprd) + ' across ' + bm.facility_count + ' facilities.'
+      : '';
+  }
+
+  function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  }
+
+  function chartDefaults() {
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(148,163,184,0.15)';
+  }
+
+  function buildCharts() {
+    chartDefaults();
+    const labels = data.quarters || [];
+    const s = data.series || {};
+    const hi = parseInt(document.getElementById('quarterHighlight').value, 10) || latestIdx();
+
+    destroyChart('hprd');
+    charts.hprd = new Chart(document.getElementById('chartHprd'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Total nurse HPRD',
+          data: s.total_hprd || [],
+          borderColor: '#818cf8',
+          backgroundColor: 'rgba(129,140,248,0.12)',
+          fill: true,
+          tension: 0.25,
+          pointRadius: labels.map((_, i) => i === hi ? 6 : 3),
+          pointBackgroundColor: labels.map((_, i) => i === hi ? '#fbbf24' : '#818cf8'),
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: false, title: { display: true, text: 'HPRD' } } },
+      },
+    });
+
+    destroyChart('roles');
+    charts.roles = new Chart(document.getElementById('chartRoles'), {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          { label: 'RN', data: s.rn_hprd || [], backgroundColor: '#38bdf8' },
+          { label: 'LPN', data: s.lpn_hprd || [], backgroundColor: '#a78bfa' },
+          { label: 'Nurse asst.', data: s.nurse_assistant_hprd || [], backgroundColor: '#34d399' },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { stacked: true }, y: { stacked: true, title: { display: true, text: 'HPRD' } } },
+      },
+    });
+
+    destroyChart('census');
+    charts.census = new Chart(document.getElementById('chartCensus'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{ label: 'Census', data: s.census || [], borderColor: '#34d399', tension: 0.25 }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    });
+
+    destroyChart('contract');
+    charts.contract = new Chart(document.getElementById('chartContract'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{ label: 'Contract %', data: s.contract_pct || [], borderColor: '#fb923c', tension: 0.25 }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    });
+  }
+
+  function renderAll() {
+    renderKpis();
+    renderRatings();
+    fillQuarterSelect();
+    renderTable();
+    buildCharts();
+  }
+
+  document.getElementById('quarterHighlight').addEventListener('change', buildCharts);
+  document.getElementById('btnRefresh').addEventListener('click', async function() {
+    try {
+      const r = await fetch('/premium/{{ ccn }}/api/metrics', { credentials: 'same-origin' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      data = await r.json();
+      renderAll();
+    } catch (e) {
+      alert('Refresh failed: ' + e.message);
+    }
+  });
+
+  renderAll();
+})();
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 """PBJ320 AI Support: prompts, page context, HTML helpers, and copy constants.
 
-Evidence-first helper layer — not an AI product. Source: ericized Skill package.
+Evidence-first helper layer for public-site AI handoffs — not a standalone AI product.
 """
 
 from __future__ import annotations
@@ -138,8 +138,9 @@ PBJ_AI_RESPONSIBLE_PRINCIPLES: tuple[tuple[str, str], ...] = (
     ),
     (
         'Respect the limits of the source',
-        'PBJ320 pages summarize quarterly staffing. Premium exports and dashboards may support '
-        'finer timing analysis, but still require records, context, and judgment.',
+        'PBJ320 free pages summarize quarterly staffing. PBJ320 Premium adds daily PBJ by work date, '
+        'trends, roster/Employee Detail, compliance views, and exportable evidence packets — still '
+        'requiring records, context, and judgment; do not substitute HPRD × census math for Premium data.',
     ),
     (
         'Use AI to ask better questions',
@@ -155,9 +156,10 @@ PBJ_AI_HELPER_BODY = (
 )
 
 PBJ_FACILITY_CSV_LIMITATIONS = (
-    'PBJ320 provider pages and CSVs provide quarterly staffing context and visible facility-level metrics. '
-    'They do not show daily staffing, weekend patterns, 90-day aide/CNA low-day counts, mean/median/outlier tables, '
-    'incident-window analysis, employee-level staffing, or resident-level care.'
+    'This PBJ320 free quarterly page summarizes CMS PBJ staffing by quarter (visible facility-level metrics). '
+    'CMS also collects daily facility-day PBJ; PBJ320 Premium can show daily work-date detail, trends, and roster '
+    'exports. This packet does not include daily/shift breakdowns, employee roster rows, or resident-level care — '
+    'scope of this page, not missing CMS data.'
 )
 
 PBJ_PBJ_SUBMISSION_CONTEXT = (
@@ -175,9 +177,8 @@ PBJ_ROLE_HPRD_SEMANTICS = (
 )
 
 PBJ_CSV_ATTACHMENT_NOTE = (
-    'If you attach a PBJ320 quarterly CSV, use it as structured quarterly context. Do not infer daily staffing '
-    'patterns, weekend staffing, 90-day aide/CNA patterns, mean/median tables, or incident-window details from '
-    'this quarterly CSV.'
+    'If you attach a PBJ320 quarterly CSV, use it as structured quarterly context only. Do not infer daily, '
+    'weekend, roster, or incident-date detail from quarterly rows alone.'
 )
 
 PBJ_FACILITY_HANDOFF_CSV_NOTE = (
@@ -701,6 +702,7 @@ def build_page_context(
     entity_portfolio_summary: str = '',
     facility_snapshot_context: str = '',
     cms_risk_screening_line: str = '',
+    ownership_chow_context: str = '',
     **kwargs: Any,
 ) -> str:
     """Structured page context for copy/paste into any AI tool."""
@@ -726,6 +728,7 @@ def build_page_context(
             top_bottom_summary=top_bottom_summary,
             summary=summary,
             copied_date=copied_date,
+            ownership_chow_context=(ownership_chow_context or '').strip(),
         )
 
     if ptype == 'facility':
@@ -761,6 +764,7 @@ def build_page_context(
             entity_portfolio_summary=(entity_portfolio_summary or '').strip(),
             facility_snapshot_context=(facility_snapshot_context or '').strip(),
             cms_risk_screening_line=(cms_risk_screening_line or '').strip(),
+            ownership_chow_context=(ownership_chow_context or '').strip(),
         )
 
     return _build_generic_page_context(
@@ -813,6 +817,7 @@ def _build_facility_page_context(
     entity_portfolio_summary: str = '',
     facility_snapshot_context: str = '',
     cms_risk_screening_line: str = '',
+    ownership_chow_context: str = '',
 ) -> str:
     lines: list[str] = ['PBJ320 page context', '']
     if facility_name:
@@ -854,6 +859,11 @@ def _build_facility_page_context(
     if _cms_risk:
         lines.append('')
         lines.append(_cms_risk)
+    _own_chow = (ownership_chow_context or '').strip()
+    if _own_chow:
+        lines.append('')
+        lines.append('Ownership / CHOW (CMS enrollment screening — not proof of control or staffing impact):')
+        lines.append(_own_chow)
     lines.append(format_source_level_block('facility', page_kind, page_url))
     lines.append(f'Date copied: {copied_date}')
     lines.append('')
@@ -938,6 +948,7 @@ def _build_facility_page_context(
         ),
         _fact_line('Affiliated entity / chain (when shown on this page)', (entity_name or '').strip()),
         _fact_line('PBJ320 entity overview URL (when entity is linked)', (entity_page_url or '').strip()),
+        _fact_line('CMS CHOW / ownership-change context (when available)', (ownership_chow_context or '').strip()),
     ):
         if bit:
             lines.append(bit)
@@ -967,6 +978,7 @@ def _build_state_page_context(
     top_bottom_summary: str,
     summary: str,
     copied_date: str,
+    ownership_chow_context: str = '',
 ) -> str:
     lines: list[str] = ['PBJ320 state page context', '']
     if state_name:
@@ -977,6 +989,10 @@ def _build_state_page_context(
         lines.append(f'PBJ320 URL: {page_url}')
     lines.append(format_source_level_block('state', page_kind, page_url))
     lines.append(f'Date copied: {copied_date}')
+    _own_chow = (ownership_chow_context or '').strip()
+    if _own_chow:
+        lines.append('')
+        lines.append(_own_chow)
 
     _append_metric_section(
         lines,
@@ -999,8 +1015,8 @@ def _build_state_page_context(
     lines.append('- State averages and medians can hide wide facility-level variation.')
     lines.append('- Facility-level conclusions require facility-level data.')
     lines.append(
-        '- Daily staffing, weekend patterns, 90-day aide/CNA patterns, mean/median/outlier tables, '
-        'and incident-window review require deeper facility-level or premium data.'
+        '- Daily, roster, or incident-date staffing review needs facility-level or Premium daily PBJ — not '
+        'this state quarterly page alone.'
     )
 
     st = (state_name or 'This state').strip()
@@ -1458,7 +1474,8 @@ TREND_EMBED_CSV_COLUMNS: tuple[str, ...] = tuple(
 )
 
 PBJ_FACILITY_SOURCE_LEVEL = (
-    'PBJ320 provider page / quarterly CSV. This supports quarterly facility-level review only.'
+    'PBJ320 free provider page / quarterly CSV — quarterly facility-level summary from CMS PBJ (daily PBJ exists in '
+    'CMS and in Premium; not in this packet unless attached).'
 )
 
 

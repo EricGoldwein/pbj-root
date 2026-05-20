@@ -19,6 +19,8 @@ A review is **incomplete** until **either**:
 - **one meaningful visual** (or chart-ready Markdown per fallback), **or**
 - an **explicit** statement that no meaningful visual can be produced from what was supplied (and why).
 
+**Ombudsman mode:** When quarterly HPRD, census, or role columns appear in the material, the **PBJ Summary** section should include a **compact Markdown table** — not prose-only.
+
 ## When no rendered chart is possible
 
 Provide **chart-ready** Markdown or a compact table with: **title**; intended **chart type**; **values** (quoted/copied exactly); **one-sentence takeaway**; **limitation** if relevant (e.g. quarterly-only data for timing questions).

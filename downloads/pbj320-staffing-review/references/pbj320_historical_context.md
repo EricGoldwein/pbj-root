@@ -10,7 +10,7 @@ Use this reference when **any reviewed period overlaps January 1, 2020 through D
 4. **MACPAC / state policy summaries** — orientation only; **not** statutory compliance (see `pbj320_macpac_state_standards.md`).
 5. **Separate scales** — national or state **aggregate** patterns do not determine what happened at a **specific facility**; keep facility findings and national context distinct.
 6. **Baselines for longitudinal claims** — quarters with **extreme census movement or disaster staffing** (especially **2020**, often **early–mid 2021**) are **poor “neutral baselines”** for long-run trend statements. Prefer comparisons that acknowledge the shock window or use later, more stable reference periods when the question allows.
-7. **Source depth** — Free quarterly PBJ320 pages may omit daily contract series, full census history, or total-hour tables visible on premium exports. **Acknowledge missing fields** instead of inferring.
+7. **Source depth** — Free quarterly PBJ320 pages may omit daily contract series, full census history, or total-hour tables. **Acknowledge missing fields** instead of inferring. Do **not** recommend estimating total hours from HPRD × census × days; **PBJ320 Premium** provides daily totals, roster/Employee Detail, trends, and exports.
 
 **Preferred phrasing:** “may reflect,” “consistent with,” “warrants checking census and total hours,” “interpret alongside…,” “not sufficient to infer…,” “national summaries suggest… but this facility’s pattern should be read from its own series.”
 

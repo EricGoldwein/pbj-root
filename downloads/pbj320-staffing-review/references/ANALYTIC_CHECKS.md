@@ -40,8 +40,10 @@ Run these checks **before** interpreting any pattern. If the material lacks info
 
 | Source | Usually available | Usually not on this source alone |
 |--------|-------------------|----------------------------------|
-| **Free PBJ320 facility page** | Quarterly staffing context, visible facility-level metrics, case-mix context, percentiles, narrative summary | Daily staffing, 90-day aide/CNA day counts, mean/median/outlier tables, incident-window drill-down, employee roster |
-| **Premium PBJ320 dashboard / export** | Daily PBJ, 90-day aide/CNA patterns, trends, mean/median/outlier views, incident-window context, exports, evidence-packet materials | Assignment-level care, resident-specific outcomes, audited payroll |
+| **Free PBJ320 facility page** | Quarterly staffing context, visible facility-level metrics, case-mix context, percentiles, narrative summary | Daily/shift drill-down, roster rows, mean/median/outlier tables, incident-date windows — **on this page**, not missing from CMS |
+| **Premium PBJ320 dashboard / export** | Daily PBJ by work date, day-of-week/trends, mean/median/outlier views, incident-window filters, Employee Detail/roster PDFs, compliance/benchmark panels, exports, evidence-packet materials | Assignment-level care, resident-specific outcomes, audited payroll |
+
+Do **not** recommend back-calculating total nurse hours from quarterly HPRD × census × days when Premium daily totals or exports would answer the question.
 
 Do not assume daily data exists on a free quarterly page. Do not claim weekend/weekday patterns without daily data.
 

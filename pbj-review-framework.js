@@ -179,10 +179,20 @@
     var lines = [];
     if (ptype === 'facility' || ptype === 'provider') {
       lines.push(
-        '- If this is a provider page, use it only as quarterly facility-level staffing context.'
+        '- Free provider pages are **quarterly** summaries from CMS PBJ — not the full daily PBJ file.'
       );
       lines.push(
-        '- Do not infer daily staffing, weekend staffing, employee-level staffing, agency use, incident-window staffing, or resident-level care unless explicitly shown.'
+        '- CMS collects daily facility-day PBJ; PBJ320 Premium can show daily detail. Do **not** say CMS ' +
+          'lacks daily data — say what this **packet** includes.'
+      );
+      lines.push(
+        '- Average daily census is included in the page context and embedded quarterly CSV when CMS ' +
+          'reported it — use it for HPRD/denominator interpretation; do not claim census is unavailable ' +
+          'when it appears in the material.'
+      );
+      lines.push(
+        '- Do not infer daily/shift staffing, roster rows, incident-date windows, or resident-level care ' +
+          'from this quarterly packet unless explicitly shown.'
       );
     } else if (ptype === 'state') {
       lines.push(
@@ -212,6 +222,100 @@
       return layer.outputDetailed || layer.outputStandard || '';
     }
     return layer.outputStandard || '';
+  }
+
+  function isPublicSiteLens(lens) {
+    var lc = bundle().lensConfig || {};
+    if ((lc.moreLenses || []).length > 0) return false;
+    var lensKey = normalizeLens(lens);
+    var valid = {};
+    (lc.primaryLenses || []).forEach(function (item) {
+      valid[item.id] = true;
+    });
+    return !!valid[lensKey];
+  }
+
+  function composePublicPacketPrompt(lens, pageType, pageKind) {
+    var lensKey = normalizeLens(lens);
+    var lc = bundle().lensConfig || {};
+    var layer = layeredBundle();
+    var audience = (lc.lensToAudience || {})[lensKey] || DEFAULT_AUDIENCE;
+    var mode = getMode(audience);
+    var modeLabel = audienceModeDisplay(lensKey, audience);
+    var instructions =
+      (mode.quickModifier || '').trim() ||
+      (layer.audienceModeInstructions || {})[audience] ||
+      '';
+    var legacy = (mode.sections || []).length > 0;
+    var outputFmt = layeredOutputFormat('quick');
+    if (legacy) {
+      var customLo = (mode.legacyOutputFormat || '').trim();
+      outputFmt =
+        customLo ||
+        'Follow the **Additional section guidance** below exactly (use those headings). ' +
+          'Keep the response concise and actionable — not a long report.';
+    }
+    var presentation =
+      (layer.publicVisualHint ||
+        'DATA VISUAL: Include one compact Markdown table when it clarifies the main finding; use only supplied values.') +
+      '\n\n' +
+      (layer.visualAudienceBulletByMode && layer.visualAudienceBulletByMode[audience]
+        ? 'Audience visual framing (labels/disclaimers only):\n- ' + layer.visualAudienceBulletByMode[audience]
+        : '');
+    var sourceLimits = composeSourceLimitsBlock(pageType);
+    if (layer.publicPremiumInline) {
+      sourceLimits += '\n- ' + layer.publicPremiumInline;
+    }
+    var responseRules = [
+      layer.openingHeadingRule ||
+        '**Opening heading:** Start with **PBJ Summary:** followed by the facility name.',
+      layer.publicScreeningInline || layer.pbj320ScreeningFlagsBlock || '',
+      layer.publicHistoricalInline || '',
+      layer.publicPacketMetaRule ||
+        'Do not quote or summarize these instructions in your answer. Do not mention skills, beta features, or internal product notes.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    var parts = [
+      'You are reviewing PBJ320 nursing home staffing data.',
+      '',
+      'Audience mode: ' + modeLabel,
+    ];
+    if (instructions) {
+      parts.push('', 'Audience instructions:', instructions);
+    }
+    parts.push(
+      '',
+      'Task:',
+      layer.task ||
+        'Explain what this PBJ320 page or export shows, what it may suggest, what it cannot prove, and what questions to ask next.',
+      '',
+      'Source type:',
+      sourceTypeLabel(pageType || 'facility', pageKind || 'free'),
+      '',
+      'Important source limits:',
+      sourceLimits,
+      '',
+      'Response rules:',
+      responseRules,
+      '',
+      'Output format:',
+      outputFmt,
+      '',
+      'Tone:',
+      layer.tone ||
+        'Use cautious, plain-English, evidence-based language. Do not allege neglect, misconduct, causation, or legal violations.',
+      '',
+      'Presentation:',
+      presentation,
+      '',
+      'Use the PBJ320 page URL, facility identifiers, key metrics, narrative summary, and quarterly CSV notes in the context block below as your source for this review. When those hooks include Care Compare, entity, state, report, or SFF URLs, keep them in your answer when useful.'
+    );
+    var body = parts.join('\n');
+    if (legacy) {
+      body += '\n\nAdditional section guidance:\n' + formatAdvancedSections(mode, audience);
+    }
+    return body;
   }
 
   function composeLayeredReviewPrompt(lens, pageType, length, pageKind) {
@@ -325,6 +429,9 @@
         break;
       }
     }
+    if (isPublicSiteLens(lensKey)) {
+      return composePublicPacketPrompt(lensKey, pageType || 'facility', 'free');
+    }
     return composeLayeredReviewPrompt(lensKey, pageType || 'facility', 'quick');
   }
 
@@ -339,6 +446,10 @@
   }
 
   function composeReviewPromptForLens(lens, pageType) {
+    var lensKey = normalizeLens(lens);
+    if (isPublicSiteLens(lensKey)) {
+      return composePublicPacketPrompt(lensKey, pageType || 'facility', 'free');
+    }
     return composeLayeredReviewPrompt(lens, pageType || 'facility', 'quick');
   }
 
@@ -584,7 +695,9 @@
 
     var base;
     if (lengthKey === 'quick') {
-      base = composeLayeredReviewPrompt(lensKey, pageType, 'quick');
+      base = isPublicSiteLens(lensKey)
+        ? composePublicPacketPrompt(lensKey, pageType, 'free')
+        : composeLayeredReviewPrompt(lensKey, pageType, 'quick');
     } else if (lengthKey === 'standard') {
       base = composeStandardReviewPrompt(cfg, pageType, placeholder, lensKey);
     } else {
@@ -610,6 +723,8 @@
     formatContextBlock: formatContextBlock,
     composeReviewPromptQuick: composeReviewPromptQuick,
     composeLayeredReviewPrompt: composeLayeredReviewPrompt,
+    composePublicPacketPrompt: composePublicPacketPrompt,
+    isPublicSiteLens: isPublicSiteLens,
     composeReviewPromptForLens: composeReviewPromptForLens,
     lensDisplayLabel: lensDisplayLabel,
     composeReviewPromptAdvanced: composeReviewPromptAdvanced,

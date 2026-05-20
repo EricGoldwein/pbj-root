@@ -518,13 +518,10 @@ _SEARCH_INDEX_AT = 0
 _SEARCH_INDEX_TTL = 300  # 5 min
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
-    'PBJ320 high-risk badge when the page shows: Special Focus Facility (SFF) or SFF candidate, '
-    '1-star overall rating (Care Compare), or abuse icon flagged yes (Care Compare).'
+    'PBJ320 high-risk indicators (CMS): Special Focus Facility or SFF candidate, '
+    '1-star overall rating, or abuse icon.'
 )
-FACILITY_RISK_BADGE_TOOLTIP = (
-    f'{HIGH_RISK_CRITERIA_TOOLTIP} '
-    'SFF facilities often have no star ratings on the page; staffing and overall stars are hidden when not reported.'
-)
+FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
 
 def _sort_risk_reason_display(label: str) -> str:
@@ -920,6 +917,89 @@ def contact():
 @app.route('/about')
 def about():
     return send_file('about.html', mimetype='text/html')
+
+
+def generate_chow_page_html():
+    """CHOW monitor using standard PBJ320 site layout (navbar, dark theme, footer)."""
+    base = _public_site_origin()
+    layout = get_pbj_site_layout(
+        'Skilled Nursing Facility Change of Ownership Monitor | PBJ320',
+        'Explore CMS skilled nursing facility change of ownership (CHOW) events. '
+        'Link transactions to facilities, buyers, sellers, and ownership records on PBJ320.',
+        f'{base}/chow',
+        extra_head=(
+            '<style>.chow-root{min-height:40vh;}</style>\n'
+            f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">\n'
+            f'<script src="/chow.js?v={_static_asset_version("chow.js")}" defer></script>'
+        ),
+    )
+    body_path = os.path.join(APP_ROOT, 'templates', 'chow_body.html')
+    with open(body_path, encoding='utf-8') as f:
+        body = f.read()
+    return (
+        layout['head'] + layout['nav'] + layout['content_open']
+        + '<div class="chow-root">'
+        + body
+        + '</div>'
+        + layout['content_close'] + '</body></html>'
+    )
+
+
+@app.route('/chow')
+@app.route('/chow/')
+def chow_page():
+    """Public CMS SNF Change of Ownership monitor."""
+    resp = make_response(generate_chow_page_html())
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    return resp
+
+
+@app.route('/chow.html')
+def chow_html_redirect():
+    """Legacy static file — always use Flask /chow (dark PBJ layout + chow.css)."""
+    return redirect('/chow', code=301)
+
+
+@app.route('/chow_index.json')
+def chow_index_json():
+    """CHOW records index for /chow (built by scripts/build_chow_index.py)."""
+    path = os.path.join(APP_ROOT, 'chow_index.json')
+    if os.path.isfile(path):
+        return _json_cache_headers(send_file(path, mimetype='application/json'))
+    return _json_cache_headers(jsonify({'meta': {}, 'summary': {}, 'records': []}))
+
+
+@app.route('/chow.css')
+def chow_css():
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'chow.css', mimetype='text/css'))
+
+
+@app.route('/owner-profile.css')
+def owner_profile_css():
+    return _static_cache_headers(
+        send_from_directory(
+            os.path.join(APP_ROOT, 'ownership'),
+            'owner-profile.css',
+            mimetype='text/css',
+        )
+    )
+
+
+@app.route('/owner-profile.js')
+def owner_profile_js():
+    return _static_cache_headers(
+        send_from_directory(
+            os.path.join(APP_ROOT, 'ownership'),
+            'owner-profile.js',
+            mimetype='application/javascript',
+        )
+    )
+
+
+@app.route('/chow.js')
+def chow_js():
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'chow.js', mimetype='application/javascript'))
 
 
 @app.route('/data-sources')
@@ -3816,6 +3896,20 @@ def _static_cache_headers(resp, max_age=3600):
     return resp
 
 
+def _static_asset_version(filename: str) -> int:
+    """Cache-bust query param from file mtime (forces Chrome to reload CSS/JS after edits)."""
+    if filename == 'owner-profile.css':
+        path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.css')
+    elif filename == 'owner-profile.js':
+        path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.js')
+    else:
+        path = os.path.join(APP_ROOT, filename)
+    try:
+        return int(os.path.getmtime(path))
+    except OSError:
+        return 0
+
+
 _PUBLIC_JSON_CACHE_SECONDS = int(os.environ.get('PBJ_PUBLIC_JSON_CACHE_SECONDS', '900'))
 _FAVICON_CACHE_SECONDS = int(os.environ.get('PBJ_FAVICON_CACHE_SECONDS', '604800'))
 
@@ -3993,6 +4087,47 @@ def owner_api_proxy(api_path):
 
 if csrf_protect:
     csrf_protect.exempt(owner_api_proxy)
+
+
+def generate_owner_profile_html(profile):
+    """Public CMS profile at /owners/<pac> — enrollment, owner/control, or CHOW fallback."""
+    from ownership.owner_profile_html import render_owner_profile_body
+
+    body, page_title, meta_desc, _canon_suffix = render_owner_profile_body(profile)
+    base = _public_site_origin()
+    canon = base + _canon_suffix
+    layout = get_pbj_site_layout(
+        page_title,
+        meta_desc,
+        canon,
+        extra_head=(
+            f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+            f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+            f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
+        ),
+    )
+    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+
+
+@app.route('/owners/<owner_id>')
+def cms_owner_profile_page(owner_id):
+    """CMS ownership profile by 10-digit associate ID. /owners/ (no id) stays on FEC dashboard."""
+    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+
+    pac = normalize_associate_id(owner_id)
+    if len(pac) != 10 or not pac.isdigit():
+        from flask import abort
+        abort(404)
+    if not HAS_PANDAS:
+        return 'Pandas not available. Owner pages require pandas.', 503
+    profile = load_owner_profile_resolved(pac)
+    if not profile:
+        from flask import abort
+        abort(404)
+    resp = make_response(generate_owner_profile_html(profile))
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    return resp
 
 
 @owner_bp.route('', defaults={'path': ''})
@@ -4509,6 +4644,10 @@ def load_provider_info():
                 'ownership_type', 'Ownership_Type',
                 'avg_residents_per_day',
                 'provider_name', 'PROVNAME', 'Provider Name',
+                'legal_business_name', 'Legal Business Name',
+                'provider_changed_ownership_in_last_12_months',
+                'Provider Changed Ownership in Last 12 Months',
+                'county', 'COUNTY_NAME',
                 'reported_total_nurse_hrs_per_resident_per_day', 'Total_Nurse_HPRD',
                 'reported_rn_hrs_per_resident_per_day', 'reported_na_hrs_per_resident_per_day', 'reported_lpn_hrs_per_resident_per_day',
                 'case_mix_total_nurse_hrs_per_resident_per_day', 'case_mix_rn_hrs_per_resident_per_day',
@@ -4584,6 +4723,14 @@ def load_provider_info():
                         'avg_residents_per_day': row.get('avg_residents_per_day', ''),
                         'entity_name': (str(entity_name_val).strip() if entity_name_val is not None else '') or '',
                         'provider_name': _row_val(row, 'provider_name', 'PROVNAME', 'PROVNAME', 'Provider Name') or '',
+                        'legal_business_name': _row_val(row, 'legal_business_name', 'Legal Business Name') or '',
+                        'provider_changed_ownership_in_last_12_months': _row_val(
+                            row,
+                            'provider_changed_ownership_in_last_12_months',
+                            'Provider Changed Ownership in Last 12 Months',
+                        )
+                        or '',
+                        'county': _row_val(row, 'county', 'COUNTY_NAME') or '',
                         'state': state_val.strip().upper()[:2],
                         'entity_id': entity_id,
                         'reported_total_nurse_hrs_per_resident_per_day': row.get('reported_total_nurse_hrs_per_resident_per_day'),
@@ -5271,7 +5418,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
 .pbj-percentile, .pbj-entity-summary {{ font-size: 0.85rem; color: #a8b4c4; margin-top: 6px; }}
 .pbj-details {{ border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 10px; background: rgba(15, 23, 42, 0.55); margin: 1.25rem 0; overflow: hidden; box-shadow: 0 2px 14px rgba(2, 6, 23, 0.28); }}
-.pbj-details-methodology {{ max-width: 42rem; }}
+.pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
+.pbj-page-bottom-stack a.custom-report-cta {{ margin: 0; max-width: none; width: 100%; }}
+.pbj-page-bottom-details {{ margin: 0; width: 100%; max-width: none; }}
 .pbj-details summary {{ list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9375rem; color: #c7d2fe; background: rgba(30, 41, 59, 0.45); transition: background 0.2s ease, color 0.2s ease; user-select: none; }}
 .pbj-details summary::-webkit-details-marker {{ display: none; }}
 .pbj-details summary:hover {{ background: rgba(51, 65, 85, 0.55); color: #e0e7ff; }}
@@ -5680,17 +5829,41 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-ai-beta-got-it:hover {{ background: rgba(79, 70, 229, 0.45); }}
 body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
+.pbj-page-footer {{
+  margin-top: 1.25rem; padding-top: 0.85rem; border-top: 1px solid rgba(129, 140, 248, 0.15);
+}}
+.pbj-page-footer-crumb {{
+  margin: 0 0 0.55rem 0; font-size: 0.875rem; color: rgba(226, 232, 240, 0.85); line-height: 1.5;
+}}
+.pbj-page-footer-crumb a {{ color: #a5b4fc; text-decoration: none; }}
+.pbj-page-footer-crumb a:hover {{ text-decoration: underline; text-underline-offset: 2px; }}
+.pbj-page-footer-meta {{
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.65rem;
+  font-size: 0.8rem; line-height: 1.45; color: rgba(226, 232, 240, 0.62);
+}}
 .pbj-care-footer-row {{
-  margin: 0.35rem 0 0 0; display: flex; flex-wrap: nowrap; align-items: center; gap: 0.35rem 0.5rem;
-  font-size: 0.75rem; line-height: 1.45;
+  margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
+  font-size: inherit; line-height: inherit;
+}}
+.pbj-page-footer-source {{
+  margin: 0; font-size: inherit; color: inherit; line-height: inherit;
+}}
+.pbj-page-footer-source a,
+.pbj-page-source a {{
+  color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
+}}
+.pbj-page-footer-source a:hover,
+.pbj-page-source a:hover {{ color: #a5b4fc; }}
+@media (min-width: 900px) {{
+  .pbj-page-footer-meta {{
+    flex-wrap: nowrap; justify-content: space-between; align-items: baseline;
+  }}
+  .pbj-care-footer-row {{ flex: 0 0 auto; }}
+  .pbj-page-footer-source {{ flex: 1 1 auto; text-align: right; min-width: 12rem; }}
 }}
 .pbj-page-source {{
   margin: 0.35rem 0 0 0; font-size: 0.8rem; color: rgba(226, 232, 240, 0.6); line-height: 1.45;
 }}
-.pbj-page-source a {{
-  color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
-}}
-.pbj-page-source a:hover {{ color: #a5b4fc; }}
 .pbj-care-footer-sep {{ opacity: 0.45; user-select: none; }}
 .pbj-footer-csv-bundle {{
   font: inherit; font-size: inherit; font-weight: 500; padding: 0; margin: 0; border: none; background: none;
@@ -6032,7 +6205,7 @@ a.custom-report-cta:active {{ transform: translateY(0); box-shadow: 0 2px 12px r
 a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75); outline-offset: 3px; }}
 .custom-report-cta-mobile {{ display: none; }}
 @media (max-width: 768px) {{ .custom-report-cta-desktop {{ display: none; }} .custom-report-cta-mobile {{ display: inline; }} a.custom-report-cta {{ max-width: none; padding: 0.9rem 1rem; font-size: 0.9rem; }} }}
-.pbj-care-compare-badge {{ display: inline-block; margin-top: 0.25rem; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(129, 140, 248, 0.35); color: #a5b4fc; text-decoration: none; }}
+.pbj-care-compare-badge {{ display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(129, 140, 248, 0.35); color: #a5b4fc; text-decoration: none; white-space: nowrap; }}
 .pbj-care-compare-badge:hover {{ background: rgba(99, 102, 241, 0.2); color: #c7d2fe; }}
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
 .custom-report-cta .custom-report-cta-sms a {{ color: #818cf8; font-weight: 500; text-decoration: none; }}
@@ -6600,7 +6773,7 @@ Thank you,"""
 
 def render_methodology_block():
     """Return collapsible Methodology & Data Transparency block for facility, state, entity pages."""
-    return '''<details class="pbj-details pbj-details-methodology">
+    return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
 <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
 <div class="pbj-details-content">
 <p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses CMS Payroll-Based Journal (PBJ) data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022).</p>
@@ -7961,8 +8134,8 @@ def _cms_risk_screening_line_for_ai(
         else ''
     )
     return (
-        'PBJ320 screening flags on this page (mention briefly early; PBJ staffing stays primary; '
-        'screening signals from Care Compare / PBJ320 rules — not proof of harm or violations): '
+        'Regulatory screening signals in this packet (mention briefly near the top after PBJ Summary; '
+        'PBJ staffing stays primary; public CMS provider data — not proof of harm or violations): '
         + '; '.join(flags)
         + '.'
         + sff_note
@@ -8743,6 +8916,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         overall_rating_raw=_overall_raw,
         staffing_rating_raw=_staffing_raw,
     )
+    try:
+        from ownership.page_integrations import render_provider_ownership_chow_block
+        from ownership.chow_lookup import chow_summary_line_for_ccn
+        _provider_ownership_chow_block = render_provider_ownership_chow_block(
+            prov, provider_info_row=provider_info_row or pi_metrics
+        )
+        _ownership_chow_ai = chow_summary_line_for_ccn(prov)
+    except Exception:
+        _provider_ownership_chow_block = ''
+        _ownership_chow_ai = ''
     _facility_ai_ctx = build_dashboard_context(
         page_type='facility',
         page_url=_facility_page_url,
@@ -8775,6 +8958,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         entity_portfolio_summary=_entity_portfolio_ai,
         facility_snapshot_context=_facility_snapshot_ai,
         cms_risk_screening_line=_cms_risk_ai,
+        ownership_chow_context=_ownership_chow_ai,
     )
     _state_hprd_csv = (
         format_metric_value(state_hprd_numeric, 'Total_Nurse_HPRD')
@@ -8884,7 +9068,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         total_hprd=hprd_val,
         quarter_display=quarter_display,
     )
-    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/provider/{prov}", extra_head=provider_json_ld)
+    _ownership_page_css = (
+        f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+    )
+    layout = get_pbj_site_layout(
+        page_title,
+        seo_desc,
+        f"{base_url}/provider/{prov}",
+        extra_head=provider_json_ld + _ownership_page_css,
+    )
     facility_page_url = f"{base_url}/provider/{prov}"
     custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
     _residents_sub = f"{census_int:,} residents" if census_int else "Census not reported"
@@ -8936,14 +9129,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 {chart_section}
 
+<div class="pbj-page-bottom-stack">
 {custom_report_cta_html}
-
+{_provider_ownership_chow_block}
 {render_methodology_block()}
+</div>
 
-<div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
-<p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
+<div class="pbj-page-footer">
+<p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
+<div class="pbj-page-footer-meta">
 {_facility_csv_footer}
-<p class="pbj-page-source">Source: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a> (PBJ) data.</p>
+<span class="pbj-page-footer-source">Source: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a> (PBJ) data.</span>
+</div>
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -9723,6 +9920,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     elif chain_metrics_html:
         all_chain_data_html = chain_metrics_html
 
+    try:
+        from ownership.page_integrations import render_entity_ownership_tools_block
+        _entity_ownership_tools = render_entity_ownership_tools_block()
+    except Exception:
+        _entity_ownership_tools = ''
+
     inner = f"""
 <h1>{html.escape(entity_name)}</h1>
 {pbj_takeaway_ownership}
@@ -9743,6 +9946,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {render_methodology_block()}
 
 {custom_report_cta_html}
+
+{_entity_ownership_tools}
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
@@ -10699,6 +10904,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {_state_actions}
 {state_hprd_modal}
 </div>'''
+    try:
+        from ownership.page_integrations import render_state_chow_block, render_state_top_owners_block
+        _state_top_owners_line = render_state_top_owners_block(state_code, state_name)
+        _state_chow_line = render_state_chow_block(state_code, state_name)
+    except Exception:
+        _state_top_owners_line = ''
+        _state_chow_line = ''
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
@@ -10724,6 +10936,8 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {sff_section}
     {render_methodology_block()}
     {cta_section}
+    {_state_top_owners_line}
+    {_state_chow_line}
     </div>
     """
     
@@ -11968,7 +12182,14 @@ def generate_state_page(state_code):
         quarter_display=formatted_quarter,
         total_hprd=state_hprd_display,
     )
-    layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=state_json_ld)
+    state_extra_head = state_json_ld
+    try:
+        from ownership.chow_lookup import chow_count_for_state
+        if chow_count_for_state(state_code) > 0:
+            state_extra_head += '<link rel="stylesheet" href="/chow.css">'
+    except Exception:
+        pass
+    layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=state_extra_head)
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
     if HAS_CSRF and generate_csrf:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
@@ -13510,6 +13731,7 @@ def static_files(filename):
         'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
         'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium', 'contact',
         'data-sources', 'privacy', 'terms', 'public-trust.css',
+        'chow', 'chow.html',
     ]:
         from flask import abort
         abort(404)

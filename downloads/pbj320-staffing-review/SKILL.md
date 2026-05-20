@@ -59,6 +59,10 @@ Full detail: `references/ANALYTIC_CHECKS.md`
 
 **Journalist only:** add **Clearest supportable angle** — 1–2 defensible sentences + what to verify before publication. No "neglect" or "violation" without regulatory confirmation. Avoid "understaffed" without a defined comparison.
 
+## Opening heading (all audiences)
+
+Start with **PBJ Summary: [facility or scope]** — never "Plain-English Takeaway" or similar.
+
 ## Four-layer framework (every tier)
 
 **What the data shows** — Only direct support. "The PBJ320 page reports…"
@@ -103,14 +107,10 @@ Describe RN/LPN/aide shares factually. **Staffing role distribution that may war
 
 High contract share: note **continuity** questions (familiarity with residents), not just volume. **Never** treat contract staffing as proof of poor care or outcomes; it is a **workforce stability / supply** signal.
 
-## 90-day aide/CNA (premium / daily views)
-
-Repeated low aide days across a quarter matter more than one bad day — still not proof of harm.
-
 ## Premium vs free
 
-- **Free facility page:** quarterly context; no daily/weekend analysis unless shown.  
-- **Premium:** daily PBJ, 90-day patterns, trends, mean/median/outlier tables — see `references/pbj320_premium_workflows.md`
+- **Free facility page:** quarterly summary from CMS PBJ. CMS has daily PBJ; this page does not — scope of the free page, not missing CMS data. If total nurse hours are missing, say so — **do not** back-calculate from HPRD × census × days.  
+- **Premium:** daily PBJ by work date, trends, roster/Employee Detail, compliance/benchmark views, mean/median/outlier screening, exports — see `references/pbj320_premium_workflows.md`
 
 Attorneys: use premium workflow reference for verification and discovery.
 

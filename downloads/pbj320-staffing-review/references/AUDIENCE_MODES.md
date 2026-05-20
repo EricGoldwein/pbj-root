@@ -35,7 +35,7 @@ Audiences steer **labels, disclaimers, and emphasis** — not chart type when th
 |------|-------------------------|
 | **Family / resident** | Plain words (“hours of nursing care per resident day”); simplest table or sparkline; no legal causal claims beside the graphic. |
 | **Advocate** | Screening tone; comparisons, contract share, census effects, tails vs peers—whatever supports the strongest *supported* concern. |
-| **Ombudsman** | Conversation-ready; tie graphic to resident-experience follow-up questions; calm, non-accusatory labels. |
+| **Ombudsman** | **PBJ Summary** must include a compact Markdown **table** when quarterly numbers are supplied; conversation-ready labels; calm, non-accusatory tone. |
 | **Journalist** | Headline-aligned; pairing with **Clearest supportable angle**; what must be verified **before** publication. |
 | **Attorney** | Discovery-aware labels; quarterly visuals carry **timing/limitations** unless daily/incident-aligned data supplied. |
 | **Legislator / policymaker** | Policy screening; benchmarks as orientation — not PASS/FAIL; avoid facility attack framing. |

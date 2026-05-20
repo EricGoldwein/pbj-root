@@ -12283,12 +12283,8 @@ def generate_state_page(state_code):
     sff_facilities = load_sff_facilities()
     state_sff = [f for f in sff_facilities if f.get('state', '').upper() == state_code]
 
-    state_high_risk_buckets = {}
-    try:
-        hr_states, _hr_qtr = _compute_high_risk_by_state_for_quarter(latest_quarter)
-        state_high_risk_buckets = hr_states.get(state_code) or {}
-    except Exception:
-        state_high_risk_buckets = {}
+    # Never run full provider CSV scan here — it OOMs the web service under bot/state load.
+    state_high_risk_buckets = _high_risk_buckets_for_state_cached(state_code)
     
     # Rankings use same canonical quarter; exclude PR (51 = 50 states + DC)
     _rank_df = state_df[state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING)]

@@ -22,20 +22,3 @@ def when_ready(server):
     sys.stderr.write(f"[gunicorn] Listening on {bind}\n")
     sys.stderr.write("Owner donor dashboard loads on first /owners visit; / and /health respond immediately.\n")
     sys.stderr.flush()
-
-    def _warm_high_risk_cache() -> None:
-        try:
-            from app import _compute_high_risk_by_state_for_quarter, get_canonical_latest_quarter
-
-            qtr = get_canonical_latest_quarter()
-            if qtr:
-                _compute_high_risk_by_state_for_quarter(qtr)
-                sys.stderr.write(f"[gunicorn] Warmed high-risk cache for {qtr}\n")
-                sys.stderr.flush()
-        except Exception as exc:
-            sys.stderr.write(f"[gunicorn] High-risk cache warm skipped: {exc}\n")
-            sys.stderr.flush()
-
-    import threading
-
-    threading.Thread(target=_warm_high_risk_cache, daemon=True).start()

@@ -2733,11 +2733,8 @@ a.pbj-audit-hero-actions__primary {
         display: flex;
         flex-direction: column;
         gap: 1rem;
+        row-gap: 1rem;
         padding-top: 0.85rem;
-    }
-
-    .pbj-audit-pricing-card__actions .pbj-audit-generate + .pbj-audit-generate {
-        margin-top: 0;
     }
 
     .pbj-audit-pricing-card--primary .pbj-audit-pricing-card__text {

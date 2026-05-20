@@ -358,6 +358,33 @@ def _check_required_lfs_configuration(errors: List[str], notes: List[str]) -> No
         notes.append(f"LFS configured for: {', '.join(configured)}")
 
 
+def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
+    """Unit tests for public case-mix export rule (no full app data load)."""
+    script = REPO_ROOT / "scripts" / "check_public_case_mix_export.py"
+    if not script.is_file():
+        notes.append("Public case-mix export check skipped (script missing).")
+        return
+    try:
+        proc = subprocess.run(
+            [sys.executable, str(script), "--unit-only"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except Exception as exc:
+        errors.append(f"public case-mix export check failed to run: {exc}")
+        return
+    if proc.returncode != 0:
+        tail = (proc.stdout or proc.stderr or "").strip().splitlines()[-8:]
+        errors.append(
+            "public case-mix export unit checks failed: " + " | ".join(tail) or proc.returncode
+        )
+        return
+    notes.append("Public case-mix export unit checks passed.")
+
+
 def main() -> int:
     os.chdir(REPO_ROOT)
     errors: List[str] = []
@@ -370,6 +397,7 @@ def main() -> int:
         _check_owners_autocomplete_health(errors, notes)
         _check_required_lfs_configuration(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
+        _check_public_case_mix_export(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script
         errors.append(f"validator crashed: {exc}")
 

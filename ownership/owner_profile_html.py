@@ -464,20 +464,16 @@ def _info_button(title: str, body: str, *, label: str = "?", cls: str = "owner-i
     )
 
 
-def _associate_detail_line(r: dict[str, Any], *, n_facilities: int) -> str:
+def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -> str:
     snf = int(r.get("snf_shared") or 0)
     chow = int(r.get("chow_count") or 0)
-    bits: list[str] = []
     if snf:
         if n_facilities and snf <= n_facilities:
-            bits.append(f"{snf} of {n_facilities} facilities")
-        else:
-            bits.append(f"{snf} shared facilit{'y' if snf == 1 else 'ies'}")
+            return f"{snf}/{n_facilities}"
+        return str(snf)
     if chow:
-        bits.append(
-            f"{chow} ownership event{'s' if chow != 1 else ''}"
-        )
-    return " · ".join(bits)
+        return f"{chow} CHOW"
+    return "—"
 
 
 def _associate_source_label(r: dict[str, Any]) -> str:
@@ -496,7 +492,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         return ""
 
     n_facilities = int((profile.get("portfolio_summary") or {}).get("n_facilities") or 0)
-    items: list[str] = []
+    trs: list[str] = []
     for r in rows[:20]:
         name = format_org_display(str(r.get("name") or "—"))
         url = str(r.get("profile_url") or "").strip()
@@ -505,17 +501,15 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
             if url
             else f'<span class="owner-associate-name">{html.escape(name)}</span>'
         )
-        detail = _associate_detail_line(r, n_facilities=n_facilities)
-        src = _associate_source_label(r)
-        meta_parts = [p for p in (detail, src) if p]
-        meta = html.escape(" · ".join(meta_parts)) if meta_parts else ""
-        meta_html = f'<span class="owner-associate-meta">{meta}</span>' if meta else ""
-        items.append(
-            f'<li class="owner-associate-item">'
-            f'<span class="owner-associate-row">{name_html}{meta_html}</span></li>'
+        shared = html.escape(_associate_shared_facilities_cell(r, n_facilities=n_facilities))
+        link_type = html.escape(_associate_source_label(r) or "—")
+        trs.append(
+            f"<tr><td class=\"owner-associate-col-name\">{name_html}</td>"
+            f'<td class="num owner-associate-col-shared">{shared}</td>'
+            f'<td class="owner-associate-col-link">{link_type}</td></tr>'
         )
 
-    n_show = len(items)
+    n_show = len(trs)
     associates_help = _info_button(
         "Frequent associates",
         (
@@ -529,13 +523,23 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-associates-info",
     )
+    table = (
+        '<div class="owner-associates-table-wrap">'
+        '<table class="owner-associate-table"><thead><tr>'
+        '<th class="owner-associate-col-name">Name</th>'
+        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">Shared</th>'
+        '<th class="owner-associate-col-link">Link</th>'
+        "</tr></thead><tbody>"
+        + "".join(trs)
+        + "</tbody></table></div>"
+    )
     return (
         '<details class="owner-collapsible owner-associates-collapsible">'
         f'<summary class="owner-associates-summary">'
         f'<span class="owner-associates-summary-label">Frequent associates · {n_show}</span>'
+        f"{associates_help}"
         f"</summary>"
-        f'<div class="owner-associates-toolbar">{associates_help}</div>'
-        f'<ul class="owner-associate-list">{"".join(items)}</ul>'
+        f"{table}"
         "</details>"
     )
 

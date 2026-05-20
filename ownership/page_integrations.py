@@ -134,19 +134,21 @@ def _provider_ownership_intro_html(ownership_type: str, cms: dict[str, Any] | No
             )
     if not chips:
         return match_details
-    lead = '<p class="pbj-ownership-lead">' + '<span class="pbj-ownership-sep" aria-hidden="true"> · </span>'.join(
-        chips
-    ) + "</p>"
+    lead = (
+        '<p class="pbj-ownership-lead">'
+        + '<span class="pbj-ownership-middot" aria-hidden="true">·</span>'.join(chips)
+        + "</p>"
+    )
     return lead + match_details
 
 
-def _provider_ownership_footer_html() -> str:
+def _provider_ownership_about_html() -> str:
     return (
-        '<details class="pbj-ownership-about">'
-        '<summary>About CMS ownership data</summary>'
+        '<div class="pbj-ownership-about-callout" role="note">'
+        '<p class="pbj-ownership-about-title">About CMS ownership data</p>'
         '<p class="pbj-ownership-about-text">From CMS SNF All Owners and Provider Information. '
         "Listed roles and percentages are reported filings—not proof of who operates the facility "
-        "or quality of care.</p></details>"
+        "or quality of care.</p></div>"
     )
 
 
@@ -534,6 +536,7 @@ def render_provider_ownership_chow_block(
     intro = _provider_ownership_intro_html(ownership_type, cms)
     if intro:
         lines.append(intro)
+    lines.append(_provider_ownership_about_html())
     if chow_flag == "Y":
         lines.append(
             '<p class="pbj-ownership-flag">Ownership change reported in last 12 months (CMS Provider Info).</p>'
@@ -549,7 +552,6 @@ def render_provider_ownership_chow_block(
         '<div class="pbj-details-content pbj-ownership-chow-content">'
         + "".join(lines)
         + chow_html
-        + _provider_ownership_footer_html()
         + "</div>"
         + "</details>"
     )

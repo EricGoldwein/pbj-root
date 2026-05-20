@@ -85,6 +85,10 @@ from pbj_ai_support import (
     build_facility_snapshot_csv_row,
     build_facility_trend_csv_row,
     build_facility_trends_csv,
+    cms_pbj_dataset_url_for_quarter,
+    guard_stale_repeated_quarter_values,
+    public_case_mix_quarter_allowlist,
+    PUBLIC_CASE_MIX_CSV_FIELDS,
     facility_snapshot_csv_filename,
     facility_trends_csv_filename,
     free_premium_boundary_html,
@@ -3404,7 +3408,7 @@ def _resolve_target_entity_context(post: dict) -> dict | None:
         state_total = None
         raw_quarter = str(latest.get('CY_Qtr') or '')
         try:
-            pi_q = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else (provider_info_row or {})
+            pi_q = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else {}
             case_mix_total = float(pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')) if pi_q and pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day') is not None else None
         except Exception:
             case_mix_total = None
@@ -5373,22 +5377,8 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
             usecols = _provider_info_scan_usecols(header_cols)
             if not usecols:
                 continue
-            is_latest = (
-                'provider_info_combined_latest' in path
-                or path.replace('\\', '/').endswith('_latest.csv')
-                or 'NH_ProviderInfo' in path
-                or 'ProviderInfoNorm_' in path
-            )
-            latest_quarters = None if is_latest else _get_latest_quarter_values(path, _LATEST_PROVIDER_QUARTERS)
+            # Exact CCN+quarter: scan full provider-info file (not limited to latest N quarters).
             for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
-                if latest_quarters is not None:
-                    if qcol == 'CY_Qtr':
-                        chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
-                    else:
-                        cy = chunk['quarter'].astype(str).apply(
-                            lambda v: _quarter_display_to_cy_qtr(v) if pd.notna(v) else None
-                        )
-                        chunk = chunk[cy.isin(latest_quarters)]
                 if chunk.empty:
                     continue
                 for row in chunk.to_dict('records'):
@@ -5412,20 +5402,13 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
 
 def get_provider_info_for_quarter(ccn, raw_quarter):
     """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
-    Used to show case-mix and reported HPRD for the same quarter as the facility page."""
+
+    Quarter-exact lookup only — no latest-snapshot fallback (that backfilled case-mix on historic public rows).
+    Public exports apply the case-mix export rule separately via ``_public_case_mix_quarters_for_facility``.
+    """
     if not ccn or not raw_quarter:
         return None
     key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
-    if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
-        hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
-        if hit:
-            return hit
-    snap = (_LOAD_PROVIDER_INFO_CACHE or {}).get(key[0])
-    if snap:
-        return snap
-    row = (load_provider_info(ccn_only=key[0]) or {}).get(key[0])
-    if row:
-        return row
     if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
         hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
         if hit:
@@ -8989,6 +8972,19 @@ def _lpn_hprd_from_facility_quarterly_row(row) -> float | None:
     return max(0.0, total - rn - na)
 
 
+def _public_case_mix_quarters_for_facility(facility_df, *, include_previous: bool = False):
+    """Latest PBJ quarter(s) allowed to carry Provider Info case-mix in public CSV / AI exports."""
+    if facility_df is None or facility_df.empty or not HAS_PANDAS or 'CY_Qtr' not in facility_df.columns:
+        return set()
+    try:
+        return public_case_mix_quarter_allowlist(
+            facility_df['CY_Qtr'].tolist(),
+            include_previous=include_previous,
+        )
+    except Exception:
+        return set()
+
+
 def _facility_quarterly_census_display(row, pi_q, format_metric_value):
     """Average daily census for a facility quarter (PBJ quarterly metrics or provider info)."""
     col = 'avg_daily_census' if 'avg_daily_census' in row.index else 'Avg_Daily_Census'
@@ -9016,7 +9012,10 @@ def _build_facility_snapshot_csv_rows(
     ownership_type,
     fallback_latest_provider_row,
 ):
-    """One CSV row per quarter — full SNAPSHOT_CSV_COLUMNS for longitudinal uploads."""
+    """One CSV row per quarter — full SNAPSHOT_CSV_COLUMNS for longitudinal uploads.
+
+    Public case-mix export rule: historic rows are PBJ-only; case-mix columns only on latest PBJ quarter.
+    """
     rows = []
     if facility_df is None or facility_df.empty or not HAS_PANDAS:
         return rows
@@ -9027,17 +9026,20 @@ def _build_facility_snapshot_csv_rows(
         sorted_df = facility_df.sort_values('CY_Qtr')
     except Exception:
         sorted_df = facility_df
+    case_mix_quarters = _public_case_mix_quarters_for_facility(facility_df)
     for _, row in sorted_df.iterrows():
         q_raw = str(row.get('CY_Qtr', '') or '').strip()
         if not q_raw:
             continue
         q_disp = format_quarter_display(q_raw)
-        pi_q = get_provider_info_for_quarter(prov, q_raw) or {}
+        allow_pi_case_mix = q_raw in case_mix_quarters
+        pi_q = get_provider_info_for_quarter(prov, q_raw) if allow_pi_case_mix else {}
 
-        def _row_float(key, pi_key=None):
+        def _row_float(key, pi_key=None, *, from_pi=True):
             v = row.get(key) if key in row.index else None
             if v is None or (isinstance(v, float) and pd.isna(v)):
-                v = pi_q.get(pi_key or key)
+                if from_pi and allow_pi_case_mix:
+                    v = pi_q.get(pi_key or key)
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 return None
             try:
@@ -9045,31 +9047,33 @@ def _build_facility_snapshot_csv_rows(
             except (TypeError, ValueError):
                 return None
 
-        rt = _row_float('Total_Nurse_HPRD', 'reported_total_nurse_hrs_per_resident_per_day')
-        rn = _row_float('RN_HPRD', 'reported_rn_hrs_per_resident_per_day')
+        rt = _row_float('Total_Nurse_HPRD', 'reported_total_nurse_hrs_per_resident_per_day', from_pi=False)
+        rn = _row_float('RN_HPRD', 'reported_rn_hrs_per_resident_per_day', from_pi=False)
         lpn = _lpn_hprd_from_facility_quarterly_row(row)
-        na = _row_float('Nurse_Assistant_HPRD', 'reported_na_hrs_per_resident_per_day')
-        cmi = _row_float('nursing_case_mix_index')
-        if cmi is None:
-            v = pi_q.get('nursing_case_mix_index')
-            try:
-                cmi = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cmi = None
-        cmir = _row_float('nursing_case_mix_index_ratio')
-        if cmir is None:
-            v = pi_q.get('nursing_case_mix_index_ratio')
-            try:
-                cmir = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cmir = None
-        cm_total = _row_float('case_mix_total_nurse_hrs_per_resident_per_day')
-        if cm_total is None:
-            v = pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')
-            try:
-                cm_total = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cm_total = None
+        na = _row_float('Nurse_Assistant_HPRD', 'reported_na_hrs_per_resident_per_day', from_pi=False)
+        cmi = cmir = cm_total = None
+        if allow_pi_case_mix:
+            cmi = _row_float('nursing_case_mix_index')
+            if cmi is None:
+                v = pi_q.get('nursing_case_mix_index')
+                try:
+                    cmi = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cmi = None
+            cmir = _row_float('nursing_case_mix_index_ratio')
+            if cmir is None:
+                v = pi_q.get('nursing_case_mix_index_ratio')
+                try:
+                    cmir = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cmir = None
+            cm_total = _row_float('case_mix_total_nurse_hrs_per_resident_per_day')
+            if cm_total is None:
+                v = pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')
+                try:
+                    cm_total = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cm_total = None
         pct_total = None
         if rt is not None and state_code:
             pct_total, _ = _percentiles_from_state_slice(state_slice, q_raw, rt, rn)
@@ -9083,7 +9087,7 @@ def _build_facility_snapshot_csv_rows(
         if beds is None and isinstance(fallback_latest_provider_row, dict):
             beds = _provider_certified_beds(fallback_latest_provider_row)
         casemix_str = format_metric_value(cm_total, 'Total_Nurse_HPRD') if cm_total is not None else None
-        census_disp = _facility_quarterly_census_display(row, pi_q, format_metric_value)
+        census_disp = _facility_quarterly_census_display(row, pi_q if allow_pi_case_mix else {}, format_metric_value)
         rows.append(
             build_facility_snapshot_csv_row(
                 ccn=prov,
@@ -9108,7 +9112,12 @@ def _build_facility_snapshot_csv_rows(
                 certified_beds=beds,
             )
         )
-    return rows
+    return guard_stale_repeated_quarter_values(
+        rows,
+        PUBLIC_CASE_MIX_CSV_FIELDS,
+        context='facility snapshot CSV',
+        ccn=prov,
+    )
 
 
 def _build_facility_quarterly_trend_csv_rows(
@@ -9121,7 +9130,10 @@ def _build_facility_quarterly_trend_csv_rows(
     format_metric_value,
     format_quarter_display,
 ):
-    """One CSV row per quarter in facility_df — quarterly free layer only."""
+    """One CSV row per quarter in facility_df — quarterly free layer only.
+
+    Public case-mix export rule: historic rows are PBJ-only; case-mix columns only on latest PBJ quarter.
+    """
     rows = []
     if facility_df is None or facility_df.empty or not HAS_PANDAS:
         return rows
@@ -9132,17 +9144,20 @@ def _build_facility_quarterly_trend_csv_rows(
         sorted_df = facility_df.sort_values('CY_Qtr')
     except Exception:
         sorted_df = facility_df
+    case_mix_quarters = _public_case_mix_quarters_for_facility(facility_df)
     for _, row in sorted_df.iterrows():
         q_raw = str(row.get('CY_Qtr', '') or '').strip()
         if not q_raw:
             continue
         q_disp = format_quarter_display(q_raw)
-        pi_q = get_provider_info_for_quarter(prov, q_raw) or {}
+        allow_pi_case_mix = q_raw in case_mix_quarters
+        pi_q = get_provider_info_for_quarter(prov, q_raw) if allow_pi_case_mix else {}
 
-        def _row_float(key, pi_key=None):
+        def _row_float(key, pi_key=None, *, from_pi=True):
             v = row.get(key) if key in row.index else None
             if v is None or (isinstance(v, float) and pd.isna(v)):
-                v = pi_q.get(pi_key or key)
+                if from_pi and allow_pi_case_mix:
+                    v = pi_q.get(pi_key or key)
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 return None
             try:
@@ -9150,35 +9165,37 @@ def _build_facility_quarterly_trend_csv_rows(
             except (TypeError, ValueError):
                 return None
 
-        rt = _row_float('Total_Nurse_HPRD', 'reported_total_nurse_hrs_per_resident_per_day')
-        rn = _row_float('RN_HPRD', 'reported_rn_hrs_per_resident_per_day')
+        rt = _row_float('Total_Nurse_HPRD', 'reported_total_nurse_hrs_per_resident_per_day', from_pi=False)
+        rn = _row_float('RN_HPRD', 'reported_rn_hrs_per_resident_per_day', from_pi=False)
         lpn = _lpn_hprd_from_facility_quarterly_row(row)
-        na = _row_float('Nurse_Assistant_HPRD', 'reported_na_hrs_per_resident_per_day')
-        cmi = _row_float('nursing_case_mix_index')
-        if cmi is None:
-            v = pi_q.get('nursing_case_mix_index')
-            try:
-                cmi = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cmi = None
-        cmir = _row_float('nursing_case_mix_index_ratio')
-        if cmir is None:
-            v = pi_q.get('nursing_case_mix_index_ratio')
-            try:
-                cmir = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cmir = None
-        cm_total = _row_float('case_mix_total_nurse_hrs_per_resident_per_day')
-        if cm_total is None:
-            v = pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')
-            try:
-                cm_total = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
-            except (TypeError, ValueError):
-                cm_total = None
+        na = _row_float('Nurse_Assistant_HPRD', 'reported_na_hrs_per_resident_per_day', from_pi=False)
+        cmi = cmir = cm_total = None
+        if allow_pi_case_mix:
+            cmi = _row_float('nursing_case_mix_index')
+            if cmi is None:
+                v = pi_q.get('nursing_case_mix_index')
+                try:
+                    cmi = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cmi = None
+            cmir = _row_float('nursing_case_mix_index_ratio')
+            if cmir is None:
+                v = pi_q.get('nursing_case_mix_index_ratio')
+                try:
+                    cmir = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cmir = None
+            cm_total = _row_float('case_mix_total_nurse_hrs_per_resident_per_day')
+            if cm_total is None:
+                v = pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')
+                try:
+                    cm_total = float(v) if v is not None and not (isinstance(v, float) and pd.isna(v)) else None
+                except (TypeError, ValueError):
+                    cm_total = None
         pct_total = None
         if rt is not None and state_code:
             pct_total, _ = _percentiles_from_state_slice(state_slice, q_raw, rt, rn)
-        census_disp = _facility_quarterly_census_display(row, pi_q, format_metric_value)
+        census_disp = _facility_quarterly_census_display(row, pi_q if allow_pi_case_mix else {}, format_metric_value)
         rows.append(
             build_facility_trend_csv_row(
                 ccn=prov,
@@ -9186,6 +9203,7 @@ def _build_facility_quarterly_trend_csv_rows(
                 state=st_label,
                 quarter_display=q_disp,
                 pbj320_url=page_url,
+                cms_pbj_source_url=cms_pbj_dataset_url_for_quarter(q_raw),
                 avg_daily_census=census_disp,
                 rn_hprd=format_metric_value(rn, 'RN_HPRD') if rn is not None else None,
                 lpn_hprd=format_metric_value(lpn, 'LPN_HPRD') if lpn is not None else None,
@@ -9197,7 +9215,12 @@ def _build_facility_quarterly_trend_csv_rows(
                 state_percentile=pct_total,
             )
         )
-    return rows
+    return guard_stale_repeated_quarter_values(
+        rows,
+        PUBLIC_CASE_MIX_CSV_FIELDS,
+        context='facility trends CSV',
+        ccn=prov,
+    )
 
 
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
@@ -9284,14 +9307,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pi = provider_info_row or {}
     if pi_quarter is None:
         pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
-    pi_latest_q, pi_latest_row = (None, None)
-    # If exact quarter row is unavailable, prefer snapshot provider row first (often the newest refresh),
-    # then quarter-index fallback.
-    if pi_quarter is None:
-        pi_latest_q, pi_latest_row = get_latest_provider_info_for_ccn(prov)
-    pi_metrics = (pi_quarter or pi or pi_latest_row)
-    if isinstance(pi_metrics, dict):
-        pi_metrics = {k: v for k, v in pi_metrics.items() if k != '_processing_date'}
+    pi_case_mix = pi_quarter if isinstance(pi_quarter, dict) else {}
+    if isinstance(pi_case_mix, dict):
+        pi_case_mix = {k: v for k, v in pi_case_mix.items() if k != '_processing_date'}
+    pi_header = pi_quarter or pi or provider_info_row or {}
+    if isinstance(pi_header, dict):
+        pi_header = {k: v for k, v in pi_header.items() if k != '_processing_date'}
     def _safe(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return None
@@ -9299,19 +9320,19 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return float(v)
         except (TypeError, ValueError):
             return None
-    reported_total = get_val('Total_Nurse_HPRD') if get_val('Total_Nurse_HPRD') is not None else _safe(pi_metrics.get('reported_total_nurse_hrs_per_resident_per_day'))
-    reported_rn = get_val('RN_HPRD') if get_val('RN_HPRD') is not None else _safe(pi_metrics.get('reported_rn_hrs_per_resident_per_day'))
+    reported_total = get_val('Total_Nurse_HPRD')
+    reported_rn = get_val('RN_HPRD')
     reported_lpn = get_val('LPN_HPRD')
     if reported_lpn is None and latest is not None:
         reported_lpn = _lpn_hprd_from_facility_quarterly_row(latest)
-    reported_na = get_val('Nurse_Assistant_HPRD') if get_val('Nurse_Assistant_HPRD') is not None else _safe(pi_metrics.get('reported_na_hrs_per_resident_per_day'))
-    case_mix_total = _safe(pi_metrics.get('case_mix_total_nurse_hrs_per_resident_per_day'))
-    case_mix_rn = _safe(pi_metrics.get('case_mix_rn_hrs_per_resident_per_day'))
-    case_mix_lpn = _safe(pi_metrics.get('case_mix_lpn_hrs_per_resident_per_day'))
-    case_mix_na = _safe(pi_metrics.get('case_mix_na_hrs_per_resident_per_day'))
-    case_mix_index = _safe(pi_metrics.get('nursing_case_mix_index'))
-    case_mix_index_ratio = _safe(pi_metrics.get('nursing_case_mix_index_ratio'))
-    census_num = _safe(pi_metrics.get('avg_residents_per_day'))
+    reported_na = get_val('Nurse_Assistant_HPRD')
+    case_mix_total = _safe(pi_case_mix.get('case_mix_total_nurse_hrs_per_resident_per_day'))
+    case_mix_rn = _safe(pi_case_mix.get('case_mix_rn_hrs_per_resident_per_day'))
+    case_mix_lpn = _safe(pi_case_mix.get('case_mix_lpn_hrs_per_resident_per_day'))
+    case_mix_na = _safe(pi_case_mix.get('case_mix_na_hrs_per_resident_per_day'))
+    case_mix_index = _safe(pi_case_mix.get('nursing_case_mix_index'))
+    case_mix_index_ratio = _safe(pi_case_mix.get('nursing_case_mix_index_ratio'))
+    census_num = _safe(pi_case_mix.get('avg_residents_per_day'))
     if census_num is None and latest is not None:
         census_num = _safe(latest.get('avg_daily_census'))
     _c = round_half_up(census_num, 0) if census_num is not None else None
@@ -9371,8 +9392,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     if case_mix_total is None:
         narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
-    elif pi_quarter is None and not pi and pi_latest_q and str(pi_latest_q) != str(raw_quarter):
-        narrative += f' <span style="color: rgba(226,232,240,0.72);">Case-mix hours shown from latest available provider-info quarter ({format_quarter_display(pi_latest_q)}).</span>'
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     sff_entry = next((f for f in (sff_facilities_list or []) if (str(f.get('provider_number') or '').strip().zfill(6)) == prov), None)
@@ -9671,9 +9690,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             _eid = str(entity_id).strip()
             if _eid.isdigit():
                 _facility_entity_page_url = f'{base_url}/entity/{_eid}'
-    _certified_beds = _provider_certified_beds(provider_info_row or pi_metrics)
+    _certified_beds = _provider_certified_beds(provider_info_row or pi_header)
     _facility_snapshot_ai = _provider_ai_facility_snapshot_context(
-        pi_metrics if isinstance(pi_metrics, dict) else {},
+        pi_header if isinstance(pi_header, dict) else {},
         census_int=census_int,
         certified_beds=_certified_beds,
         ownership_short=ownership_short or ownership_raw or '',
@@ -9685,7 +9704,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         risk_flag=int(risk_flag or 0),
         is_sff=is_sff,
         is_sff_candidate=is_sff_candidate,
-        pi_metrics=pi_metrics if isinstance(pi_metrics, dict) else {},
+        pi_metrics=pi_header if isinstance(pi_header, dict) else {},
         overall_rating_raw=_overall_raw,
         staffing_rating_raw=_staffing_raw,
     )
@@ -9693,7 +9712,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         from ownership.page_integrations import render_provider_ownership_chow_block
         from ownership.chow_lookup import chow_summary_line_for_ccn
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
-            prov, provider_info_row=provider_info_row or pi_metrics
+            prov, provider_info_row=provider_info_row or pi_header
         )
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
@@ -9782,7 +9801,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         format_metric_value,
         format_quarter_display,
         ownership_short or ownership_raw or '',
-        provider_info_row or pi_metrics,
+        provider_info_row or pi_header,
     )
     _snapshot_rows = _snapshot_hist if _snapshot_hist else [_snapshot_row]
     _snapshot_csv = build_facility_snapshot_csv(_snapshot_rows)

@@ -155,12 +155,174 @@ PBJ_AI_HELPER_BODY = (
     'Pick who you are and how long, then copy or open a PBJ320 packet in Claude or ChatGPT.'
 )
 
+# Public case-mix export rule (free site CSV / AI packets — not premium/private DB paths):
+# Historical rows use PBJ-reported staffing, census, state percentile, and CMS PBJ source links only.
+# Do not backfill or repeat the latest CMS Provider Info case-mix across prior PBJ quarters.
+# Case-mix fields may appear only on the latest facility PBJ quarter when Provider Info aligns with that quarter.
+PUBLIC_CASE_MIX_EXPORT_RULE = (
+    'Public historical exports should not backfill or repeat the latest CMS Provider Info case-mix '
+    'values across prior PBJ quarters. Historical rows should contain PBJ-derived staffing metrics and '
+    'state percentiles only. Case-mix fields should appear only for the latest facility quarter where '
+    'the case-mix source aligns with the quarter being shown.'
+)
+
+PBJ_PUBLIC_CASE_MIX_EXPORT_NOTE = (
+    'Case-mix fields are shown only for the latest available quarter. '
+    'Historical staffing rows use PBJ-reported staffing, census, percentile, and source links.'
+)
+
+PUBLIC_CASE_MIX_CSV_FIELDS: tuple[str, ...] = (
+    'case_mix_index',
+    'case_mix_index_ratio',
+    'cms_case_mix_total_nurse_hprd',
+)
+
 PBJ_FACILITY_CSV_LIMITATIONS = (
     'This PBJ320 free quarterly page summarizes CMS PBJ staffing by quarter (visible facility-level metrics). '
     'CMS also collects daily facility-day PBJ; PBJ320 Premium can show daily work-date detail, trends, and roster '
     'exports. This packet does not include daily/shift breakdowns, employee roster rows, or resident-level care — '
-    'scope of this page, not missing CMS data.'
+    'scope of this page, not missing CMS data. '
+    + PBJ_PUBLIC_CASE_MIX_EXPORT_NOTE
 )
+
+CMS_PBJ_DATASET_LANDING_URL = (
+    'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing'
+)
+
+
+def cms_pbj_dataset_url_for_quarter(raw_quarter: str) -> str:
+    """CY_Qtr 2024Q3 → CMS PBJ dataset page for that quarter (e.g. …/data/q3-2024)."""
+    s = str(raw_quarter or '').strip()
+    m = re.match(r'^(\d{4})Q([1-4])$', s, re.I)
+    if m:
+        return (
+            f'{CMS_PBJ_DATASET_LANDING_URL}/data/q{m.group(2).lower()}-{m.group(1)}'
+        )
+    m = re.match(r'^Q([1-4])\s+(\d{4})$', s, re.I)
+    if m:
+        return (
+            f'{CMS_PBJ_DATASET_LANDING_URL}/data/q{m.group(1).lower()}-{m.group(2)}'
+        )
+    return CMS_PBJ_DATASET_LANDING_URL
+
+
+def public_case_mix_quarter_allowlist(
+    cy_qtr_values: Sequence[str],
+    *,
+    include_previous: bool = False,
+) -> set[str]:
+    """CY_Qtr keys where public exports may attach Provider Info case-mix (latest PBJ quarter by default)."""
+    qs = sorted({str(q).strip() for q in cy_qtr_values if str(q).strip()})
+    if not qs:
+        return set()
+    n = 2 if include_previous and len(qs) >= 2 else 1
+    return set(qs[-n:])
+
+
+def _row_has_public_case_mix(row: Mapping[str, Any]) -> bool:
+    for col in PUBLIC_CASE_MIX_CSV_FIELDS:
+        raw = row.get(col)
+        if raw is None or str(raw).strip() in ('', '—', '-', 'N/A', 'n/a'):
+            continue
+        return True
+    return False
+
+
+def verify_public_facility_trend_case_mix_export(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    ccn: str | None = None,
+    min_historic_pbj_rows: int = 1,
+) -> None:
+    """Assert public trend/snapshot rows follow the public case-mix export rule (for tests/checks)."""
+    if not rows:
+        return
+    sorted_rows = sorted(rows, key=lambda r: _quarter_sort_key(str(r.get('quarter', ''))))
+    cm_rows = [r for r in sorted_rows if _row_has_public_case_mix(r)]
+    if len(cm_rows) > 1:
+        qs = [str(r.get('quarter', '')) for r in cm_rows]
+        raise AssertionError(
+            f'case-mix present on {len(cm_rows)} quarters (expected at most 1): {qs}'
+            + (f' ccn={ccn}' if ccn else '')
+        )
+    if len(cm_rows) == 1 and len(sorted_rows) > 1:
+        latest_q = str(sorted_rows[-1].get('quarter', '')).strip()
+        cm_q = str(cm_rows[0].get('quarter', '')).strip()
+        if cm_q != latest_q:
+            raise AssertionError(
+                f'case-mix on {cm_q!r} but latest quarter is {latest_q!r}'
+                + (f' ccn={ccn}' if ccn else '')
+            )
+    historic = sorted_rows[:-1] if len(sorted_rows) > 1 else []
+    for r in historic:
+        if _row_has_public_case_mix(r):
+            raise AssertionError(
+                f'historic row has case-mix: quarter={r.get("quarter")!r}'
+                + (f' ccn={ccn}' if ccn else '')
+            )
+    hprd_historic = [
+        r for r in historic
+        if str(r.get('total_nurse_hprd') or '').strip() not in ('', '—', '-', 'N/A', 'n/a')
+    ]
+    if len(historic) >= min_historic_pbj_rows and len(hprd_historic) < min_historic_pbj_rows:
+        raise AssertionError(
+            f'expected PBJ total_nurse_hprd on historic rows'
+            + (f' ccn={ccn}' if ccn else '')
+        )
+
+
+def guard_stale_repeated_quarter_values(
+    rows: Sequence[Mapping[str, Any]],
+    columns: Sequence[str],
+    *,
+    min_repeats: int = 4,
+    context: str = '',
+    ccn: str | None = None,
+) -> list[dict[str, Any]]:
+    """Heuristic safety net: clear columns when identical values repeat across many quarters.
+
+    Intended to catch accidental backfill of latest Provider Info case-mix onto historical
+    PBJ rows. Not a substitute for ``public_case_mix_quarter_allowlist`` — logs only, never
+    shown on the public site.
+    """
+    if not rows or min_repeats < 2:
+        return [dict(r) for r in rows]
+    out = [dict(r) for r in rows]
+    row_ccn = (ccn or str(out[0].get('ccn') or '')).strip() or None
+    for col in columns:
+        by_val: dict[str, list[int]] = defaultdict(list)
+        for i, row in enumerate(out):
+            raw = row.get(col)
+            if raw is None or str(raw).strip() in ('', '—', '-', 'N/A', 'n/a'):
+                continue
+            try:
+                key = f'{float(str(raw).replace(",", "")):.6f}'
+            except (TypeError, ValueError):
+                key = str(raw).strip()
+            by_val[key].append(i)
+        for key, idxs in by_val.items():
+            if len(idxs) < min_repeats:
+                continue
+            q_labels = [str(out[i].get('quarter') or '?').strip() for i in idxs]
+            q_sample = q_labels[:6]
+            if len(q_labels) > 6:
+                q_sample.append(f'+{len(q_labels) - 6} more')
+            parts = [
+                'PBJ320 guard (stale case-mix repetition heuristic):',
+                f"field={col!r}",
+                f'value={key!r}',
+                f'repeated_quarters={len(idxs)}',
+                f'quarters={q_sample!r}',
+            ]
+            if row_ccn:
+                parts.append(f'ccn={row_ccn}')
+            if context:
+                parts.append(f'context={context}')
+            print(' '.join(parts))
+            for i in idxs:
+                out[i][col] = None
+    return out
+
 
 PBJ_PBJ_SUBMISSION_CONTEXT = (
     'CMS Payroll-Based Journal (PBJ) reflects facility-submitted payroll extracts processed under CMS rules '
@@ -1456,6 +1618,7 @@ TREND_CSV_COLUMNS: tuple[str, ...] = (
     'state',
     'quarter',
     'pbj320_url',
+    'cms_pbj_source_url',
     'source_level',
     'avg_daily_census',
     'rn_hprd',
@@ -1539,6 +1702,7 @@ def build_facility_trend_csv_row(
     state: str,
     quarter_display: str,
     pbj320_url: str,
+    cms_pbj_source_url: str = '',
     rn_hprd: Any = None,
     lpn_hprd: Any = None,
     nurse_aide_hprd: Any = None,
@@ -1555,6 +1719,7 @@ def build_facility_trend_csv_row(
         'state': state,
         'quarter': quarter_display,
         'pbj320_url': pbj320_url,
+        'cms_pbj_source_url': cms_pbj_source_url or CMS_PBJ_DATASET_LANDING_URL,
         'source_level': PBJ_FACILITY_SOURCE_LEVEL,
         'avg_daily_census': avg_daily_census,
         'rn_hprd': rn_hprd,
@@ -1732,7 +1897,8 @@ def build_facility_longitudinal_context(
     lines.append(f'Quarters in file: {len(rows)} ({quarters[0]} through {quarters[-1]})')
     lines.append(
         'Tab-separated: quarter, avg daily census, total nurse HPRD, RN, LPN, nurse aide, '
-        'CMS case-mix total HPRD, state percentile (total nurse).'
+        'CMS case-mix total HPRD (when present in CSV — typically latest quarter only), '
+        'state percentile (total nurse).'
     )
     lines.append(PBJ_ROLE_HPRD_SEMANTICS)
 

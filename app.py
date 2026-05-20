@@ -1124,6 +1124,8 @@ def seo_explainer_page():
     slug = request.path.strip('/').split('/')[-1]
     resp = make_response(_render_explainer_page(slug))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    # Static glossary copy; safe for CDN/browser cache (no per-user HTML).
+    resp.headers['Cache-Control'] = 'public, max-age=86400'
     return resp
 
 
@@ -3858,13 +3860,36 @@ def _json_ld_script(doc: dict) -> str:
     return f'<script type="application/ld+json">{json.dumps(doc, ensure_ascii=True)}</script>'
 
 
-def _breadcrumb_list_json_ld(items: list) -> str:
+def _json_ld_origin_from_page_url(page_url: str) -> str:
+    """Site origin for JSON-LD breadcrumbs; matches page_url host when absolute."""
+    page_url = (page_url or '').strip()
+    if page_url.lower().startswith(('http://', 'https://')):
+        try:
+            from urllib.parse import urlparse
+            parsed = urlparse(page_url)
+            if parsed.scheme and parsed.netloc:
+                return f'{parsed.scheme}://{parsed.netloc}'
+        except Exception:
+            pass
+    return _public_site_origin()
+
+
+def _breadcrumb_list_json_ld(items: list, *, page_url: str = '') -> str:
+    origin = _json_ld_origin_from_page_url(page_url) if page_url else _public_site_origin()
     elements = []
-    for pos, item in enumerate(items, start=1):
-        name, url = item[0], item[1]
+    for name, url in items:
+        name = (name or '').strip()
+        url = (url or '').strip()
         if not name or not url:
             continue
-        elements.append({'@type': 'ListItem', 'position': pos, 'name': name[:240], 'item': url})
+        if url.startswith('/'):
+            url = f'{origin}{url}'
+        elements.append({
+            '@type': 'ListItem',
+            'position': len(elements) + 1,
+            'name': name[:240],
+            'item': url,
+        })
     if not elements:
         return ''
     return _json_ld_script({'@context': 'https://schema.org', '@type': 'BreadcrumbList', 'itemListElement': elements})
@@ -3883,7 +3908,7 @@ def _state_facility_list_for_json_ld(state_code: str, quarter: str, limit: int =
     if sub.empty:
         return []
     sub = sub.sort_values('Total_Nurse_HPRD', ascending=False).head(limit)
-    base = 'https://pbj320.com'
+    base = _public_site_origin()
     out = []
     for _, row in sub.iterrows():
         ccn = normalize_ccn(row.get('PROVNUM') or '')
@@ -3906,7 +3931,10 @@ def _provider_page_json_ld_scripts(
     total_hprd: str,
     quarter_display: str,
 ) -> str:
-    base = 'https://pbj320.com'
+    page_url = (page_url or '').strip()
+    if page_url.startswith('/'):
+        page_url = f'{_public_site_origin()}{page_url}'
+    origin = _json_ld_origin_from_page_url(page_url)
     address = {'@type': 'PostalAddress', 'addressCountry': 'US'}
     if city:
         address['addressLocality'] = city
@@ -3915,6 +3943,7 @@ def _provider_page_json_ld_scripts(
     org = {
         '@context': 'https://schema.org',
         '@type': 'MedicalOrganization',
+        '@id': page_url,
         'name': facility_name,
         'url': page_url,
         'description': provider_page_meta_description(
@@ -3925,6 +3954,13 @@ def _provider_page_json_ld_scripts(
             hprd_val=total_hprd,
         )[:320],
     }
+    norm_ccn = normalize_ccn(ccn) or (str(ccn or '').strip())
+    if norm_ccn:
+        org['identifier'] = {
+            '@type': 'PropertyValue',
+            'propertyID': 'CMS Certification Number',
+            'value': norm_ccn,
+        }
     if address.get('addressLocality') or address.get('addressRegion'):
         org['address'] = address
     props = []
@@ -3934,11 +3970,11 @@ def _provider_page_json_ld_scripts(
         props.append({'@type': 'PropertyValue', 'name': 'Reporting quarter', 'value': quarter_display})
     if props:
         org['additionalProperty'] = props
-    crumbs = [('Home', f'{base}/')]
+    crumbs = [('Home', f'{origin}/')]
     if state_name and state_slug:
-        crumbs.append((f'{state_name} PBJ Staffing', f'{base}/state/{state_slug}'))
+        crumbs.append((f'{state_name} PBJ Staffing', f'{origin}/state/{state_slug}'))
     crumbs.append((facility_name, page_url))
-    parts = [_json_ld_script(org), _breadcrumb_list_json_ld(crumbs)]
+    parts = [_json_ld_script(org), _breadcrumb_list_json_ld(crumbs, page_url=page_url)]
     return '\n'.join(p for p in parts if p)
 
 
@@ -3952,7 +3988,10 @@ def _state_page_json_ld_scripts(
     quarter_display: str,
     total_hprd: str,
 ) -> str:
-    base = 'https://pbj320.com'
+    page_url = (page_url or '').strip()
+    if page_url.startswith('/'):
+        page_url = f'{_public_site_origin()}{page_url}'
+    origin = _json_ld_origin_from_page_url(page_url)
     facilities = _state_facility_list_for_json_ld(state_code, quarter, limit=10)
     item_elements = [
         {'@type': 'ListItem', 'position': i, 'name': name[:240], 'url': url}
@@ -3977,16 +4016,19 @@ def _state_page_json_ld_scripts(
         web_page['additionalProperty'] = [
             {'@type': 'PropertyValue', 'name': 'State average total nurse HPRD', 'value': total_hprd}
         ]
-    crumbs = [('Home', f'{base}/'), (f'{state_name} PBJ Staffing', page_url)]
+    crumbs = [('Home', f'{origin}/'), (f'{state_name} PBJ Staffing', page_url)]
     parts = [_json_ld_script(web_page)]
     if item_elements:
         parts.append(_json_ld_script(item_list))
-    parts.append(_breadcrumb_list_json_ld(crumbs))
+    parts.append(_breadcrumb_list_json_ld(crumbs, page_url=page_url))
     return '\n'.join(p for p in parts if p)
 
 
 def _entity_page_json_ld_scripts(*, entity_name: str, entity_id: int, page_url: str, facility_count: int) -> str:
-    base = 'https://pbj320.com'
+    page_url = (page_url or '').strip()
+    if page_url.startswith('/'):
+        page_url = f'{_public_site_origin()}{page_url}'
+    origin = _json_ld_origin_from_page_url(page_url)
     org = {
         '@context': 'https://schema.org',
         '@type': 'Organization',
@@ -3996,12 +4038,15 @@ def _entity_page_json_ld_scripts(*, entity_name: str, entity_id: int, page_url: 
             entity_name, facility_count=facility_count
         )[:500],
     }
-    crumbs = [('Home', f'{base}/'), (entity_name, page_url)]
-    return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs)])
+    crumbs = [('Home', f'{origin}/'), (entity_name, page_url)]
+    return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
 def _owner_page_json_ld_scripts(*, display_name: str, page_url: str, facility_count: int, meta_description: str) -> str:
-    base = 'https://pbj320.com'
+    page_url = (page_url or '').strip()
+    if page_url.startswith('/'):
+        page_url = f'{_public_site_origin()}{page_url}'
+    origin = _json_ld_origin_from_page_url(page_url)
     org = {
         '@context': 'https://schema.org',
         '@type': 'Organization',
@@ -4009,8 +4054,25 @@ def _owner_page_json_ld_scripts(*, display_name: str, page_url: str, facility_co
         'url': page_url,
         'description': (meta_description or '')[:500],
     }
-    crumbs = [('Home', f'{base}/'), (display_name, page_url)]
-    return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs)])
+    crumbs = [('Home', f'{origin}/'), (display_name, page_url)]
+    return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
+
+
+def _explainer_page_json_ld_scripts(*, page_title: str, page_url: str, description: str, breadcrumb_name: str) -> str:
+    page_url = (page_url or '').strip()
+    if page_url.startswith('/'):
+        page_url = f'{_public_site_origin()}{page_url}'
+    origin = _json_ld_origin_from_page_url(page_url)
+    web_page = {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        '@id': page_url,
+        'name': (page_title or '')[:240],
+        'url': page_url,
+        'description': (description or '')[:500],
+    }
+    crumbs = [('Home', f'{origin}/'), ((breadcrumb_name or page_title or '')[:240], page_url)]
+    return '\n'.join([_json_ld_script(web_page), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
 def _render_explainer_page(slug: str):
@@ -4021,7 +4083,15 @@ def _render_explainer_page(slug: str):
         abort(404)
     base = _public_site_origin()
     canon = base + page['path']
-    layout = get_pbj_site_layout(explainer_page_title(slug), page['description'], canon)
+    page_title = explainer_page_title(slug)
+    meta_desc = page['description']
+    explainer_json_ld = _explainer_page_json_ld_scripts(
+        page_title=page_title,
+        page_url=canon,
+        description=meta_desc,
+        breadcrumb_name=page.get('h1') or page_title,
+    )
+    layout = get_pbj_site_layout(page_title, meta_desc, canon, extra_head=explainer_json_ld)
     inner = (
         f'<h1>{html.escape(page["h1"])}</h1>'
         f'<div class="pbj-explainer-body">{page["body"]}</div>'
@@ -9200,7 +9270,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'Government'
         return ot
     ownership_short = abbreviate_ownership(ownership_raw) or ''
-    base_url = 'https://pbj320.com'
+    base_url = _public_site_origin()
     state_link = f'<a href="/state/{canonical_slug}">{state_code}</a>' if (canonical_slug and state_code) else (state_code or state_name)
     # Entity link (relative); same style as other footer links (no brighter color)
     entity_link = f'<a href="/entity/{entity_id}">{html.escape(entity_name or '')}</a>' if entity_id and entity_name else (entity_name or '')

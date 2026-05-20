@@ -113,6 +113,147 @@
     }
     return trimmed;
   }
+  function normCmp(val) {
+    return String(val || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '');
+  }
+  function nameTokens(name) {
+    var t = {};
+    normCmp(name)
+      .split(/[^A-Z0-9]+/)
+      .forEach(function (w) {
+        if (w.length > 2) t[w] = true;
+      });
+    return t;
+  }
+  function nameOverlapRatio(a, b) {
+    var ta = nameTokens(a);
+    var tb = nameTokens(b);
+    var keys = Object.keys(ta);
+    var keysB = Object.keys(tb);
+    if (!keys.length || !keysB.length) return 0;
+    var shared = 0;
+    keys.forEach(function (k) {
+      if (tb[k]) shared += 1;
+    });
+    return shared / Math.max(keys.length, keysB.length);
+  }
+  function namesMateriallyDifferent(buyerOrg, sellerOrg) {
+    var a = String(buyerOrg || '').trim();
+    var b = String(sellerOrg || '').trim();
+    if (!a || !b) return false;
+    var na = normCmp(a);
+    var nb = normCmp(b);
+    if (na === nb) return false;
+    if (na.indexOf(nb) >= 0 || nb.indexOf(na) >= 0) return false;
+    return nameOverlapRatio(a, b) < 0.35;
+  }
+  function fieldChanged(rec, bKey, sKey) {
+    var bv = normCmp(rec[bKey]);
+    var sv = normCmp(rec[sKey]);
+    return !!(bv || sv) && bv !== sv;
+  }
+  function chowChangeSummary(r) {
+    var buyerOrg = String(r.buyer_org_name || r.buyer_dba_name || '').trim();
+    var sellerOrg = String(r.seller_org_name || '').trim();
+    var idKeys = [
+      ['buyer_org_name', 'seller_org_name'],
+      ['buyer_dba_name', 'seller_dba_name'],
+      ['buyer_enrollment_id', 'seller_enrollment_id'],
+      ['buyer_npi', 'seller_npi'],
+      ['buyer_associate_id', 'seller_associate_id'],
+    ];
+    var any = idKeys.some(function (pair) {
+      return fieldChanged(r, pair[0], pair[1]);
+    });
+    if (!any) return '';
+    if (namesMateriallyDifferent(buyerOrg, sellerOrg) && nameOverlapRatio(buyerOrg, sellerOrg) < 0.15) {
+      return 'Entity changed';
+    }
+    return 'Identifiers changed';
+  }
+  function orgCellHtml(r, side) {
+    var name =
+      side === 'buyer'
+        ? formatOrgName(r.buyer_org_name || r.buyer_dba_name || '—')
+        : formatOrgName(r.seller_org_name || '—');
+    var url = side === 'buyer' ? r.buyer_owner_url : r.seller_owner_url;
+    if (url) return linkHtml(url, name);
+    return esc(name);
+  }
+  var CHOW_COMPARE_FIELDS = [
+    ['Organization name', 'buyer_org_name', 'seller_org_name'],
+    ['DBA name', 'buyer_dba_name', 'seller_dba_name'],
+    ['Enrollment ID', 'buyer_enrollment_id', 'seller_enrollment_id'],
+    ['NPI', 'buyer_npi', 'seller_npi'],
+    ['Associate ID', 'buyer_associate_id', 'seller_associate_id'],
+    ['CCN', 'ccn', 'ccn'],
+    ['Provider type', 'chow_type', 'chow_type'],
+    ['Effective date', 'effective_date', 'effective_date'],
+  ];
+  function fieldDisplay(key, val, r) {
+    if (key === 'effective_date') return formatDate(val) || '—';
+    if (
+      key === 'buyer_org_name' ||
+      key === 'seller_org_name' ||
+      key === 'buyer_dba_name' ||
+      key === 'seller_dba_name'
+    ) {
+      return formatOrgName(val) || '—';
+    }
+    return val == null || val === '' ? '—' : String(val);
+  }
+  function fieldStatus(bVal, sVal, key) {
+    if (key === 'ccn') {
+      var c = normCmp(bVal);
+      return c && c === normCmp(sVal) ? 'same' : 'changed';
+    }
+    if (normCmp(bVal) === normCmp(sVal)) return 'same';
+    if (!normCmp(bVal) && !normCmp(sVal)) return 'same';
+    return 'changed';
+  }
+  function renderChowComparePanel(r) {
+    var rows = CHOW_COMPARE_FIELDS.map(function (triple) {
+      var label = triple[0];
+      var bKey = triple[1];
+      var sKey = triple[2];
+      var status = fieldStatus(r[bKey], r[sKey], bKey);
+      var pill =
+        status === 'same'
+          ? '<span class="chow-field-pill chow-field-pill--same">Same</span>'
+          : '<span class="chow-field-pill chow-field-pill--changed">Changed</span>';
+      return (
+        '<tr class="chow-compare-row chow-compare-row--' +
+        status +
+        '">' +
+        '<th>' +
+        esc(label) +
+        '</th>' +
+        '<td class="chow-compare-before">' +
+        esc(fieldDisplay(bKey, r[bKey], r)) +
+        '</td>' +
+        '<td class="chow-compare-after">' +
+        esc(fieldDisplay(sKey, r[sKey], r)) +
+        ' ' +
+        pill +
+        '</td></tr>'
+      );
+    }).join('');
+    var chowType = esc(r.chow_type || '—');
+    return (
+      '<div class="chow-detail-compare">' +
+      '<table class="chow-compare-table"><thead><tr><th>Field</th>' +
+      '<th class="chow-compare-before">Before / Seller</th>' +
+      '<th class="chow-compare-after">After / Buyer</th></tr></thead><tbody>' +
+      rows +
+      '<tr><th>CHOW type text</th><td colspan="2">' +
+      chowType +
+      '</td></tr></tbody></table>' +
+      '<p class="chow-detail-note">CMS records this as a Change of Ownership. This comparison shows changes in CMS enrollment/entity fields. It does not, by itself, explain the business reason for the change.</p>' +
+      '</div>'
+    );
+  }
   function buildNameCounts() {
     buyerNameCounts = {};
     sellerNameCounts = {};
@@ -708,45 +849,7 @@
     );
   }
   function renderDetailRow(r) {
-    var fields = [
-      ['Facility / DBA', formatOrgName(r.facility_display_name || r.buyer_dba_name)],
-      ['CCN', r.ccn],
-      ['State', r.state],
-      ['Effective date', formatDate(r.effective_date)],
-      ['Buyer legal organization', formatOrgName(r.buyer_org_name)],
-      ['Buyer DBA', formatOrgName(r.buyer_dba_name)],
-      ['Buyer enrollment ID', r.buyer_enrollment_id],
-      ['Buyer NPI', r.buyer_npi],
-      ['Buyer PAC / associate ID', r.buyer_associate_id],
-      ['Seller legal organization', formatOrgName(r.seller_org_name)],
-      ['Seller DBA', formatOrgName(r.seller_dba_name)],
-      ['Seller enrollment ID', r.seller_enrollment_id],
-      ['Seller NPI', r.seller_npi],
-      ['Seller PAC / associate ID', r.seller_associate_id],
-      ['CHOW type', r.chow_type],
-    ];
-    var grid = fields
-      .map(function (pair) {
-        var v = pair[1];
-        if (v == null || v === '') v = '—';
-        return '<dt>' + esc(pair[0]) + '</dt><dd>' + esc(v) + '</dd>';
-      })
-      .join('');
-    return (
-      partnerNotesHtml(r) +
-      '<dl class="chow-detail-grid">' +
-      grid +
-      '</dl>' +
-      '<p class="chow-detail-links"><strong>Profiles:</strong> ' +
-      renderLinks(r) +
-      '</p>' +
-      (r.pattern_tags && r.pattern_tags.length
-        ? '<p><strong>Pattern tags:</strong> ' + esc(r.pattern_tags.join(', ')) + '</p>'
-        : '') +
-      '<p class="chow-detail-placeholder">Historical PBJ staffing comparison coming later. ' +
-      '<!-- TODO: pre/post CHOW HPRD, RN, aide, weekend staffing -->' +
-      '</p>'
-    );
+    return partnerNotesHtml(r) + renderChowComparePanel(r);
   }
   function renderTable() {
     var tbody = $('chowTableBody');
@@ -754,7 +857,7 @@
     if (!tbody) return;
     if (!filtered.length) {
       tbody.innerHTML =
-        '<tr><td colspan="9" class="chow-empty">No records match the current filters.</td></tr>';
+        '<tr><td colspan="10" class="chow-empty">No records match the current filters.</td></tr>';
       if (loadWrap) loadWrap.style.display = 'none';
       return;
     }
@@ -783,11 +886,22 @@
         esc(formatOrgName(r.facility_display_name || r.buyer_dba_name || '—')) +
         '</td>' +
         '<td class="chow-org-name">' +
-        esc(formatOrgName(r.buyer_org_name || '—')) +
+        orgCellHtml(r, 'buyer') +
         '</td>' +
         '<td class="chow-org-name">' +
-        esc(formatOrgName(r.seller_org_name || '—')) +
+        orgCellHtml(r, 'seller') +
         '</td>' +
+        '<td class="chow-tx-details">' +
+        '<span class="chow-tx-summary">' +
+        esc(chowChangeSummary(r) || '—') +
+        '</span> ' +
+        '<button type="button" class="chow-view-details" data-chow-id="' +
+        esc(id) +
+        '" aria-expanded="' +
+        (expanded ? 'true' : 'false') +
+        '">' +
+        (expanded ? 'Hide details' : 'View details') +
+        '</button></td>' +
         '<td>' +
         patternBadgesHtml(r) +
         '</td>' +
@@ -797,7 +911,7 @@
         '</tr>';
       if (expanded) {
         html +=
-          '<tr class="chow-detail-row"><td colspan="9">' +
+          '<tr class="chow-detail-row"><td colspan="10">' +
           renderDetailRow(r) +
           '</td></tr>';
       }
@@ -806,8 +920,17 @@
     if (loadWrap) {
       loadWrap.style.display = filtered.length > displayLimit ? 'block' : 'none';
     }
+    tbody.querySelectorAll('.chow-view-details').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var cid = btn.getAttribute('data-chow-id');
+        expandedId = expandedId === cid ? null : cid;
+        renderTable();
+      });
+    });
     tbody.querySelectorAll('.chow-row').forEach(function (row) {
-      row.addEventListener('click', function () {
+      row.addEventListener('click', function (e) {
+        if (e.target.closest('.chow-view-details, a, button')) return;
         var cid = row.getAttribute('data-chow-id');
         expandedId = expandedId === cid ? null : cid;
         renderTable();

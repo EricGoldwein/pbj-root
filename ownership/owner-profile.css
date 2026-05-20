@@ -11,8 +11,102 @@
   margin-bottom: 0.5rem;
 }
 
-.owner-profile-header--compact {
-  margin-bottom: 0.65rem;
+.owner-profile-header--compact,
+.owner-profile-header--branded {
+  margin-bottom: 0.85rem;
+}
+
+.owner-profile-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.owner-profile-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.owner-profile-brand:hover .owner-profile-brand-suffix {
+  color: #c7d2fe;
+}
+
+.owner-profile-brand-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.owner-profile-brand-lockup {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+
+.owner-profile-brand-pbj {
+  color: #f8fafc;
+}
+
+.owner-profile-brand-320 {
+  color: #60a5fa;
+}
+
+.owner-profile-brand-suffix {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.owner-profile-brand-row .owner-page-help {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.owner-profile-name {
+  font-size: clamp(1.5rem, 3.8vw, 2.05rem);
+  line-height: 1.12;
+  margin: 0;
+  color: #f1f5f9;
+  text-wrap: balance;
+}
+
+.owner-profile-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 0.4rem;
+  gap: 0.15rem 0;
+}
+
+.owner-profile-meta-row > *:not(:first-child)::before {
+  content: "·";
+  margin: 0 0.45rem;
+  color: #64748b;
+  font-weight: 400;
+}
+
+.owner-profile-meta-row .owner-profile-type {
+  font-size: 0.88rem;
+}
+
+.owner-profile-pac-row {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #7c8a9a;
 }
 
 .owner-profile-header-line {
@@ -98,6 +192,24 @@
 
 .owner-states-trigger:hover {
   background: rgba(99, 102, 241, 0.28);
+}
+
+.owner-state-link {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #c7d2fe;
+  text-decoration: none;
+}
+
+.owner-state-link:hover {
+  color: #e0e7ff;
+  text-decoration: underline;
+}
+
+.owner-table-footer {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--owner-muted, #94a3b8);
 }
 
 .owner-states-modal {
@@ -495,6 +607,12 @@ button.owner-flag.owner-flag--abuse:hover,
   box-sizing: border-box;
 }
 
+.owner-scope-note--preview {
+  color: #fde68a;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
 .owner-facilities-header {
   display: flex;
   flex-wrap: wrap;
@@ -569,6 +687,26 @@ a.owner-facility-primary:hover {
 
 .owner-role-cell-inner {
   line-height: 1.2;
+}
+
+.owner-role-pct-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.owner-role-since {
+  display: block;
+  font-size: 0.66rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.owner-role-since-short {
+  display: none;
 }
 
 .owner-role-pct-btn,
@@ -671,7 +809,7 @@ button.owner-role-pct-btn:focus-visible {
 }
 
 .owner-snapshot-section {
-  margin: 0.5rem 0 1.25rem;
+  margin: 0 0 1.15rem;
 }
 
 .owner-snapshot-header {
@@ -1040,8 +1178,8 @@ button.owner-flag:hover {
 
 .owner-facilities-table .owner-col-role,
 .owner-facilities-table th.owner-col-role {
-  width: 4.5rem;
-  min-width: 4.5rem;
+  width: 5.25rem;
+  min-width: 5.25rem;
   text-align: right;
   white-space: nowrap;
 }
@@ -1219,6 +1357,20 @@ button.owner-flag:hover {
   .owner-profile-root .chow-table td {
     font-size: 0.78rem;
     padding: 0.45rem 0.4rem;
+  }
+
+  .owner-role-since-long {
+    display: none;
+  }
+
+  .owner-role-since-short {
+    display: inline;
+  }
+
+  .owner-facilities-table .owner-col-role,
+  .owner-facilities-table th.owner-col-role {
+    width: 4.35rem;
+    min-width: 4.35rem;
   }
 
   .chow-provider-owners-table th:nth-child(3),

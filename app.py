@@ -161,6 +161,9 @@ APP_ROOT = os.path.dirname(os.path.abspath(__file__))
 if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
     if (os.environ.get('PBJ_SKIP_PROVIDER_PAGE_CACHE') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
         os.environ.setdefault('PBJ_SKIP_PROVIDER_PAGE_CACHE', '1')
+    # Local: preview ownership/CHOW blocks for all states (production stays CT-only unless env set).
+    if (os.environ.get('PBJ_OWNERSHIP_PREVIEW') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
+        os.environ.setdefault('PBJ_OWNERSHIP_PREVIEW', '1')
 
 # SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in .env or production env.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
@@ -519,7 +522,7 @@ _SEARCH_INDEX_TTL = 300  # 5 min
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
     'PBJ320 high-risk indicators (CMS): Special Focus Facility or SFF candidate, '
-    '1-star overall rating, or abuse icon.'
+    '1-star overall rating, 1-star staffing rating, or abuse icon.'
 )
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
@@ -948,7 +951,9 @@ def generate_chow_page_html():
 @app.route('/chow')
 @app.route('/chow/')
 def chow_page():
-    """Public CMS SNF Change of Ownership monitor."""
+    """Public CMS SNF Change of Ownership monitor (CT beta: bare /chow → Connecticut state page)."""
+    if not request.args:
+        return redirect('/state/connecticut', code=302)
     resp = make_response(generate_chow_page_html())
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
@@ -2492,6 +2497,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
         <a href="/insights" class="active" aria-current="page">Insights</a>
         <a href="/phoebe">PBJ Explained</a>
         <a href="/owners">Ownership</a>
+        <a href="/premium">Premium</a>
       </div>
     </div>
   </nav>
@@ -4124,9 +4130,16 @@ def cms_owner_profile_page(owner_id):
     if not profile:
         from flask import abort
         abort(404)
+    from ownership.beta_gate import profile_has_public_state, profile_is_visible
+
+    if not profile_is_visible(profile):
+        from flask import abort
+        abort(404)
     resp = make_response(generate_owner_profile_html(profile))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    if not profile_has_public_state(profile):
+        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
     return resp
 
 
@@ -6219,7 +6232,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .nav-link {{ color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; padding: 8px 0; transition: color 0.2s ease; }}
 .nav-link:hover {{ color: #93c5fd; }}
 .nav-link.active {{ color: #60a5fa; font-weight: 600; }}
-.nav-link--premium-mobile {{ display: none !important; }}
+.nav-link--ownership-beta {{ display: none !important; }}
 .nav-toggle {{ display: none; flex-direction: column; cursor: pointer; gap: 4px; }}
 .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
 .footer-section-hr {{ border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); height: 0; margin: clamp(20px, 3vw, 32px) 0 0 0; width: 100%; }}
@@ -6271,7 +6284,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     border-bottom: 1px solid rgba(30, 41, 59, 0.55);
     font-size: 1rem;
   }}
-  .nav-link--premium-mobile {{ display: flex !important; }}
+  .nav-link--ownership-beta {{ display: flex !important; }}
   .nav-toggle {{ display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; cursor: pointer; }}
   .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
   .nav-toggle.active span:nth-child(1) {{ transform: rotate(45deg) translate(5px,5px); }}
@@ -6363,7 +6376,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         <a href="/report" class="nav-link">Report</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
-        <a href="/premium" class="nav-link nav-link--premium-mobile">Premium</a>
+        <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
     </div>
@@ -8642,10 +8655,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
     if use_sff_candidate_badge:
         risk_badge = _risk_badge_with_info(sff_candidate_spans)
-    elif is_sff_candidate and risk_badge_label and 'SFF' in risk_badge_label:
-        # Combined reason (e.g. "1 star, SFF") – show SFF as SFF Candidate responsively
-        risk_badge_content = risk_badge_label.replace('SFF', sff_candidate_spans)
-        risk_badge = _risk_badge_with_info(risk_badge_content)
+    elif is_sff_candidate and risk_badge_label:
+        parts: list[str] = []
+        for part in risk_badge_label.split(','):
+            p = part.strip()
+            if p.upper() in ('SFF', 'SFF CANDIDATE'):
+                parts.append(sff_candidate_spans)
+            elif p:
+                parts.append(html.escape(p))
+        risk_badge = _risk_badge_with_info(', '.join(parts)) if parts else ''
     else:
         risk_badge = _risk_badge_with_info(risk_badge_label) if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
@@ -8922,7 +8940,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
             prov, provider_info_row=provider_info_row or pi_metrics
         )
-        _ownership_chow_ai = chow_summary_line_for_ccn(prov)
+        _ownership_chow_ai = (
+            chow_summary_line_for_ccn(prov)
+            if (state_code or '').strip().upper() == 'CT'
+            else ''
+        )
     except Exception:
         _provider_ownership_chow_block = ''
         _ownership_chow_ai = ''
@@ -9790,6 +9812,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg Contract %</div><div class="value">{format_metric_value(avg_contract, "Contract_Percentage")}%</div></div>'
         chain_metrics_html += '</div>'
 
+    from ownership.display_format import cms_ratings_stack_html
+
     PAGE_SIZE = 20
     rows = []
     for fac in facilities:
@@ -9824,6 +9848,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             staff_num = int(round_half_up(float(_staff), 0)) if _staff is not None and not (isinstance(_staff, float) and pd.isna(_staff)) else None
         except (TypeError, ValueError):
             staff_num = None
+        _qm = info.get('qm_rating') or info.get('quality_measures_rating')
+        ratings_cell = cms_ratings_stack_html(_overall, _staff, _qm)
         risk_flag, risk_reason = get_facility_risk_from_search_index(ccn) if ccn else (False, '')
         row_class = 'entity-facility-row high-risk' if risk_flag else 'entity-facility-row'
         facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
@@ -9838,11 +9864,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             cells.append(format_metric_value(rn, 'RN_HPRD'))
         else:
             cells.append('—')
-        cells.append(str(overall_num) if overall_num is not None else '—')
-        cells.append(str(staff_num) if staff_num is not None else '—')
+        cells.append(ratings_cell)
         data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-census="{census_sort}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
         rows.append('<tr class="' + row_class + '"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
-    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" class="entity-col-census" data-sort="census">Census</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">Overall Rating</th><th scope="col" data-sort="staffing-rating">Staffing Rating</th></tr>'
+    thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" class="entity-col-census" data-sort="census">Census</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">CMS ratings</th></tr>'
     tbody = '\n'.join(rows)
     show_more_btn = ''
     if n > PAGE_SIZE:
@@ -9902,7 +9927,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         page_url=f"{base_url}/entity/{entity_id}",
         facility_count=n,
     )
-    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}", extra_head=entity_json_ld)
+    entity_extra_head = entity_json_ld + (
+        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+    )
+    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}", extra_head=entity_extra_head)
     entity_page_url = f"{base_url}/entity/{entity_id}"
     care_compare_entity_url = f'https://www.medicare.gov/care-compare/details/chains/{entity_id}'
     custom_report_cta_html = render_custom_report_cta('entity', entity_page_url, entity_name=entity_name)
@@ -10416,7 +10444,214 @@ def generate_state_chart_html(state_name, state_code):
 <script src="/state-page-charts.js"></script>
 '''
 
-def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None):
+
+def _render_state_pbj_high_risk_section(
+    state_name: str,
+    state_code: str,
+    high_risk_buckets: dict | None,
+    provider_info: dict,
+    sff_facilities: list | None = None,
+) -> str:
+    """Tabbed PBJ320 High-Risk facility list for a state page."""
+    from ownership.display_format import cms_ratings_stack_html, format_cms_star_rating
+
+    try:
+        from pbj_format import format_metric_value as _fmt_hprd
+    except ImportError:
+        def _fmt_hprd(value, metric_key, default='—'):
+            try:
+                if value is None or str(value).strip() == '':
+                    return default
+                r = round_half_up(float(value), 2)
+                return f'{r:.2f}' if r is not None else default
+            except (TypeError, ValueError):
+                return default
+
+    buckets = dict(high_risk_buckets or {})
+    sff_by_ccn: dict[str, dict] = {}
+    for sf in sff_facilities or []:
+        ccn_k = str(sf.get('provider_number') or '').strip().zfill(6)
+        if ccn_k:
+            sff_by_ccn[ccn_k] = sf
+
+    tab_defs = [
+        ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
+        ('sffCandidates', 'SFF candidates', 'Facilities monitored for potential SFF designation.'),
+        ('oneStarOverall', '1-star overall', 'Care Compare overall rating of 1 star.'),
+        ('oneStarStaffing', '1-star staffing', 'Care Compare staffing rating of 1 star.'),
+        ('abuse', 'Abuse icon', 'Facilities flagged with the CMS abuse icon.'),
+    ]
+    total = sum(len(buckets.get(k) or []) for k, _, _ in tab_defs)
+    if not total and not sff_by_ccn:
+        return ''
+
+    def _risk_flags_html(fac: dict, ccn: str) -> str:
+        badges: list[str] = []
+        sff_raw = str(fac.get('status') or '').strip()
+        sff_up = sff_raw.upper()
+        if sff_up == 'SFF':
+            badges.append('<span class="state-hr-badge state-hr-badge--sff">SFF</span>')
+        elif 'CANDIDATE' in sff_up:
+            badges.append('<span class="state-hr-badge state-hr-badge--sffc">SFF cand.</span>')
+        if fac.get('hasAbuse'):
+            badges.append('<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon">Abuse</span>')
+        try:
+            if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
+                badges.append('<span class="state-hr-badge state-hr-badge--1ovr">1★ ovr</span>')
+        except (TypeError, ValueError):
+            pass
+        try:
+            if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
+                badges.append('<span class="state-hr-badge state-hr-badge--1stf">1★ stf</span>')
+        except (TypeError, ValueError):
+            pass
+        return ' '.join(badges) if badges else '—'
+
+    def _facility_row(fac: dict, *, show_months: bool = False) -> str:
+        ccn = str(fac.get('ccn') or '').strip().zfill(6)
+        name_raw = fac.get('name') or 'Unknown'
+        name = capitalize_facility_name(name_raw)
+        city_raw = (fac.get('city') or '').strip()
+        city = capitalize_city_name(city_raw) if city_raw else ''
+        if not city and ccn:
+            city = capitalize_city_name((provider_info.get(ccn) or {}).get('city') or '')
+        prov = provider_info.get(ccn) or {} if ccn else {}
+        ovr = fac.get('overall_rating') or prov.get('overall_rating')
+        staff = fac.get('staffing_rating') or prov.get('staffing_rating')
+        qm = prov.get('qm_rating') or prov.get('quality_measures_rating')
+        ratings_cell = cms_ratings_stack_html(ovr, staff, qm)
+        hprd_raw = (
+            fac.get('total_nurse_hprd')
+            or prov.get('reported_total_nurse_hrs_per_resident_per_day')
+            or prov.get('Total_Nurse_HPRD')
+        )
+        hprd_cell = (
+            _fmt_hprd(hprd_raw, 'Total_Nurse_HPRD', '—')
+            if hprd_raw is not None and str(hprd_raw).strip()
+            else '—'
+        )
+        facility_cell = (
+            f'<a href="/provider/{html.escape(ccn)}">{html.escape(name)}</a>'
+            + (f' <span class="state-hr-city">({html.escape(city)})</span>' if city else '')
+        )
+        flags_cell = _risk_flags_html(fac, ccn)
+        extra = ''
+        if show_months:
+            sf = sff_by_ccn.get(ccn) if ccn else None
+            months_val = sf.get('months_as_sff') if sf else None
+            extra = (
+                f'<td class="num">{html.escape(str(months_val))}</td>'
+                if months_val is not None
+                else '<td class="num">—</td>'
+            )
+        return (
+            f'<tr><td>{facility_cell}</td><td class="state-hr-ratings">{ratings_cell}</td>'
+            f'<td>{flags_cell}</td><td class="num">{hprd_cell}</td>{extra}</tr>'
+        )
+
+    tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
+    section = f'''
+    <details class="pbj-details state-high-risk-details" open>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk</summary>
+    <div class="pbj-details-content">
+    <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
+      <span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">High-risk</span>
+      <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span></span>
+      nursing homes in {html.escape(state_name)} ({total:,} facilities across categories; a facility may appear in more than one tab).
+    </p>
+    <div class="state-hr-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
+    '''
+    tab_id_prefix = 'state-hr-tab-'
+    panel_id_prefix = 'state-hr-panel-'
+    first_selected = next(
+        (k for k, _, _ in tab_defs if buckets.get(k)),
+        tab_defs[0][0],
+    )
+    for cat_key, tab_label, _desc in tab_defs:
+        count = len(buckets.get(cat_key) or [])
+        tid = tab_id_prefix + cat_key
+        pid = panel_id_prefix + cat_key
+        selected = cat_key == first_selected
+        aria_val = 'true' if selected else 'false'
+        section += (
+            f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" '
+            f'aria-selected="{aria_val}" class="state-hr-tab-btn" data-panel="{pid}" '
+            f'style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(15,23,42,0.6); '
+            f'color:rgba(226,232,240,0.85); border:1px solid rgba(129,140,248,0.35); border-radius:6px; cursor:pointer;">'
+            f'{tab_label} ({count})</button>'
+        )
+    section += '</div>'
+    for cat_key, tab_label, desc in tab_defs:
+        lst = list(buckets.get(cat_key) or [])
+        lst.sort(key=lambda f: (str(f.get('name') or '')).lower())
+        pid = panel_id_prefix + cat_key
+        tid = tab_id_prefix + cat_key
+        is_first = cat_key == first_selected
+        panel_style = 'display:block;' if is_first else 'display:none;'
+        section += (
+            f'<div role="tabpanel" id="{pid}" aria-labelledby="{tid}" class="state-hr-panel" '
+            f'style="{panel_style}">'
+        )
+        if not lst:
+            section += (
+                f'<p style="color:rgba(226,232,240,0.8); font-size:0.9rem;">'
+                f'No {tab_label.lower()} in this state.</p>'
+            )
+        else:
+            show_months = cat_key in ('sff', 'sffCandidates')
+            months_th = '<th scope="col" class="num">Months</th>' if show_months else ''
+            section += f'''
+    <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
+    <table class="state-hr-table" style="width:100%; min-width:360px; border-collapse:collapse; font-size:0.875rem;">
+    <thead><tr>
+      <th scope="col">Facility</th>
+      <th scope="col">CMS ratings</th>
+      <th scope="col">Indicators</th>
+      <th scope="col" class="num">Total HPRD</th>
+      {months_th}
+    </tr></thead>
+    <tbody>'''
+            for fac in lst:
+                section += _facility_row(fac, show_months=show_months)
+            section += '</tbody></table></div>'
+        section += '</div>'
+    section += '''
+    <style>
+    .state-hr-table th, .state-hr-table td { padding: 0.5rem 0.4rem; border: 1px solid rgba(129,140,248,0.25); text-align:left; vertical-align: top; }
+    .state-hr-table th.num, .state-hr-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .state-hr-table th { background: rgba(67, 56, 202, 0.22); color: #818cf8; font-weight:600; }
+    .state-hr-table tbody tr:nth-child(even) { background: rgba(15,23,42,0.4); }
+    .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.92em; }
+    .state-hr-badge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 4px; margin: 0 0.15rem 0.15rem 0; white-space: nowrap; }
+    .state-hr-badge--sff { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(248,113,113,0.35); }
+    .state-hr-badge--sffc { background: rgba(234,88,12,0.18); color: #fdba74; border: 1px solid rgba(251,146,60,0.35); }
+    .state-hr-badge--abuse { background: rgba(127,29,29,0.35); color: #fecaca; border: 1px solid rgba(248,113,113,0.4); }
+    .state-hr-badge--1ovr, .state-hr-badge--1stf { background: rgba(99,102,241,0.15); color: #c7d2fe; border: 1px solid rgba(129,140,248,0.35); }
+    .state-hr-tab-btn[aria-selected="true"] { background: rgba(99, 102, 241, 0.45) !important; border-color: #818cf8 !important; color: #e2e8f0 !important; font-weight: 600; }
+    .state-hr-ratings .owner-ratings-stack { gap: 0.12rem; }
+    @media (max-width: 640px) { .state-hr-table { font-size: 0.8rem; } .state-hr-table th, .state-hr-table td { padding: 0.35rem 0.25rem; } }
+    </style>
+    <script>
+    (function(){
+      var tabs = document.querySelectorAll(".state-hr-tab-btn");
+      var panels = document.querySelectorAll(".state-hr-panel");
+      tabs.forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var panelId = btn.getAttribute("data-panel");
+          tabs.forEach(function(t){ t.setAttribute("aria-selected", "false"); });
+          panels.forEach(function(p){ p.style.display = "none"; });
+          btn.setAttribute("aria-selected", "true");
+          var p = document.getElementById(panelId);
+          if (p) p.style.display = "block";
+        });
+      });
+    })();
+    </script>
+    </div></details>'''
+    return section
+
+
+def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None):
     """Generate state page content. Returns (content, page_title, seo_description, canonical_url) for use with get_pbj_site_layout (state page is separate from PBJpedia)."""
     try:
         from pbj_format import format_metric_value
@@ -10578,121 +10813,14 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             return "Government"
         return ownership
     
-    # SFF facilities section: tabbed table (Current SFF, Candidates, Graduates, No longer in program)
-    sff_section = ""
-    if sff_facilities:
-        by_cat = {'SFF': [], 'Candidate': [], 'Graduate': [], 'Terminated': []}
-        for f in sff_facilities:
-            cat = f.get('category') or 'SFF'
-            if cat in by_cat:
-                by_cat[cat].append(f)
-        total_sff = len(sff_facilities)
-        sff_section = f"""
-    <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Special Focus Facilities</summary>
-    <div class="pbj-details-content">
-    <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">{state_name} has facilities in the Special Focus Facility program. Select a tab to view Current SFFs, Candidates, Graduates, or facilities no longer in Medicare/Medicaid.</p>
-    <div class="sff-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
-    """
-        tab_id_prefix = "sff-tab-"
-        panel_id_prefix = "sff-panel-"
-        categories_order = [('SFF', 'Current SFF', 'months as SFF'), ('Candidate', 'Candidates', 'months as candidate'), ('Graduate', 'Graduates', 'months as SFF'), ('Terminated', 'No longer in program', 'months as SFF')]
-        first_selected = next((k for k, _, _ in categories_order if by_cat.get(k)), 'SFF')
-        for cat_key, tab_label, months_label in categories_order:
-            lst = by_cat.get(cat_key) or []
-            count = len(lst)
-            tid = tab_id_prefix + cat_key.lower()
-            pid = panel_id_prefix + cat_key.lower()
-            selected = (cat_key == first_selected)
-            aria_val = 'true' if selected else 'false'
-            sff_section += f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" aria-selected="{aria_val}" class="sff-tab-btn" data-panel="{pid}" style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(15,23,42,0.6); color:rgba(226,232,240,0.85); border:1px solid rgba(129,140,248,0.35); border-radius:6px; cursor:pointer;">{tab_label} ({count})</button>'
-        sff_section += '</div>'
-        for cat_key, tab_label, months_label in categories_order:
-            lst = by_cat.get(cat_key) or []
-            pid = panel_id_prefix + cat_key.lower()
-            tid = tab_id_prefix + cat_key.lower()
-            is_first = (cat_key == first_selected)
-            panel_style = 'display:block;' if is_first else 'display:none;'
-            sff_section += f'<div role="tabpanel" id="{pid}" aria-labelledby="{tid}" class="sff-panel" style="{panel_style}">'
-            if not lst:
-                sff_section += f'<p style="color:rgba(226,232,240,0.8); font-size:0.9rem;">No {tab_label.lower()} in this state.</p>'
-            else:
-                # Table: Facility (name, city), Months, Residents, Ownership; Graduate/Terminated add date column
-                extra_col = ''
-                if cat_key == 'Graduate':
-                    extra_col = '<th scope="col">Graduation</th>'
-                elif cat_key == 'Terminated':
-                    extra_col = '<th scope="col">Termination</th>'
-                sff_section += f'''
-    <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
-    <table class="sff-facilities-table" style="width:100%; min-width:320px; border-collapse:collapse; font-size:0.875rem;">
-    <thead><tr><th scope="col">Facility</th><th scope="col">Months</th><th scope="col">Residents</th><th scope="col">Total HPRD</th><th scope="col">Ownership</th>{extra_col}</tr></thead>
-    <tbody>'''
-                for facility in lst:
-                    facility_name = facility.get('facility_name', 'Unknown')
-                    provider_number = facility.get('provider_number', '')
-                    months_val = facility.get('months_as_sff')
-                    city = facility.get('city', '')
-                    prov_info = provider_info.get(provider_number, {})
-                    if not city:
-                        city = prov_info.get('city', '')
-                    residents = prov_info.get('avg_residents_per_day', '')
-                    ownership = format_ownership_type(prov_info.get('ownership_type', ''))
-                    facility_name_cap = capitalize_facility_name(facility_name)
-                    city_cap = capitalize_city_name(city) if city else ''
-                    dashboard_link = f'/provider/{provider_number}'
-                    facility_cell = f'<a href="{dashboard_link}">{html.escape(facility_name_cap)}</a>' + (f' <span style="color:rgba(226,232,240,0.75);">({html.escape(city_cap)})</span>' if city_cap else '')
-                    months_cell = str(months_val) if months_val is not None else '—'
-                    residents_cell = '—'
-                    try:
-                        if residents and str(residents).strip():
-                            residents_val = float(residents)
-                            # float('nan') can appear in provider data; display em dash instead of crashing.
-                            residents_cell = str(int(residents_val)) if residents_val == residents_val else '—'
-                    except (ValueError, TypeError):
-                        residents_cell = '—'
-                    total_hprd_raw = prov_info.get('reported_total_nurse_hrs_per_resident_per_day') or prov_info.get('Total_Nurse_HPRD')
-                    try:
-                        total_hprd_cell = fmt(float(total_hprd_raw)) if total_hprd_raw is not None and str(total_hprd_raw).strip() else '—'
-                    except (ValueError, TypeError):
-                        total_hprd_cell = '—'
-                    ownership_cell = ownership or '—'
-                    extra_cell = ''
-                    if cat_key == 'Graduate':
-                        d = facility.get('date_of_graduation') or ''
-                        extra_cell = f'<td>{html.escape(d) if d else "—"}</td>'
-                    elif cat_key == 'Terminated':
-                        d = facility.get('date_of_termination') or ''
-                        extra_cell = f'<td>{html.escape(d) if d else "—"}</td>'
-                    sff_section += f'<tr><td>{facility_cell}</td><td>{months_cell}</td><td>{residents_cell}</td><td>{total_hprd_cell}</td><td>{ownership_cell}</td>{extra_cell}</tr>'
-                sff_section += '</tbody></table></div>'
-            sff_section += '</div>'
-        sff_section += f'''
-    <style>
-    .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.5rem 0.4rem; border: 1px solid rgba(129,140,248,0.25); text-align:left; }}
-    .sff-facilities-table th {{ background: rgba(67, 56, 202, 0.22); color: #818cf8; font-weight:600; }}
-    .sff-facilities-table tbody tr:nth-child(even) {{ background: rgba(15,23,42,0.4); }}
-    .sff-tab-btn[aria-selected="true"] {{ background: rgba(99, 102, 241, 0.45) !important; border-color: #818cf8 !important; color: #e2e8f0 !important; font-weight: 600; box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.45); }}
-    @media (max-width: 640px) {{ .sff-facilities-table {{ font-size: 0.8rem; }} .sff-facilities-table th, .sff-facilities-table td {{ padding: 0.35rem 0.25rem; }} }}
-    </style>
-    <p style="margin-top:0.75rem; font-size:0.85rem;"><a href="{html.escape(get_sff_source_url())}" target="_blank" rel="noopener">Source: CMS Special Focus Facility program</a></p>
-    <script>
-    (function(){{
-      var tabs = document.querySelectorAll(".sff-tab-btn");
-      var panels = document.querySelectorAll(".sff-panel");
-      tabs.forEach(function(btn){{
-        btn.addEventListener("click", function(){{
-          var panelId = btn.getAttribute("data-panel");
-          tabs.forEach(function(t){{ t.setAttribute("aria-selected", "false"); }});
-          panels.forEach(function(p){{ p.style.display = "none"; }});
-          btn.setAttribute("aria-selected", "true");
-          var p = document.getElementById(panelId);
-          if(p) p.style.display = "block";
-        }});
-      }});
-    }})();
-    </script>
-    </div></details>'''
+    # PBJ320 High-Risk: SFF, candidates, 1-star ratings, abuse icon (provider snapshot scan)
+    sff_section = _render_state_pbj_high_risk_section(
+        state_name,
+        state_code,
+        high_risk_buckets,
+        provider_info,
+        sff_facilities=sff_facilities,
+    )
     
     # Ranking info removed - already shown in overview table
     ranking_info = ""
@@ -11753,6 +11881,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
                 <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
+                <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>
     </nav>
@@ -12129,9 +12258,16 @@ def generate_state_page(state_code):
         latest_data = state_data[state_data['CY_Qtr'] == latest_quarter].iloc[0] if latest_quarter is not None else state_data.iloc[-1]
     formatted_quarter = format_quarter(latest_quarter)
     
-    # Load SFF facilities for this state
+    # Load SFF facilities for this state (months-in-program metadata for high-risk table)
     sff_facilities = load_sff_facilities()
     state_sff = [f for f in sff_facilities if f.get('state', '').upper() == state_code]
+
+    state_high_risk_buckets = {}
+    try:
+        hr_states, _hr_qtr = _compute_high_risk_by_state_for_quarter(latest_quarter)
+        state_high_risk_buckets = hr_states.get(state_code) or {}
+    except Exception:
+        state_high_risk_buckets = {}
     
     # Rankings use same canonical quarter; exclude PR (51 = 50 states + DC)
     _rank_df = state_df[state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING)]
@@ -12166,7 +12302,7 @@ def generate_state_page(state_code):
     content, page_title, seo_description, canonical_url = generate_state_page_html(
         state_name, state_code, latest_data, macpac_standard, region_info, 
         formatted_quarter, state_rank_total, state_rank_rn, total_states, 
-        state_sff, latest_quarter, contact_info
+        state_sff, latest_quarter, contact_info, high_risk_buckets=state_high_risk_buckets
     )
     try:
         from pbj_format import format_metric_value as _fmt_metric
@@ -12183,6 +12319,9 @@ def generate_state_page(state_code):
         total_hprd=state_hprd_display,
     )
     state_extra_head = state_json_ld
+    state_extra_head += (
+        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+    )
     try:
         from ownership.chow_lookup import chow_count_for_state
         if chow_count_for_state(state_code) > 0:
@@ -13314,6 +13453,7 @@ def pbjpedia_page(page):
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
                 <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
+                <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>
     </nav>

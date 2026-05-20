@@ -899,3 +899,139 @@
 .pbj-content-box .chow-root .chow-btn {
   color: #fff !important;
 }
+
+/* Provider ownership CHOW block */
+.chow-btn-chow {
+  background: rgba(14, 116, 144, 0.45);
+  border-color: rgba(45, 212, 191, 0.55);
+  color: #ccfbf1;
+  font-weight: 600;
+}
+
+.chow-btn-chow:hover {
+  background: rgba(13, 148, 136, 0.55);
+  border-color: rgba(94, 234, 212, 0.65);
+  color: #f0fdfa;
+}
+
+.provider-chow-block {
+  margin: 0.75rem 0 0.35rem;
+}
+
+.provider-chow-heading {
+  margin: 0 0 0.45rem;
+  font-size: 0.9rem;
+  color: #cbd5e1;
+}
+
+.provider-chow-panel {
+  margin-top: 0.55rem;
+}
+
+.chow-tx-table th,
+.chow-tx-table td {
+  vertical-align: top;
+}
+
+.chow-tx-details {
+  min-width: 9.5rem;
+  white-space: normal;
+}
+
+.chow-tx-summary {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  margin-bottom: 0.15rem;
+}
+
+.chow-view-details {
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #7dd3fc;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.chow-view-details:hover {
+  color: #bae6fd;
+}
+
+.chow-tx-detail-row td {
+  padding: 0.65rem 0.75rem 0.85rem;
+  background: rgba(15, 23, 42, 0.55);
+  border-bottom: 1px solid var(--chow-border);
+}
+
+.chow-detail-compare {
+  margin: 0;
+}
+
+.chow-compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.chow-compare-table th,
+.chow-compare-table td {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(71, 85, 105, 0.45);
+  text-align: left;
+  vertical-align: top;
+}
+
+.chow-compare-table thead th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+  background: rgba(30, 41, 59, 0.65);
+}
+
+.chow-compare-before {
+  background: rgba(120, 53, 15, 0.14);
+  color: #e2e8f0;
+}
+
+.chow-compare-after {
+  background: rgba(30, 58, 138, 0.18);
+  color: #e2e8f0;
+}
+
+.chow-field-pill {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.chow-field-pill--same {
+  color: #94a3b8;
+  background: rgba(71, 85, 105, 0.35);
+  border: 1px solid rgba(100, 116, 139, 0.45);
+}
+
+.chow-field-pill--changed {
+  color: #cbd5e1;
+  background: rgba(71, 85, 105, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+.chow-detail-note {
+  margin: 0.55rem 0 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}

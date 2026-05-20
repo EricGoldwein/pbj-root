@@ -4,9 +4,14 @@ HTML snippets linking provider / state / entity pages to CHOW and ownership tool
 from __future__ import annotations
 
 import html
+import re
 from typing import Any
 from urllib.parse import quote
 
+from ownership.chow_display import (
+    CHOW_TABLE_INIT_SCRIPT,
+    render_chow_events_table,
+)
 from ownership.chow_lookup import (
     _load_index,
     _party_list_from_records,
@@ -18,6 +23,7 @@ from ownership.chow_lookup import (
     chow_state_stats,
     format_chow_date,
 )
+from ownership.beta_gate import ownership_beta_enabled_for_state
 from ownership.display_format import format_org_display, format_role_text
 
 # Back-compat alias used in this module
@@ -186,20 +192,9 @@ def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
     if not recent:
         return '<p class="pbj-meta-line">No transactions in this state index.</p>'
 
-    trs: list[str] = []
-    for rec in recent:
-        eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")))
-        fac = _facility_link_from_record(rec)
-        buyer = _org_link_from_chow_record(rec, "buyer")
-        seller = _org_link_from_chow_record(rec, "seller")
-        trs.append(
-            f"<tr><td class=\"num chow-tx-date\">{eff}</td>"
-            f"<td class=\"chow-tx-fac\">{fac}</td>"
-            f"<td class=\"chow-tx-org\">{buyer}</td>"
-            f"<td class=\"chow-tx-org\">{seller}</td></tr>"
-        )
-
-    thead = "<tr><th class=\"num\">Date</th><th>Facility</th><th>Buyer</th><th>Seller</th></tr>"
+    table_inner = render_chow_events_table(
+        recent, org_link_fn=_org_link_from_chow_record, max_rows=limit
+    )
     total = chow_count_for_state(st)
     more = ""
     if total > len(recent):
@@ -209,17 +204,14 @@ def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
             f'<a href="/chow?state={html.escape(st)}">Browse all</a></p>'
         )
 
-    return (
-        '<div class="chow-table-scroll chow-state-tx-scroll">'
-        f'<table class="chow-table chow-state-tx-table"><thead>{thead}</thead>'
-        f"<tbody>{''.join(trs)}</tbody></table></div>"
-        + more
-    )
+    return table_inner + more + CHOW_TABLE_INIT_SCRIPT
 
 
 def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
     """Top ownership organizations in this state (by CHOW transaction count)."""
     st = str(state_code or "").strip().upper()[:2]
+    if not ownership_beta_enabled_for_state(st):
+        return ""
     if not st:
         return ""
     st_rows = chow_records_for_state(st, limit=0)
@@ -269,10 +261,12 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
 
 def render_state_chow_block(state_code: str, state_name: str = "") -> str:
     """Collapsible CHOW summary at bottom of state pages."""
+    st = str(state_code or "").strip().upper()[:2]
+    if not ownership_beta_enabled_for_state(st):
+        return ""
     cnt = chow_count_for_state(state_code)
     if cnt <= 0:
         return ""
-    st = str(state_code).upper()[:2]
     label = html.escape(state_name or st)
     stats = chow_state_stats(st)
     events = stats.get("events") or cnt
@@ -298,14 +292,16 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         f"{lead}"
         f"{table_html}"
         f'<p class="chow-state-foot">'
-        f'<a href="/chow?state={html.escape(st)}">All {html.escape(st)} records</a> · '
-        f'<a href="/chow">National monitor</a>'
+        f'<a href="/chow?state={html.escape(st)}">Browse all {html.escape(st)} CHOW records</a>'
         f"</p></div></details>"
     )
 
 
 def render_state_chow_line(state_code: str, state_name: str = "") -> str:
     """Legacy one-line CHOW link (prefer render_state_chow_block)."""
+    st = str(state_code or "").strip().upper()[:2]
+    if not ownership_beta_enabled_for_state(st):
+        return ""
     cnt = chow_count_for_state(state_code)
     if cnt <= 0:
         return ""
@@ -314,8 +310,7 @@ def render_state_chow_line(state_code: str, state_name: str = "") -> str:
     return (
         f'<p class="pbj-meta-line" style="margin-top:0.5rem;">'
         f"<strong>Ownership changes:</strong> {cnt:,} reported CMS CHOW events for {label}. "
-        f'<a href="/chow?state={st}">View {st} CHOW records</a> · '
-        f'<a href="/chow">National monitor</a>'
+        f'<a href="/chow?state={st}">View {st} CHOW records</a>'
         "</p>"
     )
 
@@ -363,70 +358,37 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
     )
 
 
-def _render_provider_chow_modal(ccn_norm: str) -> str:
-    """In-page modal for this facility's CHOW records (avoids leaving the provider page)."""
+def _render_provider_chow_block(ccn_norm: str) -> str:
+    """Inline CHOW table on provider ownership section (toggle via button)."""
     rows = chow_records_for_ccn(ccn_norm, limit=0) if ccn_norm else []
     if not rows:
         return ""
-    uid = html.escape(ccn_norm)
-    mid = f"pbjChowModal-{uid}"
-    bid = f"pbjChowBtn-{uid}"
-    cid = f"pbjChowClose-{uid}"
-    trs: list[str] = []
-    for r in rows[:40]:
-        eff = html.escape(format_chow_date(str(r.get("effective_date") or "")))
-        buyer = html.escape(
-            format_org_display(r.get("buyer_org_name") or r.get("buyer_dba_name") or "—")
-        )
-        seller = html.escape(format_org_display(r.get("seller_org_name") or "—"))
-        trs.append(f"<tr><td>{eff}</td><td>{buyer}</td><td>{seller}</td></tr>")
+    n = len(rows)
+    uid = re.sub(r"[^a-zA-Z0-9_-]", "", ccn_norm)[:12]
+    panel_id = f"providerChowPanel-{uid}"
+    btn_id = f"providerChowBtn-{uid}"
+    label = f"View {n:,} CHOW record{'s' if n != 1 else ''} for this facility"
+    table = render_chow_events_table(
+        rows[:40],
+        org_link_fn=_org_link_from_chow_record,
+        max_rows=40,
+        table_class="chow-table chow-tx-table chow-tx-table--provider",
+    )
     more = ""
-    if len(rows) > 40:
+    if n > 40:
         more = (
-            f'<p class="pbj-meta-line" style="margin:0.5rem 0 0;">'
-            f"Showing 40 of {len(rows)}. "
-            f'<a href="/chow?ccn={html.escape(ccn_norm)}">Open full CHOW monitor</a>.</p>'
+            f'<p class="pbj-meta-line chow-tx-more">Showing 40 of {n:,} records.</p>'
         )
-    table = (
-        '<div class="chow-table-scroll" style="max-height:min(52vh,420px);">'
-        '<table class="chow-table"><thead><tr>'
-        "<th>Effective</th><th>Buyer</th><th>Seller</th>"
-        "</tr></thead><tbody>"
-        + "".join(trs)
-        + "</tbody></table></div>"
-        + more
+    return (
+        '<div class="provider-chow-block">'
+        '<p class="provider-chow-heading"><strong>Ownership changes (CHOW)</strong></p>'
+        f'<button type="button" class="chow-btn chow-btn-chow chow-btn-chow-toggle" '
+        f'id="{btn_id}" aria-controls="{panel_id}" aria-expanded="false">'
+        f"{html.escape(label)}</button>"
+        f'<div id="{panel_id}" class="provider-chow-panel" hidden>'
+        f"{table}{more}</div></div>"
+        + CHOW_TABLE_INIT_SCRIPT
     )
-    btn = (
-        f'<button type="button" class="chow-btn chow-btn-secondary" id="{bid}" '
-        f'aria-haspopup="dialog" aria-controls="{mid}">'
-        f"View {len(rows):,} CHOW record{'s' if len(rows) != 1 else ''} for this facility"
-        f"</button>"
-    )
-    modal = (
-        f'<div class="pbj-casemix-modal pbj-chow-facility-modal" id="{mid}" aria-hidden="true">'
-        f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" '
-        f'aria-labelledby="{mid}Title">'
-        f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
-        f'<h3 id="{mid}Title">Ownership changes (CHOW) · CCN {uid}</h3>'
-        f"{table}"
-        f'<p class="pbj-meta-line" style="margin:0.65rem 0 0;font-size:0.82rem;">'
-        f'<a href="/chow?ccn={html.escape(ccn_norm)}">Open in CHOW monitor</a> · '
-        f'<a href="/chow">National CHOW index</a></p>'
-        f"</div></div>"
-    )
-    script = (
-        f"<script>(function(){{"
-        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");'
-        f'var c=document.getElementById("{cid}");if(!b||!m)return;'
-        f'function open(){{m.setAttribute("aria-hidden","false");document.body.classList.add("pbj-chow-modal-open");}}'
-        f'function close(){{m.setAttribute("aria-hidden","true");document.body.classList.remove("pbj-chow-modal-open");}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();open();}});'
-        f'if(c)c.addEventListener("click",close);'
-        f'm.addEventListener("click",function(e){{if(e.target===m)close();}});'
-        f'document.addEventListener("keydown",function(e){{if(e.key==="Escape")close();}});'
-        f"}})();</script>"
-    )
-    return btn + modal + script
 
 
 def render_provider_ownership_chow_block(
@@ -438,6 +400,14 @@ def render_provider_ownership_chow_block(
     from ownership.owner_profile import lookup_cms_ownership_for_provider
 
     pi = provider_info_row or {}
+    prov_state = str(
+        pi.get("state")
+        or pi.get("STATE")
+        or pi.get("Provider State")
+        or ""
+    ).strip().upper()[:2]
+    if not ownership_beta_enabled_for_state(prov_state):
+        return ""
     ccn_norm = str(ccn or "").strip().zfill(6)[-6:]
 
     ownership_type = str(
@@ -482,13 +452,7 @@ def render_provider_ownership_chow_block(
             '<p class="pbj-meta-line" style="margin:0.75rem 0 0.5rem;">'
             "Care Compare: ownership change in the last 12 months.</p>"
         )
-    chow_modal_html = ""
-    if chow_all:
-        lines.append(
-            '<p class="pbj-meta-line" style="margin:0.75rem 0 0.35rem;">'
-            "<strong>Ownership changes (CHOW)</strong></p>"
-        )
-        chow_modal_html = _render_provider_chow_modal(ccn_norm)
+    chow_html = _render_provider_chow_block(ccn_norm) if chow_all else ""
 
     return (
         '<details class="pbj-details pbj-details-ownership pbj-page-bottom-details">'
@@ -496,7 +460,7 @@ def render_provider_ownership_chow_block(
         "Ownership</summary>"
         '<div class="pbj-details-content pbj-ownership-chow-content">'
         + "".join(lines)
-        + chow_modal_html
+        + chow_html
         + '<p class="pbj-meta-line" style="margin:0.5rem 0 0;font-size:0.82rem;">'
         "CMS-reported roles only—not proof of who operates the facility or care quality."
         "</p>"
@@ -506,10 +470,4 @@ def render_provider_ownership_chow_block(
 
 
 def render_entity_ownership_tools_block() -> str:
-    return (
-        '<p class="pbj-meta-line" style="margin-top:0.75rem;">'
-        "<strong>Ownership tools:</strong> "
-        '<a href="/chow">CHOW monitor</a> · '
-        '<a href="/owners">Ownership dashboard</a> (CMS owners &amp; FEC contributions).'
-        "</p>"
-    )
+    return ""

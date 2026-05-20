@@ -5,7 +5,7 @@
       </header>
       <section class="chow-intro">
         <p>This page tracks <strong>reported CHOW events</strong> from CMS skilled nursing facility enrollment data. A CHOW identifies a transaction or enrollment ownership change—not proof of quality problems, staffing changes, common ownership, or causation.</p>
-        <p>PBJ320 will later connect these events to staffing, citations, penalties, and ownership-control entities from CMS all-owner records. For now, use this explorer to screen transactions and follow links to facility and owner pages where available.</p>
+        <p>Use this explorer to screen Connecticut transactions and follow links to facility and owner pages where available. Staffing, citations, and ownership-control context may be added over time.</p>
       </section>
       <p id="chowLoading" class="pbj-meta-line">Loading CHOW data…</p>
       <section class="chow-section" aria-label="Summary metrics">
@@ -86,7 +86,7 @@
       <section class="chow-section" aria-label="CHOW records table">
         <h2 class="section-header">CHOW records</h2>
         <div class="chow-hint-bar">
-          <span><kbd>Click any row</kbd> to expand buyer, seller, IDs, and name-pattern notes.</span>
+          <span>Use <strong>View details</strong> for a before/after field comparison (seller → buyer).</span>
           <span>Default: last 12 months, first 50 rows — widen with filters or load more.</span>
         </div>
         <div id="chowTableScroll" class="chow-table-scroll">
@@ -100,12 +100,13 @@
                 <th data-sort="facility_display_name" class="sortable">Facility / DBA <span class="sort-icon"></span></th>
                 <th data-sort="buyer_org_name" class="sortable">Buyer <span class="sort-icon"></span></th>
                 <th data-sort="seller_org_name" class="sortable">Seller <span class="sort-icon"></span></th>
+                <th>Details</th>
                 <th>Patterns</th>
                 <th>Profiles</th>
               </tr>
             </thead>
             <tbody id="chowTableBody">
-              <tr><td colspan="9" class="chow-empty">Loading…</td></tr>
+              <tr><td colspan="10" class="chow-empty">Loading…</td></tr>
             </tbody>
           </table>
         </div>

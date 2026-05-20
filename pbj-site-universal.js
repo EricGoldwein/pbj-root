@@ -13,8 +13,8 @@
   };
 
   var FOOTER_TRUST_BLURB =
-    'PBJ320 is a nursing-home staffing data platform operated by 320 Consulting LLC. ' +
-    'Data sources include CMS Payroll-Based Journal staffing data and CMS Provider Information.';
+    'PBJ320 is a nursing-home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
+    'and other public federal and state datasets.';
 
   var FOOTER_BOILERPLATE =
     '<p class="footer-boilerplate" style="margin:0 0 0.75rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto">' +
@@ -214,15 +214,37 @@
     }
   }
 
-  /** Premium last in mobile hamburger menu only (desktop nav unchanged). */
-  function injectMobilePremiumNavLink() {
-    var menu = document.querySelector('.navbar .nav-menu');
-    if (!menu || menu.querySelector('.nav-link--premium-mobile')) return;
-    var link = document.createElement('a');
-    link.href = '/premium';
-    link.className = 'nav-link nav-link--premium-mobile';
-    link.textContent = 'Premium';
-    menu.appendChild(link);
+  /** Ensure Ownership and Premium are in nav; Premium stays last (desktop and mobile). */
+  function ensureSiteNavLinks() {
+    var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
+    if (!menu) return;
+    var ownership = menu.querySelector('a[href="/owners"]');
+    if (!ownership) {
+      ownership = document.createElement('a');
+      ownership.href = '/owners';
+      ownership.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
+      ownership.textContent = 'Ownership';
+      menu.appendChild(ownership);
+    }
+    var premium = menu.querySelector('a[href="/premium"]');
+    if (!premium) {
+      premium = document.createElement('a');
+      premium.href = '/premium';
+      premium.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
+      premium.textContent = 'Premium';
+      menu.appendChild(premium);
+    } else {
+      premium.classList.remove('nav-link--premium-mobile');
+      if (!menu.classList.contains('nav-links')) {
+        premium.className = 'nav-link' + (premium.classList.contains('active') ? ' active' : '');
+      }
+    }
+    if (ownership.nextElementSibling !== premium) {
+      menu.insertBefore(ownership, premium);
+    }
+    if (premium !== menu.lastElementChild) {
+      menu.appendChild(premium);
+    }
   }
 
   function preloadNavFavicon() {
@@ -254,7 +276,6 @@
       '.navbar .nav-link:hover{color:#93c5fd !important;}',
       '.navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;}',
       '.navbar .nav-link.active:hover{color:#60a5fa !important;}',
-      '.navbar .nav-link--premium-mobile{display:none !important;}',
       '.navbar .nav-links a{color:rgba(255,255,255,0.88) !important;font-weight:500 !important;text-decoration:none !important;}',
       '.navbar .nav-links a:hover{color:#93c5fd !important;}',
       '.navbar .nav-links a.active{color:#60a5fa !important;font-weight:600 !important;}',
@@ -268,7 +289,6 @@
       '  .navbar .nav-link:hover{background:transparent !important;color:#93c5fd !important;}',
       '  .navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;background:transparent !important;border-left:none !important;}',
       '  .navbar .nav-link.active:hover{color:#60a5fa !important;}',
-      '  .navbar .nav-link--premium-mobile{display:block !important;}',
       '}'
     ].join('');
     document.head.appendChild(style);
@@ -280,7 +300,7 @@
     injectFooterStyles();
     if (footer) injectFooter(footer);
     injectSiteShellStyles();
-    injectMobilePremiumNavLink();
+    ensureSiteNavLinks();
     markActiveNavLink();
     injectContactCtaStyles();
     bindContactFallbacks();

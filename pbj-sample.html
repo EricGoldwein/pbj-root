@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -1117,7 +1117,8 @@
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-        <a href="/owners" class="nav-link">Ownership</a>
+                <a href="/owners" class="nav-link">Ownership</a>
+        <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle">
         <span></span>
@@ -1141,7 +1142,7 @@
         <span class="pbj-ai-chip__icons" role="group" aria-label="Open in Claude or ChatGPT">
           <button type="button" class="pbj-ai-icon-btn pbj-ai-launch" data-ai="claude" data-handoff-id="pbj-ai-handoff-sample" title="Open Claude with prompt prefilled" aria-label="Claude"><img src="/ai-icons/claude.svg" alt="" width="16" height="16" class="pbj-ai-brand-icon"></button>
           <button type="button" class="pbj-ai-icon-btn pbj-ai-launch" data-ai="chatgpt" data-handoff-id="pbj-ai-handoff-sample" title="Open ChatGPT with prompt prefilled" aria-label="ChatGPT"><img src="/ai-icons/chatgpt.svg" alt="" width="16" height="16" class="pbj-ai-brand-icon"></button>
-          <button type="button" class="pbj-ai-icon-btn pbj-ai-chip__menu" aria-expanded="false" aria-controls="pbj-ai-menu-sample" title="Copy options" aria-label="AI copy options"><span aria-hidden="true">⋯</span></button>
+          <button type="button" class="pbj-ai-icon-btn pbj-ai-chip__menu" aria-expanded="false" aria-controls="pbj-ai-menu-sample" title="Copy options" aria-label="AI copy options"><span aria-hidden="true">?</span></button>
         </span>
         <span id="pbj-ai-menu-sample" class="pbj-ai-popover" role="menu" hidden>
           <button type="button" class="pbj-ai-popover__item pbj-ai-copy-prompt" role="menuitem" data-prompt-id="pbj-ai-prompt-sample">Copy prompt</button>
@@ -1309,24 +1310,24 @@
         </ul>
         
         <h3>Formula</h3>
-        <p><code>Total Nurse HPRD = (RN Hours + LPN Hours + Nursing Assistant Hours) ÷ Census</code></p>
+        <p><code>Total Nurse HPRD = (RN Hours + LPN Hours + Nursing Assistant Hours) � Census</code></p>
         
         <h3>Direct Staffing Metrics</h3>
         <p><strong>Direct HPRD metrics</strong> exclude administrative and supervisory positions to focus on direct patient care hours. These metrics provide a more accurate view of hands-on care staffing levels:</p>
         <ul>
           <li><strong>Direct HPRD:</strong> Total direct patient care hours, excluding RN Admin, RN DON, and LPN Admin positions
             <ul>
-              <li><code>Direct HPRD = (Direct RN Hours + Direct LPN Hours + Nursing Assistant Hours) ÷ Census</code></li>
+              <li><code>Direct HPRD = (Direct RN Hours + Direct LPN Hours + Nursing Assistant Hours) � Census</code></li>
             </ul>
           </li>
           <li><strong>Direct RN HPRD:</strong> Registered Nurse direct care hours, excluding RN Admin and RN DON positions
             <ul>
-              <li><code>Direct RN HPRD = (RN Hours only, excluding RN Admin and RN DON) ÷ Census</code></li>
+              <li><code>Direct RN HPRD = (RN Hours only, excluding RN Admin and RN DON) � Census</code></li>
             </ul>
           </li>
           <li><strong>Direct LPN HPRD:</strong> Licensed Practical Nurse direct care hours, excluding LPN Admin positions
             <ul>
-              <li><code>Direct LPN HPRD = (LPN Hours only, excluding LPN Admin) ÷ Census</code></li>
+              <li><code>Direct LPN HPRD = (LPN Hours only, excluding LPN Admin) � Census</code></li>
             </ul>
           </li>
         </ul>
@@ -1344,7 +1345,7 @@
 
   <div class="footer" id="site-footer"></div>
 
-  <script src="/pbj-site-universal.js?v=18"></script>
+  <script src="/pbj-site-universal.js?v=20"></script>
   <script>
     // Global variables
     let facilityData = [];
@@ -1846,7 +1847,7 @@
         if (searchType === 'dateRange') {
           dayResults.innerHTML = '<div class="error">No data found for the selected criteria.</div>';
         } else {
-          dayResults.innerHTML = '<div class="summary-card"><h3>📊 Search Summary</h3><div class="summary-metrics"><div class="summary-metric"><span class="summary-label">Total Records:</span><span class="summary-value">0</span></div></div></div>';
+          dayResults.innerHTML = '<div class="summary-card"><h3>?? Search Summary</h3><div class="summary-metrics"><div class="summary-metric"><span class="summary-label">Total Records:</span><span class="summary-value">0</span></div></div></div>';
         }
         return;
       }
@@ -1858,7 +1859,7 @@
       
       dayResults.innerHTML = `
         <div class="summary-card">
-          <h3>📊 Search Summary</h3>
+          <h3>?? Search Summary</h3>
           <div class="summary-metrics">
             <div class="summary-metric">
               <span class="summary-label">Total Days:</span>
@@ -2424,15 +2425,15 @@
       const cmsUrl = `https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing/data/${quarterUrl}?query=%7B%22filters%22%3A%7B%22list%22%3A%5B%7B%22conditions%22%3A%5B%7B%22column%22%3A%7B%22value%22%3A%22${provnumCol}%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${provnum}%22%5D%7D%2C%7B%22column%22%3A%7B%22value%22%3A%22WorkDate%22%7D%2C%22comparator%22%3A%7B%22value%22%3A%22%3D%22%7D%2C%22filterValue%22%3A%5B%22${cmsDate}%22%5D%7D%5D%7D%5D%2C%22rootConjunction%22%3A%7B%22value%22%3A%22AND%22%7D%7D%2C%22keywords%22%3A%22%22%2C%22offset%22%3A0%2C%22limit%22%3A10%2C%22sort%22%3A%7B%22sortBy%22%3Anull%2C%22sortOrder%22%3Anull%7D%2C%22columns%22%3A%5B%5D%7D`;
       
       const isMobile = window.innerWidth <= 768;
-      const calendarEmoji = isMobile ? '' : '📅 ';
+      const calendarEmoji = isMobile ? '' : '?? ';
       
       // Mobile-specific text formatting
       const formatMobileText = (text) => {
         if (!isMobile) return text;
         return text
-          .replace(/📊/g, '')
-          .replace(/📅/g, '')
-          .replace(/📈/g, '')
+          .replace(/??/g, '')
+          .replace(/??/g, '')
+          .replace(/??/g, '')
           .replace(/Average/g, '')
           .replace(/\s+/g, ' ')
           .trim();
@@ -2804,7 +2805,7 @@
       if (totalHprd) lines.push('- Total nurse HPRD: ' + totalHprd);
       lines.push('- Main PBJ320 summary: Sample premium dashboard (Seagate, CCN 335513) with daily PBJ staffing search.');
       lines.push('', 'Important limitations:', 'PBJ data can show reported staffing hours, role mix, facility-level patterns, and changes over time. It cannot prove what happened on a specific shift, whether a specific resident received care, whether staffing caused an injury, or whether a legal standard was violated.');
-      lines.push('', 'Definitions: https://www.pbj320.com/premium/methods · AI support: https://www.pbj320.com/pbj-ai-support');
+      lines.push('', 'Definitions: https://www.pbj320.com/premium/methods � AI support: https://www.pbj320.com/pbj-ai-support');
       return lines.join('\n');
     }
 

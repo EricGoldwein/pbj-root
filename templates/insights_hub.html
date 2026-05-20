@@ -1,4 +1,4 @@
-ï»¿<!doctype html>
+<!doctype html>
 <html lang="en" class="pbj-insights-hub">
 <head>
   <meta charset="utf-8">
@@ -131,7 +131,8 @@
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-        <a href="/owners" class="nav-link">Ownership</a>
+                <a href="/owners" class="nav-link">Ownership</a>
+        <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Toggle menu" role="button" tabindex="0">
         <span></span><span></span><span></span>
@@ -154,7 +155,7 @@
         <button type="button" class="filter-btn" data-filter="native">PBJ320</button>
         <button type="button" class="filter-btn" data-filter="external">Substack</button>
       </div>
-      <p id="loading" class="loading" aria-live="polite">Checking for updatesâ€¦</p>
+      <p id="loading" class="loading" aria-live="polite">Checking for updates…</p>
       <p id="error" class="error" style="display:none;"></p>
       <ul id="feed" class="feed">{{ feed_html|safe }}</ul>
     </section>
@@ -173,7 +174,7 @@
       <footer class="footer" id="site-footer"></footer>
     </div>
   </div>
-  <script src="/pbj-site-universal.js?v=18"></script>
+  <script src="/pbj-site-universal.js?v=20"></script>
   <script>
     (function() {
       var listEl = document.getElementById('feed');
@@ -231,7 +232,7 @@
         var image = esc(p.image_url || p.preview_image || '/insights-native-preview.svg');
         var type = (p.type || 'external').toLowerCase();
         var tag = esc(inferIndustryTag(p));
-        var metaLine = date ? (date + ' Â· ' + readTime) : readTime;
+        var metaLine = date ? (date + ' · ' + readTime) : readTime;
         if (type === 'native') {
           var nativeUrl = esc(p.url || ('/insights/' + String(p.slug || '').trim()));
           return '<li class="card native" data-post-type="native"><article class="card-shell"><div class="card-media-wrap"><img class="featured" src="' + image + '" alt="Staffing chart snapshot" loading="lazy"></div><div class="card-body"><div class="tag-row"><span class="card-tag">' + tag + '</span></div><h2><a href="' + nativeUrl + '">' + title + '</a></h2><p class="meta">' + metaLine + '</p>' + (desc ? '<p class="desc">' + desc + '</p>' : '') + '<div class="card-actions"><a class="read-action" href="' + nativeUrl + '" aria-label="Read this PBJ320 insight"><img src="/pbj_favicon.png" alt="" width="20" height="20">Read</a></div></div></article></li>';

@@ -15,8 +15,10 @@ from urllib.parse import quote
 
 import re
 
+from ownership.beta_gate import profile_has_public_state
 from ownership.display_format import (
     cms_rating_stars_html,
+    cms_ratings_stack_html,
     format_cms_star_rating,
     format_org_display,
     format_role_text,
@@ -68,6 +70,64 @@ def _fmt_date_mdyy(val: Any) -> str:
         y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
         return f"{mo}/{d}/{y % 100}"
     return s
+
+
+_MONTH_ABBR = (
+    "Jan.",
+    "Feb.",
+    "Mar.",
+    "Apr.",
+    "May",
+    "Jun.",
+    "Jul.",
+    "Aug.",
+    "Sep.",
+    "Oct.",
+    "Nov.",
+    "Dec.",
+)
+
+
+def _parse_ymd(val: Any) -> tuple[int, int, int] | None:
+    s = str(val or "").strip()
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})", s)
+    if not m:
+        return None
+    y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    if mo < 1 or mo > 12:
+        return None
+    return y, mo, d
+
+
+def _fmt_since_long(val: Any) -> str:
+    """e.g. Since Feb. 2020"""
+    parts = _parse_ymd(val)
+    if not parts:
+        return ""
+    y, mo, _d = parts
+    return f"Since {_MONTH_ABBR[mo - 1]} {y}"
+
+
+def _fmt_since_short(val: Any) -> str:
+    """e.g. Since 2/20 (month/year for narrow columns)"""
+    parts = _parse_ymd(val)
+    if not parts:
+        return ""
+    y, mo, _d = parts
+    return f"Since {mo}/{y % 100:02d}"
+
+
+def _role_since_html(val: Any) -> str:
+    long_txt = _fmt_since_long(val)
+    if not long_txt:
+        return ""
+    short_txt = _fmt_since_short(val) or long_txt
+    return (
+        f'<span class="owner-role-since" aria-hidden="false">'
+        f'<span class="owner-role-since-long">{html.escape(long_txt)}</span>'
+        f'<span class="owner-role-since-short">{html.escape(short_txt)}</span>'
+        "</span>"
+    )
 
 
 def _sort_attr(val: Any) -> str:
@@ -123,6 +183,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     pac_meta = _pac_meta_html(profile, kind, pac, en_label, ow_label)
 
     kind_banner = _kind_banner(kind, is_chow_only)
+    preview_banner = _internal_preview_banner_html(profile)
     portfolio_html = _portfolio_snapshot_html(profile)
     owners_primary_html = _owners_primary_section_html(profile, kind, ow_label)
     facilities_html = _facilities_sections_html(
@@ -131,19 +192,21 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     associates_html = _related_associates_html(profile)
     owner_section_html = _owner_dual_section_html(profile, kind)
 
+    header_html = _owner_profile_header_html(
+        profile,
+        name=name,
+        owner_type=owner_type,
+        states_meta=states_meta,
+        pac_meta=pac_meta,
+        kind=kind,
+    )
     body = f"""
       <div class="owner-profile-root">
-      <header class="owner-profile-header owner-profile-header--compact">
-        <div class="owner-profile-header-line">
-          <h1>{name}</h1>
-          {f'<span class="owner-profile-type">{owner_type}</span>' if owner_type else ''}
-          {states_meta}
-          {pac_meta}
-        </div>
-      </header>
+      {header_html}
       {states_modal}
       {_owner_info_modal_html()}
       {kind_banner}
+      {preview_banner}
       {portfolio_html}
       {owners_primary_html}
       {facilities_html}
@@ -151,7 +214,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {owner_section_html}
       <h2 class="section-header">Related on PBJ320</h2>
       <ul class="chow-future-list">
-        <li><a href="/chow">CHOW monitor</a></li>
+        <li><a href="/chow?state=CT">Connecticut CHOW records</a></li>
         <li><a href="/owners?owner={fec_name}">Political contributions search</a> (FEC)</li>
       </ul>
       <p class="pbj-meta-line" style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;">
@@ -166,11 +229,29 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
 def _states_meta_html(profile: dict[str, Any]) -> str:
     ps = profile.get("portfolio_summary") or {}
     n_states = int(ps.get("n_states") or 0)
+    states = list(profile.get("states") or [])
     if not n_states:
-        states = profile.get("states") or []
         n_states = len(states)
     if not n_states:
         return ""
+    if n_states == 1:
+        st = (states[0] if states else "").strip().upper()[:2]
+        if not st:
+            by_state = ps.get("by_state") or []
+            if by_state:
+                st = str(by_state[0][0] or "").strip().upper()[:2]
+        if st:
+            try:
+                from app import STATE_CODE_TO_NAME, get_canonical_slug
+
+                label = STATE_CODE_TO_NAME.get(st, st)
+                slug = get_canonical_slug(st)
+            except Exception:
+                label, slug = st, st.lower()
+            return (
+                f'<a class="owner-state-link" href="/state/{html.escape(slug)}">'
+                f"{html.escape(label)}</a>"
+            )
     label = "state" if n_states == 1 else "states"
     return (
         f'<button type="button" class="owner-states-trigger" data-owner-states-open '
@@ -245,6 +326,20 @@ def _pac_meta_html(
     return f'<span class="owner-profile-pac-meta">{" · ".join(parts)}</span>'
 
 
+def _internal_preview_banner_html(profile: dict[str, Any]) -> str:
+    if profile_has_public_state(profile):
+        return ""
+    states = profile.get("states") or []
+    label = ", ".join(html.escape(str(s)) for s in states[:6]) if states else "non-CT"
+    extra = f" (+{len(states) - 6} more)" if len(states) > 6 else ""
+    return (
+        '<div class="owner-scope-note owner-scope-note--preview" role="status">'
+        "<strong>Internal preview.</strong> This profile is visible for review only "
+        f"({label}{extra}) and is not part of the public Connecticut ownership launch."
+        "</div>"
+    )
+
+
 def _kind_banner(kind: str, is_chow_only: bool) -> str:
     if kind == "enrollment":
         text = (
@@ -279,8 +374,7 @@ def _owner_page_seo(
     display = str(profile.get("display_name") or "Organization").strip()
     n = len(facilities)
     type_bit = f" ({owner_type})" if owner_type and owner_type not in ("—", "-", "") else ""
-    suffix = "Nursing Home Ownership"
-    page_title = f"{display} | {suffix} | PBJ320"
+    page_title = f"{display} | PBJ320 Ownership"
     if kind == "enrollment":
         meta = (
             f"{display}{type_bit}. CMS enrollment entity with {n} linked facility record(s). "
@@ -302,6 +396,77 @@ def _owner_page_seo(
             "PBJ staffing, ratings, and ownership change history on PBJ320."
         )
     return page_title, meta
+
+
+def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
+    """Page-level methodology for the ownership profile ? control."""
+    n = len(profile.get("facilities") or [])
+    kind_line = {
+        "owner_control": (
+            f"Owner/control party with {n} linked nursing homes in CMS SNF All Owners."
+        ),
+        "enrollment": (
+            f"CMS enrollment entity with {n} linked facility record(s), owners, and control parties."
+        ),
+        "both": (
+            f"Enrollment and owner/control PAC with {n} linked facilities in CMS data."
+        ),
+        "chow_only": (
+            f"Party in CMS ownership-change records with {n} linked facility reference(s); "
+            "may be absent from the current SNF All Owners file."
+        ),
+    }.get(kind, f"CMS ownership profile with {n} linked record(s).")
+    return (
+        f"{kind_line}\n\n"
+        "Facility table: reported ownership % and CMS role, PBJ staffing (HPRD), "
+        "Care Compare star ratings, and regulatory flags where data are linked.\n\n"
+        "Sources: CMS SNF All Owners; CMS Payroll-Based Journal (PBJ); "
+        "CMS Care Compare; PBJ320 CHOW index (ownership changes and frequent associates)."
+    )
+
+
+def _owner_profile_header_html(
+    profile: dict[str, Any],
+    *,
+    name: str,
+    owner_type: str,
+    states_meta: str,
+    pac_meta: str,
+    kind: str,
+) -> str:
+    page_help = _info_button(
+        "PBJ320 Ownership",
+        _owner_page_help_body(profile, kind),
+        label="?",
+        cls="owner-info-btn owner-info-btn--section owner-page-help",
+    )
+    meta_parts: list[str] = []
+    if owner_type:
+        meta_parts.append(f'<span class="owner-profile-type">{owner_type}</span>')
+    if states_meta:
+        meta_parts.append(states_meta)
+    meta_row = (
+        f'<div class="owner-profile-meta-row">{"".join(meta_parts)}</div>'
+        if meta_parts
+        else ""
+    )
+    pac_row = f'<div class="owner-profile-pac-row">{pac_meta}</div>' if pac_meta else ""
+    return f"""
+      <header class="owner-profile-header owner-profile-header--branded">
+        <div class="owner-profile-brand-row">
+          <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
+            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
+            <span class="owner-profile-brand-lockup">
+              <span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span>
+              <span class="owner-profile-brand-suffix">Ownership</span>
+            </span>
+          </a>
+          {page_help}
+        </div>
+        <h1 class="owner-profile-name">{name}</h1>
+        {meta_row}
+        {pac_row}
+      </header>"""
 
 
 def _info_button(title: str, body: str, *, label: str = "?", cls: str = "owner-info-btn") -> str:
@@ -326,7 +491,9 @@ def _associate_detail_line(r: dict[str, Any], *, n_facilities: int) -> str:
         else:
             bits.append(f"{snf} shared facilit{'y' if snf == 1 else 'ies'}")
     if chow:
-        bits.append(f"{chow} CHOW deal{'s' if chow != 1 else ''}")
+        bits.append(
+            f"{chow} ownership event{'s' if chow != 1 else ''}"
+        )
     return " · ".join(bits)
 
 
@@ -335,7 +502,7 @@ def _associate_source_label(r: dict[str, Any]) -> str:
     if int(r.get("snf_shared") or 0):
         bits.append("Ownership")
     if int(r.get("chow_count") or 0):
-        bits.append("CHOW")
+        bits.append("CMS ownership change")
     return " · ".join(bits)
 
 
@@ -372,8 +539,8 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
             "Parties that appear repeatedly with this owner on CMS records.\n\n"
             "Ownership: co-owners on the same nursing home enrollments in "
             "CMS SNF All Owners (shared enrollment PACs).\n\n"
-            "CHOW: buyer or seller counterparties on ownership change filings "
-            "involving this party.\n\n"
+            "Ownership events: buyer or seller counterparties on CMS-reported ownership "
+            "change filings involving this party.\n\n"
             "Sources: CMS SNF All Owners; PBJ320 CHOW index (CMS ownership change filings)."
         ),
         label="?",
@@ -413,7 +580,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     umean = ps.get("umean_hprd")
     mean_ovr = ps.get("mean_overall_rating")
     sff = ps.get("sff_count") or 0
-    low_staff = ps.get("low_staffing_rating_count") or 0
     n_suggested = ps.get("n_pbj_suggested") or 0
 
     hprd_val = "—"
@@ -440,13 +606,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     alerts: list[str] = []
     if sff:
         alerts.append(f'<span class="owner-portfolio-alert">{sff} SFF</span>')
-    staff_sub = ""
-    if low_staff:
-        staff_sub = (
-            '<div class="owner-snapshot-sub" title="Facilities with CMS staffing rating 2 or below">'
-            f"{low_staff} fac. low staffing</div>"
-        )
-
     alerts_html = (
         f'<span class="owner-snapshot-alerts">{"".join(alerts)}</span>' if alerts else ""
     )
@@ -455,18 +614,9 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         f'<div class="owner-snapshot-footer">{footer_inner}</div>' if footer_inner else ""
     )
 
-    snap_help = _info_button(
-        "Portfolio snapshot",
-        "Summary metrics for facilities tied to this owner/control PAC. Tap ? on a card for definitions.",
-        label="?",
-        cls="owner-info-btn owner-info-btn--section",
-    )
     return f"""
-      <section class="owner-snapshot-section" aria-label="Portfolio snapshot">
-        <div class="owner-snapshot-header">
-          <h2 class="section-header owner-snapshot-heading">Portfolio snapshot {snap_help}</h2>
-        </div>
-        <div class="owner-portfolio-grid owner-portfolio-grid--3" aria-label="Portfolio metrics">
+      <section class="owner-snapshot-section" aria-label="Portfolio summary">
+        <div class="owner-portfolio-grid owner-portfolio-grid--3" aria-label="Portfolio summary metrics">
           <div class="owner-snapshot-card owner-snapshot-card--accent">
             <div class="owner-snapshot-label">Facilities {_info_button("Facilities", fac_help)}</div>
             <div class="owner-snapshot-value">{n}</div>
@@ -478,7 +628,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
           <div class="owner-snapshot-card">
             <div class="owner-snapshot-label">Staffing (HPRD) {_info_button("Staffing (HPRD)", hprd_help)}</div>
             <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
-            {staff_sub}
           </div>
         </div>
         {footer_html}
@@ -537,16 +686,12 @@ def _cms_stars_cell(f: dict[str, Any], *, verified: bool) -> tuple[str, str]:
     qm = _fmt_rating(f.get("qm_rating"))
     if ovr == "—" and staff == "—" and qm == "—":
         return "—", ""
-    rows: list[str] = []
-    for abbrev, val in (("Ovr", ovr), ("Stf", staff), ("QM", qm)):
-        v = val if val != "—" else "—"
-        rows.append(
-            f'<span class="owner-rating-row">'
-            f'<span class="owner-rating-k">{abbrev}</span>'
-            f"{_rating_stars_html(v)}</span>"
-        )
     sort_key = f"{ovr}.{staff}.{qm}".replace("—", "")
-    return f'<span class="owner-ratings-stack">{"".join(rows)}</span>', sort_key
+    return cms_ratings_stack_html(
+        f.get("overall_rating"),
+        f.get("staffing_rating"),
+        f.get("qm_rating"),
+    ), sort_key
 
 
 def _flag_explainer_button(kind: str, label: str, css_class: str) -> str:
@@ -652,10 +797,11 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     pct_display = html.escape(pct) if pct else "—"
     has_detail = bool(role_text) or (adate and adate != "—")
     kind_hint = _role_kind_hint(role_text)
+    since_html = _role_since_html(f.get("association_date"))
 
     if has_detail:
         modal_title = html.escape(pct or "Ownership", quote=True)
-        inner = (
+        pct_part = (
             f'<button type="button" class="owner-role-pct-btn" data-owner-info '
             f'data-info-format="ownership" '
             f'data-info-title="{modal_title}" '
@@ -666,7 +812,9 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
             f"{pct_display}</button>"
         )
     else:
-        inner = f'<span class="owner-role-pct-plain">{pct_display}</span>'
+        pct_part = f'<span class="owner-role-pct-plain">{pct_display}</span>'
+
+    inner = f'<div class="owner-role-pct-stack">{pct_part}{since_html}</div>'
 
     return f'<div class="owner-role-cell-inner">{inner}</div>', _sort_attr(pct_raw or role_raw)
 
@@ -748,7 +896,8 @@ def _owner_facilities_table_html(
         filter_html = (
             '<div class="owner-facilities-header-actions">'
             f'<input type="search" id="ownerFacilitiesFilter" class="owner-table-filter-input" '
-            f'placeholder="Filter {n} facilities…" autocomplete="off" aria-label="Filter facilities">'
+            f'placeholder="Filter…" autocomplete="off" '
+            f'aria-label="Filter {n} facilities">'
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCount" hidden></span>'
             "</div>"
         )
@@ -789,10 +938,6 @@ def _table_with_preview(
 
     preview_rows = all_rows[:preview]
     rest_rows = all_rows[preview:]
-    toolbar = (
-        f'<div class="owner-table-toolbar"><span>{n} {html.escape(entity_label)}</span>'
-        f'<span>Showing {min(preview, n)} of {n}</span></div>'
-    )
     table = (
         '<div class="chow-table-scroll" style="max-height:480px;">'
         f'<table class="chow-table"><thead><tr>{thead}</tr></thead><tbody>'
@@ -800,8 +945,12 @@ def _table_with_preview(
         + "</tbody></table></div>"
     )
     if not rest_rows:
-        return f'<h2 class="section-header">{title}</h2>{toolbar}{table}'
+        return f'<h2 class="section-header">{title}</h2>{table}'
 
+    footer = (
+        f'<p class="owner-table-footer">{n} {html.escape(entity_label)} · '
+        f"Showing {preview} of {n}</p>"
+    )
     extra = (
         f'<details class="owner-collapsible"><summary>Show all {n} {html.escape(entity_label)} '
         f"({len(rest_rows)} more)</summary>"
@@ -810,7 +959,7 @@ def _table_with_preview(
         + "".join(all_rows)
         + "</tbody></table></div></details>"
     )
-    return f'<h2 class="section-header">{title}</h2>{toolbar}{table}{extra}'
+    return f'<h2 class="section-header">{title}</h2>{table}{footer}{extra}'
 
 
 def _owners_primary_section_html(profile: dict[str, Any], kind: str, ow_label: str) -> str:
@@ -972,7 +1121,7 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         + "".join(tx_rows)
         + "</tbody></table></div>"
     )
-    link = f'<p class="pbj-meta-line"><a href="/chow?q={pac}">Open in CHOW monitor</a></p>'
+    link = f'<p class="pbj-meta-line"><a href="/chow?state=CT&amp;q={pac}">Open in Connecticut CHOW records</a></p>'
 
     if is_chow_only:
         return (

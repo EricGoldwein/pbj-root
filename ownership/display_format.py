@@ -6,6 +6,17 @@ import re
 _ORG_UPPER = frozenset({"llc", "llp", "lp", "inc", "corp", "ltd", "pllc", "dba", "snf", "adp"})
 _SMALL_WORDS = frozenset({"at", "of", "in", "on", "to", "by", "for", "the", "and", "or", "a", "an"})
 _ROLE_ACRONYMS = frozenset({"adp", "snf", "rn", "lpn", "cna", "ceo", "cfo", "coo", "pac", "llc", "llp"})
+_ROMAN_NUMERALS = frozenset({
+    "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv", "xv",
+    "xvi", "xvii", "xviii", "xix", "xx",
+})
+
+
+def _is_roman_numeral_token(core: str) -> bool:
+    low = core.lower()
+    if low in _ROMAN_NUMERALS:
+        return True
+    return bool(re.fullmatch(r"[ivxlcdm]+", low)) and len(low) <= 6
 
 
 def _format_word_token(w: str, *, is_first: bool) -> str:
@@ -27,14 +38,40 @@ def _format_word_token(w: str, *, is_first: bool) -> str:
         if low in ("llc", "llp", "lp", "dba", "snf", "adp"):
             out = low.upper()
         else:
-            out = low.title() + ("." if low in ("inc", "corp", "ltd") else "")
+            out = low.title()
     elif not is_first and low in _SMALL_WORDS:
         out = low
+    elif _is_roman_numeral_token(core):
+        out = core.upper()
     elif core.isalpha():
         out = core.capitalize()
     else:
         out = core
     return lead + out + trail
+
+
+def _apply_roman_numeral_tokens(s: str) -> str:
+    """Uppercase Roman numeral tokens (e.g. Xii → XII) without changing other words."""
+    parts = re.split(r"(\s+)", s)
+    out: list[str] = []
+    for part in parts:
+        if not part.strip():
+            out.append(part)
+            continue
+        lead = ""
+        trail = ""
+        core = part
+        while core and not core[0].isalnum():
+            lead += core[0]
+            core = core[1:]
+        while core and not core[-1].isalnum():
+            trail = core[-1] + trail
+            core = core[:-1]
+        if core and _is_roman_numeral_token(core):
+            out.append(lead + core.upper() + trail)
+        else:
+            out.append(part)
+    return "".join(out)
 
 
 def format_org_display(name: str) -> str:
@@ -51,8 +88,8 @@ def format_org_display(name: str) -> str:
                 continue
             out.append(_format_word_token(part, is_first=word_idx == 0))
             word_idx += 1
-        return "".join(out)
-    return s
+        return _apply_roman_numeral_tokens("".join(out))
+    return _apply_roman_numeral_tokens(s)
 
 
 def _format_role_segment(seg: str) -> str:
@@ -144,6 +181,35 @@ def format_cms_star_rating(val: object) -> str:
     if f != f:
         return "—"
     return str(int(round(f)))
+
+
+def cms_ratings_stack_html(
+    overall: object,
+    staffing: object,
+    qm: object = None,
+    *,
+    include_qm: bool = True,
+) -> str:
+    """Three-row Ovr / Stf / QM star display (owner profile style)."""
+    ovr = format_cms_star_rating(overall)
+    staff = format_cms_star_rating(staffing)
+    qm_val = format_cms_star_rating(qm) if include_qm else "—"
+    if ovr == "—" and staff == "—" and (qm_val == "—" or not include_qm):
+        return '<span class="owner-rating-none">—</span>'
+    rows: list[str] = []
+    for abbrev, val in (("Ovr", ovr), ("Stf", staff)):
+        rows.append(
+            f'<span class="owner-rating-row">'
+            f'<span class="owner-rating-k">{abbrev}</span>'
+            f"{cms_rating_stars_html(val)}</span>"
+        )
+    if include_qm:
+        rows.append(
+            f'<span class="owner-rating-row">'
+            f'<span class="owner-rating-k">QM</span>'
+            f"{cms_rating_stars_html(qm_val)}</span>"
+        )
+    return f'<span class="owner-ratings-stack">{"".join(rows)}</span>'
 
 
 def cms_rating_stars_html(val: object) -> str:

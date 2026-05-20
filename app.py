@@ -1652,6 +1652,24 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
     return {}, cy_qtr
 
 
+def _high_risk_buckets_for_state_cached(state_code: str) -> dict:
+    """High-risk table data for one state from in-process cache only (no CSV scan on cache miss)."""
+    st = (state_code or "").strip().upper()[:2]
+    if not st:
+        return {}
+    now = time.time()
+    cached = _HIGH_RISK_BY_STATE_CACHE_VAL
+    if (
+        cached is not None
+        and (now - _HIGH_RISK_BY_STATE_CACHE_AT) < _HIGH_RISK_BY_STATE_TTL
+        and isinstance(cached, (tuple, list))
+        and len(cached) >= 1
+        and isinstance(cached[0], dict)
+    ):
+        return cached[0].get(st) or {}
+    return {}
+
+
 def _load_state_abbr_to_cms_region_full():
     path = os.path.join(APP_ROOT, 'cms_region_state_mapping.csv')
     out = {}

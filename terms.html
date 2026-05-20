@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Terms of use | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Terms of use for PBJ320, a nursing home staffing data platform operated by 320 Consulting LLC.">
+  <meta name="description" content="Terms of use for PBJ320, a public nursing home staffing data platform operated by 320 Consulting LLC.">
   <link rel="canonical" href="https://pbj320.com/terms">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
   <link rel="stylesheet" href="/public-trust.css">
@@ -32,44 +32,56 @@
       <h1>Terms of use</h1>
       <p class="meta">Last updated: May 2026</p>
 
-      <p>By using PBJ320 at pbj320.com, you agree to these terms. PBJ320 is operated by <strong>320 Consulting LLC</strong>.</p>
+      <p>By using PBJ320 at <a href="https://pbj320.com/">pbj320.com</a>, you agree to these terms. PBJ320 is a public nursing home staffing data platform operated by <strong>320 Consulting LLC</strong>. The site publishes analytical summaries of federal and state public data that may be used by families, journalists, advocates, attorneys, researchers, and others.</p>
 
       <h2>Public data tool</h2>
-      <p>PBJ320 displays and summarizes public federal nursing home staffing data. The site is an analytical screening tool, not proof of care quality, legal liability, neglect, causation, or regulatory noncompliance. You are responsible for verifying outputs against official CMS and Care Compare sources before relying on them.</p>
+      <p>PBJ320 displays and summarizes public federal nursing home staffing and related provider data, including CMS Payroll-Based Journal (PBJ) metrics and CMS Provider Information where available. The site is an analytical screening and reference tool. It is not proof of care quality, neglect, causation, legal liability, or regulatory noncompliance. You are responsible for verifying outputs against official CMS, state, and Care Compare sources before relying on them in reporting, advocacy, legal work, or personal decisions.</p>
 
       <h2>No professional advice</h2>
-      <p>Nothing on PBJ320 constitutes legal, medical, financial, or regulatory advice. 320 Consulting LLC is not a law firm and does not provide legal representation through the public website.</p>
+      <p>Nothing on PBJ320 constitutes legal, medical, financial, regulatory, or other professional advice. 320 Consulting LLC is not a law firm and does not provide legal representation through the public website.</p>
 
       <h2>Accuracy and availability</h2>
-      <p>Data may be incomplete, delayed, or contain reporting errors from underlying public files. We may change features, URLs, or availability without notice. The site is provided “as is” without warranties of any kind, express or implied, to the extent permitted by law.</p>
+      <p>Public data may be incomplete, delayed, revised, or contain reporting errors from underlying federal or state files. We may change features, URLs, data coverage, or availability without notice. The public site is provided as is without warranties of any kind, express or implied, to the extent permitted by law.</p>
+
+      <h2>AI-assisted content</h2>
+      <p>Some PBJ320 features may produce summaries, takeaways, or draft reports using automated or AI-assisted tools. These outputs are intended to help users review public data, not replace source verification or professional judgment. Users should review all outputs carefully and verify important claims before using them in reporting, advocacy, legal work, or decision-making.</p>
 
       <h2>Acceptable use</h2>
       <p>You may not attempt to disrupt the service, scrape at rates that impair operation, probe non-public endpoints, or use automated means to access premium or authenticated areas without authorization.</p>
 
+      <h2>Premium and authenticated areas</h2>
+      <p>Some PBJ320 dashboards, exports, or tools may require authorization or password access. Access to those areas may be subject to additional restrictions, dashboard-specific terms, or written agreements with 320 Consulting LLC.</p>
+
       <h2>Intellectual property</h2>
-      <p>Site design, code, and original analysis are owned by 320 Consulting LLC or its licensors. CMS data remain subject to federal public-use terms. You may cite PBJ320 with attribution and a link to the relevant page.</p>
+      <p>Site design, code, branding, and original analysis on PBJ320 are owned by 320 Consulting LLC or its licensors. Public CMS, state, and federal datasets remain subject to their respective public-use terms; PBJ320 does not claim ownership of government data. You may cite PBJ320 with attribution and a link to the relevant page.</p>
 
       <h2>Limitation of liability</h2>
       <p>To the fullest extent permitted by law, 320 Consulting LLC will not be liable for indirect, incidental, special, or consequential damages arising from use of the public site or reliance on its outputs.</p>
 
       <h2>Contact</h2>
-      <p>Questions: <a href="mailto:eric@320insight.com">eric@320insight.com</a> or <a href="/contact">contact form</a>.</p>
+      <p>Questions about these terms: <a href="mailto:eric@320insight.com">eric@320insight.com</a> or the <a href="/contact">contact form</a>.</p>
 
       <p class="trust-nav-links">
         <a href="/privacy">Privacy</a>
         <a href="/data-sources">Data sources</a>
         <a href="/about">About</a>
+        <a href="/contact">Contact</a>
       </p>
     </div>
   </main>
 
   <footer class="footer" id="site-footer" style="padding:1.25rem 1rem;"></footer>
-  <script src="/pbj-site-universal.js?v=20"></script>
+  <script src="/pbj-site-universal.js?v=22"></script>
   <script>
     (function () {
       var t = document.getElementById('navToggle');
       var m = document.getElementById('navMenu');
-      if (t && m) t.addEventListener('click', function () { m.classList.toggle('active'); });
+      if (t && m) {
+        t.addEventListener('click', function () {
+          m.classList.toggle('active');
+          document.body.style.overflow = m.classList.contains('active') ? 'hidden' : '';
+        });
+      }
     })();
   </script>
 </body>

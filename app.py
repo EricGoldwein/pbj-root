@@ -1107,8 +1107,7 @@ def privacy_page():
 @app.route('/terms')
 @app.route('/terms/')
 def terms_page():
-    from flask import abort
-    abort(404)
+    return send_file('terms.html', mimetype='text/html; charset=utf-8')
 
 
 @app.route('/robots.txt')

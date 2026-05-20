@@ -14,11 +14,16 @@ except (ValueError, TypeError):
 
 bind = f"0.0.0.0:{_PORT}"
 workers = 2
+worker_class = "gthread"
+threads = 4
 timeout = 120
 graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Render deploy); reduces 502s during deploy
 
 def when_ready(server):
     """Log so Render/ops see that we're listening."""
     sys.stderr.write(f"[gunicorn] Listening on {bind}\n")
-    sys.stderr.write("Owner donor dashboard loads on first /owners visit; / and /health respond immediately.\n")
+    sys.stderr.write(
+        f"Owner donor dashboard loads on first /owners visit; / and /health respond immediately "
+        f"({workers} x {worker_class}, threads={threads}).\n"
+    )
     sys.stderr.flush()

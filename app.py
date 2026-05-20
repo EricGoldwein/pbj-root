@@ -2047,7 +2047,7 @@ def _inject_report_ssr_html(page_html: str) -> str:
 
 def _serve_report_page_html():
     path = os.path.join(APP_ROOT, 'report.html')
-    with open(path, encoding='utf-8') as f:
+    with open(path, encoding='utf-8', errors='replace') as f:
         page_html = f.read()
     page_html = _inject_report_ssr_html(page_html)
     resp = make_response(page_html)
@@ -4635,11 +4635,22 @@ def _resolved_provider_info_paths():
     return out
 
 
-def load_provider_info():
-    """Load provider info for facility details (ownership, entity, residents, city). Cached 15 min."""
+def load_provider_info(ccn_only=None):
+    """Load provider info for facility details (ownership, entity, residents, city). Cached 15 min.
+
+    When ``ccn_only`` is set, scan until that CCN is found and return a one-entry dict without
+    building the full national index (avoids OOM on cold cache under bot traffic).
+    """
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
+    target_ccn = str(ccn_only or "").strip().zfill(6) if ccn_only else ""
+    if target_ccn and len(target_ccn) != 6:
+        return {}
     now = time.time()
-    if _LOAD_PROVIDER_INFO_CACHE is not None and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
+    if (
+        not target_ccn
+        and _LOAD_PROVIDER_INFO_CACHE is not None
+        and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
+    ):
         return _LOAD_PROVIDER_INFO_CACHE
     provider_paths = _resolved_provider_info_paths()
     if not HAS_PANDAS:
@@ -4778,6 +4789,10 @@ def load_provider_info():
                         'urban': row.get('urban'),
                         '_processing_date': row.get('processing_date'),
                     }
+                    if target_ccn:
+                        if provnum == target_ccn:
+                            return {target_ccn: row_dict}
+                        continue
                     existing = provider_dict.get(provnum)
                     if existing is None:
                         provider_dict[provnum] = row_dict
@@ -4789,6 +4804,8 @@ def load_provider_info():
                     quarter_cy = _quarter_from_row(row)
                     if quarter_cy:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
+            if target_ccn:
+                continue
             _LOAD_PROVIDER_INFO_CACHE = provider_dict
             _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
             _LOAD_PROVIDER_INFO_AT = time.time()
@@ -4796,7 +4813,7 @@ def load_provider_info():
         except Exception as e:
             print(f"Error loading provider info from {path}: {e}")
             continue
-    return {}
+    return {} if not target_ccn else {}
 
 
 def get_provider_info_for_quarter(ccn, raw_quarter):
@@ -12106,8 +12123,13 @@ def _provider_page_impl(ccn):
     facility_df = load_facility_quarterly_for_provider(prov)
     if facility_df is None or facility_df.empty:
         abort(404)
-    provider_info = load_provider_info()
-    provider_info_row = provider_info.get(prov, {}) if isinstance(provider_info, dict) else {}
+    if (
+        _LOAD_PROVIDER_INFO_CACHE is not None
+        and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
+    ):
+        provider_info_row = (_LOAD_PROVIDER_INFO_CACHE or {}).get(prov, {})
+    else:
+        provider_info_row = (load_provider_info(prov) or {}).get(prov, {})
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
     if use_cache:
         _PROVIDER_PAGE_CACHE[prov] = (now, html)

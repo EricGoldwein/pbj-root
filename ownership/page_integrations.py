@@ -26,6 +26,48 @@ from ownership.chow_lookup import (
 from ownership.beta_gate import ownership_beta_enabled_for_state
 from ownership.display_format import format_org_display, format_role_text
 
+
+def _ownership_pct_own_label(raw: str) -> str:
+    """Human-readable stake, e.g. 50 → '50% own' (omit empty/dash/zero)."""
+    s = str(raw or "").strip()
+    if not s or s in ("—", "-", "N/A", "n/a"):
+        return ""
+    if s.endswith("%"):
+        core = s[:-1].strip().replace(",", "")
+        if not core:
+            return ""
+        try:
+            if float(core) == 0:
+                return ""
+        except ValueError:
+            pass
+        return f"{s} own"
+    try:
+        v = float(s.replace(",", ""))
+        if v == 0:
+            return ""
+        if v == int(v):
+            return f"{int(v)}% own"
+        return f"{v:g}% own"
+    except ValueError:
+        return f"{s}% own" if "%" not in s else f"{s} own"
+
+
+def _party_role_and_ownership_cell(party: dict[str, Any]) -> str:
+    """Role(s) plus optional stake (e.g. '100% own') in one column."""
+    roles = "; ".join(
+        html.escape(format_role_text(r)) for r in (party.get("roles") or [])[:2]
+    )
+    pct_bits = [
+        html.escape(lbl)
+        for lbl in (_ownership_pct_own_label(x) for x in (party.get("pcts") or [])[:2])
+        if lbl
+    ]
+    pct_part = ", ".join(pct_bits)
+    if roles and pct_part:
+        return f"{roles}; {pct_part}"
+    return roles or pct_part or "—"
+
 # Back-compat alias used in this module
 _format_org_display = format_org_display
 
@@ -310,10 +352,7 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
             format_org_display(str(raw_name)) if raw_name != "—" else "—"
         )
         ptype = html.escape(p.get("party_type") or "—")
-        roles = "; ".join(
-            html.escape(format_role_text(r)) for r in (p.get("roles") or [])[:2]
-        )
-        pcts = ", ".join(html.escape(x) for x in (p.get("pcts") or [])[:2] if x)
+        role_cell = _party_role_and_ownership_cell(p)
         dates = (p.get("association_dates") or [])[:1]
         since = html.escape(format_chow_date(dates[0]) if dates else "—")
         owner_url = p.get("profile_url") or ""
@@ -323,8 +362,7 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
             else pname
         )
         trs.append(
-            f"<tr><td>{name_cell}</td><td>{ptype}</td><td>{roles or '—'}</td>"
-            f'<td class="num">{pcts or "—"}</td><td>{since}</td></tr>'
+            f"<tr><td>{name_cell}</td><td>{ptype}</td><td>{role_cell}</td><td>{since}</td></tr>"
         )
     extra = ""
     if len(parties) > preview:
@@ -336,7 +374,7 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         f"{extra}"
         '<div class="chow-table-scroll" style="max-height:360px;">'
         '<table class="chow-table chow-provider-owners-table"><thead><tr>'
-        "<th>Name</th><th>Type</th><th>Role(s)</th><th>%</th><th>Since</th>"
+        "<th>Name</th><th>Type</th><th>Role</th><th>Since</th>"
         "</tr></thead><tbody>"
         + "".join(trs)
         + "</tbody></table></div>"

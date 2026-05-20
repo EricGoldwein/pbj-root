@@ -100,4 +100,6 @@ zip_file_inventory.csv
 zip_to_quarter_mapping.csv
 nursing_homes_including_rehab_services_*.zip
 ownership/*.zip
+ownership/snf_owners_lookup.sqlite
+ownership/snf_owners_org_index.json.gz
 

@@ -10,8 +10,10 @@ CHOW buyer/seller PACs are usually enrollment PACs. This module resolves the cor
 from __future__ import annotations
 
 import calendar
+import gzip
 import json
 import re
+import sqlite3
 from functools import lru_cache
 from pathlib import Path
 from collections.abc import Iterator, Sequence
@@ -24,6 +26,9 @@ from ownership.display_format import format_org_display, format_role_text
 _REPO = Path(__file__).resolve().parent.parent
 _OWNERSHIP_DIR = _REPO / "ownership"
 _SNF_OWNERS_GLOB = "SNF_All_Owners*.csv"
+_OWNERS_LOOKUP_DB = _OWNERSHIP_DIR / "snf_owners_lookup.sqlite"
+_ORG_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
+_OWNERS_TABLE = "snf_owners"
 
 ENROLLMENT_PAC_COL = "ASSOCIATE ID"
 OWNER_PAC_COL = "ASSOCIATE ID - OWNER"
@@ -127,6 +132,30 @@ def _ownership_source_fields(path: Path | None) -> dict[str, str]:
         "source_file": path.name if path else "",
         "ownership_source": snf_owners_source_citation(path),
     }
+
+
+@lru_cache(maxsize=1)
+def _sqlite_conn() -> sqlite3.Connection | None:
+    if not _OWNERS_LOOKUP_DB.is_file():
+        return None
+    conn = sqlite3.connect(f"file:{_OWNERS_LOOKUP_DB}?mode=ro", uri=True)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _sqlite_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    return {str(k): row[k] for k in row.keys()}
+
+
+def _sqlite_pac_in_column(pac: str, column: str) -> bool:
+    conn = _sqlite_conn()
+    if not conn:
+        return False
+    row = conn.execute(
+        f'SELECT 1 FROM "{_OWNERS_TABLE}" WHERE "{column}" = ? LIMIT 1',
+        (pac,),
+    ).fetchone()
+    return row is not None
 
 
 def snf_owners_source_citation(path: Path | None = None) -> str:
@@ -425,8 +454,32 @@ _CSV_USECOLS: tuple[str, ...] = (
 @lru_cache(maxsize=256)
 def _fetch_rows_for_pac(pac: str) -> tuple[tuple[dict[str, Any], ...], tuple[dict[str, Any], ...]]:
     """Rows where pac is enrollment ASSOCIATE ID, and where pac is owner ASSOCIATE ID - OWNER."""
+    if len(pac) != 10:
+        return (), ()
+
+    conn = _sqlite_conn()
+    if conn:
+        try:
+            enrollment_rows = [
+                _sqlite_row_to_dict(r)
+                for r in conn.execute(
+                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" = ?',
+                    (pac,),
+                )
+            ]
+            owner_rows = [
+                _sqlite_row_to_dict(r)
+                for r in conn.execute(
+                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{OWNER_PAC_COL}" = ?',
+                    (pac,),
+                )
+            ]
+            return tuple(enrollment_rows), tuple(owner_rows)
+        except Exception:
+            pass
+
     path = snf_owners_csv_path()
-    if not path or len(pac) != 10:
+    if not path:
         return (), ()
 
     enrollment_rows: list[dict[str, Any]] = []
@@ -482,6 +535,15 @@ def associate_profile_url(associate_id: str, org_name: str = "") -> str:
     return ""
 
 
+def _owner_pac_in_lookup(pac: str) -> bool:
+    pac = normalize_associate_id(pac)
+    if len(pac) != 10:
+        return False
+    if _sqlite_conn():
+        return _sqlite_pac_in_column(pac, OWNER_PAC_COL)
+    return pac in _owner_control_pac_set()
+
+
 @lru_cache(maxsize=1)
 def _enrollment_pac_set() -> frozenset[str]:
     path = snf_owners_csv_path()
@@ -520,8 +582,12 @@ def associate_id_kind_label(associate_id: str) -> str:
     pac = normalize_associate_id(associate_id)
     if len(pac) != 10:
         return "unknown"
-    in_en = pac in _enrollment_pac_set()
-    in_ow = pac in _owner_control_pac_set()
+    if _sqlite_conn():
+        in_en = _sqlite_pac_in_column(pac, ENROLLMENT_PAC_COL)
+        in_ow = _sqlite_pac_in_column(pac, OWNER_PAC_COL)
+    else:
+        in_en = pac in _enrollment_pac_set()
+        in_ow = pac in _owner_control_pac_set()
     if in_en and in_ow:
         return "both"
     if in_en:
@@ -546,7 +612,7 @@ def _build_control_parties(enrollment_rows: Sequence[dict[str, Any]]) -> list[di
                 "pcts": [],
                 "association_dates": [],
                 "profile_url": associate_profile_url(owner_pac),
-                "is_owner_control_pac": owner_pac in _owner_control_pac_set(),
+                "is_owner_control_pac": _owner_pac_in_lookup(owner_pac),
             }
         role_raw = _clean(row.get("ROLE TEXT - OWNER"))
         role = format_role_text(role_raw) if role_raw else ""
@@ -567,6 +633,14 @@ def _build_control_parties(enrollment_rows: Sequence[dict[str, Any]]) -> list[di
 @lru_cache(maxsize=1)
 def _enrollment_org_to_pac() -> dict[str, str]:
     """Normalized enrollment ORGANIZATION NAME -> ASSOCIATE ID."""
+    if _ORG_INDEX_GZ.is_file():
+        try:
+            with gzip.open(_ORG_INDEX_GZ, "rt", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return {str(k): str(v) for k, v in data.items()}
+        except Exception:
+            pass
     path = snf_owners_csv_path()
     if not path:
         return {}
@@ -653,13 +727,50 @@ def _snf_coowners_on_shared_enrollments(
     """Other owner PACs on the same facility enrollment PACs (SNF All Owners)."""
     if not enrollment_pacs:
         return []
+    exclude = normalize_associate_id(exclude_pac)
+    target_pacs = [normalize_associate_id(p) for p in enrollment_pacs if len(normalize_associate_id(p)) == 10]
+    if not target_pacs:
+        return []
+
+    conn = _sqlite_conn()
+    if conn:
+        shared: dict[str, set[str]] = {}
+        names: dict[str, str] = {}
+        try:
+            placeholders = ",".join("?" * len(target_pacs))
+            sql = (
+                f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" IN ({placeholders})'
+            )
+            for row in conn.execute(sql, target_pacs):
+                d = _sqlite_row_to_dict(row)
+                en_pac = normalize_associate_id(d.get(ENROLLMENT_PAC_COL))
+                ow_pac = normalize_associate_id(d.get(OWNER_PAC_COL))
+                if len(en_pac) != 10 or len(ow_pac) != 10 or ow_pac == exclude:
+                    continue
+                shared.setdefault(ow_pac, set()).add(en_pac)
+                if ow_pac not in names:
+                    names[ow_pac] = _owner_display_name(d)
+        except Exception:
+            shared = {}
+        if shared:
+            coowners: list[dict[str, Any]] = []
+            for ow_pac, en_set in shared.items():
+                coowners.append(
+                    {
+                        "associate_id": ow_pac,
+                        "name": names.get(ow_pac) or ow_pac,
+                        "count": len(en_set),
+                        "profile_url": associate_profile_url(ow_pac),
+                    }
+                )
+            coowners.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
+            return coowners
+
     path = snf_owners_csv_path()
     if not path:
         return []
-    exclude = normalize_associate_id(exclude_pac)
-    target_pacs = list(enrollment_pacs)
-    shared: dict[str, set[str]] = {}
-    names: dict[str, str] = {}
+    shared = {}
+    names = {}
     try:
         header = pd.read_csv(
             str(path), dtype=str, encoding="latin-1", low_memory=False, nrows=0

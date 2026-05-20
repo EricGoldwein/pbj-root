@@ -1728,6 +1728,8 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    width: auto;
+    max-width: min(100%, 22rem);
     min-height: 2.15rem;
     padding: 0.42rem 1.15rem;
     border-radius: 999px;
@@ -1768,17 +1770,15 @@ a.pbj-audit-hero-actions__primary {
     display: inline-block;
     max-width: 100%;
     font-weight: 500;
-    font-size: clamp(0.68rem, 2.75vw, 0.84rem);
-    line-height: 1.35;
-    color: rgba(226, 232, 240, 0.95);
-    white-space: nowrap;
-    overflow: visible;
-    text-overflow: clip;
+    font-size: clamp(0.75rem, 2.75vw, 0.875rem);
+    line-height: 1.4;
+    color: #475569;
+    white-space: normal;
 }
 
 .pbj-audit-hero-actions__pilot-price {
     font-weight: 800;
-    color: #e9d5ff;
+    color: #4338ca;
 }
 
 .pbj-audit-hero-actions__demo {
@@ -2668,6 +2668,18 @@ a.pbj-audit-hero-actions__primary {
     padding-bottom: 0.55rem;
 }
 
+.pbj-audit-pricing-card__actions .pbj-audit-pricing-card__cta {
+    width: 100%;
+    max-width: 100%;
+}
+
+@media (min-width: 992px) {
+    .pbj-audit-pricing-card__actions .pbj-audit-pricing-card__cta {
+        width: auto;
+        max-width: 20rem;
+    }
+}
+
 .pbj-audit-pricing-card__price-accent {
     font-family: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
     font-size: 1.28rem;
@@ -3051,7 +3063,10 @@ a.pbj-audit-hero-actions__primary {
 .pbj-hub-modal__figure img {
     display: block;
     width: 100%;
+    max-height: min(52vh, 22rem);
     height: auto;
+    object-fit: contain;
+    object-position: center top;
 }
 
 .pbj-audit-foot {

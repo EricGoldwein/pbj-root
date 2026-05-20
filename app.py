@@ -143,7 +143,17 @@ pd = None  # Set by get_pd() on first pandas use, or by _ensure_pandas() on firs
 
 # Import date utilities from local utils package (run from pbj-root so utils is on path)
 from utils.date_utils import get_latest_data_periods, get_latest_update_month_year  # type: ignore[reportMissingImports]
-from utils.seo_utils import get_seo_metadata  # type: ignore[reportMissingImports]
+from utils.seo_utils import (  # type: ignore[reportMissingImports]
+    entity_page_intro_html,
+    entity_page_meta_description,
+    entity_page_title,
+    explainer_page_title,
+    get_explainer_page,
+    get_seo_metadata,
+    provider_page_intro_html,
+    provider_page_meta_description,
+    provider_page_title,
+)
 try:
     from pbj_format import round_half_up
 except ImportError:
@@ -1026,6 +1036,18 @@ def terms_page():
 @app.route('/robots.txt')
 def robots_txt():
     return ROBOTS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
+@app.route('/what-is-hprd')
+@app.route('/cms-payroll-based-journal')
+@app.route('/pbj-nursing-home-staffing')
+def seo_explainer_page():
+    """Lightweight glossary-style pages for PBJ / HPRD / PBJ320 staffing queries."""
+    slug = request.path.strip('/').split('/')[-1]
+    resp = make_response(_render_explainer_page(slug))
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return resp
+
 
 @app.route('/insights')
 @app.route('/insights/')
@@ -3817,7 +3839,13 @@ def _provider_page_json_ld_scripts(
         '@type': 'MedicalOrganization',
         'name': facility_name,
         'url': page_url,
-        'description': f'{facility_name} nursing home staffing from CMS PBJ data ({quarter_display}).',
+        'description': provider_page_meta_description(
+            facility_name,
+            city=city,
+            state_name=state_name,
+            quarter_display=quarter_display,
+            hprd_val=total_hprd,
+        )[:320],
     }
     if address.get('addressLocality') or address.get('addressRegion'):
         org['address'] = address
@@ -3886,10 +3914,44 @@ def _entity_page_json_ld_scripts(*, entity_name: str, entity_id: int, page_url: 
         '@type': 'Organization',
         'name': entity_name,
         'url': page_url,
-        'description': f'{entity_name} operates {facility_count} nursing homes. PBJ staffing data for affiliated facilities.',
+        'description': entity_page_meta_description(
+            entity_name, facility_count=facility_count
+        )[:500],
     }
     crumbs = [('Home', f'{base}/'), (entity_name, page_url)]
     return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs)])
+
+
+def _owner_page_json_ld_scripts(*, display_name: str, page_url: str, facility_count: int, meta_description: str) -> str:
+    base = 'https://pbj320.com'
+    org = {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        'name': display_name,
+        'url': page_url,
+        'description': (meta_description or '')[:500],
+    }
+    crumbs = [('Home', f'{base}/'), (display_name, page_url)]
+    return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs)])
+
+
+def _render_explainer_page(slug: str):
+    """Short factual explainer pages linked from provider copy and Search Console queries."""
+    page = get_explainer_page(slug)
+    if not page:
+        from flask import abort
+        abort(404)
+    base = _public_site_origin()
+    canon = base + page['path']
+    layout = get_pbj_site_layout(explainer_page_title(slug), page['description'], canon)
+    inner = (
+        f'<h1>{html.escape(page["h1"])}</h1>'
+        f'<div class="pbj-explainer-body">{page["body"]}</div>'
+        '<p class="pbj-meta-line" style="margin-top:1.25rem;">'
+        '<a href="/">PBJ320 home</a> · <a href="/pbjpedia/overview">PBJpedia</a></p>'
+    )
+    html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
+    return html_content + '</body></html>'
 
 
 def _related_native_insights_html(current_slug: str, post: dict, base_url: str, limit: int = 3) -> str:
@@ -4235,11 +4297,19 @@ def generate_owner_profile_html(profile):
     body, page_title, meta_desc, _canon_suffix = render_owner_profile_body(profile)
     base = _public_site_origin()
     canon = base + _canon_suffix
+    display_name = str(profile.get('display_name') or 'Organization').strip()
+    n_fac = len(profile.get('facilities') or [])
+    owner_json_ld = _owner_page_json_ld_scripts(
+        display_name=display_name,
+        page_url=canon,
+        facility_count=n_fac,
+        meta_description=meta_desc,
+    )
     layout = get_pbj_site_layout(
         page_title,
         meta_desc,
         canon,
-        extra_head=(
+        extra_head=owner_json_ld + (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
             f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
@@ -4359,10 +4429,14 @@ def sitemap():
         ('/report', '0.9', 'weekly'),
         ('/insights', '0.9', 'weekly'),
         ('/insights-visualizations', '0.75', 'monthly'),
-        ('/premium', '0.7', 'monthly'),
         ('/press', '0.8', 'monthly'),
         ('/attorneys', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
+        ('/what-is-hprd', '0.7', 'monthly'),
+        ('/cms-payroll-based-journal', '0.7', 'monthly'),
+        ('/pbj-nursing-home-staffing', '0.7', 'monthly'),
+        ('/pbjpedia/overview', '0.7', 'monthly'),
+        ('/pbjpedia/metrics', '0.7', 'monthly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -5582,6 +5656,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: #a8b4c4; margin-top: 6px; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
+.pbj-orientation--compact {{ margin-bottom: 0.65rem; font-size: 0.88rem; color: #a8b4c4; line-height: 1.45; }}
+.pbj-orientation--compact a {{ color: #94a3b8; font-weight: 500; }}
+.pbj-orientation--compact a:hover {{ color: #a5b4fc; }}
 .pbj-percentile, .pbj-entity-summary {{ font-size: 0.85rem; color: #a8b4c4; margin-top: 6px; }}
 .pbj-details {{ border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 10px; background: rgba(15, 23, 42, 0.55); margin: 1.25rem 0; overflow: hidden; box-shadow: 0 2px 14px rgba(2, 6, 23, 0.28); }}
 .pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
@@ -6942,10 +7019,10 @@ def render_methodology_block():
     return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
 <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
 <div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses CMS Payroll-Based Journal (PBJ) data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022).</p>
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a> data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022). <a href="/pbj-nursing-home-staffing">About PBJ320 staffing data</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
-<li><strong>Hours Per Resident Day (HPRD):</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
+<li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
 <li><strong>Direct Care</strong> (excl. Admin, DON): Hours per resident day for direct care staff only (RN, LPN, CNA, NAtrn, MedAide), excluding administrative and supervisory roles.</li>
 <li><strong>Contract Staff %:</strong> Share of hours provided by contract staff.</li>
 <li><strong>Census:</strong> Average number of residents during the period.</li>
@@ -9230,8 +9307,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {_facility_actions}
 {facility_hprd_modal}
 </div>'''
-    seo_desc = f"{facility_name} nursing home staffing: {format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')} HPRD total nurse staffing in {quarter_display}."
-    page_title = f"{facility_name} | Nursing Home Staffing | PBJ320"
+    page_title = provider_page_title(
+        facility_name, city=city, state_name=state_name, state_code=state_code
+    )
+    seo_desc = provider_page_meta_description(
+        facility_name,
+        city=city,
+        state_name=state_name,
+        quarter_display=quarter_display,
+        hprd_val=hprd_val,
+        ownership=ownership_short or ownership_raw or '',
+    )
+    provider_intro_html = provider_page_intro_html(facility_name, city=city, state_name=state_name)
     provider_json_ld = _provider_page_json_ld_scripts(
         facility_name=facility_name,
         ccn=prov,
@@ -9299,6 +9386,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
+{provider_intro_html}
 
 {pbj_takeaway_card}
 
@@ -10072,8 +10160,13 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
   });
 })();
 </script>'''
-    seo_desc = f"{entity_name} operates {subtitle}. PBJ staffing data for affiliated nursing homes."
-    page_title = f"{entity_name} ({n} facilities) | Nursing Home Staffing | PBJ320"
+    states_seen = {str(f.get('state') or '').strip().upper()[:2] for f in facilities if f.get('state')}
+    states_seen.discard('')
+    seo_desc = entity_page_meta_description(
+        entity_name, facility_count=n, states_count=len(states_seen)
+    )
+    page_title = entity_page_title(entity_name, n)
+    entity_intro_html = entity_page_intro_html(entity_name)
     entity_json_ld = _entity_page_json_ld_scripts(
         entity_name=entity_name,
         entity_id=int(entity_id),
@@ -10109,11 +10202,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
     inner = f"""
 <h1>{html.escape(entity_name)}</h1>
+{entity_intro_html}
 {pbj_takeaway_ownership}
 {all_chain_data_html}
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
-<p class="pbj-subtitle">Nursing homes affiliated with this entity. Latest quarter staffing from CMS PBJ data. Click column headers to sort.</p>
+<p class="pbj-subtitle">Associated facilities in PBJ320 data. Latest-quarter staffing from CMS PBJ. Click column headers to sort.</p>
 <style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>

@@ -23,6 +23,11 @@ FOOTER_TRUST_BLURB = (
     'and other public federal and state datasets.'
 )
 
+# Sitemap policy: only list URLs allowed by ROBOTS_TXT and not served with noindex.
+# Include /provider/ and /entity/ (CMS-linked records). Omit /owners/ (disallowed).
+# Omit /premium/ and other private/dashboard paths. When multi-state owner profiles launch,
+# a dedicated public route (e.g. /operator/<slug>) may be preferable to unblocking /owners/.
+
 # Static trust pages included in sitemap (path, priority, changefreq).
 SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/about', '0.8', 'monthly'),

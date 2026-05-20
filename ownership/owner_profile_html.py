@@ -16,6 +16,7 @@ from urllib.parse import quote
 import re
 
 from ownership.beta_gate import profile_has_public_state
+from utils.seo_utils import owner_page_seo_from_profile
 from ownership.display_format import (
     cms_rating_stars_html,
     cms_ratings_stack_html,
@@ -176,9 +177,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     facilities = profile.get("facilities") or []
     en_label = html.escape(profile.get("enrollment_pac_label") or "Enrollment PAC")
     ow_label = html.escape(profile.get("owner_pac_label") or "Owner PAC")
-    page_title, meta_desc = _owner_page_seo(
-        profile, kind, facilities, str(profile.get("owner_type") or "").strip()
-    )
+    page_title, meta_desc, owner_intro_html = owner_page_seo_from_profile(profile)
     states_meta = _states_meta_html(profile)
     states_modal = _states_breakdown_modal_html(profile)
 
@@ -208,6 +207,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     body = f"""
       <div class="owner-profile-root">
       {header_html}
+      {owner_intro_html}
       {states_modal}
       {_owner_info_modal_html()}
       {kind_banner}
@@ -368,40 +368,6 @@ def _kind_banner(kind: str, is_chow_only: bool) -> str:
 
 
 
-def _owner_page_seo(
-    profile: dict[str, Any],
-    kind: str,
-    facilities: list[dict[str, Any]],
-    owner_type: str,
-) -> tuple[str, str]:
-    """Page title and meta/OG description — owner-focused, no CHOW branding."""
-    display = str(profile.get("display_name") or "Organization").strip()
-    n = len(facilities)
-    type_bit = f" ({owner_type})" if owner_type and owner_type not in ("—", "-", "") else ""
-    page_title = f"{display} | PBJ320 Ownership"
-    if kind == "enrollment":
-        meta = (
-            f"{display}{type_bit}. CMS enrollment entity with {n} linked facility record(s). "
-            "Owners, control parties, and PBJ metrics on PBJ320."
-        )
-    elif kind == "both":
-        meta = (
-            f"{display}{type_bit}. CMS enrollment and owner/control PAC with {n} linked facilities. "
-            "PBJ staffing and ownership data on PBJ320."
-        )
-    elif kind == "chow_only":
-        meta = (
-            f"{display}{type_bit}. CMS-reported nursing home ownership profile with {n} "
-            "linked record(s). Ownership change history and PBJ metrics where available on PBJ320."
-        )
-    else:
-        meta = (
-            f"{display}{type_bit}. CMS owner/control portfolio — {n} facilities. "
-            "PBJ staffing, ratings, and ownership change history on PBJ320."
-        )
-    return page_title, meta
-
-
 def _snf_owners_source_line(profile: dict[str, Any]) -> str:
     from ownership.owner_profile import snf_owners_source_citation
 
@@ -427,10 +393,13 @@ def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
             f"may be absent from {snf_src}."
         ),
     }.get(kind, f"CMS ownership profile with {n} linked record(s).")
+    from ownership.owner_portfolio_metrics import PORTFOLIO_METHODOLOGY_SUMMARY
+
     return (
         f"{kind_line}\n\n"
         "Facility table: reported ownership % and CMS role, PBJ staffing (HPRD), "
         "CMS star ratings, and regulatory flags where data are linked.\n\n"
+        f"Portfolio summary metrics: {PORTFOLIO_METHODOLOGY_SUMMARY}\n\n"
         f"Sources: {snf_src}; CMS Payroll-Based Journal (PBJ); "
         "CMS provider data; PBJ320 CHOW index (ownership changes and frequent associates)."
     )
@@ -611,13 +580,43 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     if n_suggested:
         fac_help += f" {n_suggested} use a tentative name match."
 
-    ovr_help = "Mean CMS overall star rating (1–5), resident-weighted by census."
+    from ownership.owner_portfolio_metrics import (
+        PORTFOLIO_HPRD_MAX,
+        PORTFOLIO_HPRD_MIN,
+        PORTFOLIO_OVERALL_RATING_MAX,
+        PORTFOLIO_OVERALL_RATING_MIN,
+    )
 
-    hprd_help = "Mean total nurse HPRD from PBJ, resident-weighted."
+    ovr_help = (
+        f"Mean CMS overall star rating ({PORTFOLIO_OVERALL_RATING_MIN:g}–"
+        f"{PORTFOLIO_OVERALL_RATING_MAX:g}), resident-weighted by census (or beds). "
+        "Only PBJ-verified facilities; missing or out-of-range values excluded."
+    )
+    hprd_help = (
+        f"Mean total nurse HPRD from PBJ, resident-weighted. Only PBJ-verified facilities. "
+        f"Values below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded "
+        "(CMS PBJ quarterly plausible range)."
+    )
+    qc_bits: list[str] = []
+    if ps.get("n_missing_hprd"):
+        qc_bits.append(f"{ps['n_missing_hprd']} missing HPRD")
+    if ps.get("n_hprd_outlier_excluded"):
+        qc_bits.append(f"{ps['n_hprd_outlier_excluded']} HPRD outlier(s) excluded")
+    if ps.get("n_missing_overall_rating"):
+        qc_bits.append(f"{ps['n_missing_overall_rating']} missing overall rating")
+    if ps.get("n_rating_outlier_excluded"):
+        qc_bits.append(f"{ps['n_rating_outlier_excluded']} rating outlier(s) excluded")
+    if qc_bits:
+        hprd_help += " " + "; ".join(qc_bits) + "."
 
     alerts: list[str] = []
     if sff:
         alerts.append(f'<span class="owner-portfolio-alert">{sff} SFF</span>')
+    if qc_bits:
+        alerts.append(
+            f'<span class="owner-portfolio-alert owner-portfolio-alert--muted">'
+            f'{"; ".join(qc_bits)}</span>'
+        )
     alerts_html = (
         f'<span class="owner-snapshot-alerts">{"".join(alerts)}</span>' if alerts else ""
     )
@@ -761,10 +760,16 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         else ""
     )
 
+    link_label = provider_esc or legal_esc
+    title_attr = (
+        f' title="View staffing data for {html.escape(link_label, quote=True)}"'
+        if href and link_label
+        else ""
+    )
     if provider_esc and not same:
         if href:
             primary_html = (
-                f'<a href="{href}" class="owner-facility-primary">{provider_esc}</a>'
+                f'<a href="{href}" class="owner-facility-primary"{title_attr}>{provider_esc}</a>'
             )
         else:
             primary_html = f'<span class="owner-facility-primary">{provider_esc}</span>'
@@ -774,7 +779,9 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         sub_html = f'<div class="owner-facility-sub">{"".join(sub_parts)}</div>'
     else:
         if href:
-            primary_html = f'<a href="{href}" class="owner-facility-primary">{legal_esc}</a>'
+            primary_html = (
+                f'<a href="{href}" class="owner-facility-primary"{title_attr}>{legal_esc}</a>'
+            )
         else:
             primary_html = f'<span class="owner-facility-primary">{legal_esc}</span>'
         sub_html = ""
@@ -1121,7 +1128,13 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         eff = html.escape(str(rec.get("effective_date") or "—"))
         ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
         fac = html.escape(rec.get("facility_display_name") or rec.get("buyer_dba_name") or "—")
-        fac_cell = f'<a href="/provider/{html.escape(ccn)}">{fac}</a>' if ccn else fac
+        if ccn:
+            fac_cell = (
+                f'<a href="/provider/{html.escape(ccn)}" '
+                f'title="View staffing data for {html.escape(fac, quote=True)}">{fac}</a>'
+            )
+        else:
+            fac_cell = fac
         buyer = html.escape(rec.get("buyer_org_name") or "—")
         seller = html.escape(rec.get("seller_org_name") or "—")
         role = html.escape(rec.get("chow_role") or "—")

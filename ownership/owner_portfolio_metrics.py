@@ -16,6 +16,39 @@ import pandas as pd
 
 _REPO = Path(__file__).resolve().parent.parent
 
+# CMS PBJ quarterly aberrant-staffing limits (facility-quarter aggregate). See
+# PBJPedia methodology / ownership/PORTFOLIO_METRICS.md.
+PORTFOLIO_HPRD_MIN = 1.5
+PORTFOLIO_HPRD_MAX = 12.0
+PORTFOLIO_OVERALL_RATING_MIN = 1.0
+PORTFOLIO_OVERALL_RATING_MAX = 5.0
+
+PORTFOLIO_METHODOLOGY_SUMMARY = (
+    "Portfolio means use only PBJ-verified facilities (CMS enrollment legal name matches "
+    "provider-info legal name). Missing HPRD or star ratings are omitted from means but the "
+    "facility remains in the table. Weighted means use average daily census when published, "
+    "otherwise certified beds; facilities with neither are included in the simple facility "
+    "average only, not the census-weighted mean. Total nurse HPRD values below "
+    f"{PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded as implausible "
+    "(aligned with CMS PBJ public-use quarterly exclusion rules). Overall star ratings outside "
+    f"{PORTFOLIO_OVERALL_RATING_MIN:g}–{PORTFOLIO_OVERALL_RATING_MAX:g} are excluded."
+)
+
+
+def is_plausible_portfolio_hprd(hprd: float) -> bool:
+    """True when HPRD is in the CMS PBJ quarterly plausible range for total nurse staffing."""
+    return PORTFOLIO_HPRD_MIN <= hprd <= PORTFOLIO_HPRD_MAX
+
+
+def is_plausible_overall_rating(rating: float) -> bool:
+    """True when value is a valid CMS overall star rating."""
+    return PORTFOLIO_OVERALL_RATING_MIN <= rating <= PORTFOLIO_OVERALL_RATING_MAX
+
+
+def _portfolio_metric_weight(facility: dict[str, Any]) -> float | None:
+    """Census preferred; certified beds as fallback. None if neither is available."""
+    return _parse_float(facility.get("census")) or _parse_float(facility.get("beds"))
+
 
 def _parse_float(val: Any) -> float | None:
     if val is None:
@@ -198,27 +231,26 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
     states = sorted({str(f.get("state") or "").upper() for f in enriched if f.get("state")})
     counties = sorted({str(f.get("county") or "") for f in enriched if f.get("county")})
 
-    hprd_vals: list[tuple[float, float]] = []
-    overall_vals: list[tuple[float, float]] = []
+    hprd_unweighted: list[float] = []
+    hprd_weighted: list[tuple[float, float]] = []
+    overall_unweighted: list[float] = []
+    overall_weighted: list[tuple[float, float]] = []
     beds_total = 0.0
     census_total = 0.0
     sff_count = 0
     low_staff = 0
     pbj_matched = 0
     pbj_suggested = 0
+    n_missing_hprd = 0
+    n_missing_overall_rating = 0
+    n_hprd_outlier_excluded = 0
+    n_rating_outlier_excluded = 0
+    n_missing_resident_weight = 0
     for f in enriched:
         if f.get("pbj_matched"):
             pbj_matched += 1
         elif f.get("pbj_suggested"):
             pbj_suggested += 1
-        h = _parse_float(f.get("hprd"))
-        census = _parse_float(f.get("census")) or _parse_float(f.get("beds")) or 1.0
-        if h is not None:
-            hprd_vals.append((h, census))
-        ovr = _parse_float(f.get("overall_rating"))
-        if ovr is not None:
-            w = _parse_float(f.get("census")) or _parse_float(f.get("beds")) or 1.0
-            overall_vals.append((ovr, w))
         b = _parse_float(f.get("beds"))
         if b:
             beds_total += b
@@ -232,13 +264,41 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
         if sr is not None and sr <= 2:
             low_staff += 1
 
+        if not f.get("pbj_matched"):
+            continue
+
+        weight = _portfolio_metric_weight(f)
+        if weight is None:
+            n_missing_resident_weight += 1
+
+        h = _parse_float(f.get("hprd"))
+        if h is None:
+            n_missing_hprd += 1
+        elif not is_plausible_portfolio_hprd(h):
+            n_hprd_outlier_excluded += 1
+        else:
+            hprd_unweighted.append(h)
+            if weight is not None:
+                hprd_weighted.append((h, weight))
+
+        ovr = _parse_float(f.get("overall_rating"))
+        if ovr is None:
+            n_missing_overall_rating += 1
+        elif not is_plausible_overall_rating(ovr):
+            n_rating_outlier_excluded += 1
+        else:
+            overall_unweighted.append(ovr)
+            if weight is not None:
+                overall_weighted.append((ovr, weight))
+
     wmean_hprd = None
     umean_hprd = None
-    if hprd_vals:
-        tw = sum(w for _, w in hprd_vals)
+    if hprd_weighted:
+        tw = sum(w for _, w in hprd_weighted)
         if tw > 0:
-            wmean_hprd = sum(h * w for h, w in hprd_vals) / tw
-        umean_hprd = sum(h for h, _ in hprd_vals) / len(hprd_vals)
+            wmean_hprd = sum(h * w for h, w in hprd_weighted) / tw
+    if hprd_unweighted:
+        umean_hprd = sum(hprd_unweighted) / len(hprd_unweighted)
 
     by_state: dict[str, int] = {}
     for f in enriched:
@@ -248,11 +308,12 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
 
     mean_overall = None
     umean_overall = None
-    if overall_vals:
-        tw = sum(w for _, w in overall_vals)
+    if overall_weighted:
+        tw = sum(w for _, w in overall_weighted)
         if tw > 0:
-            mean_overall = round(sum(o * w for o, w in overall_vals) / tw, 2)
-        umean_overall = round(sum(o for o, _ in overall_vals) / len(overall_vals), 2)
+            mean_overall = round(sum(o * w for o, w in overall_weighted) / tw, 2)
+    if overall_unweighted:
+        umean_overall = round(sum(overall_unweighted) / len(overall_unweighted), 2)
 
     return {
         "n_facilities": n,
@@ -267,6 +328,11 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
         "umean_hprd": round(umean_hprd, 3) if umean_hprd is not None else None,
         "mean_overall_rating": mean_overall,
         "umean_overall_rating": umean_overall,
+        "n_missing_hprd": n_missing_hprd,
+        "n_missing_overall_rating": n_missing_overall_rating,
+        "n_hprd_outlier_excluded": n_hprd_outlier_excluded,
+        "n_rating_outlier_excluded": n_rating_outlier_excluded,
+        "n_missing_resident_weight": n_missing_resident_weight,
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
         "by_state": sorted(by_state.items(), key=lambda x: (-x[1], x[0])),

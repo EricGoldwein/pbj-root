@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Media &amp; Press | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="For journalists covering nursing homes, staffing, and ownership. PBJ data expert Eric Goldwein — background briefings, data interpretation, and on-the-record reporting.">
+  <meta name="description" content="For journalists covering nursing homes, staffing, and ownership. PBJ data expert Eric Goldwein: background briefings, data interpretation, and on-the-record reporting.">
   <link rel="canonical" href="https://pbj320.com/press">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://pbj320.com/press">
@@ -17,6 +17,7 @@
   <meta name="twitter:description" content="For journalists covering nursing homes, staffing, and ownership.">
   <meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/contact-popup-shared.css?v=1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -120,8 +121,6 @@
     }
     .press-contact-trigger:hover { background: #2563eb; border-color: #2563eb; color: #fff; }
     .press-contact-trigger:focus-visible { outline: 2px solid #60a5fa; outline-offset: 2px; }
-    .press-contact-overlay { display: none; }
-    .press-contact-overlay[aria-hidden="false"] { display: flex !important; }
     .content-box h2 { font-size: 1.6rem; color: #1e40af; margin-top: 1.8rem; margin-bottom: 1rem; font-weight: 600; }
     .content-box h3 { font-size: 1.4rem; color: #3b82f6; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }
     .content-box h3:first-of-type { margin-top: 0; }
@@ -201,6 +200,143 @@
     .footer .footer-tagline { margin: 0 0 1rem 0; font-size: 0.8rem; text-align: center; letter-spacing: 0.03em; color: rgba(255,255,255,0.85); }
     .footer a { color: #60a5fa; text-decoration: none; }
     .footer a:hover { color: #93c5fd; opacity: 1; }
+
+    .press-contact-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(0, 0, 0, 0.5);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .press-contact-overlay[aria-hidden="false"] {
+      display: flex !important;
+    }
+    .press-contact-dialog {
+      position: relative;
+      background: #1e293b;
+      border: 1px solid rgba(96, 165, 250, 0.25);
+      border-radius: 12px;
+      max-width: 440px;
+      width: 100%;
+      max-height: calc(100vh - 2rem);
+      overflow: auto;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      color: #e2e8f0;
+    }
+    .press-contact-dialog h2 {
+      margin: 0;
+      padding: 1.25rem 2.75rem 0 1.25rem;
+      font-size: 1.25rem;
+      color: #60a5fa;
+      line-height: 1.3;
+    }
+    .press-contact-close {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 1.75rem;
+      line-height: 1;
+      color: rgba(148, 163, 184, 0.95);
+      font-family: system-ui, sans-serif;
+    }
+    .press-contact-close:hover { color: #e2e8f0; }
+    .press-contact-close:focus-visible {
+      outline: 2px solid #60a5fa;
+      outline-offset: 2px;
+    }
+    .press-contact-form {
+      padding: 1rem 1.25rem 1.5rem;
+    }
+    .press-contact-form .f-group {
+      margin-bottom: 1rem;
+    }
+    .press-contact-form label {
+      display: block;
+      font-weight: 500;
+      color: #cbd5e1;
+      margin-bottom: 0.3rem;
+      font-size: 0.9rem;
+    }
+    .press-contact-form input[type="text"],
+    .press-contact-form input[type="email"],
+    .press-contact-form textarea {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      box-sizing: border-box;
+      background: rgba(15, 23, 42, 0.6);
+      color: #e2e8f0;
+    }
+    .press-contact-form textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .press-contact-form input::placeholder,
+    .press-contact-form textarea::placeholder {
+      color: rgba(148, 163, 184, 0.75);
+    }
+    .press-contact-form input:focus,
+    .press-contact-form textarea:focus {
+      outline: none;
+      border-color: rgba(96, 165, 250, 0.7);
+      box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.25);
+    }
+    .press-contact-form input:-webkit-autofill,
+    .press-contact-form input:-webkit-autofill:hover,
+    .press-contact-form input:-webkit-autofill:focus,
+    .press-contact-form input:-webkit-autofill:active,
+    .press-contact-form textarea:-webkit-autofill,
+    .press-contact-form textarea:-webkit-autofill:hover,
+    .press-contact-form textarea:-webkit-autofill:focus,
+    .press-contact-form textarea:-webkit-autofill:active {
+      -webkit-text-fill-color: #e2e8f0 !important;
+      -webkit-box-shadow: 0 0 0 1000px rgb(15, 23, 42) inset !important;
+      box-shadow: 0 0 0 1000px rgb(15, 23, 42) inset !important;
+      transition: background-color 5000s ease-in-out 0s;
+    }
+    .press-contact-form .f-row-submit {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.75rem;
+    }
+    .press-contact-form .cb-wrap {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      color: #cbd5e1;
+    }
+    .press-contact-form button[type="submit"] {
+      background: rgba(96, 165, 250, 0.2);
+      color: #93c5fd;
+      border: 1px solid rgba(96, 165, 250, 0.5);
+      padding: 0.7rem 1.25rem;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      min-height: 44px;
+    }
+    .press-contact-form button[type="submit"]:hover {
+      background: rgba(96, 165, 250, 0.3);
+      color: #e0e7ff;
+    }
   </style>
 </head>
 <body>
@@ -249,19 +385,19 @@
 
       <h2>How I Support Reporting</h2>
       <ul>
-        <li><strong>PBJ briefings &amp; methodology guidance</strong> — How the data works, what it measures, where it breaks down, and common misreads. No commitment required.</li>
-        <li><strong>Facility, ownership &amp; trend analysis</strong> — Staffing patterns for specific nursing homes or chains, with state and national comparisons and historical context.</li>
-        <li><strong>Verification &amp; quotes</strong> — Fact-checking, interpretation, and on-the-record or background commentary.</li>
+        <li><strong>PBJ briefings &amp; methodology guidance.</strong> How the data works, what it measures, where it breaks down, and common misreads.</li>
+        <li><strong>Facility, ownership &amp; trend analysis.</strong> Staffing patterns for specific nursing homes or chains, with state and national comparisons and historical context.</li>
+        <li><strong>Verification &amp; quotes.</strong> Fact-checking, interpretation, and on-the-record or background commentary.</li>
       </ul>
 
       <h2>Data Visuals</h2>
-      <p><strong>Example:</strong> Seagate Rehabilitation and Nursing Center — Daily staffing vs. New York's 3.50 HPRD minimum (used in <a href="https://www.320insight.com/words/pbj-seagate" target="_blank">chronic understaffing analysis</a>).</p>
+      <p><strong>Example:</strong> Seagate Rehabilitation and Nursing Center: daily staffing vs. New York's 3.50 HPRD minimum (used in <a href="https://www.320insight.com/words/pbj-seagate" target="_blank">chronic understaffing analysis</a>).</p>
       <div style="margin: 1rem 0;">
         <img src="https://pbj320.com/seagate_staffing_pbj.png" alt="Seagate Rehabilitation and Nursing Center daily staffing vs. NY 3.50 HPRD minimum" style="max-width: 100%; height: auto; border-radius: 8px; display: block;">
       </div>
       <!-- WTVR CBS Twin Lakes clip - media appearance example -->
       <h3>Example: TV coverage</h3>
-      <p>WTVR CBS 6 (Richmond) — Twin Lakes nursing home staffing story.</p>
+      <p>WTVR CBS 6 (Richmond): Twin Lakes nursing home staffing story.</p>
       <div class="wtvr-video-wrapper" style="margin: 1.5rem 0; max-width: 640px;">
         <video controls poster="/press/wtvr-thumbnail.jpg" preload="metadata" style="width: 100%; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
           <source src="/press/wtvr-twin-lakes-clip.mp4" type="video/mp4">
@@ -271,31 +407,32 @@
     </div>
   </div>
 
-  <div id="press-contact-overlay" class="press-contact-overlay" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
-    <div class="press-contact-dialog" role="dialog" aria-labelledby="press-contact-title" aria-modal="true" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-      <h2 id="press-contact-title" style="margin:0; padding:1.25rem 1.25rem 0; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
-      <button type="button" class="press-contact-close" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
-      <form action="/contact" method="POST" style="padding:1rem 1.25rem 1.5rem;">
+
+  <div id="press-contact-overlay" class="press-contact-overlay" aria-hidden="true">
+    <div class="press-contact-dialog" role="dialog" aria-labelledby="press-contact-title" aria-modal="true">
+      <h2 id="press-contact-title">Request PBJ analysis</h2>
+      <button type="button" class="press-contact-close" aria-label="Close">&times;</button>
+      <form action="/contact" method="POST" class="press-contact-form">
         <input type="hidden" name="csrf_token" id="press-csrf" value="">
         <input type="hidden" name="next" value="/press">
-        <div class="f-group" style="margin-bottom:1rem;">
-          <label for="press-name" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
-          <input type="text" id="press-name" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+        <div class="f-group">
+          <label for="press-name">Name <span style="color:#f87171">*</span></label>
+          <input type="text" id="press-name" name="name" required autocomplete="name" maxlength="200">
         </div>
-        <div class="f-group" style="margin-bottom:1rem;">
-          <label for="press-email" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Email <span style="color:#f87171">*</span></label>
-          <input type="email" id="press-email" name="email" required autocomplete="email" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+        <div class="f-group">
+          <label for="press-email">Email <span style="color:#f87171">*</span></label>
+          <input type="email" id="press-email" name="email" required autocomplete="email">
         </div>
-        <div class="f-group" style="margin-bottom:1rem;">
-          <label for="press-message" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-          <textarea id="press-message" name="message" required placeholder="Your inquiry…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+        <div class="f-group">
+          <label for="press-message">Message <span style="color:#f87171">*</span></label>
+          <textarea id="press-message" name="message" required placeholder="Your inquiry (topic, deadline, outlet)"></textarea>
         </div>
-        <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
-          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-            <input type="checkbox" name="press" id="press-media-checkbox" value="yes" aria-label="I am media" style="width:1.25rem; height:1.25rem;" checked>
-            <span style="color:#cbd5e1;">I am media</span>
+        <div class="f-row-submit">
+          <label class="cb-wrap">
+            <input type="checkbox" name="press" id="press-media-checkbox" value="yes" checked>
+            <span>I am media</span>
           </label>
-          <button type="submit" style="background:rgba(96,165,250,0.2); color:#93c5fd; border:1px solid rgba(96,165,250,0.5); padding:0.7rem 1.25rem; border-radius:8px; font:inherit; font-size:1rem; font-weight:500; cursor:pointer; min-height:44px;">Send</button>
+          <button type="submit">Send</button>
         </div>
       </form>
     </div>

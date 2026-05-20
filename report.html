@@ -44,7 +44,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="author" content="320 Consulting">
   <meta name="referrer" content="no-referrer-when-downgrade">
-  
+  <link rel="stylesheet" href="/contact-popup-shared.css?v=1">
+
   <!-- Structured Data (JSON-LD): WebPage only (nested Dataset triggered GSC Dataset validation) -->
   <script type="application/ld+json">__REPORT_SSR_JSON_LD__</script>
   
@@ -122,7 +123,7 @@
           // Update OG description
           const ogDescription = document.getElementById('og-description');
           if (ogDescription) {
-            ogDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
+            ogDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region â€” HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           }
           
           // Update Twitter title
@@ -134,7 +135,7 @@
           // Update Twitter description
           const twitterDescription = document.getElementById('twitter-description');
           if (twitterDescription) {
-            twitterDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
+            twitterDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region â€” HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           }
           
           // Update meta description
@@ -3477,7 +3478,7 @@
         max-width: 100% !important;
       }
       
-      /* Zone A — first three columns (RANK, STATE, FACILITIES) - shrink but not too much */
+      /* Zone A â€” first three columns (RANK, STATE, FACILITIES) - shrink but not too much */
       #stateTable thead th.col-rank,
       #stateTable thead th.col-state,
       #stateTable thead th.col-facilities,
@@ -3560,7 +3561,7 @@
         font-size: 0.7rem !important;
       }
       
-      /* Zone B — group titles (REPORTED HPRD, CASE-MIX HPRD) - wrap freely */
+      /* Zone B â€” group titles (REPORTED HPRD, CASE-MIX HPRD) - wrap freely */
       #stateTable thead th.section-header,
       #stateTable thead th.section-reported,
       #stateTable thead th.section-casemix,
@@ -3573,7 +3574,7 @@
         max-width: 75px !important;
       }
       
-      /* Zone C — subheaders TOTAL / RN (narrow but not crushed) */
+      /* Zone C â€” subheaders TOTAL / RN (narrow but not crushed) */
       #stateTable thead tr:nth-child(2) th {
         padding: 2px 2px !important;
         font-size: 0.6rem !important;
@@ -4461,8 +4462,8 @@ __REPORT_SSR_TABLE_ROWS__
     <!-- Contact form popup (same as index / app pages) -->
     <div id="contact-overlay" class="contact-overlay-static" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
       <div class="contact-popup-static" role="dialog" aria-labelledby="contact-popup-title-static" aria-modal="true" id="contact-dialog-static" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 1.25rem 0; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
-        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
+        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 2.75rem 0 1.25rem; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
+        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">&times;</button>
         <form action="/contact" method="POST" class="contact-popup-form-static" id="contact-popup-form-static" style="padding:1rem 1.25rem 1.5rem;">
           <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
           <div class="f-group" style="margin-bottom:1rem;">
@@ -4475,7 +4476,7 @@ __REPORT_SSR_TABLE_ROWS__
           </div>
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your requestâ€¦" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
           </div>
           <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
             <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
@@ -4690,7 +4691,7 @@ __REPORT_SSR_TABLE_ROWS__
         function apiAbs(path) {
           return new URL(path, window.location.origin).href;
         }
-        /** Legacy ``GET /report?p=…`` (older servers). */
+        /** Legacy ``GET /report?p=â€¦`` (older servers). */
         function reportEmbedUrlLegacy(pCode, extraQueryNoLeadingAmp) {
           let u = apiAbs('/report') + '?p=' + encodeURIComponent(pCode);
           if (extraQueryNoLeadingAmp) {
@@ -4698,7 +4699,7 @@ __REPORT_SSR_TABLE_ROWS__
           }
           return u;
         }
-        /** Prefer ``/report/embed/…`` when the server has those routes; avoids ``?p=`` stripped by some proxies. */
+        /** Prefer ``/report/embed/â€¦`` when the server has those routes; avoids ``?p=`` stripped by some proxies. */
         function reportEmbedUrl(pCode, extraQueryNoLeadingAmp) {
           const pc = String(pCode || '').trim().toLowerCase();
           const pathByCode = { fp: '/report/embed/fp', hrs: '/report/embed/hrs', hrr: '/report/embed/hrr', pi: '/report/embed/pi' };
@@ -4948,7 +4949,7 @@ __REPORT_SSR_TABLE_ROWS__
           }
         });
 
-        // Provider snapshot from GET /report?p=pi — case-mix, for-profit, in-browser high-risk lists
+        // Provider snapshot from GET /report?p=pi â€” case-mix, for-profit, in-browser high-risk lists
         if (providerText) {
           applyProviderSnapshotCsv(providerText, mostRecentQuarter);
         }
@@ -5078,13 +5079,13 @@ __REPORT_SSR_TABLE_ROWS__
           const ogTitle = document.querySelector('meta[property="og:title"]');
           if (ogTitle) ogTitle.setAttribute('content', fullTitle);
           const ogDesc = document.querySelector('meta[property="og:description"]');
-          if (ogDesc) ogDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
+          if (ogDesc) ogDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region â€” HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           
           // Update Twitter tags
           const twitterTitle = document.querySelector('meta[property="twitter:title"]');
           if (twitterTitle) twitterTitle.setAttribute('content', fullTitle);
           const twitterDesc = document.querySelector('meta[property="twitter:description"]');
-          if (twitterDesc) twitterDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
+          if (twitterDesc) twitterDesc.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region â€” HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
           
           // Update title on window resize
           window.addEventListener('resize', function() {
@@ -6643,7 +6644,7 @@ __REPORT_SSR_TABLE_ROWS__
       const city = inStateView ? (f.city ? ` (${f.city})` : '') : (f.city && f.state ? ` (${f.city}, ${f.state})` : f.city ? ` (${f.city})` : '');
       const overallRating = f.overall_rating ? `Overall: ${parseInt(f.overall_rating)}?` : '';
       const staffingRating = f.staffing_rating ? `Staffing: ${parseInt(f.staffing_rating)}?` : '';
-      const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');
+      const ratings = [overallRating, staffingRating].filter(r => r).join(' â€¢ ');
       let staffingText = '';
       
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {

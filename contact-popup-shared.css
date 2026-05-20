@@ -1,0 +1,24 @@
+/* Shared Request PBJ Analysis modal fixes (static HTML pages) */
+.contact-popup-close,
+.press-contact-close {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.contact-popup-static h2,
+#contact-popup-title-static {
+  padding-right: 2.75rem;
+}
+
+.contact-popup-form-static input:-webkit-autofill,
+.contact-popup-form-static input:-webkit-autofill:hover,
+.contact-popup-form-static input:-webkit-autofill:focus,
+.contact-popup-form-static input:-webkit-autofill:active,
+.contact-popup-form-static textarea:-webkit-autofill,
+.contact-popup-form-static textarea:-webkit-autofill:hover,
+.contact-popup-form-static textarea:-webkit-autofill:focus,
+.contact-popup-form-static textarea:-webkit-autofill:active {
+  -webkit-text-fill-color: #e2e8f0;
+  -webkit-box-shadow: 0 0 0 1000px rgb(15, 23, 42) inset;
+  box-shadow: 0 0 0 1000px rgb(15, 23, 42) inset;
+  transition: background-color 5000s ease-in-out 0s;
+}

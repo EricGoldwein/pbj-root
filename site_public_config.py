@@ -32,6 +32,7 @@ FOOTER_TRUST_BLURB = (
 SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/about', '0.8', 'monthly'),
     ('/contact', '0.7', 'monthly'),
+    ('/data-sources', '0.7', 'monthly'),
 )
 
 ROBOTS_TXT = f"""User-agent: *

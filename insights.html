@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>PBJ Insights • Nursing Home Staffing Data Visualizations | PBJ320</title>
+  <title>PBJ Insights â€¢ Nursing Home Staffing Data Visualizations | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, data visualizations">
   <meta name="author" content="320 Consulting">
   <link rel="canonical" href="https://pbj320.com/insights-visualizations">
   <link rel="icon" type="image/png" href="phoebe.png">
+  <link rel="stylesheet" href="/contact-popup-shared.css?v=1">
   
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -142,7 +143,7 @@
       box-sizing: border-box;
     }
     
-    /* Insights 5 & 6: stack two charts in one column so section width matches 1–4 */
+    /* Insights 5 & 6: stack two charts in one column so section width matches 1â€“4 */
     .insights-stacked-two-charts {
       display: grid;
       grid-template-columns: 1fr;
@@ -897,7 +898,7 @@
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text">
-            Staffing ratios appeared to rise in 2020—but mainly because resident census fell faster than total staffing hours. The apparent increase in staffing ratios during 2020-2021 was largely due to decreased resident census (deaths and discharges) rather than increased staffing hours, with some facilities not reporting data for Q1 2020 during early COVID-19.
+            Staffing ratios appeared to rise in 2020â€”but mainly because resident census fell faster than total staffing hours. The apparent increase in staffing ratios during 2020-2021 was largely due to decreased resident census (deaths and discharges) rather than increased staffing hours, with some facilities not reporting data for Q1 2020 during early COVID-19.
           </div>
         </div>
           </div>
@@ -1053,7 +1054,7 @@
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text">
-            Watch how staffing patterns shift across states over time. Each state is colored by its HPRD/Contract Percentage for the quarter. Watch how the colors shift as you animate through time—darker purples indicate higher staffing levels. The animation reveals regional staffing patterns across the US.
+            Watch how staffing patterns shift across states over time. Each state is colored by its HPRD/Contract Percentage for the quarter. Watch how the colors shift as you animate through timeâ€”darker purples indicate higher staffing levels. The animation reveals regional staffing patterns across the US.
           </div>
         </div>
       </div>
@@ -1082,7 +1083,7 @@
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text" id="hprdMetricsTakeaway">
-            <p><em>Loading takeaway from the same quarter as the charts above…</em></p>
+            <p><em>Loading takeaway from the same quarter as the charts aboveâ€¦</em></p>
           </div>
         </div>
       </div>
@@ -1269,7 +1270,7 @@
         <div class="phoebe-content">
           <div class="phoebe-title">Phoebe J's Takeaway</div>
           <div class="phoebe-text">
-            Nurse Aides account for <span id="nurseAidePercentage">Loading...</span>% of nursing staff nationally. However, this varies significantly by state—some states rely more heavily on RNs while others use more nurse aides. The state map shows these regional differences, with yellow shading indicating higher nurse aide percentages. You can toggle to view Total RN % (blue) or Direct Care % (red) to see different staffing patterns across the country.
+            Nurse Aides account for <span id="nurseAidePercentage">Loading...</span>% of nursing staff nationally. However, this varies significantly by stateâ€”some states rely more heavily on RNs while others use more nurse aides. The state map shows these regional differences, with yellow shading indicating higher nurse aide percentages. You can toggle to view Total RN % (blue) or Direct Care % (red) to see different staffing patterns across the country.
           </div>
         </div>
       </div>
@@ -1341,8 +1342,8 @@
 
     <div id="contact-overlay" class="contact-overlay-static" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
       <div class="contact-popup-static" role="dialog" aria-labelledby="contact-popup-title-static" aria-modal="true" id="contact-dialog-static" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 1.25rem 0; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
-        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">×</button>
+        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 2.75rem 0 1.25rem; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
+        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">&times;</button>
         <form action="/contact" method="POST" class="contact-popup-form-static" id="contact-popup-form-static" style="padding:1rem 1.25rem 1.5rem;">
           <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
           <div class="f-group" style="margin-bottom:1rem;">
@@ -1355,7 +1356,7 @@
           </div>
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your requestâ€¦" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
           </div>
           <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
             <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
@@ -1688,7 +1689,7 @@
     }
 
     function fmtHprd(x) {
-      if (x == null || Number.isNaN(Number(x))) return '—';
+      if (x == null || Number.isNaN(Number(x))) return 'â€”';
       return (Math.round(Number(x) * 100) / 100).toFixed(2);
     }
 
@@ -1710,7 +1711,7 @@
       const exampleHprd = fmtHprd(wm);
       let clusterP = '';
       if (range && !Number.isNaN(range.lo) && !Number.isNaN(range.hi)) {
-        clusterP = `Across nursing homes in <strong>${qLabel}</strong>, the middle half of the distribution in the histogram above falls roughly between <strong>${fmtHprd(range.lo)}</strong> and <strong>${fmtHprd(range.hi)} HPRD</strong> (25th–75th percentile by bin). `;
+        clusterP = `Across nursing homes in <strong>${qLabel}</strong>, the middle half of the distribution in the histogram above falls roughly between <strong>${fmtHprd(range.lo)}</strong> and <strong>${fmtHprd(range.hi)} HPRD</strong> (25thâ€“75th percentile by bin). `;
       } else {
         clusterP = `The histogram above uses the same underlying facility distribution as <strong>${qLabel}</strong>. `;
       }
@@ -1722,11 +1723,11 @@
       } else if (diff < -0.02) {
         skewP = `The curve is <strong>left-skewed</strong>: the simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) sits below the median (<strong>${fmtHprd(med)} HPRD</strong>).`;
       } else {
-        skewP = `The simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) and median (<strong>${fmtHprd(med)} HPRD</strong>) are nearly the same for this quarter—the bulk of the distribution is fairly symmetric.`;
+        skewP = `The simple mean (<strong>${fmtHprd(sm)} HPRD</strong>) and median (<strong>${fmtHprd(med)} HPRD</strong>) are nearly the same for this quarterâ€”the bulk of the distribution is fairly symmetric.`;
       }
 
       el.innerHTML = `
-    <p>For <strong>${qLabel}</strong>—the same quarter shown in the two charts above—the US <strong>staffing ratio</strong> (weighted by census) is <strong>${exampleHprd} HPRD</strong> (red <strong>Ratio</strong> bar).</p>
+    <p>For <strong>${qLabel}</strong>â€”the same quarter shown in the two charts aboveâ€”the US <strong>staffing ratio</strong> (weighted by census) is <strong>${exampleHprd} HPRD</strong> (red <strong>Ratio</strong> bar).</p>
     <p><strong>When someone cites an HPRD figure for the US or a state (for example, "${exampleHprd} HPRD"), ask which metric they mean.</strong></p>
     <ol>
       <li><strong>National/state staffing ratio (Weighted Mean):</strong> Aggregates census and staffing hours so a 600-bed facility counts more than a 30-bed facility.</li>

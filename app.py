@@ -1015,8 +1015,7 @@ def chow_js():
 @app.route('/data-sources')
 @app.route('/data-sources/')
 def data_sources_page():
-    from flask import abort
-    abort(404)
+    return send_file('data-sources.html', mimetype='text/html')
 
 
 @app.route('/privacy')
@@ -6568,8 +6567,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .contact-overlay {{ position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: none; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }}
 .contact-overlay[aria-hidden="false"] {{ display: flex; }}
 .contact-popup {{ position: relative; background: #0f172a; border: 1px solid rgba(30, 41, 59, 0.6); border-radius: 12px; width: 100%; max-width: 440px; max-height: calc(100vh - 2rem); overflow: auto; box-shadow: 0 0 28px -8px rgba(99, 102, 241, 0.12); -webkit-overflow-scrolling: touch; }}
-.contact-popup h2 {{ margin: 0; padding: 1.25rem 1.25rem 0; font-size: 1.25rem; color: #818cf8; }}
-.contact-popup .contact-popup-close {{ position: absolute; top: 0.75rem; right: 0.75rem; width: 44px; height: 44px; padding: 0; border: none; background: transparent; cursor: pointer; font-size: 1.5rem; line-height: 1; color: rgba(148,163,184,0.9); border-radius: 8px; }}
+.contact-popup h2 {{ margin: 0; padding: 1.25rem 2.75rem 0 1.25rem; font-size: 1.25rem; color: #818cf8; }}
+.contact-popup .contact-popup-close {{ position: absolute; top: 0.75rem; right: 0.75rem; width: 44px; height: 44px; padding: 0; border: none; background: transparent; cursor: pointer; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 1.75rem; line-height: 1; color: rgba(148,163,184,0.9); border-radius: 8px; }}
 .contact-popup .contact-popup-close:hover {{ color: #e2e8f0; background: rgba(99, 102, 241, 0.15); }}
 .contact-popup .contact-popup-close:focus-visible {{ outline: 2px solid #818cf8; outline-offset: 2px; }}
 .contact-popup-form {{ padding: 1rem 1.25rem 1.5rem; }}
@@ -6622,7 +6621,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   <div id="contact-overlay" class="contact-overlay" aria-hidden="true" role="presentation">
     <div class="contact-popup" role="dialog" aria-labelledby="pbj-contact-popup-title" aria-modal="true" id="contact-dialog">
       <h2 id="pbj-contact-popup-title">Request PBJ Analysis</h2>
-      <button type="button" class="contact-popup-close" id="pbj-contact-popup-close" aria-label="Close">×</button>
+      <button type="button" class="contact-popup-close" id="pbj-contact-popup-close" aria-label="Close">&times;</button>
       <form action="/contact" method="POST" class="contact-popup-form" id="pbj-contact-popup-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
         <input type="hidden" name="next" id="pbj-contact-next" value="">

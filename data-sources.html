@@ -4,10 +4,22 @@
   <meta charset="utf-8">
   <title>Data sources | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Public CMS data sources used by PBJ320 for nursing home staffing analysis. Operated by 320 Consulting LLC.">
+  <meta name="description" content="Official CMS and public datasets used by PBJ320 for nursing home staffing, provider information, chain metrics, ownership, and state staffing policy context.">
   <link rel="canonical" href="https://pbj320.com/data-sources">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://pbj320.com/data-sources">
+  <meta property="og:title" content="Data sources | PBJ320">
+  <meta property="og:description" content="CMS Payroll-Based Journal, Provider Information, chain performance, SNF owners, MACPAC state staffing, and FEC references used on PBJ320.">
+  <meta property="og:site_name" content="PBJ320">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
   <link rel="stylesheet" href="/public-trust.css">
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-NDPVY6TWBK');
+  </script>
 </head>
 <body>
   <nav class="navbar">
@@ -33,27 +45,56 @@
       <h1>Data sources</h1>
       <p class="meta">Last updated: May 2026</p>
 
-      <p>PBJ320 uses public CMS Payroll-Based Journal (PBJ) staffing data. PBJ is a federal reporting system for nursing home staffing hours and census.</p>
+      <p>PBJ320 is a public nursing home staffing and facility lookup built from federal and other public datasets. This page lists the main sources behind the free site. PBJ320 is operated by <strong>320 Consulting LLC</strong> and is not affiliated with CMS, Medicare, MACPAC, or the FEC.</p>
 
-      <p>PBJ320 uses CMS Provider Information and related public CMS datasets where relevant for facility identifiers, locations, and context shown alongside staffing metrics.</p>
-
-      <p>PBJ320 is operated by <strong>320 Consulting LLC</strong>. PBJ320 is independent and is not CMS, Medicare.gov Care Compare, a state survey agency, a regulator, or a law firm.</p>
-
-      <h2>How to use this site</h2>
-      <p>PBJ320 is an analytical screening tool. It is not proof of care quality, legal liability, neglect, causation, or regulatory noncompliance. Rankings, charts, and summaries can reflect reporting errors, missing data, or limitations in the underlying public files.</p>
-
-      <p>Before relying on any output for research, advocacy, litigation, or operational decisions, verify figures against official CMS sources, Care Compare, and the underlying PBJ and Provider Information files.</p>
-
-      <h2>Official references</h2>
+      <h2>CMS staffing (Payroll-Based Journal)</h2>
+      <p>Facility-level nurse staffing hours, census, and derived metrics (including HPRD) come from CMS Payroll-Based Journal (PBJ) public files.</p>
       <ul>
-        <li><a href="https://data.cms.gov/provider-data/" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
-        <li><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ daily nurse staffing data</a></li>
-        <li><a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a></li>
+        <li><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ — daily nurse staffing</a></li>
+        <li><a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" rel="noopener noreferrer" target="_blank">CMS Provider Data — PBJ public use files (dataset 4pq5-n9py)</a></li>
       </ul>
 
-      <p>Questions about methodology or custom analysis: <a href="mailto:eric@320insight.com">eric@320insight.com</a> or the <a href="/contact">contact form</a>.</p>
+      <h2>CMS provider &amp; facility context</h2>
+      <p>Provider names, locations, ratings, ownership type, and related fields are drawn from CMS Provider Information and linked public provider datasets where shown on facility, state, and entity pages.</p>
+      <ul>
+        <li><a href="https://data.cms.gov/provider-data/" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
+        <li><a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> (official consumer-facing facility profiles)</li>
+      </ul>
+
+      <h2>CMS chain &amp; affiliated entity data</h2>
+      <p>Chain-level summaries on entity pages use CMS nursing home chain performance measures where available.</p>
+      <ul>
+        <li><a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/" rel="noopener noreferrer" target="_blank">CMS nursing home chain performance measures</a></li>
+      </ul>
+
+      <h2>CMS ownership (limited profiles)</h2>
+      <p>Owner and operator profile pages link facilities to CMS-reported ownership records. Coverage on PBJ320 is limited and may expand over time.</p>
+      <ul>
+        <li><a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners" rel="noopener noreferrer" target="_blank">CMS SNF All Owners</a></li>
+      </ul>
+
+      <h2>State staffing policy context</h2>
+      <p>State minimum staffing references and MACPAC summaries on PBJ320 are policy compendia, not statutory text.</p>
+      <ul>
+        <li><a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" rel="noopener noreferrer" target="_blank">MACPAC — state policies related to nursing facility staffing</a> (March 2022 compendium)</li>
+      </ul>
+
+      <h2>Political contributions (separate tool)</h2>
+      <p>The <a href="/owners">nursing home owner contributions search</a> uses Federal Election Commission (FEC) public campaign finance data, not CMS PBJ files.</p>
+      <ul>
+        <li><a href="https://www.fec.gov/" rel="noopener noreferrer" target="_blank">Federal Election Commission (FEC)</a></li>
+      </ul>
+
+      <h2>PBJ320 Premium (paid)</h2>
+      <p><a href="/premium">PBJ320 Premium</a> facility dashboards may also use CMS Payroll-Based Journal Employee Detail and other CMS files for roster-level views. Those datasets are not required for the free public staffing dashboard.</p>
+
+      <h2>How to use this site</h2>
+      <p>PBJ320 is an analytical tool built on public records. It is not proof of care quality, legal liability, or regulatory noncompliance. Verify important figures against the official CMS sources above before relying on them for research, litigation, or operations.</p>
+
+      <p>Questions: <a href="mailto:eric@320insight.com">eric@320insight.com</a> or the <a href="/contact">contact form</a>.</p>
 
       <p class="trust-nav-links">
+        <a href="/">Home</a>
         <a href="/about">About</a>
         <a href="/privacy">Privacy</a>
         <a href="/terms">Terms</a>

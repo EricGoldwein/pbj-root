@@ -724,7 +724,7 @@
     }
     .contact-popup h2 {
       margin: 0;
-      padding: 1.25rem 1.25rem 0;
+      padding: 1.25rem 2.75rem 0 1.25rem;
       font-size: 1.25rem;
       color: var(--pbj-accent);
     }
@@ -738,7 +738,8 @@
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 1.5rem;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 1.75rem;
       line-height: 1;
       color: rgba(148,163,184,0.9);
       border-radius: 8px;
@@ -2191,7 +2192,7 @@
 
           <div id="homeSearchInfoPopup" class="home-search-info-popup" role="dialog" aria-label="Search help" aria-hidden="true">
             <div class="home-search-info-popup-inner">
-              <button type="button" class="home-search-info-close" aria-label="Close">×</button>
+              <button type="button" class="home-search-info-close" aria-label="Close">&times;</button>
               <div class="home-search-info-body">
                 <div class="info-section">
                   <p class="info-section-title">How to search</p>
@@ -2272,7 +2273,7 @@
   <div id="contact-overlay" class="contact-overlay" aria-hidden="true" role="presentation">
     <div class="contact-popup" role="dialog" aria-labelledby="contact-popup-title" aria-modal="true" id="contact-dialog">
       <h2 id="contact-popup-title">Custom PBJ dashboards &amp; analysis</h2>
-      <button type="button" class="contact-popup-close" id="contact-popup-close" aria-label="Close">×</button>
+      <button type="button" class="contact-popup-close" id="contact-popup-close" aria-label="Close">&times;</button>
       <form action="/contact" method="POST" class="contact-popup-form" id="contact-popup-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
         <div class="f-group">

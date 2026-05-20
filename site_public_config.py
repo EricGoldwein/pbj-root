@@ -14,12 +14,12 @@ PUBLIC_SITE_ORIGIN = (
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '23'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '24'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 
 FOOTER_TRUST_BLURB = (
-    f'PBJ320 is a nursing home data platform from {OPERATOR_LEGAL_NAME}, built from CMS Payroll-Based Journal '
+    f'PBJ320 is a nursing-home data platform from {OPERATOR_LEGAL_NAME}, built from CMS Payroll-Based Journal '
     'and other public federal and state datasets.'
 )
 

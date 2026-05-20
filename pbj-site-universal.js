@@ -13,22 +13,28 @@
   };
 
   var FOOTER_TRUST_BLURB =
-    'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
+    'PBJ320 is a nursing-home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
     'and other public federal and state datasets.';
 
+  var FOOTER_LINK_STYLE = 'color:rgba(148,163,184,0.95)';
+
   var FOOTER_BOILERPLATE =
-    '<p class="footer-boilerplate" style="margin:0 0 0.75rem 0;font-size:0.8rem;line-height:1.5;text-align:center;color:rgba(255,255,255,0.8);max-width:720px;margin-left:auto;margin-right:auto">' +
+    '<p class="footer-boilerplate" style="margin:0 0 0.65rem 0;font-size:0.75rem;line-height:1.5;text-align:center;color:rgba(148,163,184,0.82);max-width:720px;margin-left:auto;margin-right:auto">' +
     FOOTER_TRUST_BLURB +
     '</p>';
 
-  var FOOTER_TRUST_LINKS =
-    '<p class="footer-trust-links" style="margin:0 0 1rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
-    '<a href="/about" style="color:rgba(148,163,184,0.95)">About</a> · ' +
-    '<a href="/press" style="color:rgba(148,163,184,0.95)">Press</a> · ' +
-    '<a href="/premium" style="color:rgba(148,163,184,0.95)">Premium</a> · ' +
-    '<a href="/privacy" style="color:rgba(148,163,184,0.95)">Privacy</a> · ' +
-    '<a href="/terms" style="color:rgba(148,163,184,0.95)">Terms</a> · ' +
-    '<a href="/contact" style="color:rgba(148,163,184,0.95)">Contact</a>' +
+  var FOOTER_NAV_LINKS =
+    '<p class="footer-trust-links footer-nav-links" style="margin:0 0 0.35rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
+    '<a href="/about" style="' + FOOTER_LINK_STYLE + '">About</a> · ' +
+    '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
+    '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
+    '<a href="/contact" style="' + FOOTER_LINK_STYLE + '">Contact</a>' +
+    '</p>';
+
+  var FOOTER_LEGAL_LINKS =
+    '<p class="footer-legal-links" style="margin:0 0 0.85rem 0;font-size:0.68rem;text-align:center;color:rgba(148,163,184,0.62)">' +
+    '<a href="/terms" style="color:rgba(148,163,184,0.62)">Terms</a> · ' +
+    '<a href="/privacy" style="color:rgba(148,163,184,0.62)">Privacy</a>' +
     '</p>';
 
   var FOOTER_CORE = [
@@ -42,13 +48,13 @@
 
   function footerSignoffHtml() {
     var y = new Date().getFullYear();
-    return '<p class="footer-signoff">\u00a9 ' + y + ', <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a>. Turning Spreadsheets into Stories.</p>';
+    return '<p class="footer-signoff">\u00a9 ' + y + ', <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a>.</p>';
   }
 
   function injectFooter(el) {
     if (!el) return;
     var body = FOOTER_CORE + footerSignoffHtml();
-    el.innerHTML = FOOTER_BOILERPLATE + FOOTER_TRUST_LINKS + body;
+    el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
   }
 
   /** Copy email to clipboard and show a short confirmation. Accessible and works when mailto fails. */
@@ -181,9 +187,10 @@
     var style = document.createElement('style');
     style.id = 'pbj-footer-styles';
     style.textContent = [
-      '.footer .footer-trust-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
+      '.footer .footer-trust-links a,.footer .footer-legal-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
       '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;}',
-      '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
+      '.footer .footer-legal-links a:hover,.footer .footer-legal-links a:focus-visible{color:rgba(203,213,225,0.85) !important;}',
+      '.footer .footer-trust-links a:focus-visible,.footer .footer-legal-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
       '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(148,163,184,0.72);}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',

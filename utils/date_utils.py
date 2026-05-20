@@ -95,16 +95,16 @@ def _latest_two_provider_info_months(base_dir):
 
 
 def _latest_affiliated_entity_month(base_dir):
-    candidates = []
-    for p in (base_dir / "ownership").glob("SNF_All_Owners*.csv"):
-        parsed = _parse_ownership_filename(p)
-        if parsed:
-            y, mo = parsed
-            candidates.append((y, mo, p.name))
-    if not candidates:
+    """Month label for the newest SNF_All_Owners*.csv (same file as owner profiles)."""
+    del base_dir  # discovery uses repo ownership/ via owner_profile
+    try:
+        from ownership.owner_profile import snf_owners_release_month_year
+    except ImportError:
         return None
-    candidates = sorted(set(candidates), reverse=True)
-    return _format_month_year(candidates[0][0], candidates[0][1])
+    ym = snf_owners_release_month_year()
+    if not ym:
+        return None
+    return _format_month_year(ym[0], ym[1])
 
 
 def get_latest_data_periods():

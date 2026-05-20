@@ -398,12 +398,19 @@ def _owner_page_seo(
     return page_title, meta
 
 
+def _snf_owners_source_line(profile: dict[str, Any]) -> str:
+    from ownership.owner_profile import snf_owners_source_citation
+
+    return str(profile.get("ownership_source") or snf_owners_source_citation())
+
+
 def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
     """Page-level methodology for the ownership profile ? control."""
     n = len(profile.get("facilities") or [])
+    snf_src = _snf_owners_source_line(profile)
     kind_line = {
         "owner_control": (
-            f"Owner/control party with {n} linked nursing homes in CMS SNF All Owners."
+            f"Owner/control party with {n} linked nursing homes in {snf_src}."
         ),
         "enrollment": (
             f"CMS enrollment entity with {n} linked facility record(s), owners, and control parties."
@@ -413,14 +420,14 @@ def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
         ),
         "chow_only": (
             f"Party in CMS ownership-change records with {n} linked facility reference(s); "
-            "may be absent from the current SNF All Owners file."
+            f"may be absent from {snf_src}."
         ),
     }.get(kind, f"CMS ownership profile with {n} linked record(s).")
     return (
         f"{kind_line}\n\n"
         "Facility table: reported ownership % and CMS role, PBJ staffing (HPRD), "
         "Care Compare star ratings, and regulatory flags where data are linked.\n\n"
-        "Sources: CMS SNF All Owners; CMS Payroll-Based Journal (PBJ); "
+        f"Sources: {snf_src}; CMS Payroll-Based Journal (PBJ); "
         "CMS Care Compare; PBJ320 CHOW index (ownership changes and frequent associates)."
     )
 

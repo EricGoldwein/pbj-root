@@ -9,6 +9,7 @@ CHOW buyer/seller PACs are usually enrollment PACs. This module resolves the cor
 """
 from __future__ import annotations
 
+import calendar
 import json
 import re
 from functools import lru_cache
@@ -21,10 +22,38 @@ import pandas as pd
 from ownership.display_format import format_org_display, format_role_text
 
 _REPO = Path(__file__).resolve().parent.parent
-PREFERRED_SNF_OWNERS_CSV = _REPO / "ownership" / "SNF_All_Owners_May_2026.csv"
+_OWNERSHIP_DIR = _REPO / "ownership"
+_SNF_OWNERS_GLOB = "SNF_All_Owners*.csv"
 
 ENROLLMENT_PAC_COL = "ASSOCIATE ID"
 OWNER_PAC_COL = "ASSOCIATE ID - OWNER"
+
+_MONTH_FROM_NAME = {
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
+    "may": 5,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "sept": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
+}
 
 
 def normalize_associate_id(val: str | None) -> str:
@@ -48,24 +77,68 @@ def normalize_associate_id(val: str | None) -> str:
     return ""
 
 
+def _parse_snf_owners_filename(path: Path) -> tuple[int, int, int] | None:
+    """Parse (year, month, day) from SNF_All_Owners*.csv filename for ordering."""
+    lower = path.stem.lower()
+    m_iso = re.search(r"(\d{4})[._-](\d{1,2})(?:[._-](\d{1,2}))?", lower)
+    if m_iso:
+        y, mo = int(m_iso.group(1)), int(m_iso.group(2))
+        day = int(m_iso.group(3)) if m_iso.group(3) else 1
+        if 1 <= mo <= 12:
+            return y, mo, day
+    m_word = re.search(r"owners[_-]?([a-z]+)[_-]?(\d{4})", lower)
+    if m_word:
+        mo = _MONTH_FROM_NAME.get(m_word.group(1))
+        if mo:
+            return int(m_word.group(2)), mo, 1
+    return None
+
+
+@lru_cache(maxsize=1)
 def snf_owners_csv_path() -> Path | None:
-    if PREFERRED_SNF_OWNERS_CSV.is_file():
-        return PREFERRED_SNF_OWNERS_CSV
-    ownership_dir = _REPO / "ownership"
-    if not ownership_dir.is_dir():
+    """Newest SNF_All_Owners*.csv in ownership/ (by date in filename)."""
+    if not _OWNERSHIP_DIR.is_dir():
         return None
     candidates: list[tuple[tuple[int, int, int], Path]] = []
-    for p in ownership_dir.glob("SNF_All_Owners*.csv"):
-        m = re.search(r"(\d{4})[._](\d{2})[._](\d{2})", p.name)
-        if m:
-            key = (int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        else:
-            m2 = re.search(r"May[_\s]?(\d{4})", p.name, re.I)
-            key = (int(m2.group(1)) if m2 else 0, 5, 1) if m2 else (0, 0, 0)
-        candidates.append((key, p))
+    for path in _OWNERSHIP_DIR.glob(_SNF_OWNERS_GLOB):
+        if not path.is_file():
+            continue
+        key = _parse_snf_owners_filename(path)
+        if key:
+            candidates.append((key, path))
     if not candidates:
         return None
     return sorted(candidates, reverse=True)[0][1]
+
+
+def snf_owners_release_month_year(path: Path | None = None) -> tuple[int, int] | None:
+    """(year, month) parsed from the active SNF All Owners snapshot filename."""
+    p = path or snf_owners_csv_path()
+    if not p:
+        return None
+    parsed = _parse_snf_owners_filename(p)
+    if not parsed:
+        return None
+    return parsed[0], parsed[1]
+
+
+def _ownership_source_fields(path: Path | None) -> dict[str, str]:
+    return {
+        "source_file": path.name if path else "",
+        "ownership_source": snf_owners_source_citation(path),
+    }
+
+
+def snf_owners_source_citation(path: Path | None = None) -> str:
+    """Human-readable CMS source line tied to the exact snapshot file in use."""
+    p = path or snf_owners_csv_path()
+    if not p:
+        return "CMS SNF All Owners (no snapshot file in ownership/)"
+    ym = snf_owners_release_month_year(p)
+    if ym:
+        month = calendar.month_name[ym[1]]
+        return f"CMS SNF All Owners ({month} {ym[0]} CMS snapshot, {p.name})"
+    return f"CMS SNF All Owners ({p.name})"
 
 
 def _clean(val: Any) -> str:
@@ -552,7 +625,7 @@ def lookup_cms_ownership_for_provider(
             "enrollment_profile_url": associate_profile_url(pac),
             "control_parties": parties,
             "matched_via": matched_name,
-            "source_file": path.name if path else "",
+            **_ownership_source_fields(path),
         }
     return None
 
@@ -838,7 +911,7 @@ def _build_enrollment_profile(pac: str, enrollment_rows: Sequence[dict[str, Any]
         "facilities": facilities,
         "control_parties": control_parties,
         "states": states,
-        "source_file": path.name if path else "",
+        **_ownership_source_fields(path),
         "is_chow_only": False,
         "chow_transactions": chow_rows,
     }
@@ -892,7 +965,7 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
         "facility_count": len(facilities),
         "facilities": facilities,
         "states": states,
-        "source_file": path.name if path else "",
+        **_ownership_source_fields(path),
         "is_chow_only": False,
         "chow_transactions": chow_rows,
     }

@@ -45,6 +45,11 @@ _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     ),
 }
 
+_DBA_ABBR_TITLE = (
+    "Doing Business As (DBA) — the name the facility uses publicly; "
+    "CMS may list a different legal business name."
+)
+
 
 def _fmt_rating(val: Any) -> str:
     return format_cms_star_rating(val)
@@ -463,7 +468,7 @@ def _owner_profile_header_html(
           <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
             <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
             <span class="owner-profile-brand-lockup">
-              <span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span>
+              <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
               <span class="owner-profile-brand-suffix">Ownership</span>
             </span>
           </a>
@@ -649,9 +654,12 @@ def _facilities_match_note(profile: dict[str, Any]) -> str:
     if not n or (verified >= n and not suggested):
         return ""
     if suggested:
+        dba_abbr = (
+            f'<abbr title="{html.escape(_DBA_ABBR_TITLE, quote=True)}">DBA</abbr>'
+        )
         return (
-            f'<p class="owner-table-note">{suggested} row(s) use a tentative DBA or name match '
-            '(<span class="owner-match-badge">DBA</span> / <span class="owner-match-badge owner-match-badge--warn">~</span>) '
+            f'<p class="owner-table-note">{suggested} row(s) use a tentative {dba_abbr} '
+            f"or name match ({_ccn_match_badge('name_exact')} / {_ccn_match_badge('fuzzy')}) "
             "— PBJ columns show only for verified legal-name links.</p>"
         )
     return (

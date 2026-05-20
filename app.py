@@ -1330,6 +1330,9 @@ def _build_high_risk_provider_usecols(headers):
         ),
         'case_mix_total': _pick_provider_csv_column(headers, 'case_mix_total_nurse_hrs_per_resident_per_day'),
         'ownership_type': _pick_provider_csv_column(headers, 'ownership_type', 'OWNERSHIP'),
+        'census': _pick_provider_csv_column(
+            headers, 'avg_residents_per_day', 'Average Number of Residents per Day', 'Avg_Daily_Census'
+        ),
     }
     usecols = []
     col_refs = {}
@@ -1494,6 +1497,7 @@ def _high_risk_facility_payload_from_row(row, col_refs, pd_local):
         'hasAbuse': has_abuse,
         'total_nurse_hprd': total_hprd if total_hprd > 0 else None,
         'case_mix_total_hprd': case_mix_hprd if case_mix_hprd > 0 else None,
+        'census': _cell('census'),
         'categories': [],
     }
     return fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st
@@ -10683,7 +10687,7 @@ def _render_state_pbj_high_risk_section(
             pass
         return ' '.join(badges) if badges else '—'
 
-    def _facility_row(fac: dict) -> str:
+    def _facility_row(fac: dict, *, row_hidden: bool = False) -> str:
         ccn = str(fac.get('ccn') or '').strip().zfill(6)
         name_raw = fac.get('name') or 'Unknown'
         name = capitalize_facility_name(name_raw)
@@ -10694,8 +10698,15 @@ def _render_state_pbj_high_risk_section(
         prov = provider_info.get(ccn) or {} if ccn else {}
         ovr = fac.get('overall_rating') or prov.get('overall_rating')
         staff = fac.get('staffing_rating') or prov.get('staffing_rating')
-        qm = prov.get('qm_rating') or prov.get('quality_measures_rating')
-        ratings_cell = cms_ratings_stack_html(ovr, staff, qm)
+        ratings_cell = cms_ratings_stack_html(ovr, staff, include_qm=False)
+        census_raw = fac.get('census') or prov.get('avg_residents_per_day')
+        try:
+            if census_raw is None or str(census_raw).strip() in ('', '—', '-'):
+                census_cell = '—'
+            else:
+                census_cell = str(int(round(float(str(census_raw).replace(',', '')))))
+        except (TypeError, ValueError):
+            census_cell = '—'
         hprd_raw = (
             fac.get('total_nurse_hprd')
             or prov.get('reported_total_nurse_hrs_per_resident_per_day')
@@ -10711,14 +10722,16 @@ def _render_state_pbj_high_risk_section(
             + (f' <span class="state-hr-city">({html.escape(city)})</span>' if city else '')
         )
         flags_cell = _risk_flags_html(fac, ccn)
+        tr_attr = ' class="state-hr-row-more" hidden' if row_hidden else ''
         return (
-            f'<tr><td>{facility_cell}</td><td class="state-hr-ratings">{ratings_cell}</td>'
+            f'<tr{tr_attr}><td>{facility_cell}</td><td class="num state-hr-census">{html.escape(census_cell)}</td>'
+            f'<td class="state-hr-ratings">{ratings_cell}</td>'
             f'<td>{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
         )
 
     tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
     section = f'''
-    <details class="pbj-details state-high-risk-details" open>
+    <details class="pbj-details state-high-risk-details">
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
@@ -10762,27 +10775,38 @@ def _render_state_pbj_high_risk_section(
                 f'No {tab_label.lower()} in this state.</p>'
             )
         else:
-            display_lst = lst[:40] if cat_key == 'all' else lst
+            hr_initial = min(10, len(lst))
+            show_lst = lst[:hr_initial]
+            hidden_lst = lst[hr_initial:]
             more_note = ''
-            if cat_key == 'all' and len(lst) > 40:
+            show_all_btn = ''
+            if hidden_lst:
                 more_note = (
-                    f'<p class="pbj-meta-line" style="margin:0.5rem 0 0;font-size:0.85rem;">'
-                    f'Showing 40 of {len(lst):,} high-risk facilities. Use category tabs to filter.</p>'
+                    f'<p class="pbj-meta-line state-hr-more-note" style="margin:0.5rem 0 0;font-size:0.85rem;">'
+                    f'Showing {len(show_lst):,} of {len(lst):,} high-risk facilities.</p>'
+                )
+                show_all_btn = (
+                    f'<button type="button" class="state-hr-show-all-btn" data-panel="{pid}" '
+                    f'data-hidden-count="{len(hidden_lst)}" aria-expanded="false">'
+                    f'Show all {len(lst):,} facilities</button>'
                 )
             section += f'''
     <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
     <table class="state-hr-table" style="width:100%; min-width:360px; border-collapse:collapse; font-size:0.875rem;">
     <thead><tr>
       <th scope="col">Facility</th>
+      <th scope="col" class="num">Census</th>
       <th scope="col">CMS ratings</th>
       <th scope="col">Indicators</th>
       <th scope="col" class="num">Total HPRD</th>
     </tr></thead>
-    <tbody>'''
-            for fac in display_lst:
+    <tbody class="state-hr-tbody" data-panel="{pid}">'''
+            for fac in show_lst:
                 section += _facility_row(fac)
-            section += more_note
+            for fac in hidden_lst:
+                section += _facility_row(fac, row_hidden=True)
             section += '</tbody></table></div>'
+            section += more_note + show_all_btn
         section += '</div>'
     section += '''
     <style>
@@ -10797,7 +10821,14 @@ def _render_state_pbj_high_risk_section(
     .state-hr-badge--abuse { background: rgba(127,29,29,0.35); color: #fecaca; border: 1px solid rgba(248,113,113,0.4); }
     .state-hr-badge--1ovr, .state-hr-badge--1stf { background: rgba(99,102,241,0.15); color: #c7d2fe; border: 1px solid rgba(129,140,248,0.35); }
     .state-hr-tab-btn[aria-selected="true"] { background: rgba(99, 102, 241, 0.45) !important; border-color: #818cf8 !important; color: #e2e8f0 !important; font-weight: 600; }
-    .state-hr-ratings .owner-ratings-stack { gap: 0.12rem; }
+    .state-hr-ratings .owner-ratings-stack { display: inline-flex; flex-direction: column; gap: 0.12rem; }
+    .state-hr-ratings .owner-rating-row { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; }
+    .state-hr-ratings .owner-rating-k { color: #94a3b8; font-weight: 600; min-width: 1.6rem; }
+    .state-hr-ratings .owner-rating-stars { letter-spacing: 0.05em; color: #fbbf24; }
+    .state-hr-ratings .owner-rating-stars-on--low { color: #f87171; }
+    .state-hr-ratings .owner-rating-none { color: #64748b; }
+    .state-hr-show-all-btn { margin: 0.35rem 0 0.5rem; padding: 0.35rem 0.75rem; font-size: 0.85rem; background: rgba(99,102,241,0.25); color: #e2e8f0; border: 1px solid rgba(129,140,248,0.45); border-radius: 6px; cursor: pointer; }
+    .state-hr-show-all-btn:hover { background: rgba(99,102,241,0.4); }
     @media (max-width: 640px) { .state-hr-table { font-size: 0.8rem; } .state-hr-table th, .state-hr-table td { padding: 0.35rem 0.25rem; } }
     </style>
     <script>
@@ -10812,6 +10843,30 @@ def _render_state_pbj_high_risk_section(
           btn.setAttribute("aria-selected", "true");
           var p = document.getElementById(panelId);
           if (p) p.style.display = "block";
+        });
+      });
+      document.querySelectorAll(".state-hr-show-all-btn").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var panelId = btn.getAttribute("data-panel");
+          var tbody = document.querySelector('.state-hr-tbody[data-panel="' + panelId + '"]');
+          if (!tbody) return;
+          var expanded = btn.getAttribute("aria-expanded") === "true";
+          tbody.querySelectorAll(".state-hr-row-more").forEach(function(row){
+            if (expanded) row.setAttribute("hidden", "");
+            else row.removeAttribute("hidden");
+          });
+          var note = btn.parentElement.querySelector(".state-hr-more-note");
+          if (expanded) {
+            btn.setAttribute("aria-expanded", "false");
+            var shown = tbody.querySelectorAll("tr:not(.state-hr-row-more)").length;
+            var total = tbody.querySelectorAll("tr").length;
+            btn.textContent = "Show all " + total.toLocaleString() + " facilities";
+            if (note) note.textContent = "Showing " + shown.toLocaleString() + " of " + total.toLocaleString() + " high-risk facilities.";
+          } else {
+            btn.setAttribute("aria-expanded", "true");
+            btn.textContent = "Show fewer";
+            if (note) note.textContent = "Showing all high-risk facilities in this tab.";
+          }
         });
       });
     })();

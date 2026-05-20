@@ -22,6 +22,7 @@ from typing import Any, cast
 import pandas as pd
 
 from ownership.display_format import format_org_display, format_role_text
+from ownership.owner_portfolio_metrics import _provider_info_csv_paths
 
 _REPO = Path(__file__).resolve().parent.parent
 _OWNERSHIP_DIR = _REPO / "ownership"
@@ -239,9 +240,7 @@ def _iter_provider_info_chunks(path: Path, usecols: list[str]) -> Iterator[pd.Da
 def _legal_business_name_to_ccn() -> dict[str, str]:
     """CMS enrollment legal name (ORGANIZATION NAME) -> CCN via provider_info legal_business_name."""
     out: dict[str, str] = {}
-    for path in (_REPO / "provider_info_combined.csv", _REPO / "provider_info_norm.csv"):
-        if not path.is_file():
-            continue
+    for path in _provider_info_csv_paths():
         try:
             header = pd.read_csv(path, nrows=0).columns.tolist()
             ccn_col = next((c for c in header if c.lower() in ("ccn", "provnum")), None)
@@ -278,9 +277,7 @@ def _facility_name_to_ccn() -> dict[str, str]:
                     out[name] = ccn
         except Exception:
             pass
-    for path in (_REPO / "provider_info_combined.csv", _REPO / "provider_info_norm.csv"):
-        if not path.is_file():
-            continue
+    for path in _provider_info_csv_paths():
         try:
             header = pd.read_csv(path, nrows=0).columns.tolist()
             ccn_col = next((c for c in header if c.lower() in ("ccn", "provnum")), None)

@@ -13,7 +13,7 @@
   };
 
   var FOOTER_TRUST_BLURB =
-    'PBJ320 is a nursing-home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
+    'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
     'and other public federal and state datasets.';
 
   var FOOTER_BOILERPLATE =

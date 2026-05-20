@@ -904,7 +904,7 @@
     <div class="container" style="padding: 20px;">
         <div class="header">
             <div style="background: rgba(234, 179, 8, 0.25); border: 2px solid #eab308; border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1rem; text-align: center;">
-                <strong style="color: #eab308;">TEST PAGE</strong> ó Search by Committee mode (committee ? donors ? owners ? facilities). 
+                <strong style="color: #eab308;">TEST PAGE</strong> ù Search by Committee mode (committee ? donors ? owners ? facilities). 
                 <a href="/owners" style="color: #60a5fa; margin-left: 0.5rem;">? Back to production</a>
             </div>
             <div style="background: rgba(255, 255, 255, 0.08); border-left: 4px solid #667eea; padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 0.9rem; color: rgba(255,255,255,0.9);">
@@ -913,7 +913,7 @@
             <h1 class="page-title">Nursing Home Owner Political Contributions</h1>
             <div style="margin-top: 0.5rem; font-size: 0.95rem; font-weight: 500; color: rgba(255,255,255,0.85);">
                 A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: rgba(255,255,255,0.85); text-decoration: none; font-weight: 500;">320 Consulting</a>
-                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA ï TEST</span>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA ù TEST</span>
             </div>
             <p style="margin: 0.5rem auto 0; font-size: 0.8rem; font-weight: 400; color: rgba(255,255,255,0.55); max-width: 700px; line-height: 1.4; text-align: center;">
                 Note: This tool is currently in beta and may contain matching errors or incomplete data. Click the Source link next to any donation to view the original FEC filing and confirm details.
@@ -1017,17 +1017,17 @@
                     <li style="margin-bottom: 0.5rem;">
                         <strong>CMS Ownership Data:</strong> 
                         <a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" style="color: #667eea; text-decoration: none;">Skilled Nursing Facility All Owners</a> 
-                        ó Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
+                        ù Contains ownership information for all Medicare and Medicaid-certified skilled nursing facilities, including individual owners and organizational entities.
                     </li>
                     <li style="margin-bottom: 0.5rem;">
                         <strong>CMS Provider Information:</strong> 
                         <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" style="color: #667eea; text-decoration: none;">Nursing Home Provider Data</a> 
-                        ó Contains facility details including ratings, staffing levels, and operational information.
+                        ù Contains facility details including ratings, staffing levels, and operational information.
                     </li>
                     <li style="margin-bottom: 0.5rem;">
                         <strong>FEC API:</strong> 
                         <a href="https://api.open.fec.gov/" target="_blank" style="color: #667eea; text-decoration: none;">Federal Election Commission API</a> 
-                        ó Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
+                        ù Provides real-time access to federal campaign finance data, including individual and organizational contributions to political committees and candidates.
                     </li>
                 </ul>
                 
@@ -1288,7 +1288,7 @@
                     return `
                         <div class="autocomplete-item" data-index="${index}" data-committee-id="${escapeHtml(item.id)}" data-committee-name="${escapeHtml(item.name)}" onclick="selectAutocompleteCommittee('${escapeHtml(item.name).replace(/'/g, "\\'")}', '${escapeHtml(item.id)}')">
                             <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
-                            <div class="autocomplete-item-details">${item.type || 'Committee'} ï ${item.id || ''}</div>
+                            <div class="autocomplete-item-details">${item.type || 'Committee'} ù ${item.id || ''}</div>
                         </div>
                     `;
                 } else if (searchType === 'provider' && item.type === 'PROVIDER') {
@@ -1308,7 +1308,7 @@
                     return `
                 <div class="autocomplete-item" data-index="${index}" onclick="selectAutocomplete('${escapeHtml(item.name)}')">
                     <div class="autocomplete-item-name">${escapeHtml(item.name)}</div>
-                    <div class="autocomplete-item-details">${item.type} ï ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
+                    <div class="autocomplete-item-details">${item.type} ù ${item.facilities} ${item.facilities === 1 ? 'Provider' : 'Providers'}</div>
                 </div>
                     `;
                 }
@@ -1452,13 +1452,13 @@
                     <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                         Committee ID: ${escapeHtml(committee.id || '')} | Type: ${escapeHtml(committee.type || 'Committee')}
                         ${committee.total_fec_contributions != null ? ` | ${committee.total_fec_contributions.toLocaleString()} total contributions from ${(committee.total_fec_donors || 0).toLocaleString()} donors` : ''}
-                        ${committee.total_nursing_home_linked > 0 ? ` | $${committee.total_nursing_home_linked.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} from nursing homeñlinked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
+                        ${committee.total_nursing_home_linked > 0 ? ` | $${committee.total_nursing_home_linked.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})} from nursing homeùlinked donors` : (committee.total_fec_contributions > 0 ? ' | 0 matched nursing home owners in our database' : '')}
                     </div>
                 </div>
             `;
 
             // Section A: Owners who donated
-            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section A ó Owners who donated</h3>`;
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section A ù Owners who donated</h3>`;
             if (owners.length === 0) {
                 html += `<p style="color: rgba(255,255,255,0.7);">No nursing home owners found among contributors to this committee.</p>`;
             } else {
@@ -1478,7 +1478,7 @@
             }
 
             // Section B: Raw contributions (second - above Providers)
-            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section B ó Raw contributions <button id="toggleRawContrib" onclick="toggleRawContributions()" style="margin-left: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(102, 126, 234, 0.3); border: none; border-radius: 4px; color: white; cursor: pointer;">Hide</button></h3>`;
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section B ù Raw contributions <button id="toggleRawContrib" onclick="toggleRawContributions()" style="margin-left: 0.5rem; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: rgba(102, 126, 234, 0.3); border: none; border-radius: 4px; color: white; cursor: pointer;">Hide</button></h3>`;
             const rawCsvHeader = ['Donor Name', 'Amount', 'Date', 'Committee Name', 'Committee ID', 'Employer', 'Occupation', 'City', 'State', 'FEC Source Link'];
             const rawCsv = [rawCsvHeader].concat(rawContributions.slice(0, 500).map(r => [
                 r.donor_name, r.amount, r.date, r.committee_name, r.committee_id || committee.id || '',
@@ -1492,10 +1492,10 @@
                 const linkHtml = r.fec_link ? `<a href="${escapeHtml(r.fec_link)}" target="_blank" rel="noopener" style="color: #667eea;">FEC</a>` : '-';
                 html += `<tr style="border-bottom: 1px solid rgba(255,255,255,0.1);"><td style="padding: 0.75rem;">${escapeHtml(r.donor_name || '')}</td><td style="padding: 0.75rem; text-align: right;">${formatCommitteeAmount(r.amount)}</td><td style="padding: 0.75rem;">${escapeHtml(r.date || '')}</td><td style="padding: 0.75rem;">${escapeHtml(r.committee_name || '')}</td><td style="padding: 0.75rem;">${linkHtml}</td></tr>`;
             });
-            html += `</tbody></table><p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">Showing up to 200 of ${rawTotal} nursing homeñlinked contributions.</p></div>`;
+            html += `</tbody></table><p style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-top: 0.5rem;">Showing up to 200 of ${rawTotal} nursing homeùlinked contributions.</p></div>`;
 
             // Section C: Providers (lazy - View Providers button)
-            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section C ó Provider impact</h3>`;
+            html += `<h3 style="margin: 2rem 0 1rem 0; color: white;">Section C ù Provider impact</h3>`;
             html += `<button id="viewProvidersBtn" onclick="loadCommitteeProviders()" style="padding: 0.5rem 1rem; background: rgba(102, 126, 234, 0.3); border: 1px solid #667eea; border-radius: 6px; color: white; cursor: pointer;">View Providers</button>`;
             html += `<div id="providersContainer" style="margin-top: 1rem;"></div>`;
 
@@ -1659,7 +1659,7 @@
                                     ${escapeHtml(owner.owner_name)}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.6); font-size: 0.85rem; margin-bottom: 0.5rem;">
-                                    ${owner.owner_type} ï ${owner.num_facilities} ${owner.num_facilities === 1 ? 'Provider' : 'Providers'}
+                                    ${owner.owner_type} ù ${owner.num_facilities} ${owner.num_facilities === 1 ? 'Provider' : 'Providers'}
                                 </div>
                                 <div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
                                     ${donationSummary}
@@ -1740,8 +1740,8 @@
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                             ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
                                             ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                            ${d.owner_name ? ` ï From: ${escapeHtml(d.owner_name)}` : ''}
-                                            ${d.office ? ` ï ${d.office}` : ''}
+                                            ${d.owner_name ? ` ù From: ${escapeHtml(d.owner_name)}` : ''}
+                                            ${d.office ? ` ù ${d.office}` : ''}
                                             ${d.party ? ` (${d.party})` : ''}
                                         </div>
                                     </div>
@@ -1944,7 +1944,7 @@
                             <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: ${directOwners.length > 0 ? '0' : '0'};">
                                 <div style="flex: 1;">
                                     <h3 style="margin: 0 0 0.5rem 0; color: white; font-size: 1.2rem;">Ownership of ${escapeHtml(providerName)}</h3>
-                                    ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` ï ${state}` : ''}</div>` : ''}
+                                    ${ccn ? `<div style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">CCN: ${ccn}${state ? ` ù ${state}` : ''}</div>` : ''}
                                 </div>
                                 <a href="https://pbj320.com/provider/${ccn}" 
                                    target="_blank" 
@@ -2729,6 +2729,6 @@
         // Load stats on page load
         loadStats();
     </script>
-    <script src="/pbj-site-universal.js?v=20"></script>
+    <script src="/pbj-site-universal.js?v=21"></script>
 </body>
 </html>

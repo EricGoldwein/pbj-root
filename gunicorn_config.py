@@ -13,9 +13,16 @@ except (ValueError, TypeError):
     _PORT = "10000"
 
 bind = f"0.0.0.0:{_PORT}"
-workers = 2
+# Default 2 workers; use PBJ_GUNICORN_WORKERS=1 on small Render plans to cut RAM (~pandas per process).
+try:
+    workers = max(1, int(os.environ.get("PBJ_GUNICORN_WORKERS", "2")))
+except (TypeError, ValueError):
+    workers = 2
 worker_class = "gthread"
-threads = 4
+try:
+    threads = max(1, int(os.environ.get("PBJ_GUNICORN_THREADS", "4")))
+except (TypeError, ValueError):
+    threads = 4
 timeout = 120
 graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Render deploy); reduces 502s during deploy
 

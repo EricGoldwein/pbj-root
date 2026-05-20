@@ -77,9 +77,32 @@
   color: #94a3b8;
 }
 
+.owner-profile-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.65rem;
+  flex-shrink: 0;
+  max-width: min(100%, 22rem);
+  margin-left: auto;
+}
+
+.owner-profile-header-actions .owner-profile-pac-meta {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  text-align: right;
+}
+
 .owner-profile-brand-row .owner-page-help {
   margin-left: 0;
   flex-shrink: 0;
+}
+
+.owner-profile-intro.pbj-orientation--compact,
+.owner-profile-root .owner-profile-intro {
+  max-width: none;
+  width: 100%;
 }
 
 .owner-profile-name {

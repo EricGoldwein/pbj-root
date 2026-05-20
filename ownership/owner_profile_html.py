@@ -430,7 +430,11 @@ def _owner_profile_header_html(
         if meta_parts
         else ""
     )
-    pac_row = f'<div class="owner-profile-pac-row">{pac_meta}</div>' if pac_meta else ""
+    header_actions = ""
+    if pac_meta or page_help:
+        header_actions = (
+            f'<div class="owner-profile-header-actions">{pac_meta}{page_help}</div>'
+        )
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         <div class="owner-profile-brand-row">
@@ -441,11 +445,10 @@ def _owner_profile_header_html(
               <span class="owner-profile-brand-suffix">Ownership</span>
             </span>
           </a>
-          {page_help}
+          {header_actions}
         </div>
         <h1 class="owner-profile-name">{name}</h1>
         {meta_row}
-        {pac_row}
       </header>"""
 
 
@@ -598,8 +601,6 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         "(CMS PBJ quarterly plausible range)."
     )
     qc_bits: list[str] = []
-    if ps.get("n_missing_hprd"):
-        qc_bits.append(f"{ps['n_missing_hprd']} missing HPRD")
     if ps.get("n_hprd_outlier_excluded"):
         qc_bits.append(f"{ps['n_hprd_outlier_excluded']} HPRD outlier(s) excluded")
     if ps.get("n_missing_overall_rating"):

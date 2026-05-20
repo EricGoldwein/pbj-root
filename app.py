@@ -641,6 +641,33 @@ def health():
     return 'ok', 200
 
 
+@app.route('/debug/mem')
+def debug_mem():
+    """RSS + cache sizes when PBJ_MEM_DEBUG=1 (not public in production)."""
+    if os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() not in ('1', 'true', 'yes'):
+        from flask import abort
+        abort(404)
+    rss_mb = None
+    if _psutil_process is not None:
+        try:
+            rss_mb = round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
+        except Exception:
+            pass
+    pi = _LOAD_PROVIDER_INFO_CACHE or {}
+    pi_q = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE or {}
+    return jsonify({
+        'rss_mb': rss_mb,
+        'caches': {
+            'provider_info_ccns': len(pi),
+            'provider_info_by_quarter': len(pi_q),
+            'provider_page_html': len(_PROVIDER_PAGE_CACHE),
+            'load_csv': len(_LOAD_CSV_CACHE),
+            'high_risk_by_state': _HIGH_RISK_BY_STATE_CACHE_VAL is not None,
+            'search_index': _SEARCH_INDEX_CACHE is not None,
+        },
+    })
+
+
 _WARMUP_TEST_CCN = '075325'
 
 
@@ -3290,7 +3317,7 @@ def _resolve_target_entity_context(post: dict) -> dict | None:
         facility_df = load_facility_quarterly_for_provider(prov)
         if facility_df is None or facility_df.empty:
             return None
-        provider_info_row = (load_provider_info() or {}).get(prov, {})
+        provider_info_row = (load_provider_info(ccn_only=prov) or {}).get(prov, {})
         facility_name = capitalize_facility_name((provider_info_row.get('provider_name') or '').strip() or (facility_df.iloc[-1].get('PROVNAME') or '').strip() or prov)
         state_code = (provider_info_row.get('state') or '').strip().upper()[:2]
         if not state_code and 'STATE' in facility_df.columns:
@@ -4828,19 +4855,30 @@ def _resolved_provider_info_paths():
     return out
 
 
-def load_provider_info(ccn_only=None):
+def load_provider_info(ccn_only=None, ccn_set=None):
     """Load provider info for facility details (ownership, entity, residents, city). Cached 15 min.
 
-    When ``ccn_only`` is set, scan until that CCN is found and return a one-entry dict without
-    building the full national index (avoids OOM on cold cache under bot traffic).
+    When ``ccn_only`` or ``ccn_set`` is set, scan the CSV for only those CCNs and do not fill the
+    national in-memory index (avoids OOM on entity pages and bot traffic).
     """
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
     target_ccn = str(ccn_only or "").strip().zfill(6) if ccn_only else ""
     if target_ccn and len(target_ccn) != 6:
         return {}
+    partial_targets: set[str] | None = None
+    if ccn_set:
+        partial_targets = {
+            str(c).strip().zfill(6) for c in ccn_set if str(c or "").strip()
+        }
+        partial_targets = {c for c in partial_targets if len(c) == 6}
+        if not partial_targets:
+            return {}
+    elif target_ccn:
+        partial_targets = {target_ccn}
+    partial_scan = partial_targets is not None
     now = time.time()
     if (
-        not target_ccn
+        not partial_scan
         and _LOAD_PROVIDER_INFO_CACHE is not None
         and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
     ):
@@ -4982,9 +5020,15 @@ def load_provider_info(ccn_only=None):
                         'urban': row.get('urban'),
                         '_processing_date': row.get('processing_date'),
                     }
-                    if target_ccn:
-                        if provnum == target_ccn:
-                            return {target_ccn: row_dict}
+                    if partial_scan:
+                        if provnum not in partial_targets:
+                            continue
+                        provider_dict[provnum] = row_dict
+                        quarter_cy = _quarter_from_row(row)
+                        if quarter_cy:
+                            provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
+                        if partial_targets.issubset(provider_dict.keys()):
+                            return provider_dict
                         continue
                     existing = provider_dict.get(provnum)
                     if existing is None:
@@ -4997,8 +5041,8 @@ def load_provider_info(ccn_only=None):
                     quarter_cy = _quarter_from_row(row)
                     if quarter_cy:
                         provider_dict_by_quarter[(provnum, quarter_cy)] = row_dict
-            if target_ccn:
-                continue
+            if partial_scan:
+                return provider_dict
             _LOAD_PROVIDER_INFO_CACHE = provider_dict
             _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = provider_dict_by_quarter
             _LOAD_PROVIDER_INFO_AT = time.time()
@@ -5006,7 +5050,7 @@ def load_provider_info(ccn_only=None):
         except Exception as e:
             print(f"Error loading provider info from {path}: {e}")
             continue
-    return {} if not target_ccn else {}
+    return {} if not partial_scan else {}
 
 
 def get_provider_info_for_quarter(ccn, raw_quarter):
@@ -9731,7 +9775,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     _entity_page_url = f'{base_url}/entity/{entity_id}'
     n = len(facilities)
     subtitle = f"{n} nursing home{'s' if n != 1 else ''}"
-    provider_info = load_provider_info() or {}
+    entity_ccns = {
+        str(f.get('ccn') or '').strip().zfill(6)
+        for f in facilities
+        if str(f.get('ccn') or '').strip()
+    }
+    provider_info = load_provider_info(ccn_set=entity_ccns) or {}
 
     def _facility_census_numeric(fac_dict):
         """Avg. daily census: prefer provider file (Care Compare / latest combined row), else PBJ quarter."""
@@ -10002,7 +10051,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         # Count facilities with 1-star overall rating from provider info (for high-risk section)
         one_star_count = None
         try:
-            provider_info = load_provider_info()
             if provider_info and facilities:
                 count_1 = 0
                 for fac in facilities:
@@ -12317,6 +12365,17 @@ def pbjpedia_index():
 
 # Per-CCN provider page HTML cache (TTL overridable for prod vs local tuning)
 _PROVIDER_PAGE_CACHE = {}
+_PROVIDER_PAGE_CACHE_MAX = 150
+
+
+def _provider_page_cache_max_entries() -> int:
+    raw = (os.environ.get('PBJ_PROVIDER_PAGE_CACHE_MAX') or '').strip()
+    if raw:
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            pass
+    return _PROVIDER_PAGE_CACHE_MAX
 
 
 def _provider_page_cache_ttl_seconds() -> int:
@@ -12390,6 +12449,10 @@ def _provider_page_impl(ccn):
         provider_info_row = (load_provider_info(prov) or {}).get(prov, {})
     html = generate_provider_page_html(prov, facility_df, provider_info_row)
     if use_cache:
+        max_entries = _provider_page_cache_max_entries()
+        if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
+            oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
+            _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
         _PROVIDER_PAGE_CACHE[prov] = (now, html)
     _log_mem("route_provider_after")
     return html, 200, _provider_page_html_headers(cache_hit=False)

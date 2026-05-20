@@ -306,18 +306,12 @@ def owner_page_meta_description(
 ) -> str:
     del profile
     name = (display_name or 'this organization').strip()
-    parts = [
-        f'CMS-linked nursing home profile for {name} on PBJ320.',
-        'Limited CMS-linked owner/operator profiles; more may be added over time.',
-        'Linked public CMS records on this page',
-    ]
+    parts = [f'CMS-linked nursing home profile for {name} on PBJ320.']
     if facility_count > 0:
         n = facility_count
-        parts[-1] += (
-            f' ({n} facilit{"y" if n == 1 else "ies"} shown; may not be a complete portfolio).'
+        parts.append(
+            f'{n} facilit{"y" if n == 1 else "ies"} linked on this page.'
         )
-    else:
-        parts[-1] += ' (may not be a complete portfolio).'
     states = [s for s in (state_names or []) if s]
     if len(states) == 1:
         parts.append(f'Facilities shown on this page are in {states[0]}.')
@@ -341,26 +335,13 @@ def owner_page_intro_html(
 ) -> str:
     del profile
     name = html.escape((display_name or 'this organization').strip())
-    scope = (
-        'PBJ320 publishes limited CMS-linked owner/operator profiles; '
-        'more owner/operator profiles may be added over time. '
-        'This page shows linked public CMS records for '
-    )
-    geo = ''
     states = [s for s in (state_names or []) if s]
+    geo = ''
     if len(states) == 1:
-        geo = (
-            f' Facilities shown on this page are in {html.escape(states[0])} '
-            '(may not represent a complete portfolio).'
-        )
+        geo = f' Facilities on this page are in {html.escape(states[0])}.'
     elif len(states) > 1:
-        geo = (
-            f' Facilities shown on this page span {len(states)} states '
-            '(may not represent a complete portfolio).'
-        )
-    else:
-        geo = ' (may not represent a complete portfolio).'
-    body = f'{scope}<strong>{name}</strong>.{geo}'
+        geo = f' Facilities on this page span {len(states)} states.'
+    body = f'CMS-linked profile for <strong>{name}</strong>.{geo}'
     return f'<p class="pbj-orientation pbj-orientation--compact owner-profile-intro">{body}</p>'
 
 

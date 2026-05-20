@@ -4148,6 +4148,9 @@ def cms_owner_profile_page(owner_id):
 @owner_bp.route('/<path:path>')
 def owner_proxy(path):
     """Proxy requests to the owner donor dashboard app (lazy-loaded on first request)."""
+    pac_segment = (path or "").strip().split("/")[0]
+    if pac_segment.isdigit() and len(pac_segment) == 10:
+        return cms_owner_profile_page(pac_segment)
     try:
         owner_app = get_owner_app()
     except Exception:

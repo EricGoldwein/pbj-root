@@ -24,7 +24,7 @@ from ownership.chow_lookup import (
     format_chow_date,
 )
 from ownership.beta_gate import ownership_beta_enabled_for_state
-from ownership.display_format import format_org_display, format_role_text
+from ownership.display_format import format_org_display, format_role_short, format_role_text
 
 
 def _ownership_pct_own_label(raw: str) -> str:
@@ -53,20 +53,102 @@ def _ownership_pct_own_label(raw: str) -> str:
         return f"{s}% own" if "%" not in s else f"{s} own"
 
 
-def _party_role_and_ownership_cell(party: dict[str, Any]) -> str:
-    """Role(s) plus optional stake (e.g. '100% own') in one column."""
-    roles = "; ".join(
-        html.escape(format_role_text(r)) for r in (party.get("roles") or [])[:2]
+def _is_threshold_ownership_role(role: str) -> bool:
+    """CMS threshold bucket (≥5% owner), not the reported stake — redundant when % is shown."""
+    low = str(role or "").lower()
+    if "5%" not in low and "5 percent" not in low:
+        return False
+    return (
+        "greater" in low
+        or "≥" in low
+        or ">=" in low
+        or ("ownership" in low and "interest" in low)
     )
+
+
+def _party_role_and_ownership_cell(party: dict[str, Any]) -> str:
+    """Stake first, then compact governance roles; drop ≥5% threshold labels when % is known."""
     pct_bits = [
-        html.escape(lbl)
+        lbl
         for lbl in (_ownership_pct_own_label(x) for x in (party.get("pcts") or [])[:2])
         if lbl
     ]
-    pct_part = ", ".join(pct_bits)
-    if roles and pct_part:
-        return f"{roles}; {pct_part}"
-    return roles or pct_part or "—"
+    has_stake = bool(pct_bits)
+    role_bits: list[str] = []
+    for raw in party.get("roles") or []:
+        if has_stake and _is_threshold_ownership_role(raw):
+            continue
+        short = format_role_short(raw)
+        if not short or short == "—":
+            continue
+        if short not in role_bits:
+            role_bits.append(short)
+        if len(role_bits) >= 2:
+            break
+    parts: list[str] = []
+    if pct_bits:
+        parts.append(", ".join(html.escape(l) for l in pct_bits))
+    if role_bits:
+        parts.append("; ".join(html.escape(r) for r in role_bits))
+    return "; ".join(parts) if parts else "—"
+
+
+def _norm_name_key(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", (name or "").lower())
+
+
+def _abbrev_provider_ownership_type(ownership_type: str) -> str:
+    o = (ownership_type or "").lower()
+    if "for profit" in o or "for-profit" in o:
+        return "For-profit"
+    if "non" in o and "profit" in o:
+        return "Non-profit"
+    if "government" in o:
+        return "Government"
+    return (ownership_type or "").strip()
+
+
+def _provider_ownership_intro_html(ownership_type: str, cms: dict[str, Any] | None) -> str:
+    """One scannable lead line; legal-name match in nested details when it adds information."""
+    chips: list[str] = []
+    if ownership_type:
+        chips.append(
+            f'<span class="pbj-ownership-chip">{html.escape(_abbrev_provider_ownership_type(ownership_type))}</span>'
+        )
+    match_details = ""
+    if cms:
+        en_name = _format_org_display(cms.get("enrollment_name") or "")
+        en_url = html.escape(str(cms.get("enrollment_profile_url") or ""))
+        if en_name and en_url:
+            chips.append(
+                f'<span class="pbj-ownership-chip">'
+                f'<a href="{en_url}">{html.escape(en_name)}</a></span>'
+            )
+        matched = _format_org_display(str(cms.get("matched_via") or ""))
+        if matched and _norm_name_key(matched) != _norm_name_key(en_name):
+            match_details = (
+                '<details class="pbj-ownership-mini-details">'
+                '<summary>Legal name match</summary>'
+                f'<p class="pbj-ownership-mini-text">CMS enrollment matched on legal name '
+                f"{html.escape(matched)}.</p></details>"
+            )
+    if not chips:
+        return match_details
+    lead = '<p class="pbj-ownership-lead">' + '<span class="pbj-ownership-sep" aria-hidden="true"> · </span>'.join(
+        chips
+    ) + "</p>"
+    return lead + match_details
+
+
+def _provider_ownership_footer_html() -> str:
+    return (
+        '<details class="pbj-ownership-about">'
+        '<summary>About CMS ownership data</summary>'
+        '<p class="pbj-ownership-about-text">From CMS SNF All Owners and Provider Information. '
+        "Listed roles and percentages are reported filings—not proof of who operates the facility "
+        "or quality of care.</p></details>"
+    )
+
 
 # Back-compat alias used in this module
 _format_org_display = format_org_display
@@ -449,33 +531,15 @@ def render_provider_ownership_chow_block(
         return ""
 
     lines: list[str] = []
-    if ownership_type:
-        lines.append(
-            f'<p class="pbj-meta-line" style="margin:0 0 0.5rem;">'
-            f"<strong>Ownership type (CMS provider data):</strong> {html.escape(ownership_type)}</p>"
-        )
-
-    if cms:
-        en_name = html.escape(_format_org_display(cms.get("enrollment_name") or ""))
-        en_url = html.escape(str(cms.get("enrollment_profile_url") or ""))
-        matched = html.escape(_format_org_display(str(cms.get("matched_via") or "")))
-        lines.append(
-            f'<p class="pbj-meta-line" style="margin:0.75rem 0 0.35rem;">'
-            f"<strong>CMS enrollment:</strong> "
-            f'<a href="{en_url}">{en_name}</a>'
-            f' <span class="chow-top-scope">(matched on legal name: {matched})</span></p>'
-        )
-        lines.append(
-            '<p class="pbj-meta-line" style="margin:0 0 0.5rem;">'
-            "Reported owners and control parties:</p>"
-        )
-        lines.append(_render_control_parties_table(cms.get("control_parties") or []))
-
+    intro = _provider_ownership_intro_html(ownership_type, cms)
+    if intro:
+        lines.append(intro)
     if chow_flag == "Y":
         lines.append(
-            '<p class="pbj-meta-line" style="margin:0.75rem 0 0.5rem;">'
-            "CMS provider data: ownership change reported in the last 12 months.</p>"
+            '<p class="pbj-ownership-flag">Ownership change reported in last 12 months (CMS Provider Info).</p>'
         )
+    if cms:
+        lines.append(_render_control_parties_table(cms.get("control_parties") or []))
     chow_html = _render_provider_chow_block(ccn_norm) if chow_all else ""
 
     return (
@@ -485,11 +549,9 @@ def render_provider_ownership_chow_block(
         '<div class="pbj-details-content pbj-ownership-chow-content">'
         + "".join(lines)
         + chow_html
-        + '<p class="pbj-meta-line" style="margin:0.5rem 0 0;font-size:0.82rem;">'
-        "CMS-reported roles only—not proof of who operates the facility or care quality."
-        "</p>"
-        "</div>"
-        "</details>"
+        + _provider_ownership_footer_html()
+        + "</div>"
+        + "</details>"
     )
 
 

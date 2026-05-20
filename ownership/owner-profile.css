@@ -1349,6 +1349,97 @@ button.owner-flag:hover {
   display: inline;
 }
 
+.pbj-ownership-lead {
+  margin: 0 0 0.5rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #cbd5e1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0;
+}
+
+.pbj-ownership-chip a {
+  color: #a5b4fc;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.pbj-ownership-chip a:hover {
+  color: #c7d2fe;
+  text-decoration: underline;
+}
+
+.pbj-ownership-sep {
+  color: rgba(148, 163, 184, 0.75);
+  user-select: none;
+}
+
+.pbj-ownership-flag {
+  margin: 0 0 0.45rem;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.pbj-ownership-mini-details,
+.pbj-ownership-about {
+  margin: 0 0 0.45rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.pbj-ownership-mini-details summary,
+.pbj-ownership-about summary {
+  cursor: pointer;
+  color: #94a3b8;
+  font-weight: 500;
+  list-style: none;
+  display: inline-block;
+}
+
+.pbj-ownership-mini-details summary::-webkit-details-marker,
+.pbj-ownership-about summary::-webkit-details-marker {
+  display: none;
+}
+
+.pbj-ownership-mini-details summary::before,
+.pbj-ownership-about summary::before {
+  content: "i ";
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #818cf8;
+  font-style: italic;
+}
+
+.pbj-ownership-mini-text,
+.pbj-ownership-about-text {
+  margin: 0.35rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: #94a3b8;
+  max-width: 42rem;
+}
+
+.pbj-ownership-about {
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+  .pbj-ownership-lead {
+    font-size: 0.84rem;
+  }
+
+  .pbj-ownership-chip {
+    display: inline;
+  }
+
+  .pbj-ownership-sep {
+    display: inline;
+  }
+}
+
 .pbj-chow-facility-modal[aria-hidden="false"] {
   display: flex;
 }

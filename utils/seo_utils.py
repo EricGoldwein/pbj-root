@@ -259,14 +259,9 @@ def provider_page_meta_description(
 
 
 def provider_page_intro_html(facility_name: str, **_kwargs: Any) -> str:
-    """One compact intro line (location lives in subtitle)."""
-    name = html.escape((facility_name or 'this nursing home').strip())
-    body = (
-        f'PBJ320 tracks public CMS staffing data for <strong>{name}</strong>, including '
-        '<a href="/cms-payroll-based-journal">Payroll-Based Journal</a> nurse staffing, '
-        '<a href="/what-is-hprd">HPRD</a> trends, CMS Provider Information, and ownership context where available.'
-    )
-    return f'<p class="pbj-orientation pbj-orientation--compact">{body}</p>'
+    """No visible boilerplate on provider pages (meta description + JSON-LD carry SEO copy)."""
+    del facility_name, _kwargs
+    return ''
 
 
 def _owner_profile_state_codes(profile: dict[str, Any]) -> list[str]:

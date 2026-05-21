@@ -407,13 +407,21 @@ def entity_page_intro_html(entity_name: str) -> str:
 # (e.g. /operator/<slug>) with its own robots/sitemap policy may be cleaner than unblocking /owners/.
 
 # Lightweight explainer pages (canonical paths; fuller reference in PBJPedia when launched).
-EXPLAINER_RELATED_GUIDES: tuple[tuple[str, str], ...] = (
-    ('PBJ explained', '/phoebe'),
-    ('What is HPRD?', '/what-is-hprd'),
-    ('Nursing Home Staffing Data by Facility', '/nursing-home-staffing-data'),
-    ('CMS Payroll-Based Journal (PBJ)', '/cms-payroll-based-journal'),
-    ('Data Sources', '/data-sources'),
-)
+# User-first copy; titles/descriptions carry SEO. See-also footers are short (2 links max).
+EXPLAINER_SEE_ALSO: dict[str, tuple[tuple[str, str], ...]] = {
+    'what-is-hprd': (
+        ('PBJ explained', '/phoebe'),
+        ('Search facilities', '/'),
+    ),
+    'cms-payroll-based-journal': (
+        ('PBJ explained', '/phoebe'),
+        ('Data sources', '/data-sources'),
+    ),
+    'nursing-home-staffing-data': (
+        ('PBJ explained', '/phoebe'),
+        ('What is HPRD?', '/what-is-hprd'),
+    ),
+}
 
 EXPLAINER_PAGES: dict[str, dict[str, str]] = {
     'what-is-hprd': {
@@ -425,40 +433,18 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         ),
         'h1': 'What is HPRD?',
         'body': (
-            '<p><strong>Hours per resident day (HPRD)</strong> is the standard way to compare nursing home '
-            'staffing across facilities using CMS Payroll-Based Journal (PBJ) data. PBJ reports paid nursing hours; '
-            'HPRD divides those hours by resident days for a reporting period (a day, quarter, or other window):</p>'
+            '<p><strong>Hours per resident day (HPRD)</strong> is the usual way to compare nursing home staffing. '
+            'Take total paid nursing hours for a period and divide by resident days in that same period:</p>'
             '<p><strong>HPRD = total paid nursing hours ÷ resident days</strong></p>'
-            '<h2>Example</h2>'
-            '<p>If a facility reports 400 nursing hours and 100 resident days, its nursing HPRD is 4.0 '
-            '(400 ÷ 100).</p>'
-            '<h2>Common HPRD measures</h2>'
-            '<p>PBJ groups hours by nursing job category. Analysts often track several HPRD variants:</p>'
-            '<ul>'
-            '<li><strong>Total nurse HPRD</strong> — Director of nursing, administrative RNs/LPNs, direct-care RNs and '
-            'LPNs/LVNs, certified nurse aides, nurse aides in training, and medication aides (CMS Table 1 nursing '
-            'codes 5–12).</li>'
-            '<li><strong>RN HPRD</strong> — RN director of nursing, RN with administrative duties, and direct RNs (codes 5–7).</li>'
-            '<li><strong>LPN/LVN HPRD</strong> — LPN/LVN with administrative duties and direct LPNs/LVNs (codes 8–9).</li>'
-            '<li><strong>Nurse aide HPRD</strong> — CNAs, aides in training, and medication aides (codes 10–12).</li>'
-            '</ul>'
-            '<p>Some views also report <strong>direct-care nurse HPRD</strong>, which excludes DON and administrative '
-            'RN/LPN hours (see CMS PBJ Policy Manual, Table 1).</p>'
-            '<h2>Why HPRD can mislead</h2>'
-            '<ul>'
-            '<li><strong>HPRD is an average.</strong> It smooths staffing over the reporting window and does not show '
-            'who was on each shift.</li>'
-            '<li><strong>Quarterly HPRD can hide day-to-day variation.</strong> A facility can meet a quarterly average '
-            'while staffing is thin on nights or weekends.</li>'
-            '<li><strong>PBJ does not show shift-level staffing.</strong> It reports paid hours by job category and date, '
-            'not bedside assignments or skill mix at a given moment.</li>'
-            '<li><strong>More hours does not automatically prove better care.</strong> HPRD is an input measure, not an '
-            'outcome or quality rating.</li>'
-            '<li><strong>Case-mix and resident acuity matter.</strong> Facilities with higher-acuity residents may need '
-            'more staff; CMS publishes case-mix benchmarks in Provider Information for context, not as legal minimums.</li>'
-            '</ul>'
-            '<p>PBJ data can identify staffing patterns and questions worth investigating—but should be read alongside '
-            'inspections, complaints, and facility context. See <a href="/phoebe">PBJ explained</a> for background.</p>'
+            '<p>Example: 400 nursing hours and 100 resident days → HPRD of <strong>4.0</strong>.</p>'
+            '<h2>On facility pages</h2>'
+            '<p>PBJ320 often shows <strong>total nurse HPRD</strong> plus splits for RNs, LPNs/LVNs, and nurse aides, '
+            'based on CMS Table 1 job categories. Some views also show <strong>direct-care nurse HPRD</strong>, which '
+            'drops DON and administrative RN/LPN hours.</p>'
+            '<h2>Read it carefully</h2>'
+            '<p>HPRD is a quarterly or daily <em>average</em>—it does not show who was on each shift. More hours does '
+            'not automatically mean better care, and resident acuity varies. Use it with inspections, complaints, and '
+            'other facility context. Background: <a href="/phoebe">PBJ explained</a>.</p>'
         ),
     },
     'cms-payroll-based-journal': {
@@ -470,68 +456,52 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         ),
         'h1': 'CMS Payroll-Based Journal (PBJ)',
         'body': (
-            '<p>The <strong>Payroll-Based Journal (PBJ)</strong> is CMS’s auditable staffing reporting system for '
-            'Medicare- and Medicaid-certified nursing homes. Facilities submit paid hours by CMS Table 1 job category '
+            '<p>The <strong>Payroll-Based Journal (PBJ)</strong> is CMS’s federal staffing reporting system for '
+            'Medicare- and Medicaid-certified nursing homes. Each quarter, facilities submit paid hours by job category '
             'and work date from payroll records.</p>'
-            '<p>CMS publishes quarterly public use files and related open datasets for Care Compare, research, and '
-            'oversight. PBJ320 is not CMS—it uses published federal files for facility and state lookup. '
-            f'Official program page: <a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
-            'CMS staffing data submission (PBJ)</a>. Overview: <a href="/phoebe">PBJ explained</a>.</p>'
+            '<p>CMS publishes those data as public use files and open datasets for Care Compare and research. '
+            'PBJ320 maps the published files to searchable facility and state pages—it is not part of CMS. '
+            f'Official downloads and the policy manual are on the '
+            f'<a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
+            'CMS PBJ staffing data submission</a> page. Plain-language overview: '
+            '<a href="/phoebe">PBJ explained</a>.</p>'
         ),
     },
     'nursing-home-staffing-data': {
         'path': '/nursing-home-staffing-data',
         'title': 'Nursing Home Staffing Data by Facility | PBJ320',
         'description': (
-            'Public CMS nursing home staffing by facility: HPRD, role mix, and trends from Payroll-Based Journal data. '
-            'For reporters, attorneys, advocates, researchers, and families seeking context—not proof of harm.'
+            'Look up public CMS nursing home staffing by facility: quarterly HPRD, role mix, and trends '
+            'from Payroll-Based Journal (PBJ) data on PBJ320.'
         ),
         'h1': 'Nursing Home Staffing Data by Facility',
         'body': (
-            '<p><strong>PBJ320</strong> uses public CMS Payroll-Based Journal (PBJ) files to show nursing home '
-            'staffing at the facility level—quarterly HPRD, role mix, and state context. For what PBJ is and what it '
-            'cannot show, see <a href="/phoebe">PBJ explained</a>.</p>'
-            '<h2>What you can see</h2>'
-            '<ul>'
-            '<li><strong>Quarterly staffing metrics</strong> such as total nurse HPRD, RN HPRD, LPN/LVN HPRD, and '
-            'nurse aide HPRD, derived from CMS-reported hours and census.</li>'
-            '<li><strong>Role mix and contract share</strong> where reported in PBJ public files.</li>'
-            '<li><strong>Facility and state context</strong> including within-state comparisons, case-mix benchmarks from '
-            'Provider Information, and links to official Care Compare profiles.</li>'
-            '<li><strong>Historical quarters</strong> on facility pages for trend screening (free site focuses on '
-            'quarterly aggregates; <a href="/premium">Premium</a> may add daily views where CMS publishes employee detail).</li>'
-            '</ul>'
-            '<h2>Who uses this data</h2>'
-            '<ul>'
-            '<li><strong>Reporters</strong> looking for staffing patterns or facilities worth follow-up questions.</li>'
-            '<li><strong>Attorneys</strong> screening staffing history before deeper discovery—not substituting for records '
-            'or expert review.</li>'
-            '<li><strong>Advocates</strong> comparing facilities or chains within a state or region.</li>'
-            '<li><strong>Researchers</strong> exploring public CMS staffing files with consistent HPRD definitions.</li>'
-            '<li><strong>Families and the public</strong> seeking context before conversations with facilities or ombuds.</li>'
-            '</ul>'
-            '<h2>Important limits</h2>'
-            '<p>PBJ staffing data is <strong>screening and context data</strong>. It can surface patterns worth '
-            'follow-up; it does not by itself prove harm, neglect, fraud, or regulatory violations. PBJ does not show '
-            'shift-level bedside assignments. Verify important figures on official CMS and Care Compare sources.</p>'
-            '<h2>Get started</h2>'
-            '<p>Search facilities on the <a href="/">home dashboard</a> or browse <a href="/report">state reports</a>.</p>'
+            '<p>PBJ320 turns public CMS Payroll-Based Journal (PBJ) files into staffing you can look up by nursing '
+            'home—quarterly HPRD, RN/LPN/aide mix, contract share where reported, and how a facility compares to '
+            'others in its state for the same quarter.</p>'
+            '<h2>Good for</h2>'
+            '<p>Spotting trends, comparing facilities or states, and preparing questions—not for proving harm, neglect, '
+            'or violations on its own. PBJ does not show shift-by-shift bedside staffing; confirm anything important on '
+            'Care Compare or CMS source files. What PBJ is: <a href="/phoebe">PBJ explained</a>. '
+            'The metric: <a href="/what-is-hprd">What is HPRD?</a>.</p>'
+            '<h2>Try it</h2>'
+            '<p><a href="/">Search by facility</a> or open <a href="/report">state staffing reports</a>.</p>'
         ),
     },
 }
 
 
+def explainer_see_also_html(slug: str) -> str:
+    """One-line contextual footer (at most two links) for Flask explainer routes."""
+    links = EXPLAINER_SEE_ALSO.get((slug or '').strip().lower(), (('PBJ explained', '/phoebe'),))
+    parts = [f'<a href="{html.escape(path)}">{html.escape(label)}</a>' for label, path in links]
+    return f'<p class="pbj-explainer-see-also">See also: {" · ".join(parts)}</p>'
+
+
 def explainer_related_guides_html(current_path: str | None = None) -> str:
-    """Related guides block for PBJ explainer routes (excludes current page)."""
-    norm = (current_path or '').rstrip('/')
-    items = []
-    for label, path in EXPLAINER_RELATED_GUIDES:
-        if norm and path.rstrip('/') == norm:
-            continue
-        items.append(f'<li><a href="{html.escape(path)}">{html.escape(label)}</a></li>')
-    if not items:
-        return ''
-    return '<h2>Related guides</h2><ul>' + ''.join(items) + '</ul>'
+    """Backward-compatible alias; prefer explainer_see_also_html(slug) from app routes."""
+    del current_path
+    return ''
 
 
 def get_explainer_page(slug: str) -> dict[str, str] | None:
@@ -555,6 +525,7 @@ __all__ = [
     'entity_page_title',
     'explainer_page_title',
     'explainer_related_guides_html',
+    'explainer_see_also_html',
     'get_explainer_page',
     'get_seo_metadata',
     'provider_page_intro_html',
@@ -562,7 +533,7 @@ __all__ = [
     'provider_page_title',
     'sitemap_paths_blocked_by_robots',
     'EXPLAINER_PAGES',
-    'EXPLAINER_RELATED_GUIDES',
+    'EXPLAINER_SEE_ALSO',
 ]
 
 

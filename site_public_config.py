@@ -164,7 +164,7 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## What this site is
 
-- Free lookup for ~15,000 U.S. nursing homes: quarterly PBJ staffing (HPRD), state rankings, chain/entity summaries, and limited ownership context.
+- Free lookup for ~15,000 U.S. nursing homes: quarterly PBJ staffing (HPRD), state rankings, chain/entity summaries, and ownership links where available.
 - Facility pages summarize CMS-reported data for one CCN (Certification Number). Charts and badges on the page match the same underlying quarterly files used in structured metadata.
 
 ## How to cite

@@ -213,7 +213,7 @@ from utils.seo_utils import (  # type: ignore[reportMissingImports]
     entity_page_meta_description,
     entity_page_title,
     explainer_page_title,
-    explainer_related_guides_html,
+    explainer_see_also_html,
     get_explainer_page,
     get_seo_metadata,
     provider_page_intro_html,
@@ -4353,14 +4353,11 @@ def _render_explainer_page(slug: str):
         breadcrumb_name=page.get('h1') or page_title,
     )
     layout = get_pbj_site_layout(page_title, meta_desc, canon, extra_head=explainer_json_ld)
-    related = explainer_related_guides_html(page['path'])
+    see_also = explainer_see_also_html(slug)
     inner = (
         f'<h1>{html.escape(page["h1"])}</h1>'
         f'<div class="pbj-explainer-body">{page["body"]}</div>'
-        f'<div class="pbj-explainer-related-wrap">{related}</div>'
-        '<p class="pbj-meta-line" style="margin-top:1.25rem;">'
-        '<a href="/">PBJ320 home</a> · <a href="/phoebe">PBJ explained</a> · '
-        '<a href="/data-sources">Data sources</a></p>'
+        f'{see_also}'
     )
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     return html_content + '</body></html>'
@@ -6430,9 +6427,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-content-box h1 {{ font-size: 2rem; color: #818cf8; margin-bottom: 0.5rem; font-weight: 700; }}
 .pbj-content-box h2 {{ font-size: 1.4rem; color: #818cf8; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }}
 .pbj-content-box p {{ color: #e2e8f0; margin-bottom: 0.75rem; }}
-.pbj-explainer-body ul, .pbj-explainer-related-wrap ul {{ margin: 0.5rem 0 1rem; padding-left: 1.35rem; }}
-.pbj-explainer-body li, .pbj-explainer-related-wrap li {{ margin-bottom: 0.35rem; color: #e2e8f0; }}
-.pbj-explainer-related-wrap {{ margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(71, 85, 105, 0.45); }}
+.pbj-explainer-body ul {{ margin: 0.5rem 0 1rem; padding-left: 1.35rem; }}
+.pbj-explainer-body li {{ margin-bottom: 0.35rem; color: #e2e8f0; }}
+.pbj-explainer-see-also {{ margin-top: 1.25rem; padding-top: 0.85rem; border-top: 1px solid rgba(71, 85, 105, 0.45); font-size: 0.92rem; color: #a8b4c4; }}
+.pbj-explainer-see-also a {{ color: #94a3b8; font-weight: 500; }}
+.pbj-explainer-see-also a:hover {{ color: #a5b4fc; }}
 .pbj-content-box a {{ color: #818cf8; text-decoration: none; font-weight: 500; transition: color 0.2s ease, opacity 0.2s ease; }}
 .pbj-content-box a:hover {{ color: #a5b4fc; text-decoration: underline; }}
 .pbj-content-box a:focus {{ outline: 2px solid #818cf8; outline-offset: 2px; }}

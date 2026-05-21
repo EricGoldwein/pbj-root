@@ -18,8 +18,9 @@ These are listed in `.gitignore` and are **not** published with the repo:
 |----------------|--------|-----------------|
 | `provider_info_combined.csv` | Entity/facility lookup, provider info (multi-quarter) | Entity pages, provider pages, search |
 | `provider_info_combined_latest.csv` | Same, one quarter (from `extract_latest_quarter.py`); preferred when present | Same; has explicit quarter (e.g. Q3 2025) |
-| `facility_quarterly_metrics.csv` | Facility-level quarterly PBJ metrics | Provider pages, entity facility list, charts |
+| `facility_quarterly_metrics.csv` | Facility-level quarterly PBJ metrics (legacy HPRD columns + explicit LPN hours/HPRD from PBJ `Hrs_LPN` / `Hrs_LPNadmin`; built in **PBJapp** `tools/generation/generate_metrics.py`) | Provider pages, exports, entity lists, charts |
 | `facility_quarterly_metrics_latest.csv` | Fallback (same, latest subset) | Same (fallback in `load_csv_data`) |
+| `facility_quarterly_metrics_with_lpn.csv` | **Deprecated** sidecar from older pipeline; run `scripts/unify_facility_quarterly_metrics.py` to fold into main CSV | Migration only |
 | `state_quarterly_metrics.csv` | State-level quarterly metrics | State pages, rankings, charts |
 | `national_quarterly_metrics.csv` | National metrics | Charts / comparisons |
 | `cms_region_quarterly_metrics.csv` | Region-level metrics | Region / PBJpedia-style pages |

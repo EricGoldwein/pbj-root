@@ -3400,9 +3400,7 @@ def _resolve_target_entity_context(post: dict) -> dict | None:
                 return None
         reported_total = _fv('Total_Nurse_HPRD')
         reported_rn = _fv('RN_HPRD')
-        reported_lpn = _fv('LPN_HPRD')
-        if reported_lpn is None:
-            reported_lpn = _lpn_hprd_from_facility_quarterly_row(latest)
+        reported_lpn = _lpn_hprd_from_facility_quarterly_row(latest)
         reported_na = _fv('Nurse_Assistant_HPRD')
         case_mix_total = None
         state_total = None
@@ -4745,7 +4743,11 @@ def load_csv_data(filename):
         if now - cached_at < _LOAD_CSV_TTL:
             return data
     # Prefer APP_ROOT for known large data files so provider pages always use repo data regardless of cwd
-    app_root_first = ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv', 'provider_info_combined.csv')
+    app_root_first = (
+        'facility_quarterly_metrics.csv',
+        'facility_quarterly_metrics_latest.csv',
+        'provider_info_combined.csv',
+    )
     if filename in app_root_first:
         possible_paths = [
             os.path.join(APP_ROOT, filename),
@@ -4767,6 +4769,17 @@ def load_csv_data(filename):
             try:
                 if HAS_PANDAS:
                     out = pd.read_csv(path, low_memory=False)
+                    if filename == 'facility_quarterly_metrics.csv':
+                        out = _enrich_facility_quarterly_lpn_columns(out)
+                        if (
+                            not out.empty
+                            and 'PROVNUM' in out.columns
+                            and 'CY_Qtr' in out.columns
+                        ):
+                            out = out.copy()
+                            out['PROVNUM'] = _normalize_provnum_series(out['PROVNUM'])
+                            out['CY_Qtr'] = out['CY_Qtr'].astype(str).str.strip()
+                            out = out.drop_duplicates(subset=['PROVNUM', 'CY_Qtr'], keep='last')
                     _LOAD_CSV_CACHE[filename] = (now, out)
                     return out
                 else:
@@ -7609,15 +7622,9 @@ def capitalize_entity_name(name):
     return s
 
 def _facility_quarterly_csv_path():
-    """Resolve path for facility_quarterly_metrics (same order as load_csv_data). Returns path or None."""
+    """Resolve path for facility quarterly metrics (unified CSV includes LPN columns when upgraded)."""
     for filename in ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv'):
-        for path in [
-            os.path.join(APP_ROOT, filename),
-            filename,
-            os.path.join('pbj-wrapped', 'public', 'data', filename),
-            os.path.join('pbj-wrapped', 'dist', 'data', filename),
-            os.path.join('data', filename),
-        ]:
+        for path in _data_csv_search_paths(filename):
             if os.path.exists(path):
                 return path
     return None
@@ -8921,14 +8928,80 @@ def _state_total_nurse_hprd_for_quarter(state_code, q_raw):
         return None
 
 
-def _lpn_hprd_from_facility_quarterly_row(row) -> float | None:
-    """Reported LPN HPRD from a facility_quarterly_metrics row only (no Provider Info).
+FACILITY_QUARTERLY_LPN_SIDECAR_CSV = 'facility_quarterly_metrics_with_lpn.csv'
+FACILITY_QUARTERLY_LPN_EXTRA_COLS = (
+    'Total_LPN_Hours',
+    'Total_LPN_Care_Hours',
+    'Total_LPN_Admin_Hours',
+    'Total_LPN_Contract_Hours',
+    'LPN_HPRD',
+    'LPN_Care_HPRD',
+    'LPN_Admin_HPRD',
+)
 
-    When ``LPN_HPRD`` is present on ``facility_quarterly_metrics.csv`` rows, this reads it first.
-    If the CSV includes an explicit ``LPN_HPRD`` column with a numeric value, use it.
-    Otherwise derive the same residual used in ``pbj-wrapped`` (BasicsCard):
-    ``max(0, Total_Nurse_HPRD - RN_HPRD - Nurse_Assistant_HPRD)``, which bundles any
-    nurse hours not split out as RN or nurse aide in this extract (often includes LPN).
+
+def _data_csv_search_paths(filename):
+    """Same path order as ``load_csv_data`` for a given filename."""
+    if filename in (
+        'facility_quarterly_metrics.csv',
+        'facility_quarterly_metrics_with_lpn.csv',
+        'facility_quarterly_metrics_latest.csv',
+        'provider_info_combined.csv',
+    ):
+        return [
+            os.path.join(APP_ROOT, filename),
+            filename,
+            os.path.join('pbj-wrapped', 'public', 'data', filename),
+            os.path.join('pbj-wrapped', 'dist', 'data', filename),
+            os.path.join('data', filename),
+        ]
+    return [
+        filename,
+        os.path.join(APP_ROOT, filename),
+        os.path.join('pbj-wrapped', 'public', 'data', filename),
+        os.path.join('pbj-wrapped', 'dist', 'data', filename),
+        os.path.join('data', filename),
+    ]
+
+
+def _enrich_facility_quarterly_lpn_columns(df):
+    """Add LPN columns from legacy sidecar when main CSV is still legacy-only (migration)."""
+    if df is None or not HAS_PANDAS or not isinstance(df, pd.DataFrame):
+        return df
+    if df.empty or 'PROVNUM' not in df.columns or 'CY_Qtr' not in df.columns:
+        return df
+    if 'LPN_HPRD' in df.columns:
+        return df
+    ext = None
+    for path in _data_csv_search_paths(FACILITY_QUARTERLY_LPN_SIDECAR_CSV):
+        if os.path.exists(path):
+            try:
+                ext = pd.read_csv(path, low_memory=False)
+                break
+            except Exception as e:
+                print(f"Error loading {path}: {e}")
+    if ext is None or ext.empty:
+        return df
+    lpn_cols = [c for c in FACILITY_QUARTERLY_LPN_EXTRA_COLS if c in ext.columns]
+    if not lpn_cols:
+        return df
+    ext = ext[['PROVNUM', 'CY_Qtr'] + lpn_cols].copy()
+    ext['PROVNUM'] = _normalize_provnum_series(ext['PROVNUM'])
+    ext['CY_Qtr'] = ext['CY_Qtr'].astype(str).str.strip()
+    out = df.copy()
+    out['PROVNUM'] = _normalize_provnum_series(out['PROVNUM'])
+    out['CY_Qtr'] = out['CY_Qtr'].astype(str).str.strip()
+    drop = [c for c in lpn_cols if c in out.columns]
+    if drop:
+        out = out.drop(columns=drop)
+    return out.merge(ext, on=['PROVNUM', 'CY_Qtr'], how='left')
+
+
+def _lpn_hprd_from_facility_quarterly_row(row) -> float | None:
+    """Direct LPN HPRD from PBJ quarterly metrics only (``LPN_HPRD`` on the facility row).
+
+    Populated by the PBJ metrics rebuild (``Hrs_LPN`` / ``Hrs_LPNadmin`` on ``facility_quarterly_metrics.csv``).
+    Does not impute from total − RN − nurse aide; blanks stay blank in public CSVs and AI packets.
     """
     import math
 
@@ -8943,33 +9016,16 @@ def _lpn_hprd_from_facility_quarterly_row(row) -> float | None:
         idx = row.index
     except AttributeError:
         idx = row.keys() if hasattr(row, 'keys') else []
-    if 'LPN_HPRD' in idx:
-        v = row.get('LPN_HPRD') if hasattr(row, 'get') else row['LPN_HPRD']
-        if v is not None and not _is_na(v):
-            try:
-                out = float(v)
-                if out >= 0:
-                    return out
-            except (TypeError, ValueError):
-                pass
-
-    def _cell(key: str) -> float | None:
-        if key not in idx:
-            return None
-        v = row.get(key) if hasattr(row, 'get') else row[key]
-        if _is_na(v):
-            return None
-        try:
-            return float(v)
-        except (TypeError, ValueError):
-            return None
-
-    total = _cell('Total_Nurse_HPRD')
-    rn = _cell('RN_HPRD')
-    na = _cell('Nurse_Assistant_HPRD')
-    if total is None or rn is None or na is None:
+    if 'LPN_HPRD' not in idx:
         return None
-    return max(0.0, total - rn - na)
+    v = row.get('LPN_HPRD') if hasattr(row, 'get') else row['LPN_HPRD']
+    if v is None or _is_na(v):
+        return None
+    try:
+        out = float(v)
+        return out if out >= 0 else None
+    except (TypeError, ValueError):
+        return None
 
 
 def _public_case_mix_quarters_for_facility(facility_df, *, include_previous: bool = False):
@@ -9033,7 +9089,7 @@ def _build_facility_snapshot_csv_rows(
             continue
         q_disp = format_quarter_display(q_raw)
         allow_pi_case_mix = q_raw in case_mix_quarters
-        pi_q = get_provider_info_for_quarter(prov, q_raw) if allow_pi_case_mix else {}
+        pi_q = (get_provider_info_for_quarter(prov, q_raw) or {}) if allow_pi_case_mix else {}
 
         def _row_float(key, pi_key=None, *, from_pi=True):
             v = row.get(key) if key in row.index else None
@@ -9151,7 +9207,7 @@ def _build_facility_quarterly_trend_csv_rows(
             continue
         q_disp = format_quarter_display(q_raw)
         allow_pi_case_mix = q_raw in case_mix_quarters
-        pi_q = get_provider_info_for_quarter(prov, q_raw) if allow_pi_case_mix else {}
+        pi_q = (get_provider_info_for_quarter(prov, q_raw) or {}) if allow_pi_case_mix else {}
 
         def _row_float(key, pi_key=None, *, from_pi=True):
             v = row.get(key) if key in row.index else None
@@ -9322,9 +9378,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return None
     reported_total = get_val('Total_Nurse_HPRD')
     reported_rn = get_val('RN_HPRD')
-    reported_lpn = get_val('LPN_HPRD')
-    if reported_lpn is None and latest is not None:
-        reported_lpn = _lpn_hprd_from_facility_quarterly_row(latest)
+    reported_lpn = _lpn_hprd_from_facility_quarterly_row(latest) if latest is not None else None
     reported_na = get_val('Nurse_Assistant_HPRD')
     case_mix_total = _safe(pi_case_mix.get('case_mix_total_nurse_hrs_per_resident_per_day'))
     case_mix_rn = _safe(pi_case_mix.get('case_mix_rn_hrs_per_resident_per_day'))

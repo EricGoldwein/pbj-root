@@ -333,9 +333,10 @@ PBJ_PBJ_SUBMISSION_CONTEXT = (
 PBJ_ROLE_HPRD_SEMANTICS = (
     'Role columns (RN, LPN, nurse aide) in PBJ320 tables or CSVs use “—” or blanks when a value is missing or not '
     'populated in this extract — that is **not the same as** “zero clinical staffing” or “zero reported hours” unless '
-    'the source explicitly shows 0.00. PBJ hours are tied to CMS job categories; some licensed practical work may '
-    'appear under other lines depending on how the facility mapped positions. Do not narrate long runs of blanks as '
-    '“no LPN hours recorded” without that caveat.'
+    'the source explicitly shows 0.00. LPN HPRD is shown only when ``LPN_HPRD`` is populated from PBJ role hours '
+    '(``Hrs_LPN`` / ``Hrs_LPNadmin``); it is **not** imputed as total nurse HPRD minus RN minus nurse aide. PBJ hours '
+    'are tied to CMS job categories; some licensed practical work may appear under other lines depending on how the '
+    'facility mapped positions. Do not narrate long runs of blanks as “no LPN hours recorded” without that caveat.'
 )
 
 PBJ_CSV_ATTACHMENT_NOTE = (

@@ -27,6 +27,12 @@ FACILITY_QUARTERLY_REQUIRED = ['PROVNUM', 'CY_Qtr', 'STATE', 'Total_Nurse_HPRD']
 FACILITY_QUARTERLY_OPTIONAL = [
     'RN_HPRD',
     'LPN_HPRD',
+    'LPN_Care_HPRD',
+    'LPN_Admin_HPRD',
+    'Total_LPN_Hours',
+    'Total_LPN_Care_Hours',
+    'Total_LPN_Admin_Hours',
+    'Total_LPN_Contract_Hours',
     'Nurse_Assistant_HPRD',
     'Nurse_Care_HPRD',
     'Contract_Percentage',

@@ -11631,9 +11631,8 @@ def _render_state_pbj_high_risk_section(
         )
 
     tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
-    open_attr = ' open' if total > 0 else ''
     section = f'''
-    <details class="pbj-details pbj-page-bottom-details state-high-risk-details"{open_attr}>
+    <details class="pbj-details pbj-page-bottom-details state-high-risk-details">
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
@@ -12196,9 +12195,9 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     <div class="pbj-page-bottom-stack">
     {sff_section}
     {_state_top_owners_line}
-    {cta_section}
     {_state_chow_line}
     {render_methodology_block()}
+    {cta_section}
     </div>
     </div>
     """

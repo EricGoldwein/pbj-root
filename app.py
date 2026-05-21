@@ -49,6 +49,7 @@ from site_public_config import (
     SITEMAP_TRUST_PAGES,
     build_robots_txt,
     normalize_public_site_origin,
+    pbjpedia_is_public,
     sitemap_loc_is_allowed,
 )
 from pbj_ai_support import (
@@ -797,6 +798,7 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', token)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
+    resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
     return resp
 
 
@@ -4255,7 +4257,7 @@ def _render_explainer_page(slug: str):
         f'<h1>{html.escape(page["h1"])}</h1>'
         f'<div class="pbj-explainer-body">{page["body"]}</div>'
         '<p class="pbj-meta-line" style="margin-top:1.25rem;">'
-        '<a href="/">PBJ320 home</a> · <a href="/pbjpedia/overview">PBJpedia</a></p>'
+        '<a href="/">PBJ320 home</a> · <a href="/data-sources">Data sources</a></p>'
     )
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     return html_content + '</body></html>'
@@ -4397,10 +4399,23 @@ def serve_li_bug():
     return send_from_directory(APP_ROOT, 'LI-In-Bug.png', mimetype='image/png')
 
 
-def _static_cache_headers(resp, max_age=3600):
-    """Set Cache-Control for static assets (1 hr) so repeat visits avoid re-fetching."""
+_STATIC_IMMUTABLE_CACHE_SECONDS = int(
+    os.environ.get('PBJ_STATIC_IMMUTABLE_CACHE_SECONDS', '31536000')
+)
+_HTML_CACHE_CONTROL = 'no-cache, must-revalidate'
+
+
+def _static_cache_headers(resp, max_age=None, *, immutable=None):
+    """Cache-Control for static assets; long-lived + immutable when safe to fingerprint."""
+    if max_age is None:
+        max_age = _STATIC_IMMUTABLE_CACHE_SECONDS
+    if immutable is None:
+        immutable = max_age >= 86400
     if resp is not None and hasattr(resp, 'headers'):
-        resp.headers['Cache-Control'] = f'public, max-age={max_age}'
+        if immutable:
+            resp.headers['Cache-Control'] = f'public, max-age={max_age}, immutable'
+        else:
+            resp.headers['Cache-Control'] = f'public, max-age={max_age}'
     return resp
 
 
@@ -4426,12 +4441,12 @@ def _json_cache_headers(resp, max_age=None):
     """Modest cache for public JSON blobs (search index, historical charts)."""
     if max_age is None:
         max_age = _PUBLIC_JSON_CACHE_SECONDS
-    return _static_cache_headers(resp, max_age=max_age)
+    return _static_cache_headers(resp, max_age=max_age, immutable=False)
 
 
 def _favicon_cache_headers(resp):
     """Long cache for small favicon assets (replace files to bust)."""
-    return _static_cache_headers(resp, max_age=_FAVICON_CACHE_SECONDS)
+    return _static_cache_headers(resp, max_age=_FAVICON_CACHE_SECONDS, immutable=True)
 
 @app.route('/substack.png')
 def serve_substack():
@@ -4743,8 +4758,6 @@ def sitemap():
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/cms-payroll-based-journal', '0.7', 'monthly'),
         ('/pbj-nursing-home-staffing', '0.7', 'monthly'),
-        ('/pbjpedia/overview', '0.7', 'monthly'),
-        ('/pbjpedia/metrics', '0.7', 'monthly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -12402,10 +12415,16 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
             except:
                 facility_count_int = 0
             
+            state_slug = get_canonical_slug(state_code) if state_code else ''
+            state_link = (
+                f'<a href="/{state_slug}">{state_name}</a>'
+                if state_slug
+                else state_name
+            )
             states_table += f"""
             <tr>
                 <td><strong>{idx}</strong></td>
-                <td><a href="/pbjpedia/state/{state_code}">{state_name}</a></td>
+                <td>{state_link}</td>
                 <td>{format_metric_value(get_state_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')}</td>
                 <td>{format_metric_value(get_state_val('RN_HPRD'), 'RN_HPRD', 'N/A')}</td>
                 <td>{format_metric_value(get_state_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD', 'N/A')}</td>
@@ -12438,15 +12457,116 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
     
     {sff_section}
     
-    <h2>Related PBJpedia Pages</h2>
+    <h2>Related guides</h2>
     <ul>
-        <li><a href="/pbjpedia/state-standards">State Staffing Standards</a> – Overview of federal and state minimum staffing requirements</li>
-        <li><a href="/pbjpedia/metrics">PBJ Metrics</a> – Definitions of HPRD and other staffing measures</li>
-        <li><a href="/pbjpedia/methodology">PBJ Methodology</a> – How PBJ data are collected and published</li>
+        <li><a href="/what-is-hprd">What is HPRD?</a></li>
+        <li><a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a></li>
+        <li><a href="/data-sources">PBJ320 data sources</a></li>
     </ul>
     """
     
     return generate_dynamic_pbjpedia_page(f"{region_full} Nursing Home Staffing", f"region/{region_num}", content)
+
+PBJPEDIA_SAMPLE_DASHBOARD_URL = 'https://www.pbj320.com/premium/335513'
+
+
+def _require_pbjpedia_public():
+    """Block PBJpedia routes unless PBJPEDIA_PUBLIC=1 (see docs/PBJPEDIA_LAUNCH.md)."""
+    if not pbjpedia_is_public():
+        from flask import abort
+        abort(404)
+
+
+def get_pbjpedia_cta_html():
+    """Premium / journalist callout — contact details only in the page footer."""
+    return f'''<div class="pbjpedia-cta" style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.25em 1.5em; margin: 2em 0;">
+                <h3 style="margin-top: 0; font-size: 1.05em;">Custom PBJ analysis</h3>
+                <p style="margin: 0 0 0.75em;"><strong><a href="/premium">PBJ320 Premium</a></strong> — 320 Consulting offers custom reports and dashboards with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support casework and advocacy. <a href="{PBJPEDIA_SAMPLE_DASHBOARD_URL}">View a sample dashboard</a>.</p>
+                <p style="margin: 0;"><strong>Journalists:</strong> Working on a story? <button type="button" class="pbj-contact-form-trigger" style="color:#0645ad;text-decoration:underline;background:none;border:none;padding:0;font:inherit;cursor:pointer;">Contact us</button> — happy to share data or walk you through it.</p>
+            </div>'''
+
+
+def get_pbjpedia_footer_html():
+    """Shared PBJpedia footer; phone (text preferred) appears here only."""
+    updated = get_latest_update_month_year()
+    return f'''<div class="mw-footer">
+        <p class="pbjpedia-footer-meta" style="margin: 0.2em 0; line-height: 1.5; font-size: 0.9em; color: #54595d;">
+            Content updated {updated}. PBJpedia summarizes public CMS sources; MACPAC figures are policy estimates, not statutory text.<br>
+            <a href="/about">About PBJ320</a> · <a href="/data-sources">Data sources</a> · <a href="/pbjpedia/overview">PBJpedia</a> · <a href="/premium">Premium</a> · <a href="#" class="pbj-contact-modal-trigger">Contact</a> · <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+        </p>
+    </div>'''
+
+
+def generate_macpac_state_standards_table_html():
+    """Build state staffing reference table from macpac_state_standards_clean.csv."""
+    macpac_df = load_csv_data('macpac_state_standards_clean.csv')
+    if macpac_df is None:
+        return '<p><em>State staffing reference table is temporarily unavailable.</em></p>'
+    if HAS_PANDAS and isinstance(macpac_df, pd.DataFrame):
+        if macpac_df.empty:
+            return '<p><em>State staffing reference table is temporarily unavailable.</em></p>'
+        macpac_rows = macpac_df.sort_values('State').to_dict('records')
+    elif isinstance(macpac_df, list) and macpac_df:
+        macpac_rows = sorted(macpac_df, key=lambda r: (r.get('State') or ''))
+    else:
+        return '<p><em>State staffing reference table is temporarily unavailable.</em></p>'
+
+    name_to_code = {k: v for k, v in STATE_NAME_TO_CODE.items()}
+    rows_html = []
+    above_federal = 0
+    max_non_federal = None
+    max_non_federal_state = None
+
+    for row in macpac_rows:
+        state_name = str(row.get('State', '')).strip()
+        state_key = state_name.lower()
+        state_code = name_to_code.get(state_key, '')
+        slug = get_canonical_slug(state_code) if state_code else state_key.replace(' ', '-')
+        display = str(row.get('Display_Text') or row.get('Total_Estimated_Staffing_Requirements') or '').strip()
+        is_federal = str(row.get('Is_Federal_Minimum', '')).strip().lower() in ('true', '1', 'yes')
+        if not is_federal:
+            above_federal += 1
+            try:
+                min_val = float(str(row.get('Min_Staffing', '')).replace(' HPRD', '').strip())
+                if max_non_federal is None or min_val > max_non_federal:
+                    max_non_federal = min_val
+                    max_non_federal_state = state_name
+            except (TypeError, ValueError):
+                pass
+        state_cell = (
+            f'<a href="/{slug}">{state_name}</a>'
+            if state_code and state_code != 'PR'
+            else state_name
+        )
+        rows_html.append(
+            f'<tr><td>{state_cell}</td><td>{display}</td>'
+            f'<td>{"Federal baseline" if is_federal else "State policy (MACPAC)"}</td></tr>'
+        )
+
+    summary = (
+        f'<p>MACPAC-style estimates for {len(rows_html)} jurisdictions '
+        f'({above_federal} above the federal baseline). '
+    )
+    if max_non_federal_state and max_non_federal is not None:
+        summary += (
+            f'Highest listed minimum: {max_non_federal_state} '
+            f'({max_non_federal:.2f} HPRD). '
+        )
+    summary += (
+        'Source: <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/">'
+        'MACPAC state staffing policies</a>, as cleaned in PBJ320&rsquo;s '
+        '<code>macpac_state_standards_clean.csv</code>. These are policy summaries—not citations to enacted statutes.</p>'
+    )
+
+    table = (
+        '<table class="wikitable" style="width:100%; border-collapse:collapse; margin:1em 0;">'
+        '<thead><tr><th scope="col">State</th><th scope="col">Estimated requirement</th>'
+        '<th scope="col">Notes</th></tr></thead><tbody>'
+        + ''.join(rows_html)
+        + '</tbody></table>'
+    )
+    return summary + table
+
 
 def get_pbjpedia_sidebar():
     """Get the PBJpedia sidebar navigation HTML"""
@@ -13112,22 +13232,9 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             <div class="mw-parser-output">
                 {content}
             </div>
-            <div class="categories">
-                <strong>Categories:</strong>
-                <a href="/pbjpedia/overview">PBJ Data</a>
-                <a href="/pbjpedia/overview">Nursing Home Staffing</a>
-                <a href="/pbjpedia/overview">CMS Regulations</a>
-            </div>
+            {get_pbjpedia_cta_html()}
         </div>
-        <div class="mw-footer">
-        <p style="margin: 0.2em 0; line-height: 1.4;">
-            Updated {get_latest_update_month_year()}.<br>
-            <a href="/about">About PBJ320</a> | 
-            <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
-            <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="/about?open=contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
-        </p>
-    </div>
+        {get_pbjpedia_footer_html()}
     <script>
         (function() {{
             var menuToggle = document.querySelector('.mobile-menu-toggle');
@@ -13197,7 +13304,8 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
 @app.route('/pbjpedia')
 @app.route('/pbjpedia/')
 def pbjpedia_index():
-    """Redirect to PBJpedia overview page"""
+    """Redirect to PBJpedia overview page (404 when not public)."""
+    _require_pbjpedia_public()
     from flask import redirect
     return redirect('/pbjpedia/overview')
 
@@ -13442,8 +13550,22 @@ def canonical_state_page(state_slug):
     if state_slug.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.svg')):
         image_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(image_path):
-            mimetype = 'image/png' if state_slug.endswith('.png') else 'image/jpeg' if state_slug.endswith(('.jpg', '.jpeg')) else 'image/gif' if state_slug.endswith('.gif') else 'image/webp' if state_slug.endswith('.webp') else 'image/svg+xml' if state_slug.endswith('.svg') else 'image/x-icon'
-            return send_file(image_path, mimetype=mimetype)
+            if state_slug.endswith('.ico'):
+                mimetype = 'image/x-icon'
+            elif state_slug.endswith('.webp'):
+                mimetype = 'image/webp'
+            elif state_slug.endswith('.svg'):
+                mimetype = 'image/svg+xml'
+            elif state_slug.endswith(('.jpg', '.jpeg')):
+                mimetype = 'image/jpeg'
+            elif state_slug.endswith('.gif'):
+                mimetype = 'image/gif'
+            else:
+                mimetype = 'image/png'
+            resp = send_file(image_path, mimetype=mimetype)
+            if state_slug.endswith('.ico') or 'favicon' in state_slug.lower() or state_slug == 'apple-touch-icon.png':
+                return _favicon_cache_headers(resp)
+            return _static_cache_headers(resp)
         from flask import abort
         abort(404)
     
@@ -13475,7 +13597,8 @@ def canonical_state_page(state_slug):
 
 @app.route('/pbjpedia/state/<state_identifier>')
 def pbjpedia_state_page(state_identifier):
-    """Legacy PBJpedia state page route - redirects to canonical"""
+    """Legacy PBJpedia state page route - redirects to canonical (404 when PBJpedia not public)."""
+    _require_pbjpedia_public()
     canonical_slug, state_code = resolve_state_slug(state_identifier)
     
     if not canonical_slug or not state_code:
@@ -13625,7 +13748,8 @@ def generate_state_page(state_code):
 
 @app.route('/pbjpedia/region/<region_number>')
 def pbjpedia_region_page(region_number):
-    """Dynamic CMS region page with region-wide metrics and state breakdowns"""
+    """Dynamic CMS region page with region-wide metrics and state breakdowns (404 when not public)."""
+    _require_pbjpedia_public()
     if not HAS_PANDAS:
         return "Pandas not available. Dynamic region pages require pandas.", 503
     
@@ -13696,9 +13820,14 @@ def pbjpedia_region_page(region_number):
 
 @app.route('/pbjpedia/<path:page>')
 def pbjpedia_page(page):
-    """Serve PBJpedia markdown files as HTML"""
+    """Serve PBJpedia markdown files as HTML (404 when not public)."""
+    _require_pbjpedia_public()
     if not HAS_MARKDOWN:
         return "PBJpedia is not available. Please install markdown: pip install markdown", 503
+
+    if page == 'history' or page == 'history.md':
+        from flask import abort
+        abort(404)
     
     pbjpedia_dir = 'PBJPedia'
     
@@ -13710,7 +13839,6 @@ def pbjpedia_page(page):
         'state-standards': 'pbjpedia-state-standards.md',
         'non-nursing-staff': 'pbjpedia-non-nursing-staff.md',
         'data-limitations': 'pbjpedia-data-limitations.md',
-        'history': 'pbjpedia-history.md',
     }
     
     # Handle both with and without .md extension
@@ -13852,6 +13980,20 @@ def pbjpedia_page(page):
             lambda m: f'href="/pbjpedia/{m.group(1)}"',
             html_content
         )
+        html_content = re.sub(r'<a[^>]*href="/pbjpedia/history"[^>]*>(.*?)</a>', r'\1', html_content, flags=re.IGNORECASE | re.DOTALL)
+
+        if page == 'state-standards':
+            macpac_table = generate_macpac_state_standards_table_html()
+            if '<!--PBJPEDIA_MACPAC_TABLE-->' in html_content:
+                html_content = html_content.replace('<!--PBJPEDIA_MACPAC_TABLE-->', macpac_table)
+            else:
+                html_content = re.sub(
+                    r'(<h2[^>]*id="[^"]*macpac[^"]*"[^>]*>.*?</h2>)',
+                    lambda m: m.group(0) + macpac_table,
+                    html_content,
+                    count=1,
+                    flags=re.IGNORECASE | re.DOTALL,
+                )
         
         # Stub notices removed per user request
         
@@ -14763,28 +14905,9 @@ def pbjpedia_page(page):
             <div class="mw-parser-output">
                 {html_content}
             </div>
-            <div style="background-color: #f8f9fa; border: 1px solid #a7d7f9; border-radius: 4px; padding: 1.5em; margin: 2em 0;">
-                <h3 style="margin-top: 0; font-size: 1.1em;">Custom PBJ Analysis for Attorneys & Journalists</h3>
-                <p>320 Consulting offers custom reports and dashboards with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. Check out a <a href="https://pbj320-395258.vercel.app/" target="_blank" rel="noopener">sample dashboard</a>.</p>
-                <p><strong>Contact:</strong> <a href="/about?open=contact">Contact form</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)</p>
-                <p style="margin-bottom: 0;"><strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it.</p>
-            </div>
-            <div class="categories">
-                <strong>Categories:</strong>
-                <a href="/pbjpedia/overview">PBJ Data</a>
-                <a href="/pbjpedia/overview">Nursing Home Staffing</a>
-                <a href="/pbjpedia/overview">CMS Regulations</a>
-            </div>
+            {get_pbjpedia_cta_html()}
         </div>
-        <div class="mw-footer">
-        <p style="margin: 0.2em 0; line-height: 1.4;">
-            Updated {get_latest_update_month_year()}.<br>
-            <a href="/about">About PBJ320</a> | 
-            <a href="/pbjpedia/overview">PBJpedia Overview</a> | 
-            <a href="https://www.320insight.com" target="_blank">320 Consulting</a> | 
-            <a href="/about?open=contact">Contact</a> | <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
-        </p>
-    </div>
+        {get_pbjpedia_footer_html()}
     <script>
         (function() {{
             var menuToggle = document.querySelector('.mobile-menu-toggle');
@@ -14846,6 +14969,7 @@ def pbjpedia_page(page):
             }}
         }})();
     </script>
+    <script src="/pbj-site-universal.js?v={PBJ_SITE_UNIVERSAL_JS_VERSION}"></script>
 </body>
 </html>"""
         
@@ -15193,23 +15317,31 @@ def static_files(filename):
         abort(404)
     
     # Handle images with proper headers (including favicon)
-    if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico')):
-        mimetype = 'image/x-icon' if filename.endswith('.ico') else 'image/png'
+    if filename.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp', '.ico', '.svg')):
+        if filename.endswith('.ico'):
+            mimetype = 'image/x-icon'
+        elif filename.endswith('.webp'):
+            mimetype = 'image/webp'
+        elif filename.endswith('.svg'):
+            mimetype = 'image/svg+xml'
+        elif filename.endswith(('.jpg', '.jpeg')):
+            mimetype = 'image/jpeg'
+        elif filename.endswith('.gif'):
+            mimetype = 'image/gif'
+        else:
+            mimetype = 'image/png'
         response = send_from_directory(APP_ROOT, filename, mimetype=mimetype)
         if filename.endswith('.ico') or 'favicon' in filename.lower() or filename == 'apple-touch-icon.png':
             return _favicon_cache_headers(response)
-        response.headers['Cache-Control'] = 'public, max-age=3600'
-        return response
+        return _static_cache_headers(response)
     # Handle CSS
     elif filename.endswith('.css'):
         response = send_from_directory('.', filename, mimetype='text/css')
-        response.headers['Cache-Control'] = 'public, max-age=3600'
-        return response
+        return _static_cache_headers(response)
     # Handle JS
     elif filename.endswith('.js'):
         response = send_from_directory('.', filename, mimetype='application/javascript')
-        response.headers['Cache-Control'] = 'public, max-age=3600'
-        return response
+        return _static_cache_headers(response)
     # Handle JSON files
     elif filename.endswith('.json'):
         json_path = os.path.join(APP_ROOT, filename)

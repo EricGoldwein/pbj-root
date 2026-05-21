@@ -26,6 +26,7 @@ SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
     '.json',
     '/premium/',
     '/dashboard/',
+    '/pbjpedia/',
     '/login',
     '/logout',
     '/static/',
@@ -34,6 +35,11 @@ SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
     '/admin',
     '/test/',
 )
+
+
+def pbjpedia_is_public() -> bool:
+    """True when PBJpedia HTML routes should be served (default off until launch)."""
+    return os.environ.get('PBJPEDIA_PUBLIC', '').strip().lower() in ('1', 'true', 'yes', 'on')
 
 
 def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None = None) -> bool:
@@ -75,6 +81,15 @@ FOOTER_TRUST_BLURB = (
 SITEMAP_EXCLUDED_PATHS: frozenset[str] = frozenset({
     '/attorneys',
     '/pbj-ai-support',
+    '/pbjpedia',
+    '/pbjpedia/',
+    '/pbjpedia/overview',
+    '/pbjpedia/metrics',
+    '/pbjpedia/methodology',
+    '/pbjpedia/state-standards',
+    '/pbjpedia/non-nursing-staff',
+    '/pbjpedia/data-limitations',
+    '/pbjpedia/history',
 })
 
 # Static trust pages included in sitemap (path, priority, changefreq).
@@ -120,6 +135,7 @@ def build_llms_txt(origin: str | None = None) -> str:
 - /premium/ — paid dashboards and demos (not public data dumps).
 - /owners/ — limited ownership research tool.
 - /api/ — internal JSON for the site UI.
+- /pbjpedia/ — reference wiki (draft; not public until launched).
 
 ## Contact and methodology
 
@@ -150,6 +166,7 @@ Disallow: /logout
 Disallow: /report_builder
 Disallow: /admin
 Disallow: /static/data/raw
+Disallow: /pbjpedia/
 Disallow: /search_index.json
 Disallow: /quarters_list.json
 Disallow: /chow_index.json

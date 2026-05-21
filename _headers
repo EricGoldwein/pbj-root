@@ -5,7 +5,7 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
   Content-Type: text/html; charset=utf-8
-  Cache-Control: public, max-age=3600
+  Cache-Control: no-cache, must-revalidate
 
 /*.xml
   Content-Type: application/xml; charset=utf-8
@@ -22,6 +22,9 @@
   Cache-Control: public, max-age=31536000, immutable
 
 /*.jpeg
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.webp
   Cache-Control: public, max-age=31536000, immutable
 
 /*.css

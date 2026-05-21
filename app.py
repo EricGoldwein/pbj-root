@@ -348,8 +348,8 @@ def _api_dates_fallback_quarters():
     return 'N/A', []
 
 
-def get_pbj_footer_period_snippet() -> str:
-    """Small footer line: canonical PBJ quarter; other CMS sources may post later."""
+def _pbj_quarter_display_for_footer() -> str:
+    """Human-readable latest PBJ quarter for footer source lines."""
     try:
         from pbj_format import format_quarter_display
         q = get_canonical_latest_quarter()
@@ -358,12 +358,7 @@ def get_pbj_footer_period_snippet() -> str:
         q_disp = ''
     if not q_disp or q_disp == 'N/A':
         return ''
-    return (
-        '<p class="pbj-footer-period">'
-        f'PBJ data through {html.escape(q_disp)}. '
-        'Provider snapshots and other CMS fields on this site may reflect later postings.'
-        '</p>'
-    )
+    return q_disp
 
 
 @app.route('/api/dates')
@@ -6616,18 +6611,41 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
   margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
   font-size: inherit; line-height: inherit;
 }}
-.pbj-page-footer-source {{
-  margin: 0; font-size: inherit; color: inherit; line-height: inherit;
+.pbj-page-footer-sources {{
+  margin: 0.4rem 0 0; font-size: 0.8rem; line-height: 1.45; color: rgba(226, 232, 240, 0.62);
 }}
-.pbj-page-footer-source a,
+.pbj-page-footer-sources a {{
+  color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
+}}
+.pbj-page-footer-sources a:hover {{ color: #a5b4fc; }}
+.pbj-sources-about-btn {{
+  font: inherit; font-size: inherit; font-weight: 600; color: #818cf8; background: none; border: none;
+  padding: 0; margin: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  appearance: none; -webkit-appearance: none;
+}}
+.pbj-sources-about-btn:hover {{ color: #a5b4fc; }}
+.pbj-sources-about-btn:focus-visible {{ outline: 2px solid #818cf8; outline-offset: 2px; border-radius: 2px; }}
+.pbj-sources-dialog {{ border: none; padding: 0; margin: auto; background: transparent; max-width: min(34rem, 92vw); color: #e2e8f0; }}
+.pbj-sources-dialog::backdrop {{ background: rgba(0, 0, 0, 0.55); }}
+.pbj-sources-dialog__panel {{
+  background: #1e293b; border: 1px solid rgba(129, 140, 248, 0.35); border-radius: 12px;
+  padding: 1.1rem 1.25rem 1rem; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}}
+.pbj-sources-dialog__title {{ margin: 0 0 0.65rem; font-size: 1rem; font-weight: 700; color: #c7d2fe; }}
+.pbj-sources-dialog__list {{ margin: 0 0 0.75rem 1.1rem; padding: 0; font-size: 0.8rem; line-height: 1.5; color: rgba(226, 232, 240, 0.88); }}
+.pbj-sources-dialog__list li {{ margin-bottom: 0.45rem; }}
+.pbj-sources-dialog__list a {{ color: #818cf8; }}
+.pbj-sources-dialog__more {{ margin: 0 0 0.85rem; font-size: 0.78rem; color: rgba(148, 163, 184, 0.85); }}
+.pbj-sources-dialog__more a {{ color: #818cf8; }}
+.pbj-sources-dialog__close {{
+  font: inherit; font-size: 0.8rem; font-weight: 600; padding: 0.4rem 0.9rem; border-radius: 6px;
+  border: 1px solid rgba(129, 140, 248, 0.45); background: rgba(67, 56, 202, 0.35); color: #e0e7ff; cursor: pointer;
+}}
+.pbj-sources-dialog__close:hover {{ background: rgba(79, 70, 229, 0.45); }}
 .pbj-page-source a {{
   color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
 }}
-.pbj-page-footer-source a:hover,
 .pbj-page-source a:hover {{ color: #a5b4fc; }}
-.pbj-footer-period {{
-  margin: 0.35rem 0 0; font-size: 0.72rem; line-height: 1.4; color: rgba(148, 163, 184, 0.65);
-}}
 abbr.pbj-na {{
   cursor: help; text-decoration: underline; text-decoration-style: dotted;
   text-underline-offset: 2px; border: none;
@@ -6637,7 +6655,6 @@ abbr.pbj-na {{
     flex-wrap: nowrap; justify-content: space-between; align-items: baseline;
   }}
   .pbj-care-footer-row {{ flex: 0 0 auto; }}
-  .pbj-page-footer-source {{ flex: 1 1 auto; text-align: right; min-width: 12rem; }}
 }}
 .pbj-page-source {{
   margin: 0.35rem 0 0 0; font-size: 0.8rem; color: rgba(226, 232, 240, 0.6); line-height: 1.45;
@@ -10009,6 +10026,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         _row1_parts.append(_residents_sub)
         _row1 = ' &bull; '.join(_row1_parts) if _row1_parts else _residents_sub
         subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
+    try:
+        from pbj_page_sources import render_facility_sources_footer
+        _facility_sources_footer = render_facility_sources_footer(
+            _pbj_quarter_display_for_footer(),
+            include_chow=bool((_provider_ownership_chow_block or '').strip()),
+            include_macpac=bool((_macpac_factset_line or '').strip()),
+        )
+    except Exception:
+        _facility_sources_footer = ''
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
@@ -10028,9 +10054,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
 <div class="pbj-page-footer-meta">
 {_facility_csv_footer}
-<span class="pbj-page-footer-source">Source: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a> (PBJ) data.</span>
 </div>
-{get_pbj_footer_period_snippet()}
+{_facility_sources_footer}
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -10831,6 +10856,16 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     except Exception:
         _entity_ownership_tools = ''
 
+    try:
+        from pbj_page_sources import render_entity_sources_footer
+        _entity_sources_footer = render_entity_sources_footer(
+            _pbj_quarter_display_for_footer(),
+            chain_label=get_chain_performance_source_label() or '',
+            care_compare_url=care_compare_entity_url,
+        )
+    except Exception:
+        _entity_sources_footer = ''
+
     inner = f"""
 <h1>{html.escape(entity_name)}</h1>
 {entity_intro_html}
@@ -10857,8 +10892,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
-<p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data for facility list and staffing. Chain-level metrics (ratings, fines, SFF, ownership) from CMS Care Compare chain performance data (<a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener" style="color: #818cf8; text-decoration: underline; text-underline-offset: 2px;">CMS{f' ({get_chain_performance_source_label()})' if get_chain_performance_source_label() else ''}</a>). <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #818cf8; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>
-{get_pbj_footer_period_snippet()}
+{_entity_sources_footer}
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:

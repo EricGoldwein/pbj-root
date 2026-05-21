@@ -37,7 +37,8 @@
     '<a href="/privacy" style="color:rgba(148,163,184,0.62)">Privacy</a>' +
     '</p>';
 
-  var FOOTER_PERIOD_ID = 'pbj-footer-period';
+  var FOOTER_SOURCES_ID = 'pbj-footer-sources-line';
+  var CMS_PBJ_URL = 'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing';
 
   var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
@@ -57,23 +58,47 @@
     if (!el) return;
     var body = FOOTER_CORE + footerSignoffHtml();
     el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
-    injectFooterPeriod(el);
+    injectFooterSources(el);
   }
 
-  function injectFooterPeriod(footerEl) {
-    if (!footerEl) return;
+  function ensureGeneralSourcesDialog() {
+    if (document.getElementById('pbj-sources-general')) return;
+    var dlg = document.createElement('dialog');
+    dlg.id = 'pbj-sources-general';
+    dlg.className = 'pbj-sources-dialog';
+    dlg.innerHTML =
+      '<div class="pbj-sources-dialog__panel" role="document">' +
+      '<h2 class="pbj-sources-dialog__title">Data on PBJ320</h2>' +
+      '<ul class="pbj-sources-dialog__list">' +
+      '<li><strong>CMS Payroll-Based Journal (PBJ)</strong> Staffing hours, census, and HPRD on facility and state pages. Quarter shown in the footer reflects the latest PBJ files loaded on this site.</li>' +
+      '<li><strong>CMS Provider Information</strong> Ratings, ownership, and facility context where shown. May post on a different schedule than PBJ.</li>' +
+      '<li><strong>Other CMS datasets</strong> Chain performance, ownership, SFF lists, and citations appear only on the pages that use them.</li>' +
+      '</ul>' +
+      '<p class="pbj-sources-dialog__more">Full reference: <a href="/data-sources">Data sources</a>.</p>' +
+      '<form method="dialog"><button type="submit" class="pbj-sources-dialog__close">Close</button></form>' +
+      '</div>';
+    document.body.appendChild(dlg);
+  }
+
+  function injectFooterSources(footerEl) {
+    if (!footerEl || document.querySelector('.pbj-page-footer-sources')) return;
+    ensureGeneralSourcesDialog();
     fetch('/api/dates', { credentials: 'same-origin' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         var q = data && data.pbj_quarter_display ? String(data.pbj_quarter_display).trim() : '';
-        if (!q || q === 'N/A') return;
-        var existing = document.getElementById(FOOTER_PERIOD_ID);
+        var existing = document.getElementById(FOOTER_SOURCES_ID);
         if (existing) existing.remove();
         var p = document.createElement('p');
-        p.id = FOOTER_PERIOD_ID;
-        p.className = 'pbj-footer-period';
-        p.style.cssText = 'margin:0.35rem auto 0;max-width:720px;font-size:0.72rem;line-height:1.4;text-align:center;color:rgba(148,163,184,0.65);';
-        p.textContent = 'PBJ data through ' + q + '. Provider snapshots and other CMS fields on this site may reflect later postings.';
+        p.id = FOOTER_SOURCES_ID;
+        p.className = 'pbj-footer-sources-line';
+        p.style.cssText = 'margin:0.35rem auto 0;max-width:720px;font-size:0.72rem;line-height:1.45;text-align:center;color:rgba(148,163,184,0.72);';
+        var through = q && q !== 'N/A' ? ' through ' + q : '';
+        p.innerHTML =
+          'Sources: <a href="' + CMS_PBJ_URL + '" target="_blank" rel="noopener" style="' + FOOTER_LINK_STYLE + '">PBJ</a>' +
+          through +
+          ' · <a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Data sources</a>' +
+          ' · <button type="button" class="pbj-sources-about-btn" data-pbj-sources-open="pbj-sources-general">About data</button>';
         var signoff = footerEl.querySelector('.footer-signoff');
         if (signoff && signoff.parentNode) {
           signoff.parentNode.insertBefore(p, signoff);
@@ -82,6 +107,19 @@
         }
       })
       .catch(function () { /* non-blocking */ });
+  }
+
+  function bindSourcesDialogs() {
+    ensureGeneralSourcesDialog();
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-pbj-sources-open]') : null;
+      if (!btn) return;
+      e.preventDefault();
+      var id = btn.getAttribute('data-pbj-sources-open');
+      if (!id) return;
+      var dlg = document.getElementById(id);
+      if (dlg && typeof dlg.showModal === 'function') dlg.showModal();
+    });
   }
 
   /** Copy email to clipboard and show a short confirmation. Accessible and works when mailto fails. */
@@ -222,7 +260,20 @@
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
-      'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}'
+      'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}',
+      '.footer .pbj-footer-sources-line a{text-decoration:underline;text-underline-offset:3px;}',
+      '.footer .pbj-sources-about-btn{font:inherit;font-size:inherit;font-weight:600;color:rgba(148,163,184,0.95);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}',
+      '.footer .pbj-sources-about-btn:hover{color:#cbd5e1;}',
+      '.pbj-sources-dialog{border:none;padding:0;margin:auto;background:transparent;max-width:min(34rem,92vw);color:#e2e8f0;}',
+      '.pbj-sources-dialog::backdrop{background:rgba(0,0,0,0.55);}',
+      '.pbj-sources-dialog__panel{background:#1e293b;border:1px solid rgba(129,140,248,0.35);border-radius:12px;padding:1.1rem 1.25rem 1rem;box-shadow:0 12px 40px rgba(0,0,0,0.45);}',
+      '.pbj-sources-dialog__title{margin:0 0 0.65rem;font-size:1rem;font-weight:700;color:#c7d2fe;}',
+      '.pbj-sources-dialog__list{margin:0 0 0.75rem 1.1rem;padding:0;font-size:0.8rem;line-height:1.5;color:rgba(226,232,240,0.88);}',
+      '.pbj-sources-dialog__list li{margin-bottom:0.45rem;}',
+      '.pbj-sources-dialog__list a{color:#818cf8;}',
+      '.pbj-sources-dialog__more{margin:0 0 0.85rem;font-size:0.78rem;color:rgba(148,163,184,0.85);}',
+      '.pbj-sources-dialog__close{font:inherit;font-size:0.8rem;font-weight:600;padding:0.4rem 0.9rem;border-radius:6px;border:1px solid rgba(129,140,248,0.45);background:rgba(67,56,202,0.35);color:#e0e7ff;cursor:pointer;}',
+      '.pbj-sources-about-btn:focus-visible,.pbj-sources-dialog__close:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}'
     ].join('');
     document.head.appendChild(style);
   }
@@ -341,6 +392,7 @@
     markActiveNavLink();
     injectContactCtaStyles();
     bindContactFallbacks();
+    bindSourcesDialogs();
   }
 
   if (typeof window !== 'undefined') {

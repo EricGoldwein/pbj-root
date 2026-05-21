@@ -243,85 +243,10 @@ def provider_page_meta_description(
     )
 
 
-def provider_page_intro_html(
-    facility_name: str,
-    *,
-    ccn: str = '',
-    city: str = '',
-    state_name: str = '',
-    state_slug: str = '',
-    quarter_display: str = '',
-    total_hprd: str = '',
-    rn_hprd: str = '',
-    aide_hprd: str = '',
-    census: str = '',
-) -> str:
-    """Server-rendered facility-specific copy for crawlers (visible, indexable HTML)."""
-    name = html.escape((facility_name or 'This nursing home').strip())
-    ccn_esc = html.escape((ccn or '').strip().zfill(6) if ccn else '')
-    if city and state_name:
-        where = f'{html.escape(city)}, {html.escape(state_name)}'
-    elif state_name:
-        where = html.escape(state_name)
-    else:
-        where = 'the United States'
-    state_href = f'/state/{html.escape(state_slug)}' if state_slug else ''
-    state_link = (
-        f'<a href="{state_href}">{html.escape(state_name)} nursing homes</a>'
-        if state_href and state_name
-        else ''
-    )
-    intro = (
-        f'<section class="pbj-provider-seo" aria-label="Facility staffing overview">'
-        f'<p>{name} is a Medicare-certified nursing home in {where}. PBJ320 tracks its '
-        f'<a href="/cms-payroll-based-journal">CMS Payroll-Based Journal</a> staffing data, including '
-        'total nurse staffing, RN staffing, nurse aide staffing, and quarterly staffing trends.'
-    )
-    if ccn_esc:
-        intro += f' CCN (Medicare certification number): <strong>{ccn_esc}</strong>.'
-    intro += '</p>'
-
-    def _metric_li(label: str, value: str) -> str:
-        v = (value or '').strip()
-        if not v or v in ('—', '-', 'N/A'):
-            return ''
-        display = v if 'hprd' in v.lower() else f'{v} HPRD'
-        return f'<li>{html.escape(label)}: {html.escape(display)}</li>'
-
-    snapshot_items = []
-    if quarter_display:
-        snapshot_items.append(
-            f'<li>Reporting period: {html.escape(quarter_display)} (CMS PBJ quarter)</li>'
-        )
-    for label, val in (
-        ('Total nurse staffing', total_hprd),
-        ('RN staffing', rn_hprd),
-        ('Nurse aide staffing', aide_hprd),
-    ):
-        line = _metric_li(label, val)
-        if line:
-            snapshot_items.append(line)
-    census_v = (census or '').strip()
-    if census_v and census_v not in ('—', '-', 'N/A'):
-        snapshot_items.append(f'<li>Average census: {html.escape(census_v)} residents</li>')
-
-    if snapshot_items:
-        intro += (
-            '<h2>Latest staffing snapshot</h2><ul>'
-            + ''.join(snapshot_items)
-            + '</ul>'
-        )
-
-    intro += (
-        '<h2>How to use this data</h2>'
-        '<p>PBJ staffing data is useful for screening staffing patterns and identifying questions for follow-up. '
-        'It is reported by facilities to CMS; it is not shift-level proof of care, harm, or regulatory violations.</p>'
-        '<p>See <a href="/data-sources">data sources and limitations</a>'
-    )
-    if state_link:
-        intro += f' · Browse {state_link}'
-    intro += ' · <a href="/cms-payroll-based-journal">CMS PBJ overview</a>.</p></section>'
-    return intro
+def provider_page_intro_html(facility_name: str, **_kwargs: Any) -> str:
+    """No visible boilerplate on provider pages (meta description + JSON-LD carry SEO copy)."""
+    del facility_name, _kwargs
+    return ''
 
 
 def _owner_profile_state_codes(profile: dict[str, Any]) -> list[str]:

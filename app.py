@@ -6350,10 +6350,6 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-subtitle {{ font-size: 0.9em; color: #a8b4c4; margin-top: 4px; }}
 .pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: #a8b4c4; margin-top: 6px; }}
-.pbj-provider-seo {{ margin: 1rem 0 1.35rem; font-size: 0.95rem; color: #e2e8f0; max-width: 52rem; line-height: 1.55; }}
-.pbj-provider-seo h2 {{ font-size: 1.15rem; color: #a5b4fc; margin: 1.1rem 0 0.45rem; font-weight: 600; }}
-.pbj-provider-seo ul {{ margin: 0.45rem 0 0.75rem; padding-left: 1.25rem; }}
-.pbj-provider-seo li {{ margin-bottom: 0.2rem; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
 .pbj-orientation--compact {{ margin-bottom: 0.65rem; font-size: 0.88rem; color: #a8b4c4; line-height: 1.45; }}
 .pbj-orientation--compact a {{ color: #94a3b8; font-weight: 500; }}
@@ -10143,21 +10139,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         hprd_val=hprd_val,
         ownership=ownership_short or ownership_raw or '',
     )
-    rn_hprd_val = format_metric_value(reported_rn, 'RN_HPRD') if reported_rn is not None else '—'
-    aide_hprd_val = format_metric_value(reported_na, 'Nurse_Assistant_HPRD') if reported_na is not None else '—'
-    census_display = f'{census_int:,}' if census_int is not None else ''
-    provider_intro_html = provider_page_intro_html(
-        facility_name,
-        ccn=prov,
-        city=city,
-        state_name=state_name,
-        state_slug=canonical_slug,
-        quarter_display=quarter_display,
-        total_hprd=hprd_val,
-        rn_hprd=rn_hprd_val,
-        aide_hprd=aide_hprd_val,
-        census=census_display,
-    )
+    provider_intro_html = provider_page_intro_html(facility_name, city=city, state_name=state_name)
     # JSON-LD entity link only when subtitle shows entity_id + entity_name (not ownership CSV/CHOW).
     _json_ld_entities: list[tuple[str, str]] = []
     if entity_id and entity_name:
@@ -10255,7 +10237,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     except Exception:
         _facility_sources_footer = ''
     inner = f"""
-<h1>{html.escape(facility_name)} Staffing Data</h1>
+<h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
 {provider_intro_html}
 

@@ -282,8 +282,6 @@ def audit_provider_pages(report: AuditReport, timeout: float) -> None:
             report.fail(url, 'missing facility-specific text')
         if not re.search(r'hprd|staffing', text, re.I):
             report.fail(url, 'missing HPRD/staffing metrics in HTML')
-        if 'pbj-provider-seo' not in text and 'Latest staffing snapshot' not in text:
-            report.fail(url, 'missing server-rendered provider SEO block')
     report.ok(f'provider sample: {len(PROVIDER_SAMPLE)} URLs checked')
 
 

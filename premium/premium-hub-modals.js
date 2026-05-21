@@ -161,6 +161,18 @@
         openModal(id);
     };
 
+    function openModalFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var raw = (params.get("open") || "").trim().toLowerCase();
+        if (!raw) {
+            var hash = (window.location.hash || "").replace(/^#/, "").trim().toLowerCase();
+            if (hash) raw = hash;
+        }
+        if (raw === "demo" || raw === "request-demo") openModal("request-demo");
+        else if (raw === "premium" || raw === "request-premium") openModal("request-premium");
+        else if (raw === "custom" || raw === "custom-work") openModal("custom-work");
+    }
+
     function initFeaturesCarousel() {
         var track = document.getElementById("audit-features-track");
         var dotsWrap = document.getElementById("audit-features-dots");
@@ -253,8 +265,12 @@
     }
 
     if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initFeaturesCarousel);
+        document.addEventListener("DOMContentLoaded", function () {
+            openModalFromUrl();
+            initFeaturesCarousel();
+        });
     } else {
+        openModalFromUrl();
         initFeaturesCarousel();
     }
 })();

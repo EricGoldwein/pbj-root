@@ -67,8 +67,6 @@
   </script>
   
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
-  <link rel="stylesheet" href="/contact-popup-shared.css?v=1">
-
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { 
@@ -248,7 +246,7 @@
     }
 
     .content-box ul.about-help-list li {
-      padding: 0.65rem 0 0.65rem 1rem;
+      padding: 0.75rem 0 0.75rem 1rem;
       border-left: 3px solid #93c5fd;
       margin-bottom: 0.5rem;
       background: rgba(248, 250, 252, 0.65);
@@ -256,8 +254,22 @@
     }
 
     .content-box ul.about-help-list li strong {
+      display: block;
+      margin-bottom: 0.25rem;
+      color: #1e40af;
+    }
+
+    .content-box ul.about-help-list .about-help-desc {
+      display: block;
+      margin: 0;
+    }
+
+    .content-box ul.about-label-list li strong {
       display: inline;
-      margin-right: 0.15rem;
+    }
+
+    .content-box ul.about-label-list li strong::after {
+      content: ':';
     }
     
     /* Condensed spacing for Methodology section lists */
@@ -1115,10 +1127,10 @@
       
       <h3>Who it helps</h3>
       <ul class="about-help-list">
-        <li><strong>Attorneys</strong> &mdash; identify staffing patterns and trends that may support negligence cases, regulatory violations, or quality of care claims. Access historical data to demonstrate chronic understaffing, seasonal variations, or ownership-related staffing deficiencies.</li>
-        <li><strong>Journalists</strong> &mdash; plug numbers and data visualizations into a nursing home investigation or ownership-focused report without wrangling raw CSVs. See <a href="/insights">insights</a> and <a href="/press">press</a>.</li>
-        <li><strong>Advocates &amp; families</strong> &mdash; see how a nursing home stacks up over time for residents and loved ones.</li>
-        <li><strong>Providers</strong> &mdash; use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
+        <li><strong>Attorneys</strong><span class="about-help-desc">Identify staffing patterns and trends that may support negligence cases, regulatory violations, or quality of care claims. Access historical data to demonstrate chronic understaffing, seasonal variations, or ownership-related staffing deficiencies.</span></li>
+        <li><strong>Journalists</strong><span class="about-help-desc">Plug numbers and data visualizations into a nursing home investigation or ownership-focused report without wrangling raw CSVs. See <a href="/insights">insights</a> and <a href="/press">press</a>.</span></li>
+        <li><strong>Advocates &amp; families</strong><span class="about-help-desc">See how a nursing home stacks up over time for residents and loved ones.</span></li>
+        <li><strong>Providers</strong><span class="about-help-desc">Use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</span></li>
       </ul>
       
       <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" class="columbia-link">
@@ -1150,11 +1162,11 @@
       </table>
       
       <h3>Under the hood</h3>
-      <ul>
-        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> &mdash; <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity (<a href="/cms-payroll-based-journal">what is PBJ?</a>)</li>
-        <li><strong>CMS Provider Info</strong> &mdash; 5-star ratings, enforcement data, and other key indicators</li>
-        <li><strong>CMS Affiliated Entity</strong> &mdash; quality and performance metrics for affiliated nursing home groups (<a href="/entity/237">example entity page</a>)</li>
-        <li><strong>CMS Citations (Premium)</strong> - Citation data and inspection reports, categorized by date, type, severity, and more.</li>
+      <ul class="about-label-list">
+        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity (<a href="/cms-payroll-based-journal">what is PBJ?</a>)</li>
+        <li><strong>CMS Provider Info</strong> 5-star ratings, enforcement data, and other key indicators</li>
+        <li><strong>CMS Affiliated Entity</strong> quality and performance metrics for affiliated nursing home groups (<a href="/entity/237">example entity page</a>)</li>
+        <li><strong>CMS Citations (Premium)</strong> citation data and inspection reports, categorized by date, type, severity, and more</li>
       </ul>
       
       
@@ -1175,10 +1187,10 @@
     <div class="content-box">
       
       <h3>Digging deeper?</h3>
-      <p><strong><a href="/premium">Premium</a></strong> &mdash; 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="/premium/335513" target="_blank" rel="noopener">Sample Premium dashboard</a>.</p>
+      <p>320 Consulting offers <a href="/premium">PBJ320 Premium</a>: custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="/premium/335513">View a sample dashboard</a> or <a href="/premium?open=demo">request a demo</a>.</p>
             
       <div class="premium-section">
-        <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. <button type="button" class="pbj-contact-form-trigger" style="color:inherit;text-decoration:underline;background:none;border:none;padding:0;font:inherit;cursor:pointer;">Contact us</button> for requests.
+        <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. <a href="/contact?press=1">Contact us</a> for requests.
       </div>
     </div>
     
@@ -1263,96 +1275,18 @@
         max-width: 720px;
         font-size: 0.95rem;
       ">
-        <button type="button" class="pbj-contact-form-trigger" id="premium-demo-trigger"
-           style="color:#1e40af; text-decoration:none; font-weight:500; background:none; border:none; padding:0; font:inherit; cursor:pointer;">
-          Request a <strong>PBJ320 Premium demo</strong> for litigation, research, or investigative use.
-        </button>
+        <a href="/premium?open=demo" style="color:#1e40af; font-weight:600; text-decoration:none;">Request a PBJ320 Premium demo</a> for litigation, research, or investigative use, or <a href="/premium" style="color:#1e40af; font-weight:500;">explore Premium</a>.
       </p>
     </section>
-
-    <div id="contact-overlay" class="contact-overlay-static" aria-hidden="true" role="presentation" style="display:none; position:fixed; inset:0; z-index:10000; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; padding:1rem; box-sizing:border-box;">
-      <div class="contact-popup-static" role="dialog" aria-labelledby="contact-popup-title-static" aria-modal="true" id="contact-dialog-static" style="position:relative; background:#1e293b; border:1px solid rgba(96,165,250,0.25); border-radius:12px; max-width:440px; width:100%; max-height:calc(100vh - 2rem); overflow:auto; box-shadow:0 20px 60px rgba(0,0,0,0.5);">
-        <h2 id="contact-popup-title-static" style="margin:0; padding:1.25rem 2.75rem 0 1.25rem; font-size:1.25rem; color:#60a5fa;">Request PBJ Analysis</h2>
-        <button type="button" class="contact-popup-close" id="contact-popup-close-static" aria-label="Close" style="position:absolute; top:0.75rem; right:0.75rem; width:44px; height:44px; padding:0; border:none; background:transparent; cursor:pointer; font-size:1.5rem; line-height:1; color:rgba(148,163,184,0.9);">&times;</button>
-        <form action="/contact" method="POST" class="contact-popup-form-static" id="contact-popup-form-static" style="padding:1rem 1.25rem 1.5rem;">
-          <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
-          <input type="hidden" name="next" id="contact-next-about" value="/about">
-          <div class="f-group" style="margin-bottom:1rem;">
-            <label for="popup-name-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
-            <input type="text" id="popup-name-static" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
-          </div>
-          <div class="f-group" style="margin-bottom:1rem;">
-            <label for="popup-email-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Email <span style="color:#f87171">*</span></label>
-            <input type="email" id="popup-email-static" name="email" required autocomplete="email" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
-          </div>
-          <div class="f-group" style="margin-bottom:1rem;">
-            <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request&hellip;" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
-          </div>
-          <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
-            <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
-              <input type="checkbox" id="popup-press-static" name="press" value="yes" aria-label="I am media" style="width:1.25rem; height:1.25rem;">
-              <span style="color:#cbd5e1;">I am media</span>
-            </label>
-            <button type="submit" style="background:rgba(96,165,250,0.2); color:#93c5fd; border:1px solid rgba(96,165,250,0.5); padding:0.7rem 1.25rem; border-radius:8px; font:inherit; font-size:1rem; font-weight:500; cursor:pointer; min-height:44px;">Send</button>
-          </div>
-        </form>
-      </div>
-    </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
 
   <script src="/pbj-site-universal.js?v=28" defer></script>
   <script>
-    (function() {
-      var overlay = document.getElementById('contact-overlay');
-      var dialog = document.getElementById('contact-dialog-static');
-      var form = document.getElementById('contact-popup-form-static');
-      var closeBtn = document.getElementById('contact-popup-close-static');
-      var csrfInput = document.getElementById('contact-csrf-token');
-      var nextInput = document.getElementById('contact-next-about');
-      if (!overlay || !dialog || !form) return;
-      function showOverlay() {
-        if (nextInput) nextInput.value = window.location.pathname || '/about';
-        overlay.style.display = 'flex'; overlay.setAttribute('aria-hidden', 'false'); document.body.style.overflow = 'hidden';
-      }
-      function hideOverlay(focusTrigger) { overlay.style.display = 'none'; overlay.setAttribute('aria-hidden', 'true'); document.body.style.overflow = ''; if (focusTrigger) focusTrigger.focus(); }
-      function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
-      function trapKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); hideOverlay(document.activeElement); document.removeEventListener('keydown', trapKey); return; }
-        if (e.key !== 'Tab') return;
-        var list = focusables();
-        if (list.length === 0) return;
-        var first = list[0], last = list[list.length - 1];
-        if (e.shiftKey) { if (document.activeElement === first) { e.preventDefault(); last.focus(); } }
-        else { if (document.activeElement === last) { e.preventDefault(); first.focus(); } }
-      }
-      function openContact() {
-        if (csrfInput && !csrfInput.value) {
-          fetch('/').then(function(r) { return r.text(); }).then(function(html) {
-            var m = html.match(/name="csrf_token"[^>]*value="([^"]+)"/) || html.match(/value="([^"]+)"[^>]*name="csrf_token"/);
-            if (m && csrfInput) csrfInput.value = m[1];
-            showOverlay();
-            document.addEventListener('keydown', trapKey);
-            var first = form.querySelector('input:not([type="hidden"]), textarea');
-            if (first) first.focus();
-          }).catch(function() { showOverlay(); document.addEventListener('keydown', trapKey); });
-        } else {
-          showOverlay();
-          document.addEventListener('keydown', trapKey);
-          var first = form.querySelector('input:not([type="hidden"]), textarea');
-          if (first) first.focus();
-        }
-      }
-      document.querySelectorAll('.pbj-contact-form-trigger').forEach(function(btn) { btn.addEventListener('click', function(e) { e.preventDefault(); openContact(); }); });
-      closeBtn.addEventListener('click', function() { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); });
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) { hideOverlay(document.getElementById('premium-demo-trigger')); document.removeEventListener('keydown', trapKey); } });
-      form.addEventListener('submit', function() { document.body.style.overflow = ''; });
+    document.addEventListener('DOMContentLoaded', function() {
       var params = new URLSearchParams(window.location.search);
-      if (params.get('open') === 'contact') { setTimeout(openContact, 100); }
       if (params.get('contact_sent') === '1') {
         var toast = document.createElement('div');
-        toast.className = 'contact-toast';
         toast.setAttribute('role', 'status');
         toast.textContent = "Message sent. We'll be in touch.";
         toast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#e2e8f0;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;box-shadow:0 8px 32px rgba(0,0,0,0.24);border:1px solid rgba(148,163,184,0.2);';
@@ -1362,19 +1296,14 @@
       }
       if (params.get('contact_error') === '1') {
         var errToast = document.createElement('div');
-        errToast.className = 'contact-toast error';
         errToast.setAttribute('role', 'alert');
-        errToast.textContent = "Something went wrong. Please try again or email directly.";
+        errToast.textContent = 'Something went wrong. Please try again or use the contact page.';
         errToast.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#fca5a5;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;box-shadow:0 8px 32px rgba(0,0,0,0.24);border:1px solid rgba(248,113,113,0.25);';
         document.body.appendChild(errToast);
         if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/about');
         setTimeout(function() { errToast.remove(); }, 6000);
       }
-    })();
-  </script>
-  <script>
-    // Mobile Navigation Toggle
-    document.addEventListener('DOMContentLoaded', function() {
+
       const navToggle = document.getElementById('navToggle');
       const navMenu = document.getElementById('navMenu');
       

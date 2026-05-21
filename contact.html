@@ -211,6 +211,10 @@
           messageInput.value = decodeURIComponent(params.get('topic'));
         } catch (e) {}
       }
+      if (params.get('press') === '1') {
+        var pressBox = document.getElementById('contact-press');
+        if (pressBox) pressBox.checked = true;
+      }
       var t = document.getElementById('navToggle');
       var m = document.getElementById('navMenu');
       if (t && m) t.addEventListener('click', function() { m.classList.toggle('active'); t.classList.toggle('active'); });

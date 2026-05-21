@@ -2896,7 +2896,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
         <a href="/report">Report</a>
         <a href="/insights" class="active" aria-current="page">Insights</a>
         <a href="/phoebe">PBJ Explained</a>
-        <a href="/owners">Ownership</a>
+        <a href="/owner">Ownership</a>
         <a href="/premium">Premium</a>
       </div>
     </div>
@@ -7544,7 +7544,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-        <a href="/owners" class="nav-link">Ownership</a>
+        <a href="/owner" class="nav-link">Ownership</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
@@ -13577,7 +13577,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
+                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>
@@ -15251,7 +15251,7 @@ def pbjpedia_page(page):
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
+                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>

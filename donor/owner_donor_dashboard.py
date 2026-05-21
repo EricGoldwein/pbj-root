@@ -225,38 +225,44 @@ def _get_methodology_source_line():
     own = ownership_source_label or "Latest"
     prov = provider_label or "Latest"
     return (
-        f"Ownership: {own} | Provider info: {prov} | "
-        "Owner search: FEC API | Committee: local bulk when available"
+        f"CMS ownership: {own} | Provider info: {prov} | "
+        "Contributions: FEC API | Committees: local bulk when available"
     )
 
 
 def _get_latest_provider_info_path():
     """
-    Return (path, label) for the most recent NH_ProviderInfo_<Month><Year>.csv in provider_info/.
-    label is e.g. "Feb. 2026" for display. Returns (None, None) if no matching file.
+    Return (path, label) for the newest provider snapshot in provider_info/.
+    Supports ProviderInfoNorm_YYYY_MM.csv and NH_ProviderInfo_<Mon><Year>.csv.
+    label is e.g. "Apr. 2026" for display.
     """
     if not PROVIDER_INFO_DIR.is_dir():
         return (None, None)
     candidates = []
-    for p in PROVIDER_INFO_DIR.glob("NH_ProviderInfo_*.csv"):
-        stem = p.stem  # e.g. NH_ProviderInfo_Feb2026
-        prefix = "NH_ProviderInfo_"
-        if not stem.startswith(prefix):
+    for p in PROVIDER_INFO_DIR.glob("*.csv"):
+        stem = p.stem
+        m_norm = re.match(r"^ProviderInfoNorm_(\d{4})_(\d{1,2})$", stem)
+        if m_norm:
+            year = int(m_norm.group(1))
+            mon = int(m_norm.group(2))
+            if 1 <= mon <= 12:
+                mon_txt = _PROVIDER_INFO_MONTHS[mon - 1]
+                candidates.append((p, (year, mon), f"{mon_txt}. {year}"))
             continue
-        rest = stem[len(prefix):]  # e.g. Feb2026
-        for i, mon in enumerate(_PROVIDER_INFO_MONTHS, start=1):
-            if rest.startswith(mon) and len(rest) > len(mon):
-                year_str = rest[len(mon):]
-                if year_str.isdigit() and len(year_str) == 4:
-                    year = int(year_str)
-                    candidates.append((p, (year, i), mon, year))
-                    break
+        prefix = "NH_ProviderInfo_"
+        if stem.startswith(prefix):
+            rest = stem[len(prefix):]
+            for i, mon in enumerate(_PROVIDER_INFO_MONTHS, start=1):
+                if rest.startswith(mon) and len(rest) > len(mon):
+                    year_str = rest[len(mon):]
+                    if year_str.isdigit() and len(year_str) == 4:
+                        year = int(year_str)
+                        candidates.append((p, (year, i), f"{mon}. {year}"))
+                        break
     if not candidates:
         return (None, None)
-    # Sort by (year, month) descending; take latest
     candidates.sort(key=lambda x: (x[1][0], x[1][1]), reverse=True)
-    path, _, mon, year = candidates[0]
-    label = f"{mon}. {year}"
+    path, _, label = candidates[0]
     return (path, label)
 
 

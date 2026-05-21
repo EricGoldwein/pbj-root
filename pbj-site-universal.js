@@ -254,8 +254,8 @@
       if (!href || href.charAt(0) === '#') continue;
       var linkPath = href.replace(/\/$/, '') || '/';
       var match = path === linkPath;
-      if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
       if (!match && linkPath === '/owner' && (path === '/owner' || path.indexOf('/owner/') === 0)) match = true;
+      if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
       if (!match && linkPath === '/owners-test' && (path === '/owners-test' || path.indexOf('/owners-test/') === 0)) match = true;
       if (!match && linkPath === '/insights' && path.indexOf('/insights') === 0) match = true;
       if (!match && linkPath === '/report' && path.indexOf('/report') === 0) match = true;
@@ -271,10 +271,12 @@
   function ensureSiteNavLinks() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
-    var ownership = menu.querySelector('a[href="/owners"]');
-    if (!ownership) {
+    var ownership = menu.querySelector('a[href="/owner"]') || menu.querySelector('a[href="/owners"]');
+    if (ownership) {
+      ownership.href = '/owner';
+    } else {
       ownership = document.createElement('a');
-      ownership.href = '/owners';
+      ownership.href = '/owner';
       ownership.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
       ownership.textContent = 'Ownership';
       menu.appendChild(ownership);

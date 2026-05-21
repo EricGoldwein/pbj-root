@@ -49,112 +49,91 @@
   <!-- Structured Data (JSON-LD): WebPage only (nested Dataset triggered GSC Dataset validation) -->
   <script type="application/ld+json">__REPORT_SSR_JSON_LD__</script>
   
-  <!-- Script to update OG tags with dynamic quarter -->
+  <!-- Shared state CSV fetch (one request for OG tags + loadData) -->
   <script>
-    // Global variable to store current quarter year (set dynamically from data)
     let currentQuarterYear = null;
-    
-    (function() {
-      // Simple CSV parser that handles quoted fields
-      function parseCSVLine(line) {
-        const result = [];
-        let current = '';
-        let inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') {
-            inQuotes = !inQuotes;
-          } else if (char === ',' && !inQuotes) {
-            result.push(current.trim());
-            current = '';
-          } else {
-            current += char;
-          }
+    let _stateQuarterlyCsvTextPromise = null;
+
+    function parseCSVLineForQuarter(line) {
+      const result = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          result.push(current.trim());
+          current = '';
+        } else {
+          current += char;
         }
-        result.push(current.trim());
-        return result;
       }
-      
-      // Fetch the most recent quarter from CSV and update meta tags
-      fetch('/state_quarterly_metrics.csv')
-        .then(response => response.text())
-        .then(text => {
-          const lines = text.split('\n').filter(line => line.trim());
-          if (lines.length < 2) return;
-          
-          // Parse CSV to find most recent quarter
-          const headers = parseCSVLine(lines[0]);
-          const quarterIndex = headers.findIndex(h => h === 'CY_Qtr');
-          if (quarterIndex === -1) return;
-          
-          const quarters = new Set();
-          for (let i = 1; i < lines.length; i++) {
-            const values = parseCSVLine(lines[i]);
-            const quarter = values[quarterIndex]?.trim();
-            if (quarter && quarter.match(/^\d{4}Q\d$/)) {
-              quarters.add(quarter);
+      result.push(current.trim());
+      return result;
+    }
+
+    function fetchStateQuarterlyMetricsCsvText() {
+      if (!_stateQuarterlyCsvTextPromise) {
+        _stateQuarterlyCsvTextPromise = fetch('/state_quarterly_metrics.csv')
+          .then(function (response) {
+            if (!response.ok) {
+              throw new Error('state_quarterly_metrics.csv HTTP ' + response.status);
             }
-          }
-          
-          if (quarters.size === 0) return;
-          
-          // Get most recent quarter
-          const mostRecentQuarter = Array.from(quarters).sort().reverse()[0] || null;
-          
-          // Format: "2025Q3" -> "Q3 2025"
-          const match = mostRecentQuarter.match(/(\d{4})Q(\d)/);
-          if (!match) return;
-          
-          const quarterYear = `Q${match[2]} ${match[1]}`;
-          const title = `State and Regional Nursing Home Staffing Rankings for ${quarterYear}`;
-          
-          // Store globally for use throughout the page
-          currentQuarterYear = quarterYear;
-          
-          // Update page title
-          document.title = title;
-          
-          // Update OG title
-          const ogTitle = document.getElementById('og-title');
-          if (ogTitle) {
-            ogTitle.setAttribute('content', title);
-          }
-          
-          // Update OG description
-          const ogDescription = document.getElementById('og-description');
-          if (ogDescription) {
-            ogDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
-          }
-          
-          // Update Twitter title
-          const twitterTitle = document.getElementById('twitter-title');
-          if (twitterTitle) {
-            twitterTitle.setAttribute('content', title);
-          }
-          
-          // Update Twitter description
-          const twitterDescription = document.getElementById('twitter-description');
-          if (twitterDescription) {
-            twitterDescription.setAttribute('content', `${quarterYear} nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.`);
-          }
-          
-          // Update meta description
-          const metaDesc = document.querySelector('meta[name="description"]');
-          if (metaDesc) {
-            metaDesc.setAttribute('content', `${quarterYear} state and regional nursing home staffing rankings: compare HPRD by state and CMS region with an interactive map, ratios, and medians. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.`);
-          }
-        })
-        .catch(err => {
-          console.warn('Could not update OG tags with dynamic quarter:', err);
-        });
-    })();
+            return response.text();
+          });
+      }
+      return _stateQuarterlyCsvTextPromise;
+    }
+
+    function applyDynamicQuarterMetaFromStateCsv(text) {
+      const lines = text.split('\n').filter(function (line) { return line.trim(); });
+      if (lines.length < 2) return;
+      const headers = parseCSVLineForQuarter(lines[0]);
+      const quarterIndex = headers.findIndex(function (h) { return h === 'CY_Qtr'; });
+      if (quarterIndex === -1) return;
+      const quarters = new Set();
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLineForQuarter(lines[i]);
+        const quarter = values[quarterIndex] && values[quarterIndex].trim();
+        if (quarter && quarter.match(/^\d{4}Q\d$/)) {
+          quarters.add(quarter);
+        }
+      }
+      if (quarters.size === 0) return;
+      const mostRecentQuarter = Array.from(quarters).sort().reverse()[0] || null;
+      const match = mostRecentQuarter.match(/(\d{4})Q(\d)/);
+      if (!match) return;
+      const quarterYear = 'Q' + match[2] + ' ' + match[1];
+      const title = 'State and Regional Nursing Home Staffing Rankings for ' + quarterYear;
+      currentQuarterYear = quarterYear;
+      document.title = title;
+      const ogTitle = document.getElementById('og-title');
+      if (ogTitle) ogTitle.setAttribute('content', title);
+      const ogDescription = document.getElementById('og-description');
+      if (ogDescription) {
+        ogDescription.setAttribute('content', quarterYear + ' nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.');
+      }
+      const twitterTitle = document.getElementById('twitter-title');
+      if (twitterTitle) twitterTitle.setAttribute('content', title);
+      const twitterDescription = document.getElementById('twitter-description');
+      if (twitterDescription) {
+        twitterDescription.setAttribute('content', quarterYear + ' nursing home staffing rankings by state and CMS region — HPRD comparisons, interactive map, ratios, and medians from CMS PBJ data.');
+      }
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) {
+        metaDesc.setAttribute('content', quarterYear + ' state and regional nursing home staffing rankings: compare HPRD by state and CMS region with an interactive map, ratios, and medians. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.');
+      }
+    }
+
+    fetchStateQuarterlyMetricsCsvText()
+      .then(applyDynamicQuarterMetaFromStateCsv)
+      .catch(function (err) {
+        console.warn('Could not update OG tags with dynamic quarter:', err);
+      });
   </script>
   
   <link rel="icon" type="image/png" href="pbj_favicon.png">
-  
-  <!-- D3.js for map -->
-  <script src="https://d3js.org/d3.v7.min.js"></script>
-  <script src="https://d3js.org/topojson.v3.min.js"></script>
   
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -4620,7 +4599,11 @@ __REPORT_SSR_TABLE_ROWS__
         });
       }
     });
-
+  </script>
+  <!-- D3 for map: defer — runs in order before the deferred report data script below -->
+  <script defer src="https://d3js.org/d3.v7.min.js"></script>
+  <script defer src="https://d3js.org/topojson.v3.min.js"></script>
+  <script defer>
     // State name to abbreviation mapping
     const stateAbbreviations = {
       'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
@@ -4778,19 +4761,17 @@ __REPORT_SSR_TABLE_ROWS__
             return null;
           }
         }
-        const [stateResponse, nationalResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
-          fetch('/state_quarterly_metrics.csv'),
+        const [stateText, nationalResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
+          fetchStateQuarterlyMetricsCsvText(),
           fetch('/national_quarterly_metrics.csv'),
           fetch('/cms_region_state_mapping.csv'),
           fetch('/facility_quarterly_metrics_latest.csv'),
           fetch('/cms_region_quarterly_metrics.csv')
         ]);
 
-        if (!stateResponse.ok || !nationalResponse.ok) {
+        if (!nationalResponse.ok) {
           throw new Error('Failed to load data files');
         }
-
-        const stateText = await stateResponse.text();
         const nationalText = await nationalResponse.text();
         let providerText = '';
         // Newest NH_ProviderInfo_* / ProviderInfoNorm_* from provider_info/ (same source as Flask load_provider_info)
@@ -6923,6 +6904,10 @@ __REPORT_SSR_TABLE_ROWS__
     });
 
     function initializeMap() {
+      if (typeof d3 === 'undefined' || typeof topojson === 'undefined') {
+        console.warn('Report map: D3/topojson not loaded yet');
+        return;
+      }
       const isMobile = window.innerWidth <= 768;
       const container = d3.select('#stateMap').node();
       const containerWidth = container ? container.offsetWidth : (isMobile ? Math.min(window.innerWidth - 40, 1000) : 1000);

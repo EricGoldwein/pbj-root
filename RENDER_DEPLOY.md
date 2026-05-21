@@ -17,11 +17,14 @@ Defaults are unchanged unless you set env vars in the Render dashboard (**Enviro
 |----------|---------|----------|
 | `PBJ_GUNICORN_WORKERS` | `2` | Set to `1` on 512MB plans to cut RAM (~half). Slightly less parallel request capacity. |
 | `PBJ_GUNICORN_THREADS` | `4` | Usually leave at 4 with 1 worker. |
-| `PBJ_PROVIDER_PAGE_CACHE_MAX` | `150` | Caps in-memory provider HTML cache entries. |
-| `PBJ_PROVIDER_PAGE_CACHE_TTL` | `120` | Seconds (when cache enabled in prod). |
+| `PBJ_PROVIDER_PAGE_CACHE_MAX` | `400` on Render | Set in code via `setdefault` when `RENDER` is set; optional override in dashboard. |
+| `PBJ_PROVIDER_PAGE_CACHE_TTL` | **900 on Render** (15 min) | Set automatically in `app.py` on Render (`setdefault`); **no dashboard entry required**. Local dev defaults to 120s unless you set this. Not the same as `PBJ_MEM_LOG_RSS_MB`. |
+| `PBJ_AI_CRAWLER_RATE_LIMIT` | `12` on Render | Max `/provider/*` and `/entity/*` requests per IP per window for User-Agents matching `gptbot` / `oai-searchbot`. Set `0` to disable. |
+| `PBJ_AI_CRAWLER_RATE_WINDOW` | `60` | Seconds for the limit above. Over limit → `429` + `Retry-After` (crawler can retry later). |
+| `PBJ_AI_CRAWLER_MARKERS` | `gptbot,oai-searchbot` | Comma-separated UA substrings; does not block `ChatGPT-User` (human link clicks). |
 | `PBJ_MEM_DEBUG` | off | Set to `1` temporarily; logs `[MEM]` RSS and enables `GET /debug/mem` (404 when off). |
 | `PBJ_MEM_ROUTE_LOG` | off (on when `PBJ_MEM_DEBUG=1`) | `[MEM_ROUTE]` lines: RSS, path, elapsed ms, status for `/`, `/sitemap.xml`, `/provider/*`, `/entity/*`, `/search_index.json`, `/api/entity-summary/*`. |
-| `PBJ_MEM_LOG_RSS_MB` | `700` | Also log any route when process RSS ≥ this (even if route logging is off). Requires `psutil`. |
+| `PBJ_MEM_LOG_RSS_MB` | `700` | **Unrelated to page cache.** Logs any route when process RSS ≥ 700 MB (needs `psutil`). |
 
 **Profiling:** After deploy with `PBJ_MEM_DEBUG=1`, hit `/health`, one `/provider/…`, one `/entity/…`, then `GET /debug/mem` to see cache sizes.
 

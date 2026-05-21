@@ -245,6 +245,9 @@ else:
     # Render: keep rendered provider HTML longer under bot traffic (override via env if needed).
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
+    # GPTBot etc.: allow crawl but cap cold-render pressure on /provider and /entity.
+    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '12')
+    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_WINDOW', '60')
 
 # SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in .env or production env.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
@@ -738,6 +741,11 @@ _AGGRESSIVE_BOT_MARKERS = (
     'dataforseo',
 )
 
+# Training/search crawlers: rate-limit (not block) on heavy routes so humans keep capacity.
+_DEFAULT_AI_CRAWLER_MARKERS = ('gptbot', 'oai-searchbot')
+_AI_CRAWLER_HITS = {}
+_AI_CRAWLER_HITS_LOCK = threading.Lock()
+
 
 def _block_aggressive_bots_enabled() -> bool:
     v = (os.environ.get('PBJ_BLOCK_AGGRESSIVE_BOTS') or '').strip().lower()
@@ -751,6 +759,92 @@ def _block_aggressive_bots_enabled() -> bool:
 def _is_aggressive_bot() -> bool:
     ua = (request.headers.get('User-Agent') or '').lower()
     return any(m in ua for m in _AGGRESSIVE_BOT_MARKERS)
+
+
+def _ai_crawler_markers() -> tuple[str, ...]:
+    raw = (os.environ.get('PBJ_AI_CRAWLER_MARKERS') or '').strip()
+    if raw:
+        parts = [p.strip().lower() for p in raw.split(',') if p.strip()]
+        return tuple(parts) if parts else _DEFAULT_AI_CRAWLER_MARKERS
+    return _DEFAULT_AI_CRAWLER_MARKERS
+
+
+def _is_ai_crawler() -> bool:
+    ua = (request.headers.get('User-Agent') or '').lower()
+    return any(m in ua for m in _ai_crawler_markers())
+
+
+def _ai_crawler_rate_limit_enabled() -> bool:
+    v = (os.environ.get('PBJ_AI_CRAWLER_RATE_LIMIT') or '').strip()
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    if v:
+        try:
+            return int(v) > 0
+        except ValueError:
+            return False
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _ai_crawler_rate_limit_config() -> tuple[int, int]:
+    """(max_requests_per_window, window_seconds)."""
+    try:
+        limit = int((os.environ.get('PBJ_AI_CRAWLER_RATE_LIMIT') or '12').strip())
+    except ValueError:
+        limit = 12
+    try:
+        window = int((os.environ.get('PBJ_AI_CRAWLER_RATE_WINDOW') or '60').strip())
+    except ValueError:
+        window = 60
+    return max(1, limit), max(1, window)
+
+
+def _client_ip_for_rate_limit() -> str:
+    xff = (request.headers.get('X-Forwarded-For') or '').strip()
+    if xff:
+        return xff.split(',')[0].strip() or 'unknown'
+    return (request.remote_addr or 'unknown').strip()
+
+
+def _ai_crawler_rate_limit_exceeded() -> int | None:
+    """Return Retry-After seconds if over limit, else None."""
+    limit, window = _ai_crawler_rate_limit_config()
+    ip = _client_ip_for_rate_limit()
+    now = time.monotonic()
+    cutoff = now - window
+    with _AI_CRAWLER_HITS_LOCK:
+        hits = _AI_CRAWLER_HITS.get(ip)
+        if hits is None:
+            hits = []
+            _AI_CRAWLER_HITS[ip] = hits
+        hits[:] = [t for t in hits if t > cutoff]
+        if len(hits) >= limit:
+            oldest = hits[0]
+            return max(1, int(window - (now - oldest)) + 1)
+        hits.append(now)
+        if len(_AI_CRAWLER_HITS) > 5000:
+            stale = [k for k, ts in _AI_CRAWLER_HITS.items() if not ts or ts[-1] <= cutoff]
+            for k in stale[:1000]:
+                _AI_CRAWLER_HITS.pop(k, None)
+    return None
+
+
+@app.before_request
+def _throttle_ai_crawlers_on_heavy_routes():
+    """Rate-limit GPTBot-style crawlers on /provider and /entity (429 + Retry-After, not a full ban)."""
+    if request.path in ('/health', '/warmup', '/debug/mem'):
+        return
+    if not _ai_crawler_rate_limit_enabled() or not _is_ai_crawler():
+        return
+    if not (request.path.startswith('/provider/') or request.path.startswith('/entity/')):
+        return
+    retry_after = _ai_crawler_rate_limit_exceeded()
+    if retry_after is None:
+        return
+    return make_response('Too Many Requests', 429, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Retry-After': str(retry_after),
+    })
 
 
 @app.before_request
@@ -1172,6 +1266,13 @@ def chow_index_json():
 @app.route('/chow.css')
 def chow_css():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'chow.css', mimetype='text/css'))
+
+
+@app.route('/contact-popup-shared.css')
+def contact_popup_shared_css():
+    return _static_cache_headers(
+        send_from_directory(APP_ROOT, 'contact-popup-shared.css', mimetype='text/css')
+    )
 
 
 @app.route('/public-trust.css')
@@ -10479,7 +10580,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pbj_takeaway_card = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
+<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -11041,7 +11142,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
+<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -11195,7 +11296,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
+<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -12626,7 +12727,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem; position: relative;">
 {state_outline_inset}
 <div class="pbj-takeaway-top">
-<img src="/phoebe.png" alt="Phoebe J" width="48" height="48" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
+<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>

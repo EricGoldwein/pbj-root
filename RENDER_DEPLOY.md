@@ -20,12 +20,16 @@ Defaults are unchanged unless you set env vars in the Render dashboard (**Enviro
 | `PBJ_PROVIDER_PAGE_CACHE_MAX` | `150` | Caps in-memory provider HTML cache entries. |
 | `PBJ_PROVIDER_PAGE_CACHE_TTL` | `120` | Seconds (when cache enabled in prod). |
 | `PBJ_MEM_DEBUG` | off | Set to `1` temporarily; logs `[MEM]` RSS and enables `GET /debug/mem` (404 when off). |
+| `PBJ_MEM_ROUTE_LOG` | off (on when `PBJ_MEM_DEBUG=1`) | `[MEM_ROUTE]` lines: RSS, path, elapsed ms, status for `/`, `/sitemap.xml`, `/provider/*`, `/entity/*`, `/search_index.json`, `/api/entity-summary/*`. |
+| `PBJ_MEM_LOG_RSS_MB` | `700` | Also log any route when process RSS ≥ this (even if route logging is off). Requires `psutil`. |
 
 **Profiling:** After deploy with `PBJ_MEM_DEBUG=1`, hit `/health`, one `/provider/…`, one `/entity/…`, then `GET /debug/mem` to see cache sizes.
 
 **Code behavior (safe):**
 
 - Entity/chain pages load provider info only for CCNs on that page (not the full national index).
+- Entity/state/sitemap paths **stream** `facility_quarterly_metrics.csv` (no full-file `_LOAD_CSV_CACHE` for that CSV).
+- `/sitemap.xml` reuses the in-memory `search_index.json` cache (5 min TTL).
 - Single-facility paths use `ccn_only` scans.
 - `/debug/mem` is disabled unless `PBJ_MEM_DEBUG=1`.
 

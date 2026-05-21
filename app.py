@@ -4,7 +4,7 @@
 Simple Flask app to serve static files with proper headers for Facebook scraper
 Now with dynamic date support
 """
-from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request, redirect, make_response
+from flask import Flask, send_from_directory, send_file, render_template_string, render_template, jsonify, request, redirect, make_response, g
 import os
 import sys
 
@@ -105,21 +105,69 @@ from pbj_ai_support import (
     _ul_html,
 )
 
-# Memory debugging — only logs when PBJ_MEM_DEBUG=1 (e.g. for profiling)
+# Memory debugging — PBJ_MEM_DEBUG=1 for verbose [MEM] labels; PBJ_MEM_ROUTE_LOG=1 for route lines.
 try:
     import psutil  # type: ignore[reportMissingImports]
     _psutil_process = psutil.Process()
-    def _log_mem(label):
-        if os.environ.get('PBJ_MEM_DEBUG', '').strip() in ('1', 'true', 'yes'):
-            try:
-                rss_mb = _psutil_process.memory_info().rss / (1024 * 1024)
-                print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
-            except Exception:
-                pass
 except ImportError:
     _psutil_process = None
-    def _log_mem(label):
-        pass
+
+
+def _mem_rss_mb():
+    """Process RSS in MB, or None when psutil is unavailable."""
+    if _psutil_process is None:
+        return None
+    try:
+        return round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
+    except Exception:
+        return None
+
+
+def _log_mem(label):
+    if os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() not in ('1', 'true', 'yes'):
+        return
+    rss_mb = _mem_rss_mb()
+    if rss_mb is not None:
+        print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
+
+
+_MEM_ROUTE_LOG_EXACT = frozenset({
+    '/',
+    '/sitemap.xml',
+    '/search_index.json',
+    '/warmup',
+    '/health',
+})
+_MEM_ROUTE_PREFIXES = (
+    '/provider/',
+    '/entity/',
+    '/api/entity-summary/',
+)
+
+
+def _mem_route_log_enabled() -> bool:
+    v = (os.environ.get('PBJ_MEM_ROUTE_LOG') or '').strip().lower()
+    if v in ('1', 'true', 'yes', 'on'):
+        return True
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    return os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() in ('1', 'true', 'yes')
+
+
+def _mem_route_is_key(path: str) -> bool:
+    if path in _MEM_ROUTE_LOG_EXACT:
+        return True
+    return any(path.startswith(p) for p in _MEM_ROUTE_PREFIXES)
+
+
+def _mem_rss_log_threshold_mb() -> float:
+    raw = (os.environ.get('PBJ_MEM_LOG_RSS_MB') or '').strip()
+    if not raw:
+        return 700.0
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return 700.0
 
 try:
     import markdown  # type: ignore
@@ -559,6 +607,24 @@ _SEARCH_INDEX_CACHE = None
 _SEARCH_INDEX_AT = 0
 _SEARCH_INDEX_TTL = 300  # 5 min
 
+
+def _get_search_index_data():
+    """Load and cache search_index.json (shared by sitemap, risk lookup, entity names)."""
+    global _SEARCH_INDEX_CACHE, _SEARCH_INDEX_AT
+    path = os.path.join(APP_ROOT, 'search_index.json')
+    if not os.path.isfile(path):
+        return None
+    now = time.time()
+    if _SEARCH_INDEX_CACHE is None or (now - _SEARCH_INDEX_AT) >= _SEARCH_INDEX_TTL:
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                _SEARCH_INDEX_CACHE = json.load(f)
+                _SEARCH_INDEX_AT = now
+        except Exception:
+            return None
+    return _SEARCH_INDEX_CACHE
+
+
 HIGH_RISK_CRITERIA_TOOLTIP = (
     'PBJ320 high-risk indicators (CMS): Special Focus Facility or SFF candidate, '
     '1-star overall rating, 1-star staffing rating, or abuse icon.'
@@ -587,22 +653,12 @@ def _sort_risk_reason_display(label: str) -> str:
 
 def get_facility_risk_from_search_index(ccn):
     """Return (risk_flag, reason_str) for a facility CCN from search_index.json (same logic as home search). Cached 2 min."""
-    global _SEARCH_INDEX_CACHE, _SEARCH_INDEX_AT
     if not ccn:
         return 0, ''
     prov = str(ccn).strip().zfill(6)
-    path = os.path.join(APP_ROOT, 'search_index.json')
-    if not os.path.isfile(path):
+    data = _get_search_index_data()
+    if not data:
         return 0, ''
-    now = time.time()
-    if _SEARCH_INDEX_CACHE is None or (now - _SEARCH_INDEX_AT) >= _SEARCH_INDEX_TTL:
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                _SEARCH_INDEX_CACHE = json.load(f)
-                _SEARCH_INDEX_AT = now
-        except Exception:
-            return 0, ''
-    data = _SEARCH_INDEX_CACHE
     try:
         for row in (data.get('f') or []):
             if (row.get('c') or '').strip().zfill(6) == prov:
@@ -616,24 +672,15 @@ def get_facility_risk_from_search_index(ccn):
 
 def get_entity_name_from_search_index(entity_id):
     """Return canonical entity name for an entity ID from search_index.json."""
-    global _SEARCH_INDEX_CACHE, _SEARCH_INDEX_AT
     try:
         target = int(entity_id)
     except Exception:
         return ''
-    path = os.path.join(APP_ROOT, 'search_index.json')
-    if not os.path.isfile(path):
+    data = _get_search_index_data()
+    if not data:
         return ''
-    now = time.time()
-    if _SEARCH_INDEX_CACHE is None or (now - _SEARCH_INDEX_AT) >= _SEARCH_INDEX_TTL:
-        try:
-            with open(path, 'r', encoding='utf-8') as f:
-                _SEARCH_INDEX_CACHE = json.load(f)
-                _SEARCH_INDEX_AT = now
-        except Exception:
-            return ''
     try:
-        for row in (_SEARCH_INDEX_CACHE.get('e') or []):
+        for row in (data.get('e') or []):
             rid = row.get('id')
             rlink = row.get('linkId')
             if (rid is not None and int(rid) == target) or (rlink is not None and int(rlink) == target):
@@ -643,6 +690,12 @@ def get_entity_name_from_search_index(entity_id):
     except Exception:
         return ''
     return ''
+
+@app.before_request
+def _mem_route_timer():
+    """Start timer for optional route-level RSS logging."""
+    g._pbj_req_start = time.time()
+
 
 @app.before_request
 def _ensure_pandas():
@@ -740,6 +793,7 @@ def debug_mem():
                 else None
             ),
             'provider_info_full_cache': bool(_LOAD_PROVIDER_INFO_CACHE),
+            'state_fq_slices': len(_STATE_FQ_SLICE_CACHE),
         },
     })
 
@@ -752,14 +806,12 @@ def warmup():
     """Readiness probe: exercise search_index without rendering provider HTML or loading pandas."""
     checks = {'app': 'ok'}
     ok = True
-    path = os.path.join(APP_ROOT, 'search_index.json')
     try:
-        if not os.path.isfile(path):
+        data = _get_search_index_data()
+        if not data:
             checks['search_index'] = {'ok': False, 'error': 'missing'}
             ok = False
         else:
-            with open(path, encoding='utf-8') as f:
-                data = json.load(f)
             facilities = data.get('f') or []
             checks['search_index'] = {'ok': True, 'facility_count': len(facilities)}
             test_ccn = _WARMUP_TEST_CCN.zfill(6)
@@ -4791,19 +4843,17 @@ def sitemap():
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
         urls.append(f'  <url><loc>{base}/state/{slug}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>')
-    search_path = os.path.join(APP_ROOT, 'search_index.json')
-    if os.path.isfile(search_path):
-        try:
-            with open(search_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+    try:
+        data = _get_search_index_data()
+        if data:
             for fac in (data.get('f') or []):
                 if fac and fac.get('c'):
                     urls.append(f'  <url><loc>{base}/provider/{fac.get("c")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
             for ent in (data.get('e') or []):
                 if ent and ent.get('id') is not None:
                     urls.append(f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
-        except Exception as e:
-            print(f"Sitemap: could not load search_index: {e}")
+    except Exception as e:
+        print(f"Sitemap: could not load search_index: {e}")
     filtered = []
     for entry in urls:
         m = re.search(r'<loc>([^<]+)</loc>', entry)
@@ -5010,12 +5060,8 @@ def get_canonical_latest_quarter():
     if state_df is not None and HAS_PANDAS and isinstance(state_df, pd.DataFrame) and 'CY_Qtr' in state_df.columns:
         q = state_df['CY_Qtr'].max()
     if q is None:
-        # Prefer full file so we get 2025Q3 when present; _latest may only have through Q2 2025
-        fq = load_csv_data('facility_quarterly_metrics.csv')
-        if fq is None or not (HAS_PANDAS and isinstance(fq, pd.DataFrame)):
-            fq = load_csv_data('facility_quarterly_metrics_latest.csv')
-        if fq is not None and HAS_PANDAS and isinstance(fq, pd.DataFrame) and 'CY_Qtr' in fq.columns:
-            q = fq['CY_Qtr'].max()
+        # Stream CY_Qtr only — avoid caching the full facility_quarterly_metrics DataFrame.
+        q = _max_cy_qtr_from_facility_csv()
     _CANONICAL_QUARTER_CACHE = q
     _CANONICAL_QUARTER_AT = now
     return q
@@ -7922,29 +7968,129 @@ def _load_facility_quarterly_for_provider_cached(prov):
         print(f"Error streaming facility_quarterly from {path}: {e}")
         _log_mem("facility_quarterly_stream_end")
         return None
-    out = pdm.concat(chunks_list, axis=0, ignore_index=True) if chunks_list else pdm.DataFrame()
+    out = pdm.concat(chunks_list, axis=0, ignore_index=True) if chunks_list else None
     _log_mem("facility_quarterly_stream_end")
-    return out if not out.empty else None
+    return out if out is not None and not out.empty else None
+
+
+def _max_cy_qtr_from_facility_csv():
+    """Max CY_Qtr from facility_quarterly_metrics*.csv without loading the full file into cache."""
+    pdm = get_pd()
+    if pdm is None:
+        return None
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return None
+    max_q = None
+    try:
+        for chunk in pdm.read_csv(path, usecols=['CY_Qtr'], low_memory=False, chunksize=200000):
+            if 'CY_Qtr' not in chunk.columns or chunk.empty:
+                continue
+            vals = chunk['CY_Qtr'].astype(str).str.strip()
+            chunk_max = vals.max()
+            if chunk_max and (max_q is None or str(chunk_max) > str(max_q)):
+                max_q = chunk_max
+    except Exception as e:
+        print(f"Error reading CY_Qtr from {path}: {e}")
+        return None
+    return max_q
+
+
+def _stream_facility_quarterly_latest_for_ccns(ccns, latest_quarter):
+    """Latest-quarter PBJ rows for a set of CCNs; streams CSV without load_csv_data."""
+    pdm = get_pd()
+    if pdm is None or not ccns or not latest_quarter:
+        return {}
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return {}
+    want = {
+        str(c).strip().zfill(6)
+        for c in ccns
+        if str(c or '').strip()
+    }
+    want = {c for c in want if len(c) == 6}
+    if not want:
+        return {}
+    qstr = str(latest_quarter).strip()
+    out = {}
+    remaining = set(want)
+    try:
+        for chunk in pdm.read_csv(path, low_memory=False, chunksize=100000):
+            if 'PROVNUM' not in chunk.columns or 'CY_Qtr' not in chunk.columns:
+                continue
+            chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == qstr]
+            if chunk.empty:
+                continue
+            normalized = _normalize_provnum_series(chunk['PROVNUM'])
+            hit = chunk.loc[normalized.isin(remaining)]
+            if hit.empty:
+                continue
+            hit = hit.copy()
+            hit['_ccn'] = _normalize_provnum_series(hit['PROVNUM'])
+            for c in hit['_ccn'].unique():
+                if c not in remaining:
+                    continue
+                rows = hit.loc[hit['_ccn'] == c]
+                if not rows.empty:
+                    out[c] = rows.iloc[0]
+                    remaining.discard(c)
+            if not remaining:
+                break
+    except Exception as e:
+        print(f"Error streaming facility_quarterly for ccn set: {e}")
+    return out
+
+
+_STATE_FQ_SLICE_CACHE = {}
+_STATE_FQ_SLICE_TTL = 300  # 5 min
 
 
 def _state_facility_metrics_slice_for_percentiles(state_code):
-    """One filtered copy of facility_quarterly_metrics for a state (for percentiles). Same CSV source as provider pages."""
+    """State-filtered facility_quarterly slice for percentiles; streams CSV (cached per state)."""
     pdm = get_pd()
     if pdm is None or not state_code:
         return None
-    df = load_csv_data('facility_quarterly_metrics.csv')
-    if df is None or not isinstance(df, pd.DataFrame):
-        df = load_csv_data('facility_quarterly_metrics_latest.csv')
-    if df is None or not isinstance(df, pd.DataFrame):
-        return None
-    if 'STATE' not in df.columns or 'CY_Qtr' not in df.columns or 'Total_Nurse_HPRD' not in df.columns:
-        return None
     sc = str(state_code).strip().upper()[:2]
-    st = df['STATE'].astype(str).str.strip().str.upper().str[:2]
-    sub = df.loc[st == sc].copy()
+    if len(sc) != 2:
+        return None
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return None
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = 0
+    cache_key = (path, mtime, sc)
+    now = time.time()
+    cached = _STATE_FQ_SLICE_CACHE.get(cache_key)
+    if cached is not None:
+        cached_at, sub = cached
+        if (now - cached_at) < _STATE_FQ_SLICE_TTL:
+            return sub
+    chunks = []
+    try:
+        for chunk in pdm.read_csv(path, low_memory=False, chunksize=100000):
+            if 'STATE' not in chunk.columns or 'CY_Qtr' not in chunk.columns or 'Total_Nurse_HPRD' not in chunk.columns:
+                continue
+            st = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
+            part = chunk.loc[st == sc]
+            if not part.empty:
+                chunks.append(part)
+    except Exception as e:
+        print(f"Error streaming state facility_quarterly for {sc}: {e}")
+        return None
+    if not chunks:
+        return None
+    sub = pdm.concat(chunks, ignore_index=True)
     if sub.shape[0] < 2:
         return None
+    sub = sub.copy()
     sub['_qstr'] = sub['CY_Qtr'].astype(str).str.strip()
+    _STATE_FQ_SLICE_CACHE[cache_key] = (now, sub)
+    if len(_STATE_FQ_SLICE_CACHE) > 60:
+        oldest_key = min(_STATE_FQ_SLICE_CACHE, key=lambda k: _STATE_FQ_SLICE_CACHE[k][0])
+        _STATE_FQ_SLICE_CACHE.pop(oldest_key, None)
     return sub
 
 
@@ -10393,28 +10539,30 @@ def load_entity_facilities(entity_id):
         facilities = list(by_ccn.values())
         if not facilities:
             return '', []
-        # Attach latest-quarter metrics from facility_quarterly_metrics (same quarter as state/provider pages)
-        fq = load_csv_data('facility_quarterly_metrics.csv')
-        if fq is not None and isinstance(fq, pd.DataFrame) and 'PROVNUM' in fq.columns:
-            fq = fq.copy()
-            fq['PROVNUM'] = _normalize_provnum_series(fq['PROVNUM'])
-            latest_q = get_canonical_latest_quarter()
-            if latest_q is None and 'CY_Qtr' in fq.columns:
-                latest_q = fq['CY_Qtr'].max()
-            if latest_q:
-                # Normalize quarter to str so CSV string/int don't mismatch
-                fq_latest = fq[fq['CY_Qtr'].astype(str) == str(latest_q)]
-                census_col = 'avg_daily_census' if 'avg_daily_census' in fq_latest.columns else 'Avg_Daily_Census'
+        # Attach latest-quarter metrics (stream by CCN — do not load full facility_quarterly_metrics.csv)
+        latest_q = get_canonical_latest_quarter()
+        if latest_q:
+            fq_rows = _stream_facility_quarterly_latest_for_ccns(
+                {f['ccn'] for f in facilities},
+                latest_q,
+            )
+            if fq_rows:
+                sample = next(iter(fq_rows.values()))
+                census_col = (
+                    'avg_daily_census'
+                    if hasattr(sample, 'index') and 'avg_daily_census' in sample.index
+                    else ('Avg_Daily_Census' if hasattr(sample, 'index') and 'Avg_Daily_Census' in sample.index else None)
+                )
                 for fac in facilities:
-                    row = fq_latest[fq_latest['PROVNUM'] == fac['ccn']]
-                    if not row.empty:
-                        r = row.iloc[0]
-                        fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
-                        fac['RN_HPRD'] = r.get('RN_HPRD')
-                        fac['Contract_Percentage'] = r.get('Contract_Percentage')
-                        if census_col in fq_latest.columns:
-                            fac['avg_daily_census'] = r.get(census_col)
-                        fac['quarter'] = latest_q
+                    r = fq_rows.get(fac['ccn'])
+                    if r is None:
+                        continue
+                    fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
+                    fac['RN_HPRD'] = r.get('RN_HPRD')
+                    fac['Contract_Percentage'] = r.get('Contract_Percentage')
+                    if census_col:
+                        fac['avg_daily_census'] = r.get(census_col)
+                    fac['quarter'] = latest_q
         return entity_name, facilities
     except Exception as e:
         print(f"Error loading entity {entity_id}: {e}")
@@ -15402,6 +15550,29 @@ def _path_should_send_noindex() -> bool:
         '/report_builder',
     )
     return any(path.startswith(p) for p in noindex_prefixes)
+
+
+@app.after_request
+def _mem_route_log(response):
+    """Log RSS + path + latency + status for key routes or when RSS exceeds threshold."""
+    path = request.path or ''
+    key_route = _mem_route_log_enabled() and _mem_route_is_key(path)
+    if not key_route and _psutil_process is None:
+        return response
+    rss_mb = _mem_rss_mb() if _psutil_process is not None else None
+    threshold = _mem_rss_log_threshold_mb()
+    over_threshold = rss_mb is not None and rss_mb >= threshold
+    if not over_threshold and not key_route:
+        return response
+    started = getattr(g, '_pbj_req_start', None)
+    elapsed_ms = round((time.time() - started) * 1000, 1) if started else None
+    rss_part = f'rss={rss_mb}MB ' if rss_mb is not None else ''
+    elapsed_part = f'elapsed={elapsed_ms}ms ' if elapsed_ms is not None else ''
+    print(
+        f"[MEM_ROUTE] {rss_part}{elapsed_part}status={response.status_code} path={path}",
+        flush=True,
+    )
+    return response
 
 
 @app.after_request

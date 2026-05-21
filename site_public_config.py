@@ -71,6 +71,12 @@ FOOTER_TRUST_BLURB = (
 # Omit /premium/ and other private/dashboard paths. When multi-state owner profiles launch,
 # a dedicated public route (e.g. /operator/<slug>) may be preferable to unblocking /owners/.
 
+# Paths that must never appear in sitemap.xml (legacy, gated, or unfinished pages).
+SITEMAP_EXCLUDED_PATHS: frozenset[str] = frozenset({
+    '/attorneys',
+    '/pbj-ai-support',
+})
+
 # Static trust pages included in sitemap (path, priority, changefreq).
 SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/about', '0.8', 'monthly'),
@@ -130,7 +136,8 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 LLMS_TXT = build_llms_txt()
 
-ROBOTS_TXT = f"""User-agent: *
+# Canonical robots.txt body — www sitemap only; never disallow /provider/ or /entity/.
+ROBOTS_TXT_CANONICAL = """User-agent: *
 Allow: /
 Disallow: /owners/
 Disallow: /owner/
@@ -147,8 +154,16 @@ Disallow: /search_index.json
 Disallow: /quarters_list.json
 Disallow: /chow_index.json
 
-Sitemap: {PUBLIC_SITE_ORIGIN}/sitemap.xml
+Sitemap: https://www.pbj320.com/sitemap.xml
 """
+
+
+def build_robots_txt() -> str:
+    """Return production robots.txt (fixed www sitemap; no bot-specific provider blocks)."""
+    return ROBOTS_TXT_CANONICAL
+
+
+ROBOTS_TXT = build_robots_txt()
 
 SECURITY_HEADER_VALUES = {
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',

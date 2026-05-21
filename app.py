@@ -45,7 +45,9 @@ from site_public_config import (
     PUBLIC_SITE_ORIGIN,
     ROBOTS_TXT,
     SECURITY_HEADER_VALUES,
+    SITEMAP_EXCLUDED_PATHS,
     SITEMAP_TRUST_PAGES,
+    build_robots_txt,
     normalize_public_site_origin,
     sitemap_loc_is_allowed,
 )
@@ -1139,7 +1141,14 @@ def terms_page():
 
 @app.route('/robots.txt')
 def robots_txt():
-    return ROBOTS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    """Always serve canonical robots from app (not CDN-managed); bust caches after updates."""
+    from flask import make_response
+    resp = make_response(build_robots_txt())
+    resp.headers['Content-Type'] = 'text/plain; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['X-PBJ-Robots-Source'] = 'flask-origin'
+    return resp
 
 
 @app.route('/llms.txt')
@@ -2381,9 +2390,9 @@ def press():
 @app.route('/attorneys')
 @app.route('/attorneys/')
 def attorneys():
-    """Legacy attorneys landing — static file is not deployed; send users to AI support."""
+    """Legacy URL — no attorneys page; not in sitemap."""
     from flask import redirect
-    return redirect('/pbj-ai-support', code=301)
+    return redirect('/contact', code=301)
 
 
 @app.route('/phoebe')
@@ -4743,6 +4752,8 @@ def sitemap():
             static_pages.append((path, priority, changefreq))
             seen_paths.add(path)
     for path, priority, changefreq in static_pages:
+        if path in SITEMAP_EXCLUDED_PATHS:
+            continue
         lastmod = quarter_lastmod if path == '/report' else today
         urls.append(f'  <url><loc>{base}{path}</loc><lastmod>{lastmod}</lastmod><changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>')
     for post in _get_native_insights_posts():

@@ -284,7 +284,7 @@ def _robots_disallow_prefixes_for_star(text: str) -> set[str]:
 def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
     url = f'{report.base}/robots.txt'
     try:
-        status, _, _, body = _fetch(url, timeout)
+        status, _, hdrs, body = _fetch(url, timeout)
     except HTTPError as e:
         if e.code == 403:
             report.fail(url, 'HTTP 403 — cannot verify robots.txt (Cloudflare/bot block)')
@@ -315,8 +315,12 @@ def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]
             if path == p or path.startswith(p + '/'):
                 report.fail(loc, f'blocked by robots.txt Disallow: {prefix} (User-agent: *)')
                 break
+    origin_hdr = (hdrs.get('X-PBJ-Robots-Source') or hdrs.get('x-pbj-robots-source') or '').strip()
+    if origin_hdr and origin_hdr != 'flask-origin':
+        report.fail(url, f'unexpected X-PBJ-Robots-Source: {origin_hdr}')
     if not any(i.url == url for i in report.failures):
-        report.ok('robots.txt: www sitemap line, no /provider/ block, sitemap paths allowed')
+        extra = ' (flask-origin)' if origin_hdr == 'flask-origin' else ''
+        report.ok(f'robots.txt: www sitemap line, no /provider/ block, sitemap paths allowed{extra}')
 
 
 def audit_entity_pages(report: AuditReport, timeout: float) -> None:

@@ -14,7 +14,7 @@ const NAV_LINKS: { href: string; label: string; external?: boolean }[] = [
   { href: `${BASE}/report`, label: 'Report' },
   { href: `${BASE}/insights`, label: 'Insights' },
   { href: `${BASE}/phoebe`, label: 'PBJ Explained' },
-  { href: `${BASE}/owners`, label: 'Ownership' },
+  { href: `${BASE}/owner`, label: 'Ownership' },
 ];
 
 interface SiteNavbarProps {

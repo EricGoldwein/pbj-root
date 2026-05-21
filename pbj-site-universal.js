@@ -267,13 +267,29 @@
     }
   }
 
-  /** Ensure Ownership and Premium are in nav; Premium stays last (desktop and mobile). */
+  /** FEC political contributions tool — single nav item at /owner (not CMS /owners profiles). */
+  function ownershipNavHref(a) {
+    var h = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
+    return h === '/owner' || h === '/owners';
+  }
+
+  /** Ensure one Ownership link (/owner) and Premium last; remove legacy duplicate /owners nav items. */
   function ensureSiteNavLinks() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
-    var ownership = menu.querySelector('a[href="/owner"]') || menu.querySelector('a[href="/owners"]');
+    var ownerLinks = [];
+    var navAnchors = menu.querySelectorAll('a[href]');
+    for (var i = 0; i < navAnchors.length; i++) {
+      if (ownershipNavHref(navAnchors[i])) ownerLinks.push(navAnchors[i]);
+    }
+    var ownership = ownerLinks[0] || null;
+    for (var j = 1; j < ownerLinks.length; j++) ownerLinks[j].remove();
     if (ownership) {
       ownership.href = '/owner';
+      ownership.classList.remove('nav-link--ownership-beta');
+      if (!ownership.textContent || !ownership.textContent.trim()) {
+        ownership.textContent = 'Ownership';
+      }
     } else {
       ownership = document.createElement('a');
       ownership.href = '/owner';

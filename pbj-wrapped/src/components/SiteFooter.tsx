@@ -12,7 +12,11 @@ const FOOTER_BLURB =
   'PBJ320 is a nursing-home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets.';
 
 const linkStyle = { color: 'rgba(148, 163, 184, 0.95)' };
-const legalLinkStyle = { color: 'rgba(203, 213, 225, 0.78)' };
+const signoffLinkStyle = {
+  color: 'rgba(203, 213, 225, 0.78)',
+  textDecoration: 'underline',
+  textUnderlineOffset: '3px',
+};
 
 export const SiteFooter: React.FC = () => {
   const year = new Date().getFullYear();
@@ -62,20 +66,6 @@ export const SiteFooter: React.FC = () => {
         <a href="/contact" style={linkStyle}>Contact</a>
         {' · '}
         <a href="/data-sources" style={linkStyle}>Sources</a>
-      </p>
-
-      <p
-        className="footer-legal-links"
-        style={{
-          margin: '0 0 0.85rem 0',
-          fontSize: '0.68rem',
-          textAlign: 'center',
-          color: 'rgba(203, 213, 225, 0.78)',
-        }}
-      >
-        <a href="/terms" style={legalLinkStyle}>Terms</a>
-        {' · '}
-        <a href="/privacy" style={legalLinkStyle}>Privacy</a>
       </p>
 
       <div
@@ -135,7 +125,14 @@ export const SiteFooter: React.FC = () => {
         >
           320 Consulting
         </a>
-        .
+        {' · '}
+        <a href="/terms" className="footer-signoff-link" style={signoffLinkStyle}>
+          Terms
+        </a>
+        {' · '}
+        <a href="/privacy" className="footer-signoff-link" style={signoffLinkStyle}>
+          Privacy
+        </a>
       </p>
     </footer>
   );

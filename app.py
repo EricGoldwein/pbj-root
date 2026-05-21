@@ -626,8 +626,9 @@ def _get_search_index_data():
 
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
-    'PBJ320 high-risk indicators (CMS): Special Focus Facility or SFF candidate, '
-    '1-star overall rating, 1-star staffing rating, or abuse icon.'
+    'CMS Provider Information fields echoed on PBJ320 (not independent findings): '
+    'Special Focus Facility or SFF candidate, 1-star overall or staffing rating, or abuse icon. '
+    'See Data sources for the CMS abuse-icon definition.'
 )
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
@@ -7386,8 +7387,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       </div>
       <div class="nav-menu" id="navMenu">
         <a href="/about" class="nav-link">About</a>
-        <a href="/insights" class="nav-link">Insights</a>
         <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
         <a href="/owners" class="nav-link">Ownership</a>
         <a href="/premium" class="nav-link">Premium</a>
@@ -7802,7 +7803,7 @@ Thank you,"""
 
 
 def render_methodology_block():
-    """Return collapsible Methodology & Data Transparency block for facility, state, entity pages."""
+    """Collapsible Methodology on facility/state/entity pages — brief; full defs on /data-sources."""
     return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
 <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
 <div class="pbj-details-content">
@@ -7816,7 +7817,8 @@ def render_methodology_block():
 </ul>
 <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: rgba(226,232,240,0.8);">Note: Some states set minimums (e.g., NJ, CA, NY at 3.5 HPRD); a federal 3.48 minimum was recently overturned (2025). A 2001 federal study linked 4.1 HPRD to better outcomes in that study. Staffing needs vary by resident acuity (case-mix), day, and shift. Estimates on PBJ Takeaway assume roughly 60% of staff are CNAs.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Data transparency</p>
-<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="#" class="pbj-contact-trigger" data-topic="Data issue or possible bug (please describe what looks wrong and where)." data-subject-type="data_issue" style="color: #818cf8;" role="button">let me know via the contact form</a> so I can set things right.</p>
+<p style="margin: 0 0 0.75rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="#" class="pbj-contact-trigger" data-topic="Data issue or possible bug (please describe what looks wrong and where)." data-subject-type="data_issue" style="color: #818cf8;" role="button">let me know via the contact form</a> so I can set things right.</p>
+<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Rankings, within-state percentiles, CMS flags (including abuse icon), and PBJ exclusions: <a href="/data-sources#methodology">How metrics are calculated</a>.</p>
 </div>
 </details>'''
 
@@ -13339,8 +13341,8 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
             </div>
             <div class="nav-menu" id="navMenu" style="display:flex;gap:30px;align-items:center;">
                 <a href="/about" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">About</a>
-                <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
+                <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
                 <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
@@ -15013,8 +15015,8 @@ def pbjpedia_page(page):
             </div>
             <div class="nav-menu" id="navMenu" style="display:flex;gap:30px;align-items:center;">
                 <a href="/about" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">About</a>
-                <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
+                <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
                 <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Ownership</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>

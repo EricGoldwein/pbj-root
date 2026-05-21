@@ -32,12 +32,6 @@
     '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a>' +
     '</p>';
 
-  var FOOTER_LEGAL_LINKS =
-    '<p class="footer-legal-links" style="margin:0 0 0.85rem 0;font-size:0.68rem;text-align:center;color:rgba(203,213,225,0.78)">' +
-    '<a href="/terms" style="color:rgba(203,213,225,0.78)">Terms</a> · ' +
-    '<a href="/privacy" style="color:rgba(203,213,225,0.78)">Privacy</a>' +
-    '</p>';
-
   var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
     '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="display:inline-block;transition:opacity 0.3s ease" title="Email: ' + CONTACT.email + '" aria-label="Email ' + CONTACT.email + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>',
@@ -49,7 +43,13 @@
 
   function footerSignoffHtml() {
     var y = new Date().getFullYear();
-    return '<p class="footer-signoff">\u00a9 ' + y + ', <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a>.</p>';
+    var legalStyle = 'color:rgba(203,213,225,0.78);text-decoration:underline;text-underline-offset:3px;';
+    return (
+      '<p class="footer-signoff">\u00a9 ' + y + ', ' +
+      '<a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a> · ' +
+      '<a href="/terms" class="footer-signoff-link" style="' + legalStyle + '">Terms</a> · ' +
+      '<a href="/privacy" class="footer-signoff-link" style="' + legalStyle + '">Privacy</a></p>'
+    );
   }
 
   /** Remove legacy per-page PBJ quarter line (pre-v27 footer). */
@@ -68,7 +68,7 @@
     if (!el) return;
     purgeLegacyFooterMarkup(el);
     var body = FOOTER_CORE + footerSignoffHtml();
-    el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
+    el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + body;
     el.setAttribute('data-pbj-footer', 'universal');
   }
 
@@ -214,14 +214,15 @@
     var style = document.createElement('style');
     style.id = 'pbj-footer-styles';
     style.textContent = [
-      '.footer .footer-trust-links a,.footer .footer-legal-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
+      '.footer .footer-trust-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
       '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;}',
-      '.footer .footer-legal-links a:hover,.footer .footer-legal-links a:focus-visible{color:rgba(203,213,225,0.85) !important;}',
-      '.footer .footer-trust-links a:focus-visible,.footer .footer-legal-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
+      '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
       '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(203,213,225,0.82);}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(226,232,240,0.92);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
+      '.footer .footer-signoff .footer-signoff-link:hover,.footer .footer-signoff .footer-signoff-link:focus-visible{color:rgba(203,213,225,0.95) !important;}',
+      '.footer .footer-signoff .footer-signoff-link:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
       'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}',
       '.pbj-sources-about-btn{font:inherit;font-size:inherit;font-weight:600;color:rgba(148,163,184,0.95);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}',
       '.pbj-sources-about-btn:hover{color:#cbd5e1;}',

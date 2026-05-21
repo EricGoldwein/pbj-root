@@ -923,23 +923,12 @@
 
         <div id="setupWarning" class="setup-warning" style="display: none;">
             <div class="warning-content">
-                <h3>?? Setup Required</h3>
+                <h3>Search temporarily unavailable</h3>
                 <p id="setupMessage"></p>
-                <div class="setup-instructions">
-                    <p><strong>?? Simple Setup (One-Time):</strong></p>
-                    <div style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 6px; margin: 15px 0;">
-                        <p style="margin-bottom: 10px;"><strong>Step 1:</strong> Open terminal/command prompt in this project folder</p>
-                        <p style="margin-bottom: 10px;"><strong>Step 2:</strong> Copy and paste this command:</p>
-                        <code style="display: block; padding: 10px; background: rgba(0,0,0,0.6); border-radius: 4px; font-size: 1.1rem; margin: 10px 0;">
-                            python donor/owner_donor.py MODE=extract
-                        </code>
-                        <p style="margin-top: 10px;"><strong>Step 3:</strong> Wait 1-5 minutes for it to finish</p>
-                        <p style="margin-top: 10px;"><strong>Step 4:</strong> Refresh this page</p>
-                    </div>
-                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 15px;">
-                        <em>?? This extracts all unique owners from the 250k nursing home ownership dataset. You only need to do this once (or when you want to update the data).</em>
-                    </p>
-                </div>
+                <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 0.75rem;">
+                    Owner data is being updated. Try again later or contact
+                    <a href="mailto:eric@320insight.com" style="color: #667eea;">eric@320insight.com</a>.
+                </p>
             </div>
         </div>
 
@@ -1150,10 +1139,10 @@
                 
                 if (stats.total_owners === 0) {
                     setupWarning.style.display = 'block';
-                    setupMessage.textContent = 'No owners database found. You need to create it first.';
+                    setupMessage.textContent = 'The owner search database is not available right now.';
                 } else if (stats.total_owners < 1000) {
                     setupWarning.style.display = 'block';
-                    setupMessage.textContent = `Only ${stats.total_owners} owners loaded. This seems incomplete - the database was likely created with a filter. To load ALL owners from the full 250k dataset, regenerate it.`;
+                    setupMessage.textContent = `The owner search is only partially loaded (${stats.total_owners} owners). Results may be incomplete until the full dataset is published.`;
                 } else {
                     setupWarning.style.display = 'none';
                 }

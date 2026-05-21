@@ -634,9 +634,8 @@ def _get_search_index_data():
 
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
-    'CMS Provider Information fields echoed on PBJ320 (not independent findings): '
-    'Special Focus Facility or SFF candidate, 1-star overall or staffing rating, or abuse icon. '
-    'See Data sources for the CMS abuse-icon definition.'
+    'Shown when CMS Provider Information flags the facility: SFF or SFF candidate, '
+    '1-star overall or staffing rating, or abuse icon. PBJ320 displays CMS fields—it does not assign them.'
 )
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
@@ -1244,8 +1243,14 @@ def llms_txt():
     return build_llms_txt(_public_site_origin()), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
-@app.route('/what-is-hprd')
 @app.route('/cms-payroll-based-journal')
+def cms_payroll_based_journal_redirect():
+    """Hidden for now; plain-language PBJ overview lives on /phoebe."""
+    from flask import redirect
+    return redirect('/phoebe', code=301)
+
+
+@app.route('/what-is-hprd')
 @app.route('/nursing-home-staffing-data')
 def seo_explainer_page():
     """Lightweight glossary-style pages for PBJ / HPRD / PBJ320 staffing queries."""
@@ -4857,7 +4862,6 @@ def sitemap():
         ('/pbj-sample', '0.6', 'monthly'),
         ('/phoebe', '0.8', 'monthly'),
         ('/what-is-hprd', '0.7', 'monthly'),
-        ('/cms-payroll-based-journal', '0.7', 'monthly'),
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
@@ -7896,7 +7900,7 @@ def render_methodology_block():
     return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
 <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
 <div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a> data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022). <a href="/nursing-home-staffing-data">About PBJ320 staffing data</a>.</p>
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public files (2017–2025), plus Provider Information and chain data where shown. State staffing context via MACPAC (2022). <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
 <li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
@@ -12746,9 +12750,9 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
     
     <h2>Related guides</h2>
     <ul>
+        <li><a href="/phoebe">PBJ explained</a></li>
         <li><a href="/what-is-hprd">What is HPRD?</a></li>
-        <li><a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a></li>
-        <li><a href="/data-sources">PBJ320 data sources</a></li>
+        <li><a href="/data-sources">Data sources</a></li>
     </ul>
     """
     

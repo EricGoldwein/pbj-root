@@ -45,7 +45,7 @@
       <h1>Data sources</h1>
       <p class="meta">Last updated: May 2026</p>
 
-      <p>PBJ320 is a public nursing home staffing and facility lookup built from federal and other public datasets. This page lists the main sources behind the free site. PBJ320 is operated by <strong>320 Consulting LLC</strong> and is not affiliated with CMS, Medicare, MACPAC, or the FEC.</p>
+      <p>PBJ320 is a public nursing home staffing and facility lookup built from federal and other public datasets. This page lists the main sources behind the free site. PBJ320 is operated by <strong>320 Consulting LLC</strong> and is not affiliated with CMS, Medicare, MACPAC, or the FEC. Background: <a href="/phoebe">PBJ explained</a> · <a href="/what-is-hprd">What is HPRD?</a></p>
 
       <h2>CMS staffing (Payroll-Based Journal)</h2>
       <p>Facility-level nurse staffing hours, census, and derived metrics (including HPRD) come from CMS Payroll-Based Journal (PBJ) public files.</p>
@@ -56,11 +56,7 @@
       </ul>
 
       <h2>CMS provider &amp; facility context</h2>
-      <p>Provider names, locations, ratings, ownership type, and related fields are drawn from CMS Provider Information and linked public provider datasets where shown on facility, state, and entity pages.</p>
-      <ul>
-        <li><a href="__CMS_OPEN_DATA__" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
-        <li><a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> (official consumer-facing facility profiles)</li>
-      </ul>
+      <p>Ratings, special-focus status, abuse icon, ownership type, and case-mix benchmarks on facility pages come from <strong>Nursing Home Provider Information</strong>—not from PBJ staffing files. That dataset is published on CMS’s provider data site (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">dataset 4pq5-n9py</a>). Consumer-facing profiles: <a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a>.</p>
 
       <h2>CMS chain &amp; affiliated entity data</h2>
       <p>Chain-level summaries on entity pages use CMS nursing home chain performance measures where available.</p>
@@ -87,22 +83,20 @@
       </ul>
 
       <h2>PBJ320 Premium (paid)</h2>
-      <p><a href="/premium">PBJ320 Premium</a> facility dashboards may also use CMS Payroll-Based Journal Employee Detail and other CMS files for roster-level views. Those datasets are not required for the free public staffing dashboard.</p>
+      <p><a href="/premium">PBJ320 Premium</a> may use CMS employee-detail and other files for roster-level views. The free site uses quarterly PBJ aggregates only.</p>
 
       <h2 id="methodology">How metrics are calculated</h2>
       <p>Screening tool only—not proof of compliance, abuse, or care quality. <a href="/terms">Terms</a>.</p>
       <ul>
         <li id="hprd"><strong><a href="/what-is-hprd">HPRD</a>:</strong> Total nurse hours ÷ average residents (CMS-reported).</li>
         <li><strong>Direct care:</strong> Excludes admin and DON where noted.</li>
-        <li><strong>Case-mix:</strong> CMS Provider Information PDPM benchmark (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">4pq5-n9py</a>)—reference, not a legal minimum.</li>
+        <li><strong>Case-mix:</strong> PDPM benchmark from Nursing Home Provider Information (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">4pq5-n9py</a>)—reference, not a legal minimum.</li>
         <li id="percentiles"><strong>Within-state ranks</strong> (e.g. bottom 10%): Facility <strong>total nurse HPRD</strong> vs. other homes in the same state for the <strong>quarter on that page</strong>; not case-mix adjusted.</li>
         <li id="rankings"><strong><a href="/report">Report</a> rankings:</strong> Default = state <strong>mean</strong> total nurse HPRD for the selected quarter (<code>state_quarterly_metrics.csv</code>); rank 1 = highest. <strong>Median</strong> toggle = median across facilities (equal weight). <strong>Exclude Admin/DON</strong> drops RN Admin, RN DON, LPN Admin. Puerto Rico excluded. CMS region rows pool facilities by CMS region. Not acuity-adjusted.</li>
         <li id="pbj-exclusions"><strong>CMS PBJ public-file exclusions</strong> (when CMS publishes quarterly PUFs): facilities may be omitted for incomplete/erroneous submissions, missing nurse staffing on multiple days when census is non-zero, or quarterly aggregates outside CMS bounds (e.g. total nurse HPRD below 1.5 or above 12, nurse aide above 5.25). Rules are in CMS PUF documentation and the policy manual on the <a href="__CMS_PBJ_STAFFING_SUBMISSION__" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> page.</li>
-        <li id="high-risk"><strong>CMS flags on facility pages</strong> (SFF, SFF candidate, 1-star, abuse icon): Fields from CMS Provider Information / Care Compare—PBJ320 does not assign them. <strong>Abuse icon</strong> = CMS record when cited for abuse or neglect at harm level or above on survey cycle 1 (scope/severity G or greater), or at potential harm (scope/severity D or above) on both survey cycles 1 and 2. Confirm on Care Compare (linked above).</li>
+        <li id="high-risk"><strong>CMS quality flags</strong> (SFF, SFF candidate, 1-star overall or staffing rating, abuse icon): PBJ320 shows these when they appear in CMS Provider Information—the same underlying fields Care Compare uses. PBJ320 reads and displays CMS’s flags; it does not run surveys or assign ratings. Confirm on <a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Care Compare</a>.</li>
         <li id="owners-fec"><strong><a href="/owners">Owner–FEC tool</a> (beta):</strong> Name match to FEC filings; verify each Source link.</li>
-        <li id="premium-scope"><strong>Free site:</strong> Quarterly aggregates. <strong><a href="/premium">Premium</a>:</strong> May add daily PBJ and employee detail (paid dashboards; scope per engagement).</li>
       </ul>
-      <p>Facility pages: collapsible Methodology (metrics summary + link here). Background: <a href="/phoebe">PBJ explained</a> · <a href="/what-is-hprd">What is HPRD?</a></p>
 
       <h2>How to use this site</h2>
       <p>PBJ320 is an analytical tool built on public records. It is not proof of care quality, legal liability, or regulatory noncompliance. Verify important figures against the official CMS sources above before relying on them for research, litigation, or operations.</p>

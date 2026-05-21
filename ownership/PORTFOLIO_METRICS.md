@@ -24,7 +24,7 @@ Portfolio means exclude implausible values so a single bad provider-info row doe
 
 ### Total nurse HPRD
 
-Aligned with **CMS PBJ public-use file quarterly rules** ([CMS PBJ explainer](https://www.pbj320.com/cms-payroll-based-journal); full PBJpedia reference not public yet):
+Aligned with **CMS PBJ public-use file quarterly rules** ([PBJ explained](https://www.pbj320.com/phoebe); full PBJpedia reference not public yet):
 
 - **Exclude** HPRD **&lt; 1.5** or **&gt; 12.0** hours per resident day
 - Values such as **0.5 HPRD** are always excluded (below the CMS aberrant-staffing floor)

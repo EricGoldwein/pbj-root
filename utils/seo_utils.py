@@ -413,10 +413,6 @@ EXPLAINER_SEE_ALSO: dict[str, tuple[tuple[str, str], ...]] = {
         ('PBJ explained', '/phoebe'),
         ('Search facilities', '/'),
     ),
-    'cms-payroll-based-journal': (
-        ('PBJ explained', '/phoebe'),
-        ('Data sources', '/data-sources'),
-    ),
     'nursing-home-staffing-data': (
         ('PBJ explained', '/phoebe'),
         ('What is HPRD?', '/what-is-hprd'),
@@ -439,32 +435,12 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             '<p>Example: 400 nursing hours and 100 resident days → HPRD of <strong>4.0</strong>.</p>'
             '<h2>On facility pages</h2>'
             '<p>PBJ320 often shows <strong>total nurse HPRD</strong> plus splits for RNs, LPNs/LVNs, and nurse aides, '
-            'based on CMS Table 1 job categories. Some views also show <strong>direct-care nurse HPRD</strong>, which '
+            'based on CMS nursing job categories. Some views also show <strong>direct-care nurse HPRD</strong>, which '
             'drops DON and administrative RN/LPN hours.</p>'
             '<h2>Read it carefully</h2>'
             '<p>HPRD is a quarterly or daily <em>average</em>—it does not show who was on each shift. More hours does '
             'not automatically mean better care, and resident acuity varies. Use it with inspections, complaints, and '
             'other facility context. Background: <a href="/phoebe">PBJ explained</a>.</p>'
-        ),
-    },
-    'cms-payroll-based-journal': {
-        'path': '/cms-payroll-based-journal',
-        'title': 'CMS Payroll-Based Journal (PBJ) for Nursing Homes | PBJ320',
-        'description': (
-            'CMS Payroll-Based Journal (PBJ) is the federal nursing home staffing reporting system. '
-            'What facilities submit, what CMS publishes, and how PBJ320 uses the public files.'
-        ),
-        'h1': 'CMS Payroll-Based Journal (PBJ)',
-        'body': (
-            '<p>The <strong>Payroll-Based Journal (PBJ)</strong> is CMS’s federal staffing reporting system for '
-            'Medicare- and Medicaid-certified nursing homes. Each quarter, facilities submit paid hours by job category '
-            'and work date from payroll records.</p>'
-            '<p>CMS publishes those data as public use files and open datasets for Care Compare and research. '
-            'PBJ320 maps the published files to searchable facility and state pages—it is not part of CMS. '
-            f'Official downloads and the policy manual are on the '
-            f'<a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
-            'CMS PBJ staffing data submission</a> page. Plain-language overview: '
-            '<a href="/phoebe">PBJ explained</a>.</p>'
         ),
     },
     'nursing-home-staffing-data': {

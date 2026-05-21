@@ -12166,12 +12166,15 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {state_hprd_modal}
 </div>'''
     try:
-        from ownership.page_integrations import render_state_top_owners_block
+        from ownership.page_integrations import (
+            render_state_chow_block,
+            render_state_top_owners_block,
+        )
         _state_top_owners_line = render_state_top_owners_block(state_code, state_name)
+        _state_chow_line = render_state_chow_block(state_code, state_name)
     except Exception:
         _state_top_owners_line = ''
-    # CHOW monitor not public yet — do not embed ownership-change tables on state pages.
-    _state_chow_line = ''
+        _state_chow_line = ''
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
@@ -13509,7 +13512,9 @@ def generate_state_page(state_code):
     try:
         from ownership.chow_lookup import chow_count_for_state
         if chow_count_for_state(state_code) > 0:
-            state_extra_head += '<link rel="stylesheet" href="/chow.css">'
+            state_extra_head += (
+                f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+            )
     except Exception:
         pass
     layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=state_extra_head)

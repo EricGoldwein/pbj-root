@@ -303,7 +303,12 @@ def _facility_col_from_record(rec: dict[str, Any]) -> str:
     return _facility_link_from_record(rec)
 
 
-def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
+def _render_state_chow_recent_table(
+    state_code: str,
+    *,
+    limit: int = 10,
+    foot_html: str = "",
+) -> str:
     """One row per CMS transaction (not separate buyer/seller party rows)."""
     st = state_code.upper()[:2]
     recent = chow_records_for_state(st, limit=limit)
@@ -316,16 +321,8 @@ def _render_state_chow_recent_table(state_code: str, *, limit: int = 10) -> str:
         facility_link_fn=_facility_col_from_record,
         max_rows=limit,
     )
-    total = chow_count_for_state(st)
-    more = ""
-    if total > len(recent):
-        more = (
-            f'<p class="chow-state-tx-more">'
-            f"Showing {len(recent)} most recent of {total:,} CMS-reported ownership changes in {html.escape(st)}."
-            f"</p>"
-        )
-
-    return table_inner + more + CHOW_TABLE_INIT_SCRIPT
+    foot = foot_html or ""
+    return table_inner + foot + CHOW_TABLE_INIT_SCRIPT
 
 
 def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
@@ -370,7 +367,7 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
 
 
 def render_state_chow_block(state_code: str, state_name: str = "") -> str:
-    """Collapsible CHOW summary at bottom of state pages."""
+    """Collapsible recent CHOW transactions on state pages (CT + ownership preview states)."""
     st = str(state_code or "").strip().upper()[:2]
     if not ownership_beta_enabled_for_state(st):
         return ""
@@ -379,25 +376,38 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         return ""
     label = html.escape(state_name or st)
     stats = chow_state_stats(st)
-    events = stats.get("events") or cnt
-    u_ccn = stats.get("unique_facilities") or 0
+    events = int(stats.get("events") or cnt)
+    u_ccn = int(stats.get("unique_facilities") or 0)
+    recent_n = min(10, events)
 
-    date_rng = html.escape(chow_index_date_range_label())
-    meta_bits = [f"{events:,} CMS transactions", f"{u_ccn:,} facilities"]
-    if date_rng:
-        meta_bits.append(date_rng)
+    date_rng = chow_index_date_range_label()
+    date_bit = (
+        f' · {html.escape(date_rng)}'
+        if date_rng
+        else ""
+    )
     lead = (
-        f'<p class="chow-state-lead">{" · ".join(meta_bits)} in {label}. '
-        "Reported enrollment changes—not proof of staffing or care quality.</p>"
+        f'<p class="chow-state-lead">{events:,} reported ownership changes '
+        f'at {u_ccn:,} {label} facilities{date_bit}. '
+        f"CMS enrollment filings—not proof of staffing or care quality.</p>"
     )
 
-    table_html = _render_state_chow_recent_table(st, limit=10)
-    summary_label = f"Ownership changes · {events:,}"
+    explorer_href = f"/chow?state={html.escape(st, quote=True)}"
+    foot_bits: list[str] = []
+    if events > recent_n:
+        foot_bits.append(f"Showing {recent_n} newest.")
+    foot_bits.append(
+        f'<a href="{explorer_href}">All {events:,} in CHOW explorer</a>'
+    )
+    foot_html = f'<p class="chow-state-foot">{" ".join(foot_bits)}</p>'
+
+    table_html = _render_state_chow_recent_table(st, limit=recent_n, foot_html=foot_html)
+    summary_label = f"Recent ownership changes · {label} ({events:,})"
 
     return (
-        f'<details class="pbj-details pbj-details-ownership-chow" style="margin-top:1.5rem;">'
+        f'<details class="pbj-details pbj-page-bottom-details pbj-details-ownership-chow">'
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
-        f"{html.escape(summary_label)}</summary>"
+        f"{summary_label}</summary>"
         f'<div class="pbj-details-content chow-state-block">'
         f"{lead}"
         f"{table_html}"

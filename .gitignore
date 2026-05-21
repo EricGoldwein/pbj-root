@@ -84,9 +84,10 @@ CALCULATION_ANALYSIS.md
 CALCULATION_DOCUMENTATION.md
 FIXES_SUMMARY.md
 
-# Allow quarterly CSVs on production (facility metrics: commit _latest only; build copies to metrics.csv)
+# Full longitudinal facility metrics: commit gzip only; build decompresses (see docs/DATA_DEPLOY.md)
+!facility_quarterly_metrics.csv.gz
+!provider_info_combined_latest.csv
 !state_quarterly_metrics.csv
-!facility_quarterly_metrics_latest.csv
 
 # Local/generated artifacts from one-off update workflows (keep out of release commits)
 donor/output/

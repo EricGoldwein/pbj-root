@@ -34,9 +34,8 @@ MONTH_LOOKUP = {
     "dec": 12, "december": 12,
 }
 MAX_NON_LFS_BYTES = 100 * 1024 * 1024
-REQUIRED_LFS_FILES = (
-    "facility_quarterly_metrics.csv",
-    "provider_info_combined.csv",
+REQUIRED_DEPLOY_DATA_FILES = (
+    "facility_quarterly_metrics.csv.gz",
     "provider_info_combined_latest.csv",
 )
 
@@ -340,22 +339,24 @@ def _check_staged_large_non_lfs(errors: List[str], notes: List[str]) -> None:
         notes.append("Staged large-file check passed (no >100MB non-LFS staged files).")
 
 
-def _check_required_lfs_configuration(errors: List[str], notes: List[str]) -> None:
-    configured = []
-    for rel in REQUIRED_LFS_FILES:
+def _check_required_deploy_data(errors: List[str], notes: List[str]) -> None:
+    present = []
+    for rel in REQUIRED_DEPLOY_DATA_FILES:
         p = REPO_ROOT / rel
-        if not p.exists():
+        if not p.is_file():
+            errors.append(f"required deploy data missing: {rel}")
             continue
         try:
-            attr = _run_git(["check-attr", "filter", "--", rel])
-        except subprocess.CalledProcessError:
-            attr = ""
-        if ": filter: lfs" not in attr:
-            errors.append(f"required LFS file is not LFS-configured: {rel}")
+            head = p.read_bytes()[:80]
+        except OSError:
+            errors.append(f"cannot read deploy data: {rel}")
+            continue
+        if head.startswith(b"version https://git-lfs.github.com/spec/v1"):
+            errors.append(f"deploy data is still an LFS pointer (commit real file): {rel}")
         else:
-            configured.append(rel)
-    if configured:
-        notes.append(f"LFS configured for: {', '.join(configured)}")
+            present.append(rel)
+    if present:
+        notes.append(f"Deploy data present: {', '.join(present)}")
 
 
 def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
@@ -395,7 +396,7 @@ def main() -> int:
         _check_api_dates_consistency(errors, notes)
         _check_entity_counts_against_latest_snapshot(errors, notes)
         _check_owners_autocomplete_health(errors, notes)
-        _check_required_lfs_configuration(errors, notes)
+        _check_required_deploy_data(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
         _check_public_case_mix_export(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script

@@ -1,18 +1,27 @@
 #!/usr/bin/env python3
 """
-Render deploy helper: materialize runtime CSVs without Git LFS.
+Render deploy: materialize full longitudinal CSVs from committed archives (no LFS checkout).
 
-facility_quarterly_metrics.csv is not in git (LFS removed); copy from _latest at build.
-Provider pages use provider_info/ProviderInfoNorm_*.csv (normal git).
+- facility_quarterly_metrics.csv.gz -> facility_quarterly_metrics.csv (+ _latest copy for static routes)
+- provider_info_combined_latest.csv is normal git
+
+See docs/DATA_DEPLOY.md
 """
 from __future__ import annotations
 
 import csv
+import glob
+import gzip
 import os
 import shutil
 import sys
 
 APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+FACILITY_GZIP = 'facility_quarterly_metrics.csv.gz'
+FACILITY_CSV = 'facility_quarterly_metrics.csv'
+FACILITY_LATEST = 'facility_quarterly_metrics_latest.csv'
+MIN_FACILITY_QUARTERS = 12
 
 
 def _is_lfs_pointer(path: str) -> bool:
@@ -24,69 +33,79 @@ def _is_lfs_pointer(path: str) -> bool:
     return head.startswith(b'version https://git-lfs.github.com/spec/v1')
 
 
-def _ensure_csv_from_source(target: str, source: str, label: str) -> None:
-    tpath = os.path.join(APP_ROOT, target)
-    spath = os.path.join(APP_ROOT, source)
-    if not os.path.isfile(spath):
-        print(f'ensure_deploy_csvs: ERROR missing {source}', file=sys.stderr)
+def _count_cy_qtr(path: str) -> tuple[int, list[str]]:
+    quarters: set[str] = set()
+    rows = 0
+    with open(path, newline='', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        if not reader.fieldnames or 'CY_Qtr' not in reader.fieldnames:
+            return 0, []
+        for row in reader:
+            rows += 1
+            q = (row.get('CY_Qtr') or '').strip()
+            if q:
+                quarters.add(q)
+    return rows, sorted(quarters)
+
+
+def _gunzip_facility_metrics() -> None:
+    gz_path = os.path.join(APP_ROOT, FACILITY_GZIP)
+    out_path = os.path.join(APP_ROOT, FACILITY_CSV)
+    if not os.path.isfile(gz_path):
+        print(f'ensure_deploy_csvs: ERROR missing {FACILITY_GZIP}', file=sys.stderr)
         sys.exit(1)
-    if _is_lfs_pointer(spath):
-        print(f'ensure_deploy_csvs: ERROR {source} is LFS pointer', file=sys.stderr)
+    if _is_lfs_pointer(gz_path):
+        print(f'ensure_deploy_csvs: ERROR {FACILITY_GZIP} is LFS pointer', file=sys.stderr)
         sys.exit(1)
-    if os.path.isfile(tpath) and not _is_lfs_pointer(tpath):
-        print(f'ensure_deploy_csvs: {target} already present')
+    print(f'ensure_deploy_csvs: decompressing {FACILITY_GZIP} -> {FACILITY_CSV}')
+    with gzip.open(gz_path, 'rb') as f_in, open(out_path, 'wb') as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    rows, quarters = _count_cy_qtr(out_path)
+    if len(quarters) < MIN_FACILITY_QUARTERS:
+        print(
+            f'ensure_deploy_csvs: ERROR only {len(quarters)} quarters in {FACILITY_CSV} '
+            f'(need >={MIN_FACILITY_QUARTERS}): {quarters}',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    print(
+        f'ensure_deploy_csvs: {FACILITY_CSV} rows={rows} '
+        f'quarters={len(quarters)} range={quarters[0]}..{quarters[-1]}'
+    )
+    latest_path = os.path.join(APP_ROOT, FACILITY_LATEST)
+    shutil.copy2(out_path, latest_path)
+    print(f'ensure_deploy_csvs: copied -> {FACILITY_LATEST}')
+
+
+def _newest_provider_norm_rel() -> str | None:
+    pattern = os.path.join(APP_ROOT, 'provider_info', 'ProviderInfoNorm_*.csv')
+    for path in sorted(glob.glob(pattern), reverse=True):
+        rel = os.path.relpath(path, APP_ROOT).replace('\\', '/')
+        if os.path.isfile(path) and not _is_lfs_pointer(path):
+            return rel
+    return None
+
+
+def _check_provider_combined() -> None:
+    path = os.path.join(APP_ROOT, 'provider_info_combined_latest.csv')
+    if not os.path.isfile(path):
+        print('ensure_deploy_csvs: WARN provider_info_combined_latest.csv missing', file=sys.stderr)
         return
-    shutil.copy2(spath, tpath)
-    if _is_lfs_pointer(tpath):
-        print(f'ensure_deploy_csvs: ERROR copy failed; {target} still LFS pointer', file=sys.stderr)
+    if _is_lfs_pointer(path):
+        print('ensure_deploy_csvs: ERROR provider_info_combined_latest.csv is LFS pointer', file=sys.stderr)
         sys.exit(1)
-    print(f'ensure_deploy_csvs: copied {source} -> {target} ({label})')
-    _log_cy_qtr_summary(tpath, target)
-
-
-def _log_cy_qtr_summary(path: str, label: str) -> None:
-    """Log distinct CY_Qtr values and row count without pandas (runs before pip install)."""
-    try:
-        with open(path, newline='', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            if not reader.fieldnames or 'CY_Qtr' not in reader.fieldnames:
-                print(f'ensure_deploy_csvs: WARN {label} has no CY_Qtr column', file=sys.stderr)
-                return
-            quarters: set[str] = set()
-            rows = 0
-            for row in reader:
-                rows += 1
-                q = (row.get('CY_Qtr') or '').strip()
-                if q:
-                    quarters.add(q)
-        uniq = sorted(quarters)
-        print(f'ensure_deploy_csvs: {label} CY_Qtr={uniq[-3:]} rows={rows}')
-    except OSError as e:
-        print(f'ensure_deploy_csvs: WARN could not verify {label}: {e}', file=sys.stderr)
+    print('ensure_deploy_csvs: OK provider_info_combined_latest.csv')
 
 
 def main() -> int:
     os.chdir(APP_ROOT)
-
-    _ensure_csv_from_source(
-        'facility_quarterly_metrics.csv',
-        'facility_quarterly_metrics_latest.csv',
-        'facility quarterly metrics',
-    )
-
-    norm = os.path.join('provider_info', 'ProviderInfoNorm_2026_04.csv')
-    if os.path.isfile(norm) and not _is_lfs_pointer(norm):
-        print(f'ensure_deploy_csvs: OK {norm}')
-    elif os.path.isfile(norm) and _is_lfs_pointer(norm):
-        print(f'ensure_deploy_csvs: ERROR {norm} is LFS pointer', file=sys.stderr)
+    _gunzip_facility_metrics()
+    norm = _newest_provider_norm_rel()
+    if not norm:
+        print('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv', file=sys.stderr)
         return 1
-    else:
-        print(
-            f'ensure_deploy_csvs: ERROR {norm} missing; provider pages need a non-LFS snapshot',
-            file=sys.stderr,
-        )
-        return 1
-
+    print(f'ensure_deploy_csvs: OK {norm}')
+    _check_provider_combined()
     return 0
 
 

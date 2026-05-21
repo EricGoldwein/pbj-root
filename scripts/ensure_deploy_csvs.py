@@ -2,9 +2,6 @@
 """
 Render deploy: materialize full longitudinal CSVs from committed archives (no LFS checkout).
 
-- facility_quarterly_metrics.csv.gz -> facility_quarterly_metrics.csv (+ _latest copy for static routes)
-- provider_info_combined_latest.csv is normal git
-
 See docs/DATA_DEPLOY.md
 """
 from __future__ import annotations
@@ -22,6 +19,10 @@ FACILITY_GZIP = 'facility_quarterly_metrics.csv.gz'
 FACILITY_CSV = 'facility_quarterly_metrics.csv'
 FACILITY_LATEST = 'facility_quarterly_metrics_latest.csv'
 MIN_FACILITY_QUARTERS = 12
+
+
+def _log(msg: str) -> None:
+    print(msg, flush=True)
 
 
 def _is_lfs_pointer(path: str) -> bool:
@@ -42,39 +43,61 @@ def _count_cy_qtr(path: str) -> tuple[int, list[str]]:
             return 0, []
         for row in reader:
             rows += 1
+            if rows % 100000 == 0:
+                _log(f'ensure_deploy_csvs: verifying rows={rows:,} quarters_so_far={len(quarters)}')
             q = (row.get('CY_Qtr') or '').strip()
             if q:
                 quarters.add(q)
     return rows, sorted(quarters)
 
 
+def _link_or_copy(src: str, dest: str) -> None:
+    if os.path.isfile(dest):
+        os.remove(dest)
+    try:
+        os.link(src, dest)
+        _log(f'ensure_deploy_csvs: hard-linked -> {dest}')
+    except OSError:
+        _log(f'ensure_deploy_csvs: copying 190MB -> {dest} (may take 1-2 min)...')
+        shutil.copy2(src, dest)
+        _log(f'ensure_deploy_csvs: copied -> {dest}')
+
+
 def _gunzip_facility_metrics() -> None:
     gz_path = os.path.join(APP_ROOT, FACILITY_GZIP)
     out_path = os.path.join(APP_ROOT, FACILITY_CSV)
+    if os.path.isfile(out_path) and not _is_lfs_pointer(out_path):
+        rows, quarters = _count_cy_qtr(out_path)
+        if len(quarters) >= MIN_FACILITY_QUARTERS:
+            _log(
+                f'ensure_deploy_csvs: {FACILITY_CSV} already present '
+                f'rows={rows} quarters={len(quarters)} range={quarters[0]}..{quarters[-1]}'
+            )
+            _link_or_copy(out_path, os.path.join(APP_ROOT, FACILITY_LATEST))
+            return
     if not os.path.isfile(gz_path):
-        print(f'ensure_deploy_csvs: ERROR missing {FACILITY_GZIP}', file=sys.stderr)
+        _log(f'ensure_deploy_csvs: ERROR missing {FACILITY_GZIP}')
         sys.exit(1)
     if _is_lfs_pointer(gz_path):
-        print(f'ensure_deploy_csvs: ERROR {FACILITY_GZIP} is LFS pointer', file=sys.stderr)
+        _log(f'ensure_deploy_csvs: ERROR {FACILITY_GZIP} is LFS pointer')
         sys.exit(1)
-    print(f'ensure_deploy_csvs: decompressing {FACILITY_GZIP} -> {FACILITY_CSV}')
+    gz_mb = os.path.getsize(gz_path) / (1024 * 1024)
+    _log(f'ensure_deploy_csvs: decompressing {FACILITY_GZIP} ({gz_mb:.1f} MB) -> {FACILITY_CSV} (~2 min)...')
     with gzip.open(gz_path, 'rb') as f_in, open(out_path, 'wb') as f_out:
         shutil.copyfileobj(f_in, f_out)
+    _log('ensure_deploy_csvs: decompress done; verifying quarters...')
     rows, quarters = _count_cy_qtr(out_path)
     if len(quarters) < MIN_FACILITY_QUARTERS:
-        print(
-            f'ensure_deploy_csvs: ERROR only {len(quarters)} quarters in {FACILITY_CSV} '
-            f'(need >={MIN_FACILITY_QUARTERS}): {quarters}',
-            file=sys.stderr,
+        _log(
+            f'ensure_deploy_csvs: ERROR only {len(quarters)} quarters '
+            f'(need >={MIN_FACILITY_QUARTERS}): {quarters}'
         )
         sys.exit(1)
-    print(
+    _log(
         f'ensure_deploy_csvs: {FACILITY_CSV} rows={rows} '
         f'quarters={len(quarters)} range={quarters[0]}..{quarters[-1]}'
     )
-    latest_path = os.path.join(APP_ROOT, FACILITY_LATEST)
-    shutil.copy2(out_path, latest_path)
-    print(f'ensure_deploy_csvs: copied -> {FACILITY_LATEST}')
+    _link_or_copy(out_path, os.path.join(APP_ROOT, FACILITY_LATEST))
 
 
 def _newest_provider_norm_rel() -> str | None:
@@ -89,23 +112,25 @@ def _newest_provider_norm_rel() -> str | None:
 def _check_provider_combined() -> None:
     path = os.path.join(APP_ROOT, 'provider_info_combined_latest.csv')
     if not os.path.isfile(path):
-        print('ensure_deploy_csvs: WARN provider_info_combined_latest.csv missing', file=sys.stderr)
+        _log('ensure_deploy_csvs: WARN provider_info_combined_latest.csv missing')
         return
     if _is_lfs_pointer(path):
-        print('ensure_deploy_csvs: ERROR provider_info_combined_latest.csv is LFS pointer', file=sys.stderr)
+        _log('ensure_deploy_csvs: ERROR provider_info_combined_latest.csv is LFS pointer')
         sys.exit(1)
-    print('ensure_deploy_csvs: OK provider_info_combined_latest.csv')
+    _log('ensure_deploy_csvs: OK provider_info_combined_latest.csv')
 
 
 def main() -> int:
     os.chdir(APP_ROOT)
+    _log('ensure_deploy_csvs: start')
     _gunzip_facility_metrics()
     norm = _newest_provider_norm_rel()
     if not norm:
-        print('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv', file=sys.stderr)
+        _log('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv')
         return 1
-    print(f'ensure_deploy_csvs: OK {norm}')
+    _log(f'ensure_deploy_csvs: OK {norm}')
     _check_provider_combined()
+    _log('ensure_deploy_csvs: done')
     return 0
 
 

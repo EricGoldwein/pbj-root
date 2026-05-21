@@ -213,6 +213,7 @@ from utils.seo_utils import (  # type: ignore[reportMissingImports]
     entity_page_meta_description,
     entity_page_title,
     explainer_page_title,
+    explainer_related_guides_html,
     get_explainer_page,
     get_seo_metadata,
     provider_page_intro_html,
@@ -1239,7 +1240,8 @@ def llms_txt():
 
 @app.route('/what-is-hprd')
 @app.route('/cms-payroll-based-journal')
-@app.route('/pbj-nursing-home-staffing')
+@app.route('/nursing-home-staffing-data')
+@app.route('/pbj-job-codes')
 def seo_explainer_page():
     """Lightweight glossary-style pages for PBJ / HPRD / PBJ320 staffing queries."""
     slug = request.path.strip('/').split('/')[-1]
@@ -1248,6 +1250,13 @@ def seo_explainer_page():
     # Static glossary copy; safe for CDN/browser cache (no per-user HTML).
     resp.headers['Cache-Control'] = 'public, max-age=86400'
     return resp
+
+
+@app.route('/pbj-nursing-home-staffing')
+def pbj_nursing_home_staffing_redirect():
+    """Legacy slug → canonical nursing-home-staffing-data explainer."""
+    from flask import redirect
+    return redirect('/nursing-home-staffing-data', code=301)
 
 
 @app.route('/insights')
@@ -4332,11 +4341,14 @@ def _render_explainer_page(slug: str):
         breadcrumb_name=page.get('h1') or page_title,
     )
     layout = get_pbj_site_layout(page_title, meta_desc, canon, extra_head=explainer_json_ld)
+    related = explainer_related_guides_html(page['path'])
     inner = (
         f'<h1>{html.escape(page["h1"])}</h1>'
         f'<div class="pbj-explainer-body">{page["body"]}</div>'
+        f'<div class="pbj-explainer-related-wrap">{related}</div>'
         '<p class="pbj-meta-line" style="margin-top:1.25rem;">'
-        '<a href="/">PBJ320 home</a> · <a href="/data-sources">Data sources</a></p>'
+        '<a href="/">PBJ320 home</a> · <a href="/phoebe">PBJ explained</a> · '
+        '<a href="/data-sources">Data sources</a></p>'
     )
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     return html_content + '</body></html>'
@@ -4834,9 +4846,11 @@ def sitemap():
         ('/insights-visualizations', '0.75', 'monthly'),
         ('/press', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
+        ('/phoebe', '0.8', 'monthly'),
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/cms-payroll-based-journal', '0.7', 'monthly'),
-        ('/pbj-nursing-home-staffing', '0.7', 'monthly'),
+        ('/nursing-home-staffing-data', '0.7', 'monthly'),
+        ('/pbj-job-codes', '0.7', 'monthly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -6405,6 +6419,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-content-box h1 {{ font-size: 2rem; color: #818cf8; margin-bottom: 0.5rem; font-weight: 700; }}
 .pbj-content-box h2 {{ font-size: 1.4rem; color: #818cf8; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }}
 .pbj-content-box p {{ color: #e2e8f0; margin-bottom: 0.75rem; }}
+.pbj-explainer-body ul, .pbj-explainer-related-wrap ul {{ margin: 0.5rem 0 1rem; padding-left: 1.35rem; }}
+.pbj-explainer-body li, .pbj-explainer-related-wrap li {{ margin-bottom: 0.35rem; color: #e2e8f0; }}
+.pbj-explainer-related-wrap {{ margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(71, 85, 105, 0.45); }}
 .pbj-content-box a {{ color: #818cf8; text-decoration: none; font-weight: 500; transition: color 0.2s ease, opacity 0.2s ease; }}
 .pbj-content-box a:hover {{ color: #a5b4fc; text-decoration: underline; }}
 .pbj-content-box a:focus {{ outline: 2px solid #818cf8; outline-offset: 2px; }}
@@ -6429,11 +6446,12 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-orientation--compact a:hover {{ color: #a5b4fc; }}
 .pbj-percentile, .pbj-entity-summary {{ font-size: 0.85rem; color: #a8b4c4; margin-top: 6px; }}
 .pbj-details {{ border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 10px; background: rgba(15, 23, 42, 0.55); margin: 1.25rem 0; overflow: hidden; box-shadow: 0 2px 14px rgba(2, 6, 23, 0.28); }}
-.pbj-cross-links {{ margin: 0; font-size: 0.8rem; line-height: 1.45; color: rgba(148, 163, 184, 0.88); }}
-.pbj-cross-links-label {{ color: rgba(148, 163, 184, 0.72); margin-right: 0.2rem; }}
-.pbj-cross-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
-.pbj-cross-links a:hover {{ color: #bfdbfe; text-decoration: underline; }}
-.pbj-cross-sep {{ margin: 0 0.15rem; opacity: 0.55; user-select: none; }}
+.pbj-cross-links {{ margin: 0.35rem 0 0.85rem; font-size: 0.8rem; line-height: 1.5; color: rgba(148, 163, 184, 0.82); }}
+.pbj-subtitle-state + .pbj-cross-links {{ margin-top: 0.25rem; margin-bottom: 1rem; }}
+.pbj-cross-links-label {{ color: rgba(148, 163, 184, 0.72); margin-right: 0.25rem; font-weight: 500; }}
+.pbj-cross-links a {{ color: #a5b4fc; font-weight: 500; text-decoration: underline; text-underline-offset: 2px; }}
+.pbj-cross-links a:hover {{ color: #c7d2fe; }}
+.pbj-cross-sep {{ margin: 0 0.35rem; color: rgba(148, 163, 184, 0.5); user-select: none; }}
 .pbj-inline-link {{ color: #93c5fd; font-weight: 600; text-decoration: underline; text-underline-offset: 0.12em; }}
 .pbj-inline-link:hover {{ color: #bfdbfe; }}
 .pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
@@ -6454,6 +6472,15 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-high-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; padding: 8px 12px; background: #0f172a; border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 6px; font-size: 0.8rem; line-height: 1.4; color: #e2e8f0; white-space: normal; min-width: 260px; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 1000; }}
 .entity-section-tooltip {{ max-width: 360px; max-height: 200px; overflow-y: auto; }}
 .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip {{ opacity: 1; }}
+.pbj-details-content .pbj-high-risk-help-wrap .pbj-high-risk-tooltip,
+.pbj-high-risk-help-wrap.pbj-high-risk-help-wrap--below .pbj-high-risk-tooltip {{
+  bottom: auto; top: calc(100% + 6px); margin-bottom: 0;
+}}
+.pbj-high-risk-tooltip.pbj-high-risk-tooltip--fixed {{
+  position: fixed; z-index: 10050; margin: 0; opacity: 1; pointer-events: none;
+}}
+.state-high-risk-details[open].pbj-details {{ overflow: visible; }}
+.state-high-risk-details[open] .pbj-details-content {{ overflow: visible; }}
 .pbj-risk-badge-with-info {{
   display: inline-flex; align-items: center; gap: 0.22rem; flex-wrap: nowrap;
 }}
@@ -6866,18 +6893,24 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
   font-size: inherit; line-height: inherit;
 }}
 .pbj-page-footer-sources {{
-  margin: 0.4rem 0 0; font-size: 0.8rem; line-height: 1.45; color: rgba(226, 232, 240, 0.62);
+  margin: 0.4rem 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.15rem 0.35rem;
+  font-size: 0.8rem; line-height: 1.5; color: rgba(148, 163, 184, 0.82);
 }}
-.pbj-page-footer-sources a {{
-  color: #818cf8; text-decoration: underline; text-underline-offset: 2px;
-}}
-.pbj-page-footer-sources a:hover {{ color: #a5b4fc; }}
+.pbj-sources-label {{ color: rgba(148, 163, 184, 0.72); font-weight: 500; }}
+.pbj-sources-sep {{ margin: 0 0.35rem; color: rgba(148, 163, 184, 0.45); user-select: none; }}
+.pbj-sources-item {{ display: inline; }}
+.pbj-sources-quarter {{ color: rgba(148, 163, 184, 0.72); font-weight: 400; }}
+.pbj-page-footer-sources a,
 .pbj-sources-about-btn {{
-  font: inherit; font-size: inherit; font-weight: 600; color: #818cf8; background: none; border: none;
-  padding: 0; margin: 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  color: #a5b4fc; font: inherit; font-size: inherit; font-weight: 500; text-decoration: underline;
+  text-underline-offset: 2px;
+}}
+.pbj-page-footer-sources a:hover,
+.pbj-sources-about-btn:hover {{ color: #c7d2fe; }}
+.pbj-sources-about-btn {{
+  background: none; border: none; padding: 0; margin: 0; cursor: pointer;
   appearance: none; -webkit-appearance: none;
 }}
-.pbj-sources-about-btn:hover {{ color: #a5b4fc; }}
 .pbj-sources-about-btn:focus-visible {{ outline: 2px solid #818cf8; outline-offset: 2px; border-radius: 2px; }}
 .pbj-sources-dialog {{ border: none; padding: 0; margin: auto; background: transparent; max-width: min(34rem, 92vw); color: #e2e8f0; }}
 .pbj-sources-dialog::backdrop {{ background: rgba(0, 0, 0, 0.55); }}
@@ -7615,24 +7648,44 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   (function(){
     var MARGIN = 12;
     function clampTooltipToViewport(tooltip) {
-      if (!tooltip || !tooltip.offsetParent) return;
+      if (!tooltip) return;
       var rect = tooltip.getBoundingClientRect();
       var vw = window.innerWidth || document.documentElement.clientWidth;
       var desiredLeft = Math.max(MARGIN, Math.min(rect.left, vw - MARGIN - rect.width));
       var shift = desiredLeft - rect.left;
       tooltip.style.transform = shift === 0 ? 'translateX(-50%)' : 'translateX(calc(-50% + ' + shift + 'px))';
     }
-    function clearTooltipShift(tooltip) {
-      if (tooltip) tooltip.style.transform = '';
+    function clearTooltipPosition(tooltip) {
+      if (!tooltip) return;
+      tooltip.style.transform = '';
+      tooltip.style.position = '';
+      tooltip.style.left = '';
+      tooltip.style.top = '';
+      tooltip.style.bottom = '';
+      tooltip.classList.remove('pbj-high-risk-tooltip--fixed');
+    }
+    function positionTooltipInDetails(wrap, tooltip) {
+      var trigger = wrap.querySelector('.pbj-high-risk-help') || wrap;
+      var r = trigger.getBoundingClientRect();
+      tooltip.classList.add('pbj-high-risk-tooltip--fixed');
+      tooltip.style.left = (r.left + r.width / 2) + 'px';
+      tooltip.style.top = (r.bottom + 8) + 'px';
+      tooltip.style.bottom = 'auto';
+      requestAnimationFrame(function() { clampTooltipToViewport(tooltip); });
     }
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.pbj-high-risk-help-wrap').forEach(function(wrap) {
         var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
         if (!tooltip) return;
+        var inDetails = !!wrap.closest('.pbj-details-content');
         wrap.addEventListener('mouseenter', function() {
+          if (inDetails) {
+            positionTooltipInDetails(wrap, tooltip);
+            return;
+          }
           requestAnimationFrame(function() { requestAnimationFrame(function() { clampTooltipToViewport(tooltip); }); });
         });
-        wrap.addEventListener('mouseleave', function() { clearTooltipShift(tooltip); });
+        wrap.addEventListener('mouseleave', function() { clearTooltipPosition(tooltip); });
       });
       document.querySelectorAll('.pbj-risk-badge-info').forEach(function(btn) {
         var wrap = btn.closest('.pbj-risk-badge-info-wrap');
@@ -7643,9 +7696,13 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           e.stopPropagation();
           var open = wrap.classList.toggle('is-open');
           if (open && tooltip) {
-            requestAnimationFrame(function() { clampTooltipToViewport(tooltip); });
+            if (wrap.closest('.pbj-details-content')) {
+              positionTooltipInDetails(wrap, tooltip);
+            } else {
+              requestAnimationFrame(function() { clampTooltipToViewport(tooltip); });
+            }
           } else if (tooltip) {
-            clearTooltipShift(tooltip);
+            clearTooltipPosition(tooltip);
           }
         });
       });
@@ -7654,7 +7711,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         document.querySelectorAll('.pbj-risk-badge-info-wrap.is-open').forEach(function(wrap) {
           wrap.classList.remove('is-open');
           var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
-          if (tooltip) clearTooltipShift(tooltip);
+          if (tooltip) clearTooltipPosition(tooltip);
         });
       });
     });
@@ -7829,7 +7886,7 @@ def render_methodology_block():
     return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
 <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
 <div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a> data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022). <a href="/pbj-nursing-home-staffing">About PBJ320 staffing data</a>.</p>
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">This dashboard uses <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a> data (2017–2025), along with other public datasets (Provider Information, Affiliated Entity). State staffing standards via MACPAC (2022). <a href="/nursing-home-staffing-data">About PBJ320 staffing data</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
 <li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
@@ -11901,7 +11958,7 @@ def _render_state_pbj_high_risk_section(
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
-      <span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">High-risk</span>
+      <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--below"><span class="pbj-high-risk-help">High-risk</span>
       <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span></span>
       nursing homes in {html.escape(state_name)} ({total:,} facilities across categories; a facility may appear in more than one tab).
     </p>
@@ -12473,6 +12530,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
+    {_state_cross_links}
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details pbj-state-staffing-table">
@@ -12495,7 +12553,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {sff_section}
     {_state_top_owners_line}
     {_state_chow_line}
-    {_state_cross_links}
     {render_methodology_block()}
     {cta_section}
     </div>

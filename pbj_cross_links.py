@@ -7,23 +7,33 @@ import re
 from typing import Callable, Mapping, Optional
 
 
-def render_cross_links_html(links: list[tuple[str, str]]) -> str:
-    """One muted line: Also: link · link · … (max 4). Empty if no links."""
+def render_cross_links_html(
+    links: list[tuple[str, str]],
+    *,
+    label: str = 'Related',
+) -> str:
+    """One muted line: Related: link · link · … (max 4). Empty if no links."""
     items: list[str] = []
-    for label, href in links[:4]:
-        label = (label or '').strip()
+    for link_label, href in links[:4]:
+        link_label = (link_label or '').strip()
         href = (href or '').strip()
-        if not label or not href:
+        if not link_label or not href:
             continue
         items.append(
-            f'<a href="{html.escape(href, quote=True)}">{html.escape(label)}</a>'
+            f'<a href="{html.escape(href, quote=True)}">{html.escape(link_label)}</a>'
         )
     if not items:
         return ''
     sep = ' <span class="pbj-cross-sep" aria-hidden="true">·</span> '
+    label_text = (label or '').strip()
+    label_html = (
+        f'<span class="pbj-cross-links-label">{html.escape(label_text)}:</span> '
+        if label_text
+        else ''
+    )
     return (
         '<p class="pbj-cross-links" aria-label="Related pages on PBJ320">'
-        '<span class="pbj-cross-links-label">Also:</span> '
+        + label_html
         + sep.join(items)
         + '</p>'
     )
@@ -66,11 +76,12 @@ def cross_links_for_state(
 ) -> str:
     code = (state_code or '').strip().upper()[:2]
     slug = (state_slug or '').strip().lower()
+    name = (state_name or '').strip() or code
     links: list[tuple[str, str]] = [
-        ('Rankings', report_href_for_state(slug)),
+        (f'{name} staffing rankings', report_href_for_state(slug)),
     ]
     if has_sff and code:
-        links.append((f'SFFs in {code}', f'/sff/{code.lower()}'))
+        links.append(('Special Focus Facilities', f'/sff/{code.lower()}'))
     return render_cross_links_html(links)
 
 
@@ -83,11 +94,10 @@ def cross_links_for_facility(
     """Skip state/entity when already in subtitle — only contextual horizontal hops."""
     code = (state_code or '').strip().upper()[:2]
     slug = (state_slug or '').strip().lower()
+    # State is already in breadcrumb/subtitle — only show cross-links when SFF adds context.
     links: list[tuple[str, str]] = []
-    if slug:
-        links.append(('Rankings', report_href_for_state(slug)))
     if is_sff and code:
-        links.append((f'SFFs in {code}', f'/sff/{code.lower()}'))
+        links.append(('Special Focus Facilities', f'/sff/{code.lower()}'))
     return render_cross_links_html(links)
 
 
@@ -97,7 +107,7 @@ def cross_links_for_entity(
     top_states: list[tuple[str, str]] | None = None,
 ) -> str:
     """top_states: [(display name, canonical slug), ...] up to 2."""
-    links: list[tuple[str, str]] = [('Rankings', '/report')]
+    links: list[tuple[str, str]] = [('Staffing rankings', '/report')]
     for name, slug in (top_states or [])[:2]:
         slug = (slug or '').strip().lower()
         name = (name or '').strip()

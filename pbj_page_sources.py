@@ -58,13 +58,19 @@ def render_facility_sources_footer(
     """Facility page: PBJ quarter + Provider Information (+ optional CHOW / MACPAC)."""
     dialog_id = 'pbj-sources-facility'
     q = (pbj_quarter_display or '').strip()
-    q_through = f' through {html.escape(q)}' if q else ''
+    q_suffix = (
+        f'<span class="pbj-sources-quarter"> through {html.escape(q)}</span>'
+        if q
+        else ''
+    )
     line_parts = [
-        f'{_ext_link(CMS_PBJ_DAILY_URL, "PBJ")}{q_through}',
-        _ext_link(CMS_PROVIDER_INFO_URL, 'Provider Information'),
-        _about_data_button(dialog_id),
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "PBJ")}{q_suffix}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "Provider Information")}</span>',
+        f'<span class="pbj-sources-item">{_about_data_button(dialog_id)}</span>',
     ]
-    line = 'Sources: ' + ' · '.join(line_parts)
+    line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
+        line_parts
+    )
 
     q_note = f' Staffing on this page reflects PBJ through <strong>{html.escape(q)}</strong>.' if q else ''
     sections: list[tuple[str, str]] = [
@@ -110,21 +116,29 @@ def render_entity_sources_footer(
     """Entity page: PBJ for facility staffing + chain performance measures."""
     dialog_id = 'pbj-sources-entity'
     q = (pbj_quarter_display or '').strip()
-    q_through = f' through {html.escape(q)}' if q else ''
+    q_suffix = (
+        f'<span class="pbj-sources-quarter"> through {html.escape(q)}</span>'
+        if q
+        else ''
+    )
     chain_link = _ext_link(CMS_CHAIN_PERF_URL, 'Chain performance')
     if (chain_label or '').strip():
-        chain_link += f' ({html.escape(chain_label.strip())})'
+        chain_link += f' <span class="pbj-sources-quarter">({html.escape(chain_label.strip())})</span>'
     line_parts = [
-        f'{_ext_link(CMS_PBJ_DAILY_URL, "PBJ")}{q_through} (facility staffing)',
-        chain_link,
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "PBJ")}{q_suffix} <span class="pbj-sources-quarter">(facility staffing)</span></span>',
+        f'<span class="pbj-sources-item">{chain_link}</span>',
     ]
     cc = (care_compare_url or '').strip()
     if cc:
         line_parts.append(
+            f'<span class="pbj-sources-item">'
             f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">Care Compare</a>'
+            f'</span>'
         )
-    line_parts.append(_about_data_button(dialog_id))
-    line = 'Sources: ' + ' · '.join(line_parts)
+    line_parts.append(f'<span class="pbj-sources-item">{_about_data_button(dialog_id)}</span>')
+    line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
+        line_parts
+    )
     q_note = f' through <strong>{html.escape(q)}</strong>' if q else ''
     sections = [
         (

@@ -70,6 +70,28 @@ PBJPEDIA_PROBE_PATHS = (
     '/pbjpedia/history',
 )
 
+# href patterns that must not appear on public trust/explainer HTML (see docs/PBJPEDIA_LAUNCH.md).
+_GATED_HREF_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r'href=["\'](/pbjpedia/[^"\']*)["\']', re.I), '/pbjpedia/'),
+    (re.compile(r'href=["\'](/premium/methods[^"\']*)["\']', re.I), '/premium/methods'),
+)
+# Root-level HTML served as public trust/explainer pages (not premium/, not pbj-sample demo).
+_PUBLIC_STATIC_HTML = (
+    'about.html',
+    'chow.html',
+    'contact.html',
+    'data-sources.html',
+    'index.html',
+    'insights.html',
+    'newsletter.html',
+    'pbj-ai-support.html',
+    'phoebe.html',
+    'press.html',
+    'privacy.html',
+    'report.html',
+    'state-evolution-linkedin.html',
+    'terms.html',
+)
 FETCH_USER_AGENT = (
     'Mozilla/5.0 (compatible; PBJ320IndexabilityAudit/1.0; +https://www.pbj320.com)'
 )
@@ -414,6 +436,73 @@ def _robots_disallow_prefixes_for_star(text: str) -> set[str]:
     return prefixes
 
 
+def _app_py_function_body(app_text: str, func_name: str) -> tuple[int, str] | None:
+    """Return (1-based line of def, body text) for a top-level def in app.py."""
+    m = re.search(rf'^def {re.escape(func_name)}\s*\([^)]*\)\s*:', app_text, re.MULTILINE)
+    if not m:
+        return None
+    start = m.end()
+    rest = app_text[start:]
+    nxt = re.search(r'\n(?:async )?def |\nclass ', rest)
+    body = rest[: nxt.start()] if nxt else rest
+    line = app_text[: m.start()].count('\n') + 1
+    return line, body
+
+
+def _app_py_public_render_fragments() -> list[tuple[str, str]]:
+    """Bodies of app.py helpers injected into public facility/state/entity pages."""
+    app_path = ROOT / 'app.py'
+    if not app_path.is_file():
+        return []
+    app_text = app_path.read_text(encoding='utf-8', errors='replace')
+    fragments: list[tuple[str, str]] = []
+    for func_name in ('render_methodology_block',):
+        found = _app_py_function_body(app_text, func_name)
+        if found:
+            line, body = found
+            fragments.append((f'app.py:{line}', body))
+    return fragments
+
+
+def _find_gated_hrefs_in_public_sources() -> list[tuple[str, str]]:
+    """Return (location, href) for gated paths linked from public HTML or app.py strings."""
+    hits: list[tuple[str, str]] = []
+    for name in _PUBLIC_STATIC_HTML:
+        path = ROOT / name
+        if not path.is_file():
+            continue
+        text = path.read_text(encoding='utf-8', errors='replace')
+        for rx, _label in _GATED_HREF_PATTERNS:
+            for m in rx.finditer(text):
+                hits.append((name, m.group(1)))
+    templates_dir = ROOT / 'templates'
+    if templates_dir.is_dir():
+        for path in sorted(templates_dir.glob('*.html')):
+            if path.name.startswith('premium_'):
+                continue
+            text = path.read_text(encoding='utf-8', errors='replace')
+            rel = f'templates/{path.name}'
+            for rx, _label in _GATED_HREF_PATTERNS:
+                for m in rx.finditer(text):
+                    hits.append((rel, m.group(1)))
+    for loc, chunk in _app_py_public_render_fragments():
+        for rx, _label in _GATED_HREF_PATTERNS:
+            for m in rx.finditer(chunk):
+                hits.append((loc, m.group(1)))
+    return hits
+
+
+def audit_public_gated_links(report: AuditReport) -> None:
+    """Public pages must not link to draft PBJpedia or premium methods URLs."""
+    hits = _find_gated_hrefs_in_public_sources()
+    if not hits:
+        report.ok('public HTML: no links to /pbjpedia/ or /premium/methods')
+        return
+    for loc, href in hits:
+        report.fail(loc, f'public page links to gated path {href}')
+    _verbose(f'public gated-link scan: {len(hits)} violation(s)')
+
+
 def audit_pbjpedia_gated(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
     """PBJpedia is draft: 404 on routes, absent from sitemap, disallowed in robots."""
     if pbjpedia_is_public():
@@ -585,6 +674,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         report, args.timeout, args.sitemap_sample, delay_ms=args.delay_ms
     )
     sitemap_set = set(sitemap_locs)
+    audit_public_gated_links(report)
     audit_pbjpedia_gated(report, args.timeout, sitemap_set)
     audit_robots_txt(report, args.timeout, sitemap_set)
     audit_provider_pages(report, args.timeout)

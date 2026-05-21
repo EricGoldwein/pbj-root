@@ -3102,7 +3102,16 @@ a.pbj-audit-hero-actions__primary {
 }
 
 .pbj-audit-credibility__text:last-of-type {
-    margin-bottom: 0.85rem;
+    margin-bottom: 0;
+}
+
+.pbj-audit-credibility__text a {
+    font-weight: 600;
+    color: #4338ca;
+}
+
+.pbj-audit-credibility__text a:hover {
+    color: #5b21b6;
 }
 
 .pbj-audit-credibility__link {

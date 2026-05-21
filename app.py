@@ -3979,7 +3979,7 @@ def _provider_json_ld_facility_flags(
 
 
 def _provider_json_ld_latest_cms_provider_info_value(overall_rating_raw, staffing_rating_raw) -> str:
-    """Latest CMS Provider Information snapshot — separate from PBJ quarterly staffing."""
+    """Latest CMS Five-Star ratings — separate from PBJ quarterly staffing."""
     parts: list[str] = []
     try:
         if overall_rating_raw is not None and not (isinstance(overall_rating_raw, float) and pd.isna(overall_rating_raw)):
@@ -4025,6 +4025,7 @@ def _provider_page_json_ld_scripts(
         address['addressLocality'] = city
     if state_code:
         address['addressRegion'] = state_code
+    # Schema.org has no NursingHome type (404); MedicalOrganization is the stable choice.
     org = {
         '@context': 'https://schema.org',
         '@type': 'MedicalOrganization',
@@ -4051,8 +4052,9 @@ def _provider_page_json_ld_scripts(
     props: list = []
     try:
         from pbj_facility_json_ld import (
-            build_facility_level_json_ld_properties,
+            build_facility_location_json_ld_properties,
             build_facility_quarter_json_ld_properties,
+            build_facility_supplemental_json_ld_properties,
         )
         from pbj_format import format_quarter_display as _fmt_q, format_metric_value as _fmt_m
 
@@ -4060,15 +4062,12 @@ def _provider_page_json_ld_scripts(
             return _facility_quarterly_census_display(row, {}, _fmt_m)
 
         props.extend(
-            build_facility_level_json_ld_properties(
+            build_facility_location_json_ld_properties(
                 ccn=norm_ccn or (str(ccn or '').strip()),
                 city=city,
                 county=county,
                 state_code=state_code,
                 state_name=state_name,
-                facility_flags=facility_flags or [],
-                latest_cms_provider_info=latest_cms_provider_info,
-                associated_entities=associated_entities or [],
             )
         )
         props.extend(
@@ -4078,6 +4077,13 @@ def _provider_page_json_ld_scripts(
                 format_metric_value=_fmt_m,
                 census_display_for_row=_census_for_json_ld_row,
                 max_quarters=4,
+            )
+        )
+        props.extend(
+            build_facility_supplemental_json_ld_properties(
+                facility_flags=facility_flags or [],
+                latest_cms_ratings=latest_cms_provider_info,
+                associated_entities=associated_entities or [],
             )
         )
     except Exception:
@@ -5258,6 +5264,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'case_mix_na_hrs_per_resident_per_day', 'case_mix_lpn_hrs_per_resident_per_day',
                 'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
                 'overall_rating', 'staffing_rating',
+                'abuse_icon', 'Abuse Icon', 'has_abuse_icon',
                 'urban',
             }
             # Keep any chain/entity id/name variants we didn't enumerate explicitly.
@@ -5350,6 +5357,8 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
+                        'abuse_icon': _row_val(row, 'abuse_icon', 'Abuse Icon'),
+                        'has_abuse_icon': _row_val(row, 'has_abuse_icon'),
                         'urban': row.get('urban'),
                         '_processing_date': row.get('processing_date'),
                     }
@@ -10067,6 +10076,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         ownership=ownership_short or ownership_raw or '',
     )
     provider_intro_html = provider_page_intro_html(facility_name, city=city, state_name=state_name)
+    # JSON-LD entity link only when subtitle shows entity_id + entity_name (not ownership CSV/CHOW).
     _json_ld_entities: list[tuple[str, str]] = []
     if entity_id and entity_name:
         try:

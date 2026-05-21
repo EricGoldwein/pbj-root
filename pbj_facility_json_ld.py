@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Any, Callable, Mapping, Sequence
 
@@ -28,7 +29,7 @@ def _row_float(row: Mapping[str, Any], key: str) -> float | None:
     if not hasattr(row, 'get'):
         return None
     v = row.get(key)
-    if v is None or (HAS_PANDAS and isinstance(v, float) and pd.isna(v)):
+    if v is None or (isinstance(v, float) and math.isnan(v)):
         return None
     try:
         return float(v)
@@ -104,7 +105,8 @@ def build_facility_quarter_json_ld_properties(
         if rn:
             parts.append(f'RN HPRD {rn}')
         if na:
-            parts.append(f'CNA HPRD {na}')
+            # Nurse_Assistant_HPRD = CMS PBJ nurse aide bucket (CNA + NAtrn + MedAide), not RN/LPN.
+            parts.append(f'nurse aide HPRD {na}')
         if contract:
             parts.append(f'contract staff {contract}%')
 
@@ -124,18 +126,15 @@ def build_facility_quarter_json_ld_properties(
     return props
 
 
-def build_facility_level_json_ld_properties(
+def build_facility_location_json_ld_properties(
     *,
     ccn: str = '',
     city: str = '',
     county: str = '',
     state_code: str = '',
     state_name: str = '',
-    facility_flags: Sequence[str] | None = None,
-    latest_cms_provider_info: str = '',
-    associated_entities: Sequence[tuple[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Facility-level context — not repeated per PBJ quarter."""
+    """CCN and geography — listed before quarterly PBJ rows."""
     props: list[dict[str, Any]] = []
 
     norm_ccn = (ccn or '').strip().zfill(6) if (ccn or '').strip() else ''
@@ -151,15 +150,11 @@ def build_facility_level_json_ld_properties(
 
     city_s = (city or '').strip()
     if city_s and city_s != '—':
-        props.append(
-            {'@type': 'PropertyValue', 'name': 'City', 'value': city_s}
-        )
+        props.append({'@type': 'PropertyValue', 'name': 'City', 'value': city_s})
 
     county_s = (county or '').strip()
     if county_s and county_s not in ('—', 'N/A', 'n/a'):
-        props.append(
-            {'@type': 'PropertyValue', 'name': 'County', 'value': county_s}
-        )
+        props.append({'@type': 'PropertyValue', 'name': 'County', 'value': county_s})
 
     st_code = (state_code or '').strip().upper()[:2]
     st_name = (state_name or '').strip()
@@ -172,6 +167,18 @@ def build_facility_level_json_ld_properties(
             }
         )
 
+    return props
+
+
+def build_facility_supplemental_json_ld_properties(
+    *,
+    facility_flags: Sequence[str] | None = None,
+    latest_cms_ratings: str = '',
+    associated_entities: Sequence[tuple[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    """Flags, CMS stars, and entity links — after quarterly PBJ rows."""
+    props: list[dict[str, Any]] = []
+
     flags = [f.strip() for f in (facility_flags or []) if (f or '').strip()]
     if flags:
         props.append(
@@ -183,14 +190,14 @@ def build_facility_level_json_ld_properties(
             }
         )
 
-    cms_pi = (latest_cms_provider_info or '').strip()
-    if cms_pi:
+    cms_ratings = (latest_cms_ratings or '').strip()
+    if cms_ratings:
         props.append(
             {
                 '@type': 'PropertyValue',
-                'propertyID': 'CMS Provider Information latest',
-                'name': 'Latest CMS Provider Information',
-                'value': cms_pi,
+                'propertyID': 'CMS ratings latest',
+                'name': 'Latest CMS ratings',
+                'value': cms_ratings,
             }
         )
 
@@ -215,3 +222,33 @@ def build_facility_level_json_ld_properties(
         )
 
     return props
+
+
+def build_facility_level_json_ld_properties(
+    *,
+    ccn: str = '',
+    city: str = '',
+    county: str = '',
+    state_code: str = '',
+    state_name: str = '',
+    facility_flags: Sequence[str] | None = None,
+    latest_cms_provider_info: str = '',
+    latest_cms_ratings: str = '',
+    associated_entities: Sequence[tuple[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    """Location + supplemental (prefer explicit location/quarter/supplemental order in app.py)."""
+    ratings = (latest_cms_ratings or latest_cms_provider_info or '').strip()
+    return (
+        build_facility_location_json_ld_properties(
+            ccn=ccn,
+            city=city,
+            county=county,
+            state_code=state_code,
+            state_name=state_name,
+        )
+        + build_facility_supplemental_json_ld_properties(
+            facility_flags=facility_flags,
+            latest_cms_ratings=ratings,
+            associated_entities=associated_entities,
+        )
+    )

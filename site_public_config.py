@@ -63,7 +63,7 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## Machine-readable hints on facility pages
 
-- Each public facility page includes JSON-LD (`MedicalOrganization`) with CMS CCN, city/county/state when available, up to the **last four PBJ quarters** of staffing (census, total nurse HPRD, RN HPRD, CNA HPRD, contract % where reported), optional **PBJ320 facility flags** when shown on the page, separate **Latest CMS Provider Information** (Five-Star ratings only), and associated entity links when present.
+- Each public facility page includes JSON-LD (`MedicalOrganization`) with CMS CCN, city/county/state when available, up to the **last four PBJ quarters** of staffing (census, total nurse HPRD, RN HPRD, nurse aide HPRD, contract % where reported), then optional **PBJ320 facility flags**, **Latest CMS ratings** (Five-Star only), and associated entity links only when the provider page already shows that chain link.
 - This is supplementary to visible page content, not a substitute for reading the page or CMS primary sources.
 
 ## Paths not intended for broad crawling

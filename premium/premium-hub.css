@@ -1704,7 +1704,7 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.55rem;
 }
 
 /* Hero without dashboard screenshot — flows into pricing */
@@ -1730,8 +1730,8 @@ button.pbj-hub-submit.pbj-hub-submit--purple:hover {
     justify-content: center;
     width: auto;
     max-width: min(100%, 22rem);
-    min-height: 2.15rem;
-    padding: 0.42rem 1.15rem;
+    min-height: 2.75rem;
+    padding: 0.5rem 1.25rem;
     border-radius: 999px;
     font-size: 0.78rem;
     font-weight: 700;
@@ -1759,21 +1759,28 @@ a.pbj-audit-hero-actions__primary {
     box-shadow: 0 6px 18px rgba(79, 70, 229, 0.4);
 }
 
-.pbj-audit-hero-actions__meta {
+.pbj-audit-hero-actions__offer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem 0.35rem;
     margin: 0;
-    max-width: 100%;
+    max-width: min(36rem, 100%);
     padding-inline: 0.25rem;
     text-align: center;
-}
-
-.pbj-audit-hero-actions__pilot-line {
-    display: inline-block;
-    max-width: 100%;
     font-weight: 500;
     font-size: clamp(0.75rem, 2.75vw, 0.875rem);
-    line-height: 1.4;
+    line-height: 1.45;
     color: #475569;
-    white-space: normal;
+}
+
+.pbj-audit-hero-actions__pilot-offer {
+    display: inline;
+}
+
+.pbj-audit-hero-actions__includes--short {
+    display: none;
 }
 
 .pbj-audit-hero-actions__pilot-price {
@@ -1781,87 +1788,59 @@ a.pbj-audit-hero-actions__primary {
     color: #4338ca;
 }
 
-.pbj-audit-hero-actions__secondary {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: stretch;
-    justify-content: center;
-    gap: 0.5rem 0.65rem;
-    width: 100%;
-    max-width: min(100%, 28rem);
-}
-
-.pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__btn,
-.pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__link {
-    flex: 1 1 0;
-    min-width: 0;
-    max-width: none;
-    width: auto;
-    text-align: center;
-    white-space: normal;
-}
-
-.pbj-audit-hero-actions__meta-link {
-    font-weight: 600;
-    color: #4338ca !important;
-    text-decoration: none !important;
-}
-
-.pbj-audit-hero-actions__meta-link:hover {
-    color: #5b21b6 !important;
-    text-decoration: underline !important;
-}
-
-.pbj-audit-hero-actions__detail {
-    font-weight: 500;
-    color: #94a3b8;
-}
-
-.pbj-audit-hero-actions__dot {
+.pbj-audit-hero-actions__sep {
     color: #cbd5e1;
     user-select: none;
+    font-weight: 600;
+}
+
+.pbj-audit-hero-actions__demo-link {
+    display: inline;
+    margin: 0;
+    padding: 0.35rem 0.15rem;
+    min-height: 2.75rem;
+    border: 0;
+    background: transparent;
+    appearance: none;
+    -webkit-appearance: none;
+    font: inherit;
+    font-weight: 600;
+    font-size: inherit;
+    line-height: inherit;
+    color: #4338ca;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+    cursor: pointer;
+    vertical-align: baseline;
+}
+
+.pbj-audit-hero-actions__demo-link:hover {
+    color: #5b21b6;
 }
 
 .pbj-audit-hero-actions__primary:focus-visible,
-.pbj-audit-hero-actions__meta-link:focus-visible,
-.pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__btn:focus-visible,
-.pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__link:focus-visible {
+.pbj-audit-hero-actions__demo-link:focus-visible {
     outline: 2px solid #c4b5fd;
     outline-offset: 2px;
 }
 
-.pbj-audit-hero-actions__detail--mobile {
-    display: none;
-}
-
 @media (max-width: 520px) {
-    .pbj-audit-hero-actions__detail--desktop {
-        display: none;
-    }
-
-    .pbj-audit-hero-actions__detail--mobile {
-        display: inline;
-        font-weight: 500;
-        color: #94a3b8;
-    }
-
     .pbj-audit-hero-actions__primary {
         width: min(100%, 20rem);
     }
 
-    .pbj-audit-hero-actions__secondary {
-        max-width: min(100%, 20rem);
+    .pbj-audit-hero-actions__includes--full {
+        display: none;
     }
 
-    .pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__btn,
-    .pbj-audit-hero-actions__secondary .pbj-audit-demo-cta__link {
-        font-size: 0.72rem;
-        padding-inline: 0.6rem;
+    .pbj-audit-hero-actions__includes--short {
+        display: inline;
     }
 
-    .pbj-audit-hero-actions__pilot-line {
-        font-size: clamp(0.62rem, 2.5vw, 0.76rem);
+    .pbj-audit-hero-actions__offer {
+        font-size: clamp(0.7rem, 2.5vw, 0.8rem);
         letter-spacing: -0.01em;
+        gap: 0.15rem 0.3rem;
     }
 }
 
@@ -1870,13 +1849,7 @@ a.pbj-audit-hero-actions__primary {
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        gap: 0.5rem;
-    }
-
-    .pbj-audit-hero-actions__meta {
-        flex: 0 1 auto;
-        max-width: none;
-        text-align: center;
+        gap: 0.6rem;
     }
 }
 
@@ -3275,10 +3248,6 @@ a.pbj-audit-hero-actions__primary {
     .pbj-audit-hero-actions__primary,
     .pbj-premium-hub--audit .pbj-audit-generate {
         width: 100%;
-        max-width: 22rem;
-    }
-
-    .pbj-audit-hero-actions__secondary {
         max-width: 22rem;
     }
 

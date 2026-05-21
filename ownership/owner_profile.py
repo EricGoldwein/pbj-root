@@ -531,14 +531,11 @@ def classify_associate_id(associate_id: str) -> str:
 
 def associate_profile_url(associate_id: str, org_name: str = "") -> str:
     """URL for a CMS associate ID (enrollment or owner/control profile at /owners/{pac})."""
-    from urllib.parse import quote
-
     pac = normalize_associate_id(associate_id)
     if len(pac) == 10:
         return f"/owners/{pac}"
-    name = (org_name or "").strip()
-    if name:
-        return f"/owners?owner={quote(name)}"
+    if (org_name or "").strip() or (associate_id or "").strip():
+        return "/owner"
     return ""
 
 

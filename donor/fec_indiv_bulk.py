@@ -134,6 +134,82 @@ def get_contributions_by_committee_from_bulk(
     return all_rows, years_included, True
 
 
+def get_contributions_by_name_from_bulk(
+    name_variations: List[str],
+    data_dir: Optional[Path] = None,
+    year_from: int = 2020,
+    max_rows: int = 400,
+) -> Tuple[Optional[List[Dict[str, Any]]], List[int], bool]:
+    """
+    Fallback when FEC API returns nothing or times out: exact NAME match in local indiv parquet.
+    name_variations should be uppercase (e.g. LANDA, BENJAMIN and BENJAMIN LANDA).
+    """
+    if not name_variations:
+        return None, [], False
+    try:
+        import pandas as pd
+    except ImportError:
+        return None, [], False
+    data_dir = data_dir or Path(__file__).resolve().parent / "FEC data"
+    if not data_dir.exists():
+        return None, [], False
+    names = []
+    seen_names = set()
+    for n in name_variations:
+        u = (n or "").strip().upper()
+        if u and u not in seen_names:
+            seen_names.add(u)
+            names.append(u)
+    if not names:
+        return None, [], False
+    cycle_specs = [
+        ("indiv26.parquet", "indiv26_conduits.parquet", 2025, 2026),
+        ("indiv24.parquet", "indiv24_conduits.parquet", 2023, 2024),
+        ("indiv22.parquet", "indiv22_conduits.parquet", 2021, 2022),
+        ("indiv20.parquet", "indiv20_conduits.parquet", 2019, 2020),
+    ]
+    all_rows: List[Dict[str, Any]] = []
+    seen_sub: set = set()
+    years_included: List[int] = []
+    cols = [
+        "CMTE_ID", "NAME", "CITY", "STATE", "ZIP_CODE", "EMPLOYER", "OCCUPATION",
+        "TRANSACTION_DT", "TRANSACTION_AMT", "MEMO_CD", "MEMO_TEXT", "FILE_NUM", "SUB_ID", "IMAGE_NUM",
+    ]
+    for full_fname, conduit_fname, y1, y2 in cycle_specs:
+        if y2 < year_from:
+            continue
+        if len(all_rows) >= max_rows:
+            break
+        path = data_dir / full_fname
+        if not path.exists():
+            path = data_dir / conduit_fname
+        if not path.exists():
+            continue
+        try:
+            df = pd.read_parquet(path, columns=cols, filters=[("NAME", "in", names)])
+        except Exception as e:
+            print(f"  [WARN] bulk name read {path.name}: {e}")
+            continue
+        if df.empty:
+            continue
+        years_included.extend([y1, y2])
+        for _, row in df.iterrows():
+            if len(all_rows) >= max_rows:
+                break
+            r = row.to_dict()
+            sub = r.get("SUB_ID")
+            if sub is not None and str(sub) in seen_sub:
+                continue
+            if sub is not None:
+                seen_sub.add(str(sub))
+            cid = (r.get("CMTE_ID") or "").strip()
+            all_rows.append(_bulk_row_to_api_like(r, cid))
+    years_included = sorted(set(years_included))
+    if not all_rows:
+        return None, [], False
+    return all_rows, years_included, True
+
+
 def get_bulk_manifest(data_dir: Optional[Path] = None) -> Dict[str, Any]:
     """
     Return manifest of bulk data (parquet last_updated, row counts).

@@ -1,12 +1,14 @@
 ﻿<!DOCTYPE html>
+<!-- pbj-fec-contributions-ui v2026-05-21 -->
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nursing Home Owner Political Contributions Search (Test) | PBJ320</title>
+    <title>Nursing Home Owner Political Contributions Search | PBJ320</title>
     <meta name="description" content="Search nursing home owners and view their political contributions. Explore ownership data and campaign contributions from nursing home operators.">
     <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
-    <link rel="canonical" href="https://pbj320.com/owners">
+    <link rel="canonical" href="https://pbj320.com/owner/test">
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
     
     <!-- Google tag (gtag.js) -->
@@ -20,7 +22,7 @@
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://pbj320.com/owners">
+    <meta property="og:url" content="https://pbj320.com/owner/test">
     <meta property="og:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
     <meta property="og:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
     <meta property="og:image" content="https://pbj320.com/og-owner-pbj320.png">
@@ -890,8 +892,7 @@
                 <a href="/report" class="nav-link">Report</a>
                 <a href="/insights" class="nav-link">Insights</a>
                 <a href="/phoebe" class="nav-link">PBJ Explained</a>
-                <a href="/owners" class="nav-link">Ownership</a>
-                <a href="/owners-test" class="nav-link">Ownership (Test)</a>
+                <a href="/owner" class="nav-link active">Political contributions</a>
             </div>
             <div class="nav-toggle" id="navToggle">
                 <span></span>
@@ -903,17 +904,13 @@
 
     <div class="container" style="padding: 20px;">
         <div class="header">
-            <div style="background: rgba(234, 179, 8, 0.25); border: 2px solid #eab308; border-radius: 8px; padding: 0.75rem 1.25rem; margin-bottom: 1rem; text-align: center;">
-                <strong style="color: #eab308;">TEST PAGE</strong> � Search by Committee mode (committee ? donors ? owners ? facilities). 
-                <a href="/owners" style="color: #60a5fa; margin-left: 0.5rem;">? Back to production</a>
-            </div>
             <div style="background: rgba(255, 255, 255, 0.08); border-left: 4px solid #667eea; padding: 1rem 1.25rem; margin-bottom: 1rem; font-size: 0.9rem; color: rgba(255,255,255,0.9);">
                 <strong>Disclaimer:</strong> This view displays public FEC and CMS data. Committee groupings are based on committee names and filings. No ideological classification is assigned.
             </div>
             <h1 class="page-title">Nursing Home Owner Political Contributions</h1>
             <div style="margin-top: 0.5rem; font-size: 0.95rem; font-weight: 500; color: rgba(255,255,255,0.85);">
                 A free public resource by <a href="https://www.320insight.com/" target="_blank" style="color: rgba(255,255,255,0.85); text-decoration: none; font-weight: 500;">320 Consulting</a>
-                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA � TEST</span>
+                <span style="display: inline-block; margin-left: 8px; padding: 2px 8px; background: rgba(234, 179, 8, 0.2); border: 1px solid #eab308; border-radius: 4px; font-size: 0.7rem; font-weight: 600; color: #eab308;">BETA</span>
             </div>
             <p style="margin: 0.5rem auto 0; font-size: 0.8rem; font-weight: 400; color: rgba(255,255,255,0.55); max-width: 700px; line-height: 1.4; text-align: center;">
                 Note: This tool is currently in beta and may contain matching errors or incomplete data. Click the Source link next to any donation to view the original FEC filing and confirm details.
@@ -1128,14 +1125,21 @@
         }
 
         // Load stats on page load
-        async function loadStats() {
+        async function loadStats(attempt = 0) {
+            const setupWarning = document.getElementById('setupWarning');
+            const setupMessage = document.getElementById('setupMessage');
+            if (attempt === 0 && setupWarning && setupMessage) {
+                setupWarning.style.display = 'block';
+                setupMessage.textContent = 'Loading owner search index (first visit can take up to a minute)...';
+            }
             try {
-                const response = await fetch('/owners/api/stats');
+                const response = await fetch('/owner/api/stats');
                 const stats = await response.json();
                 
-                // Show setup warning if database is incomplete
-                const setupWarning = document.getElementById('setupWarning');
-                const setupMessage = document.getElementById('setupMessage');
+                if (stats.total_owners === 0 && attempt < 45) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    return loadStats(attempt + 1);
+                }
                 
                 if (stats.total_owners === 0) {
                     setupWarning.style.display = 'block';
@@ -1149,12 +1153,21 @@
                 
             } catch (error) {
                 console.error('Error loading stats:', error);
-                // Don't show error - just hide warning if stats endpoint fails
                 const setupWarning = document.getElementById('setupWarning');
-                if (setupWarning) {
-                    setupWarning.style.display = 'none';
+                const setupMessage = document.getElementById('setupMessage');
+                if (setupWarning && setupMessage) {
+                    setupWarning.style.display = 'block';
+                    setupMessage.textContent = 'Owner search could not reach the server. Refresh and try again.';
                 }
             }
+        }
+
+        async function applyOwnerQueryParam() {
+            const owner = new URLSearchParams(window.location.search).get('owner');
+            if (!owner || owner.trim().length < 2) return;
+            searchInput.value = owner.trim();
+            document.getElementById('searchType').value = 'all';
+            await performSearch();
         }
 
         // Autocomplete functionality
@@ -1213,8 +1226,8 @@
             autocompleteTimeout = setTimeout(async () => {
                 try {
                     const apiUrl = type === 'committee' 
-                        ? `/owners/api/autocomplete/committee?q=${encodeURIComponent(query)}`
-                        : `/owners/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`;
+                        ? `/owner/api/autocomplete/committee?q=${encodeURIComponent(query)}`
+                        : `/owner/api/autocomplete?q=${encodeURIComponent(query)}&type=${encodeURIComponent(type)}`;
                     const response = await fetch(apiUrl);
                     const data = await response.json();
                     
@@ -1356,7 +1369,7 @@
                 if (type === 'committee') {
                     const committeeIdMatch = query.match(/\(?(C\d{8,9})\)?/);
                     const committeeQuery = committeeIdMatch ? committeeIdMatch[1] : query.replace(/\s*\(C\d+\)\s*$/, '').trim() || query;
-                    const response = await fetch(`/owners/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
+                    const response = await fetch(`/owner/api/search/committee?q=${encodeURIComponent(committeeQuery)}`);
                     const data = await response.json();
                     if (data.error && response.status !== 200) {
                         showError(data.error + (data.message ? ': ' + data.message : ''));
@@ -1374,7 +1387,7 @@
                 if (entityIdMatch && type !== 'provider') {
                     // Search by entity ID (only for non-provider searches)
                     const entityId = entityIdMatch[1];
-                    const response = await fetch(`/owners/api/entity/${entityId}`);
+                    const response = await fetch(`/owner/api/entity/${entityId}`);
                     const data = await response.json();
                     
                     if (data.error) {
@@ -1392,7 +1405,7 @@
                         return;
                     }
                     
-                    const response = await fetch(`/owners/api/search?q=${encodeURIComponent(query)}&type=${type}`);
+                    const response = await fetch(`/owner/api/search?q=${encodeURIComponent(query)}&type=${type}`);
                     const data = await response.json();
                     
                     if (data.error) {
@@ -1498,7 +1511,7 @@
             btn.disabled = true;
             btn.textContent = 'Loading...';
             try {
-                const res = await fetch('/owners/api/committee/providers', {
+                const res = await fetch('/owner/api/committee/providers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ owners: currentCommitteeData.owners, committee_id: currentCommitteeData.committee?.id })
@@ -2022,7 +2035,7 @@
             document.getElementById('detailsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
             
             try {
-                const response = await fetch(`/owners/api/owner/${encodeURIComponent(ownerName)}`);
+                const response = await fetch(`/owner/api/owner/${encodeURIComponent(ownerName)}`);
                 if (!response.ok) {
                     const errText = await response.text();
                     let errMsg = 'Owner not found';
@@ -2376,7 +2389,7 @@
             }
             
             try {
-                const response = await fetch('/owners/api/query-fec', {
+                const response = await fetch('/owner/api/query-fec', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2655,7 +2668,7 @@
             container.innerHTML = '<div class="loading">Searching for political contributions... This may take a moment.</div>';
             
             try {
-                const response = await fetch('/owners/api/query-fec', {
+                const response = await fetch('/owner/api/query-fec', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2715,8 +2728,7 @@
             }
         });
 
-        // Load stats on page load
-        loadStats();
+        loadStats().then(() => applyOwnerQueryParam());
     </script>
     <script src="/pbj-site-universal.js?v=28"></script>
 </body>

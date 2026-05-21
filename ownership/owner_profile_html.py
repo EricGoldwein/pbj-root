@@ -11,7 +11,6 @@ if __name__ == "__main__" and not __package__:
 import html
 import json
 from typing import Any
-from urllib.parse import quote
 
 import re
 
@@ -181,7 +180,6 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     states_meta = _states_meta_html(profile)
     states_modal = _states_breakdown_modal_html(profile)
 
-    fec_name = quote(profile.get("display_name") or "")
     is_chow_only = bool(profile.get("is_chow_only"))
 
     pac_meta = _pac_meta_html(profile, kind, pac, en_label, ow_label)
@@ -219,7 +217,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {owner_section_html}
       <h2 class="section-header">Related on PBJ320</h2>
       <ul class="chow-future-list">
-        <li><a href="/owners?owner={fec_name}">Political contributions search</a> (FEC)</li>
+        <li><a href="/owner">Political contributions search</a> (FEC)</li>
       </ul>
       <p class="pbj-meta-line" style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;">
         <strong>PACs:</strong> {en_label} = facility enrollment (typical buyer/seller in ownership changes).

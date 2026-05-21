@@ -720,7 +720,7 @@ def _csrf_protect_selectively():
     """Only run CSRF for /subscribe and /contact. Skip all /owners/* so query-fec and owner pages never get 400."""
     if not HAS_CSRF or csrf_protect is None:
         return
-    if request.path.startswith('/owners'):
+    if request.path.startswith('/owners') or request.path.startswith('/owner'):
         return
     if request.path in ('/subscribe', '/contact') or request.path.startswith('/contact?'):
         csrf_protect.protect()
@@ -4612,7 +4612,44 @@ def get_owner_app():
         raise
 
 from flask import Blueprint
-owner_bp = Blueprint('owners', __name__, url_prefix='/owners')
+# FEC political contributions search — canonical URL prefix is /owner (not /owners).
+fec_owner_bp = Blueprint('fec_owner', __name__, url_prefix='/owner')
+
+
+@fec_owner_bp.after_request
+def _owners_fec_no_cache(response):
+    """FEC contributions UI must never be served from a stale browser cache."""
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+    response.headers['Pragma'] = 'no-cache'
+    return response
+
+
+@app.route('/owner/_dev/ping')
+@app.route('/owners/_dev/ping')
+def owners_dev_ping():
+    """Which FEC UI is on disk (no donor data load). Legacy UI = Donations + All Owners dropdown."""
+    tpl = os.path.join(APP_ROOT, 'donor', 'templates', 'owner_donor_dashboard.html')
+    py = os.path.join(APP_ROOT, 'donor', 'owner_donor_dashboard.py')
+    body = ''
+    if os.path.isfile(tpl):
+        with open(tpl, encoding='utf-8', errors='replace') as f:
+            body = f.read()
+    py_lines = 0
+    if os.path.isfile(py):
+        with open(py, encoding='utf-8', errors='replace') as f:
+            py_lines = sum(1 for _ in f)
+    legacy = (
+        'Nursing Home Owner Political Donations</h1>' in body
+        or ('>All Owners</option>' in body and 'Search by Owner' not in body)
+    )
+    restored_may17 = 'class="navbar"' in body and 'Search by Owner' in body and 'page-title' in body
+    return jsonify({
+        'fec_ui': 'legacy_broken' if legacy else ('may17_restored' if restored_may17 else 'unknown'),
+        'template_path': tpl,
+        'template_bytes': os.path.getsize(tpl) if os.path.isfile(tpl) else 0,
+        'owner_donor_dashboard_py_lines': py_lines,
+        'owner_app_cached': _owner_app is not None,
+    })
 
 
 def _owners_api_cors_headers():
@@ -4745,15 +4782,13 @@ def generate_owner_profile_html(profile):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
-@app.route('/owners/<owner_id>')
 def cms_owner_profile_page(owner_id):
-    """CMS ownership profile by 10-digit associate ID. /owners/ (no id) stays on FEC dashboard."""
+    """CMS ownership profile by 10-digit PAC (Connecticut public launch only)."""
     from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
 
     pac = normalize_associate_id(owner_id)
     if len(pac) != 10 or not pac.isdigit():
-        from flask import abort
-        abort(404)
+        return redirect(f'/owner/{owner_id}', code=302)
     if not HAS_PANDAS:
         return 'Pandas not available. Owner pages require pandas.', 503
     profile = load_owner_profile_resolved(pac)
@@ -4773,14 +4808,11 @@ def cms_owner_profile_page(owner_id):
     return resp
 
 
-@owner_bp.route('', defaults={'path': ''})
-@owner_bp.route('/', defaults={'path': ''})
-@owner_bp.route('/<path:path>')
-def owner_proxy(path):
-    """Proxy requests to the owner donor dashboard app (lazy-loaded on first request)."""
-    pac_segment = (path or "").strip().split("/")[0]
-    if pac_segment.isdigit() and len(pac_segment) == 10:
-        return cms_owner_profile_page(pac_segment)
+@fec_owner_bp.route('', defaults={'path': ''})
+@fec_owner_bp.route('/', defaults={'path': ''})
+@fec_owner_bp.route('/<path:path>')
+def fec_owner_proxy(path):
+    """Proxy FEC contributions dashboard at /owner/ (lazy-loaded on first request)."""
     try:
         owner_app = get_owner_app()
     except Exception:
@@ -4801,6 +4833,8 @@ def owner_proxy(path):
         ):
             return owner_app.full_dispatch_request()
     elif path == '':
+        if request.args.get('owner'):
+            return redirect('/owner', code=302)
         with owner_app.test_request_context('/', method=request.method):
             return owner_app.full_dispatch_request()
     else:
@@ -4812,29 +4846,80 @@ def owner_proxy(path):
                                              headers=list(request.headers)):
             return owner_app.full_dispatch_request()
 
-app.register_blueprint(owner_bp)
+app.register_blueprint(fec_owner_bp)
+
+
+def _owners_cms_landing_html():
+    """Hub for CMS ownership profiles (/owners/<10-digit PAC>). Connecticut is public."""
+    layout = get_pbj_site_layout(
+        'Nursing Home Ownership | PBJ320',
+        'CMS nursing home ownership and control profiles. Connecticut profiles are public; more states coming.',
+        _public_site_origin() + '/owners',
+        extra_head=(
+            f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+        ),
+    )
+    body = '''
+    <div class="container" style="max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;">
+      <h1 style="font-size:1.75rem;margin-bottom:0.5rem;">Nursing home ownership</h1>
+      <p style="color:#94a3b8;line-height:1.6;">
+        CMS enrollment and owner/control profiles by 10-digit associate ID (PAC).
+        <strong>Connecticut</strong> profiles are available now; additional states will roll out on this path.
+      </p>
+      <p style="margin-top:1.25rem;">
+        <a href="/owner" style="color:#60a5fa;">Political contributions search (FEC)</a>
+        — separate tool for campaign finance linked to nursing home operators.
+      </p>
+      <p style="margin-top:1rem;font-size:0.9rem;color:#64748b;">
+        Open a profile: <code style="color:#e2e8f0;">/owners/&lt;10-digit PAC&gt;</code>
+        (from provider pages, CHOW records, or state ownership blocks).
+      </p>
+    </div>
+    '''
+    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+
+
+@app.route('/owners')
+@app.route('/owners/')
+def owners_cms_index():
+    """CMS ownership hub. FEC contributions search is at /owner/."""
+    if request.args.get('owner'):
+        return redirect('/owner', code=302)
+    resp = make_response(_owners_cms_landing_html())
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    return resp
+
+
+@app.route('/owners/<path:subpath>')
+def owners_legacy_router(subpath):
+    """/owners/<pac> CMS profiles; other /owners/* paths redirect to /owner/ (FEC)."""
+    segment = (subpath or '').strip().split('/')[0]
+    if segment.isdigit() and len(segment) == 10 and subpath.strip() == segment:
+        return cms_owner_profile_page(segment)
+    if subpath.startswith('api/'):
+        return redirect(f'/owner/api/{subpath[4:]}', code=302)
+    return redirect(f'/owner/{subpath}', code=302)
+
 
 @app.route('/top')
 @app.route('/top/')
 def top_redirect():
-    return redirect('/owners/top', code=302)
+    return redirect('/owner/top', code=302)
 
 @app.route('/owners-test')
 @app.route('/owners-test/')
 def owners_test_redirect():
-    """Legacy URL — FEC donor search lives at /owners only."""
-    return redirect('/owners', code=301)
+    """Legacy alias — FEC tool at /owner/test."""
+    return redirect('/owner/test', code=302)
 
-@app.route('/owner', defaults={'path': ''})
-@app.route('/owner/', defaults={'path': ''})
-@app.route('/owner/<path:path>')
 @app.route('/ownership', defaults={'path': ''})
 @app.route('/ownership/', defaults={'path': ''})
 @app.route('/ownership/<path:path>')
-def owner_alias(path=''):
+def ownership_alias(path=''):
     if path:
-        return redirect(f'/owners/{path}', code=301)
-    return redirect('/owners', code=301)
+        return redirect(f'/owner/{path}', code=301)
+    return redirect('/owner', code=301)
 
 def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
     raw = (post.get('updated') or post.get('date') or post.get('sort_date') or '').strip()
@@ -15565,7 +15650,8 @@ def static_files(filename):
     if filename in [
         'insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample',
         'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
-        'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'downloads', 'premium', 'contact',
+        'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'owners', 'owners.html', 'downloads',
+        'premium', 'contact',
         'data-sources', 'privacy', 'terms',
         'chow', 'chow.html',
     ]:

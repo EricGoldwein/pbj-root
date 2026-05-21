@@ -55,7 +55,7 @@ except ImportError:
         return {}
 
     def build_schedule_a_docquery_link(*args, **kwargs):
-        return ""
+        return {}
 
     def correct_docquery_url_for_form_type(url, *_args, **_kwargs):
         return url or ""
@@ -64,6 +64,7 @@ except ImportError:
         return bool(url)
 from fec_indiv_bulk import (
     get_contributions_by_committee_from_bulk,
+    get_contributions_by_name_from_bulk,
     get_bulk_manifest,
     get_committee_csv_path,
     MASSIVE_COMMITTEES,
@@ -1068,20 +1069,20 @@ def normalize_name_for_search(name, owner_type: str = "ORGANIZATION"):
     is_individual = ot == "INDIVIDUAL" or (ot == "UNKNOWN" and _name_looks_like_individual(name_upper))
     parts = name_upper.split()
     
-    # Build in order so we try FEC-best variants first (API returns well for "First Last" and "Last, First")
+    # Build in order so we try FEC-best variants first (API returns well for "Last, First" on Schedule A)
     variations = []
     if len(parts) >= 2:
         first = parts[0]
         last = parts[-1]
-        # 1) Full name as given
-        variations.append(name_upper)
-        # 2) "First Last" and "Last, First" first (FEC returns well for these)
-        if len(parts) > 2:
-            variations.append(f"{first} {last}")
         if is_individual:
             variations.append(f"{last}, {first}")
             if len(parts) > 2:
                 variations.append(f"{last}, {first} {parts[1]}")
+        variations.append(name_upper)
+        if len(parts) > 2:
+            variations.append(f"{first} {last}")
+        elif not is_individual:
+            variations.append(f"{first} {last}")
         if len(parts) > 2:
             mid = parts[1].rstrip('.')
             if len(mid) == 1 and mid.isalpha():
@@ -3706,14 +3707,14 @@ def get_owner_details(owner_name):
                     form_typ = d.get('form_type') or None
                     if file_num:
                         result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num, form_type=form_typ)
-                        fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                        fec_link = (result.get('url', '').strip() if isinstance(result, dict) and result.get('image_number') else "")
                     elif d.get('donation_date'):
                         result = build_schedule_a_docquery_link(
                             committee_id=d.get('committee_id'),
                             schedule_a_record={"contribution_receipt_date": d.get('donation_date'), "form_type": form_typ},
                             form_type=form_typ,
                         )
-                        fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                        fec_link = (result.get('url', '').strip() if isinstance(result, dict) and result.get('image_number') else "")
                 committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')
                 donations.append({
                     'amount': amount,
@@ -3881,7 +3882,10 @@ def query_fec():
                             if dt.tzinfo is None:
                                 dt = dt.replace(tzinfo=timezone.utc)
                             if (datetime.now(timezone.utc) - dt).days < FEC_CACHE_DAYS:
-                                return jsonify(entry.get("response") or {})
+                                cached_resp = entry.get("response") or {}
+                                # Never serve cached empty results (often from API timeout)
+                                if int(cached_resp.get("count") or 0) > 0:
+                                    return jsonify(cached_resp)
                         except Exception:
                             pass
         except Exception as e:
@@ -3939,6 +3943,30 @@ def query_fec():
             except Exception as e:
                 print(f"[WARNING] query_fec name_var={name_var!r}: {type(e).__name__}: {e}")
                 continue
+
+        fec_data_source = "api"
+        if not all_donations:
+            try:
+                bulk_raw, _bulk_years, used_bulk = get_contributions_by_name_from_bulk(
+                    name_variations[:8],
+                    data_dir=FEC_DATA_DIR,
+                    year_from=FEC_DATA_YEAR_FROM,
+                )
+                if used_bulk and bulk_raw:
+                    for donation in bulk_raw:
+                        if not donation or not isinstance(donation, dict):
+                            continue
+                        record_id = donation.get("sub_id")
+                        if record_id and record_id in seen_ids:
+                            continue
+                        if record_id:
+                            seen_ids.add(record_id)
+                        all_donations.append(donation)
+                    if all_donations:
+                        fec_data_source = "bulk"
+                        print(f"[FEC] bulk name fallback for {owner_name!r}: {len(all_donations)} rows")
+            except Exception as e:
+                print(f"[WARNING] bulk name fallback failed for {owner_name!r}: {e}")
         
         # Also try by employer/occupation if individual
         if owner_type == "INDIVIDUAL" and len(all_donations) < 10:
@@ -3990,7 +4018,7 @@ def query_fec():
                         schedule_a_record={"contribution_receipt_date": date_str, "committee_id": norm.get("committee_id"), "form_type": norm.get("form_type")},
                         form_type=norm.get("form_type"),
                     )
-                    if result.get("image_number"):
+                    if isinstance(result, dict) and result.get("image_number"):
                         fec_link = result.get("url", "")
                 normalized.append({
                     'amount': float(norm.get('donation_amount', 0)) if norm.get('donation_amount') and pd.notna(norm.get('donation_amount')) else 0,
@@ -4024,14 +4052,21 @@ def query_fec():
             'count': len(normalized),
             'searches_performed': len(name_variations),
             'names_searched': names_queried,
+            'data_source': fec_data_source,
         }
-        if fec_timed_out:
+        if fec_timed_out and not normalized:
             resp['fec_timeout'] = True
-            if not normalized:
-                resp['error'] = 'The FEC API took too long to respond. Please try again.'
+            resp['error'] = 'The FEC API took too long to respond. Please try again.'
+        elif fec_timed_out and normalized and fec_data_source == 'bulk':
+            resp['fec_timeout'] = True
 
-        # Optional: cache response for repeat lookups (invalidate with FEC_CACHE_DAYS or delete fec_cache.json)
-        if FEC_CACHE_PATH and FEC_CACHE_DAYS > 0 and FEC_CACHE_MAX_ENTRIES > 0:
+        # Optional: cache response for repeat lookups (never cache empty — avoids sticky false negatives)
+        if (
+            FEC_CACHE_PATH
+            and FEC_CACHE_DAYS > 0
+            and FEC_CACHE_MAX_ENTRIES > 0
+            and len(normalized) > 0
+        ):
             try:
                 from datetime import datetime, timezone
                 with _fec_cache_lock:
@@ -4212,14 +4247,14 @@ def get_entity_owners(entity_id):
                         form_typ = d.get('form_type') or None
                         if file_num:
                             result = build_schedule_a_docquery_link(committee_id=d.get('committee_id'), image_number=file_num, form_type=form_typ)
-                            fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                            fec_link = (result.get('url', '').strip() if isinstance(result, dict) and result.get('image_number') else "")
                         elif d.get('donation_date'):
                             result = build_schedule_a_docquery_link(
                                 committee_id=d.get('committee_id'),
                                 schedule_a_record={"contribution_receipt_date": d.get('donation_date'), "form_type": form_typ},
                                 form_type=form_typ,
                             )
-                            fec_link = result.get('url', '').strip() if result.get('image_number') else ""
+                            fec_link = (result.get('url', '').strip() if isinstance(result, dict) and result.get('image_number') else "")
                     committee_display = get_committee_display_name(d.get('committee_id'), d.get('committee_name', '')) or d.get('committee_name', '')
                     owner_donations.append({
                         'amount': amount,

@@ -139,10 +139,10 @@ def owner_url_for_associate(associate_id: str, org_name: str = "") -> str:
 
 
 def owner_search_url(org_name: str) -> str:
-    name = (org_name or "").strip()
-    if not name:
+    """FEC contributions hub (no per-name deep link until matching is reliable)."""
+    if not (org_name or "").strip():
         return ""
-    return f"/owners?owner={quote(name)}"
+    return "/owner"
 
 
 def detect_pattern_tags(

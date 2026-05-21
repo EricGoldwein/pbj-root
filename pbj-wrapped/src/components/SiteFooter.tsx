@@ -14,8 +14,7 @@ const FOOTER_BLURB =
 const linkStyle = { color: 'rgba(148, 163, 184, 0.95)' };
 const signoffLinkStyle = {
   color: 'rgba(203, 213, 225, 0.78)',
-  textDecoration: 'underline',
-  textUnderlineOffset: '3px',
+  textDecoration: 'none',
 };
 
 export const SiteFooter: React.FC = () => {

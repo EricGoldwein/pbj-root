@@ -43,7 +43,7 @@
 
   function footerSignoffHtml() {
     var y = new Date().getFullYear();
-    var legalStyle = 'color:rgba(203,213,225,0.78);text-decoration:underline;text-underline-offset:3px;';
+    var legalStyle = 'color:rgba(203,213,225,0.78);text-decoration:none;';
     return (
       '<p class="footer-signoff">\u00a9 ' + y + ', ' +
       '<a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a> · ' +
@@ -214,14 +214,15 @@
     var style = document.createElement('style');
     style.id = 'pbj-footer-styles';
     style.textContent = [
-      '.footer .footer-trust-links a{text-decoration:underline;text-underline-offset:3px;transition:color .15s ease;}',
-      '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;}',
+      '.footer .footer-trust-links a{text-decoration:none;transition:color .15s ease;}',
+      '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
       '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(203,213,225,0.82);}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(226,232,240,0.92);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
-      '.footer .footer-signoff .footer-signoff-link:hover,.footer .footer-signoff .footer-signoff-link:focus-visible{color:rgba(203,213,225,0.95) !important;}',
+      '.footer .footer-signoff .footer-signoff-link{color:rgba(203,213,225,0.78);text-decoration:none;}',
+      '.footer .footer-signoff .footer-signoff-link:hover,.footer .footer-signoff .footer-signoff-link:focus-visible{color:rgba(203,213,225,0.95) !important;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-link:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
       'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}',
       '.pbj-sources-about-btn{font:inherit;font-size:inherit;font-weight:600;color:rgba(148,163,184,0.95);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}',

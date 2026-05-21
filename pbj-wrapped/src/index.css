@@ -102,6 +102,37 @@
   border-radius: 2px;
 }
 
+.footer .footer-trust-links a {
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.footer .footer-trust-links a:hover,
+.footer .footer-trust-links a:focus-visible {
+  color: #cbd5e1 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.footer .footer-trust-links a:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.footer .footer-signoff .footer-signoff-link {
+  color: rgba(203, 213, 225, 0.78);
+  text-decoration: none;
+}
+.footer .footer-signoff .footer-signoff-link:hover,
+.footer .footer-signoff .footer-signoff-link:focus-visible {
+  color: rgba(203, 213, 225, 0.95);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.footer .footer-signoff .footer-signoff-link:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

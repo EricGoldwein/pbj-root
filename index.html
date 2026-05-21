@@ -263,6 +263,16 @@
       flex-direction: column;
       cursor: pointer;
       gap: 4px;
+      padding: 8px;
+      margin: 0;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .nav-toggle:focus-visible {
+      outline: 2px solid var(--pbj-accent);
+      outline-offset: 2px;
     }
     
     .nav-toggle span {
@@ -495,7 +505,7 @@
       text-decoration: none;
     }
     .home-premium-cta-lead {
-      color: rgba(226, 232, 240, 0.76);
+      color: rgba(226, 232, 240, 0.9);
     }
     .home-premium-cta-action {
       color: var(--pbj-accent);
@@ -909,7 +919,7 @@
       font-weight: 600;
       letter-spacing: 0.02em;
       text-transform: none;
-      color: rgba(226, 232, 240, 0.62);
+      color: rgba(226, 232, 240, 0.82);
       margin-bottom: 0.35rem;
       text-align: center;
     }
@@ -940,7 +950,7 @@
       background: rgba(99, 102, 241, 0.14);
     }
     .hero-explore-sep {
-      color: rgba(148, 163, 184, 0.55);
+      color: rgba(148, 163, 184, 0.72);
       font-weight: 500;
       user-select: none;
       padding: 0 0.05rem;
@@ -1706,7 +1716,7 @@
       padding: 8px 12px;
       font-size: 0.85rem;
       font-weight: 500;
-      color: #94a3b8;
+      color: #b8c5d6;
       background: transparent;
       border: none;
       border-right: 1px solid rgba(148, 163, 184, 0.48);
@@ -2129,11 +2139,11 @@
         <a href="/owners" class="nav-link">Ownership</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
-      <div class="nav-toggle" id="navToggle">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
+      <button type="button" class="nav-toggle" id="navToggle" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
     </div>
   </nav>
 
@@ -2153,10 +2163,10 @@
               <p class="home-search-label">Search CMS payroll-based journal staffing data across 15,000+ U.S. nursing homes.</p>
             </div>
             <div class="search-mode-tabs-shell">
-            <div class="search-mode-tabs" role="tablist" aria-label="Search type">
-              <button type="button" role="tab" id="searchTabFacility" aria-selected="true" aria-controls="homeSearchInput" class="search-mode-tab active">Provider</button>
-              <button type="button" role="tab" id="searchTabChain" aria-selected="false" aria-controls="homeSearchInput" class="search-mode-tab">Chain</button>
-              <button type="button" role="tab" id="searchTabState" aria-selected="false" aria-controls="homeSearchInput" class="search-mode-tab">State</button>
+            <div class="search-mode-tabs" role="radiogroup" aria-label="Search type">
+              <button type="button" id="searchTabFacility" aria-pressed="true" class="search-mode-tab active">Provider</button>
+              <button type="button" id="searchTabChain" aria-pressed="false" class="search-mode-tab">Chain</button>
+              <button type="button" id="searchTabState" aria-pressed="false" class="search-mode-tab">State</button>
             </div>
             </div>
             <div class="home-search-row-and-phoebe">
@@ -2170,7 +2180,7 @@
                   <span class="search-icon-wrap" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   </span>
-                  <input type="search" id="homeSearchInput" class="home-search-input" placeholder="Provider name or 6-digit ID" autocomplete="off" aria-autocomplete="list" aria-controls="homeSearchResults" aria-expanded="false" aria-label="Search">
+                  <input type="search" id="homeSearchInput" class="home-search-input" placeholder="Provider name or 6-digit ID" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="homeSearchResults" aria-expanded="false" aria-label="Search nursing homes">
                 </div>
                 <button type="button" id="homeSearchInfoBtn" class="home-search-info-btn home-search-info-btn--in-row" aria-label="Search help" title="Search help">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -2230,7 +2240,7 @@
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
                 </span>
               </button>
-              <div class="phoebe-strip-popup" id="phoebeStripPopupEmail" role="tooltip">
+              <div class="phoebe-strip-popup" id="phoebeStripPopupEmail" role="region" aria-label="What is PBJ?">
                 <p style="margin: 0 0 10px 0;">PBJ (Payroll-Based Journal) is the federal system that uses payroll records to track staffing at 15,000+ U.S. nursing homes.</p>
                 <p style="margin: 0;"><a href="/phoebe" class="phoebe-popup-cta">PBJ Explained<span class="phoebe-popup-cta-icon" aria-hidden="true"> →</span></a></p>
               </div>
@@ -2264,7 +2274,7 @@
     </div>
   </section>
 
-  <div id="contact-overlay" class="contact-overlay" aria-hidden="true" role="presentation">
+  <div id="contact-overlay" class="contact-overlay" aria-hidden="true">
     <div class="contact-popup" role="dialog" aria-labelledby="contact-popup-title" aria-modal="true" id="contact-dialog">
       <h2 id="contact-popup-title">Custom PBJ dashboards &amp; analysis</h2>
       <button type="button" class="contact-popup-close" id="contact-popup-close" aria-label="Close">&times;</button>
@@ -2296,7 +2306,6 @@
   <hr class="footer-section-hr" aria-hidden="true">
   <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
-  <script src="/pbj-site-universal.js?v=21"></script>
   <script>
     // Subscribe success/error from URL params (after POST /subscribe redirect)
     (function() {
@@ -2617,9 +2626,9 @@
           tabFacility.classList.toggle('active', mode === 'facility');
           tabChain.classList.toggle('active', mode === 'chain');
           tabState.classList.toggle('active', mode === 'state');
-          if (tabFacility) tabFacility.setAttribute('aria-selected', mode === 'facility');
-          if (tabChain) tabChain.setAttribute('aria-selected', mode === 'chain');
-          if (tabState) tabState.setAttribute('aria-selected', mode === 'state');
+          if (tabFacility) tabFacility.setAttribute('aria-pressed', mode === 'facility' ? 'true' : 'false');
+          if (tabChain) tabChain.setAttribute('aria-pressed', mode === 'chain' ? 'true' : 'false');
+          if (tabState) tabState.setAttribute('aria-pressed', mode === 'state' ? 'true' : 'false');
           if (stateFilterWrap) stateFilterWrap.classList.toggle('inline', mode === 'facility');
           var isMobile = window.innerWidth <= 768;
           input.placeholder = mode === 'facility' ? (isMobile ? 'Provider name / CCN' : 'Provider name or 6-digit ID') : mode === 'chain' ? 'Chain name or ID' : 'State name or abbreviation';
@@ -2775,8 +2784,14 @@
           }
         });
         if (infoPopup) {
-          function openInfoPopup() { infoPopup.setAttribute('aria-hidden', 'false'); }
-          function closeInfoPopup() { infoPopup.setAttribute('aria-hidden', 'true'); }
+          function openInfoPopup() {
+            infoPopup.setAttribute('aria-hidden', 'false');
+            infoPopup.setAttribute('aria-modal', 'true');
+          }
+          function closeInfoPopup() {
+            infoPopup.setAttribute('aria-hidden', 'true');
+            infoPopup.removeAttribute('aria-modal');
+          }
           [infoBtn, infoBtnMobile].forEach(function(btn) {
             if (btn) btn.addEventListener('click', openInfoPopup);
           });
@@ -2827,8 +2842,10 @@
       
        if (navToggle && navMenu) {
          navToggle.addEventListener('click', function() {
-           navMenu.classList.toggle('active');
-           navToggle.classList.toggle('active');
+           var open = navMenu.classList.toggle('active');
+           navToggle.classList.toggle('active', open);
+           navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+           navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
          });
          
          // Close mobile menu when a nav link is clicked
@@ -2837,6 +2854,8 @@
            link.addEventListener('click', function() {
              navMenu.classList.remove('active');
              navToggle.classList.remove('active');
+             navToggle.setAttribute('aria-expanded', 'false');
+             navToggle.setAttribute('aria-label', 'Open menu');
            });
          });
        }
@@ -3025,5 +3044,6 @@
       });
     });
   </script>
+  <script src="/pbj-site-universal.js?v=27" defer></script>
 </body>
 </html>

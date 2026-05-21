@@ -28,17 +28,15 @@
     '<a href="/about" style="' + FOOTER_LINK_STYLE + '">About</a> · ' +
     '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
-    '<a href="/contact" style="' + FOOTER_LINK_STYLE + '">Contact</a>' +
+    '<a href="/contact" style="' + FOOTER_LINK_STYLE + '">Contact</a> · ' +
+    '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a>' +
     '</p>';
 
   var FOOTER_LEGAL_LINKS =
-    '<p class="footer-legal-links" style="margin:0 0 0.85rem 0;font-size:0.68rem;text-align:center;color:rgba(148,163,184,0.62)">' +
-    '<a href="/terms" style="color:rgba(148,163,184,0.62)">Terms</a> · ' +
-    '<a href="/privacy" style="color:rgba(148,163,184,0.62)">Privacy</a>' +
+    '<p class="footer-legal-links" style="margin:0 0 0.85rem 0;font-size:0.68rem;text-align:center;color:rgba(203,213,225,0.78)">' +
+    '<a href="/terms" style="color:rgba(203,213,225,0.78)">Terms</a> · ' +
+    '<a href="/privacy" style="color:rgba(203,213,225,0.78)">Privacy</a>' +
     '</p>';
-
-  var FOOTER_SOURCES_ID = 'pbj-footer-sources-line';
-  var CMS_PBJ_URL = 'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing';
 
   var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
@@ -58,59 +56,9 @@
     if (!el) return;
     var body = FOOTER_CORE + footerSignoffHtml();
     el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
-    injectFooterSources(el);
-  }
-
-  function ensureGeneralSourcesDialog() {
-    if (document.getElementById('pbj-sources-general')) return;
-    var dlg = document.createElement('dialog');
-    dlg.id = 'pbj-sources-general';
-    dlg.className = 'pbj-sources-dialog';
-    dlg.innerHTML =
-      '<div class="pbj-sources-dialog__panel" role="document">' +
-      '<h2 class="pbj-sources-dialog__title">Data on PBJ320</h2>' +
-      '<ul class="pbj-sources-dialog__list">' +
-      '<li><strong>CMS Payroll-Based Journal (PBJ)</strong> Staffing hours, census, and HPRD on facility and state pages. Quarter shown in the footer reflects the latest PBJ files loaded on this site.</li>' +
-      '<li><strong>CMS Provider Information</strong> Ratings, ownership, and facility context where shown. May post on a different schedule than PBJ.</li>' +
-      '<li><strong>Other CMS datasets</strong> Chain performance, ownership, SFF lists, and citations appear only on the pages that use them.</li>' +
-      '</ul>' +
-      '<p class="pbj-sources-dialog__more">Full reference: <a href="/data-sources">Data sources</a>.</p>' +
-      '<form method="dialog"><button type="submit" class="pbj-sources-dialog__close">Close</button></form>' +
-      '</div>';
-    document.body.appendChild(dlg);
-  }
-
-  function injectFooterSources(footerEl) {
-    if (!footerEl || document.querySelector('.pbj-page-footer-sources')) return;
-    ensureGeneralSourcesDialog();
-    fetch('/api/dates', { credentials: 'same-origin' })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) {
-        var q = data && data.pbj_quarter_display ? String(data.pbj_quarter_display).trim() : '';
-        var existing = document.getElementById(FOOTER_SOURCES_ID);
-        if (existing) existing.remove();
-        var p = document.createElement('p');
-        p.id = FOOTER_SOURCES_ID;
-        p.className = 'pbj-footer-sources-line';
-        p.style.cssText = 'margin:0.35rem auto 0;max-width:720px;font-size:0.72rem;line-height:1.45;text-align:center;color:rgba(148,163,184,0.72);';
-        var through = q && q !== 'N/A' ? ' through ' + q : '';
-        p.innerHTML =
-          'Sources: <a href="' + CMS_PBJ_URL + '" target="_blank" rel="noopener" style="' + FOOTER_LINK_STYLE + '">PBJ</a>' +
-          through +
-          ' · <a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Data sources</a>' +
-          ' · <button type="button" class="pbj-sources-about-btn" data-pbj-sources-open="pbj-sources-general">About data</button>';
-        var signoff = footerEl.querySelector('.footer-signoff');
-        if (signoff && signoff.parentNode) {
-          signoff.parentNode.insertBefore(p, signoff);
-        } else {
-          footerEl.appendChild(p);
-        }
-      })
-      .catch(function () { /* non-blocking */ });
   }
 
   function bindSourcesDialogs() {
-    ensureGeneralSourcesDialog();
     document.addEventListener('click', function (e) {
       var btn = e.target && e.target.closest ? e.target.closest('[data-pbj-sources-open]') : null;
       if (!btn) return;
@@ -256,14 +204,13 @@
       '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;}',
       '.footer .footer-legal-links a:hover,.footer .footer-legal-links a:focus-visible{color:rgba(203,213,225,0.85) !important;}',
       '.footer .footer-trust-links a:focus-visible,.footer .footer-legal-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
-      '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(148,163,184,0.72);}',
-      '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
+      '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(203,213,225,0.82);}',
+      '.footer .footer-signoff .footer-signoff-brand{color:rgba(226,232,240,0.92);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
       'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}',
-      '.footer .pbj-footer-sources-line a{text-decoration:underline;text-underline-offset:3px;}',
-      '.footer .pbj-sources-about-btn{font:inherit;font-size:inherit;font-weight:600;color:rgba(148,163,184,0.95);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}',
-      '.footer .pbj-sources-about-btn:hover{color:#cbd5e1;}',
+      '.pbj-sources-about-btn{font:inherit;font-size:inherit;font-weight:600;color:rgba(148,163,184,0.95);background:none;border:none;padding:0;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}',
+      '.pbj-sources-about-btn:hover{color:#cbd5e1;}',
       '.pbj-sources-dialog{border:none;padding:0;margin:auto;background:transparent;max-width:min(34rem,92vw);color:#e2e8f0;}',
       '.pbj-sources-dialog::backdrop{background:rgba(0,0,0,0.55);}',
       '.pbj-sources-dialog__panel{background:#1e293b;border:1px solid rgba(129,140,248,0.35);border-radius:12px;padding:1.1rem 1.25rem 1rem;box-shadow:0 12px 40px rgba(0,0,0,0.45);}',
@@ -298,6 +245,7 @@
       if (!match && linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) match = true;
       if (!match && linkPath === '/about' && path.indexOf('/about') === 0) match = true;
       if (!match && linkPath === '/premium' && path.indexOf('/premium') === 0) match = true;
+      if (!match && linkPath === '/data-sources' && path.indexOf('/data-sources') === 0) match = true;
       if (match) a.classList.add('active');
     }
   }

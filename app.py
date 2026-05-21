@@ -3946,6 +3946,58 @@ def _state_facility_list_for_json_ld(state_code: str, quarter: str, limit: int =
     return out
 
 
+def _provider_json_ld_facility_flags(
+    *,
+    provider_info_row: dict | None,
+    is_sff: bool,
+    is_sff_candidate: bool,
+    overall_rating_raw,
+    staffing_rating_raw,
+) -> list[str]:
+    """Descriptive flags already reflected on the provider page badges (no new inference)."""
+    flags: list[str] = []
+    pi = provider_info_row if isinstance(provider_info_row, dict) else {}
+    ab = str(pi.get('abuse_icon') or '').strip().upper()
+    ha = str(pi.get('has_abuse_icon') or '').strip().upper()
+    if ab in ('Y', 'YES', '1', 'TRUE') or ha in ('Y', 'YES', '1', 'TRUE'):
+        flags.append('CMS abuse icon')
+    if is_sff and not is_sff_candidate:
+        flags.append('Special Focus Facility')
+    if is_sff_candidate:
+        flags.append('Special Focus Facility candidate')
+    try:
+        if overall_rating_raw is not None and int(round_half_up(float(overall_rating_raw), 0) or 0) == 1:
+            flags.append('one-star overall CMS rating')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if staffing_rating_raw is not None and int(round_half_up(float(staffing_rating_raw), 0) or 0) == 1:
+            flags.append('one-star staffing CMS rating')
+    except (TypeError, ValueError):
+        pass
+    return flags
+
+
+def _provider_json_ld_latest_cms_provider_info_value(overall_rating_raw, staffing_rating_raw) -> str:
+    """Latest CMS Provider Information snapshot — separate from PBJ quarterly staffing."""
+    parts: list[str] = []
+    try:
+        if overall_rating_raw is not None and not (isinstance(overall_rating_raw, float) and pd.isna(overall_rating_raw)):
+            o = int(round_half_up(float(overall_rating_raw), 0) or 0)
+            if 1 <= o <= 5:
+                parts.append(f'overall Five-Star rating {o}')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if staffing_rating_raw is not None and not (isinstance(staffing_rating_raw, float) and pd.isna(staffing_rating_raw)):
+            s = int(round_half_up(float(staffing_rating_raw), 0) or 0)
+            if 1 <= s <= 5:
+                parts.append(f'staffing Five-Star rating {s}')
+    except (TypeError, ValueError):
+        pass
+    return '; '.join(parts)
+
+
 def _provider_page_json_ld_scripts(
     *,
     facility_name: str,
@@ -3959,6 +4011,10 @@ def _provider_page_json_ld_scripts(
     quarter_display: str,
     facility_df=None,
     latest_raw_quarter: str = '',
+    county: str = '',
+    facility_flags: list | None = None,
+    latest_cms_provider_info: str = '',
+    associated_entities: list | None = None,
 ) -> str:
     page_url = (page_url or '').strip()
     if page_url.startswith('/'):
@@ -3994,17 +4050,35 @@ def _provider_page_json_ld_scripts(
         org['address'] = address
     props: list = []
     try:
-        from pbj_facility_json_ld import build_facility_quarter_json_ld_properties
+        from pbj_facility_json_ld import (
+            build_facility_level_json_ld_properties,
+            build_facility_quarter_json_ld_properties,
+        )
         from pbj_format import format_quarter_display as _fmt_q, format_metric_value as _fmt_m
 
-        props = build_facility_quarter_json_ld_properties(
-            facility_df,
-            format_quarter_display=_fmt_q,
-            format_metric_value=_fmt_m,
-            provider_info_for_quarter=get_provider_info_for_quarter,
-            ccn=norm_ccn or (str(ccn or '').strip()),
-            latest_raw_quarter=latest_raw_quarter,
-            max_quarters=4,
+        def _census_for_json_ld_row(row):
+            return _facility_quarterly_census_display(row, {}, _fmt_m)
+
+        props.extend(
+            build_facility_level_json_ld_properties(
+                ccn=norm_ccn or (str(ccn or '').strip()),
+                city=city,
+                county=county,
+                state_code=state_code,
+                state_name=state_name,
+                facility_flags=facility_flags or [],
+                latest_cms_provider_info=latest_cms_provider_info,
+                associated_entities=associated_entities or [],
+            )
+        )
+        props.extend(
+            build_facility_quarter_json_ld_properties(
+                facility_df,
+                format_quarter_display=_fmt_q,
+                format_metric_value=_fmt_m,
+                census_display_for_row=_census_for_json_ld_row,
+                max_quarters=4,
+            )
         )
     except Exception:
         props = []
@@ -9993,6 +10067,14 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         ownership=ownership_short or ownership_raw or '',
     )
     provider_intro_html = provider_page_intro_html(facility_name, city=city, state_name=state_name)
+    _json_ld_entities: list[tuple[str, str]] = []
+    if entity_id and entity_name:
+        try:
+            _json_ld_entities.append(
+                (entity_name, f'{base_url}/entity/{int(entity_id)}')
+            )
+        except (TypeError, ValueError):
+            pass
     provider_json_ld = _provider_page_json_ld_scripts(
         facility_name=facility_name,
         ccn=prov,
@@ -10005,6 +10087,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         quarter_display=quarter_display,
         facility_df=facility_df,
         latest_raw_quarter=str(raw_quarter or ''),
+        county=county,
+        facility_flags=_provider_json_ld_facility_flags(
+            provider_info_row=provider_info_row or pi_header,
+            is_sff=is_sff,
+            is_sff_candidate=is_sff_candidate,
+            overall_rating_raw=_overall_raw,
+            staffing_rating_raw=_staffing_raw,
+        ),
+        latest_cms_provider_info=_provider_json_ld_latest_cms_provider_info_value(
+            _overall_raw, _staffing_raw
+        ),
+        associated_entities=_json_ld_entities,
     )
     _ownership_page_css = (
         f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'

@@ -1,9 +1,9 @@
-"""Facility page JSON-LD — generated from the same quarterly rows as the public provider page."""
+"""Facility page JSON-LD — same quarterly rows and page context as the public provider page."""
 
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 try:
     import pandas as pd
@@ -36,24 +36,11 @@ def _row_float(row: Mapping[str, Any], key: str) -> float | None:
         return None
 
 
-def _star_int(raw: Any) -> int | None:
-    if raw is None or (HAS_PANDAS and isinstance(raw, float) and pd.isna(raw)):
+def _clean_metric_display(val: str | None) -> str | None:
+    s = (val or '').strip()
+    if not s or s in ('—', 'N/A', 'n/a', '-'):
         return None
-    try:
-        n = int(round(float(raw)))
-        return n if 1 <= n <= 5 else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _turnover_pct_display(raw: Any) -> str | None:
-    if raw is None or (HAS_PANDAS and isinstance(raw, float) and pd.isna(raw)):
-        return None
-    try:
-        return f'{float(raw):.1f}'
-    except (TypeError, ValueError):
-        s = str(raw).strip()
-        return s if s else None
+    return s
 
 
 def build_facility_quarter_json_ld_properties(
@@ -61,15 +48,12 @@ def build_facility_quarter_json_ld_properties(
     *,
     format_quarter_display,
     format_metric_value,
-    provider_info_for_quarter=None,
-    ccn: str = '',
-    latest_raw_quarter: str = '',
+    census_display_for_row: Callable[[Any], str | None] | None = None,
     max_quarters: int = 4,
 ) -> list[dict[str, Any]]:
     """
     Last N PBJ quarters as schema.org PropertyValue entries.
-    Uses facility_quarterly_metrics rows (same source as charts/CSV trends).
-    CMS stars and turnover are added only for the latest PBJ quarter when Provider Info aligns.
+    Uses facility_quarterly_metrics rows only (same source as charts/CSV trends).
     """
     if not HAS_PANDAS or facility_df is None or facility_df.empty:
         return []
@@ -81,7 +65,6 @@ def build_facility_quarter_json_ld_properties(
 
     tail = sorted_df.tail(max_quarters)
     props: list[dict[str, Any]] = []
-    latest_raw = (latest_raw_quarter or '').strip()
 
     for _, row in tail.iterrows():
         q_raw = str(row.get('CY_Qtr', '') or '').strip()
@@ -91,37 +74,42 @@ def build_facility_quarter_json_ld_properties(
         if not q_disp or q_disp == 'N/A':
             continue
 
-        total = format_metric_value(
-            _row_float(row, 'Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A'
+        parts: list[str] = []
+        if census_display_for_row:
+            census = _clean_metric_display(census_display_for_row(row))
+            if census:
+                parts.append(f'average resident census {census}')
+
+        total = _clean_metric_display(
+            format_metric_value(_row_float(row, 'Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')
         )
-        rn = format_metric_value(_row_float(row, 'RN_HPRD'), 'RN_HPRD', 'N/A')
+        rn = _clean_metric_display(
+            format_metric_value(_row_float(row, 'RN_HPRD'), 'RN_HPRD', 'N/A')
+        )
+        na_raw = _row_float(row, 'Nurse_Assistant_HPRD')
+        na = _clean_metric_display(
+            format_metric_value(na_raw, 'Nurse_Assistant_HPRD', 'N/A') if na_raw is not None else None
+        )
         contract_raw = _row_float(row, 'Contract_Percentage')
         contract = (
-            format_metric_value(contract_raw, 'Contract_Percentage', 'N/A')
+            _clean_metric_display(
+                format_metric_value(contract_raw, 'Contract_Percentage', 'N/A')
+            )
             if contract_raw is not None
             else None
         )
 
-        parts = [f'total nurse HPRD {total}', f'RN HPRD {rn}']
-        if contract and contract != 'N/A':
+        if total:
+            parts.append(f'total nurse HPRD {total}')
+        if rn:
+            parts.append(f'RN HPRD {rn}')
+        if na:
+            parts.append(f'CNA HPRD {na}')
+        if contract:
             parts.append(f'contract staff {contract}%')
 
-        if latest_raw and q_raw == latest_raw and provider_info_for_quarter and ccn:
-            pi = provider_info_for_quarter(ccn, q_raw) if callable(provider_info_for_quarter) else {}
-            if isinstance(pi, dict):
-                overall = _star_int(pi.get('overall_rating'))
-                staffing = _star_int(pi.get('staffing_rating'))
-                if overall is not None:
-                    parts.append(f'CMS overall Five-Star {overall} of 5')
-                if staffing is not None:
-                    parts.append(f'CMS staffing Five-Star {staffing} of 5')
-                for key, label in (
-                    ('total_nursing_staff_turnover', 'CMS total nursing staff turnover'),
-                    ('registered_nurse_turnover', 'CMS RN turnover'),
-                ):
-                    tv = _turnover_pct_display(pi.get(key))
-                    if tv and tv != 'N/A':
-                        parts.append(f'{label} {tv}%')
+        if not parts:
+            continue
 
         props.append(
             {
@@ -129,7 +117,100 @@ def build_facility_quarter_json_ld_properties(
                 'propertyID': f'CMS PBJ quarter {q_disp}',
                 'name': f'PBJ staffing ({q_disp})',
                 'value': '; '.join(parts),
-                'unitText': 'hours per resident day (HPRD) where applicable',
+                'unitText': 'CMS Payroll-Based Journal quarterly staffing',
+            }
+        )
+
+    return props
+
+
+def build_facility_level_json_ld_properties(
+    *,
+    ccn: str = '',
+    city: str = '',
+    county: str = '',
+    state_code: str = '',
+    state_name: str = '',
+    facility_flags: Sequence[str] | None = None,
+    latest_cms_provider_info: str = '',
+    associated_entities: Sequence[tuple[str, str]] | None = None,
+) -> list[dict[str, Any]]:
+    """Facility-level context — not repeated per PBJ quarter."""
+    props: list[dict[str, Any]] = []
+
+    norm_ccn = (ccn or '').strip().zfill(6) if (ccn or '').strip() else ''
+    if norm_ccn:
+        props.append(
+            {
+                '@type': 'PropertyValue',
+                'propertyID': 'CMS CCN',
+                'name': 'CMS Certification Number (CCN)',
+                'value': norm_ccn,
+            }
+        )
+
+    city_s = (city or '').strip()
+    if city_s and city_s != '—':
+        props.append(
+            {'@type': 'PropertyValue', 'name': 'City', 'value': city_s}
+        )
+
+    county_s = (county or '').strip()
+    if county_s and county_s not in ('—', 'N/A', 'n/a'):
+        props.append(
+            {'@type': 'PropertyValue', 'name': 'County', 'value': county_s}
+        )
+
+    st_code = (state_code or '').strip().upper()[:2]
+    st_name = (state_name or '').strip()
+    if st_code:
+        props.append(
+            {
+                '@type': 'PropertyValue',
+                'name': 'State',
+                'value': st_name if st_name else st_code,
+            }
+        )
+
+    flags = [f.strip() for f in (facility_flags or []) if (f or '').strip()]
+    if flags:
+        props.append(
+            {
+                '@type': 'PropertyValue',
+                'propertyID': 'PBJ320 facility flags',
+                'name': 'PBJ320 facility flags',
+                'value': '; '.join(flags),
+            }
+        )
+
+    cms_pi = (latest_cms_provider_info or '').strip()
+    if cms_pi:
+        props.append(
+            {
+                '@type': 'PropertyValue',
+                'propertyID': 'CMS Provider Information latest',
+                'name': 'Latest CMS Provider Information',
+                'value': cms_pi,
+            }
+        )
+
+    entities = [
+        (str(n).strip(), str(u).strip())
+        for n, u in (associated_entities or [])
+        if str(n).strip()
+    ]
+    if entities:
+        value_parts = []
+        for name, url in entities:
+            if url:
+                value_parts.append(f'{name} ({url})')
+            else:
+                value_parts.append(name)
+        props.append(
+            {
+                '@type': 'PropertyValue',
+                'name': 'Associated ownership entities',
+                'value': '; '.join(value_parts),
             }
         )
 

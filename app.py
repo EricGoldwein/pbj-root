@@ -40,6 +40,13 @@ from pbj_ai_config import (
     pbj_ai_zip_download_enabled,
 )
 from premium_redirect_routes import register_premium_routes
+from pbj_cross_links import (
+    cross_links_for_entity,
+    cross_links_for_facility,
+    cross_links_for_state,
+    resolve_home_deep_link,
+    state_rank_link_html,
+)
 from site_public_config import (
     PBJ_SITE_UNIVERSAL_JS_VERSION,
     PUBLIC_SITE_ORIGIN,
@@ -867,6 +874,14 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
 
 @app.route('/')
 def index():
+    target = resolve_home_deep_link(
+        request.args,
+        state_code_to_name=STATE_CODE_TO_NAME,
+        get_canonical_slug=get_canonical_slug,
+        normalize_ccn=normalize_ccn,
+    )
+    if target:
+        return redirect(target, code=302)
     return _serve_public_html('index.html', inject_csrf=True)
 
 @app.errorhandler(400)
@@ -6414,6 +6429,13 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-orientation--compact a:hover {{ color: #a5b4fc; }}
 .pbj-percentile, .pbj-entity-summary {{ font-size: 0.85rem; color: #a8b4c4; margin-top: 6px; }}
 .pbj-details {{ border: 1px solid rgba(148, 163, 184, 0.32); border-radius: 10px; background: rgba(15, 23, 42, 0.55); margin: 1.25rem 0; overflow: hidden; box-shadow: 0 2px 14px rgba(2, 6, 23, 0.28); }}
+.pbj-cross-links {{ margin: 0; font-size: 0.8rem; line-height: 1.45; color: rgba(148, 163, 184, 0.88); }}
+.pbj-cross-links-label {{ color: rgba(148, 163, 184, 0.72); margin-right: 0.2rem; }}
+.pbj-cross-links a {{ color: #93c5fd; font-weight: 500; text-decoration: none; }}
+.pbj-cross-links a:hover {{ color: #bfdbfe; text-decoration: underline; }}
+.pbj-cross-sep {{ margin: 0 0.15rem; opacity: 0.55; user-select: none; }}
+.pbj-inline-link {{ color: #93c5fd; font-weight: 600; text-decoration: underline; text-underline-offset: 0.12em; }}
+.pbj-inline-link:hover {{ color: #bfdbfe; }}
 .pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
 .pbj-page-bottom-stack a.custom-report-cta {{ margin: 0; max-width: none; width: 100%; }}
 .pbj-page-bottom-details {{ margin: 0; width: 100%; max-width: none; }}
@@ -10395,6 +10417,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         )
     except Exception:
         _facility_sources_footer = ''
+    _facility_cross_links = cross_links_for_facility(
+        state_code=state_code or '',
+        state_slug=canonical_slug,
+        is_sff=is_sff,
+    )
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
@@ -10407,6 +10434,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <div class="pbj-page-bottom-stack">
 {custom_report_cta_html}
 {_provider_ownership_chow_block}
+{_facility_cross_links}
 {render_methodology_block()}
 </div>
 
@@ -11228,6 +11256,21 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     except Exception:
         _entity_sources_footer = ''
 
+    from collections import Counter
+    _entity_state_counts: Counter = Counter()
+    for _ef in facilities:
+        _st = str(_ef.get('state') or '').strip().upper()[:2]
+        if _st:
+            _entity_state_counts[_st] += 1
+    _entity_top_states = [
+        (STATE_CODE_TO_NAME.get(code, code), get_canonical_slug(code))
+        for code, _ in _entity_state_counts.most_common(2)
+    ]
+    _entity_cross_links = cross_links_for_entity(
+        entity_id=entity_id,
+        top_states=_entity_top_states,
+    )
+
     inner = f"""
 <h1>{html.escape(entity_name)}</h1>
 {entity_intro_html}
@@ -11246,6 +11289,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {show_more_btn}
 {table_script}
 
+{_entity_cross_links}
 {render_methodology_block()}
 
 {custom_report_cta_html}
@@ -12273,15 +12317,40 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                 parts.append(f" This level is above the national ratio of {format_metric_value(national_hprd, 'Total_Nurse_HPRD', 'N/A')} HPRD")
             else:
                 parts.append(f" This level is near the national ratio of {format_metric_value(national_hprd, 'Total_Nurse_HPRD', 'N/A')} HPRD")
-            if rank_total_nurse and total_states:
-                parts.append(f" and ranks <strong>#{rank_total_nurse}</strong> out of {total_states} states.")
+            rank_phrase = state_rank_link_html(
+                rank_total_nurse, total_states, state_slug=_canonical_slug
+            )
+            if rank_phrase:
+                parts.append(rank_phrase + '.')
             else:
                 parts.append(".")
         elif rank_total_nurse and total_states:
-            parts.append(f" and ranks <strong>#{rank_total_nurse}</strong> out of {total_states} states.")
+            parts.append(
+                state_rank_link_html(
+                    rank_total_nurse, total_states, state_slug=_canonical_slug
+                )
+                + '.'
+            )
         state_narrative = '<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">' + ''.join(parts) + '</p>'
     else:
-        state_narrative = f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of <strong>{total_hprd_val} HPRD</strong> of total nurse staffing.{" Ranks <strong>#" + str(rank_total_nurse) + "</strong> of " + str(total_states) + " states." if rank_total_nurse and total_states else ""}</p>'
+        _rank_alt = (
+            state_rank_link_html(
+                rank_total_nurse, total_states, state_slug=_canonical_slug
+            )
+            if rank_total_nurse and total_states
+            else ''
+        )
+        state_narrative = (
+            f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
+            f'In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of '
+            f'<strong>{total_hprd_val} HPRD</strong> of total nurse staffing.'
+            f'{_rank_alt}.</p>'
+            if _rank_alt
+            else
+            f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
+            f'In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of '
+            f'<strong>{total_hprd_val} HPRD</strong> of total nurse staffing.</p>'
+        )
     _state_hprd_body = build_hprd_floor_analogy_body(
         cur_hprd, state_na_hprd, state_name, census=avg_facility_census, context='state'
     )
@@ -12394,6 +12463,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     except Exception:
         _state_top_owners_line = ''
         _state_chow_line = ''
+    _state_cross_links = cross_links_for_state(
+        state_code=state_code,
+        state_name=state_name,
+        state_slug=_canonical_slug,
+        has_sff=bool(sff_facilities),
+    )
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
@@ -12420,6 +12495,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {sff_section}
     {_state_top_owners_line}
     {_state_chow_line}
+    {_state_cross_links}
     {render_methodology_block()}
     {cta_section}
     </div>

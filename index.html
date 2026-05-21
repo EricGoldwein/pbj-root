@@ -2307,6 +2307,24 @@
   <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
   <script>
+    // Deep links: ?facility= / ?ccn= / ?state= / ?entity= (server redirects too; this covers static/cached home)
+    (function() {
+      var p = new URLSearchParams(window.location.search);
+      var fac = (p.get('facility') || p.get('ccn') || '').replace(/\D/g, '');
+      if (fac.length >= 1) {
+        fac = fac.padStart(6, '0').slice(-6);
+        if (/^\d{6}$/.test(fac)) {
+          window.location.replace('/provider/' + encodeURIComponent(fac));
+          return;
+        }
+      }
+      var ent = (p.get('entity') || p.get('chain') || '').trim();
+      if (/^\d+$/.test(ent)) {
+        window.location.replace('/entity/' + encodeURIComponent(ent));
+      }
+    })();
+  </script>
+  <script>
     // Subscribe success/error from URL params (after POST /subscribe redirect)
     (function() {
       var params = new URLSearchParams(window.location.search);

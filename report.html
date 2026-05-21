@@ -4698,6 +4698,22 @@ __REPORT_SSR_TABLE_ROWS__
       }
     }
 
+    function highlightReportStateFromQuery() {
+      const hl = (new URLSearchParams(window.location.search).get('state') || '').toLowerCase().trim();
+      if (!hl) return;
+      const row = document.getElementById('report-state-' + hl)
+        || document.querySelector('tr[data-state-slug="' + hl + '"]');
+      if (!row) return;
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.style.transition = 'outline 0.2s ease';
+      row.style.outline = '2px solid rgba(96, 165, 250, 0.65)';
+      row.style.outlineOffset = '-2px';
+      window.setTimeout(function() {
+        row.style.outline = '';
+        row.style.outlineOffset = '';
+      }, 3500);
+    }
+
     // Load data
     async function loadData() {
       try {
@@ -5185,6 +5201,7 @@ __REPORT_SSR_TABLE_ROWS__
           // Render everything
           renderUSSummary();
           renderStateTable();
+          highlightReportStateFromQuery();
           initializeMap();
           
           // Set up event handlers after DOM is ready
@@ -6513,6 +6530,10 @@ __REPORT_SSR_TABLE_ROWS__
         
         // Create table row
         const tr = document.createElement('tr');
+        if (currentTableView !== 'region' && stateSlug) {
+          tr.setAttribute('data-state-slug', stateSlug);
+          tr.id = 'report-state-' + stateSlug;
+        }
         
         // Rank cell
         tr.appendChild(createTableCell(rank, 'col-rank rank'));

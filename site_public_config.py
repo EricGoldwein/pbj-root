@@ -25,7 +25,7 @@ CMS_PBJ_STAFFING_SUBMISSION_URL = (
     'https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission'
 )
 CMS_PBJ_POLICY_MANUAL_URL = (
-    'https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf'
+    'https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v25-11-19-2018.pdf'
 )
 CMS_PBJ_DAILY_DATASET_URL = (
     'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing'
@@ -54,6 +54,27 @@ MACPAC_STATE_STAFFING_URL = (
     'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
 )
 CARE_COMPARE_URL = 'https://www.medicare.gov/care-compare/'
+
+# Placeholders replaced at serve time in public HTML (see inject_public_html_cms_urls).
+PUBLIC_HTML_CMS_PLACEHOLDERS: dict[str, str] = {
+    '__CMS_PBJ_STAFFING_SUBMISSION__': CMS_PBJ_STAFFING_SUBMISSION_URL,
+    '__CMS_PBJ_PUF_DOCUMENTATION__': CMS_PBJ_PUF_DOCUMENTATION_URL,
+    '__CMS_PBJ_DAILY_DATASET__': CMS_PBJ_DAILY_DATASET_URL,
+    '__CMS_PBJ_EMPLOYEE_DETAIL__': CMS_PBJ_EMPLOYEE_DETAIL_URL,
+    '__CMS_PROVIDER_INFO_DATASET__': CMS_PROVIDER_INFO_DATASET_URL,
+    '__CMS_OPEN_DATA__': CMS_OPEN_DATA_URL,
+    '__MACPAC_STATE_STAFFING__': MACPAC_STATE_STAFFING_URL,
+    '__CARE_COMPARE__': CARE_COMPARE_URL,
+    '__FEC__': 'https://www.fec.gov/',
+}
+
+
+def inject_public_html_cms_urls(html: str) -> str:
+    """Substitute CMS URL placeholders in static public HTML files."""
+    for placeholder, url in PUBLIC_HTML_CMS_PLACEHOLDERS.items():
+        html = html.replace(placeholder, url)
+    return html
+
 
 # Path fragments that must never appear in sitemap.xml <loc> entries.
 SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (

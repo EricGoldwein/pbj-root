@@ -867,6 +867,12 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         token = generate_csrf() if (HAS_CSRF and generate_csrf) else ''
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', token)
     html_content = _rewrite_universal_js_version(html_content)
+    try:
+        from site_public_config import inject_public_html_cms_urls
+
+        html_content = inject_public_html_cms_urls(html_content)
+    except ImportError:
+        pass
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
     resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL

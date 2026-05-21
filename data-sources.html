@@ -50,17 +50,16 @@
       <h2>CMS staffing (Payroll-Based Journal)</h2>
       <p>Facility-level nurse staffing hours, census, and derived metrics (including HPRD) come from CMS Payroll-Based Journal (PBJ) public files.</p>
       <ul>
-        <li><a href="https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> (public use files)</li>
-        <li><a href="https://data.cms.gov/sites/default/files/2023-06/PBJ_PUF_Documentation_July_2023.pdf" rel="noopener noreferrer" target="_blank">CMS PBJ public use file documentation (PDF)</a></li>
-        <li><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ — daily nurse staffing (data.cms.gov)</a></li>
-        <li><a href="https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ — employee detail (data.cms.gov)</a></li>
+        <li><a href="__CMS_PBJ_STAFFING_SUBMISSION__" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> — program page, policy manual, PUF documentation, and specs</li>
+        <li><a href="__CMS_PBJ_DAILY_DATASET__" rel="noopener noreferrer" target="_blank">CMS PBJ — daily nurse staffing (data.cms.gov)</a></li>
+        <li><a href="__CMS_PBJ_EMPLOYEE_DETAIL__" rel="noopener noreferrer" target="_blank">CMS PBJ — employee detail (data.cms.gov)</a></li>
       </ul>
 
       <h2>CMS provider &amp; facility context</h2>
       <p>Provider names, locations, ratings, ownership type, and related fields are drawn from CMS Provider Information and linked public provider datasets where shown on facility, state, and entity pages.</p>
       <ul>
-        <li><a href="https://data.cms.gov/provider-data/" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
-        <li><a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> (official consumer-facing facility profiles)</li>
+        <li><a href="__CMS_OPEN_DATA__" rel="noopener noreferrer" target="_blank">CMS Provider Data Catalog</a></li>
+        <li><a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> (official consumer-facing facility profiles)</li>
       </ul>
 
       <h2>CMS chain &amp; affiliated entity data</h2>
@@ -78,13 +77,13 @@
       <h2>State staffing policy context</h2>
       <p>State minimum staffing references and MACPAC summaries on PBJ320 are policy compendia, not statutory text.</p>
       <ul>
-        <li><a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" rel="noopener noreferrer" target="_blank">MACPAC — state policies related to nursing facility staffing</a> (March 2022 compendium)</li>
+        <li><a href="__MACPAC_STATE_STAFFING__" rel="noopener noreferrer" target="_blank">MACPAC — state policies related to nursing facility staffing</a> (March 2022 compendium)</li>
       </ul>
 
       <h2>Political contributions (separate tool)</h2>
       <p>The <a href="/owners">nursing home owner contributions search</a> uses Federal Election Commission (FEC) public campaign finance data, not CMS PBJ files.</p>
       <ul>
-        <li><a href="https://www.fec.gov/" rel="noopener noreferrer" target="_blank">Federal Election Commission (FEC)</a></li>
+        <li><a href="__FEC__" rel="noopener noreferrer" target="_blank">Federal Election Commission (FEC)</a></li>
       </ul>
 
       <h2>PBJ320 Premium (paid)</h2>
@@ -95,11 +94,11 @@
       <ul>
         <li id="hprd"><strong><a href="/what-is-hprd">HPRD</a>:</strong> Total nurse hours ÷ average residents (CMS-reported).</li>
         <li><strong>Direct care:</strong> Excludes admin and DON where noted.</li>
-        <li><strong>Case-mix:</strong> CMS Provider Information PDPM benchmark (<a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" rel="noopener noreferrer" target="_blank">4pq5-n9py</a>)—reference, not a legal minimum.</li>
+        <li><strong>Case-mix:</strong> CMS Provider Information PDPM benchmark (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">4pq5-n9py</a>)—reference, not a legal minimum.</li>
         <li id="percentiles"><strong>Within-state ranks</strong> (e.g. bottom 10%): Facility <strong>total nurse HPRD</strong> vs. other homes in the same state for the <strong>quarter on that page</strong>; not case-mix adjusted.</li>
         <li id="rankings"><strong><a href="/report">Report</a> rankings:</strong> Default = state <strong>mean</strong> total nurse HPRD for the selected quarter (<code>state_quarterly_metrics.csv</code>); rank 1 = highest. <strong>Median</strong> toggle = median across facilities (equal weight). <strong>Exclude Admin/DON</strong> drops RN Admin, RN DON, LPN Admin. Puerto Rico excluded. CMS region rows pool facilities by CMS region. Not acuity-adjusted.</li>
-        <li id="pbj-exclusions"><strong>CMS PBJ public-file exclusions</strong> (when CMS publishes quarterly PUFs): facilities may be omitted for incomplete/erroneous submissions, missing nurse staffing on multiple days when census is non-zero, or quarterly aggregates outside CMS bounds (e.g. total nurse HPRD below 1.5 or above 12, nurse aide above 5.25). See <a href="https://data.cms.gov/sites/default/files/2023-06/PBJ_PUF_Documentation_July_2023.pdf" rel="noopener noreferrer" target="_blank">CMS PBJ PUF documentation</a> and the <a href="https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf" rel="noopener noreferrer" target="_blank">PBJ Policy Manual</a>.</li>
-        <li id="high-risk"><strong>CMS flags on facility pages</strong> (SFF, SFF candidate, 1-star, abuse icon): Fields from CMS Provider Information / Care Compare—PBJ320 does not assign them. <strong>Abuse icon</strong> = CMS record when cited for abuse or neglect at harm level or above on survey cycle 1 (scope/severity G or greater), or at potential harm (scope/severity D or above) on both survey cycles 1 and 2. Confirm on <a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Care Compare</a>.</li>
+        <li id="pbj-exclusions"><strong>CMS PBJ public-file exclusions</strong> (when CMS publishes quarterly PUFs): facilities may be omitted for incomplete/erroneous submissions, missing nurse staffing on multiple days when census is non-zero, or quarterly aggregates outside CMS bounds (e.g. total nurse HPRD below 1.5 or above 12, nurse aide above 5.25). Rules are in CMS PUF documentation and the policy manual on the <a href="__CMS_PBJ_STAFFING_SUBMISSION__" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> page.</li>
+        <li id="high-risk"><strong>CMS flags on facility pages</strong> (SFF, SFF candidate, 1-star, abuse icon): Fields from CMS Provider Information / Care Compare—PBJ320 does not assign them. <strong>Abuse icon</strong> = CMS record when cited for abuse or neglect at harm level or above on survey cycle 1 (scope/severity G or greater), or at potential harm (scope/severity D or above) on both survey cycles 1 and 2. Confirm on Care Compare (linked above).</li>
         <li id="owners-fec"><strong><a href="/owners">Owner–FEC tool</a> (beta):</strong> Name match to FEC filings; verify each Source link.</li>
         <li id="premium-scope"><strong>Free site:</strong> Quarterly aggregates. <strong><a href="/premium">Premium</a>:</strong> May add daily PBJ and employee detail (paid dashboards; scope per engagement).</li>
       </ul>
@@ -107,7 +106,7 @@
 
       <h2>Related guides</h2>
       <ul>
-        <li><a href="/phoebe">PBJ Nursing Home Staffing Data, Explained</a></li>
+        <li><a href="/phoebe">PBJ explained</a></li>
         <li><a href="/what-is-hprd">What is HPRD?</a></li>
         <li><a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a></li>
         <li><a href="/nursing-home-staffing-data">Nursing Home Staffing Data by Facility</a></li>

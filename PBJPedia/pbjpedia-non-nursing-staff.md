@@ -4,7 +4,7 @@ This page describes non-nursing job categories in the [Payroll-Based Journal (PB
 
 Although PBJ is often discussed in the context of nurse staffing, the system also collects detailed information on non-nursing roles that are essential to nursing home operations. PBJ distinguishes between employees and contract staff and reports hours worked for each job category on each day. Understanding non-nursing staffing patterns can shed light on administrative capacity, clinical oversight, and ancillary services.
 
-The [PBJ policy manual](https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf) assigns standardized job codes to non-nursing positions. Each record in the [public use files](https://data.cms.gov/provider-data/dataset/4pq5-n9py) contains total hours, employee hours, and contract hours for every category.
+The [PBJ policy manual](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission) assigns standardized job codes to non-nursing positions. Each record in the [public use files](https://data.cms.gov/provider-data/dataset/4pq5-n9py) contains total hours, employee hours, and contract hours for every category.
 
 ## Job Categories (CMS Table 1)
 
@@ -58,5 +58,5 @@ Non-nursing staff make up a substantial share of nursing home operations. Admini
 
 ## References
 
-1. CMS. **[PBJ Policy Manual v2.4](https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf)**. Table 1 labor and job codes.
+1. CMS. **[PBJ Policy Manual](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)** (Downloads). Table 1 labor and job codes.
 2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)** (2018).

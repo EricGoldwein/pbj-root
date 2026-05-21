@@ -408,7 +408,7 @@ def entity_page_intro_html(entity_name: str) -> str:
 
 # Lightweight explainer pages (canonical paths; fuller reference in PBJPedia when launched).
 EXPLAINER_RELATED_GUIDES: tuple[tuple[str, str], ...] = (
-    ('PBJ Nursing Home Staffing Data, Explained', '/phoebe'),
+    ('PBJ explained', '/phoebe'),
     ('What is HPRD?', '/what-is-hprd'),
     ('Nursing Home Staffing Data by Facility', '/nursing-home-staffing-data'),
     ('CMS Payroll-Based Journal (PBJ)', '/cms-payroll-based-journal'),
@@ -425,8 +425,6 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         ),
         'h1': 'What is HPRD?',
         'body': (
-            '<p><strong>Metric focus:</strong> This page defines hours per resident day (HPRD) only—not the full '
-            'PBJ program, CMS role categories, or PBJ320 facility lookup tools.</p>'
             '<p><strong>Hours per resident day (HPRD)</strong> is the standard way to compare nursing home '
             'staffing across facilities using CMS Payroll-Based Journal (PBJ) data. PBJ reports paid nursing hours; '
             'HPRD divides those hours by resident days for a reporting period (a day, quarter, or other window):</p>'
@@ -445,8 +443,7 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             '<li><strong>Nurse aide HPRD</strong> — CNAs, aides in training, and medication aides (codes 10–12).</li>'
             '</ul>'
             '<p>Some views also report <strong>direct-care nurse HPRD</strong>, which excludes DON and administrative '
-            f'RN/LPN hours. Role definitions: <a href="{CMS_PBJ_POLICY_MANUAL_URL}" rel="noopener noreferrer" '
-            'target="_blank">CMS PBJ Policy Manual, Table 1</a>.</p>'
+            'RN/LPN hours (see CMS PBJ Policy Manual, Table 1).</p>'
             '<h2>Why HPRD can mislead</h2>'
             '<ul>'
             '<li><strong>HPRD is an average.</strong> It smooths staffing over the reporting window and does not show '
@@ -461,10 +458,7 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             'more staff; CMS publishes case-mix benchmarks in Provider Information for context, not as legal minimums.</li>'
             '</ul>'
             '<p>PBJ data can identify staffing patterns and questions worth investigating—but should be read alongside '
-            'inspections, complaints, ownership, and facility context. Start with '
-            '<a href="/phoebe">PBJ nursing home staffing data, explained</a>.</p>'
-            '<p>Look up a facility on the <a href="/">PBJ320 home page</a>, open its staffing profile, or browse '
-            '<a href="/report">state and national staffing reports</a>.</p>'
+            'inspections, complaints, and facility context. See <a href="/phoebe">PBJ explained</a> for background.</p>'
         ),
     },
     'cms-payroll-based-journal': {
@@ -476,21 +470,13 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         ),
         'h1': 'CMS Payroll-Based Journal (PBJ)',
         'body': (
-            '<p><strong>Federal program focus:</strong> This page describes CMS’s Payroll-Based Journal reporting '
-            'system—what nursing homes submit and what CMS publishes—not PBJ320’s facility lookup features.</p>'
             '<p>The <strong>Payroll-Based Journal (PBJ)</strong> is CMS’s auditable staffing reporting system for '
-            'Medicare- and Medicaid-certified nursing homes. Facilities submit paid hours by '
-            f'<a href="{CMS_PBJ_POLICY_MANUAL_URL}" rel="noopener noreferrer" target="_blank">CMS Table 1 job category</a> '
+            'Medicare- and Medicaid-certified nursing homes. Facilities submit paid hours by CMS Table 1 job category '
             'and work date from payroll records.</p>'
-            '<p>CMS publishes PBJ public use files and open datasets for research and public reporting. PBJ320 is not '
-            'CMS—it maps published PBJ and related federal datasets to searchable facility, state, and ownership views.</p>'
-            '<p>For a plain-English overview, see <a href="/phoebe">PBJ nursing home staffing data, explained</a>. '
-            f'Official sources: <a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
-            'CMS Payroll-Based Journal program</a> · '
-            f'<a href="{CMS_PBJ_DAILY_DATASET_URL}" rel="noopener noreferrer" target="_blank">'
-            'CMS PBJ daily nurse staffing (data.cms.gov)</a> · '
-            f'<a href="{CMS_PROVIDER_INFO_DATASET_URL}" rel="noopener noreferrer" target="_blank">'
-            'Nursing Home Provider Information (4pq5-n9py)</a> for Care Compare staffing fields and case-mix.</p>'
+            '<p>CMS publishes quarterly public use files and related open datasets for Care Compare, research, and '
+            'oversight. PBJ320 is not CMS—it uses published federal files for facility and state lookup. '
+            f'Official program page: <a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
+            'CMS staffing data submission (PBJ)</a>. Overview: <a href="/phoebe">PBJ explained</a>.</p>'
         ),
     },
     'nursing-home-staffing-data': {
@@ -502,12 +488,9 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         ),
         'h1': 'Nursing Home Staffing Data by Facility',
         'body': (
-            '<p><strong>Start here without the acronym:</strong> This page is for people searching for nursing home '
-            'staffing by facility who may not know that CMS publishes it as Payroll-Based Journal (PBJ) data.</p>'
-            '<p><strong>PBJ320</strong> uses public CMS PBJ files to show staffing patterns at the facility level—'
-            'alongside Provider Information, state context, and ownership links where available. PBJ320 is operated by '
-            '320 Consulting LLC and is not affiliated with CMS or Medicare. For concepts and limits, see '
-            '<a href="/phoebe">PBJ nursing home staffing data, explained</a>.</p>'
+            '<p><strong>PBJ320</strong> uses public CMS Payroll-Based Journal (PBJ) files to show nursing home '
+            'staffing at the facility level—quarterly HPRD, role mix, and state context. For what PBJ is and what it '
+            'cannot show, see <a href="/phoebe">PBJ explained</a>.</p>'
             '<h2>What you can see</h2>'
             '<ul>'
             '<li><strong>Quarterly staffing metrics</strong> such as total nurse HPRD, RN HPRD, LPN/LVN HPRD, and '
@@ -528,16 +511,11 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             '<li><strong>Families and the public</strong> seeking context before conversations with facilities or ombuds.</li>'
             '</ul>'
             '<h2>Important limits</h2>'
-            '<p>PBJ staffing data is <strong>screening and context data</strong>. It can surface patterns and questions '
-            'worth investigating; it does not by itself prove harm, neglect, fraud, regulatory violations, or legal '
-            'liability. PBJ does not show shift-level bedside assignments. Verify figures that matter on '
-            '<a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> '
-            f'and <a href="{CMS_PBJ_PROGRAM_URL}" rel="noopener noreferrer" target="_blank">'
-            'official CMS PBJ program files</a> before relying on them.</p>'
+            '<p>PBJ staffing data is <strong>screening and context data</strong>. It can surface patterns worth '
+            'follow-up; it does not by itself prove harm, neglect, fraud, or regulatory violations. PBJ does not show '
+            'shift-level bedside assignments. Verify important figures on official CMS and Care Compare sources.</p>'
             '<h2>Get started</h2>'
-            '<p>Search facilities on the <a href="/">home dashboard</a>, open a facility staffing page, or browse '
-            '<a href="/report">state and national reports</a>. Read <a href="/phoebe">what PBJ is</a> and '
-            '<a href="/what-is-hprd">how HPRD works</a>.</p>'
+            '<p>Search facilities on the <a href="/">home dashboard</a> or browse <a href="/report">state reports</a>.</p>'
         ),
     },
 }

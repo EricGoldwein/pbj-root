@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from utils.cms_pbj_url_sync import fetch_policy_manual_pdf_url  # noqa: E402
 from site_public_config import (  # noqa: E402
     CARE_COMPARE_URL,
     CMS_2001_STAFFING_STUDY_URL,
@@ -65,6 +66,17 @@ def main() -> int:
         'Care Compare': CARE_COMPARE_URL,
     }
     failures = 0
+    live_manual = fetch_policy_manual_pdf_url()
+    if live_manual and live_manual != CMS_PBJ_POLICY_MANUAL_URL:
+        print(
+            f'DRIFT CMS_PBJ_POLICY_MANUAL_URL\n  config: {CMS_PBJ_POLICY_MANUAL_URL}\n  hub:  {live_manual}\n'
+            '  Run: python scripts/sync_cms_pbj_urls.py --write',
+            file=sys.stderr,
+        )
+        failures += 1
+    elif live_manual:
+        print(f'OK policy manual URL matches CMS hub ({live_manual.split("/")[-1]})')
+
     print('site_public_config CMS constants:')
     for label, url in named.items():
         status, detail = check_url(url)
@@ -77,7 +89,7 @@ def main() -> int:
     seen: set[str] = set()
     for path in EXPLAINER_HTML:
         for url in URL_RE.findall(path.read_text(encoding='utf-8')):
-            if url in seen:
+            if url in seen or url.startswith('__'):
                 continue
             seen.add(url)
             status, detail = check_url(url)

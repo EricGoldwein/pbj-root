@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>PBJ Nursing Home Staffing Data, Explained | PBJ320</title>
+  <title>PBJ Explained | Nursing Home Staffing Data in Plain Language</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A plain-English guide to CMS Payroll-Based Journal nursing home staffing data: what PBJ shows, what HPRD means, and what the data cannot prove.">
+  <meta name="description" content="A simple explanation of PBJ nursing home staffing data: what it is, why it matters, and how to use it. Brought to you by 320 Consulting.">
+  <meta name="keywords" content="PBJ, nursing home staffing, payroll-based journal, HPRD, hours per resident day, CMS, 320 consulting">
   <link rel="canonical" href="https://www.pbj320.com/phoebe">
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
   <script>
@@ -15,9 +16,9 @@
   </script>
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.pbj320.com/phoebe">
-  <meta property="og:title" content="PBJ Nursing Home Staffing Data, Explained | PBJ320">
-  <meta property="og:description" content="A plain-English guide to CMS Payroll-Based Journal nursing home staffing data: what PBJ shows, what HPRD means, and what the data cannot prove.">
-  <meta property="og:image" content="https://pbj320.com/phoebe.png">
+  <meta property="og:title" content="PBJ Explained | Nursing Home Staffing Data in Plain Language">
+  <meta property="og:description" content="A simple explanation of PBJ nursing home staffing data: what it is, why it matters, and how to use it.">
+  <meta property="og:image" content="https://www.pbj320.com/phoebe.png">
   <meta name="theme-color" content="#1e40af">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
   <style>
@@ -97,6 +98,9 @@
       display: flex;
       align-items: center;
     }
+    .phoebe-hero .title-mobile { display: none; }
+    .phoebe-hero .title-desktop { display: inline; }
+    .phoebe-hero .title-break { display: none; }
     .phoebe-hero h1 {
       font-size: 1.75rem;
       color: white;
@@ -104,12 +108,6 @@
       font-weight: 700;
       letter-spacing: -0.02em;
       line-height: 1.3;
-    }
-    .phoebe-hero-tagline {
-      margin: 0.35rem 0 0;
-      font-size: 0.95rem;
-      color: rgba(255,255,255,0.65);
-      font-weight: 500;
     }
     .phoebe-who-btn {
       display: inline-block;
@@ -167,12 +165,6 @@
       line-height: 1.7;
     }
     .phoebe-card li { margin-bottom: 0.35rem; }
-    .phoebe-related {
-      margin-top: 2.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid rgba(255,255,255,0.08);
-    }
-    .phoebe-related ul { margin-bottom: 0; }
     .phoebe-card a {
       color: #93c5fd;
       text-decoration: none;
@@ -226,7 +218,10 @@
       .phoebe-hero-text { order: 1; flex: 1; min-width: 0; }
       .phoebe-avatar-wrap { order: 2; flex-direction: column; flex-shrink: 0; align-items: center; gap: 0.4rem; }
       .phoebe-hero img { width: 72px; height: 72px; }
-      .phoebe-hero h1 { font-size: 1.25rem; line-height: 1.35; margin: 0; }
+      .phoebe-hero .title-desktop { display: none; }
+      .phoebe-hero .title-mobile { display: inline; }
+      .phoebe-hero .title-break { display: block; }
+      .phoebe-hero h1 { font-size: 1.25rem; line-height: 1.4; margin: 0; }
       .phoebe-who-pop { left: auto; right: 0; transform: none; }
       .phoebe-card h2:not(:first-of-type) { margin-top: 2rem; }
     }
@@ -246,7 +241,7 @@
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-                <a href="/owners" class="nav-link">Ownership</a>
+        <a href="/owners" class="nav-link">Ownership</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle"><span></span><span></span><span></span></div>
@@ -262,66 +257,31 @@
           <div class="phoebe-who-pop" id="phoebeWhoPop" role="tooltip" hidden>Phoebe J is your nursing home payroll-based journal (PBJ) staffing data assistant.</div>
         </div>
         <div class="phoebe-hero-text">
-          <h1>PBJ Nursing Home Staffing Data, Explained</h1>
-          <p class="phoebe-hero-tagline">Plain-English guide · with Phoebe J</p>
+          <h1><span class="title-desktop">Phoebe J's Guide to PBJ Nursing Home Staffing Data</span><span class="title-mobile">Phoebe J's PBJ Nursing<span class="title-break"> </span>Home Staffing Guide</span></h1>
         </div>
       </div>
 
-      <p><strong>Hub page:</strong> Use this guide to understand PBJ staffing data and follow links to deeper explainers—without replacing CMS’s official documentation. PBJ320 is a public lookup built from federal CMS data; it is not CMS, Medicare, or a regulator.</p>
-
       <h2>What is PBJ?</h2>
-      <p><strong>Payroll-Based Journal (PBJ)</strong> is CMS’s federal nursing home staffing reporting system. Facilities submit paid hours by <a href="https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf" rel="noopener noreferrer" target="_blank">CMS Table 1 job category</a> and work date; CMS publishes public files for Care Compare, research, and oversight. For submission rules and official datasets, see <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a>.</p>
+      <p>PBJ (Payroll-Based Journal) is the federal reporting system that tracks staffing in U.S. nursing homes. Medicare- and Medicaid-certified facilities must submit quarterly payroll-based data showing who worked, in what role, and for how many hours. The dataset is public and covers more than 15,000 facilities nationwide.</p>
 
-      <h2>What data does CMS publish?</h2>
-      <p>CMS releases PBJ as public use files and open datasets, including:</p>
-      <ul>
-        <li><strong>Daily nurse staffing</strong> — hours and census by facility and date (<a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ daily nurse staffing (data.cms.gov)</a>).</li>
-        <li><strong>Quarterly public use files</strong> — facility-level PBJ aggregates (<a href="https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a>; see also <a href="https://data.cms.gov/sites/default/files/2023-06/PBJ_PUF_Documentation_July_2023.pdf" rel="noopener noreferrer" target="_blank">PBJ public use file documentation</a>).</li>
-        <li><strong>Provider Information</strong> — Care Compare staffing fields and case-mix benchmarks (<a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" rel="noopener noreferrer" target="_blank">Nursing Home Provider Information, 4pq5-n9py</a>).</li>
-        <li><strong>Employee detail</strong> (where published) — roster-level hours by employee ID (<a href="https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing" rel="noopener noreferrer" target="_blank">CMS PBJ employee detail</a>).</li>
-      </ul>
-      <p>PBJ320’s free site focuses on <strong>quarterly facility metrics</strong>; see <a href="/data-sources">data sources</a> for the full list.</p>
+      <h2>Why does it matter?</h2>
+      <p>Staffing levels are one of the strongest predictors of nursing home quality. More staff per resident generally means more time for care.</p>
 
       <h2>What is HPRD?</h2>
-      <p><strong>HPRD</strong> (hours per resident day) is the standard staffing comparison metric: total paid nursing hours divided by resident days. It answers, on average, how many hours of nursing time were available per resident per day in the reporting period.</p>
-      <p>Example: 400 nursing hours and 100 resident days → nursing HPRD of <strong>4.0</strong>. See <a href="/what-is-hprd">What is HPRD?</a> for role-specific measures (RN HPRD, LPN HPRD, nurse aide HPRD) and caveats.</p>
-      <p>Policy discussions sometimes cite a <strong>4.1 total direct-care HPRD</strong> level from a <a href="https://www.justice.gov/sites/default/files/elderjustice/legacy/2015/07/12/Appropriateness_of_Minimum_Nurse_Staffing_Ratios_in_Nursing_Homes.pdf" rel="noopener noreferrer" target="_blank">2001 CMS report to Congress on minimum nurse staffing ratios</a> (hosted on the U.S. Department of Justice elder justice archive). Some states set their own minimums (e.g. 3.5 HPRD in certain statutes—see <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" rel="noopener noreferrer" target="_blank">MACPAC state staffing compendium</a>). These are research or policy references, not values stored as federal legal minimums in PBJ files. Verify current law and enforcement separately.</p>
+      <p><strong>HPRD</strong> (hours per resident day) is the standard metric. It answers: <em>On average, how many hours of nursing staff time did each resident get per day?</em> For example, 4.0 HPRD means each resident had the equivalent of 4 hours of nursing care per day. Higher numbers usually mean more staffing; benchmarks often cite 3.5 or 4.1 HPRD as a recommended minimum for direct care.</p>
 
-      <h2>Key PBJ nursing roles</h2>
-      <p>PBJ groups hours into CMS Table 1 categories—for example RN director of nursing, RN with administrative duties, direct RN, LPN/LVN (including admin), certified nurse aides, and medication aides (nursing codes 5–12 in the <a href="https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf" rel="noopener noreferrer" target="_blank">PBJ Policy Manual</a>). PBJ also separates <strong>employee</strong> vs <strong>contract</strong> hours. Role categories help compare staffing mix; they do not show individual skill, assignment, or care quality.</p>
-
-      <h2>What PBJ data can show</h2>
-      <p>PBJ data can identify <strong>staffing patterns and questions worth investigating</strong>—for example:</p>
+      <h2>Key positions in PBJ</h2>
+      <p>PBJ tracks several nursing roles:</p>
       <ul>
-        <li>Whether reported nurse HPRD is low or trending down over quarters.</li>
-        <li>How RN, LPN, and aide hours compare within a facility or state.</li>
-        <li>Reliance on contract staff where reported.</li>
-        <li>How a facility compares to state peers on quarterly aggregates (screening only).</li>
+        <li><strong>RN</strong> — Registered nurses; includes administrative and direct-care hours.</li>
+        <li><strong>LPN/LVN</strong> — Licensed practical or vocational nurses.</li>
+        <li><strong>Nurse Aides</strong> — Certified nurse assistants and aides; hands-on daily care.</li>
       </ul>
-      <p>Staffing is one of the core inputs used to evaluate nursing home care, but PBJ data should be interpreted alongside inspections, complaints, ownership, resident acuity, and facility context.</p>
+      <p>PBJ also records non-nursing roles (administrators, medical directors, therapists, dietary, housekeeping, etc.) and whether hours are from facility employees or contract staff.</p>
 
-      <h2>What PBJ data cannot prove</h2>
-      <p>PBJ is <strong>screening and context data</strong>, not proof of harm, neglect, abuse, fraud, or regulatory violations by itself. It does not show:</p>
-      <ul>
-        <li>Shift-level bedside assignments or supervision.</li>
-        <li>Staff experience, training, or individual performance.</li>
-        <li>Care outcomes, pain management, or resident satisfaction.</li>
-        <li>Legal compliance with RN coverage rules or state statutes without other records.</li>
-      </ul>
-      <p>Verify important figures on <a href="https://www.medicare.gov/care-compare/" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a> and official CMS files before relying on them in reporting, litigation, or care decisions.</p>
-
-      <h2>How PBJ320 uses PBJ data</h2>
-      <p>PBJ320 maps published CMS PBJ and related datasets to searchable <a href="/">facility pages</a>, <a href="/report">state and national reports</a>, and limited ownership context. The site highlights quarterly HPRD, role mix, case-mix benchmarks from Provider Information, and within-state comparisons where available. Read <a href="/nursing-home-staffing-data">nursing home staffing data by facility</a> for who uses the tool and its limits.</p>
-
-      <div class="phoebe-related">
-        <h2>Related guides</h2>
-        <ul>
-          <li><a href="/what-is-hprd">What is HPRD?</a></li>
-          <li><a href="/nursing-home-staffing-data">Nursing Home Staffing Data by Facility</a></li>
-          <li><a href="/cms-payroll-based-journal">CMS Payroll-Based Journal (PBJ)</a></li>
-          <li><a href="/data-sources">Data Sources</a></li>
-        </ul>
-      </div>
+      <h2>What PBJ doesn't tell you</h2>
+      <p>PBJ reports paid staffing hours only. It doesn't include wages, volunteer time, resident complexity, or overall care quality. It shows staffing levels — not care outcomes.</p>
+      <p>More hours doesn't necessarily mean better care. PBJ doesn't tell you how skilled or experienced the staff are, only how many hours were reported. Staffing can vary significantly by shift and by day. Facilities can also make reporting mistakes, so the data may not be perfect. Use PBJ alongside other information about a facility when making decisions.</p>
     </div>
   </main>
 

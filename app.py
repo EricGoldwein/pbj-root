@@ -1198,12 +1198,27 @@ _PBJ_AI_SAMPLE_BLOCK_RE = re.compile(
 )
 
 
+def _read_public_html_file(filename: str) -> str:
+    """Read static HTML from APP_ROOT; tolerate legacy Windows-1252 bytes."""
+    path = os.path.join(APP_ROOT, filename)
+    for encoding in ('utf-8', 'utf-8-sig', 'cp1252', 'latin-1'):
+        try:
+            with open(path, encoding=encoding) as f:
+                return f.read()
+        except UnicodeDecodeError:
+            continue
+    with open(path, 'rb') as f:
+        return f.read().decode('utf-8', errors='replace')
+
+
 @app.route('/pbj-sample')
 def pbj_sample():
     """Handle both /pbj-sample and /pbj-sample.html"""
     path = os.path.join(APP_ROOT, 'pbj-sample.html')
-    with open(path, encoding='utf-8') as f:
-        page_html = f.read()
+    if not os.path.isfile(path):
+        from flask import abort
+        abort(404)
+    page_html = _read_public_html_file('pbj-sample.html')
     if pbj_ai_sample_enabled():
         page_html = page_html.replace('__PBJ_AI_PROMPT_QUICK__', html.escape(PBJ_AI_PROMPT_QUICK))
     else:
@@ -2366,7 +2381,9 @@ def press():
 @app.route('/attorneys')
 @app.route('/attorneys/')
 def attorneys():
-    return send_file('attorneys.html', mimetype='text/html')
+    """Legacy attorneys landing — static file is not deployed; send users to AI support."""
+    from flask import redirect
+    return redirect('/pbj-ai-support', code=301)
 
 
 @app.route('/phoebe')
@@ -4713,7 +4730,6 @@ def sitemap():
         ('/insights', '0.9', 'weekly'),
         ('/insights-visualizations', '0.75', 'monthly'),
         ('/press', '0.8', 'monthly'),
-        ('/attorneys', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/cms-payroll-based-journal', '0.7', 'monthly'),

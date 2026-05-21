@@ -45,6 +45,12 @@ API_JSON_SAMPLE = [
     '/api/entity-summary/237',
 ]
 
+ENTITY_SAMPLE = ['237', '1', '100']
+
+FETCH_USER_AGENT = (
+    'Mozilla/5.0 (compatible; PBJ320IndexabilityAudit/1.0; +https://www.pbj320.com)'
+)
+
 SITEMAP_FORBIDDEN = SITEMAP_FORBIDDEN_FRAGMENTS
 
 
@@ -83,7 +89,7 @@ class AuditReport:
 
 def _fetch(url: str, timeout: float, follow: bool = True, max_bytes: int = 0) -> tuple[int, str, dict[str, str], bytes]:
     opener = build_opener() if follow else _NO_REDIRECT
-    req = Request(url, headers={'User-Agent': 'PBJ320-audit-indexability/1.0'})
+    req = Request(url, headers={'User-Agent': FETCH_USER_AGENT})
     with opener.open(req, timeout=timeout) as resp:
         if max_bytes and max_bytes > 0:
             body = resp.read(max_bytes)
@@ -255,18 +261,95 @@ def audit_api_json(report: AuditReport, timeout: float, sitemap_locs: set[str]) 
     report.ok(f'API/JSON sample: {len(API_JSON_SAMPLE)} endpoints')
 
 
-def audit_robots_sitemap_line(report: AuditReport, timeout: float) -> None:
+def _robots_disallow_prefixes_for_star(text: str) -> set[str]:
+    """Disallow paths under the first User-agent: * block (ignore bot-specific groups)."""
+    prefixes: set[str] = set()
+    in_star = False
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith('#'):
+            continue
+        low = line.lower()
+        if low.startswith('user-agent:'):
+            agent = line.split(':', 1)[1].strip()
+            in_star = agent == '*'
+            continue
+        if in_star and low.startswith('disallow:'):
+            path = line.split(':', 1)[1].strip()
+            if path:
+                prefixes.add(path.rstrip('/') or '/')
+    return prefixes
+
+
+def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
     url = f'{report.base}/robots.txt'
     try:
-        _, _, _, body = _fetch(url, timeout)
-    except (HTTPError, URLError) as e:
+        status, _, _, body = _fetch(url, timeout)
+    except HTTPError as e:
+        if e.code == 403:
+            report.fail(url, 'HTTP 403 — cannot verify robots.txt (Cloudflare/bot block)')
+        else:
+            report.fail(url, str(e))
+        return
+    except URLError as e:
         report.fail(url, str(e))
         return
+    if status != 200:
+        report.fail(url, f'HTTP {status}')
+        return
     text = body.decode('utf-8', errors='replace')
-    if f'Sitemap: {report.base}/sitemap.xml' not in text:
-        report.fail(url, f'robots.txt must include Sitemap: {report.base}/sitemap.xml')
-    else:
-        report.ok('robots.txt sitemap line OK')
+    want_sitemap = f'Sitemap: {report.base}/sitemap.xml'
+    if want_sitemap not in text:
+        report.fail(url, f'missing line: {want_sitemap}')
+    if 'Sitemap: https://pbj320.com/sitemap.xml' in text:
+        report.fail(url, 'must not include apex Sitemap: https://pbj320.com/sitemap.xml')
+    if re.search(r'^Disallow:\s*/provider/', text, re.MULTILINE | re.IGNORECASE):
+        report.fail(url, 'must not Disallow: /provider/ (any user-agent block)')
+    star_disallow = _robots_disallow_prefixes_for_star(text)
+    for loc in sorted(sitemap_locs):
+        path = loc.split('www.pbj320.com', 1)[-1] or '/'
+        for prefix in star_disallow:
+            p = prefix.rstrip('/') or '/'
+            if p == '/' and path != '/':
+                continue
+            if path == p or path.startswith(p + '/'):
+                report.fail(loc, f'blocked by robots.txt Disallow: {prefix} (User-agent: *)')
+                break
+    if not any(i.url == url for i in report.failures):
+        report.ok('robots.txt: www sitemap line, no /provider/ block, sitemap paths allowed')
+
+
+def audit_entity_pages(report: AuditReport, timeout: float) -> None:
+    for eid in ENTITY_SAMPLE:
+        url = f'{report.base}/entity/{eid}'
+        try:
+            st, fin, hdrs, body = _fetch_no_redirect(url, timeout)
+        except HTTPError as e:
+            st = e.code
+            hdrs = {k: v for k, v in (e.headers.items() if e.headers else [])}
+            body = b''
+        except URLError as e:
+            report.fail(url, str(e))
+            continue
+        if st in (301, 302, 303, 307, 308):
+            report.fail(url, f'unexpected redirect {st}')
+            continue
+        if st == 404:
+            continue
+        if st != 200:
+            report.fail(url, f'HTTP {st}')
+            continue
+        if _html_has_noindex(body, hdrs):
+            report.fail(url, 'has noindex')
+        text = body.decode('utf-8', errors='replace')
+        canon_m = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]+href=["\']([^"\']+)', text, re.I)
+        if not canon_m or canon_m.group(1).strip() != url:
+            report.fail(url, f'canonical mismatch: {canon_m.group(1) if canon_m else "missing"}')
+        if not re.search(r'<h1[^>]*>', text, re.I):
+            report.fail(url, 'missing <h1>')
+        if '/provider/' not in text and 'facility' not in text.lower():
+            report.fail(url, 'missing facility links or entity roster content')
+    report.ok(f'entity sample: {len(ENTITY_SAMPLE)} URLs checked')
 
 
 def print_report(report: AuditReport) -> int:
@@ -305,9 +388,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     except Exception:
         pass
 
-    audit_robots_sitemap_line(report, args.timeout)
     audit_sitemap(report, args.timeout, args.sitemap_sample)
+    audit_robots_txt(report, args.timeout, sitemap_locs)
     audit_provider_pages(report, args.timeout)
+    audit_entity_pages(report, args.timeout)
     audit_redirects(report, args.timeout)
     audit_api_json(report, args.timeout, sitemap_locs)
     return print_report(report)

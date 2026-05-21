@@ -147,11 +147,6 @@ Disallow: /search_index.json
 Disallow: /quarters_list.json
 Disallow: /chow_index.json
 
-User-agent: Claude-SearchBot
-User-agent: SleepBot
-Disallow: /provider/
-Disallow: /entity/
-
 Sitemap: {PUBLIC_SITE_ORIGIN}/sitemap.xml
 """
 

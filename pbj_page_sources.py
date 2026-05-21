@@ -55,8 +55,8 @@ def render_facility_sources_footer(
     include_chow: bool = False,
     include_macpac: bool = False,
 ) -> str:
-    """Facility page: PBJ quarter + Provider Information (+ optional CHOW / MACPAC)."""
-    dialog_id = 'pbj-sources-facility'
+    """Facility page: PBJ quarter + CMS Provider Info (compact footer line)."""
+    _ = include_chow, include_macpac
     q = (pbj_quarter_display or '').strip()
     q_suffix = (
         f'<span class="pbj-sources-quarter"> through {html.escape(q)}</span>'
@@ -65,46 +65,13 @@ def render_facility_sources_footer(
     )
     line_parts = [
         f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "PBJ")}{q_suffix}</span>',
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "Provider Information")}</span>',
-        f'<span class="pbj-sources-item">{_about_data_button(dialog_id)}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "CMS Provider Info")}</span>',
     ]
     line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
         line_parts
     )
 
-    q_note = f' Staffing on this page reflects PBJ through <strong>{html.escape(q)}</strong>.' if q else ''
-    sections: list[tuple[str, str]] = [
-        (
-            'CMS Payroll-Based Journal (PBJ)',
-            f'Charts, HPRD, and quarterly staffing metrics.{q_note} '
-            'PBJ is the primary staffing source on facility pages.',
-        ),
-        (
-            'CMS Provider Information',
-            'Star ratings, ownership type, case-mix, certified beds, and related fields. '
-            'These snapshots may reflect a <em>newer</em> CMS posting than the PBJ quarter above.',
-        ),
-    ]
-    if include_macpac:
-        sections.append(
-            (
-                'MACPAC state staffing reference',
-                f'State minimum HPRD lines on charts use {_ext_link(MACPAC_STAFFING_URL, "MACPAC")} '
-                'policy estimates (not statutory text).',
-            )
-        )
-    if include_chow:
-        sections.append(
-            (
-                'CMS ownership changes (CHOW)',
-                'Change-of-ownership events shown in the Ownership section, where published by CMS.',
-            )
-        )
-
-    return (
-        f'<p class="pbj-page-footer-sources">{line}</p>'
-        f'{_sources_dialog(dialog_id, sections)}'
-    )
+    return f'<p class="pbj-page-footer-sources">{line}</p>'
 
 
 def render_entity_sources_footer(

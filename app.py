@@ -1269,9 +1269,14 @@ def chow_css():
 
 
 @app.route('/contact-popup-shared.css')
+@app.route('/contact-popup-shared.css/')
 def contact_popup_shared_css():
+    path = os.path.join(APP_ROOT, 'contact-popup-shared.css')
+    if not os.path.isfile(path):
+        from flask import abort
+        abort(404)
     return _static_cache_headers(
-        send_from_directory(APP_ROOT, 'contact-popup-shared.css', mimetype='text/css')
+        send_file(path, mimetype='text/css', conditional=True, max_age=86400)
     )
 
 
@@ -7116,7 +7121,7 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
   font-size: 0.8rem; line-height: 1.5; color: rgba(148, 163, 184, 0.82);
 }}
 .pbj-sources-label {{ color: rgba(148, 163, 184, 0.72); font-weight: 500; }}
-.pbj-sources-sep {{ margin: 0 0.35rem; color: rgba(148, 163, 184, 0.45); user-select: none; }}
+.pbj-sources-sep {{ margin: 0 0.2rem; color: rgba(226, 232, 240, 0.62); font-weight: 700; user-select: none; }}
 .pbj-sources-item {{ display: inline; }}
 .pbj-sources-quarter {{ color: rgba(148, 163, 184, 0.72); font-weight: 400; }}
 .pbj-page-footer-sources a,
@@ -7168,9 +7173,10 @@ abbr.pbj-na {{
 .pbj-care-footer-sep {{ opacity: 0.45; user-select: none; }}
 .pbj-footer-csv-bundle {{
   font: inherit; font-size: inherit; font-weight: 500; padding: 0; margin: 0; border: none; background: none;
-  color: rgba(148, 163, 184, 0.88); cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  color: #a5b4fc; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
 }}
-.pbj-footer-csv-bundle:hover {{ color: #cbd5e1; }}
+.pbj-footer-csv-bundle:hover {{ color: #c7d2fe; }}
+.pbj-cross-links-footer {{ margin: 0.5rem 0 0; }}
 .pbj-ai-handoff-data, .pbj-ai-context-data, .pbj-ai-prefill-data, .pbj-ai-extended-data, .pbj-ai-prompt-data, .pbj-ai-prompt-template, .pbj-ai-csv-data {{ display: none !important; }}
 .visually-hidden {{
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
@@ -10718,7 +10724,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <div class="pbj-page-bottom-stack">
 {custom_report_cta_html}
 {_provider_ownership_chow_block}
-{_facility_cross_links}
 {render_methodology_block()}
 </div>
 
@@ -10728,6 +10733,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {_facility_csv_footer}
 </div>
 {_facility_sources_footer}
+<div class="pbj-cross-links-footer">{_facility_cross_links}</div>
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -15855,8 +15861,13 @@ def static_files(filename):
         return _static_cache_headers(response)
     # Handle CSS
     elif filename.endswith('.css'):
-        response = send_from_directory('.', filename, mimetype='text/css')
-        return _static_cache_headers(response)
+        css_path = os.path.join(APP_ROOT, filename)
+        if not os.path.isfile(css_path):
+            from flask import abort
+            abort(404)
+        return _static_cache_headers(
+            send_file(css_path, mimetype='text/css', conditional=True, max_age=86400)
+        )
     # Handle JS
     elif filename.endswith('.js'):
         response = send_from_directory('.', filename, mimetype='application/javascript')

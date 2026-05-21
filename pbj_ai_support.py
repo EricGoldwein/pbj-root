@@ -2478,8 +2478,8 @@ def render_facility_csv_page_footer(
             parts.append('<span class="pbj-care-footer-sep" aria-hidden="true">·</span>')
         parts.append(
             f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
-            'title="Download quarterly snapshot-detail and trends CSVs" aria-label="Download PBJ CSVs">'
-            'Download PBJ</button>'
+            'title="Download PBJ320 snapshot and trends CSVs" aria-label="Download PBJ320 CSV">'
+            'PBJ320 CSV</button>'
         )
     parts.append('</div>')
     parts.append(''.join(hidden))

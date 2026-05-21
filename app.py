@@ -6301,6 +6301,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
 .pbj-page-bottom-stack a.custom-report-cta {{ margin: 0; max-width: none; width: 100%; }}
 .pbj-page-bottom-details {{ margin: 0; width: 100%; max-width: none; }}
+.pbj-details.pbj-state-staffing-table {{ margin-bottom: 0; }}
+.pbj-details.pbj-state-staffing-table + .pbj-page-bottom-stack {{ margin-top: 0.75rem; }}
 .pbj-details summary {{ list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9375rem; color: #c7d2fe; background: rgba(30, 41, 59, 0.45); transition: background 0.2s ease, color 0.2s ease; user-select: none; }}
 .pbj-details summary::-webkit-details-marker {{ display: none; }}
 .pbj-details summary:hover {{ background: rgba(51, 65, 85, 0.55); color: #e0e7ff; }}
@@ -12176,7 +12178,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
     {state_takeaway_card}
     {chart_html}
-    <details class="pbj-details">
+    <details class="pbj-details pbj-state-staffing-table">
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Staffing table &amp; ranks</summary>
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">

@@ -6698,11 +6698,18 @@ __REPORT_SSR_TABLE_ROWS__
       });
     }
     
+    function cmsStarIcons(val) {
+      const n = parseInt(val, 10);
+      return (n >= 1 && n <= 5) ? '\u2605'.repeat(n) : '';
+    }
+
     function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
       const inStateView = stateAbbrForModal && f.state === stateAbbrForModal;
       const city = inStateView ? (f.city ? ` (${f.city})` : '') : (f.city && f.state ? ` (${f.city}, ${f.state})` : f.city ? ` (${f.city})` : '');
-      const overallRating = f.overall_rating ? `Overall: ${parseInt(f.overall_rating)}?` : '';
-      const staffingRating = f.staffing_rating ? `Staffing: ${parseInt(f.staffing_rating)}?` : '';
+      const overallStars = cmsStarIcons(f.overall_rating);
+      const staffingStars = cmsStarIcons(f.staffing_rating);
+      const overallRating = overallStars ? `Overall: ${overallStars}` : '';
+      const staffingRating = staffingStars ? `Staffing: ${staffingStars}` : '';
       const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');
       let staffingText = '';
       
@@ -6862,7 +6869,7 @@ __REPORT_SSR_TABLE_ROWS__
         html += `
           <div class="sff-section">
             <h4>
-              <span class="badge" style="background: #f87171;">1? Overall</span>
+              <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>
@@ -6897,6 +6904,11 @@ __REPORT_SSR_TABLE_ROWS__
       
       if (html === '') {
         html = '<div class="no-sff">No high-risk facilities in this state.</div>';
+      }
+      const stateSlug = getStateSlug(stateName);
+      const sffHref = stateAbbr ? `/sff/${String(stateAbbr).toLowerCase()}` : '';
+      if (sffHref) {
+        html += `<p class="sff-modal-footer" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(129,140,248,0.25); font-size: 0.85rem;"><a href="${sffHref}" style="color: #93c5fd; text-decoration: underline;">Special Focus Facilities</a></p>`;
       }
       
       modalBody.innerHTML = html;
@@ -7864,7 +7876,7 @@ __REPORT_SSR_TABLE_ROWS__
         html += `
           <div class="sff-section">
             <h4>
-              <span class="badge" style="background: #f87171;">1? Overall</span>
+              <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
               <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
             </h4>

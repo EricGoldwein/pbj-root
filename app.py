@@ -43,7 +43,7 @@ from premium_redirect_routes import register_premium_routes
 from pbj_cross_links import (
     cross_links_for_entity,
     cross_links_for_facility,
-    cross_links_for_state,
+    report_href_for_state,
     resolve_home_deep_link,
     state_rank_link_html,
 )
@@ -12061,6 +12061,8 @@ def _render_state_pbj_high_risk_section(
     high_risk_buckets: dict | None,
     provider_info: dict,
     sff_facilities: list | None = None,
+    *,
+    footer_html: str = '',
 ) -> str:
     """Tabbed PBJ320 High-Risk facility list for a state page."""
     from ownership.display_format import cms_ratings_stack_html, format_cms_star_rating
@@ -12328,6 +12330,9 @@ def _render_state_pbj_high_risk_section(
       });
     })();
     </script>
+    '''
+    section += (footer_html or '').strip()
+    section += '''
     </div></details>'''
     return section
 
@@ -12500,6 +12505,20 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             return "Government"
         return ownership
     
+    _canonical_slug = get_canonical_slug(state_code)
+    _rankings_href = report_href_for_state(_canonical_slug)
+    _staffing_rankings_footer = (
+        f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
+        f'<a href="{html.escape(_rankings_href, quote=True)}">'
+        f'{html.escape(state_name)} staffing rankings</a></p>'
+    )
+    _sff_footer = ''
+    if sff_facilities and state_code:
+        _sff_href = f'/sff/{state_code.strip().lower()[:2]}'
+        _sff_footer = (
+            f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
+            f'<a href="{html.escape(_sff_href, quote=True)}">Special Focus Facilities</a></p>'
+        )
     # PBJ320 High-Risk: SFF, candidates, 1-star ratings, abuse icon (provider snapshot scan)
     sff_section = _render_state_pbj_high_risk_section(
         state_name,
@@ -12507,6 +12526,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         high_risk_buckets,
         {},
         sff_facilities=sff_facilities,
+        footer_html=_sff_footer,
     )
     
     # Ranking info removed - already shown in overview table
@@ -12553,7 +12573,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         contact_section = ""
     
     # CustomReportCTA for state page
-    _canonical_slug = get_canonical_slug(state_code)
     _state_page_url = f"{_public_site_origin()}/state/{_canonical_slug}"
     _region_str = ''
     if region_info is not None and hasattr(region_info, 'get'):
@@ -12754,17 +12773,10 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     except Exception:
         _state_top_owners_line = ''
         _state_chow_line = ''
-    _state_cross_links = cross_links_for_state(
-        state_code=state_code,
-        state_name=state_name,
-        state_slug=_canonical_slug,
-        has_sff=bool(sff_facilities),
-    )
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
-    {_state_cross_links}
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details pbj-state-staffing-table">
@@ -12781,6 +12793,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         <tr><td>Median Case-Mix HPRD (Acuity)</td><td>{case_mix_median_display}</td><td>#{rank_case_mix_median} of {total_states if rank_case_mix_median and total_states else na_display()}</td></tr>
         <tr><td>Rural facilities (share)</td><td>{rural_share_display}</td><td>{rural_vs_us_display} · {rural_rank_display}</td></tr>
     </table></div>
+    {_staffing_rankings_footer}
     </div>
     </details>
     <div class="pbj-page-bottom-stack">

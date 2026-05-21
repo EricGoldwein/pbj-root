@@ -444,7 +444,7 @@ def entity_page_intro_html(entity_name: str) -> str:
 # Future product note: when multi-state owner/operator pages launch, a dedicated public route
 # (e.g. /operator/<slug>) with its own robots/sitemap policy may be cleaner than unblocking /owners/.
 
-# Lightweight explainer pages (canonical paths; fuller reference in PBJpedia).
+# Lightweight explainer pages (canonical paths; fuller reference in PBJPedia when launched).
 EXPLAINER_PAGES: dict[str, dict[str, str]] = {
     'what-is-hprd': {
         'path': '/what-is-hprd',
@@ -462,8 +462,8 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             '<p>Higher HPRD generally means more staff time per resident, but HPRD is an input measure—not '
             'a quality rating. PBJ320 shows total nurse HPRD and related metrics on each facility page using '
             'public CMS data.</p>'
-            '<p>See also: <a href="/pbjpedia/metrics">PBJ Metrics (PBJpedia)</a> · '
-            '<a href="/cms-payroll-based-journal">CMS Payroll-Based Journal</a></p>'
+            '<p>See also: <a href="/cms-payroll-based-journal">CMS Payroll-Based Journal</a> · '
+            '<a href="/data-sources">Data sources</a></p>'
         ),
     },
     'cms-payroll-based-journal': {
@@ -480,9 +480,9 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             'and work date each quarter from payroll records.</p>'
             '<p>PBJ replaced short-window staffing surveys and supports public reporting, research, and oversight. '
             'PBJ320 maps published PBJ and related CMS datasets to searchable facility, state, and ownership views.</p>'
-            '<p>See also: <a href="/pbjpedia/overview">PBJ overview (PBJpedia)</a> · '
-            '<a href="/pbjpedia/methodology">PBJ methodology</a> · '
-            '<a href="/pbj-nursing-home-staffing">PBJ nursing home staffing on PBJ320</a></p>'
+            '<p>See also: <a href="/what-is-hprd">What is HPRD?</a> · '
+            '<a href="/pbj-nursing-home-staffing">PBJ nursing home staffing on PBJ320</a> · '
+            '<a href="/data-sources">Data sources</a></p>'
         ),
     },
     'pbj-nursing-home-staffing': {
@@ -501,7 +501,7 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
             'or browse state summaries. PBJ stands for <strong>Payroll-Based Journal</strong> in this context—not '
             'a food-service program.</p>'
             '<p>See also: <a href="/cms-payroll-based-journal">What is CMS PBJ?</a> · '
-            '<a href="/what-is-hprd">What is HPRD?</a> · <a href="/pbjpedia/overview">PBJpedia</a></p>'
+            '<a href="/what-is-hprd">What is HPRD?</a> · <a href="/data-sources">Data sources</a></p>'
         ),
     },
 }

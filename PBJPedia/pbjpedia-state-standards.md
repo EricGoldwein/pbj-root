@@ -4,40 +4,32 @@ This page summarizes minimum staffing requirements for nursing homes in federal 
 
 ## Federal Baseline
 
-Since 1987, CMS has required nursing facilities to have a registered nurse (RN) or licensed practical/vocational nurse (LPN/LVN) available 24 hours a day and a RN-level director of nursing onsite for at least eight hours per day. For a typical 100-bed facility, this federal staffing requirement translates to roughly 0.3 hours per resident day (HPRD). In 2001, a CMS expert panel recommended 0.75 HPRD of RN staffing and 4.1 HPRD of total direct care staffing (RNs, LPNs/LVNs and CNAs) to reduce the risk of harm to residents. These recommendations remain influential but are not mandatory; many facilities operate below these levels.
+Since 1987, CMS has required nursing facilities to have a registered nurse (RN) or licensed practical/vocational nurse (LPN/LVN) available 24 hours a day and an RN-level director of nursing onsite for at least eight hours per day. For a typical 100-bed facility, this federal staffing requirement translates to roughly 0.3 hours per resident day (HPRD). In 2001, a CMS expert panel recommended 0.75 HPRD of RN staffing and 4.1 HPRD of total direct care staffing (RNs, LPNs/LVNs and CNAs) to reduce the risk of harm to residents. These recommendations remain influential but are not mandatory; many facilities operate below these levels.
 
 ## State Variation
 
-States have considerable flexibility to set staffing standards that exceed the federal baseline. Analysis conducted for MACPAC in 2021 found that thirty-eight states and the District of Columbia have minimum staffing standards exceeding the federal requirement of 0.3 HPRD. Standards vary substantially, with some states requiring less than 2.0 HPRD and others requiring more than 3.0 HPRD. The District of Columbia sets the highest minimum at 4.1 HPRD—the level recommended by CMS's 2001 study.
+States may set staffing standards above the federal baseline. PBJ320 tracks MACPAC-style estimates of those requirements in the table below (loaded from `macpac_state_standards_clean.csv` on each page view). Use state dashboard pages for reported PBJ staffing against these reference lines—not as proof of legal compliance.
+
+## MACPAC State Minimums
+
+<!--PBJPEDIA_MACPAC_TABLE-->
 
 ## Federal Minimum Staffing Rule (2024, Rescinded)
 
-In April 2024, CMS issued a final rule that would have established a national minimum staffing standard for long-term care facilities. However, the numerical staffing standards and the 24/7 RN requirement were not implemented due to legal challenges and a congressional moratorium. As of late 2025, there are no active federal minimum numeric staffing standards for nursing homes comparable to those in the April 2024 rule. For more information, see [History of PBJ](/pbjpedia/history).
+In April 2024, CMS issued a final rule that would have established a national minimum staffing standard for long-term care facilities (3.48 total direct-care HPRD, including 0.55 RN and 2.45 nurse aide, plus a 24/7 RN onsite requirement). The numerical standards were not implemented: federal courts vacated key portions, and a congressional moratorium (Public Law 119-21) precludes CMS from enforcing those staffing provisions until at least October 1, 2034. CMS rescinded the minimum staffing standards in late 2025. Facilities remain subject to pre-2024 federal requirements; state rules still apply where enacted.
 
-## State-Specific Information
+## Explore by State
 
-For detailed staffing data and standards by state, see individual state pages:
+Each [state page](/) on PBJ320 shows reported PBJ staffing, rankings, and—where available—the MACPAC reference line used on charts. Examples: [Tennessee](/tennessee), [Florida](/florida), [New York](/new-york), [California](/california).
 
-- [Tennessee](/tennessee) – 2.06 HPRD minimum staffing standard
-- [Florida](/florida) – State staffing requirements and PBJ data
-- [New York](/new-york) – State staffing requirements and PBJ data
-- [California](/california) – State staffing requirements and PBJ data
+## Related PBJpedia Pages
 
-View all state pages at [pbj320.com](https://pbj320.com) or explore state-specific PBJ data using the [PBJ Dashboard](https://pbj320.com/).
-
-## PBJpedia Navigation
-
-- [PBJ Overview](/pbjpedia/overview)
-- [PBJ Methodology](/pbjpedia/methodology)
-- [PBJ Metrics](/pbjpedia/metrics)
-- [State Staffing Standards](/pbjpedia/state-standards) (this page)
-- [Non-Nursing Staff](/pbjpedia/non-nursing-staff)
-- [Data Limitations](/pbjpedia/data-limitations)
-- [History of PBJ](/pbjpedia/history)
+- [PBJ Metrics](/pbjpedia/metrics) – HPRD definitions
+- [PBJ Methodology](/pbjpedia/methodology) – How PBJ data are collected
+- [Data Limitations](/pbjpedia/data-limitations) – Caveats when comparing to policy lines
 
 ## References
 
-1. MACPAC. **State Policy Levers to Address Nursing Facility Staffing Issues** (2022). Summarizes federal standards, state minimum staffing requirements and policy mechanisms.
-2. CMS. **Minimum Staffing Standards for Long-Term Care Facilities Final Rule** (2024, rescinded). See [History of PBJ](/pbjpedia/history) for details.
-
-**Last updated:** January 2026
+1. MACPAC. **[State Policies Related to Nursing Facility Staffing](https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/)**. Policy summaries used for PBJ320 reference lines.
+2. MACPAC. **State Policy Levers to Address Nursing Facility Staffing Issues** (2022). Federal baseline and state policy mechanisms.
+3. CMS. **Minimum Staffing Standards for Long-Term Care Facilities Final Rule** (2024, rescinded).

@@ -3,26 +3,35 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-
 import argparse
 import re
+import socket
 import sys
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
-from site_public_config import SITEMAP_FORBIDDEN_FRAGMENTS, sitemap_loc_is_allowed
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from site_public_config import (
+    ROBOTS_TXT,
+    SITEMAP_FORBIDDEN_FRAGMENTS,
+    pbjpedia_is_public,
+    sitemap_loc_is_allowed,
+)
 
 DEFAULT_BASE = 'https://www.pbj320.com'
+DEFAULT_TIMEOUT = 10.0
+DEFAULT_SITEMAP_SAMPLE = 10
+SITEMAP_XML_MAX_BYTES = 8_000_000
+HTML_PROBE_MAX_BYTES = 256_000
+JSON_PROBE_MAX_BYTES = 32_768
 
 PROVIDER_SAMPLE = [
     '676489',
@@ -47,6 +56,15 @@ API_JSON_SAMPLE = [
 
 ENTITY_SAMPLE = ['237', '1', '100']
 
+# PBJpedia must stay 404 + out of sitemap until PBJPEDIA_PUBLIC=1 (see docs/PBJPEDIA_LAUNCH.md).
+PBJPEDIA_PROBE_PATHS = (
+    '/pbjpedia/',
+    '/pbjpedia/overview',
+    '/pbjpedia/metrics',
+    '/pbjpedia/state-standards',
+    '/pbjpedia/history',
+)
+
 FETCH_USER_AGENT = (
     'Mozilla/5.0 (compatible; PBJ320IndexabilityAudit/1.0; +https://www.pbj320.com)'
 )
@@ -60,6 +78,16 @@ class _NoRedirect(HTTPRedirectHandler):
 
 
 _NO_REDIRECT = build_opener(_NoRedirect())
+_VERBOSE = False
+
+
+def _progress(label: str) -> None:
+    print(label, flush=True)
+
+
+def _verbose(msg: str) -> None:
+    if _VERBOSE:
+        print(msg, flush=True)
 
 
 @dataclass
@@ -87,40 +115,85 @@ class AuditReport:
         self.notes.append(msg)
 
 
-def _fetch(url: str, timeout: float, follow: bool = True, max_bytes: int = 0) -> tuple[int, str, dict[str, str], bytes]:
+def _is_timeout_error(exc: BaseException) -> bool:
+    if isinstance(exc, (TimeoutError, socket.timeout)):
+        return True
+    if isinstance(exc, URLError) and isinstance(getattr(exc, 'reason', None), (TimeoutError, socket.timeout)):
+        return True
+    msg = str(exc).lower()
+    return 'timed out' in msg or 'timeout' in msg
+
+
+def _fetch(
+    url: str,
+    timeout: float,
+    *,
+    follow: bool = True,
+    max_bytes: int = HTML_PROBE_MAX_BYTES,
+) -> tuple[int, str, dict[str, str], bytes]:
     opener = build_opener() if follow else _NO_REDIRECT
     req = Request(url, headers={'User-Agent': FETCH_USER_AGENT})
     with opener.open(req, timeout=timeout) as resp:
-        if max_bytes and max_bytes > 0:
-            body = resp.read(max_bytes)
+        if max_bytes > 0:
+            body = resp.read(max_bytes + 1)
+            if len(body) > max_bytes:
+                body = body[:max_bytes]
         else:
             body = resp.read()
         headers = {k: v for k, v in resp.headers.items()}
         return resp.status, resp.geturl(), headers, body
 
 
-def _fetch_no_redirect(url: str, timeout: float) -> tuple[int, str, dict[str, str], bytes]:
-    return _fetch(url, timeout, follow=False)
-
-
-def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> None:
-    sitemap_url = f'{report.base}/sitemap.xml'
+def _fetch_safe(
+    url: str,
+    timeout: float,
+    *,
+    follow: bool = True,
+    max_bytes: int = HTML_PROBE_MAX_BYTES,
+) -> tuple[Optional[int], str, dict[str, str], bytes, Optional[str]]:
+    """Fetch URL; return error string instead of raising on timeout/network failure."""
     try:
-        status, final, headers, body = _fetch(sitemap_url, timeout, follow=True, max_bytes=0)
-    except (HTTPError, URLError) as e:
-        report.fail(sitemap_url, f'fetch failed: {e}')
-        return
+        status, final, headers, body = _fetch(
+            url, timeout, follow=follow, max_bytes=max_bytes
+        )
+        return status, final, headers, body, None
+    except HTTPError as e:
+        hdrs = {k: v for k, v in (e.headers.items() if e.headers else [])}
+        return e.code, e.geturl() if hasattr(e, 'geturl') else url, hdrs, b'', None
+    except (URLError, TimeoutError, socket.timeout) as e:
+        if _is_timeout_error(e):
+            return None, url, {}, b'', f'timeout after {timeout:g}s'
+        return None, url, {}, b'', str(e.reason if isinstance(e, URLError) and e.reason else e)
+
+
+def _fetch_no_redirect(
+    url: str, timeout: float, *, max_bytes: int = HTML_PROBE_MAX_BYTES
+) -> tuple[Optional[int], str, dict[str, str], bytes, Optional[str]]:
+    return _fetch_safe(url, timeout, follow=False, max_bytes=max_bytes)
+
+
+def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> list[str]:
+    sitemap_url = f'{report.base}/sitemap.xml'
+    _progress(f'Fetching sitemap: {sitemap_url} (timeout {timeout:g}s)')
+    status, _, _, body, err = _fetch_safe(
+        sitemap_url, timeout, follow=True, max_bytes=SITEMAP_XML_MAX_BYTES
+    )
+    if err:
+        report.fail(sitemap_url, f'fetch failed: {err}')
+        return []
     if status != 200:
         report.fail(sitemap_url, f'HTTP {status}')
-        return
+        return []
     try:
         root = ET.fromstring(body)
     except ET.ParseError as e:
         report.fail(sitemap_url, f'invalid XML: {e}')
-        return
+        return []
     ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
     locs = [el.text.strip() for el in root.findall('.//sm:loc', ns) if el.text]
     report.sitemap_total = len(locs)
+    _verbose(f'Parsed {len(locs)} sitemap URLs')
+
     for loc in locs:
         if not loc.startswith('https://www.pbj320.com'):
             report.sitemap_bad_host += 1
@@ -132,18 +205,19 @@ def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> Non
         if not sitemap_loc_is_allowed(loc):
             report.fail(loc, 'failed sitemap_loc_is_allowed policy check')
 
-    to_check = locs if sample_limit <= 0 or sample_limit >= len(locs) else locs[:: max(1, len(locs) // sample_limit)][:sample_limit]
-    for loc in to_check:
+    if sample_limit <= 0 or sample_limit >= len(locs):
+        to_check = locs
+    else:
+        step = max(1, len(locs) // sample_limit)
+        to_check = locs[::step][:sample_limit]
+
+    for i, loc in enumerate(to_check, start=1):
+        _progress(f'  [{i}/{len(to_check)}] GET {loc}')
         report.sitemap_checked += 1
-        try:
-            st, fin, hdrs, _ = _fetch_no_redirect(loc, timeout)
-        except HTTPError as e:
-            st = e.code
-            fin = e.geturl() if hasattr(e, 'geturl') else loc
-            hdrs = dict(e.headers.items()) if e.headers else {}
-        except URLError as e:
+        st, fin, hdrs, _, err = _fetch_no_redirect(loc, timeout)
+        if err:
             report.sitemap_redirect_or_error += 1
-            report.fail(loc, f'fetch error: {e}')
+            report.fail(loc, err)
             continue
         if st in (301, 302, 303, 307, 308):
             report.sitemap_redirect_or_error += 1
@@ -159,11 +233,13 @@ def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> Non
             report.fail(loc, f'expected text/html, got {ct or "unknown"}')
             continue
         report.sitemap_ok_200_html += 1
+        _verbose(f'    -> {st} {ct}')
 
     report.ok(
         f'sitemap: {report.sitemap_total} URLs; checked {report.sitemap_checked} '
         f'({report.sitemap_ok_200_html} OK HTML 200)'
     )
+    return locs
 
 
 def _html_has_noindex(body: bytes, headers: dict[str, str]) -> bool:
@@ -175,12 +251,13 @@ def _html_has_noindex(body: bytes, headers: dict[str, str]) -> bool:
 
 
 def audit_provider_pages(report: AuditReport, timeout: float) -> None:
-    for ccn in PROVIDER_SAMPLE:
+    _progress(f'Provider sample ({len(PROVIDER_SAMPLE)} URLs)')
+    for i, ccn in enumerate(PROVIDER_SAMPLE, start=1):
         url = f'{report.base}/provider/{ccn}'
-        try:
-            st, fin, hdrs, body = _fetch_no_redirect(url, timeout)
-        except (HTTPError, URLError) as e:
-            report.fail(url, f'fetch failed: {e}')
+        _progress(f'  [{i}/{len(PROVIDER_SAMPLE)}] GET {url}')
+        st, _, hdrs, body, err = _fetch_no_redirect(url, timeout)
+        if err:
+            report.fail(url, err)
             continue
         if st in (301, 302, 303, 307, 308):
             report.fail(url, f'unexpected redirect {st}')
@@ -206,54 +283,54 @@ def audit_provider_pages(report: AuditReport, timeout: float) -> None:
         if not re.search(r'hprd|staffing', text, re.I):
             report.fail(url, 'missing HPRD/staffing metrics in HTML')
         if 'pbj-provider-seo' not in text and 'Latest staffing snapshot' not in text:
-            report.fail(url, 'missing server-rendered provider SEO block (deploy pending?)')
+            report.fail(url, 'missing server-rendered provider SEO block')
     report.ok(f'provider sample: {len(PROVIDER_SAMPLE)} URLs checked')
 
 
 def audit_redirects(report: AuditReport, timeout: float) -> None:
-    for start, expected_final in REDIRECT_SAMPLE:
+    _progress(f'Redirect sample ({len(REDIRECT_SAMPLE)} URLs)')
+    for i, (start, expected_final) in enumerate(REDIRECT_SAMPLE, start=1):
+        _progress(f'  [{i}/{len(REDIRECT_SAMPLE)}] GET {start}')
         chain = [start]
         current = start
-        try:
-            for _ in range(8):
-                try:
-                    st, fin, hdrs, _ = _fetch_no_redirect(current, timeout)
-                except HTTPError as e:
-                    if e.code in (301, 302, 303, 307, 308):
-                        st = e.code
-                        hdrs = {k: v for k, v in (e.headers.items() if e.headers else [])}
-                        fin = e.geturl() if hasattr(e, 'geturl') else current
-                    else:
-                        raise
-                if st in (301, 302, 303, 307, 308):
-                    loc = hdrs.get('Location') or hdrs.get('location')
-                    if not loc:
-                        report.fail(start, f'redirect {st} without Location')
-                        break
-                    current = urljoin(current, loc)
-                    chain.append(current)
-                    continue
-                exp = expected_final.rstrip('/')
-                got = (fin or current).rstrip('/')
-                if got != exp:
-                    report.fail(start, f'expected final {expected_final}, got {fin} (chain: {" -> ".join(chain)})')
+        failed = False
+        for hop in range(8):
+            st, fin, hdrs, _, err = _fetch_no_redirect(current, timeout, max_bytes=4096)
+            if err:
+                report.fail(start, err)
+                failed = True
                 break
-            else:
+            if st in (301, 302, 303, 307, 308):
+                loc = hdrs.get('Location') or hdrs.get('location')
+                if not loc:
+                    report.fail(start, f'redirect {st} without Location')
+                    failed = True
+                    break
+                current = urljoin(current, loc)
+                chain.append(current)
+                _verbose(f'    -> {st} {loc}')
+                continue
+            exp = expected_final.rstrip('/')
+            got = (fin or current).rstrip('/')
+            if got != exp:
+                report.fail(start, f'expected final {expected_final}, got {fin} (chain: {" -> ".join(chain)})')
+            break
+        else:
+            if not failed:
                 report.fail(start, 'too many redirects')
-        except (HTTPError, URLError) as e:
-            report.fail(start, str(e))
     report.ok(f'redirect sample: {len(REDIRECT_SAMPLE)} URLs')
 
 
 def audit_api_json(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
-    for path in API_JSON_SAMPLE:
+    _progress(f'API/JSON sample ({len(API_JSON_SAMPLE)} URLs)')
+    for i, path in enumerate(API_JSON_SAMPLE, start=1):
         url = f'{report.base}{path}'
+        _progress(f'  [{i}/{len(API_JSON_SAMPLE)}] GET {url}')
         if url in sitemap_locs:
             report.fail(url, 'must not appear in sitemap')
-        try:
-            st, fin, hdrs, _ = _fetch(url, timeout, follow=True)
-        except (HTTPError, URLError) as e:
-            report.fail(url, f'fetch failed: {e}')
+        st, _, hdrs, _, err = _fetch_safe(url, timeout, follow=True, max_bytes=JSON_PROBE_MAX_BYTES)
+        if err:
+            report.fail(url, err)
             continue
         xrt = (hdrs.get('X-Robots-Tag') or hdrs.get('x-robots-tag') or '').lower()
         if 'noindex' not in xrt:
@@ -262,7 +339,6 @@ def audit_api_json(report: AuditReport, timeout: float, sitemap_locs: set[str]) 
 
 
 def _robots_disallow_prefixes_for_star(text: str) -> set[str]:
-    """Disallow paths under the first User-agent: * block (ignore bot-specific groups)."""
     prefixes: set[str] = set()
     in_star = False
     for raw in text.splitlines():
@@ -281,18 +357,46 @@ def _robots_disallow_prefixes_for_star(text: str) -> set[str]:
     return prefixes
 
 
+def audit_pbjpedia_gated(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
+    """PBJpedia is draft: 404 on routes, absent from sitemap, disallowed in robots."""
+    if pbjpedia_is_public():
+        report.fail('config', 'PBJPEDIA_PUBLIC is set — production audit expects PBJpedia gated off')
+        return
+    if 'Disallow: /pbjpedia/' not in ROBOTS_TXT:
+        report.fail('robots.txt (repo)', 'ROBOTS_TXT missing Disallow: /pbjpedia/')
+    for loc in sitemap_locs:
+        if '/pbjpedia/' in loc.lower() or loc.rstrip('/').endswith('/pbjpedia'):
+            report.fail(loc, 'PBJpedia URL must not appear in sitemap while gated')
+    _progress(f'PBJpedia gated probe ({len(PBJPEDIA_PROBE_PATHS)} URLs, expect 404)')
+    for i, path in enumerate(PBJPEDIA_PROBE_PATHS, start=1):
+        url = f'{report.base}{path}'
+        _progress(f'  [{i}/{len(PBJPEDIA_PROBE_PATHS)}] GET {url}')
+        st, fin, _, _, err = _fetch_no_redirect(url, timeout)
+        if err:
+            report.fail(url, err)
+            continue
+        if st in (301, 302, 303, 307, 308):
+            report.fail(url, f'expected 404 while gated, got redirect {st} -> {fin}')
+            continue
+        if st != 404:
+            report.fail(url, f'expected HTTP 404 while gated, got {st}')
+    pbj_failures = [i for i in report.failures if '/pbjpedia' in i.url or i.url in ('config', 'robots.txt (repo)')]
+    if not pbj_failures:
+        report.ok(
+            f'pbjpedia gated: {len(PBJPEDIA_PROBE_PATHS)} URLs return 404; '
+            'no /pbjpedia/ in sitemap; robots Disallow present'
+        )
+
+
 def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]) -> None:
     url = f'{report.base}/robots.txt'
-    try:
-        status, _, hdrs, body = _fetch(url, timeout)
-    except HTTPError as e:
-        if e.code == 403:
-            report.fail(url, 'HTTP 403 — cannot verify robots.txt (Cloudflare/bot block)')
-        else:
-            report.fail(url, str(e))
+    _progress(f'GET {url}')
+    status, _, hdrs, body, err = _fetch_safe(url, timeout, max_bytes=16_384)
+    if err:
+        report.fail(url, err)
         return
-    except URLError as e:
-        report.fail(url, str(e))
+    if status == 403:
+        report.fail(url, 'HTTP 403 — cannot verify robots.txt (Cloudflare/bot block)')
         return
     if status != 200:
         report.fail(url, f'HTTP {status}')
@@ -306,7 +410,8 @@ def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]
     if re.search(r'^Disallow:\s*/provider/', text, re.MULTILINE | re.IGNORECASE):
         report.fail(url, 'must not Disallow: /provider/ (any user-agent block)')
     star_disallow = _robots_disallow_prefixes_for_star(text)
-    for loc in sorted(sitemap_locs):
+    blocked = 0
+    for loc in sitemap_locs:
         path = loc.split('www.pbj320.com', 1)[-1] or '/'
         for prefix in star_disallow:
             p = prefix.rstrip('/') or '/'
@@ -314,7 +419,10 @@ def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]
                 continue
             if path == p or path.startswith(p + '/'):
                 report.fail(loc, f'blocked by robots.txt Disallow: {prefix} (User-agent: *)')
+                blocked += 1
                 break
+    if blocked:
+        _verbose(f'robots.txt blocks {blocked} sitemap paths (User-agent: *)')
     origin_hdr = (hdrs.get('X-PBJ-Robots-Source') or hdrs.get('x-pbj-robots-source') or '').strip()
     if origin_hdr and origin_hdr != 'flask-origin':
         report.fail(url, f'unexpected X-PBJ-Robots-Source: {origin_hdr}')
@@ -324,21 +432,19 @@ def audit_robots_txt(report: AuditReport, timeout: float, sitemap_locs: set[str]
 
 
 def audit_entity_pages(report: AuditReport, timeout: float) -> None:
-    for eid in ENTITY_SAMPLE:
+    _progress(f'Entity sample ({len(ENTITY_SAMPLE)} URLs)')
+    for i, eid in enumerate(ENTITY_SAMPLE, start=1):
         url = f'{report.base}/entity/{eid}'
-        try:
-            st, fin, hdrs, body = _fetch_no_redirect(url, timeout)
-        except HTTPError as e:
-            st = e.code
-            hdrs = {k: v for k, v in (e.headers.items() if e.headers else [])}
-            body = b''
-        except URLError as e:
-            report.fail(url, str(e))
+        _progress(f'  [{i}/{len(ENTITY_SAMPLE)}] GET {url}')
+        st, _, hdrs, body, err = _fetch_no_redirect(url, timeout)
+        if err:
+            report.fail(url, err)
             continue
         if st in (301, 302, 303, 307, 308):
             report.fail(url, f'unexpected redirect {st}')
             continue
         if st == 404:
+            _verbose(f'    -> 404 (skipped)')
             continue
         if st != 200:
             report.fail(url, f'HTTP {st}')
@@ -357,47 +463,61 @@ def audit_entity_pages(report: AuditReport, timeout: float) -> None:
 
 
 def print_report(report: AuditReport) -> int:
-    print('\n=== PBJ320 indexability audit ===')
-    print(f'Base: {report.base}')
-    print(f'Sitemap URLs: {report.sitemap_total}')
-    print(f'  non-www locs: {report.sitemap_bad_host}')
-    print(f'  forbidden fragments: {report.sitemap_forbidden}')
-    print(f'  sampled checks: {report.sitemap_checked} ({report.sitemap_ok_200_html} OK HTML 200, {report.sitemap_redirect_or_error} bad)')
+    print('\n=== PBJ320 indexability audit ===', flush=True)
+    print(f'Base: {report.base}', flush=True)
+    print(f'Sitemap URLs: {report.sitemap_total}', flush=True)
+    print(f'  non-www locs: {report.sitemap_bad_host}', flush=True)
+    print(f'  forbidden fragments: {report.sitemap_forbidden}', flush=True)
+    print(
+        f'  sampled checks: {report.sitemap_checked} '
+        f'({report.sitemap_ok_200_html} OK HTML 200, {report.sitemap_redirect_or_error} bad)',
+        flush=True,
+    )
     for note in report.notes:
-        print(f'  [ok] {note}')
+        print(f'  [ok] {note}', flush=True)
     if report.failures:
-        print(f'\nFailures ({len(report.failures)}):')
+        print(f'\nFailures ({len(report.failures)}):', flush=True)
         for issue in report.failures:
-            print(f'  - {issue.url}\n    {issue.reason}')
+            print(f'  - {issue.url}\n    {issue.reason}', flush=True)
         return 1
-    print('\nAll checks passed.')
+    print('\nAll checks passed.', flush=True)
     return 0
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    global _VERBOSE
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--base-url', default=DEFAULT_BASE, help='Canonical site origin (default www)')
-    p.add_argument('--timeout', type=float, default=25.0)
-    p.add_argument('--sitemap-sample', type=int, default=40, help='Max sitemap URLs to HTTP-check (0=all)')
+    p.add_argument(
+        '--timeout',
+        type=float,
+        default=DEFAULT_TIMEOUT,
+        help=f'Per-request timeout in seconds (default {DEFAULT_TIMEOUT:g})',
+    )
+    p.add_argument(
+        '--sitemap-sample',
+        type=int,
+        default=DEFAULT_SITEMAP_SAMPLE,
+        help=f'Max sitemap URLs to HTTP-check (0=all, default {DEFAULT_SITEMAP_SAMPLE})',
+    )
+    p.add_argument('--verbose', action='store_true', help='Print extra per-request details')
     args = p.parse_args(argv)
+    _VERBOSE = args.verbose
     base = args.base_url.rstrip('/')
     report = AuditReport(base=base)
 
-    sitemap_locs: set[str] = set()
-    try:
-        _, _, _, body = _fetch(f'{base}/sitemap.xml', args.timeout)
-        root = ET.fromstring(body)
-        ns = {'sm': 'http://www.sitemaps.org/schemas/sitemap/0.9'}
-        sitemap_locs = {el.text.strip() for el in root.findall('.//sm:loc', ns) if el.text}
-    except Exception:
-        pass
-
-    audit_sitemap(report, args.timeout, args.sitemap_sample)
-    audit_robots_txt(report, args.timeout, sitemap_locs)
+    print(
+        f'Starting audit (timeout={args.timeout:g}s, sitemap-sample={args.sitemap_sample})',
+        flush=True,
+    )
+    sitemap_locs = audit_sitemap(report, args.timeout, args.sitemap_sample)
+    sitemap_set = set(sitemap_locs)
+    audit_pbjpedia_gated(report, args.timeout, sitemap_set)
+    audit_robots_txt(report, args.timeout, sitemap_set)
     audit_provider_pages(report, args.timeout)
     audit_entity_pages(report, args.timeout)
     audit_redirects(report, args.timeout)
-    audit_api_json(report, args.timeout, sitemap_locs)
+    audit_api_json(report, args.timeout, set(sitemap_locs))
     return print_report(report)
 
 

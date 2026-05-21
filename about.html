@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources. Explore nursing home staffing data from CMS Payroll-Based Journal (PBJ) for 15,000+ facilities. Brought to you by 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day">
-  <link rel="canonical" href="https://pbj320.com/about">
+  <link rel="canonical" href="https://www.pbj320.com/about">
   
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -20,10 +20,10 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://pbj320.com/about">
+  <meta property="og:url" content="https://www.pbj320.com/about">
   <meta property="og:title" content="About | PBJ Nursing Home Staffing Dashboard by 320 Consulting">
   <meta property="og:description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
-  <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="og:image" content="https://www.pbj320.com/og-image-1200x630.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:site_name" content="PBJ Nursing Home Staffing Dashboard">
@@ -32,7 +32,7 @@
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:title" content="About | PBJ Nursing Home Staffing Dashboard by 320 Consulting">
   <meta property="twitter:description" content="Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.">
-  <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="twitter:image" content="https://www.pbj320.com/og-image-1200x630.png">
   
   <!-- Performance: DNS prefetch -->
   <link rel="dns-prefetch" href="https://d3js.org">
@@ -51,12 +51,12 @@
     "@context": "https://schema.org",
     "@type": "AboutPage",
     "name": "About PBJ Nursing Home Staffing Dashboard",
-    "url": "https://pbj320.com/about",
+    "url": "https://www.pbj320.com/about",
     "description": "Learn about the PBJ Nursing Home Staffing Dashboard and its data sources.",
     "mainEntity": {
       "@type": "WebSite",
       "name": "PBJ Nursing Home Staffing Dashboard",
-      "url": "https://pbj320.com/"
+      "url": "https://www.pbj320.com/"
     },
     "publisher": {
       "@type": "Organization",
@@ -1145,7 +1145,7 @@
       </header>
       
       <h3>About the PBJ Dashboard</h3>
-      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="https://pbj320.com/"><strong>The PBJ Dashboard stitches together nine years of federal CMS staffing files???billions of data points from payroll-based journal (PBJ) submissions???into interactive visualizations</strong></a>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside the 15,000 nursing homes across the United States.</p>
+      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="https://www.pbj320.com/"><strong>The PBJ Dashboard stitches together nine years of federal CMS staffing files???billions of data points from payroll-based journal (PBJ) submissions???into interactive visualizations</strong></a>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside the 15,000 nursing homes across the United States.</p>
       
       <h3>Who it helps</h3>
       <ul>
@@ -1231,7 +1231,7 @@
       <p style="margin-bottom: 0.75rem;"><strong>Ownership Change:</strong> Indicates facility ownership changed in the last 12 months. For reported CMS change-of-ownership (CHOW) transactions in Connecticut, see <a href="/state/connecticut" style="color: #93c5fd;">Connecticut PBJ staffing</a> (ownership section on state and facility pages).</p>
       
       <div class="note-box">
-        <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 ÷ 100).<br><br>
+        <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 ? 100).<br><br>
         A 2001 federal study identified 4.1 HPRD as the level linked to better outcomes for most residents. Facilities with higher-acuity residents???such as those with complex medical needs or limited mobility???generally require more staffing. Staffing levels can also vary significantly by day and shift.<br><br>
         Some states have their own standards (e.g., New Jersey, California, and New York each set a 3.5 HPRD minimum), though enforcement and definitions vary. Note: A federal 3.48 HPRD minimum was recently overturned by a court in 2025.
       </div>
@@ -1468,7 +1468,7 @@
           const starText = (avgStar !== null && Number.isFinite(avgStar)) ? avgStar.toFixed(1) + '-star average' : 'ratings available';
           const safeEntityName = entityName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const entityLink = Number.isFinite(entityId)
-            ? '<strong><a href="https://pbj320.com/entity/' + entityId + '">' + safeEntityName + '</a></strong>'
+            ? '<strong><a href="/entity/' + entityId + '">' + safeEntityName + '</a></strong>'
             : '<strong>' + safeEntityName + '</strong>';
           ownershipCopyElement.innerHTML = 'Essential data on any chain and its facilities (e.g., ' + entityLink + ' \u2192 ' + fText + ' facilities in ' + sText + ' states, ' + starText + ')';
         })

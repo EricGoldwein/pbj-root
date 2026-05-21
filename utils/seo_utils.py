@@ -7,6 +7,8 @@ import os
 import re
 from typing import Any
 
+from site_public_config import PUBLIC_SITE_ORIGIN, normalize_public_site_origin
+
 STATE_ABBR_TO_NAME = {
     'al': 'Alabama', 'ak': 'Alaska', 'az': 'Arizona', 'ar': 'Arkansas', 'ca': 'California',
     'co': 'Colorado', 'ct': 'Connecticut', 'de': 'Delaware', 'fl': 'Florida', 'ga': 'Georgia',
@@ -72,7 +74,7 @@ def get_seo_metadata(path):
     Get SEO metadata based on the request path.
     Returns a dict with title, description, og_title, og_description, canonical_url, og_url, and include_image.
     """
-    base_url = 'https://pbj320.com'
+    base_url = normalize_public_site_origin(PUBLIC_SITE_ORIGIN)
     
     quarter_display, _ = _latest_pbj_quarter_labels()
 
@@ -141,7 +143,7 @@ def get_seo_metadata(path):
                         'canonical_url': base_url + path.rstrip('/'),
                         'og_url': base_url + path.rstrip('/'),
                         'include_image': True,
-                        'og_image': 'https://pbj320.com/og-image-1200x630.png',
+                        'og_image': f'{base_url}/og-image-1200x630.png',
                     }
     
     # Handle wrapped pages
@@ -203,30 +205,18 @@ def provider_page_title(
     state_name: str = '',
     state_code: str = '',
 ) -> str:
-    """Title for /provider/<ccn> pages. Prefer compact form; add state only when it fits."""
+    """Title for /provider/<ccn> pages."""
+    del city, state_name, state_code
     name = (facility_name or 'Nursing home').strip()
-    st = (state_code or '').strip().upper()[:2]
-
-    def _build(base_name: str, loc: str = '') -> str:
-        core = f'{base_name} Staffing Data{loc}'
-        return core + _PROVIDER_TITLE_SUFFIX
-
-    title = _build(name)
-    if st:
-        with_st = _build(name, f', {st}')
-        if len(with_st) <= _PROVIDER_TITLE_BUDGET:
-            title = with_st
+    core = f'{name} Nursing Home Staffing Data'
+    title = core + _PROVIDER_TITLE_SUFFIX
     if len(title) <= _PROVIDER_TITLE_BUDGET:
         return title
-    # Long facility names: drop location, then trim name before truncating suffix.
-    title = _build(name)
-    if len(title) <= _PROVIDER_TITLE_BUDGET:
-        return title
-    max_name = _PROVIDER_TITLE_BUDGET - len('… Staffing Data' + _PROVIDER_TITLE_SUFFIX)
+    max_name = _PROVIDER_TITLE_BUDGET - len('… Nursing Home Staffing Data' + _PROVIDER_TITLE_SUFFIX)
     if max_name > 12:
         short = name[: max_name - 1].rstrip() + '…'
-        return _build(short)
-    return _build(name[:24].rstrip() + '…')
+        return f'{short} Nursing Home Staffing Data{_PROVIDER_TITLE_SUFFIX}'
+    return f'{name[:20].rstrip()}… Nursing Home Staffing Data{_PROVIDER_TITLE_SUFFIX}'
 
 
 def provider_page_meta_description(
@@ -239,29 +229,99 @@ def provider_page_meta_description(
     ownership: str = '',
 ) -> str:
     """Meta/OG description for facility provider pages."""
-    name = (facility_name or 'This nursing home').strip()
+    del quarter_display, hprd_val, ownership
+    name = (facility_name or 'this nursing home').strip()
     if city and state_name:
-        where = f'a nursing home in {city}, {state_name}'
+        where = f'{city}, {state_name}'
     elif state_name:
-        where = f'a nursing home in {state_name}'
+        where = state_name
     else:
-        where = 'a U.S. nursing home'
-    desc = (
-        f'Public CMS Payroll-Based Journal (PBJ) staffing data for {name}, {where}. '
-        'Includes nurse staffing and HPRD trends and CMS Provider Information'
+        where = 'the United States'
+    return (
+        f'CMS Payroll-Based Journal staffing data for {name} in {where}, including nurse staffing, '
+        'RN staffing, aide staffing, and quarterly trends.'
     )
-    if ownership and ownership not in ('—', '-', ''):
-        desc += f', with {ownership.strip()} ownership context'
-    desc += ', from federal public datasets.'
-    if quarter_display and hprd_val and hprd_val not in ('—', '-', '', 'N/A'):
-        desc += f' {quarter_display}: {hprd_val} total nurse HPRD.'
-    return desc
 
 
-def provider_page_intro_html(facility_name: str, **_kwargs: Any) -> str:
-    """No visible boilerplate on provider pages (meta description + JSON-LD carry SEO copy)."""
-    del facility_name, _kwargs
-    return ''
+def provider_page_intro_html(
+    facility_name: str,
+    *,
+    ccn: str = '',
+    city: str = '',
+    state_name: str = '',
+    state_slug: str = '',
+    quarter_display: str = '',
+    total_hprd: str = '',
+    rn_hprd: str = '',
+    aide_hprd: str = '',
+    census: str = '',
+) -> str:
+    """Server-rendered facility-specific copy for crawlers (visible, indexable HTML)."""
+    name = html.escape((facility_name or 'This nursing home').strip())
+    ccn_esc = html.escape((ccn or '').strip().zfill(6) if ccn else '')
+    if city and state_name:
+        where = f'{html.escape(city)}, {html.escape(state_name)}'
+    elif state_name:
+        where = html.escape(state_name)
+    else:
+        where = 'the United States'
+    state_href = f'/state/{html.escape(state_slug)}' if state_slug else ''
+    state_link = (
+        f'<a href="{state_href}">{html.escape(state_name)} nursing homes</a>'
+        if state_href and state_name
+        else ''
+    )
+    intro = (
+        f'<section class="pbj-provider-seo" aria-label="Facility staffing overview">'
+        f'<p>{name} is a Medicare-certified nursing home in {where}. PBJ320 tracks its '
+        f'<a href="/cms-payroll-based-journal">CMS Payroll-Based Journal</a> staffing data, including '
+        'total nurse staffing, RN staffing, nurse aide staffing, and quarterly staffing trends.'
+    )
+    if ccn_esc:
+        intro += f' CCN (Medicare certification number): <strong>{ccn_esc}</strong>.'
+    intro += '</p>'
+
+    def _metric_li(label: str, value: str) -> str:
+        v = (value or '').strip()
+        if not v or v in ('—', '-', 'N/A'):
+            return ''
+        display = v if 'hprd' in v.lower() else f'{v} HPRD'
+        return f'<li>{html.escape(label)}: {html.escape(display)}</li>'
+
+    snapshot_items = []
+    if quarter_display:
+        snapshot_items.append(
+            f'<li>Reporting period: {html.escape(quarter_display)} (CMS PBJ quarter)</li>'
+        )
+    for label, val in (
+        ('Total nurse staffing', total_hprd),
+        ('RN staffing', rn_hprd),
+        ('Nurse aide staffing', aide_hprd),
+    ):
+        line = _metric_li(label, val)
+        if line:
+            snapshot_items.append(line)
+    census_v = (census or '').strip()
+    if census_v and census_v not in ('—', '-', 'N/A'):
+        snapshot_items.append(f'<li>Average census: {html.escape(census_v)} residents</li>')
+
+    if snapshot_items:
+        intro += (
+            '<h2>Latest staffing snapshot</h2><ul>'
+            + ''.join(snapshot_items)
+            + '</ul>'
+        )
+
+    intro += (
+        '<h2>How to use this data</h2>'
+        '<p>PBJ staffing data is useful for screening staffing patterns and identifying questions for follow-up. '
+        'It is reported by facilities to CMS; it is not shift-level proof of care, harm, or regulatory violations.</p>'
+        '<p>See <a href="/data-sources">data sources and limitations</a>'
+    )
+    if state_link:
+        intro += f' · Browse {state_link}'
+    intro += ' · <a href="/cms-payroll-based-journal">CMS PBJ overview</a>.</p></section>'
+    return intro
 
 
 def _owner_profile_state_codes(profile: dict[str, Any]) -> list[str]:

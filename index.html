@@ -9,7 +9,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data. Comprehensive nursing home staffing analysis, rankings, and insights from 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 320 consulting, pbj data expert, pbj320, rn staffing, nursing home staffing data, nursing home data, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day">
-  <link rel="canonical" href="https://pbj320.com/">
+  <link rel="canonical" href="https://www.pbj320.com/">
   <link rel="sitemap" type="application/xml" href="/sitemap.xml">
   
   <!-- Performance: DNS prefetch for external resources -->
@@ -43,11 +43,11 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://pbj320.com/">
+  <meta property="og:url" content="https://www.pbj320.com/">
   <meta property="og:title" content="PBJ Nursing Home Staffing Dashboard | PBJ320">
   <meta property="og:description" content="Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data. Rankings and insights from 320 Consulting.">
-  <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
-  <meta property="og:image:secure_url" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="og:image" content="https://www.pbj320.com/og-image-1200x630.png">
+  <meta property="og:image:secure_url" content="https://www.pbj320.com/og-image-1200x630.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -58,10 +58,10 @@
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:url" content="https://pbj320.com/">
+  <meta name="twitter:url" content="https://www.pbj320.com/">
   <meta name="twitter:title" content="PBJ Nursing Home Staffing Dashboard | PBJ320">
   <meta name="twitter:description" content="Explore staffing trends across 15,000+ U.S. nursing homes with CMS PBJ data.">
-  <meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta name="twitter:image" content="https://www.pbj320.com/og-image-1200x630.png">
   
   <!-- Structured Data (JSON-LD) -->
   <script type="application/ld+json">
@@ -69,7 +69,7 @@
     "@context": "https://schema.org",
     "@type": "WebSite",
     "name": "PBJ320",
-    "url": "https://pbj320.com/",
+    "url": "https://www.pbj320.com/",
     "description": "Explore staffing trends across 15,000+ U.S. nursing homes with CMS payroll-based journal data.",
     "publisher": {
       "@type": "Organization",
@@ -77,12 +77,12 @@
       "url": "https://www.320insight.com",
       "logo": {
         "@type": "ImageObject",
-        "url": "https://pbj320.com/pbj_favicon.png"
+        "url": "https://www.pbj320.com/pbj_favicon.png"
       }
     },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://pbj320.com/?search={search_term_string}",
+      "target": "https://www.pbj320.com/?search={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   }
@@ -93,7 +93,7 @@
     "@type": "Dataset",
     "name": "CMS Payroll-Based Journal (PBJ) Nursing Home Staffing Data",
     "description": "Longitudinal staffing data across 15,000+ U.S. nursing homes from CMS Payroll-Based Journal reporting system. Includes hours per resident day (HPRD) metrics by state, facility, and quarter from 2017 to present.",
-    "url": "https://pbj320.com/",
+    "url": "https://www.pbj320.com/",
     "keywords": "nursing home staffing, PBJ data, CMS data, healthcare staffing, hours per resident day, HPRD, nursing home quality",
     "license": "https://www.cms.gov/data-research/statistics-trends-and-reports/open-data",
     "creator": {
@@ -115,7 +115,7 @@
       {
         "@type": "DataDownload",
         "name": "PBJ Dashboard",
-        "url": "https://pbj320.com/",
+        "url": "https://www.pbj320.com/",
         "encodingFormat": "application/json"
       }
     ],
@@ -156,7 +156,7 @@
     "@type": "Organization",
     "name": "320 Consulting",
     "url": "https://www.320insight.com",
-    "logo": "https://pbj320.com/pbj_favicon.png",
+    "logo": "https://www.pbj320.com/pbj_favicon.png",
     "description": "Turning Spreadsheets into Stories - Data visualization and analytics consulting",
     "sameAs": [
       "https://www.320insight.com"
@@ -3015,7 +3015,7 @@
               const stateName = Object.keys(stateAbbreviations).find(name => stateAbbreviations[name] === stateAbbr);
               if (stateName) {
                 const stateSlug = (stateName || '').toLowerCase().replace(/\s+/g, '-');
-                exploreLink.innerHTML = `<a href="https://pbj320.com/state/${stateSlug}" target="_blank">Explore ${stateName} PBJ Data</a>`;
+                exploreLink.innerHTML = `<a href="/state/${stateSlug}">Explore ${stateName} PBJ Data</a>`;
                 chartFooter.style.display = 'block';
               }
             } else {

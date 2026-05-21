@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <meta name="description" content="__REPORT_SSR_META_DESCRIPTION__">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, state rankings, regional rankings">
-  <link rel="canonical" href="https://pbj320.com/report">
+  <link rel="canonical" href="https://www.pbj320.com/report">
   
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -20,16 +20,16 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://pbj320.com/report">
+  <meta property="og:url" content="https://www.pbj320.com/report">
   <meta property="og:title" content="__REPORT_SSR_OG_TITLE__" id="og-title">
   <meta property="og:description" content="__REPORT_SSR_OG_DESCRIPTION__" id="og-description">
-  <meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="og:image" content="https://www.pbj320.com/og-image-1200x630.png">
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
   <meta property="twitter:title" content="__REPORT_SSR_OG_TITLE__" id="twitter-title">
   <meta property="twitter:description" content="__REPORT_SSR_OG_DESCRIPTION__" id="twitter-description">
-  <meta property="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+  <meta property="twitter:image" content="https://www.pbj320.com/og-image-1200x630.png">
   
   <!-- Performance: DNS prefetch for external resources -->
   <link rel="dns-prefetch" href="https://d3js.org">
@@ -6413,7 +6413,7 @@ __REPORT_SSR_TABLE_ROWS__
         const rank = currentSort.column === 'rank' ? (currentTableView === 'region' ? index + 1 : (stateRankings[state.name] || index + 1)) : index + 1;
         const stateAbbr = state.state;
         const stateSlug = getStateSlug(state.name);
-        const stateLink = currentTableView === 'region' ? '#' : `https://pbj320.com/state/${stateSlug}`;
+        const stateLink = currentTableView === 'region' ? '#' : `/state/${stateSlug}`;
         
         // Format region name for display
         let displayName = state.name;
@@ -6697,7 +6697,7 @@ __REPORT_SSR_TABLE_ROWS__
       
       const ccn = f.ccn || '';
       const stateAbbr = f.state || '';
-      const pbjLink = `https://pbj320.com/provider/${ccn}`;
+      const pbjLink = `/provider/${ccn}`;
       const cmsLink = `https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all/?state=${stateAbbr}`;
       
       return `
@@ -7270,7 +7270,7 @@ __REPORT_SSR_TABLE_ROWS__
               <div style="font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; white-space: nowrap;">
                 <strong style="font-size: 0.75rem; line-height: 1; margin: 0; padding: 0; display: block; color: #93c5fd;">${stateName}</strong>
                 <span style="line-height: 1; margin: 0; padding: 0; display: block; color: rgba(255, 255, 255, 0.85);">${metricLabel}: ${formattedValue} <span style="font-size: 0.6rem; color: rgba(255, 255, 255, 0.6);">(${rank} of ${totalStates})</span></span>
-                <a href="https://pbj320.com/state/${getStateSlug(stateName)}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; display: block; margin-top: 2px;">View PBJ Dashboard</a>
+                <a href="/state/${getStateSlug(stateName)}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; display: block; margin-top: 2px;">View PBJ Dashboard</a>
               </div>
             `)
               .style('left', leftPos + 'px')
@@ -7314,7 +7314,7 @@ __REPORT_SSR_TABLE_ROWS__
             const stateName = d.properties.name;
             const stateSlug = getStateSlug(stateName);
             if (stateSlug) {
-              window.location.href = `https://pbj320.com/state/${stateSlug}`;
+              window.location.href = `/state/${stateSlug}`;
             }
           });
 

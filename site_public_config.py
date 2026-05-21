@@ -4,12 +4,55 @@ from __future__ import annotations
 
 import os
 
-# Canonical public origin (apex). Override in staging via PBJ_PUBLIC_BASE_URL.
-PUBLIC_SITE_ORIGIN = (
-    (os.environ.get('PBJ_PUBLIC_BASE_URL') or os.environ.get('PUBLIC_BASE_URL') or 'https://pbj320.com')
-    .strip()
-    .rstrip('/')
+# Canonical public origin (www). Override in staging via PBJ_PUBLIC_BASE_URL.
+_PUBLIC_ORIGIN_RAW = (
+    os.environ.get('PBJ_PUBLIC_BASE_URL') or os.environ.get('PUBLIC_BASE_URL') or 'https://www.pbj320.com'
+).strip().rstrip('/')
+
+
+def normalize_public_site_origin(origin: str | None = None) -> str:
+    """Force production host to https://www.pbj320.com; leave other hosts (staging) unchanged."""
+    o = (origin or _PUBLIC_ORIGIN_RAW or 'https://www.pbj320.com').strip().rstrip('/')
+    if 'pbj320.com' in o.lower():
+        return 'https://www.pbj320.com'
+    return o
+
+
+PUBLIC_SITE_ORIGIN = normalize_public_site_origin(_PUBLIC_ORIGIN_RAW)
+
+# Path fragments that must never appear in sitemap.xml <loc> entries.
+SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
+    '/api/',
+    '.json',
+    '/premium/',
+    '/dashboard/',
+    '/login',
+    '/logout',
+    '/static/',
+    '/owners/',
+    '/owner/',
+    '/admin',
+    '/test/',
 )
+
+
+def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None = None) -> bool:
+    """True when a fully qualified sitemap URL is indexable public HTML."""
+    loc_l = (loc or '').strip().lower()
+    if not loc_l.startswith('https://www.pbj320.com'):
+        return False
+    for frag in SITEMAP_FORBIDDEN_FRAGMENTS:
+        if frag in loc_l:
+            return False
+    if robots_disallow_prefixes:
+        path = loc_l.split('www.pbj320.com', 1)[-1] or '/'
+        for prefix in robots_disallow_prefixes:
+            p = (prefix or '').rstrip('/') or '/'
+            if p == '/' and path != '/':
+                continue
+            if path == p or path.startswith(p + '/'):
+                return False
+    return True
 
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
@@ -94,9 +137,15 @@ Disallow: /owner/
 Disallow: /api/
 Disallow: /test/
 Disallow: /premium/
+Disallow: /dashboard/
+Disallow: /login
+Disallow: /logout
 Disallow: /report_builder
 Disallow: /admin
 Disallow: /static/data/raw
+Disallow: /search_index.json
+Disallow: /quarters_list.json
+Disallow: /chow_index.json
 
 User-agent: Claude-SearchBot
 User-agent: SleepBot

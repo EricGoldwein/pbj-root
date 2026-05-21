@@ -17,16 +17,16 @@ from urllib.error import HTTPError, URLError
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 DEFAULT_URLS = [
-    'https://pbj320.com/',
-    'https://pbj320.com/report',
-    'https://pbj320.com/provider/075182',
-    'https://pbj320.com/provider/335513',
-    'https://pbj320.com/premium',
-    'https://pbj320.com/robots.txt',
-    'https://pbj320.com/sitemap.xml',
-    'https://pbj320.com/about',
-    'https://pbj320.com/contact',
-    'https://pbj320.com/press',
+    'https://www.pbj320.com/',
+    'https://www.pbj320.com/report',
+    'https://www.pbj320.com/provider/075182',
+    'https://www.pbj320.com/provider/335513',
+    'https://www.pbj320.com/premium',
+    'https://www.pbj320.com/robots.txt',
+    'https://www.pbj320.com/sitemap.xml',
+    'https://www.pbj320.com/about',
+    'https://www.pbj320.com/contact',
+    'https://www.pbj320.com/press',
 ]
 
 SECURITY_HEADERS = (

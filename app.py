@@ -46,6 +46,8 @@ from site_public_config import (
     ROBOTS_TXT,
     SECURITY_HEADER_VALUES,
     SITEMAP_TRUST_PAGES,
+    normalize_public_site_origin,
+    sitemap_loc_is_allowed,
 )
 from pbj_ai_support import (
     CLAUDE_INSTALL_INSTRUCTIONS,
@@ -158,6 +160,7 @@ from utils.seo_utils import (  # type: ignore[reportMissingImports]
     provider_page_intro_html,
     provider_page_meta_description,
     provider_page_title,
+    sitemap_paths_blocked_by_robots,
 )
 try:
     from pbj_format import round_half_up
@@ -1141,8 +1144,8 @@ def robots_txt():
 
 @app.route('/llms.txt')
 def llms_txt():
-    from site_public_config import LLMS_TXT
-    return LLMS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    from site_public_config import build_llms_txt
+    return build_llms_txt(_public_site_origin()), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
 @app.route('/what-is-hprd')
@@ -1229,11 +1232,11 @@ def pbj_ai_support():
     )
     page_html = page_html.replace(
         '<a href="__PBJ_SKILL_ZIP_URL__" class="ai-btn ai-btn-claude" download data-pbj-track="download_claude_skill">Download Claude Skill</a>',
-        '<a href="https://pbj320.com/premium" class="ai-btn ai-btn-secondary">Premium analysis</a>',
+        '<a href="/premium" class="ai-btn ai-btn-secondary">Premium analysis</a>',
     )
     page_html = page_html.replace(
         '<a href="__PBJ_SKILL_ZIP_URL__" class="ai-mobile-bar__btn ai-mobile-bar__btn--claude" download data-pbj-track="download_claude_skill">Claude Skill</a>',
-        '<a href="https://pbj320.com/premium" class="ai-mobile-bar__btn">Premium</a>',
+        '<a href="/premium" class="ai-mobile-bar__btn">Premium</a>',
     )
     page_html = page_html.replace('__PBJ_AI_HERO_TITLE__', html.escape(PBJ_AI_HERO_TITLE))
     page_html = page_html.replace('__PBJ_AI_HERO_SUBHEAD__', html.escape(PBJ_AI_HERO_SUBHEAD))
@@ -1265,7 +1268,7 @@ def pbj_ai_support():
     page_html = page_html.replace('__PBJ_AI_FREE_PREMIUM__', free_premium_boundary_html())
     page_html = page_html.replace('__PBJ_AI_INSTALL__', '')
     page_html = page_html.replace('__PBJ_AI_CLAUDE_BLURB__', '')
-    page_html = page_html.replace('__PBJ_SKILL_ZIP_URL__', 'https://pbj320.com/premium')
+    page_html = page_html.replace('__PBJ_SKILL_ZIP_URL__', '/premium')
     import json as _json
     page_html = page_html.replace('__PBJ_AI_PROMPT_QUICK_JSON__', _json.dumps(PBJ_AI_PROMPT_QUICK))
     page_html = page_html.replace('__PBJ_AI_PROMPT_ADVANCED_JSON__', _json.dumps(PBJ_AI_PROMPT_ADVANCED))
@@ -2135,12 +2138,12 @@ def _report_json_ld_document(seo: dict) -> dict:
         '@type': 'WebPage',
         'name': seo['jsonld_name'],
         'description': seo['meta_description'],
-        'url': 'https://pbj320.com/report',
+        'url': f'{_public_site_origin()}/report',
         'dateModified': seo['date_published'],
         'isPartOf': {
             '@type': 'WebSite',
             'name': 'PBJ320 Nursing Home Staffing Dashboard',
-            'url': 'https://pbj320.com/',
+            'url': f'{_public_site_origin()}/',
         },
         'publisher': {
             '@type': 'Organization',
@@ -3689,7 +3692,7 @@ def _get_dual_track_insights_posts() -> list:
 
 
 def _public_site_origin() -> str:
-    """Public https origin for canonical URLs, OG tags, and JSON-LD (apex pbj320.com)."""
+    """Public https origin for canonical URLs, OG tags, and JSON-LD (www.pbj320.com)."""
     origin = None
     for key in ('PBJ_PUBLIC_BASE_URL', 'PUBLIC_BASE_URL'):
         v = (os.environ.get(key) or '').strip().rstrip('/')
@@ -3705,10 +3708,8 @@ def _public_site_origin() -> str:
         except Exception:
             pass
     if not origin:
-        origin = 'https://pbj320.com'
-    if 'pbj320.com' in origin.lower():
-        return 'https://pbj320.com'
-    return origin
+        origin = PUBLIC_SITE_ORIGIN
+    return normalize_public_site_origin(origin)
 
 
 def _absolute_public_url(base: str, path: str) -> str:
@@ -4700,10 +4701,11 @@ def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
 
 @app.route('/sitemap.xml')
 def sitemap():
-    """Dynamic sitemap: static pages + /state/<slug> for all states + provider/entity from search_index."""
-    base = PUBLIC_SITE_ORIGIN or 'https://pbj320.com'
+    """Dynamic sitemap: indexable public HTML only (www canonical, no API/JSON/premium)."""
+    base = normalize_public_site_origin(PUBLIC_SITE_ORIGIN)
     today = datetime.now().strftime('%Y-%m-%d')
     quarter_lastmod = _cy_qtr_to_iso_date(get_canonical_latest_quarter())
+    robots_blocked = sitemap_paths_blocked_by_robots(ROBOTS_TXT)
     urls = []
     static_pages = [
         ('/', '1.0', 'weekly'),
@@ -4751,7 +4753,20 @@ def sitemap():
                     urls.append(f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
         except Exception as e:
             print(f"Sitemap: could not load search_index: {e}")
-    xml = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + '\n'.join(urls) + '\n</urlset>'
+    filtered = []
+    for entry in urls:
+        m = re.search(r'<loc>([^<]+)</loc>', entry)
+        if not m:
+            continue
+        loc = m.group(1).strip()
+        if sitemap_loc_is_allowed(loc, robots_blocked):
+            filtered.append(entry)
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + '\n'.join(filtered)
+        + '\n</urlset>'
+    )
     return xml, 200, {'Content-Type': 'application/xml; charset=utf-8'}
 
 
@@ -5196,6 +5211,8 @@ def _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter):
         _LOAD_PROVIDER_INFO_CACHE = {}
     _LOAD_PROVIDER_INFO_CACHE.update(provider_dict)
     _LOAD_PROVIDER_INFO_AT = time.time()
+    for ccn in provider_dict:
+        _PROVIDER_PAGE_CACHE.pop(str(ccn).strip().zfill(6)[-6:], None)
     if provider_dict_by_quarter:
         if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
             _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = {}
@@ -6233,8 +6250,9 @@ def get_latest_provider_info_for_ccn(ccn):
 
 def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=''):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
-    base = 'https://pbj320.com'
+    base = _public_site_origin()
     canon = canonical_url or base
+    og_image = f'{base}/og-image-1200x630.png'
     head = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6247,12 +6265,12 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
 <meta property="og:description" content="{html.escape(meta_description)}">
 <meta property="og:url" content="{canon}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://pbj320.com/og-image-1200x630.png">
+<meta property="og:image" content="{og_image}">
 <meta property="og:site_name" content="PBJ320">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{html.escape(page_title)}">
 <meta name="twitter:description" content="{html.escape(meta_description)}">
-<meta name="twitter:image" content="https://pbj320.com/og-image-1200x630.png">
+<meta name="twitter:image" content="{og_image}">
 <link rel="canonical" href="{canon}">
 <link rel="icon" type="image/png" href="/pbj_favicon.png">
 <!-- Google tag (gtag.js) -->
@@ -6292,6 +6310,10 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-subtitle {{ font-size: 0.9em; color: #a8b4c4; margin-top: 4px; }}
 .pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: #a8b4c4; margin-top: 6px; }}
+.pbj-provider-seo {{ margin: 1rem 0 1.35rem; font-size: 0.95rem; color: #e2e8f0; max-width: 52rem; line-height: 1.55; }}
+.pbj-provider-seo h2 {{ font-size: 1.15rem; color: #a5b4fc; margin: 1.1rem 0 0.45rem; font-weight: 600; }}
+.pbj-provider-seo ul {{ margin: 0.45rem 0 0.75rem; padding-left: 1.25rem; }}
+.pbj-provider-seo li {{ margin-bottom: 0.2rem; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
 .pbj-orientation--compact {{ margin-bottom: 0.65rem; font-size: 0.88rem; color: #a8b4c4; line-height: 1.45; }}
 .pbj-orientation--compact a {{ color: #94a3b8; font-weight: 500; }}
@@ -10081,7 +10103,21 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         hprd_val=hprd_val,
         ownership=ownership_short or ownership_raw or '',
     )
-    provider_intro_html = provider_page_intro_html(facility_name, city=city, state_name=state_name)
+    rn_hprd_val = format_metric_value(reported_rn, 'RN_HPRD') if reported_rn is not None else '—'
+    aide_hprd_val = format_metric_value(reported_na, 'Nurse_Assistant_HPRD') if reported_na is not None else '—'
+    census_display = f'{census_int:,}' if census_int is not None else ''
+    provider_intro_html = provider_page_intro_html(
+        facility_name,
+        ccn=prov,
+        city=city,
+        state_name=state_name,
+        state_slug=canonical_slug,
+        quarter_display=quarter_display,
+        total_hprd=hprd_val,
+        rn_hprd=rn_hprd_val,
+        aide_hprd=aide_hprd_val,
+        census=census_display,
+    )
     # JSON-LD entity link only when subtitle shows entity_id + entity_name (not ownership CSV/CHOW).
     _json_ld_entities: list[tuple[str, str]] = []
     if entity_id and entity_name:
@@ -10179,7 +10215,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     except Exception:
         _facility_sources_footer = ''
     inner = f"""
-<h1>{facility_name}</h1>
+<h1>{html.escape(facility_name)} Staffing Data</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
 {provider_intro_html}
 
@@ -10517,7 +10553,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     except ImportError:
         format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
         get_metric_label = lambda k: k.replace('_', ' ')
-    base_url = 'https://pbj320.com'
+    base_url = _public_site_origin()
     _entity_share_btn = render_takeaway_share_button(
         f'{base_url}/entity/{entity_id}',
         entity_name or 'Chain',
@@ -11350,7 +11386,7 @@ def generate_us_chart_html():
         </div>
         <div class="chart-footer" style="margin-top: 0.5em;">
             <div class="explore-link" style="text-align: center; margin-bottom: 0.3em;">
-                <a href="https://pbj320.com/" target="_blank" style="color: #0645ad; text-decoration: none;">Explore US PBJ Data ↗</a>
+                <a href="/" style="color: #0645ad; text-decoration: none;">Explore US PBJ Data</a>
             </div>
         </div>
         <div class="chart-source" style="font-size: 0.75em; color: #54595d; text-align: center; margin-top: 0.5em;">
@@ -12000,7 +12036,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     
     # CustomReportCTA for state page
     _canonical_slug = get_canonical_slug(state_code)
-    _state_page_url = f"https://pbj320.com/state/{_canonical_slug}"
+    _state_page_url = f"{_public_site_origin()}/state/{_canonical_slug}"
     _region_str = ''
     if region_info is not None and hasattr(region_info, 'get'):
         _region_str = str(region_info.get('CMS_Region_Number', '') or region_info.get('Region_Number', '') or '')
@@ -12224,7 +12260,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     
     # Canonical slug for URL (state page has its own URL, not under /pbjpedia)
     canonical_slug = get_canonical_slug(state_code)
-    canonical_url = f"https://pbj320.com/state/{canonical_slug}"
+    canonical_url = f"{_public_site_origin()}/state/{canonical_slug}"
     
     # Return content and metadata so caller can render state page with its own layout (separate from PBJpedia)
     return (content, page_title, seo_description, canonical_url)
@@ -12449,7 +12485,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
     # Set defaults for SEO
     meta_description = seo_description or f"Learn about {title} in PBJpedia, the comprehensive reference guide for Payroll-Based Journal nursing home staffing data."
     og_description_final = og_description or seo_description or f"Nursing home staffing data and analysis for {title} from PBJ320."
-    canonical = canonical_url or f"https://pbj320.com/pbjpedia/{page_path}"
+    canonical = canonical_url or f"{_public_site_origin()}/pbjpedia/{page_path}"
     og_image_tag = f'<meta property="og:image" content="{og_image}">' if og_image else ''
     twitter_image_tag = f'<meta name="twitter:image" content="{og_image}">' if og_image else ''
     
@@ -13209,6 +13245,41 @@ def clear_provider_page_cache():
     _PROVIDER_PAGE_CACHE.clear()
 
 
+def _provider_info_row_for_ccn(prov: str) -> dict:
+    """Provider Info row for one CCN; scan CSV when warm national cache lacks this facility."""
+    prov = str(prov or '').strip().zfill(6)[-6:]
+    if len(prov) != 6:
+        return {}
+    now = time.time()
+    if (
+        _LOAD_PROVIDER_INFO_CACHE is not None
+        and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
+        and prov in _LOAD_PROVIDER_INFO_CACHE
+    ):
+        row = (_LOAD_PROVIDER_INFO_CACHE or {}).get(prov) or {}
+        return row if isinstance(row, dict) else {}
+    return (load_provider_info(prov) or {}).get(prov, {}) or {}
+
+
+def _provider_info_row_sufficient_for_page(row: dict | None) -> bool:
+    """Avoid caching provider HTML before CMS context (stars, ownership, entity) is available."""
+    if not isinstance(row, dict) or not row:
+        return False
+    if str(row.get('provider_name') or row.get('state') or '').strip():
+        return True
+    if str(row.get('ownership_type') or '').strip():
+        return True
+    if row.get('entity_id') is not None or str(row.get('entity_name') or '').strip():
+        return True
+    for key in ('overall_rating', 'staffing_rating'):
+        val = row.get(key)
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            continue
+        if str(val).strip() not in ('', 'nan'):
+            return True
+    return False
+
+
 # Canonical provider/state/entity pages (pbj320.com/provider/xxx, /state/pa, /entity/123)
 def _provider_page_impl(ccn):
     from flask import abort
@@ -13248,15 +13319,9 @@ def _provider_page_impl(ccn):
         facility_df = load_facility_quarterly_for_provider(prov)
         if facility_df is None or facility_df.empty:
             abort(404)
-        if (
-            _LOAD_PROVIDER_INFO_CACHE is not None
-            and (now - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL
-        ):
-            provider_info_row = (_LOAD_PROVIDER_INFO_CACHE or {}).get(prov, {})
-        else:
-            provider_info_row = (load_provider_info(prov) or {}).get(prov, {})
+        provider_info_row = _provider_info_row_for_ccn(prov)
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
-        if use_cache:
+        if use_cache and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()
             if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
                 oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
@@ -13872,7 +13937,7 @@ def pbjpedia_page(page):
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
     <title>{title} - PBJpedia | PBJ320</title>
     <meta name="description" content="Learn about {title} in PBJpedia, the comprehensive reference guide for Payroll-Based Journal nursing home staffing data.">
-    <link rel="canonical" href="https://pbj320.com/pbjpedia/{page}">
+    <link rel="canonical" href="{_public_site_origin()}/pbjpedia/{page}">
     <style>
         /* HARD RESET: Rigid CSS Grid Layout - No Floating, No Absolute Positioning */
         * {{
@@ -15166,6 +15231,27 @@ def _is_blocked_public_filename(path_value: str) -> bool:
         return False
     return base in _BLOCKED_PUBLIC_FILENAMES
 
+def _path_should_send_noindex() -> bool:
+    """Routes that must not appear in search indexes (API, JSON, premium, auth)."""
+    path = (request.path or '').lower()
+    if path.endswith('.json'):
+        return True
+    noindex_prefixes = (
+        '/api/',
+        '/premium/',
+        '/dashboard/',
+        '/login',
+        '/logout',
+        '/admin',
+        '/test/',
+        '/owners/',
+        '/owner/',
+        '/ownership/',
+        '/report_builder',
+    )
+    return any(path.startswith(p) for p in noindex_prefixes)
+
+
 @app.after_request
 def apply_public_security_headers(response):
     """Baseline security headers for public pages (conservative; no CSP)."""
@@ -15175,6 +15261,11 @@ def apply_public_security_headers(response):
             for name, value in SECURITY_HEADER_VALUES.items():
                 if name not in response.headers:
                     response.headers[name] = value
+    except Exception:
+        pass
+    try:
+        if _path_should_send_noindex() and 'X-Robots-Tag' not in response.headers:
+            response.headers['X-Robots-Tag'] = 'noindex, nofollow'
     except Exception:
         pass
     return response

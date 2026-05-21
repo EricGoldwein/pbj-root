@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Render deploy helper when GIT_LFS_SKIP_SMUDGE=1.
+Render deploy helper: materialize runtime CSVs without Git LFS.
 
-LFS pointers stay as small text files; this script ensures runtime CSVs exist
-by copying non-LFS snapshots already in the repo (no LFS bandwidth).
+facility_quarterly_metrics.csv is not in git (LFS removed); copy from _latest at build.
+Provider pages use provider_info/ProviderInfoNorm_*.csv (normal git).
 """
 from __future__ import annotations
 
@@ -24,27 +24,18 @@ def _is_lfs_pointer(path: str) -> bool:
     return head.startswith(b'version https://git-lfs.github.com/spec/v1')
 
 
-def _copy_if_pointer(target: str, source: str, label: str) -> None:
+def _ensure_csv_from_source(target: str, source: str, label: str) -> None:
     tpath = os.path.join(APP_ROOT, target)
     spath = os.path.join(APP_ROOT, source)
-    if not os.path.isfile(tpath):
-        print(f'ensure_deploy_csvs: missing {target}', file=sys.stderr)
-        return
-    if not _is_lfs_pointer(tpath):
-        print(f'ensure_deploy_csvs: {target} is real data (not LFS pointer)')
-        return
     if not os.path.isfile(spath):
-        print(
-            f'ensure_deploy_csvs: ERROR {target} is LFS pointer but {source} missing',
-            file=sys.stderr,
-        )
+        print(f'ensure_deploy_csvs: ERROR missing {source}', file=sys.stderr)
         sys.exit(1)
     if _is_lfs_pointer(spath):
-        print(
-            f'ensure_deploy_csvs: ERROR {source} is also an LFS pointer; cannot deploy without LFS',
-            file=sys.stderr,
-        )
+        print(f'ensure_deploy_csvs: ERROR {source} is LFS pointer', file=sys.stderr)
         sys.exit(1)
+    if os.path.isfile(tpath) and not _is_lfs_pointer(tpath):
+        print(f'ensure_deploy_csvs: {target} already present')
+        return
     shutil.copy2(spath, tpath)
     if _is_lfs_pointer(tpath):
         print(f'ensure_deploy_csvs: ERROR copy failed; {target} still LFS pointer', file=sys.stderr)
@@ -77,8 +68,7 @@ def _log_cy_qtr_summary(path: str, label: str) -> None:
 def main() -> int:
     os.chdir(APP_ROOT)
 
-    # App tries facility_quarterly_metrics.csv before _latest.csv; pointers must be replaced.
-    _copy_if_pointer(
+    _ensure_csv_from_source(
         'facility_quarterly_metrics.csv',
         'facility_quarterly_metrics_latest.csv',
         'facility quarterly metrics',
@@ -96,11 +86,6 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-
-    for name in ('provider_info_combined_latest.csv', 'provider_info_combined.csv'):
-        path = os.path.join(APP_ROOT, name)
-        if os.path.isfile(path) and _is_lfs_pointer(path):
-            print(f'ensure_deploy_csvs: {name} is LFS pointer (OK while ProviderInfoNorm present)')
 
     return 0
 

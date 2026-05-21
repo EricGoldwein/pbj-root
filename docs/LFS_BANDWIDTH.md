@@ -39,15 +39,18 @@ Failed deploy **retries** (LFS budget exceeded → smudge error → retry clone)
 
 ## Unblock production now
 
-### Safe fix (no LFS bandwidth on deploy) — in `render.yaml`
+### Real fix (May 2026): stop tracking LFS files at `HEAD`
 
-| Step | What |
-|------|------|
-| `GIT_LFS_SKIP_SMUDGE=1` | Clone/checkout does **not** download LFS blobs (~3 GB saved). Set in **render.yaml** and confirm in **Render → Environment** (required if the service was created manually, not from Blueprint). |
-| `python scripts/ensure_deploy_csvs.py` | If `facility_quarterly_metrics.csv` is only an LFS pointer, copy **`facility_quarterly_metrics_latest.csv`** (normal git, ~5 MB) over it. Fails the build if copy leaves a pointer or Norm is missing. |
-| Provider data | **`provider_info/ProviderInfoNorm_2026_04.csv`** is normal git (~12 MB); app prefers it over LFS `provider_info_combined_latest.csv`. |
+Render runs **git checkout before** build env vars apply, so `GIT_LFS_SKIP_SMUDGE` in `render.yaml` does **not** stop the smudge error.
 
-**Why skip-smudge alone is NOT safe:** pointer files still exist on disk; pandas would read 130-byte text. The build script fixes that.
+| Change | Why |
+|--------|-----|
+| **`git rm` LFS paths** | `facility_quarterly_metrics.csv`, `provider_info_combined_latest.csv` removed from the tree so checkout never downloads them. |
+| **Commit `facility_quarterly_metrics_latest.csv` only** | Normal git (~5 MB, current quarter). |
+| **`python scripts/ensure_deploy_csvs.py`** | Build copies `_latest` → `facility_quarterly_metrics.csv` for app paths that expect that filename. |
+| **Provider data** | **`provider_info/ProviderInfoNorm_2026_04.csv`** in normal git; app prefers Norm over combined CSVs. |
+
+`GIT_LFS_SKIP_SMUDGE` in `render.yaml` is harmless extra insurance; the checkout fix is **not having LFS paths in HEAD**.
 
 **Data caveat:** Deploy uses `_latest` (currently **2025Q4** on `master`) + pinned Norm, not the 190 MB full-history LFS file. Provider trend charts that read multi-quarter history from `facility_quarterly_metrics.csv` will only have the quarters present in `_latest` until LFS is available again or you host the full file elsewhere.
 

@@ -84,10 +84,9 @@ CALCULATION_ANALYSIS.md
 CALCULATION_DOCUMENTATION.md
 FIXES_SUMMARY.md
 
-# Allow quarterly CSVs and one provider_info snapshot (entity pages + search_index need it on production)
-!facility_quarterly_metrics.csv
+# Allow quarterly CSVs on production (facility metrics: commit _latest only; build copies to metrics.csv)
 !state_quarterly_metrics.csv
-!provider_info_combined_latest.csv
+!facility_quarterly_metrics_latest.csv
 
 # Local/generated artifacts from one-off update workflows (keep out of release commits)
 donor/output/

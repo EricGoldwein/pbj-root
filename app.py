@@ -1139,6 +1139,12 @@ def robots_txt():
     return ROBOTS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
+@app.route('/llms.txt')
+def llms_txt():
+    from site_public_config import LLMS_TXT
+    return LLMS_TXT, 200, {'Content-Type': 'text/plain; charset=utf-8'}
+
+
 @app.route('/what-is-hprd')
 @app.route('/cms-payroll-based-journal')
 @app.route('/pbj-nursing-home-staffing')
@@ -3951,6 +3957,8 @@ def _provider_page_json_ld_scripts(
     page_url: str,
     total_hprd: str,
     quarter_display: str,
+    facility_df=None,
+    latest_raw_quarter: str = '',
 ) -> str:
     page_url = (page_url or '').strip()
     if page_url.startswith('/'):
@@ -3984,11 +3992,34 @@ def _provider_page_json_ld_scripts(
         }
     if address.get('addressLocality') or address.get('addressRegion'):
         org['address'] = address
-    props = []
-    if total_hprd and total_hprd != '—':
-        props.append({'@type': 'PropertyValue', 'name': 'Total Nurse HPRD', 'value': total_hprd, 'unitText': 'hours per resident day'})
-    if quarter_display:
-        props.append({'@type': 'PropertyValue', 'name': 'Reporting quarter', 'value': quarter_display})
+    props: list = []
+    try:
+        from pbj_facility_json_ld import build_facility_quarter_json_ld_properties
+        from pbj_format import format_quarter_display as _fmt_q, format_metric_value as _fmt_m
+
+        props = build_facility_quarter_json_ld_properties(
+            facility_df,
+            format_quarter_display=_fmt_q,
+            format_metric_value=_fmt_m,
+            provider_info_for_quarter=get_provider_info_for_quarter,
+            ccn=norm_ccn or (str(ccn or '').strip()),
+            latest_raw_quarter=latest_raw_quarter,
+            max_quarters=4,
+        )
+    except Exception:
+        props = []
+    if not props:
+        if total_hprd and total_hprd != '—':
+            props.append(
+                {
+                    '@type': 'PropertyValue',
+                    'name': 'Total Nurse HPRD',
+                    'value': total_hprd,
+                    'unitText': 'hours per resident day',
+                }
+            )
+        if quarter_display:
+            props.append({'@type': 'PropertyValue', 'name': 'Reporting quarter', 'value': quarter_display})
     if props:
         org['additionalProperty'] = props
     crumbs = [('Home', f'{origin}/')]
@@ -9972,6 +10003,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         page_url=f"{base_url}/provider/{prov}",
         total_hprd=hprd_val,
         quarter_display=quarter_display,
+        facility_df=facility_df,
+        latest_raw_quarter=str(raw_quarter or ''),
     )
     _ownership_page_css = (
         f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
@@ -13217,7 +13250,7 @@ def canonical_state_page(state_slug):
     
     # Check if this is a known route first (avoid conflicts)
     known_routes = [
-        'pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'sitemap.xml',
+        'pbjpedia', 'wrapped', 'api', 'static', 'favicon.ico', 'robots.txt', 'llms.txt', 'sitemap.xml',
         'owner', 'owners', 'ownership', 'provider', 'state', 'entity', 'premium', 'warmup',
     ]
     if state_slug.lower() in known_routes:

@@ -35,6 +35,58 @@ SITEMAP_TRUST_PAGES: tuple[tuple[str, str, str], ...] = (
     ('/data-sources', '0.7', 'monthly'),
 )
 
+def build_llms_txt(origin: str | None = None) -> str:
+    """Plain-text site guide for AI/search tools (llms.txt convention). Not a data API."""
+    base = (origin or PUBLIC_SITE_ORIGIN).rstrip('/')
+    return f"""# PBJ320
+
+> Public nursing home staffing and facility context from CMS Payroll-Based Journal (PBJ) and related federal datasets. Operated by {OPERATOR_LEGAL_NAME}. Not affiliated with CMS.
+
+## What this site is
+
+- Free lookup for ~15,000 U.S. nursing homes: quarterly PBJ staffing (HPRD), state rankings, chain/entity summaries, and limited ownership context.
+- Facility pages summarize CMS-reported data for one CCN (Certification Number). Charts and badges on the page match the same underlying quarterly files used in structured metadata.
+
+## How to cite
+
+- Prefer the canonical facility URL: {base}/provider/{{ccn}} (6-digit CCN, zero-padded).
+- Example: {base}/provider/335513
+- Name the source: PBJ320 ({base}) and the underlying CMS datasets listed on {base}/data-sources.
+- State context: {base}/state/{{state-slug}} (e.g. {base}/state/ct).
+- Nursing home chain / affiliated entity: {base}/entity/{{entity-id}}.
+
+## Data cadence (important)
+
+- **PBJ staffing** (hours, HPRD, census, contract share on facility pages): aligned to CMS PBJ quarters; the latest loaded quarter is shown on each page and in JSON-LD where present.
+- **Provider Information** (Five-Star ratings, turnover, ownership type, case-mix): may reflect a **newer** CMS snapshot than the PBJ quarter on the same page. Do not assume all fields share one posting date.
+- Case-mix on historic PBJ quarters may be omitted by design; see {base}/data-sources.
+
+## Machine-readable hints on facility pages
+
+- Each public facility page includes JSON-LD (`MedicalOrganization`) with the CMS CCN and up to the **last four PBJ quarters** of staffing summary (total nurse HPRD, RN HPRD, contract % where reported). The latest quarter may also include CMS Five-Star and turnover fields when Provider Information is available for that quarter.
+- This is supplementary to visible page content, not a substitute for reading the page or CMS primary sources.
+
+## Paths not intended for broad crawling
+
+- /premium/ — paid dashboards and demos (not public data dumps).
+- /owners/ — limited ownership research tool.
+- /api/ — internal JSON for the site UI.
+
+## Contact and methodology
+
+- Data sources and limitations: {base}/data-sources
+- About: {base}/about
+- Contact: {base}/contact
+- Press: {base}/press
+
+## Operator
+
+{OPERATOR_LEGAL_NAME} — https://www.320insight.com/
+"""
+
+
+LLMS_TXT = build_llms_txt()
+
 ROBOTS_TXT = f"""User-agent: *
 Allow: /
 Disallow: /owners/

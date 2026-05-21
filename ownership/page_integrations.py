@@ -392,14 +392,12 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         f"CMS enrollment filings—not proof of staffing or care quality.</p>"
     )
 
-    explorer_href = f"/chow?state={html.escape(st, quote=True)}"
-    foot_bits: list[str] = []
+    foot_html = ""
     if events > recent_n:
-        foot_bits.append(f"Showing {recent_n} newest.")
-    foot_bits.append(
-        f'<a href="{explorer_href}">All {events:,} in CHOW explorer</a>'
-    )
-    foot_html = f'<p class="chow-state-foot">{" ".join(foot_bits)}</p>'
+        foot_html = (
+            f'<p class="chow-state-foot">Showing {recent_n} newest of {events:,} '
+            f"in this index.</p>"
+        )
 
     table_html = _render_state_chow_recent_table(st, limit=recent_n, foot_html=foot_html)
     summary_label = f"Recent ownership changes · {label} ({events:,})"

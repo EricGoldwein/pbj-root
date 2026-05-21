@@ -25,6 +25,7 @@ from site_public_config import (
     pbjpedia_is_public,
     sitemap_loc_is_allowed,
 )
+from utils.seo_utils import find_forbidden_dashboard_body_markers
 
 DEFAULT_BASE = 'https://www.pbj320.com'
 DEFAULT_TIMEOUT = 10.0
@@ -282,6 +283,9 @@ def audit_provider_pages(report: AuditReport, timeout: float) -> None:
             report.fail(url, 'missing facility-specific text')
         if not re.search(r'hprd|staffing', text, re.I):
             report.fail(url, 'missing HPRD/staffing metrics in HTML')
+        markers = find_forbidden_dashboard_body_markers(text)
+        if markers:
+            report.fail(url, f'forbidden visible SEO boilerplate: {", ".join(markers)}')
     report.ok(f'provider sample: {len(PROVIDER_SAMPLE)} URLs checked')
 
 
@@ -457,6 +461,9 @@ def audit_entity_pages(report: AuditReport, timeout: float) -> None:
             report.fail(url, 'missing <h1>')
         if '/provider/' not in text and 'facility' not in text.lower():
             report.fail(url, 'missing facility links or entity roster content')
+        markers = find_forbidden_dashboard_body_markers(text)
+        if markers:
+            report.fail(url, f'forbidden visible SEO boilerplate: {", ".join(markers)}')
     report.ok(f'entity sample: {len(ENTITY_SAMPLE)} URLs checked')
 
 

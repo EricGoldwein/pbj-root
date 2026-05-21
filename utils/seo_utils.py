@@ -1,4 +1,10 @@
-"""SEO metadata helper functions for Flask templates and dynamic pages."""
+"""SEO metadata helper functions for Flask templates and dynamic pages.
+
+Dashboard convention (provider, entity, owner, state shells):
+- Use page_title, meta_description, and JSON-LD only for SEO prose.
+- *_page_intro_html() on dashboards MUST return '' (no visible SEO paragraphs).
+- Full article copy belongs only on EXPLAINER_PAGES routes (/what-is-hprd, etc.).
+"""
 from __future__ import annotations
 
 import html
@@ -197,6 +203,28 @@ def get_seo_metadata(path):
 _PROVIDER_TITLE_SUFFIX = ' | PBJ320'
 _PROVIDER_TITLE_BUDGET = 70  # approximate SERP display limit including suffix
 
+# Visible HTML on dashboard shells must not contain these (audit + regression tests).
+FORBIDDEN_DASHBOARD_BODY_MARKERS: tuple[str, ...] = (
+    'pbj-provider-seo',
+    'Latest staffing snapshot',
+    'PBJ320 tracks its CMS Payroll-Based Journal',
+    'CMS-linked entity record for',
+    'not a curated owner/operator profile',
+    'Medicare-certified nursing home in',
+)
+
+
+def dashboard_intro_must_be_empty(intro_html: str, *, context: str) -> None:
+    """Raise AssertionError when a dashboard route injects visible SEO intro HTML."""
+    if (intro_html or '').strip():
+        raise AssertionError(f'{context}: dashboard intro_html must be empty, got {len(intro_html)} chars')
+
+
+def find_forbidden_dashboard_body_markers(html: str) -> list[str]:
+    """Return forbidden SEO boilerplate substrings found in dashboard page HTML."""
+    text = html or ''
+    return [m for m in FORBIDDEN_DASHBOARD_BODY_MARKERS if m in text]
+
 
 def provider_page_title(
     facility_name: str,
@@ -208,15 +236,15 @@ def provider_page_title(
     """Title for /provider/<ccn> pages."""
     del city, state_name, state_code
     name = (facility_name or 'Nursing home').strip()
-    core = f'{name} Nursing Home Staffing Data'
+    core = f'{name} Staffing Data'
     title = core + _PROVIDER_TITLE_SUFFIX
     if len(title) <= _PROVIDER_TITLE_BUDGET:
         return title
-    max_name = _PROVIDER_TITLE_BUDGET - len('… Nursing Home Staffing Data' + _PROVIDER_TITLE_SUFFIX)
+    max_name = _PROVIDER_TITLE_BUDGET - len('… Staffing Data' + _PROVIDER_TITLE_SUFFIX)
     if max_name > 12:
         short = name[: max_name - 1].rstrip() + '…'
-        return f'{short} Nursing Home Staffing Data{_PROVIDER_TITLE_SUFFIX}'
-    return f'{name[:20].rstrip()}… Nursing Home Staffing Data{_PROVIDER_TITLE_SUFFIX}'
+        return f'{short} Staffing Data{_PROVIDER_TITLE_SUFFIX}'
+    return f'{name[:20].rstrip()}… Staffing Data{_PROVIDER_TITLE_SUFFIX}'
 
 
 def provider_page_meta_description(
@@ -273,7 +301,7 @@ def owner_page_title(display_name: str, profile: dict[str, Any] | None = None) -
     """Title for /owners/<pac> — durable; profile arg kept for call-site compatibility."""
     del profile
     name = (display_name or 'Organization').strip()
-    return f'{name} CMS-Linked Nursing Home Profile | PBJ320'
+    return f'{name} | PBJ320'
 
 
 def owner_page_meta_description(
@@ -286,7 +314,7 @@ def owner_page_meta_description(
 ) -> str:
     del profile
     name = (display_name or 'this organization').strip()
-    parts = [f'CMS-linked nursing home profile for {name} on PBJ320.']
+    parts = [f'CMS ownership and facility links for {name} on PBJ320.']
     if facility_count > 0:
         n = facility_count
         parts.append(
@@ -339,22 +367,22 @@ def owner_page_seo_from_profile(profile: dict[str, Any]) -> tuple[str, str, str]
 def entity_page_title(entity_name: str, facility_count: int = 0) -> str:
     name = (entity_name or 'CMS entity').strip()
     if facility_count > 0:
-        return f'{name} CMS-Linked Entity Record ({facility_count} facilities) | PBJ320'
-    return f'{name} CMS-Linked Entity Record | PBJ320'
+        n = facility_count
+        return f'{name} ({n} nursing home{"s" if n != 1 else ""}) | PBJ320'
+    return f'{name} | PBJ320'
 
 
 def entity_page_meta_description(entity_name: str, *, facility_count: int = 0, states_count: int = 0) -> str:
     name = (entity_name or 'This entity').strip()
     parts = [
-        f'CMS-linked entity record for {name} on PBJ320.',
-        'Associated facilities and public CMS staffing data from PBJ and Provider Information',
+        f'Affiliated nursing home facilities for {name} on PBJ320.',
+        'Public CMS PBJ staffing and Provider Information',
     ]
     if facility_count > 0:
         parts.append(f'({facility_count} facilit{"y" if facility_count == 1 else "ies"} in PBJ320 data)')
     if states_count > 0:
         parts.append(f'across {states_count} state{"s" if states_count != 1 else ""}')
-    parts.append('— not a curated owner/operator profile.')
-    return ' '.join(parts) + ' Chain metrics from CMS Care Compare where available.'
+    return ' '.join(parts) + '. Chain metrics from CMS Care Compare where available.'
 
 
 def entity_page_intro_html(entity_name: str) -> str:

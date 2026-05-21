@@ -14,6 +14,7 @@ import gzip
 import json
 import re
 import sqlite3
+import threading
 from functools import lru_cache
 from pathlib import Path
 from collections.abc import Iterator, Sequence
@@ -135,12 +136,22 @@ def _ownership_source_fields(path: Path | None) -> dict[str, str]:
     }
 
 
-@lru_cache(maxsize=1)
+_SQLITE_THREAD_LOCAL = threading.local()
+
+
 def _sqlite_conn() -> sqlite3.Connection | None:
+    """Per-thread read-only connection (gunicorn gthread workers share a process)."""
     if not _OWNERS_LOOKUP_DB.is_file():
         return None
-    conn = sqlite3.connect(f"file:{_OWNERS_LOOKUP_DB}?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
+    conn = getattr(_SQLITE_THREAD_LOCAL, "conn", None)
+    if conn is None:
+        conn = sqlite3.connect(
+            f"file:{_OWNERS_LOOKUP_DB}?mode=ro",
+            uri=True,
+            check_same_thread=False,
+        )
+        conn.row_factory = sqlite3.Row
+        _SQLITE_THREAD_LOCAL.conn = conn
     return conn
 
 

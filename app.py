@@ -4791,7 +4791,16 @@ def cms_owner_profile_page(owner_id):
         return redirect(f'/owner/{owner_id}', code=302)
     if not HAS_PANDAS:
         return 'Pandas not available. Owner pages require pandas.', 503
-    profile = load_owner_profile_resolved(pac)
+    try:
+        profile = load_owner_profile_resolved(pac)
+    except Exception as _owner_load_err:
+        import traceback
+        print(f'owner profile load failed for {pac}: {_owner_load_err}', flush=True)
+        traceback.print_exc()
+        return (
+            'CMS ownership profile is temporarily unavailable. Please retry shortly.',
+            503,
+        )
     if not profile:
         from flask import abort
         abort(404)
@@ -4800,7 +4809,17 @@ def cms_owner_profile_page(owner_id):
     if not profile_is_visible(profile):
         from flask import abort
         abort(404)
-    resp = make_response(generate_owner_profile_html(profile))
+    try:
+        html = generate_owner_profile_html(profile)
+    except Exception as _owner_render_err:
+        import traceback
+        print(f'owner profile render failed for {pac}: {_owner_render_err}', flush=True)
+        traceback.print_exc()
+        return (
+            'CMS ownership profile is temporarily unavailable. Please retry shortly.',
+            503,
+        )
+    resp = make_response(html)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
     if not profile_has_public_state(profile):
@@ -10326,14 +10345,22 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         from ownership.page_integrations import render_provider_ownership_chow_block
         from ownership.chow_lookup import chow_summary_line_for_ccn
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
-            prov, provider_info_row=provider_info_row or pi_header
+            prov,
+            provider_info_row=provider_info_row or pi_header,
+            state_code=state_code or '',
         )
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
             if (state_code or '').strip().upper() == 'CT'
             else ''
         )
-    except Exception:
+    except Exception as _ownership_block_err:
+        import traceback
+        print(
+            f'provider ownership block failed for {prov}: {_ownership_block_err}',
+            flush=True,
+        )
+        traceback.print_exc()
         _provider_ownership_chow_block = ''
         _ownership_chow_ai = ''
     _facility_ai_ctx = build_dashboard_context(
@@ -13772,6 +13799,14 @@ def _provider_info_row_for_ccn(prov: str) -> dict:
     return (load_provider_info(prov) or {}).get(prov, {}) or {}
 
 
+def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
+    """Reject stale provider-page cache missing CT ownership block after deploy."""
+    st = str((row or {}).get('state') or '').strip().upper()[:2]
+    if st == 'CT' and 'pbj-details-ownership' not in (html or ''):
+        return False
+    return True
+
+
 def _provider_info_row_sufficient_for_page(row: dict | None) -> bool:
     """Avoid caching provider HTML before CMS context (stars, ownership, entity) is available."""
     if not isinstance(row, dict) or not row:
@@ -13806,7 +13841,9 @@ def _provider_page_impl(ccn):
         if cached is not None:
             cached_at, html = cached
             if now - cached_at < _provider_page_cache_ttl_seconds():
-                return html, 200, _provider_page_html_headers(cache_hit=True)
+                row_peek = _provider_info_row_for_ccn(prov)
+                if _provider_page_cache_hit_ok(prov, html, row_peek):
+                    return html, 200, _provider_page_html_headers(cache_hit=True)
 
     sem = _provider_cold_render_semaphore()
     if not sem.acquire(blocking=False):
@@ -13815,7 +13852,9 @@ def _provider_page_impl(ccn):
             if cached is not None:
                 cached_at, html = cached
                 if now - cached_at < _provider_page_cache_ttl_seconds():
-                    return html, 200, _provider_page_html_headers(cache_hit=True)
+                    row_peek = _provider_info_row_for_ccn(prov)
+                    if _provider_page_cache_hit_ok(prov, html, row_peek):
+                        return html, 200, _provider_page_html_headers(cache_hit=True)
         return make_response('Server busy; retry shortly.', 503, {
             'Content-Type': 'text/plain; charset=utf-8',
             'Retry-After': '30',
@@ -13826,7 +13865,9 @@ def _provider_page_impl(ccn):
             if cached is not None:
                 cached_at, html = cached
                 if now - cached_at < _provider_page_cache_ttl_seconds():
-                    return html, 200, _provider_page_html_headers(cache_hit=True)
+                    row_peek = _provider_info_row_for_ccn(prov)
+                    if _provider_page_cache_hit_ok(prov, html, row_peek):
+                        return html, 200, _provider_page_html_headers(cache_hit=True)
         facility_df = load_facility_quarterly_for_provider(prov)
         if facility_df is None or facility_df.empty:
             abort(404)

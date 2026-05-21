@@ -667,11 +667,23 @@ def _enrollment_org_to_pac() -> dict[str, str]:
     return out
 
 
+@lru_cache(maxsize=1)
+def _ccn_to_legal_business_name() -> dict[str, str]:
+    """CCN -> CMS legal business name (from provider_info snapshots)."""
+    out: dict[str, str] = {}
+    for legal, ccn in _legal_business_name_to_ccn().items():
+        ccn_norm = _norm_ccn_key(ccn)
+        if ccn_norm and legal and ccn_norm not in out:
+            out[ccn_norm] = legal
+    return out
+
+
 def lookup_cms_ownership_for_provider(
     provider_info_row: dict[str, Any] | None = None,
     *,
     provider_name: str = "",
     legal_business_name: str = "",
+    ccn: str = "",
 ) -> dict[str, Any] | None:
     """
     Match facility to CMS SNF All Owners enrollment via legal business name or provider DBA.
@@ -680,7 +692,10 @@ def lookup_cms_ownership_for_provider(
     from ownership.owner_portfolio_metrics import sort_control_parties_for_display
 
     pi = provider_info_row or {}
+    ccn_norm = _norm_ccn_key(ccn) or _norm_ccn_key(str(pi.get("ccn") or pi.get("PROVNUM") or ""))
     legal = _clean(legal_business_name) or _clean(pi.get("legal_business_name"))
+    if not legal and ccn_norm:
+        legal = _ccn_to_legal_business_name().get(ccn_norm) or ""
     dba = _clean(provider_name) or _clean(pi.get("provider_name"))
     index = _enrollment_org_to_pac()
     tried: set[str] = set()

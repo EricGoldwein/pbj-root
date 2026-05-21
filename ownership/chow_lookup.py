@@ -23,14 +23,17 @@ def _load_index() -> dict[str, Any]:
         data = json.loads(CHOW_INDEX_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         return {"meta": {}, "summary": {}, "records": [], "by_ccn": {}, "state_counts": {}}
-    if "by_ccn" not in data or "state_counts" not in data:
+    if "by_ccn" not in data or "state_counts" not in data or "by_associate_id" not in data:
         data = _ensure_indexes(data)
     return data
 
 
 def _ensure_indexes(data: dict[str, Any]) -> dict[str, Any]:
-    """Build by_ccn and state_counts if missing (older index files)."""
+    """Build by_ccn, by_associate_id, and state_counts if missing (older index files)."""
+    from ownership.owner_profile import normalize_associate_id
+
     by_ccn: dict[str, list[dict[str, Any]]] = {}
+    by_associate_id: dict[str, list[dict[str, Any]]] = {}
     state_counts: dict[str, int] = {}
     for rec in data.get("records") or []:
         ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
@@ -39,9 +42,16 @@ def _ensure_indexes(data: dict[str, Any]) -> dict[str, Any]:
         st = str(rec.get("state") or "").strip().upper()[:2]
         if st:
             state_counts[st] = state_counts.get(st, 0) + 1
+        for pac_key in ("buyer_associate_id", "seller_associate_id"):
+            pac = normalize_associate_id(rec.get(pac_key))
+            if len(pac) == 10:
+                by_associate_id.setdefault(pac, []).append(rec)
     for ccn in by_ccn:
         by_ccn[ccn].sort(key=lambda r: r.get("effective_date") or "", reverse=True)
+    for pac in by_associate_id:
+        by_associate_id[pac].sort(key=lambda r: r.get("effective_date") or "", reverse=True)
     data["by_ccn"] = by_ccn
+    data["by_associate_id"] = by_associate_id
     data["state_counts"] = state_counts
     return data
 
@@ -52,7 +62,9 @@ def chow_records_for_ccn(ccn: str, limit: int = 5) -> list[dict[str, Any]]:
         return []
     idx = _load_index()
     rows = (idx.get("by_ccn") or {}).get(ccn_norm) or []
-    return rows[: max(1, limit)]
+    if limit is None or limit <= 0:
+        return rows
+    return rows[:limit]
 
 
 def chow_records_for_state(state_code: str, *, limit: int = 0) -> list[dict[str, Any]]:
@@ -267,17 +279,16 @@ def chow_records_for_associate_id(associate_id: str, limit: int = 25) -> list[di
     pac = normalize_associate_id(associate_id)
     if len(pac) != 10:
         return []
+    rows = list((_load_index().get("by_associate_id") or {}).get(pac) or [])
     out: list[dict[str, Any]] = []
-    for rec in _load_index().get("records") or []:
+    for rec in rows:
         buyer = normalize_associate_id(rec.get("buyer_associate_id"))
-        seller = normalize_associate_id(rec.get("seller_associate_id"))
-        if pac not in (buyer, seller):
-            continue
         row = dict(rec)
         row["chow_role"] = "buyer" if pac == buyer else "seller"
         out.append(row)
-    out.sort(key=lambda r: r.get("effective_date") or "", reverse=True)
-    return out[: max(1, limit)]
+    if limit is None or limit <= 0:
+        return out
+    return out[:limit]
 
 
 def chow_party_label_for_associate_id(associate_id: str) -> dict[str, str] | None:

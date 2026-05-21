@@ -24,6 +24,7 @@ from ownership.chow_lookup import (
     format_chow_date,
 )
 from ownership.beta_gate import ownership_beta_enabled_for_state
+from ownership.owner_profile import _ccn_to_state_from_search_index
 from ownership.display_format import format_org_display, format_role_short, format_role_text
 
 
@@ -507,20 +508,24 @@ def render_provider_ownership_chow_block(
     ccn: str,
     *,
     provider_info_row: dict[str, Any] | None = None,
+    state_code: str = "",
 ) -> str:
     """CMS all-owners + CHOW footer for provider pages (collapsed by default)."""
     from ownership.owner_profile import lookup_cms_ownership_for_provider
 
     pi = provider_info_row or {}
+    ccn_norm = str(ccn or "").strip().zfill(6)[-6:]
     prov_state = str(
-        pi.get("state")
+        state_code
+        or pi.get("state")
         or pi.get("STATE")
         or pi.get("Provider State")
         or ""
     ).strip().upper()[:2]
+    if not prov_state and ccn_norm:
+        prov_state = (_ccn_to_state_from_search_index().get(ccn_norm) or "").strip().upper()[:2]
     if not ownership_beta_enabled_for_state(prov_state):
         return ""
-    ccn_norm = str(ccn or "").strip().zfill(6)[-6:]
 
     ownership_type = str(
         pi.get("ownership_type") or pi.get("Ownership_Type") or ""
@@ -531,7 +536,7 @@ def render_provider_ownership_chow_block(
         or ""
     ).strip().upper()
     chow_all = chow_records_for_ccn(ccn_norm, limit=0) if ccn_norm else []
-    cms = lookup_cms_ownership_for_provider(pi)
+    cms = lookup_cms_ownership_for_provider(pi, ccn=ccn_norm)
 
     if not ownership_type and chow_flag != "Y" and not chow_all and not cms:
         return ""

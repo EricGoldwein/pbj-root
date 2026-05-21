@@ -3406,7 +3406,7 @@ def _resolve_target_entity_context(post: dict) -> dict | None:
         state_total = None
         raw_quarter = str(latest.get('CY_Qtr') or '')
         try:
-            pi_q = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else {}
+            pi_q = (get_provider_info_for_quarter(prov, raw_quarter) or {}) if raw_quarter else {}
             case_mix_total = float(pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day')) if pi_q and pi_q.get('case_mix_total_nurse_hrs_per_resident_per_day') is not None else None
         except Exception:
             case_mix_total = None
@@ -9095,7 +9095,7 @@ def _build_facility_snapshot_csv_rows(
             v = row.get(key) if key in row.index else None
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 if from_pi and allow_pi_case_mix:
-                    v = pi_q.get(pi_key or key)
+                    v = (pi_q or {}).get(pi_key or key)
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 return None
             try:
@@ -9213,7 +9213,7 @@ def _build_facility_quarterly_trend_csv_rows(
             v = row.get(key) if key in row.index else None
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 if from_pi and allow_pi_case_mix:
-                    v = pi_q.get(pi_key or key)
+                    v = (pi_q or {}).get(pi_key or key)
             if v is None or (isinstance(v, float) and pd.isna(v)):
                 return None
             try:

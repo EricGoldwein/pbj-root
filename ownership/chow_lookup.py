@@ -136,7 +136,7 @@ def chow_summary_line_for_ccn(ccn: str) -> str:
     if not rows:
         return (
             "CMS CHOW (change of ownership) records on PBJ320: none matched this CCN in the "
-            "current national index. CHOW monitor: https://pbj320.com/chow"
+            "current index. See the ownership block on this facility page when available."
         )
     parts = []
     for r in rows:
@@ -151,7 +151,7 @@ def chow_summary_line_for_ccn(ccn: str) -> str:
     return (
         f"CMS CHOW records for this CCN ({len(rows)} shown{extra}): "
         + "; ".join(parts)
-        + f". Full list: https://pbj320.com/chow?ccn={ccn}"
+        + ". See ownership / CHOW context on this facility page."
     )
 
 
@@ -305,5 +305,5 @@ def chow_summary_line_for_state(state_code: str, state_name: str = "") -> str:
     label = state_name or state_code
     return (
         f"CMS CHOW records in {label}: {cnt} reported ownership-change events in the current "
-        f"PBJ320 index. Filter: https://pbj320.com/chow?state={state_code}"
+        f"PBJ320 index. See CHOW context on the {label} state page when available."
     )

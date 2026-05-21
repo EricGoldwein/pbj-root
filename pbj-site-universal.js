@@ -37,6 +37,8 @@
     '<a href="/privacy" style="color:rgba(148,163,184,0.62)">Privacy</a>' +
     '</p>';
 
+  var FOOTER_PERIOD_ID = 'pbj-footer-period';
+
   var FOOTER_CORE = [
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
     '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="display:inline-block;transition:opacity 0.3s ease" title="Email: ' + CONTACT.email + '" aria-label="Email ' + CONTACT.email + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>',
@@ -55,6 +57,31 @@
     if (!el) return;
     var body = FOOTER_CORE + footerSignoffHtml();
     el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
+    injectFooterPeriod(el);
+  }
+
+  function injectFooterPeriod(footerEl) {
+    if (!footerEl) return;
+    fetch('/api/dates', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        var q = data && data.pbj_quarter_display ? String(data.pbj_quarter_display).trim() : '';
+        if (!q || q === 'N/A') return;
+        var existing = document.getElementById(FOOTER_PERIOD_ID);
+        if (existing) existing.remove();
+        var p = document.createElement('p');
+        p.id = FOOTER_PERIOD_ID;
+        p.className = 'pbj-footer-period';
+        p.style.cssText = 'margin:0.35rem auto 0;max-width:720px;font-size:0.72rem;line-height:1.4;text-align:center;color:rgba(148,163,184,0.65);';
+        p.textContent = 'PBJ data through ' + q + '. Provider snapshots and other CMS fields on this site may reflect later postings.';
+        var signoff = footerEl.querySelector('.footer-signoff');
+        if (signoff && signoff.parentNode) {
+          signoff.parentNode.insertBefore(p, signoff);
+        } else {
+          footerEl.appendChild(p);
+        }
+      })
+      .catch(function () { /* non-blocking */ });
   }
 
   /** Copy email to clipboard and show a short confirmation. Accessible and works when mailto fails. */
@@ -194,7 +221,8 @@
       '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(148,163,184,0.72);}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(148,163,184,0.88);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
-      '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}'
+      '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',
+      'abbr.pbj-na{cursor:help;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px;border:none;}'
     ].join('');
     document.head.appendChild(style);
   }

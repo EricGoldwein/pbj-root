@@ -36,7 +36,7 @@ Audiences steer **labels, disclaimers, and emphasis** — not chart type when th
 | **Family / resident** | Plain words (“hours of nursing care per resident day”); simplest table or sparkline; no legal causal claims beside the graphic. |
 | **Advocate** | Screening tone; comparisons, contract share, census effects, tails vs peers—whatever supports the strongest *supported* concern. |
 | **Ombudsman** | **PBJ Summary** must include a compact Markdown **table** when quarterly numbers are supplied; conversation-ready labels; calm, non-accusatory tone. |
-| **Journalist** | Headline-aligned; pairing with **Clearest supportable angle**; what must be verified **before** publication. |
+| **Journalist** | Headline-aligned; pairing with **Clearest supportable angle**; next verification checks (not "before publication" meta-framing). |
 | **Attorney** | Discovery-aware labels; quarterly visuals carry **timing/limitations** unless daily/incident-aligned data supplied. |
 | **Legislator / policymaker** | Policy screening; benchmarks as orientation — not PASS/FAIL; avoid facility attack framing. |
 | **Operator** | Neutral QA view—how outsiders will read the same figure; annotate uncertainty. |
@@ -68,7 +68,7 @@ Patterns, peer comparison, escalation thresholds as **screening signals**. Safe 
 
 ### Journalist (Standard + story angle)
 
-**Clearest supportable angle:** e.g. "reported RN staffing below [comparison] for [period]" — not "neglect" or "violation." Avoid "understaffed" without a defined comparison. Do not publish from PBJ alone.
+Newsroom research memo voice. **Clearest supportable angle:** e.g. "reported RN staffing below [comparison] for [period]" — not "neglect" or "violation." Avoid "understaffed" without a defined comparison. List next verification checks—not "before publishing" meta-framing.
 
 ### Attorney (Detailed)
 
@@ -90,6 +90,16 @@ Methodology first: denominators, distributions, missing data, confounds. Facilit
 
 Full analytic gate. Default when role unclear.
 
+## Memo voice (all modes)
+
+Write **for** the selected audience, not **about** them. Each mode should read like a concise audience-specific memo—not a tutorial on that role's job.
+
+Avoid meta-role phrasing such as "a reporter would need to," "journalists should," "an ombudsman should," "an attorney would need to," "advocates may want to," "before publishing," "before filing a case," "for a news story," or "for legal use."
+
+Prefer direct memo phrasing: "The next checks are…," "This supports a closer look, not a conclusion," "The strongest supported finding is…," "Useful follow-up records include…," "The clearest limitation is…."
+
+Keep the same structure, sections, length, caution level, and analytical standards.
+
 ## Phrasing replacements (all modes)
 
 | Avoid | Prefer |
@@ -99,3 +109,7 @@ Full analytic gate. Default when role unclear.
 | CNA continuity issues | 90-day CNA patterns that may raise continuity questions |
 | Be direct (bottom line) | Be accurate and provisional. Lead with the strongest thing the data actually shows. |
 | the data proves / confirms neglect | the page reports / may suggest / cannot prove |
+| a reporter would need to / journalists should | The next checks are… |
+| an ombudsman should | This data is best used as context for resident-centered questions… |
+| an attorney would need to | The next comparison is… / Useful follow-up records include… |
+| advocates may want to highlight | The low percentile ranking is a public-facing signal, but… |

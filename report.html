@@ -822,6 +822,14 @@
     th.case-mix-header:hover {
       background: linear-gradient(135deg, #334155 0%, #475569 100%) !important;
     }
+
+    abbr.pbj-na {
+      cursor: help;
+      text-decoration: underline;
+      text-decoration-style: dotted;
+      text-underline-offset: 2px;
+      border: none;
+    }
     
     th {
       padding: 5px 4px;
@@ -4490,7 +4498,7 @@ __REPORT_SSR_TABLE_ROWS__
     </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
-  <script src="/pbj-site-universal.js?v=20"></script>
+  <script src="/pbj-site-universal.js?v=25"></script>
   <script>
     (function() {
       var overlay = document.getElementById('contact-overlay');
@@ -6270,6 +6278,17 @@ __REPORT_SSR_TABLE_ROWS__
       return window.innerWidth <= 600;
     }
     
+    const NA_HINT_DEFAULT = 'CMS did not report this value for this state and quarter, or too few facilities had data.';
+    const NA_HINT_CASE_MIX = 'No case-mix value—often because CMS Provider Information did not report case-mix for enough facilities in this state.';
+    const NA_HINT_RANK = 'Ranking not available for this view or metric.';
+
+    function naLabel(text, title) {
+      const t = text == null ? 'N/A' : String(text);
+      if (t !== 'N/A' && t !== '-') return t;
+      const tip = title || NA_HINT_DEFAULT;
+      return '<abbr class="pbj-na" title="' + tip.replace(/"/g, '&quot;') + '">' + t + '</abbr>';
+    }
+
     // Helper function to create a table cell
     function createTableCell(content, className = '', style = '') {
       const td = document.createElement('td');
@@ -6594,7 +6613,7 @@ __REPORT_SSR_TABLE_ROWS__
         
         // Contract % cell - always use regular value (median toggle removed from table)
         const contractPercent = state.Contract_Percentage !== undefined ? state.Contract_Percentage : null;
-        const contractText = contractPercent !== null ? `${contractPercent.toFixed(1)}%` : '-';
+        const contractText = contractPercent !== null ? `${contractPercent.toFixed(1)}%` : naLabel('-', NA_HINT_DEFAULT);
         const contractCell = createTableCell(contractText, 'col-contract');
         tr.appendChild(contractCell);
         
@@ -6602,7 +6621,7 @@ __REPORT_SSR_TABLE_ROWS__
         const forProfitPercent = (state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent))
           ? state.forProfitPercent
           : null;
-        const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : '-';
+        const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : naLabel('-', NA_HINT_DEFAULT);
         const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
         tr.appendChild(forProfitCell);
         
@@ -7113,7 +7132,7 @@ __REPORT_SSR_TABLE_ROWS__
               let formattedValue = (Math.round(value * 100) / 100).toFixed(2);
               
               // Get state rank
-              const rank = stateRankings[stateName] || 'N/A';
+              const rank = stateRankings[stateName] || naLabel('N/A', NA_HINT_RANK);
               
               // Get facilities and residents count
               const facilities = data.facility_count || 0;
@@ -7177,7 +7196,7 @@ __REPORT_SSR_TABLE_ROWS__
             .sort((a, b) => b.value - a.value);
             
             const currentStateIndex = allStates.findIndex(s => s.name === stateName);
-            const rank = currentStateIndex >= 0 ? currentStateIndex + 1 : 'N/A';
+            const rank = currentStateIndex >= 0 ? currentStateIndex + 1 : naLabel('N/A', NA_HINT_RANK);
             const totalStates = allStates.length;
             
             // Build tooltip content based on metric
@@ -7517,7 +7536,7 @@ __REPORT_SSR_TABLE_ROWS__
           .sort((a, b) => b.value - a.value);
           
           const currentStateIndex = allStates.findIndex(s => s.name === stateName);
-          const rank = currentStateIndex >= 0 ? currentStateIndex + 1 : 'N/A';
+          const rank = currentStateIndex >= 0 ? currentStateIndex + 1 : naLabel('N/A', NA_HINT_RANK);
           const totalStates = allStates.length;
           
           // Use getMetricValue to respect excludeAdminDON toggle and current metric

@@ -306,6 +306,10 @@
       layer.tone ||
         'Use cautious, plain-English, evidence-based language. Do not allege neglect, misconduct, causation, or legal violations.',
       '',
+      'Memo voice:',
+      layer.memoVoiceRule ||
+        'Write for the selected audience, not about them. Avoid meta-role phrasing (e.g. "a reporter would need to," "an ombudsman should," "before publishing"). Prefer direct memo phrasing: "The next checks are…," "This supports a closer look, not a conclusion."',
+      '',
       'Presentation:',
       presentation,
       '',
@@ -404,6 +408,10 @@
       'Tone:',
       layer.tone ||
         'Use cautious, plain-English, evidence-based language. Do not allege neglect, misconduct, causation, or legal violations.',
+      '',
+      'Memo voice:',
+      layer.memoVoiceRule ||
+        'Write for the selected audience, not about them. Avoid meta-role phrasing (e.g. "a reporter would need to," "an ombudsman should," "before publishing"). Prefer direct memo phrasing: "The next checks are…," "This supports a closer look, not a conclusion."',
       '',
       'Presentation:',
       presentation,

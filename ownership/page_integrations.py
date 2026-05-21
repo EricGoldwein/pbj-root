@@ -156,23 +156,18 @@ def _provider_ownership_about_html() -> str:
 _format_org_display = format_org_display
 
 
-def _chow_filter_url(party: dict[str, Any], side: str, state_code: str | None = None) -> str:
-    name = party.get("name") or ""
-    q = f"/chow?{side}={quote(name)}"
-    if state_code:
-        q += f"&state={quote(state_code.upper()[:2])}"
-    return q
-
-
 def _party_org_name_cell(party: dict[str, Any], side: str, state_code: str, name: str) -> str:
-    """Organization name links to owner profile when known, else CHOW filter."""
+    """Organization name links to owner profile when known; otherwise plain text."""
     owner_url = str(party.get("owner_url") or "").strip()
     display = html.escape(name)
     if owner_url:
         title = html.escape("CMS owner / enrollment profile on PBJ320", quote=True)
         return f'<a href="{html.escape(owner_url)}" title="{title}">{display}</a>'
-    filter_href = html.escape(_chow_filter_url(party, side, state_code))
-    return f'<a href="{filter_href}">{display}</a>'
+    tip = html.escape(
+        "No CMS owner profile link yet—verify name and role on CMS enrollment records.",
+        quote=True,
+    )
+    return f'<span title="{tip}">{display}</span>'
 
 
 def _facility_link_from_record(rec: dict[str, Any]) -> str:

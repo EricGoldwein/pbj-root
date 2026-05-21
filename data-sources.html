@@ -88,6 +88,16 @@
       <h2>PBJ320 Premium (paid)</h2>
       <p><a href="/premium">PBJ320 Premium</a> facility dashboards may also use CMS Payroll-Based Journal Employee Detail and other CMS files for roster-level views. Those datasets are not required for the free public staffing dashboard.</p>
 
+      <h2>How metrics are calculated (brief)</h2>
+      <ul>
+        <li><strong>HPRD (hours per resident day):</strong> Total nurse staff hours divided by average residents for the period—standard PBJ staffing intensity measure.</li>
+        <li><strong>Direct care:</strong> RN, LPN, CNA, and similar roles; administrative and DON hours excluded where noted on a page.</li>
+        <li><strong>Case-mix benchmarks:</strong> From CMS Provider Information (PDPM acuity), not a federal or state minimum staffing requirement.</li>
+        <li><strong>State medians and ranks:</strong> Computed from facility-level PBJ for the displayed quarter; <abbr class="pbj-na" title="CMS did not report this value for this state and quarter, or too few facilities had data.">N/A</abbr> when data is missing.</li>
+        <li><strong>Owner–FEC matching (beta):</strong> Name matching between CMS ownership and FEC records; always verify on the linked Source filings.</li>
+      </ul>
+      <p>Facility and state pages include a collapsible <strong>Methodology</strong> section with more detail. <a href="/phoebe">PBJ Explained</a> covers what PBJ does and does not measure.</p>
+
       <h2>How to use this site</h2>
       <p>PBJ320 is an analytical tool built on public records. It is not proof of care quality, legal liability, or regulatory noncompliance. Verify important figures against the official CMS sources above before relying on them for research, litigation, or operations.</p>
 
@@ -104,7 +114,8 @@
   </main>
 
   <footer class="footer" id="site-footer" style="padding:1.25rem 1rem;"></footer>
-  <script src="/pbj-site-universal.js?v=24"></script>
+  <script src="/pbj-site-universal.js?v=25"></script>
+  <style>abbr.pbj-na{cursor:help;text-decoration:underline dotted;text-underline-offset:2px;}</style>
   <script>
     (function () {
       var t = document.getElementById('navToggle');

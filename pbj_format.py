@@ -3,7 +3,17 @@ Shared PBJ formatting: rounding (ROUND_HALF_UP), metric labels, quarter display.
 Used by facility (provider), state, and entity pages for consistent display.
 Aligns with pbj-contract/formatting.yaml and definitions.yaml (via contract_adapter when available).
 """
+import html as html_module
 from decimal import Decimal, ROUND_HALF_UP
+
+NA_HINT_DEFAULT = (
+    "CMS did not report this value for this state and quarter, "
+    "or too few in-state facilities had data."
+)
+NA_HINT_CASE_MIX = (
+    "No case-mix median for this state/quarter—often because CMS Provider Information "
+    "did not report case-mix for enough facilities, not because of a site error."
+)
 
 
 def round_half_up(value, decimals=0):
@@ -55,6 +65,13 @@ def get_metric_label(key):
     except Exception:
         pass
     return METRIC_LABELS.get(key, key.replace('_', ' '))
+
+
+def na_display(title: str | None = None, text: str = 'N/A') -> str:
+    """HTML for N/A with hover title (use in trusted server-generated markup only)."""
+    tip = html_module.escape(title or NA_HINT_DEFAULT)
+    label = html_module.escape(text)
+    return f'<abbr class="pbj-na" title="{tip}">{label}</abbr>'
 
 
 def format_metric_value(value, metric_key, default='N/A'):

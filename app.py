@@ -347,6 +347,25 @@ def _api_dates_fallback_quarters():
     # Avoid stale hardcoded quarter literals in runtime fallback path.
     return 'N/A', []
 
+
+def get_pbj_footer_period_snippet() -> str:
+    """Small footer line: canonical PBJ quarter; other CMS sources may post later."""
+    try:
+        from pbj_format import format_quarter_display
+        q = get_canonical_latest_quarter()
+        q_disp = format_quarter_display(q) if q else ''
+    except Exception:
+        q_disp = ''
+    if not q_disp or q_disp == 'N/A':
+        return ''
+    return (
+        '<p class="pbj-footer-period">'
+        f'PBJ data through {html.escape(q_disp)}. '
+        'Provider snapshots and other CMS fields on this site may reflect later postings.'
+        '</p>'
+    )
+
+
 @app.route('/api/dates')
 def api_dates():
     """API endpoint to get dynamic date information (used by SFF page for source text).
@@ -1044,14 +1063,15 @@ def generate_chow_page_html():
 @app.route('/chow')
 @app.route('/chow/')
 def chow_page():
-    """CHOW monitor page paused — direct users to Connecticut state page (inline CHOW there)."""
-    return redirect('/state/connecticut', code=302)
+    """Standalone CHOW monitor is not public; CHOW context lives on state and owner pages."""
+    from flask import abort
+    abort(404)
 
 
 @app.route('/chow.html')
 def chow_html_redirect():
-    """Legacy static file — always use Flask /chow (dark PBJ layout + chow.css)."""
-    return redirect('/chow', code=301)
+    """Legacy URL — no public CHOW landing page."""
+    return redirect('/', code=301)
 
 
 @app.route('/chow_index.json')
@@ -4549,7 +4569,8 @@ def top_redirect():
 @app.route('/owners-test')
 @app.route('/owners-test/')
 def owners_test_redirect():
-    return redirect('/owners/test', code=302)
+    """Legacy URL — FEC donor search lives at /owners only."""
+    return redirect('/owners', code=301)
 
 @app.route('/owner', defaults={'path': ''})
 @app.route('/owner/', defaults={'path': ''})
@@ -6604,6 +6625,13 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
 }}
 .pbj-page-footer-source a:hover,
 .pbj-page-source a:hover {{ color: #a5b4fc; }}
+.pbj-footer-period {{
+  margin: 0.35rem 0 0; font-size: 0.72rem; line-height: 1.4; color: rgba(148, 163, 184, 0.65);
+}}
+abbr.pbj-na {{
+  cursor: help; text-decoration: underline; text-decoration-style: dotted;
+  text-underline-offset: 2px; border: none;
+}}
 @media (min-width: 900px) {{
   .pbj-page-footer-meta {{
     flex-wrap: nowrap; justify-content: space-between; align-items: baseline;
@@ -10002,6 +10030,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {_facility_csv_footer}
 <span class="pbj-page-footer-source">Source: <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal</a> (PBJ) data.</span>
 </div>
+{get_pbj_footer_period_snippet()}
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -10829,6 +10858,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
 <p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
 <p style="margin: 0; font-size: 0.8rem; color: rgba(226,232,240,0.6); line-height: 1.45;">Source: CMS Payroll-Based Journal (PBJ) data for facility list and staffing. Chain-level metrics (ratings, fines, SFF, ownership) from CMS Care Compare chain performance data (<a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener" style="color: #818cf8; text-decoration: underline; text-underline-offset: 2px;">CMS{f' ({get_chain_performance_source_label()})' if get_chain_performance_source_label() else ''}</a>). <a href="{care_compare_entity_url}" target="_blank" rel="noopener" style="color: #818cf8; text-decoration: underline; text-underline-offset: 2px;">View on CMS Care Compare</a></p>
+{get_pbj_footer_period_snippet()}
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -11574,9 +11604,16 @@ def _render_state_pbj_high_risk_section(
 def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None):
     """Generate state page content. Returns (content, page_title, seo_description, canonical_url) for use with get_pbj_site_layout (state page is separate from PBJpedia)."""
     try:
-        from pbj_format import format_metric_value
+        from pbj_format import format_metric_value, na_display, NA_HINT_CASE_MIX, NA_HINT_DEFAULT
     except ImportError:
         format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
+        na_display = lambda title=None, text='N/A': text  # type: ignore[misc, assignment]
+        NA_HINT_CASE_MIX = NA_HINT_DEFAULT = ''
+
+    def metric_cell(value, metric_key, na_tip=None):
+        s = format_metric_value(value, metric_key, 'N/A')
+        return na_display(na_tip or NA_HINT_DEFAULT) if s == 'N/A' else s
+
     # Format data values (use format_metric_value for audit-grade ROUND_HALF_UP; fmt for generic decimals)
     def fmt(val, decimals=2):
         try:
@@ -11679,7 +11716,9 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     rank_contract = get_rank_for_metric('Contract_Percentage')
     state_median_case_mix = get_state_median_case_mix_hprd(state_code, raw_quarter)
     rank_case_mix_median = get_rank_for_state_case_mix_median(state_code, raw_quarter)
-    case_mix_median_display = format_metric_value(state_median_case_mix, 'Total_Nurse_HPRD', 'N/A') if state_median_case_mix is not None else 'N/A'
+    case_mix_median_display = metric_cell(
+        state_median_case_mix, 'Total_Nurse_HPRD', NA_HINT_CASE_MIX
+    )
     state_rural_pct = get_state_rural_facility_share(state_code, raw_quarter)
     national_rural_pct = get_rural_shares_for_quarter(raw_quarter)[0]
     rank_rural_share = get_rank_for_state_rural_share(state_code, raw_quarter)
@@ -11967,13 +12006,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">
         <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>
-        <tr><td>Total Nurse Staffing HPRD</td><td>{format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')}</td><td>#{rank_total_nurse} of {total_states if total_states else 'N/A'}</td></tr>
-        <tr><td title="Excludes admin, DON (Director of Nursing)">Direct Care Nurse HPRD</td><td>{format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD', 'N/A')}</td><td>#{rank_direct_care} of {total_states if rank_direct_care and total_states else 'N/A'}</td></tr>
-        <tr><td>RN HPRD</td><td>{format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')}</td><td>#{rank_rn_hprd} of {total_states if total_states else 'N/A'}</td></tr>
-        <tr><td title="Excludes admin, DON (Director of Nursing)">RN Direct Care HPRD</td><td>{format_metric_value(get_val('RN_Care_HPRD'), 'RN_Care_HPRD', 'N/A')}</td><td>#{rank_rn_care} of {total_states if rank_rn_care and total_states else 'N/A'}</td></tr>
-        <tr><td>Nurse Aide HPRD</td><td>{format_metric_value(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD', 'N/A')}</td><td>#{rank_nurse_aide} of {total_states if rank_nurse_aide and total_states else 'N/A'}</td></tr>
-        <tr><td>Contract Staff Percentage</td><td>{format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')}%</td><td>#{rank_contract} of {total_states if rank_contract and total_states else 'N/A'}</td></tr>
-        <tr><td>Median Case-Mix HPRD (Acuity)</td><td>{case_mix_median_display}</td><td>#{rank_case_mix_median} of {total_states if rank_case_mix_median and total_states else 'N/A'}</td></tr>
+        <tr><td>Total Nurse Staffing HPRD</td><td>{metric_cell(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')}</td><td>#{rank_total_nurse} of {total_states if total_states else na_display()}</td></tr>
+        <tr><td title="Excludes admin, DON (Director of Nursing)">Direct Care Nurse HPRD</td><td>{metric_cell(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')}</td><td>#{rank_direct_care} of {total_states if rank_direct_care and total_states else na_display()}</td></tr>
+        <tr><td>RN HPRD</td><td>{metric_cell(get_val('RN_HPRD'), 'RN_HPRD')}</td><td>#{rank_rn_hprd} of {total_states if total_states else na_display()}</td></tr>
+        <tr><td title="Excludes admin, DON (Director of Nursing)">RN Direct Care HPRD</td><td>{metric_cell(get_val('RN_Care_HPRD'), 'RN_Care_HPRD')}</td><td>#{rank_rn_care} of {total_states if rank_rn_care and total_states else na_display()}</td></tr>
+        <tr><td>Nurse Aide HPRD</td><td>{metric_cell(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD')}</td><td>#{rank_nurse_aide} of {total_states if rank_nurse_aide and total_states else na_display()}</td></tr>
+        <tr><td>Contract Staff Percentage</td><td>{metric_cell(get_val('Contract_Percentage'), 'Contract_Percentage')}%</td><td>#{rank_contract} of {total_states if rank_contract and total_states else na_display()}</td></tr>
+        <tr><td>Median Case-Mix HPRD (Acuity)</td><td>{case_mix_median_display}</td><td>#{rank_case_mix_median} of {total_states if rank_case_mix_median and total_states else na_display()}</td></tr>
         <tr><td>Rural facilities (share)</td><td>{rural_share_display}</td><td>{rural_vs_us_display} · {rural_rank_display}</td></tr>
     </table></div>
     </div>

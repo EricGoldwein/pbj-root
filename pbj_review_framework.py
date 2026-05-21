@@ -217,6 +217,19 @@ PBJ_LAYERED_TONE = (
     'Do not list niche Premium-only labels (e.g. "90-day aide counts") as standard missing items.'
 )
 
+PBJ_AUDIENCE_MEMO_VOICE_RULE = (
+    'Write **for** the selected audience, not **about** them. Sound like a concise audience-specific memo '
+    '(newsroom research memo, resident-centered ombudsman note, litigation-support screening memo, '
+    'public-interest briefing, plain-language family explanation)—not a tutorial on that role\'s job. '
+    'Avoid meta-role phrasing such as "a reporter would need to," "journalists should," "an ombudsman should," '
+    '"an attorney would need to," "advocates may want to," "before publishing," "before filing a case," '
+    '"for a news story," "for an ombudsman investigation," or "for legal use." '
+    'Prefer direct memo phrasing: "The next checks are…," "This supports a closer look, not a conclusion," '
+    '"The strongest supported finding is…," "This pattern raises questions about…," "This does not establish…," '
+    '"Useful follow-up records include…," "The clearest limitation is…." '
+    'Keep the same structure, sections, length, caution level, and analytical standards; do not add sections or headings.'
+)
+
 # When material date range overlaps 2020–2023 or compares across that window.
 PBJ_REVIEW_HISTORICAL_CONTEXT_BLOCK = (
     'Pandemic-era / longitudinal context — apply when any reviewed period overlaps **2020-01-01 through '
@@ -248,7 +261,7 @@ PBJ_AUDIENCE_TIMING_EMPHASIS_BLOCK = (
     'priorities); still flag older patterns when they matter.\n'
     '- **Attorney:** Often needs a **longer historical view** (ownership changes, incident windows, pre/post '
     'comparisons, recurring staffing patterns).\n'
-    '- **Journalist:** May need recent findings, longer-term trends, or **both** — match the story angle.\n'
+    '- **Journalist:** Prioritize recent findings, longer-term trends, or both as the evidence supports.\n'
     'Continue to report what the data shows, what it may suggest, and what it cannot prove. Recent quarters '
     'deserve extra attention for family and ombudsman audiences; note older trends when they materially affect '
     'interpretation.'
@@ -306,7 +319,8 @@ PBJ_AUDIENCE_VISUAL_FRAMING: dict[str, str] = {
         'supplied values — not prose-only. Conversation-ready labels; resident-experience caption; neutral qualifiers.'
     ),
     'journalist': (
-        'Align with strongest defensible story line; annotate what remains unverified before publication.'
+        'Align with the strongest defensible lead; note what remains unverified in the next checks—not '
+        '"before publication" meta-framing.'
     ),
     'attorney': (
         'Evidentiary labels; quarterly visuals explicitly carry timing/discipline caveats absent daily/incident-aligned data.'
@@ -365,14 +379,14 @@ PBJ_AUDIENCE_MODE_DISPLAY: dict[str, str] = {
 PBJ_PROVIDER_CSV_SOURCE_DEPTH_NOTE = '''Source-depth check — attached spreadsheets:
 - If a CSV or spreadsheet appears to be **only one row** for a single quarterly period, treat it as the same summarized provider-page staffing context structured as CSV. Say explicitly that **it does not add** daily staffing, multi-quarter longitudinal rows, incident-window staffing, employee-level staffing, agency mix, comparisons across facilities, premium-only analyses, state statutory staffing calculations, or resident-level conclusions.
 - If the attached file **clearly contains** multiple quarterly rows, daily rows, additional facilities/CCNs, or columns labeled as state staffing standards/regulatory fields, Five-Star histories, inspections, MACPAC-derived fields, enforcement actions, survey findings, incident dates, staffing star ratings versus time, census by day—**use only columns and rows that are visibly present.** Do **not invent** missing fields from industry practice.
-Language rule: Prefer 'check,' 'compare against,' 'would need to verify,' and 'relevant follow-up source.' Avoid 'violated,' 'failed to meet,' 'illegal,' 'noncompliant,' and 'understaffed under state law' unless **both** an explicit legal standard **and** the calculation inputs needed to apply it are provided in the material.'''
+Language rule: Prefer 'check,' 'compare against,' 'the next check is to verify,' and 'relevant follow-up source.' Avoid 'violated,' 'failed to meet,' 'illegal,' 'noncompliant,' and 'understaffed under state law' unless **both** an explicit legal standard **and** the calculation inputs needed to apply it are provided in the material.'''
 
 PBJ_PROVIDER_STATE_SUPPLEMENT_INTRO = (
     'State-specific context:\n'
     'This facility is in **{state}**. Before making any **state-law, compliance, or policy claim**, '
     'identify what **state-specific** staffing rule text, citation, enforcement interpretation, '
     'inspection or complaint record set, Medicaid payment policy memo, CMS Care Compare staffing history, '
-    'or MACPAC/state-standard benchmark note would **need to be checked** alongside PBJ totals. '
+    'or MACPAC/state-standard benchmark note are **next checks** alongside PBJ totals. '
     '**CMS Payroll-Based Journal (PBJ)** metrics and CMS **case-mix nursing HPRD** benchmarks are '
     'different things from—and not interchangeable with—**state staffing laws or staffing standards** '
     '(which may combine nurse categories differently or use different denominators).\n'
@@ -391,13 +405,13 @@ _PROVIDER_STATE_BODY_BY_LENS: dict[str, str] = {
     'journalist': (
         '## State-specific reporting context ({state})\n'
         '{ny_examples}\n'
-        '- Outline **what state standard/policy context deserves checking** versus what PBJ totals alone demonstrate.\n'
+        '- Outline **what state standard/policy context is a next check** versus what PBJ totals alone demonstrate.\n'
         '- Identify **specific record types**: state survey/complaint portals, citation databases, staffing star history, staffing-related enforcement letters, archived inspection PDFs.\n'
-        '- Separate language that is safe now (visible comparison over time, explicit definitions) versus **not publishable yet** (legal/regulatory accusations without corroborating records).\n'
-        '- Suggested questions for **facility PIO/admin**, **state DOH/unit**, **CMS media office or subject-matter analysts**, **ombuds**, **Medicare/Medicaid plan counsel**, residents/families (care conferences).\n'
-        'Do **not only** summarize staffing numbers — explain **what would make findings publishable for {state}**, which **state-administered datasets** merit requests, interview angles, FOIL/FOIA path where applicable.\n'
-        'Audience reminder: Explain what should be checked **before** publishing compliance or negligence-adjacent language for {state}.\n'
-        'Audience line: Explain what would help make reporting **publishable in {state}**, keeping claims proportionate until verified.'
+        '- Separate language supported now (visible comparison over time, explicit definitions) versus claims that still need corroborating records (legal/regulatory accusations).\n'
+        '- Useful interview and records angles: facility PIO/admin, state DOH/unit, CMS media office or subject-matter analysts, ombuds, Medicare/Medicaid plan counsel, residents/families (care conferences).\n'
+        'Do **not only** summarize staffing numbers — note **which {state} record sets and verification steps** would strengthen or narrow the lead, including FOIL/FOIA paths where applicable.\n'
+        '- The next checks before any compliance or negligence-adjacent framing for {state}: current rule text, inspection/complaint history, Care Compare, and facility response.\n'
+        '- Keep claims proportionate until those checks are complete.'
     ),
     'advocate': (
         '## State advocacy context ({state})\n'
@@ -411,7 +425,7 @@ _PROVIDER_STATE_BODY_BY_LENS: dict[str, str] = {
     'ombudsman': (
         '## Ombudsman / resident-directed context ({state})\n'
         '{ny_examples}\n'
-        '- Position staffing data as **conversation prep**, not proof. Ombudsmen are **not** regulators, prosecutors, or finders of fact.\n'
+        '- Position staffing data as **conversation prep**, not proof—not a regulatory finding, prosecution theory, or official conclusion.\n'
         '- Point to **practical public resources**: **state/local Long-Term Care Ombudsman Program** (coordinator contact), '
         '**Medicare.gov Care Compare** for this facility, CMS survey/certification materials where relevant, **state licensing / complaint** portals, '
         'and navigation help such as **Eldercare Locator** (ACL). Verify current URLs/forms before citing.\n'
@@ -440,9 +454,9 @@ _PROVIDER_STATE_BODY_BY_LENS: dict[str, str] = {
         '- Identify **specific statutory/regulatory citations** practitioners would verify (cite only if verbatim in attachments).\n'
         '- Incident **dates/windows** supplied or missing—and why **premium/daily staffing** extracts may be warranted for timing-heavy theories.\n'
         '- Separate **facility medical records**, **staff schedules**, payroll or agency-contract discovery targets from quarterly PBJ.\n'
-        '- Note **survey, complaint, citation, CMP, directed-in-service** records available through CMS/state portals would need reconciliation.\n'
+        '- **Next reconciliation:** survey, complaint, citation, CMP, and directed-in-service records available through CMS/state portals.\n'
         '- Screening rule: quarterly PBJ does **not** establish negligence **or statutory violation** by itself.\n'
-        '- **Use PBJ320 as screening context.** Identify **which state/legal factsets and facility-held records would be prerequisite** before describing a plausible legal theory, compliance characterization, damages theory, or causation narrative.'
+        '- **Use PBJ320 as screening context.** List **which state/legal factsets and facility-held records are prerequisite** before any compliance characterization, damages theory, or causation narrative.'
     ),
     'researcher': (
         '## State comparison design ({state})\n'
@@ -624,58 +638,52 @@ def provider_dashboard_supplements_export() -> dict[str, Any]:
 
 PBJ_AUDIENCE_MODE_INSTRUCTIONS: dict[str, str] = {
     'analyst': (
-        'Focus on neutral interpretation, metric definitions, comparison context, caveats, '
-        'and next analytic steps.'
+        'Neutral analyst memo: metric definitions, comparison context, caveats, and next analytic steps. '
+        'Write for the reviewer of this packet—not about what analysts should do.'
     ),
     'family_resident': (
-        'Use brief, plain English. Explain what the staffing numbers may mean for family questions, '
-        'but emphasize that PBJ is facility-level data and cannot show what happened to a specific resident. '
-        'If census or certified beds are listed, mention whether the home is on the **smaller, mid-sized, or larger** side '
-        'for reader context (informal bands on the page — not a legal classification).'
+        'Plain-language family memo: what the staffing numbers may mean for everyday questions, what this page '
+        'cannot show about a specific resident, and practical questions for the facility. '
+        'If census or certified beds are listed, note whether the home is on the **smaller, mid-sized, or larger** side '
+        '(informal bands on the page — not a legal classification). No legal framing or alarmist claims.'
     ),
     'advocate': (
-        'Focus on screening signals, comparison points, and follow-up questions for oversight or complaint review. '
+        'Public-interest advocate briefing memo: screening signals, comparison points, and oversight follow-up questions. '
         'Avoid claiming violations unless supported by separate evidence. When the page text includes **average daily census**, '
         '**certified beds**, **ownership**, **SFF / survey status**, **abuse icon**, or **Five-Star** lines, foreground them early '
-        'so families understand facility scale and regulatory flags alongside PBJ staffing. Use the full '
-        '**medicare.gov** nursing-home URL when listed — not the generic Medicare landing page. '
-        'For dedicated **Long-Term Care Ombudsman** framing (resident-directed mediation, consent, retaliation sensitivity), '
-        'suggest switching to **Ombudsman** mode in PBJ320.'
+        'alongside PBJ staffing. Use the full **medicare.gov** nursing-home URL when listed — not the generic Medicare landing page. '
+        'For resident-directed mediation framing (consent, retaliation sensitivity), Ombudsman mode is the better fit.'
     ),
     'ombudsman': (
-        'You are helping a **Long-Term Care Ombudsman** or similarly resident-centered advocate. '
-        'Ombudsmen identify, investigate, and help resolve complaints affecting residents\' health, safety, welfare, quality of life, '
-        'and rights; they are **not** regulators, prosecutors, plaintiff attorneys, or official finders of fact. '
-        'Work is **resident-directed**: goals, consent, dignity, and fear of retaliation matter. '
+        'Resident-centered ombudsman memo (not a regulatory finding, prosecution theory, or official conclusion). '
+        'Resident direction matters: goals, consent, dignity, and fear of retaliation. '
         'Use PBJ staffing as **context for questions and follow-up**, not as proof of neglect, causation, misconduct, or legal violation. '
         'Tie patterns to **daily lived experience** when helpful: call-light response, toileting, meals, bathing, transfers, supervision, '
         'weekend/evening coverage, RN availability, aide continuity, responsiveness. '
-        'Prefer **practical next steps** and **public/government resources** (state/local ombudsman program, Care Compare, CMS survey '
+        'Practical next steps via **public/government resources** (state/local ombudsman program, Care Compare, CMS survey '
         'materials, state licensing/complaint portals, Eldercare Locator / ACL navigation). **Do not** push paid PBJ320 premium products; '
         'mention them only briefly if the user already has them. '
-        'Tone: practical, plain English, non-sensational; avoid legal conclusions and Attorney/Journalist-style framing.'
+        'Tone: practical, plain English, non-sensational—no legal conclusions or journalist-style publication framing.'
     ),
     'journalist': (
-        'Focus on newsworthiness, comparison context, caveats, and what additional reporting would be needed '
-        'before publishing a claim.'
+        'Newsroom research memo: newsworthiness, defensible comparison context, embedded caveats, and the next '
+        'verification checks (rules, inspection history, Care Compare, facility response)—not what reporters must do before publishing.'
     ),
     'attorney': (
-        'Focus on evidentiary use, limitations, incident-window questions, discovery targets, and what PBJ can '
-        'and cannot support. Do not offer legal conclusions.'
+        'Litigation-support screening memo: evidentiary use, timing limits, records worth requesting, and what PBJ '
+        'can and cannot support—no legal conclusions or causation claims.'
     ),
     'legislator': (
-        'Primary reader: **Legislator / Policymaker** (public oversight and staffing policy—not a plaintiff brief, '
-        'enforcement finding, or single-facility advocacy attack). Use one facility as an **illustration** of how quarterly '
-        'PBJ informs transparency, Medicaid/payment context, chain accountability debates, and where integrated review '
-        'should go next. Prefer screening language; avoid claims that PBJ alone establishes noncompliance, neglect, '
-        'causation, or care quality.'
+        'Legislator/policymaker briefing memo: use one facility as an illustration for public oversight, staffing policy, '
+        'transparency, Medicaid/payment context, and integrated review priorities—screening language only; quarterly PBJ does not '
+        'establish noncompliance, neglect, causation, or care quality.'
     ),
     'operator': (
-        'Focus on how outsiders may read public data, scrutiny signals, and context limits — neutral tone; '
-        'do not help bury red flags.'
+        'Operator-facing memo: how outsiders may read public data, scrutiny signals, and context limits—neutral tone; '
+        'do not bury real red flags.'
     ),
     'researcher': (
-        'Focus on methodology, denominators, distributions, outliers, and data-quality limits first.'
+        'Methods memo: denominators, distributions, outliers, and data-quality limits before interpretation.'
     ),
 }
 
@@ -746,20 +754,20 @@ PBJ_LENS_QUICK_TAKEAWAY: dict[str, str] = {
         'what it may suggest, what it cannot prove, and what questions to ask next. Keep it brief and evidence-based.'
     ),
     'advocate': (
-        'Give a quick advocate takeaway. Focus on whether the visible staffing pattern raises questions '
-        'worth deeper review, what an advocate should ask next, and what cannot be concluded from the data. '
+        'Give a quick public-interest advocate briefing. Focus on whether the visible staffing pattern raises questions '
+        'worth deeper review, useful follow-up questions, and what cannot be concluded from the data. '
         'Lead with **who lives here** (census / informal small–medium–large band when shown) and any **Care Compare flags** '
         '(ownership, SFF/survey status, abuse icon, star snapshots) before diving into HPRD tables — then tie staffing '
-        'signals back to those realities.'
+        'signals back to those realities. Memo voice—no "advocates should" phrasing.'
     ),
     'ombudsman': (
-        'Open with **PBJ Summary: [facility name]** (never "Plain-English Takeaway"). Give a concise **Long-Term Care Ombudsman**-style '
-        'prep note: what the staffing pattern may suggest for **resident experience** (not proof), plus a **compact Markdown table** '
+        'Open with **PBJ Summary: [facility name]** (never "Plain-English Takeaway"). Give a concise **resident-centered ombudsman memo**: '
+        'what the staffing pattern may suggest for **resident experience** (not proof), plus a **compact Markdown table** '
         'when quarterly numbers are in the material. Neutral questions for residents, families, staff, and administrators. '
         'Emphasize **resident direction, consent, dignity, and retaliation sensitivity**. Prioritize **public resources** '
         '(Care Compare, CMS survey context, state licensing/complaint paths, local ombudsman program). '
         'If total hours are missing, do not suggest HPRD × census math — note Premium daily/roster tools only when relevant. '
-        'Avoid Attorney/Journalist framing. If the facility is in **Connecticut**, include the state-specific LTCOP bullets '
+        'Avoid Attorney/Journalist framing and meta "an ombudsman should" phrasing. If the facility is in **Connecticut**, include the state-specific LTCOP bullets '
         'from the supplement block (portal.ct.gov/LTCOP; toll-free 1-866-388-1888).'
     ),
     'family': (
@@ -767,17 +775,17 @@ PBJ_LENS_QUICK_TAKEAWAY: dict[str, str] = {
         'what questions to ask the facility, and what this page cannot tell me.'
     ),
     'journalist': (
-        'Give a quick journalist takeaway. Identify the strongest defensible story angle, the supporting signals, '
-        'what needs verification, and what not to claim.'
+        'Give a quick newsroom research memo. Identify the strongest defensible lead, supporting signals, '
+        'the next verification checks, and what not to claim. Memo voice—no "reporters should" or "before publishing" phrasing.'
     ),
     'attorney': (
-        'Give a quick attorney/investigator screen. Identify staffing signals worth reviewing, what records would be '
-        'needed, and what cannot be established from PBJ data alone. Open with a **3-bullet executive summary** '
+        'Give a quick litigation-support screening memo. Identify staffing signals worth reviewing, useful records to request, '
+        'and what cannot be established from PBJ data alone. Open with a **3-bullet executive summary** '
         '(facility + CCN/state anchor, period reviewed, screening posture—no legal conclusions). Close with a numbered '
         '**Suggested deliverables / next productions** checklist (5–8 items: e.g. incident-window daily PBJ, '
         'schedules, state survey, Care Compare deep link already in the page text). When the material includes a '
         'full **medicare.gov** nursing-home URL for this CCN, paste that exact URL in the records section—do not '
-        'substitute the generic Medicare landing page.'
+        'substitute the generic Medicare landing page. Memo voice—no "an attorney would need to" phrasing.'
     ),
     'researcher': (
         'Give a quick methodological read. Focus on metric definitions, sample size, comparison group, '
@@ -884,7 +892,7 @@ PBJ_REVIEW_MODES: dict[str, dict[str, Any]] = {
                 'Clearest supportable angle',
                 '1–2 defensible framing sentences (e.g. rank/comparison over a defined period). '
                 'Include **one exhibit** (DATA VISUAL rule) that carries the lead—trend, peer comparison, or reference gap—using only supplied values. '
-                'Then note what must be verified before publication. '
+                'Then list the **next verification checks** (rules, inspection history, Care Compare, facility response)—not "before publication" meta-framing. '
                 'Do not say neglect or violation without regulatory confirmation. '
                 'Avoid "understaffed" unless the comparison is explicit.',
             ),
@@ -937,16 +945,16 @@ PBJ_REVIEW_MODES: dict[str, dict[str, Any]] = {
                 'abuse, violations, or causation.'
             ),
             'What an ombudsman can use this for': (
-                'How this information could support **resident-directed** work: conversations with residents/families, care-plan or '
+                'How this information supports **resident-directed** follow-up: conversations with residents/families, care-plan or '
                 'QAPI-adjacent questions (without pretending to be clinical), facility meetings, mediation prep, resident council/family council '
                 'topics, or complaint follow-up. Note consent, goals, and fear of retaliation where relevant. '
-                'Suggest **practical next steps** (who to contact, what public pages to open) leaning on **government/program resources** '
+                '**Practical next steps** (who to contact, what public pages to open) via **government/program resources** '
                 '(e.g. local/state **Long-Term Care Ombudsman** coordinator, **Medicare.gov Care Compare**, CMS survey/certification context, '
-                'state licensing or complaint portals, **Eldercare Locator** / ACL). **Do not** steer readers toward paid PBJ320 premium products; '
+                'state licensing or complaint portals, **Eldercare Locator** / ACL). **Do not** steer toward paid PBJ320 premium products; '
                 'mention premium-only daily exports only if the user already attached them.'
             ),
             'Resident-centered questions to ask': (
-                '**6–12 concrete questions** an ombudsman might ask residents, families, aides, nurses, or other staff — examples: '
+                '**6–12 concrete questions** for residents, families, aides, nurses, or other staff — examples: '
                 'Are call-light waits longer at certain times? Are bathing, toileting, meals, or transfers delayed? Are evenings/weekends '
                 'different from weekdays? Do residents see fewer familiar aides? Has the facility explained staffing or schedule changes? '
                 'Are people afraid to speak up or worried about retaliation? Keep questions open-ended and non-leading.'
@@ -1013,17 +1021,17 @@ PBJ_REVIEW_MODES: dict[str, dict[str, Any]] = {
         'extra_sections': [],
         'legacy_output_format': (
             'Follow the **Additional section guidance** below exactly (use those ## headings). '
-            'Write for a **Legislator / Policymaker** audience: a concise, credible policy briefing—public oversight, '
+            'Use **Legislator / Policymaker** briefing memo voice: a concise, credible policy briefing—public oversight, '
             'staffing policy, transparency, and integrated review—not an attorney enforcement memo, facility attack brief, '
             'or advocate prosecution piece. Do **not** use Ombudsman-style “facility visit handout” framing. '
-            'Do **not** write in Attorney Mode (legal theories, discovery lists, proof language) or Journalist Mode '
-            '(story angles, publication framing).'
+            'Do **not** use Attorney Mode (legal theories, discovery lists, proof language) or Journalist Mode '
+            '(story angles, publication framing). Memo voice—no "policymakers should" meta-framing.'
         ),
         'section_instructions': {
             'Policy relevance': (
                 '**3–5 short bullets.** Explain why this matters beyond one facility: quarterly PBJ can **screen** for '
                 'facilities that merit closer review; PBJ **alone** does not prove noncompliance, neglect, causation, or poor care; '
-                'policymakers should use PBJ as a **screening layer** alongside **state staffing-law calculations**, '
+                'PBJ works best as a **screening layer** alongside **state staffing-law calculations**, '
                 '**daily PBJ patterns** where available, **inspection** records, **complaint/ombudsman** data, **ownership** context, '
                 'and **Medicaid/payment** policy. Do not repeat this whole block later unless one sentence ties forward.'
             ),
@@ -1459,6 +1467,9 @@ def compose_layered_review_prompt(
             'Tone:',
             PBJ_LAYERED_TONE,
             '',
+            'Memo voice:',
+            PBJ_AUDIENCE_MEMO_VOICE_RULE,
+            '',
             'Presentation:',
             presentation,
             '',
@@ -1533,6 +1544,9 @@ def compose_public_packet_prompt(
             '',
             'Tone:',
             PBJ_LAYERED_TONE,
+            '',
+            'Memo voice:',
+            PBJ_AUDIENCE_MEMO_VOICE_RULE,
             '',
             'Presentation:',
             presentation,
@@ -1857,6 +1871,7 @@ def framework_export_for_js() -> dict[str, Any]:
         'layered': {
             'task': PBJ_LAYERED_TASK,
             'tone': PBJ_LAYERED_TONE,
+            'memoVoiceRule': PBJ_AUDIENCE_MEMO_VOICE_RULE,
             'visualSelectionRule': PBJ_VISUAL_SELECTION_RULE,
             'visualCompletenessAttribution': PBJ_VISUAL_COMPLETENESS_FALLBACK_ATTRIBUTION,
             'visualOutputHint': PBJ_VISUAL_OUTPUT_HINT,

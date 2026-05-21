@@ -7112,6 +7112,7 @@ a.custom-report-cta:hover {{
 }}
 a.custom-report-cta:active {{ transform: translateY(0); box-shadow: 0 2px 12px rgba(2, 6, 23, 0.35); }}
 a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75); outline-offset: 3px; }}
+.custom-report-cta-sub {{ font-weight: 400; color: rgba(226, 232, 240, 0.88); }}
 .custom-report-cta-mobile {{ display: none; }}
 @media (max-width: 768px) {{ .custom-report-cta-desktop {{ display: none; }} .custom-report-cta-mobile {{ display: inline; }} a.custom-report-cta {{ max-width: none; padding: 0.9rem 1rem; font-size: 0.9rem; }} }}
 .pbj-care-compare-badge {{ display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(129, 140, 248, 0.35); color: #a5b4fc; text-decoration: none; white-space: nowrap; }}
@@ -7541,8 +7542,11 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
-    sub_text_desktop = "Request custom PBJ analysis for litigation and investigative reporting."
-    sub_text_mobile = "Request custom PBJ analysis."
+    sub_text_desktop = (
+        '<strong>Request custom analysis</strong>'
+        '<span class="custom-report-cta-sub"> — litigation, investigations, and policy work.</span>'
+    )
+    sub_text_mobile = "Request custom analysis"
     footer_text = ""
 
     def mailto(subject, body):
@@ -7674,7 +7678,7 @@ Thank you,"""
     )
     return (
         f'<a {link_attrs}>'
-        f'<span class="custom-report-cta-desktop">{html.escape(sub_text_desktop)}</span>'
+        f'<span class="custom-report-cta-desktop">{sub_text_desktop}</span>'
         f'<span class="custom-report-cta-mobile">{html.escape(sub_text_mobile)}</span>'
         f'</a>'
     )
@@ -11627,9 +11631,10 @@ def _render_state_pbj_high_risk_section(
         )
 
     tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
+    open_attr = ' open' if total > 0 else ''
     section = f'''
-    <details class="pbj-details state-high-risk-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk</summary>
+    <details class="pbj-details pbj-page-bottom-details state-high-risk-details"{open_attr}>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
       <span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">High-risk</span>
@@ -12173,7 +12178,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {state_name} PBJ Metrics</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Staffing table &amp; ranks</summary>
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">
         <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>
@@ -12188,11 +12193,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     </table></div>
     </div>
     </details>
+    <div class="pbj-page-bottom-stack">
     {sff_section}
-    {cta_section}
     {_state_top_owners_line}
+    {cta_section}
     {_state_chow_line}
     {render_methodology_block()}
+    </div>
     </div>
     """
     

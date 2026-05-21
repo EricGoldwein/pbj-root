@@ -354,10 +354,11 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
             f'<td class="num">{cnt}</td></tr>'
         )
 
+    org_count = len(top)
     return (
-        f'<details class="pbj-details pbj-details-top-owners" style="margin-top:1.25rem;">'
+        f'<details class="pbj-details pbj-page-bottom-details pbj-details-top-owners">'
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
-        f"Top ownership organizations · {label}</summary>"
+        f"Top ownership organizations · {label} ({org_count})</summary>"
         f'<div class="pbj-details-content chow-state-block">'
         f'<p class="chow-state-lead">Organizations with the most nursing homes linked in {label} '
         f"in the current CMS SNF All Owners snapshot (not limited to ownership-change filings).</p>"

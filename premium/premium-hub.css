@@ -1764,7 +1764,7 @@ a.pbj-audit-hero-actions__primary {
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    gap: 0.2rem 0.35rem;
+    gap: 0.35rem 0.65rem;
     margin: 0;
     max-width: min(36rem, 100%);
     padding-inline: 0.25rem;
@@ -1779,26 +1779,35 @@ a.pbj-audit-hero-actions__primary {
     display: inline;
 }
 
+.pbj-audit-hero-actions__offer-tail {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
 .pbj-audit-hero-actions__includes--short {
     display: none;
 }
 
 .pbj-audit-hero-actions__pilot-price {
-    font-weight: 800;
-    color: #4338ca;
+    font-weight: 700;
+    color: inherit;
 }
 
 .pbj-audit-hero-actions__sep {
-    color: #cbd5e1;
+    color: #94a3b8;
     user-select: none;
-    font-weight: 600;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
 }
 
 .pbj-audit-hero-actions__demo-link {
     display: inline;
     margin: 0;
-    padding: 0.35rem 0.15rem;
-    min-height: 2.75rem;
+    padding: 0.2rem 0;
+    min-height: 0;
     border: 0;
     background: transparent;
     appearance: none;
@@ -1807,15 +1816,17 @@ a.pbj-audit-hero-actions__primary {
     font-weight: 600;
     font-size: inherit;
     line-height: inherit;
-    color: #4338ca;
+    color: #334155;
     text-decoration: underline;
-    text-underline-offset: 0.12em;
+    text-decoration-color: rgba(51, 65, 85, 0.45);
+    text-underline-offset: 0.14em;
     cursor: pointer;
     vertical-align: baseline;
 }
 
 .pbj-audit-hero-actions__demo-link:hover {
-    color: #5b21b6;
+    color: #0f172a;
+    text-decoration-color: rgba(15, 23, 42, 0.55);
 }
 
 .pbj-audit-hero-actions__primary:focus-visible,
@@ -1840,7 +1851,14 @@ a.pbj-audit-hero-actions__primary {
     .pbj-audit-hero-actions__offer {
         font-size: clamp(0.7rem, 2.5vw, 0.8rem);
         letter-spacing: -0.01em;
-        gap: 0.15rem 0.3rem;
+        gap: 0.3rem 0.5rem;
+    }
+
+    .pbj-audit-hero-actions__demo-link {
+        padding: 0.35rem 0.1rem;
+        min-height: 2.75rem;
+        display: inline-flex;
+        align-items: center;
     }
 }
 

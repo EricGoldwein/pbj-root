@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nursing Home Owner Political Contributions Search | PBJ320</title>
-    <meta name="description" content="Search nursing home owners and view their political contributions. Explore ownership data and campaign contributions from nursing home operators.">
+    <title>Nursing Home Owner Political Contributions | PBJ320</title>
+    <meta name="description" content="Search nursing home owners and view political contributions matched to CMS ownership records and FEC filings.">
     <meta name="keywords" content="nursing home owners, political donations, political contributions, FEC, CMS ownership, nursing home operators, campaign contributions">
     <link rel="canonical" href="https://www.pbj320.com/owner{% if initial_owner_id %}/{{ initial_owner_id }}{% endif %}">
     <link rel="icon" type="image/png" href="/pbj_favicon.png">
@@ -22,8 +22,8 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://pbj320.com/owner">
-    <meta property="og:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
-    <meta property="og:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions from nursing home operators.">
+    <meta property="og:title" content="Nursing Home Owner Political Contributions | PBJ320">
+    <meta property="og:description" content="Search nursing home owners and view political contributions matched to CMS ownership records and FEC filings.">
     <meta property="og:image" content="https://pbj320.com/og-owner-pbj320.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -31,7 +31,7 @@
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:title" content="Nursing Home Owner Political Contributions Search | PBJ320">
+    <meta property="twitter:title" content="Nursing Home Owner Political Contributions | PBJ320">
     <meta property="twitter:description" content="Search nursing home owners and view their political donations. Explore ownership data and campaign contributions.">
     <meta property="twitter:image" content="https://pbj320.com/og-owner-pbj320.png">
     
@@ -1398,7 +1398,7 @@
                 <a href="/report" class="nav-link">Report</a>
                 <a href="/insights" class="nav-link">Insights</a>
                 <a href="/phoebe" class="nav-link">PBJ Explained</a>
-                <a href="/owner" class="nav-link active">Ownership</a>
+                <a href="/owner" class="nav-link active">FEC Contributions</a>
             </div>
             <div class="nav-toggle" id="navToggle">
                 <span></span>
@@ -1425,25 +1425,10 @@
         </div>
 
 
-        <div id="setupWarning" class="setup-warning" style="display: none;">
+        <div id="setupWarning" class="setup-warning" style="display: none;" role="alert">
             <div class="warning-content">
-                <h3 id="setupWarningTitle"></h3>
-                <p id="setupMessage"></p>
-                <div id="setupInstructions" class="setup-instructions" style="display: none;">
-                    <p><strong>Simple Setup (One-Time):</strong></p>
-                    <div style="background: rgba(0,0,0,0.4); padding: 15px; border-radius: 6px; margin: 15px 0;">
-                        <p style="margin-bottom: 10px;"><strong>Step 1:</strong> Open terminal/command prompt in this project folder</p>
-                        <p style="margin-bottom: 10px;"><strong>Step 2:</strong> Copy and paste this command:</p>
-                        <code style="display: block; padding: 10px; background: rgba(0,0,0,0.6); border-radius: 4px; font-size: 1.1rem; margin: 10px 0;">
-                            python donor/owner_donor.py MODE=extract
-                        </code>
-                        <p style="margin-top: 10px;"><strong>Step 3:</strong> Wait 1-5 minutes for it to finish</p>
-                        <p style="margin-top: 10px;"><strong>Step 4:</strong> Refresh this page</p>
-                    </div>
-                    <p style="color: rgba(255,255,255,0.8); font-size: 0.9rem; margin-top: 15px;">
-                        <em>This extracts all unique owners from the 250k nursing home ownership dataset. Run once or when you want to update the data.</em>
-                    </p>
-                </div>
+                <h3 id="setupWarningTitle">FEC Contributions Data Temporarily Unavailable</h3>
+                <p id="setupMessage">Owner search is offline while we refresh CMS ownership matches and FEC contribution data. Try again later, or verify contributions directly on <a href="https://www.fec.gov/data/receipts/individual-contributions/" target="_blank" rel="noopener" style="color: #60a5fa;">FEC.gov</a>.</p>
             </div>
         </div>
 
@@ -1883,28 +1868,17 @@
                 const response = await fetch('/owner/api/stats');
                 const stats = await response.json();
                 
-                // Show setup warning only if database is empty
                 const setupWarning = document.getElementById('setupWarning');
-                const setupMessage = document.getElementById('setupMessage');
-                const setupTitle = document.getElementById('setupWarningTitle');
-                const setupInstructions = document.getElementById('setupInstructions');
-                // Only show setup warning when database is completely empty
-                if (stats.total_owners === 0) {
-                    setupWarning.style.display = 'block';
-                    if (setupTitle) { setupTitle.textContent = 'Setup Required'; setupTitle.style.display = ''; }
-                    setupMessage.textContent = 'No owners database found. You need to create it first.';
-                    if (setupInstructions) setupInstructions.style.display = 'block';
-                } else {
-                    setupWarning.style.display = 'none';
-                }
-                
+                const searchSection = document.querySelector('.search-section');
+                const unavailable = stats.total_owners === 0;
+                if (setupWarning) setupWarning.style.display = unavailable ? 'block' : 'none';
+                if (searchSection) searchSection.style.display = unavailable ? 'none' : '';
             } catch (error) {
                 console.error('Error loading stats:', error);
-                // Don't show error - just hide warning if stats endpoint fails
                 const setupWarning = document.getElementById('setupWarning');
-                if (setupWarning) {
-                    setupWarning.style.display = 'none';
-                }
+                const searchSection = document.querySelector('.search-section');
+                if (setupWarning) setupWarning.style.display = 'block';
+                if (searchSection) searchSection.style.display = 'none';
             }
         }
 
@@ -4110,6 +4084,6 @@
             }
         })();
     </script>
-    <script src="/pbj-site-universal.js?v=31"></script>
+    <script src="/pbj-site-universal.js?v=32"></script>
 </body>
 </html>

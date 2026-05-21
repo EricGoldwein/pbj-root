@@ -1,6 +1,6 @@
 /**
  * Site-wide navbar. Single source of truth for PBJ320 nav.
- * Matches primary site nav: About, Report, Insights, PBJ Explained, Ownership.
+ * Matches primary site nav: About, Report, Insights, PBJ Explained, FEC Contributions.
  * Use this on Index, SFF, and any other page that needs the main nav.
  */
 
@@ -14,7 +14,7 @@ const NAV_LINKS: { href: string; label: string; external?: boolean }[] = [
   { href: `${BASE}/report`, label: 'Report' },
   { href: `${BASE}/insights`, label: 'Insights' },
   { href: `${BASE}/phoebe`, label: 'PBJ Explained' },
-  { href: `${BASE}/owner`, label: 'Ownership' },
+  { href: `${BASE}/owner`, label: 'FEC Contributions' },
 ];
 
 interface SiteNavbarProps {

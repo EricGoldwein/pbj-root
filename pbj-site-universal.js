@@ -273,7 +273,7 @@
     return h === '/owner' || h === '/owners';
   }
 
-  /** Ensure one Ownership link (/owner) and Premium last; remove legacy duplicate /owners nav items. */
+  /** Ensure one FEC Contributions link (/owner) and Premium last; remove legacy duplicate /owners nav items. */
   function ensureSiteNavLinks() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
@@ -287,14 +287,12 @@
     if (ownership) {
       ownership.href = '/owner';
       ownership.classList.remove('nav-link--ownership-beta');
-      if (!ownership.textContent || !ownership.textContent.trim()) {
-        ownership.textContent = 'Ownership';
-      }
+      ownership.textContent = 'FEC Contributions';
     } else {
       ownership = document.createElement('a');
       ownership.href = '/owner';
       ownership.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
-      ownership.textContent = 'Ownership';
+      ownership.textContent = 'FEC Contributions';
       menu.appendChild(ownership);
     }
     var premium = menu.querySelector('a[href="/premium"]');

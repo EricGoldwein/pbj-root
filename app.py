@@ -1241,7 +1241,6 @@ def llms_txt():
 @app.route('/what-is-hprd')
 @app.route('/cms-payroll-based-journal')
 @app.route('/nursing-home-staffing-data')
-@app.route('/pbj-job-codes')
 def seo_explainer_page():
     """Lightweight glossary-style pages for PBJ / HPRD / PBJ320 staffing queries."""
     slug = request.path.strip('/').split('/')[-1]
@@ -1257,6 +1256,13 @@ def pbj_nursing_home_staffing_redirect():
     """Legacy slug → canonical nursing-home-staffing-data explainer."""
     from flask import redirect
     return redirect('/nursing-home-staffing-data', code=301)
+
+
+@app.route('/pbj-job-codes')
+def pbj_job_codes_redirect():
+    """Removed standalone page; CMS Table 1 is authoritative."""
+    from flask import redirect
+    return redirect('/phoebe', code=301)
 
 
 @app.route('/insights')
@@ -4850,7 +4856,6 @@ def sitemap():
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/cms-payroll-based-journal', '0.7', 'monthly'),
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
-        ('/pbj-job-codes', '0.7', 'monthly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -11428,7 +11433,8 @@ def get_sff_source_url() -> str:
     latest_name = _find_latest_sff_pdf_filename()
     if latest_name:
         return f"/{latest_name}"
-    return 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'
+    from site_public_config import CMS_SFF_PROGRAM_URL
+    return CMS_SFF_PROGRAM_URL
 
 def load_sff_facilities():
     """Load Special Focus Facilities (SFF) data. Cached 2 min."""

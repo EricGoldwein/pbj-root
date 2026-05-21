@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import html
 
-CMS_PBJ_DAILY_URL = (
-    'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing'
+from site_public_config import (
+    CMS_PBJ_DAILY_DATASET_URL as CMS_PBJ_DAILY_URL,
+    CMS_PROVIDER_INFO_DATASET_URL as CMS_PROVIDER_INFO_URL,
 )
-CMS_PROVIDER_INFO_URL = 'https://data.cms.gov/provider-data/dataset/4pq5-n9py'
 CMS_CHAIN_PERF_URL = (
     'https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data'
 )

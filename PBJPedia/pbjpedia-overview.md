@@ -17,7 +17,7 @@ PBJ collects data on who worked, what job they performed, and how many hours the
 - **Job category:** Standardized CMS job codes for nursing (5–12) and non-nursing roles (1–4, 15–40)—see [PBJ Metrics](/pbjpedia/metrics) and [Non-Nursing Staff](/pbjpedia/non-nursing-staff).
 - **Work date:** The day on which hours were paid.
 - **Hours worked:** Total hours, plus employee and contract hours by category.
-- **Resident census:** Daily resident counts derived from [Minimum Data Set (MDS) assessments](https://www.cms.gov/medicare/quality/initiatives/patient-assessment-instruments/nursinghomequalityinits/nhqimds30).
+- **Resident census:** Daily resident counts derived from [Minimum Data Set (MDS) assessments](https://www.cms.gov/medicare/quality/nursing-home-improvement/minimum-data-sets-swing-bed-providers).
 
 ## What PBJ Does Not Measure
 
@@ -51,5 +51,5 @@ PBJ was designed for compliance monitoring, not research. See [Data Limitations]
 
 ## References
 
-1. CMS. **[Staffing Data Submission Payroll Based Journal (PBJ) webpage](https://www.cms.gov/medicare/quality/initiatives/patient-assessment-instruments/nursinghomequalityinits/staffing-data-submission-payroll-based-journal)**.
-2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/data-research/statistics-trends-and-reports/payroll-based-journal)** (2018).
+1. CMS. **[Staffing Data Submission Payroll Based Journal (PBJ) webpage](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)**.
+2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)** (2018).

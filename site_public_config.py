@@ -20,6 +20,41 @@ def normalize_public_site_origin(origin: str | None = None) -> str:
 
 PUBLIC_SITE_ORIGIN = normalize_public_site_origin(_PUBLIC_ORIGIN_RAW)
 
+# Canonical CMS external URLs (verify with scripts/check_site_links.py).
+CMS_PBJ_STAFFING_SUBMISSION_URL = (
+    'https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission'
+)
+CMS_PBJ_POLICY_MANUAL_URL = (
+    'https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf'
+)
+CMS_PBJ_DAILY_DATASET_URL = (
+    'https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing'
+)
+CMS_PBJ_EMPLOYEE_DETAIL_URL = (
+    'https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing'
+)
+CMS_PBJ_PUF_DOCUMENTATION_URL = (
+    'https://data.cms.gov/sites/default/files/2023-06/PBJ_PUF_Documentation_July_2023.pdf'
+)
+CMS_PROVIDER_INFO_DATASET_URL = 'https://data.cms.gov/provider-data/dataset/4pq5-n9py'
+CMS_NURSING_HOME_IMPROVEMENT_URL = (
+    'https://www.cms.gov/medicare/quality/nursing-home-improvement'
+)
+CMS_MDS_URL = (
+    'https://www.cms.gov/medicare/quality/nursing-home-improvement/minimum-data-sets-swing-bed-providers'
+)
+CMS_SFF_PROGRAM_URL = (
+    'https://www.cms.gov/Medicare/Provider-Enrollment-and-Certification/SurveyCertificationGenInfo/Policy-and-Memos-to-States-and-Regions-Items/CMS1215978'
+)
+CMS_2001_STAFFING_STUDY_URL = (
+    'https://www.justice.gov/sites/default/files/elderjustice/legacy/2015/07/12/Appropriateness_of_Minimum_Nurse_Staffing_Ratios_in_Nursing_Homes.pdf'
+)
+CMS_OPEN_DATA_URL = 'https://data.cms.gov/'
+MACPAC_STATE_STAFFING_URL = (
+    'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+)
+CARE_COMPARE_URL = 'https://www.medicare.gov/care-compare/'
+
 # Path fragments that must never appear in sitemap.xml <loc> entries.
 SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
     '/api/',

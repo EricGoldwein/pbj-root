@@ -2,7 +2,7 @@
 
 This page explains how the [Payroll-Based Journal (PBJ)](/pbjpedia/overview) data collection system works, including how CMS collects, aggregates, and publishes PBJ data.
 
-PBJ data are collected through a federally administered reporting system that requires nursing homes to submit auditable, day-by-day staffing information. CMS developed the Payroll-Based Journal to gather staffing information on a regular and more frequent basis than previous surveys. Facilities submit data electronically through the [PBJ system](https://www.cms.gov/medicare/quality/initiatives/patient-assessment-instruments/nursinghomequalityinits/staffing-data-submission-payroll-based-journal), which accepts payroll and time-and-attendance files covering each day in the quarter. Submissions are due within 45 days after the end of each quarter.
+PBJ data are collected through a federally administered reporting system that requires nursing homes to submit auditable, day-by-day staffing information. CMS developed the Payroll-Based Journal to gather staffing information on a regular and more frequent basis than previous surveys. Facilities submit data electronically through the [PBJ system](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission), which accepts payroll and time-and-attendance files covering each day in the quarter. Submissions are due within 45 days after the end of each quarter.
 
 CMS publishes two quarterly [public use files (PUFs)](https://data.cms.gov/provider-data/dataset/4pq5-n9py): the Nursing Staff PUF and the Non-Nursing Staff PUF. Both have been available since 2017 Q1. They report daily hours by job category and MDS-derived resident census. Only data received by the reporting deadline are included; facilities with incomplete or erroneous submissions may be excluded.
 
@@ -31,7 +31,7 @@ These exclusions use quarterly aggregates, not daily values—extreme single-day
 
 ## MDS-Based Resident Census
 
-PBJ uses the [Minimum Data Set (MDS)](https://www.cms.gov/medicare/quality/initiatives/patient-assessment-instruments/nursinghomequalityinits/nhqimds30) to estimate daily resident census:
+PBJ uses the [Minimum Data Set (MDS)](https://www.cms.gov/medicare/quality/nursing-home-improvement/minimum-data-sets-swing-bed-providers) to estimate daily resident census:
 
 1. Define the reporting quarter.
 2. Pull MDS assessments from one year before the quarter through quarter end.
@@ -53,5 +53,5 @@ PBJ reflects **paid hours only**—not volunteer time, wages, or shift times. It
 
 ## References
 
-1. CMS. **[Staffing Data Submission Payroll Based Journal (PBJ) webpage](https://www.cms.gov/medicare/quality/initiatives/patient-assessment-instruments/nursinghomequalityinits/staffing-data-submission-payroll-based-journal)**.
-2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/data-research/statistics-trends-and-reports/payroll-based-journal)** (2018).
+1. CMS. **[Staffing Data Submission Payroll Based Journal (PBJ) webpage](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)**.
+2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)** (2018).

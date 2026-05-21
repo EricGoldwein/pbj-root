@@ -59,4 +59,4 @@ Non-nursing staff make up a substantial share of nursing home operations. Admini
 ## References
 
 1. CMS. **[PBJ Policy Manual v2.4](https://www.cms.gov/medicare/quality-initiatives-patient-assessment-instruments/nursinghomequalityinits/downloads/pbj-policy-manual-final-v24.pdf)**. Table 1 labor and job codes.
-2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/data-research/statistics-trends-and-reports/payroll-based-journal)** (2018).
+2. CMS & Abt Associates. **[Payroll-Based Journal Public Use Files: Technical Specifications](https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission)** (2018).

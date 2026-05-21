@@ -358,12 +358,9 @@ def entity_page_meta_description(entity_name: str, *, facility_count: int = 0, s
 
 
 def entity_page_intro_html(entity_name: str) -> str:
-    name = html.escape((entity_name or 'this entity').strip())
-    body = (
-        f'CMS-linked entity record for <strong>{name}</strong>: associated facilities and public CMS '
-        'staffing/ownership data in PBJ320 (not a curated owner/operator profile).'
-    )
-    return f'<p class="pbj-orientation pbj-orientation--compact">{body}</p>'
+    """No visible boilerplate on entity pages (meta description + JSON-LD carry SEO copy)."""
+    del entity_name
+    return ''
 
 
 # Future product note: when multi-state owner/operator pages launch, a dedicated public route

@@ -7,6 +7,7 @@ import argparse
 import re
 import socket
 import sys
+import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,6 +31,9 @@ from utils.seo_utils import find_forbidden_dashboard_body_markers
 DEFAULT_BASE = 'https://www.pbj320.com'
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_SITEMAP_SAMPLE = 10
+DEFAULT_DELAY_MS = 250
+GATEWAY_RETRY_STATUSES = frozenset({502, 503, 504})
+GATEWAY_RETRY_SLEEP_SEC = 2.0
 SITEMAP_XML_MAX_BYTES = 8_000_000
 HTML_PROBE_MAX_BYTES = 256_000
 JSON_PROBE_MAX_BYTES = 32_768
@@ -173,7 +177,52 @@ def _fetch_no_redirect(
     return _fetch_safe(url, timeout, follow=False, max_bytes=max_bytes)
 
 
-def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> list[str]:
+def _sleep_ms(delay_ms: int) -> None:
+    if delay_ms > 0:
+        time.sleep(delay_ms / 1000.0)
+
+
+def _gateway_retry_note(first: int | str, second: int | str) -> str:
+    return f'HTTP {first}, retried after {GATEWAY_RETRY_SLEEP_SEC:g}s: {second}'
+
+
+def _fetch_no_redirect_retry_gateway(
+    url: str,
+    timeout: float,
+    *,
+    max_bytes: int = HTML_PROBE_MAX_BYTES,
+) -> tuple[Optional[int], str, dict[str, str], bytes, Optional[str], Optional[str]]:
+    """Fetch without redirect; retry once on 502/503/504. Optional note describes retry outcome."""
+    st, fin, hdrs, body, err = _fetch_no_redirect(url, timeout, max_bytes=max_bytes)
+    if err or st not in GATEWAY_RETRY_STATUSES:
+        return st, fin, hdrs, body, err, None
+    first_status = st
+    _verbose(f'    -> HTTP {st}, retrying after {GATEWAY_RETRY_SLEEP_SEC:g}s')
+    time.sleep(GATEWAY_RETRY_SLEEP_SEC)
+    st2, fin2, hdrs2, body2, err2 = _fetch_no_redirect(url, timeout, max_bytes=max_bytes)
+    if err2:
+        return st2, fin2, hdrs2, body2, err2, _gateway_retry_note(first_status, err2)
+    if st2 in GATEWAY_RETRY_STATUSES:
+        return (
+            st2,
+            fin2,
+            hdrs2,
+            body2,
+            None,
+            _gateway_retry_note(first_status, f'still HTTP {st2}'),
+        )
+    if st2 != 200:
+        return st2, fin2, hdrs2, body2, None, _gateway_retry_note(first_status, f'HTTP {st2}')
+    return st2, fin2, hdrs2, body2, None, _gateway_retry_note(first_status, f'OK HTTP {st2}')
+
+
+def audit_sitemap(
+    report: AuditReport,
+    timeout: float,
+    sample_limit: int,
+    *,
+    delay_ms: int = DEFAULT_DELAY_MS,
+) -> list[str]:
     sitemap_url = f'{report.base}/sitemap.xml'
     _progress(f'Fetching sitemap: {sitemap_url} (timeout {timeout:g}s)')
     status, _, _, body, err = _fetch_safe(
@@ -213,12 +262,17 @@ def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> lis
         to_check = locs[::step][:sample_limit]
 
     for i, loc in enumerate(to_check, start=1):
+        if i > 1:
+            _sleep_ms(delay_ms)
         _progress(f'  [{i}/{len(to_check)}] GET {loc}')
         report.sitemap_checked += 1
-        st, fin, hdrs, _, err = _fetch_no_redirect(loc, timeout)
+        st, fin, hdrs, _, err, retry_note = _fetch_no_redirect_retry_gateway(loc, timeout)
+        if retry_note:
+            _verbose(f'    {retry_note}')
         if err:
             report.sitemap_redirect_or_error += 1
-            report.fail(loc, err)
+            reason = retry_note if retry_note else err
+            report.fail(loc, reason)
             continue
         if st in (301, 302, 303, 307, 308):
             report.sitemap_redirect_or_error += 1
@@ -226,7 +280,8 @@ def audit_sitemap(report: AuditReport, timeout: float, sample_limit: int) -> lis
             continue
         if st != 200:
             report.sitemap_redirect_or_error += 1
-            report.fail(loc, f'HTTP {st}')
+            reason = retry_note if retry_note else f'HTTP {st}'
+            report.fail(loc, reason)
             continue
         ct = (hdrs.get('Content-Type') or '').split(';')[0].strip().lower()
         if 'html' not in ct:
@@ -505,6 +560,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         default=DEFAULT_SITEMAP_SAMPLE,
         help=f'Max sitemap URLs to HTTP-check (0=all, default {DEFAULT_SITEMAP_SAMPLE})',
     )
+    p.add_argument(
+        '--delay-ms',
+        type=int,
+        default=DEFAULT_DELAY_MS,
+        metavar='MS',
+        help=(
+            f'Milliseconds between sitemap sample HTTP checks '
+            f'(default {DEFAULT_DELAY_MS}; 0 disables pacing)'
+        ),
+    )
     p.add_argument('--verbose', action='store_true', help='Print extra per-request details')
     args = p.parse_args(argv)
     _VERBOSE = args.verbose
@@ -512,10 +577,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     report = AuditReport(base=base)
 
     print(
-        f'Starting audit (timeout={args.timeout:g}s, sitemap-sample={args.sitemap_sample})',
+        f'Starting audit (timeout={args.timeout:g}s, sitemap-sample={args.sitemap_sample}, '
+        f'delay-ms={args.delay_ms})',
         flush=True,
     )
-    sitemap_locs = audit_sitemap(report, args.timeout, args.sitemap_sample)
+    sitemap_locs = audit_sitemap(
+        report, args.timeout, args.sitemap_sample, delay_ms=args.delay_ms
+    )
     sitemap_set = set(sitemap_locs)
     audit_pbjpedia_gated(report, args.timeout, sitemap_set)
     audit_robots_txt(report, args.timeout, sitemap_set)

@@ -8,7 +8,9 @@ GitHub LFS bandwidth blocks Render from smudging large files at clone. **Full lo
 | `provider_info_combined_latest.csv` | ~10 MB | Used as-is |
 | `provider_info/ProviderInfoNorm_*.csv` | varies | Used as-is (newest wins in app) |
 
-Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml`). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress.
+Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` **and** `Procfile` start). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress.
+
+If provider pages return 404 instantly, Render likely skipped the build script — confirm **Start Command** includes `python scripts/ensure_deploy_csvs.py &&` (see `Procfile`).
 
 ## Updating facility metrics (quarterly release)
 

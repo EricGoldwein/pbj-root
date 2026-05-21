@@ -13975,6 +13975,13 @@ def _provider_page_impl(ccn):
                     row_peek = _provider_info_row_for_ccn(prov)
                     if _provider_page_cache_hit_ok(prov, html, row_peek):
                         return html, 200, _provider_page_html_headers(cache_hit=True)
+        if _facility_quarterly_csv_path() is None:
+            return make_response(
+                'Facility quarterly metrics are not loaded on this server. '
+                'Deploy must run scripts/ensure_deploy_csvs.py (see docs/DATA_DEPLOY.md).',
+                503,
+                {'Content-Type': 'text/plain; charset=utf-8'},
+            )
         facility_df = load_facility_quarterly_for_provider(prov)
         if facility_df is None or facility_df.empty:
             abort(404)

@@ -218,10 +218,10 @@
     
     .content-box p {
       color: #374151;
-      font-size: 1.1rem;
-      line-height: 1.8;
+      font-size: 1.05rem;
+      line-height: 1.75;
       margin-bottom: 1.2rem;
-      text-align: justify;
+      text-align: left;
     }
     
     .content-box header p {
@@ -238,7 +238,26 @@
     }
     
     .content-box ul li {
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.65rem;
+    }
+
+    .content-box ul.about-help-list {
+      list-style: none;
+      margin-left: 0;
+      padding: 0;
+    }
+
+    .content-box ul.about-help-list li {
+      padding: 0.65rem 0 0.65rem 1rem;
+      border-left: 3px solid #93c5fd;
+      margin-bottom: 0.5rem;
+      background: rgba(248, 250, 252, 0.65);
+      border-radius: 0 8px 8px 0;
+    }
+
+    .content-box ul.about-help-list li strong {
+      display: inline;
+      margin-right: 0.15rem;
     }
     
     /* Condensed spacing for Methodology section lists */
@@ -519,7 +538,7 @@
     }
     
     .phoebe-link::after {
-      content: '?';
+      content: "\2192";
       font-size: 1.1rem;
       transition: transform 0.3s ease;
     }
@@ -588,14 +607,20 @@
     .note-box {
       background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
       border-left: 4px solid #1e40af;
-      padding: 2rem;
-      margin: 2rem 0;
+      padding: 1.5rem 1.75rem;
+      margin: 1.5rem 0;
       border-radius: 12px;
       font-size: 1rem;
-      color: #374151;
+      line-height: 1.7;
+      color: #334155;
       box-shadow: 0 4px 16px rgba(30, 64, 175, 0.1);
       position: relative;
       overflow: hidden;
+    }
+
+    .note-box a {
+      color: #1d4ed8;
+      font-weight: 600;
     }
     
     .note-box strong {
@@ -848,64 +873,17 @@
       color: #475569;
     }
     
-    .footer {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    /* Match site-wide dark footer from pbj-site-universal.js (do not override injected colors). */
+    #site-footer.footer {
       text-align: center;
-      padding: 40px 20px;
-      color: #6b7280;
+      padding: 32px 20px 40px;
+      color: #94a3b8;
       font-size: 0.9rem;
-      background: #f8fafc;
-      margin-top: 60px;
-      border-top: 1px solid #e2e8f0;
+      background: #0d121f;
+      margin-top: 0;
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
       width: 100%;
       box-sizing: border-box;
-    }
-    
-    .footer p,
-    .footer .footer-tagline {
-      margin-bottom: 0.75rem;
-      line-height: 1.6;
-      max-width: 800px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: center;
-      color: #475569;
-    }
-    .footer .footer-tagline {
-      display: block;
-      width: 100%;
-      text-align: center;
-    }
-    
-    .footer p:last-child {
-      margin-bottom: 0;
-    }
-    
-    .footer a {
-      color: #1e40af;
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s ease;
-    }
-    
-    .footer a:hover {
-      color: #3b82f6;
-      text-decoration: underline;
-    }
-    
-    .footer a:focus {
-      outline: 2px solid #3b82f6;
-      outline-offset: 2px;
-      border-radius: 2px;
-    }
-    
-    .footer .footer-divider {
-      border-top: 1px solid #e2e8f0;
-      margin: 1.5rem auto 0;
-      padding-top: 1.5rem;
-      max-width: 600px;
     }
     
     /* Mobile */
@@ -1051,20 +1029,8 @@
         margin: 1.5rem 0;
       }
       
-      .footer {
-        padding: 30px 15px;
-        margin-top: 40px;
-      }
-      
-      .footer p {
-        margin-bottom: 0.75rem;
-        line-height: 1.5;
-        font-size: 0.85rem;
-      }
-      
-      .footer .footer-divider {
-        margin: 1.25rem auto 0;
-        padding-top: 1.25rem;
+      #site-footer.footer {
+        padding: 22px 12px 28px;
       }
       
       .phoebe-content {
@@ -1145,14 +1111,14 @@
       </header>
       
       <h3>About the PBJ Dashboard</h3>
-      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="/"><strong>PBJ320 stitches together nine years of federal CMS staffing files?billions of data points from Payroll-Based Journal (PBJ) submissions?into interactive visualizations</strong></a>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside 15,000+ U.S. nursing homes. Start on the <a href="/">home page</a>, <a href="/report">national report</a>, or a <a href="/state/new-york">state page</a>.</p>
+      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="/"><strong>PBJ320 stitches together nine years of federal CMS staffing files&mdash;billions of data points from Payroll-Based Journal (PBJ) submissions&mdash;into interactive visualizations</strong></a>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside 15,000+ U.S. nursing homes. Start on the <a href="/">home page</a>, <a href="/report">national report</a>, or a <a href="/state/new-york">state page</a>.</p>
       
       <h3>Who it helps</h3>
-      <ul>
-        <li><strong>Attorneys</strong> ? identify staffing patterns and trends that may support negligence cases, regulatory violations, or quality of care claims. Access historical data to demonstrate chronic understaffing, seasonal variations, or ownership-related staffing deficiencies.</li>
-        <li><strong>Journalists</strong> ? plug numbers and data visualizations into a nursing home investigation or ownership-focused report without wrangling raw CSVs. See <a href="/insights">insights</a> and <a href="/press">press</a>.</li>
-        <li><strong>Advocates & families</strong> ? see how a nursing home stacks up over time for residents and loved ones.</li>
-        <li><strong>Providers</strong> ? use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
+      <ul class="about-help-list">
+        <li><strong>Attorneys</strong> &mdash; identify staffing patterns and trends that may support negligence cases, regulatory violations, or quality of care claims. Access historical data to demonstrate chronic understaffing, seasonal variations, or ownership-related staffing deficiencies.</li>
+        <li><strong>Journalists</strong> &mdash; plug numbers and data visualizations into a nursing home investigation or ownership-focused report without wrangling raw CSVs. See <a href="/insights">insights</a> and <a href="/press">press</a>.</li>
+        <li><strong>Advocates &amp; families</strong> &mdash; see how a nursing home stacks up over time for residents and loved ones.</li>
+        <li><strong>Providers</strong> &mdash; use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</li>
       </ul>
       
       <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" class="columbia-link">
@@ -1170,7 +1136,7 @@
         <tbody>
           <tr>
             <td><strong><a href="/report">National / State</a></strong></td>
-            <td>Nurse staffing hours per resident day (HPRD), contract staff %, census?every quarter since 2017</td>
+            <td>Nurse staffing hours per resident day (HPRD), contract staff %, census&mdash;every quarter since 2017</td>
           </tr>
           <tr>
             <td><strong><a href="/provider/335513">Facility</a></strong></td>
@@ -1185,9 +1151,9 @@
       
       <h3>Under the hood</h3>
       <ul>
-        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> ? <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity (<a href="/cms-payroll-based-journal">what is PBJ?</a>)</li>
-        <li><strong>CMS Provider Info</strong> ? 5-star ratings, enforcement data, and other key indicators</li>
-        <li><strong>CMS Affiliated Entity</strong> ? quality and performance metrics for affiliated nursing home groups (<a href="/entity/237">example entity page</a>)</li>
+        <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> &mdash; <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity (<a href="/cms-payroll-based-journal">what is PBJ?</a>)</li>
+        <li><strong>CMS Provider Info</strong> &mdash; 5-star ratings, enforcement data, and other key indicators</li>
+        <li><strong>CMS Affiliated Entity</strong> &mdash; quality and performance metrics for affiliated nursing home groups (<a href="/entity/237">example entity page</a>)</li>
         <li><strong>CMS Citations (Premium)</strong> - Citation data and inspection reports, categorized by date, type, severity, and more.</li>
       </ul>
       
@@ -1196,20 +1162,20 @@
     
     <div class="content-box seagate-case-study">
       <h2>How PBJ Data Reveals Chronic Understaffing: The Seagate Case</h2>
-      <p>In September, a Brooklyn nursing home made national headlines after the violent death of an 89-year-old Holocaust survivor. Federal records point to a deeper problem: <strong>Seagate Rehabilitation and Nursing Center</strong> has been marked by <strong>chronic understaffing?one of thousands of U.S. nursing homes with similar conditions</strong>. In the 1,279 days since New York implemented a 3.50 HPRD minimum, Seagate has fallen below the threshold every single day, according to CMS Payroll-Based Journal (PBJ) data.</p>
+      <p>In September, a Brooklyn nursing home made national headlines after the violent death of an 89-year-old Holocaust survivor. Federal records point to a deeper problem: <strong>Seagate Rehabilitation and Nursing Center</strong> has been marked by <strong>chronic understaffing&mdash;one of thousands of U.S. nursing homes with similar conditions</strong>. In the 1,279 days since New York implemented a 3.50 HPRD minimum, Seagate has fallen below the threshold every single day, according to CMS Payroll-Based Journal (PBJ) data.</p>
       
       <div class="seagate-image-container">
         <img src="/seagate_staffing_pbj.png" alt="Seagate Rehabilitation and Nursing Center staffing data showing chronic understaffing below New York's 3.50 HPRD minimum" class="seagate-image">
         <p class="image-caption">Seagate has not once met New York's 3.50 HPRD staffing minimum since the law went into effect April 1, 2022, according to PBJ records.</p>
       </div>
       
-      <p><strong>PBJ data enables this analysis by providing daily staffing records, historical context, regulatory compliance tracking, and pattern recognition</strong>?revealing systemic issues that affect resident care across thousands of facilities. <a href="https://320insight.substack.com/p/the-other-3000-days-at-seagate" target="_blank" rel="noopener">Read the full analysis</a> or <a href="/provider/335513">explore Seagate's public staffing page</a>.</p>
+      <p><strong>PBJ data enables this analysis by providing daily staffing records, historical context, regulatory compliance tracking, and pattern recognition</strong>&mdash;revealing systemic issues that affect resident care across thousands of facilities. <a href="https://320insight.substack.com/p/the-other-3000-days-at-seagate" target="_blank" rel="noopener">Read the full analysis</a> or <a href="/provider/335513">explore Seagate's public staffing page</a>.</p>
     </div>
     
     <div class="content-box">
       
       <h3>Digging deeper?</h3>
-      <p><strong><a href="/premium">Premium</a></strong> ? 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="/premium/335513" target="_blank" rel="noopener">Sample Premium dashboard</a>.</p>
+      <p><strong><a href="/premium">Premium</a></strong> &mdash; 320 Consulting offers custom reports with daily, position-level analysis and data visualizations tied to ratings, enforcement, and other critical metrics to support your casework and advocacy. <a href="/premium/335513" target="_blank" rel="noopener">Sample Premium dashboard</a>.</p>
             
       <div class="premium-section">
         <strong>Journalists:</strong> If you're working on a story, I'm happy to share data or walk you through it. <button type="button" class="pbj-contact-form-trigger" style="color:inherit;text-decoration:underline;background:none;border:none;padding:0;font:inherit;cursor:pointer;">Contact us</button> for requests.
@@ -1218,7 +1184,7 @@
     
     <div class="content-box">
       <h2>Methodology</h2>
-      <p>This Nursing Home Staffing Dashboard uses <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal (PBJ) data</a> from 2017?2025, covering all nursing positions, including contract staff. CMS first published PBJ data in 2017. It also uses <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">Provider Information</a>, <a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener">Affiliated Entity</a>, and <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank" rel="noopener">MACPAC State Staffing Standards</a> (2022). See <a href="/data-sources">data sources and limitations</a>.</p>
+      <p>This Nursing Home Staffing Dashboard uses <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing" target="_blank" rel="noopener">CMS Payroll-Based Journal (PBJ) data</a> from 2017&ndash;2025, covering all nursing positions, including contract staff. CMS first published PBJ data in 2017. It also uses <a href="https://data.cms.gov/provider-data/dataset/4pq5-n9py" target="_blank" rel="noopener">Provider Information</a>, <a href="https://data.cms.gov/quality-of-care/nursing-home-chain-performance-measures/data" target="_blank" rel="noopener">Affiliated Entity</a>, and <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank" rel="noopener">MACPAC State Staffing Standards</a> (2022). See <a href="/data-sources">data sources and limitations</a>.</p>
       
       <h3>Staffing Categories</h3>
       <p style="margin-bottom: 0.25rem;"><strong>Total nurse staff includes:</strong> Registered Nurse (RN), RN Director of Nursing (DON), RN Admin, Licensed Practical Nurse (LPN), LPN Admin, Certified Nursing Assistant (CNA), Nurse Aide in Training, Medication Aide/Technician.</p>
@@ -1230,8 +1196,8 @@
       <p style="margin-bottom: 0.75rem;"><strong>Census:</strong> Average number of residents in facility or state during the reporting period.</p>
       
       <div class="note-box">
-        <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 ? 100). See <a href="/what-is-hprd">what is HPRD?</a><br><br>
-        A 2001 federal study identified 4.1 HPRD as the level linked to better outcomes for most residents. Facilities with higher-acuity residents?such as those with complex medical needs or limited mobility?generally require more staffing. Staffing levels can also vary significantly by day and shift.<br><br>
+        <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 &divide; 100). See <a href="/what-is-hprd">what is HPRD?</a><br><br>
+        A 2001 federal study identified 4.1 HPRD as the level linked to better outcomes for most residents. Facilities with higher-acuity residents&mdash;such as those with complex medical needs or limited mobility&mdash;generally require more staffing. Staffing levels can also vary significantly by day and shift.<br><br>
         Some states have their own standards (e.g., New Jersey, California, and New York each set a 3.5 HPRD minimum), though enforcement and definitions vary. Note: A federal 3.48 HPRD minimum was recently overturned by a court in 2025.
       </div>
       
@@ -1255,7 +1221,7 @@
         </div>
         <div class="phoebe-text">
           <h2>Phoebe J's PBJ Guide</h2>
-          <p>Plain-language explainer of nursing home Payroll-Based Journal (PBJ) staffing data?what it is, why it matters, and how to use it.</p>
+          <p>Plain-language explainer of nursing home Payroll-Based Journal (PBJ) staffing data&mdash;what it is, why it matters, and how to use it.</p>
           <a href="/phoebe" class="phoebe-link">PBJ explained</a>
         </div>
       </div>
@@ -1321,7 +1287,7 @@
           </div>
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request?" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request&hellip;" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
           </div>
           <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
             <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
@@ -1336,7 +1302,7 @@
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
 
-  <script src="/pbj-site-universal.js?v=20"></script>
+  <script src="/pbj-site-universal.js?v=28" defer></script>
   <script>
     (function() {
       var overlay = document.getElementById('contact-overlay');
@@ -1462,8 +1428,8 @@
               .toLowerCase()
               .replace(/\b\w/g, c => c.toUpperCase());
           }
-          const fText = Number.isFinite(fCount) ? fCount.toLocaleString('en-US') : '?';
-          const sText = Number.isFinite(sCount) ? sCount.toLocaleString('en-US') : '?';
+          const fText = Number.isFinite(fCount) ? fCount.toLocaleString('en-US') : '\u2014';
+          const sText = Number.isFinite(sCount) ? sCount.toLocaleString('en-US') : '\u2014';
           const starText = (avgStar !== null && Number.isFinite(avgStar)) ? avgStar.toFixed(1) + '-star average' : 'ratings available';
           const safeEntityName = entityName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
           const entityLink = Number.isFinite(entityId)

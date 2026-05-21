@@ -785,6 +785,15 @@ def warmup():
 # Simple email format check (not RFC-strict; rejects obviously invalid)
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
+def _rewrite_universal_js_version(html_content: str) -> str:
+    """Static HTML files may pin stale ?v=; always serve the current universal footer script."""
+    return re.sub(
+        r'/pbj-site-universal\.js\?v=\d+',
+        f'/pbj-site-universal.js?v={PBJ_SITE_UNIVERSAL_JS_VERSION}',
+        html_content,
+    )
+
+
 def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     """Serve a root-level public HTML file with optional CSRF token injection."""
     path = os.path.join(APP_ROOT, filename)
@@ -796,6 +805,7 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     if inject_csrf:
         token = generate_csrf() if (HAS_CSRF and generate_csrf) else ''
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', token)
+    html_content = _rewrite_universal_js_version(html_content)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
     resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
@@ -1033,7 +1043,7 @@ def contact():
 
 @app.route('/about')
 def about():
-    return send_file('about.html', mimetype='text/html')
+    return _serve_public_html('about.html')
 
 
 def generate_chow_page_html():
@@ -1126,19 +1136,19 @@ def chow_js():
 @app.route('/data-sources')
 @app.route('/data-sources/')
 def data_sources_page():
-    return send_file('data-sources.html', mimetype='text/html')
+    return _serve_public_html('data-sources.html')
 
 
 @app.route('/privacy')
 @app.route('/privacy/')
 def privacy_page():
-    return send_file('privacy.html', mimetype='text/html; charset=utf-8')
+    return _serve_public_html('privacy.html')
 
 
 @app.route('/terms')
 @app.route('/terms/')
 def terms_page():
-    return send_file('terms.html', mimetype='text/html; charset=utf-8')
+    return _serve_public_html('terms.html')
 
 
 @app.route('/robots.txt')
@@ -1201,7 +1211,7 @@ def insights_theme_css():
 @app.route('/insights-visualizations/')
 def insights_visualizations():
     """Legacy interactive visualizations now housed under the Insights article track."""
-    return send_file('insights.html', mimetype='text/html')
+    return _serve_public_html('insights.html')
 
 _PBJ_AI_SAMPLE_BLOCK_RE = re.compile(
     r'<!--\s*PBJ_AI_SAMPLE_BLOCK\s*-->.*?<!--\s*/PBJ_AI_SAMPLE_BLOCK\s*-->',
@@ -2330,6 +2340,7 @@ def _serve_report_page_html():
     with open(path, encoding='utf-8', errors='replace') as f:
         page_html = f.read()
     page_html = _inject_report_ssr_html(page_html)
+    page_html = _rewrite_universal_js_version(page_html)
     resp = make_response(page_html)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     return resp
@@ -2386,7 +2397,7 @@ def report_embed_pi():
 @app.route('/press')
 @app.route('/press/')
 def press():
-    return send_file('press.html', mimetype='text/html')
+    return _serve_public_html('press.html')
 
 
 @app.route('/attorneys')
@@ -2400,7 +2411,7 @@ def attorneys():
 @app.route('/phoebe')
 @app.route('/phoebe/')
 def phoebe():
-    return send_file('phoebe.html', mimetype='text/html')
+    return _serve_public_html('phoebe.html')
 
 
 # ---------------------------------------------------------------------------

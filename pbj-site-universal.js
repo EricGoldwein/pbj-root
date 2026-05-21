@@ -52,10 +52,24 @@
     return '<p class="footer-signoff">\u00a9 ' + y + ', <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a>.</p>';
   }
 
+  /** Remove legacy per-page PBJ quarter line (pre-v27 footer). */
+  function purgeLegacyFooterMarkup(root) {
+    var scope = root || document;
+    var selectors = ['#pbj-footer-sources-line', '.pbj-footer-sources-line'];
+    for (var i = 0; i < selectors.length; i++) {
+      var nodes = scope.querySelectorAll(selectors[i]);
+      for (var j = 0; j < nodes.length; j++) nodes[j].remove();
+    }
+    var legacyDlg = document.getElementById('pbj-sources-general');
+    if (legacyDlg) legacyDlg.remove();
+  }
+
   function injectFooter(el) {
     if (!el) return;
+    purgeLegacyFooterMarkup(el);
     var body = FOOTER_CORE + footerSignoffHtml();
     el.innerHTML = FOOTER_BOILERPLATE + FOOTER_NAV_LINKS + FOOTER_LEGAL_LINKS + body;
+    el.setAttribute('data-pbj-footer', 'universal');
   }
 
   function bindSourcesDialogs() {
@@ -332,6 +346,7 @@
 
   function run() {
     preloadNavFavicon();
+    purgeLegacyFooterMarkup(document);
     var footer = document.getElementById('site-footer');
     injectFooterStyles();
     if (footer) injectFooter(footer);

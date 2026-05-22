@@ -108,6 +108,7 @@ class ProviderRequestTimer:
         'cache',
         'queue_wait_ms',
         'cold_render_ms',
+        'chart_build_ms',
         'status',
         'stale_serve',
         'ua_class',
@@ -121,6 +122,7 @@ class ProviderRequestTimer:
         self.cache = 'MISS'
         self.queue_wait_ms = 0.0
         self.cold_render_ms = 0.0
+        self.chart_build_ms = 0.0
         self.status = 200
         self.stale_serve = False
         self.ua_class = ua_class
@@ -136,6 +138,7 @@ class ProviderRequestTimer:
             'cache': self.cache,
             'total_ms': self.total_ms(),
             'cold_render_ms': round(self.cold_render_ms, 1),
+            'chart_build_ms': round(self.chart_build_ms, 1),
             'queue_wait_ms': round(self.queue_wait_ms, 1),
             'pid': self.pid,
             'ua': self.ua_class,

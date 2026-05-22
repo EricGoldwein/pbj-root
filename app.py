@@ -3181,17 +3181,32 @@ def _fetch_substack_posts() -> list:
     return out
 
 
-def _star_icons_from_rating(val) -> str:
-    if val is None:
-        return "—"
+def _rating_star_count(val) -> int | None:
+    if val is None or (isinstance(val, float) and pd.isna(val)):
+        return None
     try:
         _n = round_half_up(float(val), 0)
         n = int(_n) if _n is not None else None
         if n is not None and 1 <= n <= 5:
-            return "★" * n
+            return n
     except (TypeError, ValueError):
         pass
-    return "—"
+    return None
+
+
+def _star_icons_from_rating(val) -> str:
+    n = _rating_star_count(val)
+    return "★" * n if n else "—"
+
+
+def _badge_star_span_html(icons: str, star_count: int | None = None) -> str:
+    """CMS star glyphs for facility badges: amber by default, red at 1 star."""
+    if not icons or icons == "—":
+        return icons
+    cls = "pbj-rating-stars"
+    if star_count == 1:
+        cls += " pbj-rating-stars--low"
+    return f'<span class="{cls}">{icons}</span>'
 
 
 def _ensure_pandas_loaded_for_insights() -> bool:
@@ -3757,7 +3772,8 @@ def _render_niche_insight_sections(post: dict) -> dict:
         '<h3>Reported vs. CMS case-mix</h3>'
         + ''.join(bar_html) +
         '<h3 style="margin-top:14px;">CMS star ratings</h3>'
-        f'<p class="niche-stars">Staffing: {html.escape(staffing_stars)}<br>Overall: {html.escape(overall_stars)}</p>'
+        f'<p class="niche-stars">Staffing: {_badge_star_span_html(staffing_stars, _rating_star_count(ctx.get("staffing_rating")))}<br>'
+        f'Overall: {_badge_star_span_html(overall_stars, _rating_star_count(ctx.get("overall_rating")))}</p>'
         '</div></div>'
         + follow_html +
         '</section>'
@@ -6602,7 +6618,8 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-content-box td {{ color: #e2e8f0; font-size: 0.95rem; }}
 .pbj-content-box tr:hover td {{ background: rgba(30, 41, 59, 0.35); }}
 .pbj-content-box tr:last-child td {{ border-bottom: none; }}
-.pbj-staffing-stars {{ color: #fbbf24; letter-spacing: 0.06em; }}
+.pbj-rating-stars, .pbj-staffing-stars {{ color: #fbbf24; letter-spacing: 0.06em; }}
+.pbj-rating-stars--low {{ color: #f87171 !important; }}
 .pbj-infobox {{ width: 280px; float: right; margin: 0 0 1em 1.5em; border: 1px solid rgba(30, 41, 59, 0.6); background: rgba(15, 23, 42, 0.55); border-radius: 8px; overflow: hidden; }}
 .pbj-infobox th {{ background: rgba(30, 41, 59, 0.55); padding: 0.5em 0.6em; font-weight: bold; border-bottom: 1px solid rgba(30, 41, 59, 0.6); color: #e2e8f0; font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }}
 .pbj-infobox td {{ padding: 0.5em 0.6em; border-bottom: 1px solid rgba(30, 41, 59, 0.6); color: #e2e8f0; }}
@@ -8749,6 +8766,114 @@ def get_macpac_chart_info(state_code):
                 pass
     return None
 
+_STATE_CONTRACT_MEDIAN_CACHE: tuple[str, int, dict[str, dict[str, float | None]]] | None = None
+_STATE_CONTRACT_MEDIAN_LOCK = threading.Lock()
+
+
+def _build_state_contract_median_index_from_csv(path: str) -> dict[str, dict[str, float | None]]:
+    """One-time chunked scan: {state: {CY_Qtr: median Contract_Percentage}}."""
+    from collections import defaultdict
+    import statistics
+
+    pdm = get_pd()
+    if pdm is None:
+        return {}
+    buckets: dict[tuple[str, str], list[float]] = defaultdict(list)
+    try:
+        for chunk in pdm.read_csv(
+            path,
+            usecols=['STATE', 'CY_Qtr', 'Contract_Percentage'],
+            low_memory=False,
+            chunksize=150000,
+        ):
+            if chunk.empty or 'STATE' not in chunk.columns:
+                continue
+            chunk = chunk.copy()
+            chunk['STATE'] = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
+            chunk['CY_Qtr'] = chunk['CY_Qtr'].astype(str).str.strip()
+            pct = pdm.to_numeric(chunk['Contract_Percentage'], errors='coerce')
+            chunk = chunk.assign(_pct=pct).dropna(subset=['_pct'])
+            if chunk.empty:
+                continue
+            for (st, qtr), grp in chunk.groupby(['STATE', 'CY_Qtr'], sort=False):
+                if not st or not qtr:
+                    continue
+                vals = grp['_pct'].tolist()
+                if vals:
+                    buckets[(st, qtr)].extend(vals)
+    except Exception as e:
+        print(f'State contract median index build failed ({path}): {e}')
+        return {}
+    out: dict[str, dict[str, float | None]] = {}
+    for (st, qtr), vals in buckets.items():
+        if not vals:
+            continue
+        med = round_half_up(float(statistics.median(vals)), 2)
+        if med is not None:
+            out.setdefault(st, {})[qtr] = float(med)
+    return out
+
+
+def _state_contract_median_index() -> dict[str, dict[str, float | None]]:
+    """Cached state x quarter contract % medians; rebuild when facility CSV mtime changes."""
+    global _STATE_CONTRACT_MEDIAN_CACHE
+    path = _facility_quarterly_csv_path()
+    if not path or not HAS_PANDAS:
+        return {}
+    try:
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        return {}
+    cached = _STATE_CONTRACT_MEDIAN_CACHE
+    if cached and cached[0] == path and cached[1] == mtime:
+        return cached[2]
+    with _STATE_CONTRACT_MEDIAN_LOCK:
+        cached = _STATE_CONTRACT_MEDIAN_CACHE
+        if cached and cached[0] == path and cached[1] == mtime:
+            return cached[2]
+        t0 = time.perf_counter()
+        index = _build_state_contract_median_index_from_csv(path)
+        build_ms = round((time.perf_counter() - t0) * 1000, 1)
+        _STATE_CONTRACT_MEDIAN_CACHE = (path, mtime, index)
+        try:
+            from pbj_provider_perf import provider_perf_log_enabled
+            if provider_perf_log_enabled():
+                import json as _json
+                print(
+                    '[PBJ_PROVIDER_INDEX] '
+                    + _json.dumps(
+                        {
+                            'index': 'state_contract_median',
+                            'build_ms': build_ms,
+                            'states': len(index),
+                            'path': os.path.basename(path),
+                        },
+                        separators=(',', ':'),
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+        except Exception:
+            pass
+        return index
+
+
+def _state_contract_medians_for_chart(state_code: str, quarters: list[str]) -> list[float | None]:
+    """Contract % medians aligned to facility quarter list (no full national CSV load)."""
+    sc = (state_code or '').strip().upper()[:2]
+    if not sc or not quarters:
+        return []
+    by_q = _state_contract_median_index().get(sc) or {}
+    out: list[float | None] = []
+    for q in quarters:
+        raw = by_q.get(str(q).strip())
+        if raw is None:
+            out.append(None)
+        else:
+            out.append(round_half_up(float(raw), 2))
+    return out
+
+
 def _series_to_list_with_none(ser):
     """Convert pandas Series to list; use None for NaN/missing (charts: null = unknown, not zero)."""
     if ser is None or (hasattr(ser, 'empty') and ser.empty):
@@ -8771,6 +8896,7 @@ def _series_to_list_rounded(ser, decimals=2):
 
 def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index=None, case_mix_index_ratio=None):
     """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide."""
+    t_chart = time.perf_counter()
     def _round_val(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return None
@@ -8790,9 +8916,9 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
             _round_val(case_mix_lpn),
             _round_val(case_mix_na)
         ]
-    if facility_df is None or facility_df.empty or not HAS_PANDAS:
-        return out
     try:
+        if facility_df is None or facility_df.empty or not HAS_PANDAS:
+            return out
         if 'CY_Qtr' not in facility_df.columns or 'Total_Nurse_HPRD' not in facility_df.columns:
             return out
         df = facility_df.sort_values('CY_Qtr').copy()
@@ -8816,23 +8942,25 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
             'rn': _series_to_list_with_none(df['RN_HPRD']),
             'rnDirect': _series_to_list_with_none(df['RN_Care_HPRD'] if 'RN_Care_HPRD' in df.columns else pd.Series(dtype=float))
         }
-        out['contract'] = {'quarters': quarters, 'facility': _series_to_list_with_none(df['Contract_Percentage'] if 'Contract_Percentage' in df.columns else pd.Series(dtype=float)), 'stateMedian': []}
-        if state_code:
-            fq_df = load_csv_data('facility_quarterly_metrics.csv')
-            if fq_df is None or fq_df.empty:
-                fq_df = load_csv_data('facility_quarterly_metrics_latest.csv')
-            if fq_df is not None and not fq_df.empty and 'STATE' in fq_df.columns and 'Contract_Percentage' in fq_df.columns and 'CY_Qtr' in fq_df.columns:
-                fq_df = fq_df.copy()
-                fq_df['STATE'] = fq_df['STATE'].astype(str).str.strip().str.upper()
-                sc = state_code.strip().upper()[:2]
-                state_fac = fq_df[fq_df['STATE'] == sc]
-                if not state_fac.empty:
-                    medians = state_fac.groupby('CY_Qtr')['Contract_Percentage'].median()
-                    out['contract']['stateMedian'] = [round_half_up(float(medians.get(q)), 2) if q in medians.index and pd.notna(medians.get(q)) else None for q in quarters]
+        out['contract'] = {
+            'quarters': quarters,
+            'facility': _series_to_list_with_none(
+                df['Contract_Percentage'] if 'Contract_Percentage' in df.columns else pd.Series(dtype=float)
+            ),
+            'stateMedian': _state_contract_medians_for_chart(state_code, quarters) if state_code else [],
+        }
         col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
         out['census'] = {'quarters': quarters, 'census': _series_to_list_rounded(df[col] if col in df.columns else pd.Series(dtype=float), 1)}
     except Exception as e:
         print(f"Provider chart data build failed: {e}")
+    finally:
+        chart_ms = round((time.perf_counter() - t_chart) * 1000, 1)
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                g.pbj_chart_build_ms = chart_ms
+        except Exception:
+            pass
     return out
 
 def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
@@ -10167,41 +10295,30 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         'CMS overall star rating (1-5), based on health inspections, staffing, and quality measures.',
         quote=True
     )
-    # CMS star ratings (1-5): show as "Overall: ★" or "Overall: ★★★★" (number of stars only)
-    def _star_icons(val):
-        if val is None or (isinstance(val, float) and pd.isna(val)):
-            return "—"
-        try:
-            _n = round_half_up(float(val), 0)
-            n = int(_n) if _n is not None else None
-            if n is not None and 1 <= n <= 5:
-                return "★" * n
-        except (TypeError, ValueError):
-            pass
-        return "—"
+    # CMS star ratings (1-5): show as "Overall: ★★★" (amber stars; red at 1 star)
     _overall_raw = (provider_info_row or {}).get('overall_rating')
     _staffing_raw = (provider_info_row or {}).get('staffing_rating')
-    overall_star_icons = _star_icons(_overall_raw)
-    staffing_star_icons = _star_icons(_staffing_raw)
-    overall_star_label = f'Overall: {overall_star_icons}' if overall_star_icons != '—' else 'Overall: not reported'
+    _overall_n = _rating_star_count(_overall_raw)
+    _staff_n = _rating_star_count(_staffing_raw)
+    overall_star_icons = _star_icons_from_rating(_overall_raw)
+    staffing_star_icons = _star_icons_from_rating(_staffing_raw)
     badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease;'
     badge_span_red = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #fb7185; background: rgba(251,113,133,0.1); border: 1px solid rgba(251,113,133,0.22); transition: all 0.2s ease;'
     # Omit separate risk badge when the only risk is 1-star overall (we show that via red Overall badge)
     _skip_risk_badge = _risk_reason_lower in ('1-star overall', '1 star overall', '1-star', '1 star')
     risk_badge_conditional = risk_badge if (risk_badge and not _skip_risk_badge) else ''
-    try:
-        _on = round_half_up(float(_overall_raw), 0) if _overall_raw is not None else None
-        is_1_star_overall = (_on is not None and int(_on) == 1)
-    except (TypeError, ValueError):
-        is_1_star_overall = False
+    is_1_star_overall = _overall_n == 1
+    is_1_star_staffing = _staff_n == 1
     overall_badge_style = badge_span_red if is_1_star_overall else badge_span
+    staffing_badge_style = badge_span_red if is_1_star_staffing else badge_span
     overall_badge_html = (
-        f'<span style="{overall_badge_style}" title="{overall_badge_title}">{overall_star_label}</span>'
+        f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
+        f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'
         if overall_star_icons != '—' else ''
     )
-    _staff_stars_html = f'<span class="pbj-staffing-stars">{staffing_star_icons}</span>' if staffing_star_icons != '—' else staffing_star_icons
     staffing_badge_html = (
-        f'<span style="{badge_span}" title="{staffing_badge_title}">Staffing: {_staff_stars_html}</span>'
+        f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">Staffing: '
+        f'{_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
         if staffing_star_icons != '—' else ''
     )
     casemix_badge_html = ''
@@ -14046,6 +14163,11 @@ def _provider_page_impl(ccn):
         provider_info_row = _provider_info_row_for_ccn(prov)
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
         timer.cold_render_ms = round((time.perf_counter() - t_cold) * 1000, 1)
+        try:
+            from flask import g
+            timer.chart_build_ms = float(getattr(g, 'pbj_chart_build_ms', 0.0) or 0.0)
+        except Exception:
+            pass
 
         if _provider_page_cache_enabled() and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()

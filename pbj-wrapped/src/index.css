@@ -39,7 +39,19 @@
   color: #f8fafc;
   opacity: 1;
 }
-.footer a:hover img {
+.footer a:hover img,
+.footer a:hover .pbj-footer-icon {
+  opacity: 1;
+}
+.footer .pbj-footer-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  opacity: 0.7;
+  transition: opacity 0.3s ease;
+}
+.footer a:hover svg {
   opacity: 1;
 }
 @media (max-width: 768px) {

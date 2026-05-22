@@ -1386,6 +1386,13 @@
       margin-top: 4px;
       font-weight: normal;
     }
+    .pbj-rating-stars {
+      color: #fbbf24;
+      letter-spacing: 0.06em;
+    }
+    .pbj-rating-stars--low {
+      color: #f87171 !important;
+    }
     
     .no-sff {
       text-align: center;
@@ -6665,9 +6672,12 @@ __REPORT_SSR_TABLE_ROWS__
       });
     }
     
-    function cmsStarIcons(val) {
+    function cmsStarIconsHtml(val) {
       const n = parseInt(val, 10);
-      return (n >= 1 && n <= 5) ? '\u2605'.repeat(n) : '';
+      if (!(n >= 1 && n <= 5)) return '';
+      const icons = '\u2605'.repeat(n);
+      const cls = n === 1 ? 'pbj-rating-stars pbj-rating-stars--low' : 'pbj-rating-stars';
+      return `<span class="${cls}">${icons}</span>`;
     }
 
     function escapeHtml(s) {
@@ -6706,8 +6716,8 @@ __REPORT_SSR_TABLE_ROWS__
     function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
       const displayName = capitalizeFacilityName(f.name || 'Unknown provider');
       const city = facilityCityLabel(f, stateAbbrForModal);
-      const overallStars = cmsStarIcons(f.overall_rating);
-      const staffingStars = cmsStarIcons(f.staffing_rating);
+      const overallStars = cmsStarIconsHtml(f.overall_rating);
+      const staffingStars = cmsStarIconsHtml(f.staffing_rating);
       const overallRating = overallStars ? `Overall: ${overallStars}` : '';
       const staffingRating = staffingStars ? `Staffing: ${staffingStars}` : '';
       const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');

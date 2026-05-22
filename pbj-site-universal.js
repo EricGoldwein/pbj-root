@@ -23,6 +23,9 @@
     FOOTER_TRUST_BLURB +
     '</p>';
 
+  var FOOTER_ICON_STYLE =
+    'display:block;width:24px;height:24px;object-fit:contain;opacity:0.7;transition:opacity 0.3s ease';
+
   var FOOTER_NAV_LINKS =
     '<p class="footer-trust-links footer-nav-links" style="margin:0 0 0.35rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
     '<a href="/about" style="' + FOOTER_LINK_STYLE + '">About</a> · ' +
@@ -36,8 +39,8 @@
     '<div style="display:flex;justify-content:center;align-items:center;gap:20px;margin-top:0.5rem">',
     '<a href="mailto:' + CONTACT.email + '" class="pbj-contact-cta" style="display:inline-block;transition:opacity 0.3s ease" title="Email: ' + CONTACT.email + '" aria-label="Email ' + CONTACT.email + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa"/></svg></a>',
     '<a href="' + CONTACT.smsHref + '" style="display:inline-block;transition:opacity 0.3s ease" title="SMS: ' + CONTACT.phoneDisplay + '" aria-label="Text ' + CONTACT.phoneDisplay + '"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa"/></svg></a>',
-    '<a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="LinkedIn" aria-label="LinkedIn"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><rect width="24" height="24" rx="2" fill="#0A66C2"/><path d="M7.5 9.5h2.2v9H7.5v-9zm1.1-3.2a1.3 1.3 0 110 2.6 1.3 1.3 0 010-2.6zm3.4 3.2h2.1v1.2h.03c.29-.55 1-1.13 2.06-1.13 2.2 0 2.6 1.45 2.6 3.33v5.68h-2.2v-5.04c0-1.2-.02-2.74-1.67-2.74-1.67 0-1.93 1.3-1.93 2.65v5.13H12v-9z" fill="#fff"/></svg></a>',
-    '<a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" style="display:inline-block;transition:opacity 0.3s ease" title="The 320 Newsletter" aria-label="The 320 Newsletter"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" style="opacity:0.7" aria-hidden="true"><rect width="24" height="24" rx="4" fill="#FF6719"/><path d="M6 7h12v2.2H6V7zm0 4.4h12V20l-6-4.2L6 20V11.4z" fill="#fff"/></svg></a>',
+    '<a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer" class="pbj-footer-icon-link" style="display:inline-flex;align-items:center;transition:opacity 0.3s ease" title="LinkedIn" aria-label="LinkedIn"><img src="/LI-In-Bug.png" alt="" width="24" height="24" class="pbj-footer-icon" style="' + FOOTER_ICON_STYLE + '" /></a>',
+    '<a href="https://320insight.substack.com/" target="_blank" rel="noopener noreferrer" class="pbj-footer-icon-link" style="display:inline-flex;align-items:center;transition:opacity 0.3s ease" title="The 320 Newsletter" aria-label="The 320 Newsletter"><img src="/substack.png" alt="" width="24" height="24" class="pbj-footer-icon" style="' + FOOTER_ICON_STYLE + '" /></a>',
     '</div>',
   ].join('');
 
@@ -214,6 +217,9 @@
     var style = document.createElement('style');
     style.id = 'pbj-footer-styles';
     style.textContent = [
+      '.footer .pbj-footer-icon{display:block;width:24px;height:24px;object-fit:contain;opacity:.7;transition:opacity .3s ease;}',
+      '.footer a:hover .pbj-footer-icon,.footer a:hover img{opacity:1;}',
+      '.footer a:hover svg{opacity:1;}',
       '.footer .footer-trust-links a{text-decoration:none;transition:color .15s ease;}',
       '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',

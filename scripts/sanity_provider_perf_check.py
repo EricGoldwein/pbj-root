@@ -104,8 +104,10 @@ def _run_production_checks(base_url: str, ccn: str, entity_id: int) -> list[tupl
 
     # GPTBot uncached: CCN not warmed in this run (smoke anchors are often already hot in prod)
     try:
-        fresh_pool = _pick_random_ccns(50, seed=99, base_url=base)
-        uncached = next((c for c in fresh_pool if c != ccn), fresh_pool[0])
+        fresh_pool = _pick_random_ccns(80, seed=int(time.time()) % 100000, base_url=base)
+        uncached = next((c for c in fresh_pool if c != ccn), None)
+        if not uncached:
+            uncached = fresh_pool[0]
     except Exception:
         uncached = "165475"
     st, hdr, ms, _ = _http_get(f"{base}/provider/{uncached}", ua=GPTBOT)

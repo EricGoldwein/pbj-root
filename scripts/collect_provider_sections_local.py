@@ -27,9 +27,16 @@ import builtins
 
 from app import app, clear_provider_page_cache
 
+import argparse
+
+parser = argparse.ArgumentParser(description="Aggregate provider cold-render sections_ms locally.")
+parser.add_argument("--limit", type=int, default=10)
+parser.add_argument("--seed", type=int, default=20260525)
+args = parser.parse_args()
+
 data = json.loads((ROOT / "search_index.json").read_text(encoding="utf-8"))
 ccns = [str(f["c"]).zfill(6) for f in data.get("f") or [] if f.get("c")]
-sample = random.Random(20260525).sample(ccns, 10)
+sample = random.Random(args.seed).sample(ccns, min(args.limit, len(ccns)))
 
 logs: list[dict] = []
 real_print = builtins.print

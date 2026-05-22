@@ -8313,6 +8313,81 @@ def _max_cy_qtr_from_facility_csv():
     return max_q
 
 
+_FACILITY_LATEST_HPRD_BY_CCN_KEY = None  # (path, mtime, cy_qtr)
+_FACILITY_LATEST_HPRD_BY_CCN_VAL = None  # ccn -> metrics dict
+_FACILITY_LATEST_HPRD_BY_CCN_AT = 0.0
+_FACILITY_LATEST_HPRD_BY_CCN_TTL = 300
+
+
+def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
+    """One chunked pass: latest-quarter HPRD metrics keyed by CCN (entity provider block)."""
+    global _FACILITY_LATEST_HPRD_BY_CCN_KEY, _FACILITY_LATEST_HPRD_BY_CCN_VAL, _FACILITY_LATEST_HPRD_BY_CCN_AT
+    qtr = str(cy_qtr or '').strip()
+    if not qtr:
+        return {}
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return {}
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = 0.0
+    key = (path, mtime, qtr)
+    now = time.time()
+    if (
+        _FACILITY_LATEST_HPRD_BY_CCN_VAL is not None
+        and _FACILITY_LATEST_HPRD_BY_CCN_KEY == key
+        and (now - _FACILITY_LATEST_HPRD_BY_CCN_AT) < _FACILITY_LATEST_HPRD_BY_CCN_TTL
+    ):
+        return _FACILITY_LATEST_HPRD_BY_CCN_VAL
+    pdm = get_pd()
+    if pdm is None:
+        return {}
+    out: dict[str, dict] = {}
+    try:
+        head = pdm.read_csv(path, nrows=0)
+        cols = [
+            c for c in (
+                'PROVNUM', 'CY_Qtr', 'Total_Nurse_HPRD', 'RN_HPRD',
+                'Contract_Percentage', 'avg_daily_census', 'Avg_Daily_Census',
+            )
+            if c in head.columns
+        ]
+        if 'PROVNUM' not in cols or 'CY_Qtr' not in cols:
+            return {}
+        for chunk in pdm.read_csv(path, usecols=cols, low_memory=False, chunksize=150000):
+            chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == qtr]
+            if chunk.empty:
+                continue
+            hit = chunk.copy()
+            hit['_ccn'] = _normalize_provnum_series(hit['PROVNUM'])
+            for ccn in hit['_ccn'].unique():
+                if not ccn or ccn in out:
+                    continue
+                row = hit.loc[hit['_ccn'] == ccn].iloc[0]
+                metrics = {
+                    'Total_Nurse_HPRD': row.get('Total_Nurse_HPRD'),
+                    'RN_HPRD': row.get('RN_HPRD'),
+                    'Contract_Percentage': row.get('Contract_Percentage'),
+                }
+                if 'avg_daily_census' in hit.columns:
+                    metrics['avg_daily_census'] = row.get('avg_daily_census')
+                elif 'Avg_Daily_Census' in hit.columns:
+                    metrics['avg_daily_census'] = row.get('Avg_Daily_Census')
+                out[ccn] = metrics
+    except Exception as e:
+        print(f'facility latest HPRD index failed: {e}', flush=True)
+        return {}
+    _FACILITY_LATEST_HPRD_BY_CCN_KEY = key
+    _FACILITY_LATEST_HPRD_BY_CCN_VAL = out
+    _FACILITY_LATEST_HPRD_BY_CCN_AT = now
+    print(
+        f'[PBJ_PROVIDER_INDEX] facility_latest_hprd ccns={len(out)} quarter={qtr} path={os.path.basename(path)}',
+        flush=True,
+    )
+    return out
+
+
 def _stream_facility_quarterly_latest_for_ccns(ccns, latest_quarter):
     """Latest-quarter PBJ rows for a set of CCNs; streams CSV without load_csv_data."""
     pdm = get_pd()
@@ -10538,44 +10613,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     entity_summary_html = ''
     if entity_id and entity_name:
         _t_ent = time.perf_counter()
-        try:
-            _ent_name, ent_facilities = load_entity_facilities(entity_id)
-            if ent_facilities and len(ent_facilities) >= 1:
-                state_avgs = {}
-                if raw_quarter:
-                    sd = load_csv_data('state_quarterly_metrics.csv')
-                    if sd is not None and not sd.empty and 'STATE' in sd.columns and 'CY_Qtr' in sd.columns and 'Total_Nurse_HPRD' in sd.columns:
-                        sd = sd[sd['CY_Qtr'].astype(str) == str(raw_quarter)]
-                        for _, r in sd.iterrows():
-                            st = (r.get('STATE') or '').strip().upper()[:2]
-                            v = r.get('Total_Nurse_HPRD')
-                            if st and v is not None and not (isinstance(v, float) and pd.isna(v)):
-                                state_avgs[st] = float(v)
-                below_count = 0
-                states_seen = set()
-                for fac in ent_facilities:
-                    st = (fac.get('state') or '').strip().upper()[:2]
-                    if st:
-                        states_seen.add(st)
-                    hprd = fac.get('Total_Nurse_HPRD')
-                    if hprd is not None and st and st in state_avgs:
-                        try:
-                            if float(hprd) < state_avgs[st]:
-                                below_count += 1
-                        except (TypeError, ValueError):
-                            pass
-                state_count = len(states_seen)
-                # Prefer Chain Performance (2025-11/Chain_Performance_20260218.csv) facility count when available
-                chain_perf = load_chain_performance()
-                chain_row_prov = chain_perf.get(int(entity_id)) if chain_perf else None
-                _chain_fac = _chain_val(chain_row_prov, 'Number of facilities') if chain_row_prov else None
-                try:
-                    facility_count = int(float(_chain_fac)) if _chain_fac is not None else len(ent_facilities)
-                except (TypeError, ValueError):
-                    facility_count = len(ent_facilities)
-                entity_summary_html = f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in {state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing below their respective state ratio this quarter.</div>'
-        except Exception:
-            pass
+        entity_summary_html = _provider_entity_summary_html(entity_id, entity_name, raw_quarter)
         _psec('entity', _t_ent)
     orientation_parts = []
     if state_hprd_numeric is not None and reported_total is not None:
@@ -11007,20 +11045,25 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _psec('html_build', _t_html)
     return html_content
 
-_PROVIDER_INFO_ENTITY_CACHE = None
-_PROVIDER_INFO_ENTITY_AT = 0
-_PROVIDER_INFO_ENTITY_TTL = 300  # 5 min — avoid re-reading full CSV on every entity request
+_ENTITY_FACILITIES_INDEX_KEY = None  # (abs_path, mtime)
+_ENTITY_FACILITIES_INDEX_VAL = None  # entity_id -> {ccn: {ccn, name, city, state}}
+_ENTITY_FACILITIES_INDEX_NAMES = None  # entity_id -> raw name from CSV
+_ENTITY_FACILITIES_INDEX_AT = 0.0
+_ENTITY_FACILITIES_INDEX_TTL = 300
 
-def load_entity_facilities(entity_id):
-    """Load entity name and list of facilities (ccn, name, city, state, latest metrics) for chain_id/affiliated_entity_id.
-    Returns (entity_name, list of dicts). Empty list if not found. Tries both chain_id and affiliated_entity_id when both exist.
-    Caches provider_info DataFrame for 5 min to speed entity page loads."""
-    global _PROVIDER_INFO_ENTITY_CACHE, _PROVIDER_INFO_ENTITY_AT
-    if not HAS_PANDAS:
-        return '', []
-    # Prefer latest provider snapshot for current facility roster/counts; fall back to combined files.
-    # Combined files can include broader longitudinal/entity memberships and overstate current roster counts.
-    paths = _provider_snapshot_candidate_paths() + [
+_ENTITY_FACILITIES_RESULT_CACHE = {}  # (abs_path, mtime, entity_id, quarter) -> (name, facilities)
+_ENTITY_FACILITIES_RESULT_CACHE_AT = 0.0
+_ENTITY_FACILITIES_RESULT_TTL = 300
+
+_STATE_HPRD_AVG_BY_QUARTER_KEY = None  # (abs_path, mtime, cy_qtr)
+_STATE_HPRD_AVG_BY_QUARTER_VAL = None  # state -> float
+_STATE_HPRD_AVG_BY_QUARTER_AT = 0.0
+_STATE_HPRD_AVG_BY_QUARTER_TTL = 300
+
+
+def _entity_facilities_provider_paths():
+    """Provider CSV paths for entity roster (snapshot first)."""
+    paths = list(_provider_snapshot_candidate_paths()) + [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         'pbj-wrapped/public/data/provider_info_combined_latest.csv',
@@ -11028,132 +11071,339 @@ def load_entity_facilities(entity_id):
         'provider_info_combined.csv',
         'pbj-wrapped/public/data/provider_info_combined.csv',
     ]
-    now = time.time()
-    df = None
-    used_path = None
-    for path in paths:
-        if not os.path.exists(path):
-            continue
-        used_path = path
-        if _PROVIDER_INFO_ENTITY_CACHE is not None and (now - _PROVIDER_INFO_ENTITY_AT) < _PROVIDER_INFO_ENTITY_TTL and _PROVIDER_INFO_ENTITY_CACHE.get('_path') == path:
-            df = _PROVIDER_INFO_ENTITY_CACHE.get('_df')
-            break
-        try:
-            df = pd.read_csv(path, low_memory=False)
-            _PROVIDER_INFO_ENTITY_CACHE = {'_df': df, '_path': path}
-            _PROVIDER_INFO_ENTITY_AT = now
-            break
-        except Exception as e:
-            print(f"Error loading provider_info from {path}: {e}")
-            continue
-    if df is None and used_path:
-        try:
-            df = pd.read_csv(used_path, low_memory=False)
-            _PROVIDER_INFO_ENTITY_CACHE = {'_df': df, '_path': used_path}
-            _PROVIDER_INFO_ENTITY_AT = time.time()
-        except Exception as e:
-            print(f"Error loading entity {entity_id} from {used_path}: {e}")
-            return '', []
-    if df is None:
-        return '', []
+    out = []
+    seen = set()
+    for p in paths:
+        abs_p = p if os.path.isabs(p) else os.path.join(APP_ROOT, p.replace('/', os.sep))
+        if abs_p not in seen and os.path.isfile(abs_p):
+            seen.add(abs_p)
+            out.append(abs_p)
+    return out
+
+
+def _entity_row_sort_key(row: dict) -> tuple:
+    """Prefer latest processing_date or CY_Qtr when deduping entity roster rows."""
+    pd_val = row.get('processing_date')
+    if pd_val is not None and str(pd_val).strip() not in ('', 'nan'):
+        return (2, str(pd_val).strip())
+    cy = (row.get('CY_Qtr') or row.get('cy_qtr') or row.get('quarter') or '')
+    cy = str(cy).strip()
+    if cy:
+        m = re.match(r'^(\d{4})Q([1-4])$', cy)
+        if m:
+            return (1, int(m.group(1)), int(m.group(2)))
+        return (1, cy)
+    return (0, '')
+
+
+def _build_entity_facilities_index_from_path(path: str) -> tuple[dict, dict]:
+    """Chunked provider scan: entity_id -> ccn roster + entity_id -> display name."""
+    pd_local = get_pd()
+    if pd_local is None:
+        return {}, {}
     try:
-        df = df.copy()
-        # Normalize CMS NH_ProviderInfo column names to combined format so entity logic works
-        if 'Chain ID' in df.columns and 'chain_id' not in df.columns:
-            rename = {
-                'CMS Certification Number (CCN)': 'ccn',
-                'Provider Name': 'provider_name',
-                'Chain ID': 'chain_id',
-                'Chain Name': 'chain_name',
-                'State': 'state',
-                'City/Town': 'city',
-            }
-            df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
-            if 'chain_id' in df.columns and 'affiliated_entity_id' not in df.columns:
-                df['affiliated_entity_id'] = df['chain_id']
-        if 'ccn' not in df.columns and 'CMS Certification Number (CCN)' in df.columns:
-            df['ccn'] = df['CMS Certification Number (CCN)'].astype(str).str.strip()
-        if 'provider_name' not in df.columns and 'Provider Name' in df.columns:
-            df['provider_name'] = df['Provider Name']
-        eid_col = 'chain_id' if 'chain_id' in df.columns else 'affiliated_entity_id'
-        name_col = 'chain_name' if 'chain_id' in df.columns else 'affiliated_entity_name'
-        if eid_col not in df.columns:
-            return '', []
-        df[eid_col] = pd.to_numeric(df[eid_col], errors='coerce')
-        # When both columns exist, match entity_id in either (same chain can appear as either)
-        if 'chain_id' in df.columns and 'affiliated_entity_id' in df.columns:
-            df['affiliated_entity_id'] = pd.to_numeric(df['affiliated_entity_id'], errors='coerce')
-            sub = df[(df['chain_id'] == int(entity_id)) | (df['affiliated_entity_id'] == int(entity_id))]
-            if not sub.empty and name_col in sub.columns:
-                entity_name_from_chain = (sub['chain_name'].iloc[0] if 'chain_name' in sub.columns else '') or ''
-                entity_name_from_aff = (sub['affiliated_entity_name'].iloc[0] if 'affiliated_entity_name' in sub.columns else '') or ''
-                name_col = 'chain_name' if (entity_name_from_chain and str(entity_name_from_chain).strip() != '') else 'affiliated_entity_name'
-        else:
-            sub = df[df[eid_col] == int(entity_id)]
-        if sub.empty:
-            return '', []
-        entity_name = (sub[name_col].iloc[0] if name_col in sub.columns else '') or "—"
-        entity_name = str(entity_name).strip() if entity_name else "—"
-        entity_name = capitalize_entity_name(entity_name) if entity_name and entity_name != "—" else entity_name
-        # Canonicalize by entity ID to avoid alias drift between snapshots
-        canonical_name = get_entity_name_from_search_index(entity_id)
-        if canonical_name:
-            entity_name = canonical_name
-        # One row per CCN (latest by processing_date or CY_Qtr if present)
-        ccn_col = 'ccn' if 'ccn' in sub.columns else 'PROVNUM'
-        if 'processing_date' in sub.columns:
-            sub = sub.sort_values('processing_date', ascending=False)
-        elif 'CY_Qtr' in sub.columns:
-            sub = sub.sort_values('CY_Qtr', ascending=False)
-        by_ccn = {}
-        for _, row in sub.iterrows():
-            c = str(row.get(ccn_col, '')).strip()
-            if '.' in c:
-                c = c.split('.')[0]
-            c = c.zfill(6)
-            if c and c not in by_ccn:
-                _n = (row.get('provider_name', row.get('PROVNAME', '')) or '')
-                _city = (row.get('city', row.get('CITY', '')) or '')
-                _st = (row.get('state', row.get('STATE', '')) or '')
-                by_ccn[c] = {
-                    'ccn': c,
+        head = pd_local.read_csv(path, nrows=0)
+    except Exception as e:
+        print(f'entity index header read failed for {path}: {e}', flush=True)
+        return {}, {}
+    headers = list(head.columns)
+    rename = {}
+    if 'Chain ID' in headers and 'chain_id' not in headers:
+        rename.update({
+            'CMS Certification Number (CCN)': 'ccn',
+            'Provider Name': 'provider_name',
+            'Chain ID': 'chain_id',
+            'Chain Name': 'chain_name',
+            'State': 'state',
+            'City/Town': 'city',
+        })
+    usecols = set()
+    for c in headers:
+        lc = str(c).lower()
+        if c in rename or c in (
+            'ccn', 'PROVNUM', 'provider_name', 'PROVNAME', 'chain_id', 'affiliated_entity_id',
+            'chain_name', 'affiliated_entity_name', 'state', 'STATE', 'city', 'CITY',
+            'processing_date', 'CY_Qtr', 'cy_qtr', 'quarter',
+        ):
+            usecols.add(c)
+        elif 'chain' in lc and 'id' in lc:
+            usecols.add(c)
+        elif 'affiliated' in lc and 'entity' in lc and 'id' in lc:
+            usecols.add(c)
+        elif ('chain' in lc or 'entity' in lc) and 'name' in lc:
+            usecols.add(c)
+    if not usecols:
+        return {}, {}
+    cols = [c for c in headers if c in usecols]
+    index: dict[int, dict[str, dict]] = {}
+    names: dict[int, str] = {}
+    try:
+        for chunk in pd_local.read_csv(path, usecols=cols, low_memory=False, chunksize=150000):
+            if chunk.empty:
+                continue
+            chunk = chunk.rename(columns={k: v for k, v in rename.items() if k in chunk.columns})
+            if 'chain_id' in chunk.columns and 'affiliated_entity_id' not in chunk.columns:
+                chunk['affiliated_entity_id'] = chunk['chain_id']
+            if 'ccn' not in chunk.columns and 'CMS Certification Number (CCN)' in chunk.columns:
+                chunk['ccn'] = chunk['CMS Certification Number (CCN)']
+            ccn_col = 'ccn' if 'ccn' in chunk.columns else ('PROVNUM' if 'PROVNUM' in chunk.columns else None)
+            if ccn_col is None:
+                continue
+            id_cols = [c for c in ('chain_id', 'affiliated_entity_id') if c in chunk.columns]
+            if not id_cols:
+                continue
+            for row in chunk.to_dict('records'):
+                c_raw = str(row.get(ccn_col, '')).strip()
+                if '.' in c_raw:
+                    c_raw = c_raw.split('.')[0]
+                ccn = c_raw.zfill(6)
+                if len(ccn) != 6 or not ccn.isdigit():
+                    continue
+                _n = (row.get('provider_name') or row.get('PROVNAME') or '')
+                _city = (row.get('city') or row.get('CITY') or '')
+                _st = (row.get('state') or row.get('STATE') or '')
+                fac = {
+                    'ccn': ccn,
                     'name': str(_n).strip(),
                     'city': str(_city).strip(),
                     'state': str(_st).strip().upper()[:2],
+                    'processing_date': row.get('processing_date'),
+                    'CY_Qtr': row.get('CY_Qtr') or row.get('cy_qtr') or row.get('quarter'),
                 }
-        facilities = list(by_ccn.values())
-        if not facilities:
-            return '', []
-        # Attach latest-quarter metrics (stream by CCN — do not load full facility_quarterly_metrics.csv)
-        latest_q = get_canonical_latest_quarter()
-        if latest_q:
-            fq_rows = _stream_facility_quarterly_latest_for_ccns(
-                {f['ccn'] for f in facilities},
-                latest_q,
-            )
-            if fq_rows:
-                sample = next(iter(fq_rows.values()))
-                census_col = (
-                    'avg_daily_census'
-                    if hasattr(sample, 'index') and 'avg_daily_census' in sample.index
-                    else ('Avg_Daily_Census' if hasattr(sample, 'index') and 'Avg_Daily_Census' in sample.index else None)
-                )
-                for fac in facilities:
-                    r = fq_rows.get(fac['ccn'])
-                    if r is None:
+                eids = set()
+                for col in id_cols:
+                    v = row.get(col)
+                    if v is None or (isinstance(v, float) and pd_local.isna(v)):
                         continue
-                    fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
-                    fac['RN_HPRD'] = r.get('RN_HPRD')
-                    fac['Contract_Percentage'] = r.get('Contract_Percentage')
-                    if census_col:
-                        fac['avg_daily_census'] = r.get(census_col)
-                    fac['quarter'] = latest_q
-        return entity_name, facilities
+                    try:
+                        eids.add(int(float(v)))
+                    except (TypeError, ValueError):
+                        continue
+                if not eids:
+                    continue
+                nm_chain = str(row.get('chain_name') or '').strip() if 'chain_name' in row else ''
+                nm_aff = str(row.get('affiliated_entity_name') or '').strip() if 'affiliated_entity_name' in row else ''
+                for eid in eids:
+                    bucket = index.setdefault(eid, {})
+                    prev = bucket.get(ccn)
+                    if prev is None or _entity_row_sort_key(fac) > _entity_row_sort_key(prev):
+                        bucket[ccn] = {k: fac[k] for k in ('ccn', 'name', 'city', 'state')}
+                    if eid not in names:
+                        pick = nm_chain or nm_aff
+                        if pick:
+                            names[eid] = pick
     except Exception as e:
-        print(f"Error loading entity {entity_id}: {e}")
+        print(f'entity index build failed for {path}: {e}', flush=True)
+        return {}, {}
+    return index, names
+
+
+def _get_entity_facilities_index() -> tuple[str, float, dict, dict]:
+    """Return (path, mtime, index, names) for the newest entity provider file."""
+    global _ENTITY_FACILITIES_INDEX_KEY, _ENTITY_FACILITIES_INDEX_VAL, _ENTITY_FACILITIES_INDEX_NAMES, _ENTITY_FACILITIES_INDEX_AT
+    now = time.time()
+    for path in _entity_facilities_provider_paths():
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            continue
+        key = (path, mtime)
+        if (
+            _ENTITY_FACILITIES_INDEX_VAL is not None
+            and _ENTITY_FACILITIES_INDEX_KEY == key
+            and (now - _ENTITY_FACILITIES_INDEX_AT) < _ENTITY_FACILITIES_INDEX_TTL
+        ):
+            return path, mtime, _ENTITY_FACILITIES_INDEX_VAL, _ENTITY_FACILITIES_INDEX_NAMES or {}
+        index, names = _build_entity_facilities_index_from_path(path)
+        if index:
+            _ENTITY_FACILITIES_INDEX_KEY = key
+            _ENTITY_FACILITIES_INDEX_VAL = index
+            _ENTITY_FACILITIES_INDEX_NAMES = names
+            _ENTITY_FACILITIES_INDEX_AT = now
+            print(
+                f'[PBJ_PROVIDER_INDEX] entity_facilities_index entities={len(index)} path={os.path.basename(path)}',
+                flush=True,
+            )
+            return path, mtime, index, names
+    return '', 0.0, {}, {}
+
+
+def _state_total_nurse_hprd_by_state_for_quarter(cy_qtr: str) -> dict[str, float]:
+    """State average Total_Nurse_HPRD for one quarter; chunked scan with mtime cache."""
+    global _STATE_HPRD_AVG_BY_QUARTER_KEY, _STATE_HPRD_AVG_BY_QUARTER_VAL, _STATE_HPRD_AVG_BY_QUARTER_AT
+    qtr = str(cy_qtr or '').strip()
+    if not qtr:
+        return {}
+    path = os.path.join(APP_ROOT, 'state_quarterly_metrics.csv')
+    if not os.path.isfile(path):
+        path = 'state_quarterly_metrics.csv'
+    if not os.path.isfile(path):
+        return {}
+    abs_path = os.path.abspath(path)
+    try:
+        mtime = os.path.getmtime(abs_path)
+    except OSError:
+        mtime = 0.0
+    key = (abs_path, mtime, qtr)
+    now = time.time()
+    if (
+        _STATE_HPRD_AVG_BY_QUARTER_VAL is not None
+        and _STATE_HPRD_AVG_BY_QUARTER_KEY == key
+        and (now - _STATE_HPRD_AVG_BY_QUARTER_AT) < _STATE_HPRD_AVG_BY_QUARTER_TTL
+    ):
+        return _STATE_HPRD_AVG_BY_QUARTER_VAL
+    pd_local = get_pd()
+    if pd_local is None:
+        return {}
+    out: dict[str, float] = {}
+    try:
+        head = pd_local.read_csv(abs_path, nrows=0)
+        cols = [c for c in ('STATE', 'CY_Qtr', 'Total_Nurse_HPRD') if c in head.columns]
+        if len(cols) < 3:
+            return {}
+        for chunk in pd_local.read_csv(abs_path, usecols=cols, low_memory=False, chunksize=150000):
+            chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == qtr]
+            if chunk.empty:
+                continue
+            chunk['STATE'] = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
+            vals = pd_local.to_numeric(chunk['Total_Nurse_HPRD'], errors='coerce')
+            for st, val in zip(chunk['STATE'], vals):
+                if st and val is not None and not pd_local.isna(val):
+                    out[st] = float(val)
+    except Exception as e:
+        print(f'state HPRD avg scan failed: {e}', flush=True)
+        return {}
+    _STATE_HPRD_AVG_BY_QUARTER_KEY = key
+    _STATE_HPRD_AVG_BY_QUARTER_VAL = out
+    _STATE_HPRD_AVG_BY_QUARTER_AT = now
+    return out
+
+
+def _attach_entity_facility_quarterly_metrics(facilities: list, latest_q: str | None) -> None:
+    """Mutate facility dicts with latest-quarter PBJ metrics (national CCN index, one pass per worker)."""
+    if not facilities or not latest_q:
+        return
+    by_ccn = _facility_latest_hprd_by_ccn_for_quarter(latest_q)
+    if not by_ccn:
+        return
+    for fac in facilities:
+        r = by_ccn.get(fac['ccn'])
+        if not r:
+            continue
+        fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
+        fac['RN_HPRD'] = r.get('RN_HPRD')
+        fac['Contract_Percentage'] = r.get('Contract_Percentage')
+        if r.get('avg_daily_census') is not None:
+            fac['avg_daily_census'] = r.get('avg_daily_census')
+        fac['quarter'] = latest_q
+
+
+def load_entity_facilities(entity_id):
+    """Load entity name and facility roster (ccn, name, city, state, optional latest PBJ metrics).
+
+    Uses a chunked entity index (path + mtime) and per-entity result cache instead of loading the
+    full provider CSV into a DataFrame on each call.
+    """
+    global _ENTITY_FACILITIES_RESULT_CACHE, _ENTITY_FACILITIES_RESULT_CACHE_AT
+    if not HAS_PANDAS:
         return '', []
+    try:
+        eid = int(entity_id)
+    except (TypeError, ValueError):
+        return '', []
+    latest_q = get_canonical_latest_quarter() or ''
+    path, mtime, index, csv_names = _get_entity_facilities_index()
+    if not path or eid not in index:
+        return '', []
+    result_key = (path, mtime, eid, latest_q)
+    now = time.time()
+    if (
+        result_key in _ENTITY_FACILITIES_RESULT_CACHE
+        and (now - _ENTITY_FACILITIES_RESULT_CACHE_AT) < _ENTITY_FACILITIES_RESULT_TTL
+    ):
+        cached = _ENTITY_FACILITIES_RESULT_CACHE[result_key]
+        if isinstance(cached, (tuple, list)) and len(cached) >= 2:
+            return cached[0], list(cached[1])
+    facilities = list(index[eid].values())
+    if not facilities:
+        return '', []
+    raw_name = (csv_names.get(eid) or '').strip() or '—'
+    entity_name = capitalize_entity_name(raw_name) if raw_name and raw_name != '—' else raw_name
+    canonical_name = get_entity_name_from_search_index(eid)
+    if canonical_name:
+        entity_name = canonical_name
+    _attach_entity_facility_quarterly_metrics(facilities, latest_q or None)
+    out = (entity_name, facilities)
+    _ENTITY_FACILITIES_RESULT_CACHE[result_key] = out
+    _ENTITY_FACILITIES_RESULT_CACHE_AT = now
+    if len(_ENTITY_FACILITIES_RESULT_CACHE) > 400:
+        _ENTITY_FACILITIES_RESULT_CACHE.clear()
+    return out
+
+
+def _provider_entity_summary_html(entity_id, entity_name: str, raw_quarter: str) -> str:
+    """Affiliated-entity summary line for provider takeaway (records entity sub-timings when enabled)."""
+    from pbj_provider_perf import provider_section_record as _psec
+
+    if not entity_id or not entity_name:
+        return ''
+    try:
+        _t_lookup = time.perf_counter()
+        canonical_name = get_entity_name_from_search_index(entity_id)
+        _psec('entity_lookup_ms', _t_lookup)
+        display_name = canonical_name or entity_name
+
+        _t_fac = time.perf_counter()
+        _ent_name, ent_facilities = load_entity_facilities(entity_id)
+        _psec('entity_facilities_ms', _t_fac)
+        if not ent_facilities:
+            return ''
+        if _ent_name:
+            display_name = _ent_name
+
+        _t_state = time.perf_counter()
+        state_avgs = _state_total_nurse_hprd_by_state_for_quarter(raw_quarter) if raw_quarter else {}
+        _psec('entity_state_metrics_ms', _t_state)
+
+        below_count = 0
+        states_seen = set()
+        for fac in ent_facilities:
+            st = (fac.get('state') or '').strip().upper()[:2]
+            if st:
+                states_seen.add(st)
+            hprd = fac.get('Total_Nurse_HPRD')
+            if hprd is not None and st and st in state_avgs:
+                try:
+                    if float(hprd) < state_avgs[st]:
+                        below_count += 1
+                except (TypeError, ValueError):
+                    pass
+        state_count = len(states_seen)
+
+        _t_chain = time.perf_counter()
+        chain_perf = load_chain_performance()
+        chain_row_prov = chain_perf.get(int(entity_id)) if chain_perf else None
+        _chain_fac = _chain_val(chain_row_prov, 'Number of facilities') if chain_row_prov else None
+        _psec('entity_chain_perf_ms', _t_chain)
+        try:
+            facility_count = int(float(_chain_fac)) if _chain_fac is not None else len(ent_facilities)
+        except (TypeError, ValueError):
+            facility_count = len(ent_facilities)
+
+        _t_html = time.perf_counter()
+        html_out = (
+            f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in '
+            f'{state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing '
+            f'below their respective state ratio this quarter.</div>'
+        )
+        _psec('entity_html_ms', _t_html)
+        return html_out
+    except Exception:
+        return ''
+
 
 _CHAIN_PERF_CACHE = None
+_CHAIN_PERF_CACHE_KEY = None  # (path, mtime)
 _CHAIN_PERF_AT = 0
 _CHAIN_PERF_TTL = 300  # 5 min
 _CHAIN_PERF_SOURCE_LABEL = ''
@@ -11165,9 +11415,13 @@ def load_chain_performance():
     Nursing_Home_Chain_Performance_Measures* naming when present). Used for
     entity PBJ takeaway and key metrics.
     Returns dict mapping entity_id (int) -> row dict with keys matching CSV columns (strip-spaced)."""
-    global _CHAIN_PERF_CACHE, _CHAIN_PERF_AT, _CHAIN_PERF_TTL, _CHAIN_PERF_SOURCE_LABEL, _CHAIN_PERF_SOURCE_PATH
+    global _CHAIN_PERF_CACHE, _CHAIN_PERF_CACHE_KEY, _CHAIN_PERF_AT, _CHAIN_PERF_TTL, _CHAIN_PERF_SOURCE_LABEL, _CHAIN_PERF_SOURCE_PATH
     now = time.time()
-    if _CHAIN_PERF_CACHE is not None and _CHAIN_PERF_SOURCE_LABEL and (now - _CHAIN_PERF_AT) < _CHAIN_PERF_TTL:
+    if (
+        _CHAIN_PERF_CACHE is not None
+        and _CHAIN_PERF_CACHE_KEY is not None
+        and (now - _CHAIN_PERF_AT) < _CHAIN_PERF_TTL
+    ):
         return _CHAIN_PERF_CACHE
     if not HAS_PANDAS:
         return {}
@@ -11269,6 +11523,11 @@ def load_chain_performance():
                 except (TypeError, ValueError):
                     continue
                 out[eid_int] = row.to_dict()
+            try:
+                _cp_mtime = os.path.getmtime(path)
+            except OSError:
+                _cp_mtime = 0.0
+            _CHAIN_PERF_CACHE_KEY = (path, _cp_mtime)
             _CHAIN_PERF_CACHE = out
             _CHAIN_PERF_AT = now
             _CHAIN_PERF_SOURCE_PATH = path

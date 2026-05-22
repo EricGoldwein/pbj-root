@@ -45,19 +45,21 @@
   height: 24px;
   object-fit: contain;
 }
-.footer .pbj-footer-icon--linkedin {
-  width: 28px;
+.footer .pbj-footer-svg {
+  display: block;
+  width: 24px;
   height: 24px;
+  flex-shrink: 0;
 }
-.footer a.pbj-footer-icon-link {
+.footer a.pbj-footer-icon-link,
+.footer a.pbj-contact-cta.pbj-footer-icon-link {
   opacity: 0.7;
   transition: opacity 0.3s ease;
 }
 .footer a.pbj-footer-icon-link:hover,
-.footer a.pbj-footer-icon-link:focus-visible {
-  opacity: 1;
-}
-.footer a:hover svg {
+.footer a.pbj-footer-icon-link:focus-visible,
+.footer a.pbj-contact-cta.pbj-footer-icon-link:hover,
+.footer a.pbj-contact-cta.pbj-footer-icon-link:focus-visible {
   opacity: 1;
 }
 @media (max-width: 768px) {

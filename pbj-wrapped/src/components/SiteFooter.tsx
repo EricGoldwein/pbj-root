@@ -9,13 +9,29 @@ const FOOTER_PHONE_DISPLAY = '(929) 804-4996';
 const FOOTER_SMS_HREF = 'sms:+19298084996';
 
 const FOOTER_BLURB =
-  'PBJ320 is a nursing-home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets.';
+  'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets.';
 
 const linkStyle = { color: 'rgba(148, 163, 184, 0.95)' };
 const signoffLinkStyle = {
   color: 'rgba(203, 213, 225, 0.78)',
   textDecoration: 'none',
 };
+
+const footerIconLinkStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+};
+
+const FooterLinkedInIcon: React.FC = () => (
+  <svg className="pbj-footer-svg" width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <rect width={24} height={24} rx={2} fill="#0A66C2" />
+    <path
+      fill="#fff"
+      d="M7.2 9.4h2.1v9H7.2V9.4zm1.05-3.15a1.22 1.22 0 110 2.44 1.22 1.22 0 010-2.44zm3.28 3.15h2.05v1.1h.03c.29-.55.98-1.11 2.01-1.11 2.15 0 2.55 1.42 2.55 3.25v5.66h-2.1v-5.02c0-1.18-.02-2.69-1.55-2.69-1.55 0-1.79 1.21-1.79 2.47v5.24H11.5V9.4z"
+    />
+  </svg>
+);
 
 export const SiteFooter: React.FC = () => {
   const year = new Date().getFullYear();
@@ -78,19 +94,23 @@ export const SiteFooter: React.FC = () => {
       >
         <a
           href="mailto:eric@320insight.com"
-          style={{ display: 'inline-block', transition: 'opacity 0.3s ease' }}
+          className="pbj-contact-cta pbj-footer-icon-link"
+          style={footerIconLinkStyle}
           title="Email: eric@320insight.com"
+          aria-label="Email eric@320insight.com"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}>
+          <svg className="pbj-footer-svg" width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" fill="#60a5fa" />
           </svg>
         </a>
         <a
           href={FOOTER_SMS_HREF}
-          style={{ display: 'inline-block', transition: 'opacity 0.3s ease' }}
+          className="pbj-footer-icon-link"
+          style={footerIconLinkStyle}
           title={`SMS: ${FOOTER_PHONE_DISPLAY}`}
+          aria-label={`Text ${FOOTER_PHONE_DISPLAY}`}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}>
+          <svg className="pbj-footer-svg" width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
             <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z" fill="#60a5fa" />
           </svg>
         </a>
@@ -99,18 +119,18 @@ export const SiteFooter: React.FC = () => {
           target="_blank"
           rel="noopener noreferrer"
           className="pbj-footer-icon-link"
-          style={{ display: 'inline-flex', alignItems: 'center' }}
+          style={footerIconLinkStyle}
           title="LinkedIn"
           aria-label="LinkedIn"
         >
-          <img src="/LI-In-Bug.png" alt="" width={28} height={24} className="pbj-footer-icon pbj-footer-icon--linkedin" />
+          <FooterLinkedInIcon />
         </a>
         <a
           href="https://320insight.substack.com/"
           target="_blank"
           rel="noopener noreferrer"
           className="pbj-footer-icon-link"
-          style={{ display: 'inline-flex', alignItems: 'center' }}
+          style={footerIconLinkStyle}
           title="The 320 Newsletter"
           aria-label="The 320 Newsletter"
         >

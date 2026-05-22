@@ -359,6 +359,46 @@ def _check_required_deploy_data(errors: List[str], notes: List[str]) -> None:
         notes.append(f"Deploy data present: {', '.join(present)}")
 
 
+STATE_MEDIAN_COLUMNS = (
+    "Total_Nurse_HPRD_Median",
+    "RN_HPRD_Median",
+    "Nurse_Care_HPRD_Median",
+    "RN_Care_HPRD_Median",
+    "Nurse_Assistant_HPRD_Median",
+    "Contract_Percentage_Median",
+)
+
+
+def _check_state_quarterly_median_columns(errors: List[str], notes: List[str]) -> None:
+    """Hard-fail if state_quarterly_metrics.csv is missing report map median columns."""
+    path = REPO_ROOT / "state_quarterly_metrics.csv"
+    if not path.is_file():
+        errors.append("state_quarterly_metrics.csv missing (required for /report medians).")
+        return
+    try:
+        import pandas as pd  # pylint: disable=import-error
+    except Exception:
+        notes.append("Skipped state median column check: pandas unavailable.")
+        return
+    try:
+        head = pd.read_csv(path, nrows=0)
+    except Exception as exc:
+        errors.append(f"could not read state_quarterly_metrics.csv header: {exc}")
+        return
+    cols = set(head.columns)
+    missing = [c for c in STATE_MEDIAN_COLUMNS if c not in cols]
+    if missing:
+        errors.append(
+            "state_quarterly_metrics.csv missing median columns for /report map: "
+            + ", ".join(missing)
+            + " — run: python scripts/patch_state_quarterly_medians.py"
+        )
+        return
+    notes.append(
+        "state_quarterly_metrics.csv includes six *_Median columns (/report map median mode)."
+    )
+
+
 def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
     """Unit tests for public case-mix export rule (no full app data load)."""
     script = REPO_ROOT / "scripts" / "check_public_case_mix_export.py"
@@ -397,6 +437,7 @@ def main() -> int:
         _check_entity_counts_against_latest_snapshot(errors, notes)
         _check_owners_autocomplete_health(errors, notes)
         _check_required_deploy_data(errors, notes)
+        _check_state_quarterly_median_columns(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
         _check_public_case_mix_export(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script

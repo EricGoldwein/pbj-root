@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Add facility-level median columns to state_quarterly_metrics.csv (one-time / release)."""
+"""
+Quarterly release step: add facility-level median columns to state_quarterly_metrics.csv.
+
+Run after regenerating state_quarterly_metrics.csv from facility_quarterly_metrics.csv:
+  python scripts/patch_state_quarterly_medians.py
+
+Documented in QUARTER_RELEASE_PLAYBOOK.md (step 2). Enforced by scripts/validate_release.py.
+"""
 from __future__ import annotations
 
 import os

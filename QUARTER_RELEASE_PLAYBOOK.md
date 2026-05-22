@@ -20,7 +20,9 @@ This playbook fixes those with one explicit pipeline and guard rails.
 
 ### Quarter truth (PBJ longitudinal)
 
-- **Canonical quarter file:** `facility_quarterly_metrics.csv`
+- **Canonical quarter file (local/full):** `facility_quarterly_metrics.csv` (gitignored; may exist via LFS history locally)
+- **Deploy snapshot (committed):** `facility_quarterly_metrics_latest.csv` — built with `scripts/build_facility_quarterly_deploy_snapshot.py` (default last 8 quarters)
+- **Render runtime:** build copies `_latest` → `facility_quarterly_metrics.csv` — see **`docs/DATA_DEPLOY.md`**
 - **Canonical quarter field:** `CY_Qtr`
 - **Required release quarter:** whatever `max(CY_Qtr)` is in canonical file
 
@@ -69,8 +71,11 @@ Every page that displays PBJ quarter data must trace to this source (or a genera
 1. **Ingest PBJ source**
    - Refresh canonical `facility_quarterly_metrics.csv`.
    - Verify `max(CY_Qtr)` equals intended quarter (e.g., `2025Q4`).
+   - Run `python scripts/build_facility_quarterly_deploy_snapshot.py` and commit `facility_quarterly_metrics_latest.csv` (do **not** commit the 190 MB full file).
 
 2. **Generate downstream PBJ artifacts**
+   - Regenerate `state_quarterly_metrics.csv` and `national_quarterly_metrics.csv` (and related aggregates) from canonical facility data.
+   - **Required:** `python scripts/patch_state_quarterly_medians.py` — adds the six `*_Median` columns to `state_quarterly_metrics.csv` from facility-level data (`Total_Nurse_HPRD_Median`, `RN_HPRD_Median`, `Nurse_Care_HPRD_Median`, `RN_Care_HPRD_Median`, `Nurse_Assistant_HPRD_Median`, `Contract_Percentage_Median`). `/report` map median mode depends on these columns; do not skip after regenerating state metrics.
    - Regenerate state/national/search JSON artifacts.
    - Ensure homepage/search/report pages consume regenerated outputs.
 
@@ -109,17 +114,17 @@ Add/maintain a release validation script (recommended: `scripts/validate_release
 - Template path sanity:
   - root-level duplicates of runtime templates.
 
-## Git/LFS Rules
+## Git / deploy data rules
 
-- Use Git LFS for any runtime artifact > 100MB.
-- Tracked via `.gitattributes` with explicit patterns.
-- Before commit:
-  - check staged file sizes.
-  - ensure large files are LFS pointers, not raw blobs.
+- **Do not** commit `facility_quarterly_metrics.csv` or `provider_info_combined_latest.csv` (removed from tree; see `docs/DATA_DEPLOY.md`).
+- Commit **`facility_quarterly_metrics_latest.csv`** after `build_facility_quarterly_deploy_snapshot.py` (keep under ~95 MB).
+- Commit **`provider_info/ProviderInfoNorm_*.csv`** snapshots.
+- Before commit: `git diff --stat` on `_latest`; build log should list multiple `CY_Qtr` values.
 
 ## Pre-Push Checklist (Go/No-Go)
 
 - [ ] Canonical PBJ file has correct max quarter.
+- [ ] `state_quarterly_metrics.csv` includes six `*_Median` columns (`python scripts/patch_state_quarterly_medians.py` after state metrics rebuild).
 - [ ] Provider snapshot and case-mix values are fresh for sample CCNs.
 - [ ] SFF JSONs show latest posting month/year.
 - [ ] Owners source labels resolve to latest files.

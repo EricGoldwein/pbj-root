@@ -1338,3 +1338,149 @@ def load_owner_profile(associate_id: str) -> dict[str, Any] | None:
     if not owner_rows:
         return None
     return _build_owner_control_profile(pac, list(owner_rows))
+
+
+_CT_OWNER_SEARCH_GZ = _OWNERSHIP_DIR / "ct_owner_search_catalog.json.gz"
+
+
+def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
+    """
+    Searchable PACs for ownership profiles in public-launch states (Connecticut).
+    Prefer ct_owner_search_catalog.json.gz from scripts/build_snf_owners_index.py on deploy.
+    """
+    from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
+
+    catalog: dict[str, str] = {}
+    legal_ccn = _legal_business_name_to_ccn()
+    name_ccn = _facility_name_to_ccn()
+
+    def _maybe_add(pac: str, display: str, fac_st: str) -> None:
+        if len(pac) != 10 or fac_st not in OWNERSHIP_PUBLIC_STATES:
+            return
+        name = _clean(display)
+        if not name:
+            return
+        prev = catalog.get(pac)
+        if not prev or len(name) > len(prev):
+            catalog[pac] = name
+
+    def _ingest_row(row: dict[str, Any]) -> None:
+        fac = _clean(row.get("ORGANIZATION NAME"))
+        if not fac:
+            return
+        key = _norm_org_key(fac)
+        ccn = legal_ccn.get(key) or name_ccn.get(key) or _resolve_ccn_with_method(fac)[0]
+        fac_st = _facility_state_for_row(row, ccn or "")
+        en_pac = normalize_associate_id(row.get(ENROLLMENT_PAC_COL))
+        ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
+        _maybe_add(en_pac, fac, fac_st)
+        if ow_pac:
+            _maybe_add(ow_pac, _owner_display_name(row), fac_st)
+
+    conn = _sqlite_conn()
+    if conn:
+        try:
+            for sql_row in conn.execute(f'SELECT * FROM "{_OWNERS_TABLE}"'):
+                _ingest_row(_sqlite_row_to_dict(sql_row))
+        except Exception:
+            pass
+    else:
+        path = snf_owners_csv_path()
+        if path:
+            try:
+                header = pd.read_csv(
+                    str(path), dtype=str, encoding="latin-1", low_memory=False, nrows=0
+                ).columns.tolist()
+                cols = tuple(c for c in _CSV_USECOLS if c in header)
+                for chunk in _read_owners_csv_chunks(usecols=cols, chunksize=150_000):
+                    for _, r in chunk.iterrows():
+                        _ingest_row(_row_to_dict(r))
+            except Exception:
+                pass
+
+    rows = [
+        {"associate_id": pac, "name": name}
+        for pac, name in sorted(catalog.items(), key=lambda x: x[1].lower())
+    ]
+    return rows
+
+
+def write_public_owner_search_catalog_file() -> int:
+    """Persist CT (public-state) owner search catalog for fast /owners hub loads."""
+    rows = _build_public_owner_search_catalog_entries()
+    _OWNERSHIP_DIR.mkdir(parents=True, exist_ok=True)
+    with gzip.open(_CT_OWNER_SEARCH_GZ, "wt", encoding="utf-8") as f:
+        json.dump(rows, f, separators=(",", ":"))
+    return len(rows)
+
+
+@lru_cache(maxsize=1)
+def _public_owner_search_catalog() -> tuple[tuple[str, str, str], ...]:
+    if _CT_OWNER_SEARCH_GZ.is_file():
+        try:
+            with gzip.open(_CT_OWNER_SEARCH_GZ, "rt", encoding="utf-8") as f:
+                raw = json.load(f)
+            if isinstance(raw, list):
+                entries: list[tuple[str, str, str]] = []
+                for item in raw:
+                    if not isinstance(item, dict):
+                        continue
+                    pac = normalize_associate_id(str(item.get("associate_id") or ""))
+                    name = _clean(str(item.get("name") or ""))
+                    if len(pac) == 10 and name:
+                        entries.append((pac, name, _norm_org_key(name)))
+                if entries:
+                    return tuple(entries)
+        except Exception:
+            pass
+    built = _build_public_owner_search_catalog_entries()
+    return tuple(
+        (normalize_associate_id(r["associate_id"]), r["name"], _norm_org_key(r["name"]))
+        for r in built
+        if normalize_associate_id(r.get("associate_id")) and r.get("name")
+    )
+
+
+def search_public_owner_profiles(query: str, *, limit: int = 12) -> list[dict[str, str]]:
+    """Name or 10-digit PAC search for publicly launched ownership states (Connecticut)."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    catalog = _public_owner_search_catalog()
+    if not catalog:
+        return []
+
+    pac_q = normalize_associate_id(q)
+    if len(pac_q) == 10 and pac_q.isdigit():
+        for pac, name, _ in catalog:
+            if pac == pac_q:
+                return [
+                    {
+                        "associate_id": pac,
+                        "name": name,
+                        "profile_url": associate_profile_url(pac),
+                    }
+                ]
+        return []
+
+    qnorm = _norm_org_key(q)
+    if len(qnorm) < 2:
+        return []
+
+    scored: list[tuple[int, int, str, str]] = []
+    for pac, name, key in catalog:
+        if qnorm not in key and qnorm not in _norm_org_key(name):
+            continue
+        rank = 0 if key.startswith(qnorm) else (1 if qnorm in key[: max(len(qnorm) + 4, 8)] else 2)
+        scored.append((rank, len(name), pac, name))
+    scored.sort(key=lambda x: (x[0], x[1], x[3].lower()))
+    out: list[dict[str, str]] = []
+    for _, _, pac, name in scored[: max(1, limit)]:
+        out.append(
+            {
+                "associate_id": pac,
+                "name": name,
+                "profile_url": associate_profile_url(pac),
+            }
+        )
+    return out

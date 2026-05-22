@@ -234,6 +234,8 @@ except ImportError:
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+# CMS ownership hub at /owners/ — off until launch; /owners/<10-digit PAC> CT profiles stay public.
+_OWNERS_CMS_HUB_PUBLIC = False
 # Local (non-Render): always rebuild provider HTML so case-mix / chart edits show on refresh.
 if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
     if (os.environ.get('PBJ_SKIP_PROVIDER_PAGE_CACHE') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
@@ -1305,6 +1307,20 @@ def owner_profile_js():
         send_from_directory(
             os.path.join(APP_ROOT, 'ownership'),
             'owner-profile.js',
+            mimetype='application/javascript',
+        )
+    )
+
+
+@app.route('/owners-hub.js')
+def owners_hub_js():
+    if not _OWNERS_CMS_HUB_PUBLIC:
+        from flask import abort
+        abort(404)
+    return _static_cache_headers(
+        send_from_directory(
+            os.path.join(APP_ROOT, 'ownership'),
+            'owners-hub.js',
             mimetype='application/javascript',
         )
     )
@@ -4728,6 +4744,8 @@ def _static_asset_version(filename: str) -> int:
         path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.css')
     elif filename == 'owner-profile.js':
         path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.js')
+    elif filename == 'owners-hub.js':
+        path = os.path.join(APP_ROOT, 'ownership', 'owners-hub.js')
     else:
         path = os.path.join(APP_ROOT, filename)
     try:
@@ -5068,40 +5086,87 @@ app.register_blueprint(fec_owner_bp)
 
 def _owners_cms_landing_html():
     """Hub for CMS ownership profiles (/owners/<10-digit PAC>). Connecticut is public."""
+    from ownership.display_format import format_org_display
+    from ownership.owner_profile import top_owner_organizations_for_state
+
     layout = get_pbj_site_layout(
-        'Nursing Home Ownership | PBJ320',
-        'CMS nursing home ownership and control profiles. Connecticut profiles are public; more states coming.',
+        'Connecticut Nursing Home Ownership Profiles | PBJ320',
+        'Search Connecticut CMS nursing home ownership profiles by organization name or 10-digit PAC. '
+        'Enrollment and owner/control data from CMS SNF All Owners on PBJ320.',
         _public_site_origin() + '/owners',
         extra_head=(
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
     )
-    body = '''
-    <div class="container" style="max-width:720px;margin:0 auto;padding:1.5rem 1rem 3rem;">
-      <h1 style="font-size:1.75rem;margin-bottom:0.5rem;">Nursing home ownership</h1>
-      <p style="color:#94a3b8;line-height:1.6;">
-        CMS enrollment and owner/control profiles by 10-digit associate ID (PAC).
-        <strong>Connecticut</strong> profiles are available now; additional states will roll out on this path.
+    top_rows = ''
+    for row in top_owner_organizations_for_state('CT', limit=8):
+        name = html.escape(format_org_display(str(row.get('name') or '—')))
+        pac = html.escape(str(row.get('associate_id') or ''))
+        url = html.escape(str(row.get('profile_url') or f'/owners/{pac}'))
+        cnt = int(row.get('facility_count') or 0)
+        top_rows += (
+            f'<li><a href="{url}">{name}</a>'
+            f'<span class="owners-hub-top-meta">{cnt} linked facilit{"y" if cnt == 1 else "ies"} · PAC {pac}</span></li>'
+        )
+    top_section = ''
+    if top_rows:
+        top_section = (
+            '<h2 class="owners-hub-h2">Browse Connecticut profiles</h2>'
+            f'<ul class="owners-hub-top-list">{top_rows}</ul>'
+        )
+    hub_js_v = _static_asset_version('owners-hub.js')
+    body = f'''
+    <div class="owners-hub">
+      <h1>Connecticut nursing home ownership</h1>
+      <p class="owners-hub-lead">
+        CMS <abbr title="Skilled Nursing Facility">SNF</abbr> All Owners enrollment and owner/control profiles for
+        Connecticut facilities. Search by organization name or 10-digit CMS associate ID (PAC).
+        Additional states are not published on this path yet.
       </p>
-      <p style="margin-top:1.25rem;">
-        <a href="/owner" style="color:#60a5fa;">Political contributions search (FEC)</a>
-        — separate tool for campaign finance linked to nursing home operators.
-      </p>
-      <p style="margin-top:1rem;font-size:0.9rem;color:#64748b;">
-        Open a profile: <code style="color:#e2e8f0;">/owners/&lt;10-digit PAC&gt;</code>
-        (from provider pages, CHOW records, or state ownership blocks).
+      <div class="owners-hub-search" role="search" aria-label="Search Connecticut ownership profiles">
+        <label class="owners-hub-search-label" for="ownersHubSearchInput">Search Connecticut ownership</label>
+        <input type="search" id="ownersHubSearchInput" class="owners-hub-search-input"
+          placeholder="Organization name or 10-digit PAC" autocomplete="off" spellcheck="false"
+          aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
+        <ul id="ownersHubSearchResults" class="owners-hub-search-results" role="listbox" hidden></ul>
+      </div>
+      {top_section}
+      <p class="owners-hub-aside">
+        <a href="/owner">Political contributions (FEC)</a> is a separate tool for campaign finance linked to operators.
+        You can also open a profile from a <a href="/state/connecticut">Connecticut facility page</a> or
+        <a href="/">facility search</a> when ownership is listed there.
       </p>
     </div>
+    <script src="/owners-hub.js?v={hub_js_v}" defer></script>
     '''
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+
+
+@app.route('/owners/api/cms-search')
+def owners_cms_search_api():
+    """Hub autocomplete — disabled until _OWNERS_CMS_HUB_PUBLIC."""
+    if not _OWNERS_CMS_HUB_PUBLIC:
+        from flask import abort
+        abort(404)
+    from flask import jsonify
+    from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
+
+    q = (request.args.get('q') or '').strip()
+    pac = normalize_associate_id(q)
+    if len(q) < 2 and len(pac) != 10:
+        return jsonify({'suggestions': []})
+    return jsonify({'suggestions': search_public_owner_profiles(q, limit=12)})
 
 
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():
-    """CMS ownership hub. FEC contributions search is at /owner/."""
+    """CMS ownership hub (hidden until launch). FEC contributions search is at /owner/."""
     if request.args.get('owner'):
         return redirect('/owner', code=302)
+    if not _OWNERS_CMS_HUB_PUBLIC:
+        from flask import abort
+        abort(404)
     resp = make_response(_owners_cms_landing_html())
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
@@ -6766,6 +6831,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-content-box p {{ color: #e2e8f0; margin-bottom: 0.75rem; }}
 .pbj-explainer-body ul {{ margin: 0.5rem 0 1rem; padding-left: 1.35rem; }}
 .pbj-explainer-body li {{ margin-bottom: 0.35rem; color: #e2e8f0; }}
+.pbj-explainer-try-lead {{ font-size: 0.95rem; color: #cbd5e1; margin-bottom: 0.65rem; }}
+.pbj-explainer-try-list {{ list-style: none; padding-left: 0; margin: 0.25rem 0 0.75rem; }}
+.pbj-explainer-try-list li {{ margin-bottom: 0.7rem; padding-left: 0; line-height: 1.45; }}
+.pbj-explainer-try-list a {{ font-weight: 600; }}
+.pbj-explainer-try-list code {{ font-size: 0.88em; color: #a5b4fc; background: rgba(30, 41, 59, 0.55); padding: 0.1em 0.35em; border-radius: 4px; }}
 .pbj-explainer-see-also {{ margin-top: 1.25rem; padding-top: 0.85rem; border-top: 1px solid rgba(71, 85, 105, 0.45); font-size: 0.92rem; color: #a8b4c4; }}
 .pbj-explainer-see-also a {{ color: #94a3b8; font-weight: 500; }}
 .pbj-explainer-see-also a:hover {{ color: #a5b4fc; }}

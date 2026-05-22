@@ -1590,3 +1590,147 @@ button.owner-flag:hover {
   }
 
 }
+
+/* /owners hub (Connecticut CMS ownership search) */
+.owners-hub {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+  color: #e2e8f0;
+}
+
+.owners-hub h1 {
+  font-size: 1.75rem;
+  margin-bottom: 0.5rem;
+  color: #f1f5f9;
+  font-weight: 700;
+}
+
+.owners-hub-lead {
+  color: #94a3b8;
+  line-height: 1.6;
+  margin-bottom: 1.25rem;
+}
+
+.owners-hub-h2 {
+  font-size: 1.1rem;
+  color: #a5b4fc;
+  margin: 1.5rem 0 0.65rem;
+  font-weight: 600;
+}
+
+.owners-hub-search {
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.owners-hub-search-label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 0.4rem;
+}
+
+.owners-hub-search-input {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  font-size: 1rem;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.owners-hub-search-input:focus {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-color: #6366f1;
+}
+
+.owners-hub-search-results {
+  list-style: none;
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  background: #1e293b;
+  max-height: 16rem;
+  overflow-y: auto;
+  box-shadow: 0 12px 32px -12px rgba(15, 23, 42, 0.9);
+}
+
+.owners-hub-search-results[hidden] {
+  display: none;
+}
+
+.owners-hub-result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.6rem 0.85rem;
+  text-decoration: none;
+  color: #e2e8f0;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.45);
+}
+
+.owners-hub-result:last-child {
+  border-bottom: none;
+}
+
+.owners-hub-result:hover,
+.owners-hub-result:focus {
+  background: rgba(99, 102, 241, 0.12);
+  color: #f8fafc;
+}
+
+.owners-hub-result-name {
+  font-weight: 600;
+}
+
+.owners-hub-result-pac {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.owners-hub-top-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.owners-hub-top-list li {
+  margin-bottom: 0.55rem;
+  line-height: 1.45;
+}
+
+.owners-hub-top-list a {
+  color: #818cf8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.owners-hub-top-list a:hover {
+  color: #a5b4fc;
+  text-decoration: underline;
+}
+
+.owners-hub-top-meta {
+  display: block;
+  font-size: 0.82rem;
+  color: #64748b;
+  margin-top: 0.1rem;
+}
+
+.owners-hub-aside {
+  margin-top: 1.5rem;
+  font-size: 0.92rem;
+  color: #94a3b8;
+  line-height: 1.55;
+}
+
+.owners-hub-aside a {
+  color: #60a5fa;
+  font-weight: 500;
+}

@@ -310,10 +310,10 @@ def _state_names_for_owner_profile(profile: dict[str, Any]) -> list[str]:
 
 
 def owner_page_title(display_name: str, profile: dict[str, Any] | None = None) -> str:
-    """Title for /owners/<pac> — durable; profile arg kept for call-site compatibility."""
+    """Browser tab title for /owners/<pac> (not the on-page H1)."""
     del profile
     name = (display_name or 'Organization').strip()
-    return f'{name} | PBJ320'
+    return f'{name} Nursing Home Ownership | PBJ320'
 
 
 def owner_page_meta_description(
@@ -424,8 +424,8 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         'path': '/what-is-hprd',
         'title': 'What is HPRD? Nursing Home Staffing Metric | PBJ320',
         'description': (
-            'Hours per resident day (HPRD) explains average nursing staff hours per resident from CMS PBJ data. '
-            'Formula, role-specific HPRD, and limits of the metric.'
+            'What is HPRD (hours per resident day)? Nursing home staffing metric from CMS Payroll-Based Journal '
+            '(PBJ) data—formula, RN/LPN/aide splits, and how to read it on PBJ320.'
         ),
         'h1': 'What is HPRD?',
         'body': (
@@ -447,21 +447,29 @@ EXPLAINER_PAGES: dict[str, dict[str, str]] = {
         'path': '/nursing-home-staffing-data',
         'title': 'Nursing Home Staffing Data by Facility | PBJ320',
         'description': (
-            'Look up public CMS nursing home staffing by facility: quarterly HPRD, role mix, and trends '
-            'from Payroll-Based Journal (PBJ) data on PBJ320.'
+            'Nursing home staffing data by facility from CMS Payroll-Based Journal (PBJ) on PBJ320—quarterly HPRD, '
+            'RN/LPN/aide mix, contract share where reported, and state comparisons from public federal files.'
         ),
         'h1': 'Nursing Home Staffing Data by Facility',
         'body': (
-            '<p>PBJ320 turns public CMS Payroll-Based Journal (PBJ) files into staffing you can look up by nursing '
-            'home—quarterly HPRD, RN/LPN/aide mix, contract share where reported, and how a facility compares to '
-            'others in its state for the same quarter.</p>'
+            '<p>PBJ320 turns public CMS Payroll-Based Journal (PBJ) files into nursing home staffing data you can '
+            'look up by facility—quarterly HPRD, RN/LPN/aide mix, contract share where reported, and state '
+            'comparisons for the same quarter.</p>'
             '<h2>Good for</h2>'
-            '<p>Spotting trends, comparing facilities or states, and preparing questions—not for proving harm, neglect, '
-            'or violations on its own. PBJ does not show shift-by-shift bedside staffing; confirm anything important on '
-            'Care Compare or CMS source files. What PBJ is: <a href="/phoebe">PBJ explained</a>. '
-            'The metric: <a href="/what-is-hprd">What is HPRD?</a>.</p>'
+            '<p>Spotting trends, comparing facilities or states, and preparing follow-up questions—not for proving '
+            'harm, neglect, or regulatory violations on its own. PBJ does not show shift-by-shift bedside staffing; '
+            'confirm anything important on Care Compare or CMS source files.</p>'
+            '<p>Background: <a href="/phoebe">PBJ explained</a> · '
+            '<a href="/what-is-hprd">What is HPRD?</a></p>'
             '<h2>Try it</h2>'
-            '<p><a href="/">Search by facility</a> or open <a href="/report">state staffing reports</a>.</p>'
+            '<p class="pbj-explainer-try-lead">Search by facility on the <a href="/">home dashboard</a>; this page '
+            'links to the main tools rather than duplicating the search box.</p>'
+            '<ul class="pbj-explainer-try-list">'
+            '<li><a href="/"><strong>Search by facility</strong></a> — nursing home name, CCN, chain, or state; '
+            'quarterly HPRD and RN/LPN/aide staffing for that facility.</li>'
+            '<li><a href="/report"><strong>U.S. nursing home staffing rankings</strong></a> — compare states and CMS '
+            'regions on the interactive map and tables.</li>'
+            '</ul>'
         ),
     },
 }

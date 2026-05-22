@@ -97,6 +97,10 @@ def build() -> None:
         f"{len(org_map):,} org keys -> {ORG_INDEX_PATH.name}"
     )
     build_state_top_owners()
+    from ownership.owner_profile import write_public_owner_search_catalog_file  # noqa: E402
+
+    n_ct = write_public_owner_search_catalog_file()
+    print(f"[build_snf_owners_index] ct_owner_search_catalog: {n_ct:,} rows")
 
 
 def build_state_top_owners() -> None:

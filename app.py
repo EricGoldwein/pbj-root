@@ -5407,9 +5407,31 @@ def _provider_info_scan_usecols(header_cols) -> list[str]:
         'reported_lpn_hrs_per_resident_per_day',
         'overall_rating', 'staffing_rating', 'qm_rating',
         'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
-        'avg_residents_per_day', 'urban',
+        'avg_residents_per_day', 'urban', 'Urban', 'URBAN',
     ]
     return [c for c in candidates if c in header]
+
+
+def _urban_from_provider_row(row: dict) -> object:
+    """Read CMS urban/rural flag from a provider-info row (norm or NH column names)."""
+    if not row:
+        return None
+    for key in ('urban', 'Urban', 'URBAN'):
+        val = row.get(key)
+        if val is None:
+            continue
+        s = str(val).strip()
+        if not s or s.lower() in ('nan', 'none'):
+            continue
+        return val
+    return None
+
+
+def _resolve_provider_urban_col(header_cols) -> str | None:
+    for name in ('urban', 'Urban', 'URBAN'):
+        if name in header_cols:
+            return name
+    return None
 
 
 def _provider_metrics_from_csv_row(row: dict) -> dict:
@@ -5436,7 +5458,7 @@ def _provider_metrics_from_csv_row(row: dict) -> dict:
         'qm_rating': row.get('qm_rating'),
         'nursing_case_mix_index': row.get('nursing_case_mix_index'),
         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
-        'urban': row.get('urban'),
+        'urban': _urban_from_provider_row(row),
     }
 
 
@@ -5594,7 +5616,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
                 'overall_rating', 'staffing_rating',
                 'abuse_icon', 'Abuse Icon', 'has_abuse_icon',
-                'urban',
+                'urban', 'Urban', 'URBAN',
             }
             # Keep any chain/entity id/name variants we didn't enumerate explicitly.
             keep_cols.update(
@@ -5688,7 +5710,8 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         'staffing_rating': row.get('staffing_rating'),
                         'abuse_icon': _row_val(row, 'abuse_icon', 'Abuse Icon'),
                         'has_abuse_icon': _row_val(row, 'has_abuse_icon'),
-                        'urban': row.get('urban'),
+                        'urban': _row_val(row, 'urban', 'Urban', 'URBAN'),
+                        'ccn': provnum,
                         '_processing_date': row.get('processing_date'),
                     }
                     if partial_scan:
@@ -5985,22 +6008,14 @@ def _build_rural_shares_for_quarter(raw_quarter):
             bucket[0] += 1
             national_rural += 1
 
-    if _LOAD_PROVIDER_INFO_CACHE and (time.time() - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
-        for row in _LOAD_PROVIDER_INFO_CACHE.values():
-            ccn = str(row.get('ccn') or '').strip().zfill(6)
-            if len(ccn) == 6 and ccn in seen_ccn:
-                continue
-            if len(ccn) == 6:
-                seen_ccn.add(ccn)
-            _accumulate_row(row.get('state') or '', row.get('urban'))
-    else:
+    def _scan_provider_csv_paths() -> bool:
         for path in _resolved_provider_info_paths():
             if not os.path.isfile(path):
                 continue
             try:
                 header_cols = set(pd.read_csv(path, nrows=0).columns)
-                state_col = next((c for c in header_cols if str(c).lower() in ('state',)), None)
-                urban_col = 'urban' if 'urban' in header_cols else None
+                state_col = next((c for c in header_cols if str(c).lower() == 'state'), None)
+                urban_col = _resolve_provider_urban_col(header_cols)
                 ccn_col = next(
                     (c for c in header_cols if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()),
                     None,
@@ -6017,10 +6032,21 @@ def _build_rural_shares_for_quarter(raw_quarter):
                         seen_ccn.add(ccn)
                         _accumulate_row(str(row.get(state_col) or ''), row.get(urban_col))
                 if seen_ccn:
-                    break
+                    return True
             except Exception as e:
                 print(f"Error building rural shares from {path}: {e}")
                 continue
+        return False
+
+    # Scan provider CSV first; warm in-memory cache often lacks Urban/ccn on row dicts.
+    if not _scan_provider_csv_paths():
+        if _LOAD_PROVIDER_INFO_CACHE and (time.time() - _LOAD_PROVIDER_INFO_AT) < _LOAD_PROVIDER_INFO_TTL:
+            for ccn_key, row in _LOAD_PROVIDER_INFO_CACHE.items():
+                ccn = str(ccn_key or row.get('ccn') or '').strip().zfill(6)
+                if len(ccn) != 6 or ccn in seen_ccn:
+                    continue
+                seen_ccn.add(ccn)
+                _accumulate_row(row.get('state') or '', _urban_from_provider_row(row))
     if national_total == 0:
         return None, {}
     nat_pct = round(100.0 * national_rural / national_total, 1)
@@ -6044,7 +6070,11 @@ def get_rural_shares_for_quarter(raw_quarter):
         and _RURAL_SHARE_BY_QUARTER_CACHE.get('q') == q
         and (now - _RURAL_SHARE_BY_QUARTER_AT) < _RURAL_SHARE_CACHE_TTL
     ):
-        return _RURAL_SHARE_BY_QUARTER_CACHE.get('national'), _RURAL_SHARE_BY_QUARTER_CACHE.get('states') or {}
+        cached_nat = _RURAL_SHARE_BY_QUARTER_CACHE.get('national')
+        cached_states = _RURAL_SHARE_BY_QUARTER_CACHE.get('states') or {}
+        # Stale bad cache from broken urban reads (0% U.S., empty states).
+        if cached_nat != 0.0 or cached_states:
+            return cached_nat, cached_states
     nat, states = _build_rural_shares_for_quarter(q)
     _RURAL_SHARE_BY_QUARTER_CACHE = {'q': q, 'national': nat, 'states': states}
     _RURAL_SHARE_BY_QUARTER_AT = now

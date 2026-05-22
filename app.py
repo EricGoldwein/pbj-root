@@ -1876,7 +1876,13 @@ def _high_risk_facility_payload_from_row(row, col_refs, pd_local):
 
 
 def _provider_csv_is_cms_snapshot(path_used):
-    return 'nh_providerinfo' in os.path.basename(path_used).lower()
+    """Pinned CMS/provider snapshots without PBJ quarter columns (use all rows)."""
+    base = os.path.basename(path_used).lower()
+    if 'nh_providerinfo' in base:
+        return True
+    if 'providerinfonorm_' in base or 'provider_info_norm_' in base:
+        return True
+    return False
 
 
 def _provider_info_snapshot_paths_newest_first():
@@ -2152,12 +2158,17 @@ def _report_embed_provider_latest_csv():
 
 
 def _report_embed_high_risk_by_state():
+    t0 = time.perf_counter()
     pd_local = get_pd()
     if pd_local is None:
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        _report_perf_log(hrs_embed_ms=ms)
         return jsonify({'error': 'pandas unavailable', 'quarterRequested': '', 'quarter': '', 'states': {}}), 503
     quarter_requested = (request.args.get('quarter') or '').strip()
     cy_qtr = _report_effective_cy_qtr_for_embed_request(quarter_requested, pd_local)
     if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        _report_perf_log(hrs_embed_ms=ms, embedWarning='invalid_quarter')
         return jsonify(
             {'error': 'invalid or missing quarter', 'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'states': {}}
         ), 400
@@ -2167,16 +2178,25 @@ def _report_embed_high_risk_by_state():
             f'report hrs: empty states (requested={quarter_requested!r} used={quarter_used!r})',
             flush=True,
         )
-    return jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'states': states})
+    ms = round((time.perf_counter() - t0) * 1000, 1)
+    _report_perf_log(hrs_embed_ms=ms)
+    resp = jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'states': states})
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 
 
 def _report_embed_high_risk_by_cms_region():
+    t0 = time.perf_counter()
     pd_local = get_pd()
     if pd_local is None:
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        _report_perf_log(hrr_embed_ms=ms)
         return jsonify({'error': 'pandas unavailable', 'quarterRequested': '', 'quarter': '', 'regions': {}}), 503
     quarter_requested = (request.args.get('quarter') or '').strip()
     cy_qtr = _report_effective_cy_qtr_for_embed_request(quarter_requested, pd_local)
     if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        _report_perf_log(hrr_embed_ms=ms, embedWarning='invalid_quarter')
         return jsonify(
             {'error': 'invalid or missing quarter', 'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'regions': {}}
         ), 400
@@ -2187,38 +2207,75 @@ def _report_embed_high_risk_by_cms_region():
             f'report hrr: empty regions (requested={quarter_requested!r} used={quarter_used!r})',
             flush=True,
         )
-    return jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'regions': regions})
+    ms = round((time.perf_counter() - t0) * 1000, 1)
+    _report_perf_log(hrr_embed_ms=ms)
+    resp = jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'regions': regions})
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 
 
-def _report_embed_for_profit_by_state():
+_REPORT_FP_BY_STATE_INDEX_KEY = None  # (path, mtime, effective_cy_qtr or '__snapshot__')
+_REPORT_FP_BY_STATE_INDEX_VAL = None  # abbr -> {percent}
+_REPORT_FP_BY_STATE_INDEX_AT = 0.0
+_REPORT_FP_BY_STATE_INDEX_TTL = 300
+
+
+def _report_perf_log_enabled() -> bool:
+    v = (os.environ.get('PBJ_REPORT_PERF_LOG') or '').strip().lower()
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    if v in ('1', 'true', 'yes', 'on'):
+        return True
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _report_perf_log(**fields) -> None:
+    if not _report_perf_log_enabled():
+        return
+    try:
+        print('[PBJ_REPORT] ' + json.dumps(fields, ensure_ascii=True), flush=True)
+    except Exception:
+        pass
+
+
+def _public_quarterly_html_cache_control() -> str:
+    from pbj_provider_perf import provider_browser_cache_control
+    return provider_browser_cache_control()
+
+
+def _report_embed_json_response(payload: dict, *, embed_ms: float | None = None, cache_hit: bool | None = None):
+    resp = jsonify(payload)
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    if embed_ms is not None:
+        resp.headers['X-PBJ-Report-Embed-Ms'] = str(round(float(embed_ms), 1))
+    if cache_hit is not None:
+        resp.headers['X-PBJ-Report-Fp-Cache'] = 'HIT' if cache_hit else 'MISS'
+    return resp
+
+
+def _build_report_for_profit_by_state_index(path: str, cy_qtr: str) -> dict[str, dict]:
+    """Chunked provider scan: state -> for-profit percent for report embed + SSR."""
     pd_local = get_pd()
-    if pd_local is None:
-        return jsonify({'states': {}, 'quarterRequested': '', 'quarter': '', 'embedWarning': 'pandas_unavailable'})
-    quarter_requested = (request.args.get('quarter') or '').strip()
-    cy_qtr = _report_effective_cy_qtr_for_embed_request(quarter_requested, pd_local)
-    paths_try = _provider_paths_report_prefer_pinned()
-    path = paths_try[0] if paths_try else None
-    if not path:
-        return jsonify({'states': {}, 'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'embedWarning': 'no_provider_csv'})
-    if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
-        return jsonify({'states': {}, 'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'embedWarning': 'invalid_cy_qtr'})
+    if pd_local is None or not path or not os.path.isfile(path):
+        return {}
+    if not re.match(r'^\d{4}Q[1-4]$', str(cy_qtr or '').strip()):
+        return {}
+    cy_qtr = str(cy_qtr).strip()
     try:
         head = pd_local.read_csv(path, nrows=0)
         headers = list(head.columns)
         usecols, col_refs = _build_high_risk_provider_usecols(headers)
         if not col_refs.get('state') or not col_refs.get('ownership_type'):
-            return jsonify({'states': {}, 'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'embedWarning': 'missing_columns'})
+            return {}
         is_snapshot = _provider_csv_is_cms_snapshot(path)
         quarters_in_file = set()
         if is_snapshot:
             effective_cy_qtr = cy_qtr
         else:
             quarters_in_file = _provider_csv_collect_quarters(path, col_refs, pd_local)
-            if not quarters_in_file:
-                print(f'report fp: no quarters parsed from {path} (check CY_Qtr/quarter columns)', flush=True)
             effective_cy_qtr = _resolve_effective_cy_qtr(cy_qtr, quarters_in_file)
-        st_total = {}
-        st_fp = {}
+        st_total: dict[str, int] = {}
+        st_fp: dict[str, int] = {}
         cols = [c for c in usecols if c in head.columns]
         if col_refs.get('cy_qtr') and col_refs['cy_qtr'] not in cols:
             cols.append(col_refs['cy_qtr'])
@@ -2241,37 +2298,86 @@ def _report_embed_for_profit_by_state():
                     ot = ''
                 if _ownership_text_is_for_profit(ot):
                     st_fp[abbr] = st_fp.get(abbr, 0) + 1
-        out = {}
+        out: dict[str, dict] = {}
         for abbr, tot in st_total.items():
             if tot <= 0:
                 continue
             fp = st_fp.get(abbr, 0)
             out[abbr] = {'percent': round(100.0 * float(fp) / float(tot), 1)}
-        payload = {
-            'states': out,
-            'quarterRequested': quarter_requested,
-            'quarter': effective_cy_qtr,
-        }
-        if not is_snapshot and quarters_in_file and cy_qtr not in quarters_in_file:
-            payload['quarterAdjusted'] = True
-        if not out:
-            payload['embedWarning'] = 'empty_states'
-            qn = len(quarters_in_file) if not is_snapshot else -1
-            print(
-                f'report fp: empty states path={path} embed_cy_qtr={cy_qtr!r} effective={effective_cy_qtr!r} q_in_file={qn}',
-                flush=True,
-            )
-        return jsonify(payload)
+        return out
     except Exception as e:
-        print(f'for-profit by state failed: {e}', flush=True)
-        return jsonify(
-            {
-                'states': {},
-                'quarterRequested': quarter_requested,
-                'quarter': cy_qtr,
-                'embedWarning': 'read_error',
-            }
+        print(f'report fp index build failed: {e}', flush=True)
+        return {}
+
+
+def _cached_report_for_profit_states(quarter_requested: str) -> tuple[dict, dict, bool]:
+    """Return (states_by_abbr, payload_meta, cache_hit)."""
+    global _REPORT_FP_BY_STATE_INDEX_KEY, _REPORT_FP_BY_STATE_INDEX_VAL, _REPORT_FP_BY_STATE_INDEX_AT
+    pd_local = get_pd()
+    quarter_requested = (quarter_requested or '').strip()
+    cy_qtr = _report_effective_cy_qtr_for_embed_request(quarter_requested, pd_local) if pd_local else ''
+    paths_try = _provider_paths_report_prefer_pinned()
+    path = paths_try[0] if paths_try else None
+    if not path or not os.path.isfile(path):
+        return {}, {'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'embedWarning': 'no_provider_csv'}, False
+    if not re.match(r'^\d{4}Q[1-4]$', cy_qtr):
+        return {}, {'quarterRequested': quarter_requested, 'quarter': cy_qtr, 'embedWarning': 'invalid_cy_qtr'}, False
+    try:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = 0.0
+    is_snapshot = _provider_csv_is_cms_snapshot(path)
+    cache_tag = '__cms_snapshot__' if is_snapshot else cy_qtr
+    key = (path, mtime, cache_tag)
+    now = time.time()
+    if (
+        _REPORT_FP_BY_STATE_INDEX_VAL is not None
+        and _REPORT_FP_BY_STATE_INDEX_KEY == key
+        and (now - _REPORT_FP_BY_STATE_INDEX_AT) < _REPORT_FP_BY_STATE_INDEX_TTL
+    ):
+        return _REPORT_FP_BY_STATE_INDEX_VAL, {'quarterRequested': quarter_requested, 'quarter': cy_qtr}, True
+    states = _build_report_for_profit_by_state_index(path, cy_qtr)
+    _REPORT_FP_BY_STATE_INDEX_KEY = key
+    _REPORT_FP_BY_STATE_INDEX_VAL = states
+    _REPORT_FP_BY_STATE_INDEX_AT = now
+    print(
+        f'[PBJ_REPORT_INDEX] for_profit_by_state states={len(states)} path={os.path.basename(path)} snapshot={is_snapshot}',
+        flush=True,
+    )
+    return states, {'quarterRequested': quarter_requested, 'quarter': cy_qtr}, False
+
+
+def _report_for_profit_payload(quarter_requested: str) -> tuple[dict, bool]:
+    """Full JSON payload for /report/embed/fp and (states, cache_hit)."""
+    states, meta, cache_hit = _cached_report_for_profit_states(quarter_requested)
+    payload = {
+        'states': states,
+        'quarterRequested': meta.get('quarterRequested', quarter_requested),
+        'quarter': meta.get('quarter', ''),
+    }
+    if meta.get('embedWarning'):
+        payload['embedWarning'] = meta['embedWarning']
+    elif not states:
+        payload['embedWarning'] = 'empty_states'
+    return payload, cache_hit
+
+
+def _report_embed_for_profit_by_state():
+    t0 = time.perf_counter()
+    pd_local = get_pd()
+    if pd_local is None:
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        _report_perf_log(fp_embed_ms=ms, fp_cache_hit=False, embedWarning='pandas_unavailable')
+        return _report_embed_json_response(
+            {'states': {}, 'quarterRequested': '', 'quarter': '', 'embedWarning': 'pandas_unavailable'},
+            embed_ms=ms,
+            cache_hit=False,
         )
+    quarter_requested = (request.args.get('quarter') or '').strip()
+    payload, cache_hit = _report_for_profit_payload(quarter_requested)
+    ms = round((time.perf_counter() - t0) * 1000, 1)
+    _report_perf_log(fp_embed_ms=ms, fp_cache_hit=cache_hit, embedWarning=payload.get('embedWarning'))
+    return _report_embed_json_response(payload, embed_ms=ms, cache_hit=cache_hit)
 
 
 def _cy_qtr_to_iso_date(cy_qtr) -> str:
@@ -2405,6 +2511,7 @@ def _build_report_ssr_snapshot() -> dict | None:
         f'{quarter_label} nursing home staffing rankings by state and CMS region — HPRD comparisons, '
         f'interactive map, ratios, and medians from CMS PBJ data.'
     )
+    fp_states, _, _ = _cached_report_for_profit_states(str(quarter or ''))
     rows = []
     for idx, row in enumerate(rows_data):
         rank = idx + 1
@@ -2429,6 +2536,12 @@ def _build_report_ssr_snapshot() -> dict | None:
             contract_text = f'{float(contract):.1f}%' if contract not in (None, '', 'nan') else '—'
         except (TypeError, ValueError):
             contract_text = '—'
+        fp_entry = (fp_states or {}).get(code) or {}
+        fp_pct = fp_entry.get('percent')
+        try:
+            fp_text = f'{float(fp_pct):.1f}%' if fp_pct is not None and not (HAS_PANDAS and isinstance(fp_pct, float) and pd.isna(fp_pct)) else '—'
+        except (TypeError, ValueError):
+            fp_text = '—'
         rows.append(
             f'<tr data-report-ssr="1">'
             f'<td class="col-rank rank">{rank}</td>'
@@ -2440,7 +2553,7 @@ def _build_report_ssr_snapshot() -> dict | None:
             f'<td class="col-hprd reported-value">{rn_hprd}</td>'
             f'<td class="col-hprd reported-value nurse-aide-mobile-hide">{na_hprd}</td>'
             f'<td class="col-contract">{html.escape(contract_text)}</td>'
-            f'<td class="col-forprofit">—</td>'
+            f'<td class="col-forprofit" data-report-ssr-fp="1">{html.escape(fp_text)}</td>'
             f'</tr>'
         )
     return {
@@ -2455,6 +2568,8 @@ def _build_report_ssr_snapshot() -> dict | None:
         'table_rows': '\n            '.join(rows) if rows else (
             '<tr><td colspan="10" class="loading" id="loadingRow">Loading data...</td></tr>'
         ),
+        'fp_by_state_json': json.dumps(fp_states, ensure_ascii=True),
+        'canonical_quarter': str(quarter or ''),
     }
 
 
@@ -2465,7 +2580,11 @@ def _inject_report_ssr_html(page_html: str) -> str:
         seo.update({k: snap[k] for k in (
             'document_title', 'h1', 'table_heading', 'meta_description', 'og_title',
             'og_description', 'jsonld_name', 'date_published', 'table_rows',
+            'fp_by_state_json', 'canonical_quarter',
         )})
+    else:
+        seo['fp_by_state_json'] = '{}'
+        seo['canonical_quarter'] = ''
     replacements = {
         '__REPORT_SSR_DOCUMENT_TITLE__': html.escape(seo['document_title']),
         '__REPORT_SSR_H1__': html.escape(seo['h1']),
@@ -2476,6 +2595,8 @@ def _inject_report_ssr_html(page_html: str) -> str:
         '__REPORT_SSR_DATE_PUBLISHED__': seo['date_published'],
         '__REPORT_SSR_TABLE_ROWS__': seo['table_rows'],
         '__REPORT_SSR_JSON_LD__': json.dumps(_report_json_ld_document(seo), ensure_ascii=True),
+        '__REPORT_SSR_FP_BY_STATE_JSON__': seo.get('fp_by_state_json', '{}'),
+        '__REPORT_SSR_CANONICAL_QUARTER__': html.escape(seo.get('canonical_quarter', '')),
     }
     for token, value in replacements.items():
         page_html = page_html.replace(token, value)
@@ -2483,6 +2604,7 @@ def _inject_report_ssr_html(page_html: str) -> str:
 
 
 def _serve_report_page_html():
+    t0 = time.perf_counter()
     path = os.path.join(APP_ROOT, 'report.html')
     with open(path, encoding='utf-8', errors='replace') as f:
         page_html = f.read()
@@ -2490,6 +2612,13 @@ def _serve_report_page_html():
     page_html = _rewrite_universal_js_version(page_html)
     resp = make_response(page_html)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = _public_quarterly_html_cache_control()
+    html_ms = round((time.perf_counter() - t0) * 1000, 1)
+    try:
+        payload_bytes = len(resp.get_data(as_text=False))
+    except Exception:
+        payload_bytes = len(page_html.encode('utf-8'))
+    _report_perf_log(report_html_ms=html_ms, initial_payload_bytes=payload_bytes)
     return resp
 
 
@@ -14940,9 +15069,7 @@ def generate_state_page(state_code):
     _log_mem("generate_state_page_end")
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+        'Cache-Control': _public_quarterly_html_cache_control(),
     }
 
 @app.route('/pbjpedia/region/<region_number>')

@@ -67,6 +67,7 @@
 
   <!-- Structured Data (JSON-LD): WebPage only (nested Dataset triggered GSC Dataset validation) -->
   <script type="application/ld+json">__REPORT_SSR_JSON_LD__</script>
+  <script>window.__REPORT_FP_BY_STATE__ = __REPORT_SSR_FP_BY_STATE_JSON__; window.__REPORT_CANONICAL_QUARTER__ = "__REPORT_SSR_CANONICAL_QUARTER__";</script>
   
   <!-- Shared state CSV fetch (one request for OG tags + loadData) -->
   <script>
@@ -4784,7 +4785,7 @@ __REPORT_SSR_TABLE_ROWS__
           let url = primary;
           for (let i = 0; i < urls.length; i++) {
             url = urls[i];
-            r = await fetch(url, { cache: 'no-store' });
+            r = await fetch(url);
             if (r.status !== 404 || i === urls.length - 1) {
               break;
             }
@@ -4810,11 +4811,10 @@ __REPORT_SSR_TABLE_ROWS__
             return null;
           }
         }
-        const [stateText, nationalResponse, regionResponse, facilityQuarterlyResponse, regionQuarterlyResponse] = await Promise.all([
+        const [stateText, nationalResponse, regionResponse, regionQuarterlyResponse] = await Promise.all([
           fetchStateQuarterlyMetricsCsvText(),
           fetch('/national_quarterly_metrics.csv'),
           fetch('/cms_region_state_mapping.csv'),
-          fetch('/facility_quarterly_metrics_latest.csv'),
           fetch('/cms_region_quarterly_metrics.csv')
         ]);
 
@@ -4822,32 +4822,6 @@ __REPORT_SSR_TABLE_ROWS__
           throw new Error('Failed to load data files');
         }
         const nationalText = await nationalResponse.text();
-        let providerText = '';
-        // Newest NH_ProviderInfo_* / ProviderInfoNorm_* from provider_info/ (same source as Flask load_provider_info)
-        const { r: providerResp } = await fetchReportEmbedResponse('pi', '');
-        if (providerResp.ok && providerResp.status === 200) {
-          const providerRaw = await providerResp.text();
-          const rawTrim = providerRaw.trimStart();
-          const looksHtml = rawTrim.toLowerCase().startsWith('<!');
-          let rejectBody = false;
-          if (rawTrim.startsWith('{')) {
-            try {
-              JSON.parse(providerRaw);
-              rejectBody = true;
-            } catch (_) {
-              rejectBody = false;
-            }
-          }
-          if (!looksHtml && !rejectBody) {
-            providerText = providerRaw;
-          }
-        }
-        
-        // Load facility quarterly metrics (for facility-level direct care data)
-        let facilityQuarterlyText = '';
-        if (facilityQuarterlyResponse.ok) {
-          facilityQuarterlyText = await facilityQuarterlyResponse.text();
-        }
         
         // Load CMS region mapping
         if (regionResponse.ok) {
@@ -4907,63 +4881,11 @@ __REPORT_SSR_TABLE_ROWS__
           const nq = nationalRows.map(r => (r.CY_Qtr || '').trim()).filter(Boolean).sort().reverse()[0];
           mostRecentQuarter = nq || null;
         }
-        if (!mostRecentQuarter && facilityQuarterlyText) {
-          const fqRows = parseCSV(facilityQuarterlyText);
-          const fqs = [...new Set(fqRows.map(r => (r.CY_Qtr || '').trim()).filter(Boolean))].sort().reverse();
-          mostRecentQuarter = fqs[0] || null;
+        if (!mostRecentQuarter && window.__REPORT_CANONICAL_QUARTER__) {
+          mostRecentQuarter = String(window.__REPORT_CANONICAL_QUARTER__ || '').trim() || null;
         }
         if (reportEmbedDebug() && mostRecentQuarter) {
           console.log(`Report quarter (PBJ): ${mostRecentQuarter}`);
-        }
-        
-        // Parse and store facility quarterly metrics (for facility-level direct care data)
-        // Note: If using _latest.csv files, they already contain only the most recent quarter
-        if (facilityQuarterlyText) {
-          const facilityQuarterlyRows = parseCSV(facilityQuarterlyText);
-          // Filter for the most recent quarter (if using full file, otherwise already filtered)
-          let q2FacilityData = facilityQuarterlyRows.filter(row => {
-            // If file is pre-filtered (_latest.csv), use all rows; otherwise filter by quarter
-            const rowQuarter = row.CY_Qtr?.trim();
-            return !rowQuarter || rowQuarter === mostRecentQuarter;
-          });
-          // State PBJ quarter can lead facility_quarterly_metrics_latest by one quarter; use latest CY_Qtr in file when empty.
-          if (q2FacilityData.length === 0 && facilityQuarterlyRows.length > 0) {
-            const fqSet = new Set();
-            facilityQuarterlyRows.forEach(row => {
-              const q = (row.CY_Qtr || '').trim();
-              if (q) fqSet.add(q);
-            });
-            const fqList = Array.from(fqSet).sort().reverse();
-            const fallbackQ = fqList[0];
-            if (fallbackQ) {
-              console.warn(`Facility metrics: no rows for state quarter ${mostRecentQuarter}; using file quarter ${fallbackQ}`);
-              q2FacilityData = facilityQuarterlyRows.filter(row => {
-                const rowQuarter = row.CY_Qtr?.trim();
-                return !rowQuarter || rowQuarter === fallbackQ;
-              });
-            }
-          }
-          
-          // Store facility-level direct care data keyed by CCN (PROVNUM)
-          q2FacilityData.forEach(row => {
-            const ccn = parseInt(row.PROVNUM) || 0;
-            if (ccn > 0) {
-              facilityQuarterlyData[ccn] = {
-                ccn: ccn,
-                state: row.STATE?.trim() || '',
-                Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-                RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-                Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-                RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-                Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-                Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-                avg_daily_census: parseFloat(row.avg_daily_census) || 0
-              };
-            }
-          });
-          
-          const facilityQtrLabel = (q2FacilityData[0] && q2FacilityData[0].CY_Qtr) ? String(q2FacilityData[0].CY_Qtr).trim() : mostRecentQuarter;
-          console.log(`? Loaded ${Object.keys(facilityQuarterlyData).length} facilities with direct care data (CY_Qtr ${facilityQtrLabel})`);
         }
         
         // Filter for the most recent quarter; exclude Puerto Rico so rankings are 51 (50 states + DC)
@@ -5008,62 +4930,35 @@ __REPORT_SSR_TABLE_ROWS__
           }
         });
 
-        // Provider snapshot from GET /report?p=pi — case-mix, for-profit, in-browser high-risk lists
-        if (providerText) {
-          applyProviderSnapshotCsv(providerText, mostRecentQuarter);
-        }
-
-        // Ensure for-profit percentages when provider CSV is missing or slice has no rows
-        try {
-          const forProfitPayload = await fetchReportJson(
-            'fp',
-            mostRecentQuarter ? 'quarter=' + encodeURIComponent(mostRecentQuarter) : ''
-          );
-          if (forProfitPayload) {
-            const byState = forProfitPayload.states || {};
-            Object.keys(stateData).forEach(stateName => {
-              const raw = (stateData[stateName] && stateData[stateName].state) || '';
-              const stateAbbr = String(raw).trim().toUpperCase().slice(0, 2);
-              const entry = byState[stateAbbr];
-              if (entry && entry.percent !== null && entry.percent !== undefined && Number.isFinite(entry.percent)) {
-                stateData[stateName].forProfitPercent = parseFloat(entry.percent);
-              }
-            });
+        function applyForProfitFromPayload(forProfitPayload) {
+          if (!forProfitPayload) return;
+          if (forProfitPayload.embedWarning) {
+            console.warn('[report] for-profit embedWarning:', forProfitPayload.embedWarning);
           }
-        } catch (e) {
-          console.warn('Could not load for-profit state percentages from API:', e);
-        }
-
-        // Merge server high-risk JSON when provider is missing, in-browser lists empty, or any state bucket still empty
-        try {
-          if (mostRecentQuarter) {
-            const hrPayload = await fetchReportJson(
-              'hrs',
-              'quarter=' + encodeURIComponent(mostRecentQuarter)
-            );
-            if (hrPayload) {
-              const by = hrPayload.states || {};
-              const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
-              Object.keys(by).forEach(abbrRaw => {
-                const abbr = String(abbrRaw || '').trim().toUpperCase().slice(0, 2);
-                const stateName = abbrToName[abbr];
-                if (!stateName || !stateData[stateName]) return;
-                const s = stateData[stateName];
-                const b = by[abbrRaw] || by[abbr];
-                if (!b || typeof b !== 'object') return;
-                catKeys.forEach(k => {
-                  const have = s[k];
-                  const curLen = Array.isArray(have) ? have.length : 0;
-                  const srv = b[k];
-                  if (curLen === 0 && Array.isArray(srv) && srv.length) {
-                    s[k] = srv;
-                  }
-                });
-              });
+          const byState = forProfitPayload.states || {};
+          Object.keys(stateData).forEach(stateName => {
+            const raw = (stateData[stateName] && stateData[stateName].state) || '';
+            const stateAbbr = String(raw).trim().toUpperCase().slice(0, 2);
+            const entry = byState[stateAbbr];
+            if (entry && entry.percent !== null && entry.percent !== undefined && Number.isFinite(entry.percent)) {
+              stateData[stateName].forProfitPercent = parseFloat(entry.percent);
             }
+          });
+        }
+
+        const fpBootstrap = window.__REPORT_FP_BY_STATE__;
+        if (fpBootstrap && typeof fpBootstrap === 'object' && Object.keys(fpBootstrap).length) {
+          applyForProfitFromPayload({ states: fpBootstrap, quarter: window.__REPORT_CANONICAL_QUARTER__ || mostRecentQuarter });
+        } else {
+          try {
+            const forProfitPayload = await fetchReportJson(
+              'fp',
+              mostRecentQuarter ? 'quarter=' + encodeURIComponent(mostRecentQuarter) : ''
+            );
+            applyForProfitFromPayload(forProfitPayload);
+          } catch (e) {
+            console.warn('Could not load for-profit state percentages from API:', e);
           }
-        } catch (e) {
-          console.warn('Could not load high-risk facility lists from API:', e);
         }
 
         // Process national data
@@ -5169,8 +5064,142 @@ __REPORT_SSR_TABLE_ROWS__
           // Aggregate region data
           aggregateRegionData();
 
-          // CMS region high-risk from server (rollup of all states; merge fills gaps when PBJ state rows omit states)
-          try {
+          function reportFirstPaint() {
+            renderUSSummary();
+            renderStateTable();
+            highlightReportStateFromQuery();
+            initializeMap();
+            setupEventHandlers();
+          }
+
+          reportFirstPaint();
+
+          async function loadFacilityQuarterlyDeferred(quarterLabel) {
+            if (!quarterLabel) return;
+            try {
+              const fqResp = await fetch('/facility_quarterly_metrics_latest.csv');
+              if (!fqResp.ok) return;
+              const facilityQuarterlyText = await fqResp.text();
+              const facilityQuarterlyRows = parseCSV(facilityQuarterlyText);
+              let q2FacilityData = facilityQuarterlyRows.filter(row => {
+                const rowQuarter = row.CY_Qtr?.trim();
+                return !rowQuarter || rowQuarter === quarterLabel;
+              });
+              if (q2FacilityData.length === 0 && facilityQuarterlyRows.length > 0) {
+                const fqSet = new Set();
+                facilityQuarterlyRows.forEach(row => {
+                  const q = (row.CY_Qtr || '').trim();
+                  if (q) fqSet.add(q);
+                });
+                const fallbackQ = Array.from(fqSet).sort().reverse()[0];
+                if (fallbackQ) {
+                  q2FacilityData = facilityQuarterlyRows.filter(row => {
+                    const rowQuarter = row.CY_Qtr?.trim();
+                    return !rowQuarter || rowQuarter === fallbackQ;
+                  });
+                }
+              }
+              q2FacilityData.forEach(row => {
+                const ccn = parseInt(row.PROVNUM) || 0;
+                if (ccn > 0) {
+                  facilityQuarterlyData[ccn] = {
+                    ccn: ccn,
+                    state: row.STATE?.trim() || '',
+                    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
+                    RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
+                    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
+                    RN_HPRD: parseFloat(row.RN_HPRD) || 0,
+                    Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
+                    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
+                    avg_daily_census: parseFloat(row.avg_daily_census) || 0
+                  };
+                }
+              });
+              if (reportEmbedDebug()) {
+                console.log('[report] deferred facility_quarterly_metrics_latest rows:', Object.keys(facilityQuarterlyData).length);
+              }
+            } catch (e) {
+              console.warn('[report] deferred facility quarterly load failed:', e);
+            }
+          }
+
+          function mergeHighRiskStatesPayload(hrPayload) {
+            if (!hrPayload) return;
+            const by = hrPayload.states || {};
+            const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
+            Object.keys(by).forEach(abbrRaw => {
+              const abbr = String(abbrRaw || '').trim().toUpperCase().slice(0, 2);
+              const stateName = abbrToName[abbr];
+              if (!stateName || !stateData[stateName]) return;
+              const s = stateData[stateName];
+              const b = by[abbrRaw] || by[abbr];
+              if (!b || typeof b !== 'object') return;
+              catKeys.forEach(k => {
+                const have = s[k];
+                const curLen = Array.isArray(have) ? have.length : 0;
+                const srv = b[k];
+                if (curLen === 0 && Array.isArray(srv) && srv.length) {
+                  s[k] = srv;
+                }
+              });
+            });
+          }
+
+          function mergeHighRiskRegionsPayload(regPayload) {
+            if (!regPayload) return;
+            const byReg = regPayload.regions || {};
+            const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
+            Object.keys(regionData).forEach(rk => {
+              const b = byReg[rk];
+              if (!b || typeof b !== 'object') return;
+              const region = regionData[rk];
+              const seen = new Set();
+              catKeys.forEach(k => (region[k] || []).forEach(f => {
+                if (f && f.ccn) seen.add(String(f.ccn));
+              }));
+              catKeys.forEach(k => {
+                const src = b[k];
+                if (!Array.isArray(src)) return;
+                if (!region[k]) region[k] = [];
+                src.forEach(f => {
+                  const ccn = f && f.ccn ? String(f.ccn) : '';
+                  if (!ccn || seen.has(ccn)) return;
+                  seen.add(ccn);
+                  region[k].push(f);
+                });
+              });
+            });
+          }
+
+          async function loadReportDeferredEmbeds(quarterLabel) {
+            if (!quarterLabel) return;
+            const q = 'quarter=' + encodeURIComponent(quarterLabel);
+            let providerText = '';
+            try {
+              const { r: providerResp } = await fetchReportEmbedResponse('pi', '');
+              if (providerResp.ok && providerResp.status === 200) {
+                const providerRaw = await providerResp.text();
+                const rawTrim = providerRaw.trimStart();
+                const looksHtml = rawTrim.toLowerCase().startsWith('<!');
+                let rejectBody = false;
+                if (rawTrim.startsWith('{')) {
+                  try {
+                    JSON.parse(providerRaw);
+                    rejectBody = true;
+                  } catch (_) {
+                    rejectBody = false;
+                  }
+                }
+                if (!looksHtml && !rejectBody) {
+                  providerText = providerRaw;
+                }
+              }
+            } catch (e) {
+              console.warn('[report] deferred provider snapshot failed:', e);
+            }
+            if (providerText) {
+              applyProviderSnapshotCsv(providerText, quarterLabel);
+            }
             let anyHighRiskState = false;
             let anyEmptyStateBuckets = false;
             Object.keys(stateData).forEach(sn => {
@@ -5180,61 +5209,29 @@ __REPORT_SSR_TABLE_ROWS__
               if (n > 0) anyHighRiskState = true;
               else anyEmptyStateBuckets = true;
             });
-            let anyRegionRisk = false;
-            let anyEmptyRegionBuckets = false;
-            Object.keys(regionData).forEach(rk => {
-              const r = regionData[rk];
-              const n = (r.sff || []).length + (r.sffCandidates || []).length + (r.abuse || []).length
-                + (r.oneStarOverall || []).length;
-              if (n > 0) anyRegionRisk = true;
-              else anyEmptyRegionBuckets = true;
-            });
-            const needRegionHrApi = mostRecentQuarter && (
-              !providerText || !anyHighRiskState || anyEmptyStateBuckets
-              || !anyRegionRisk || anyEmptyRegionBuckets
-            );
-            if (needRegionHrApi) {
-              const regPayload = await fetchReportJson(
-                'hrr',
-                'quarter=' + encodeURIComponent(mostRecentQuarter)
-              );
-              if (regPayload) {
-                const byReg = regPayload.regions || {};
-                const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
-                Object.keys(regionData).forEach(rk => {
-                  const b = byReg[rk];
-                  if (!b || typeof b !== 'object') return;
-                  const region = regionData[rk];
-                  const seen = new Set();
-                  catKeys.forEach(k => (region[k] || []).forEach(f => {
-                    if (f && f.ccn) seen.add(String(f.ccn));
-                  }));
-                  catKeys.forEach(k => {
-                    const src = b[k];
-                    if (!Array.isArray(src)) return;
-                    if (!region[k]) region[k] = [];
-                    src.forEach(f => {
-                      const ccn = f && f.ccn ? String(f.ccn) : '';
-                      if (!ccn || seen.has(ccn)) return;
-                      seen.add(ccn);
-                      region[k].push(f);
-                    });
-                  });
-                });
+            const needHrs = !providerText || !anyHighRiskState || anyEmptyStateBuckets;
+            try {
+              const embedPromises = [];
+              if (needHrs) {
+                embedPromises.push(fetchReportJson('hrs', q).then(mergeHighRiskStatesPayload));
               }
+              embedPromises.push(fetchReportJson('hrr', q).then(mergeHighRiskRegionsPayload));
+              await Promise.all(embedPromises);
+              renderStateTable();
+            } catch (e) {
+              console.warn('[report] deferred high-risk embeds failed:', e);
             }
-          } catch (e) {
-            console.warn('Could not load high-risk CMS region lists from API:', e);
           }
-          
-          // Render everything
-          renderUSSummary();
-          renderStateTable();
-          highlightReportStateFromQuery();
-          initializeMap();
-          
-          // Set up event handlers after DOM is ready
-          setupEventHandlers();
+
+          function runReportDeferredWork() {
+            loadFacilityQuarterlyDeferred(mostRecentQuarter);
+            loadReportDeferredEmbeds(mostRecentQuarter);
+          }
+          if (typeof window.requestIdleCallback === 'function') {
+            window.requestIdleCallback(runReportDeferredWork, { timeout: 4000 });
+          } else {
+            setTimeout(runReportDeferredWork, 0);
+          }
 
       } catch (error) {
         console.error('Error loading data:', error);
@@ -5462,9 +5459,12 @@ __REPORT_SSR_TABLE_ROWS__
           console.warn(`[report] Provider CSV: PBJ quarter ${want} not in file; using ${targetCyQtr}`);
         }
       }
-      const recentData = targetCyQtr
-        ? allData.filter(row => providerQuarterToCyQtr(rowProviderQuarter(row)) === targetCyQtr)
-        : [];
+      const isProviderSnapshot = cyQuartersInFile.size === 0;
+      const recentData = isProviderSnapshot
+        ? allData
+        : (targetCyQtr
+          ? allData.filter(row => providerQuarterToCyQtr(rowProviderQuarter(row)) === targetCyQtr)
+          : []);
       if (reportEmbedDebug() && targetCyQtr) {
         console.log(`[report] Provider rows for CY_Qtr ${targetCyQtr}: ${recentData.length}`);
       }

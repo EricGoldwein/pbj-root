@@ -99,6 +99,49 @@ def provider_browser_cache_control() -> str:
     return 'no-store, must-revalidate'
 
 
+def init_provider_sections() -> None:
+    """Reset per-request section timings (cold provider path)."""
+    if not provider_perf_log_enabled():
+        return
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            g.pbj_provider_sections_ms = {}
+    except Exception:
+        pass
+
+
+def provider_section_record(name: str, t0: float) -> None:
+    """Accumulate elapsed ms for a named cold-render section."""
+    if not provider_perf_log_enabled():
+        return
+    try:
+        from flask import g, has_request_context
+        if not has_request_context():
+            return
+        ms = round((time.perf_counter() - t0) * 1000, 1)
+        bucket = getattr(g, 'pbj_provider_sections_ms', None)
+        if bucket is None:
+            bucket = {}
+            g.pbj_provider_sections_ms = bucket
+        bucket[name] = round(float(bucket.get(name, 0.0)) + ms, 1)
+    except Exception:
+        pass
+
+
+def get_provider_sections_ms() -> dict[str, float]:
+    try:
+        from flask import g, has_request_context
+        if not has_request_context():
+            return {}
+        raw = getattr(g, 'pbj_provider_sections_ms', None)
+        if not isinstance(raw, dict):
+            return {}
+        return {k: round(float(v), 1) for k, v in raw.items()}
+    except Exception:
+        return {}
+
+
 class ProviderRequestTimer:
     """Per-request timings for /provider/<ccn> logging."""
 
@@ -109,6 +152,7 @@ class ProviderRequestTimer:
         'queue_wait_ms',
         'cold_render_ms',
         'chart_build_ms',
+        'sections_ms',
         'status',
         'stale_serve',
         'ua_class',
@@ -123,6 +167,7 @@ class ProviderRequestTimer:
         self.queue_wait_ms = 0.0
         self.cold_render_ms = 0.0
         self.chart_build_ms = 0.0
+        self.sections_ms: dict[str, float] = {}
         self.status = 200
         self.stale_serve = False
         self.ua_class = ua_class
@@ -133,7 +178,7 @@ class ProviderRequestTimer:
         return round((time.perf_counter() - self.t0) * 1000, 1)
 
     def to_log_dict(self) -> dict[str, Any]:
-        return {
+        out: dict[str, Any] = {
             'ccn': self.ccn,
             'cache': self.cache,
             'total_ms': self.total_ms(),
@@ -146,6 +191,9 @@ class ProviderRequestTimer:
             'stale': self.stale_serve,
             'outcome': self.outcome,
         }
+        if self.cache == 'MISS' and self.sections_ms:
+            out['sections_ms'] = dict(sorted(self.sections_ms.items()))
+        return out
 
     def emit_log(self) -> None:
         if not provider_perf_log_enabled():

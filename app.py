@@ -10058,6 +10058,7 @@ def _build_facility_quarterly_trend_csv_rows(
 
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
     """Generate HTML for facility (provider) page per pbj-page-guide: header block, key metrics, longitudinal chart, basic info, full table, summary."""
+    from pbj_provider_perf import provider_section_record as _psec
     if not HAS_PANDAS:
         return "Pandas not available. Provider pages require pandas."
     try:
@@ -10102,7 +10103,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             raw_quarter = latest.get('CY_Qtr', '') if latest is not None else ''
             # If provider_info has canonical quarter, use that for the narrative card.
             # (Charts still reflect available PBJ longitudinal quarters in facility_df.)
+            _t_pi = time.perf_counter()
             pi_quarter = get_provider_info_for_quarter(prov, canonical_q)
+            _psec('provider_info_quarter', _t_pi)
             if pi_quarter:
                 raw_quarter = canonical_q
     else:
@@ -10139,7 +10142,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     # Prefer provider info for the same quarter as the page so case-mix matches displayed HPRD quarter
     pi = provider_info_row or {}
     if pi_quarter is None:
+        _t_pi = time.perf_counter()
         pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
+        _psec('provider_info_quarter', _t_pi)
     pi_case_mix = pi_quarter if isinstance(pi_quarter, dict) else {}
     if isinstance(pi_case_mix, dict):
         pi_case_mix = {k: v for k, v in pi_case_mix.items() if k != '_processing_date'}
@@ -10171,6 +10176,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     state_hprd_placeholder = '—'
     state_hprd_numeric = None
     if state_code and raw_quarter:
+        _t_st = time.perf_counter()
         try:
             state_df = load_csv_data('state_quarterly_metrics.csv')
             if state_df is not None and not state_df.empty and 'STATE' in state_df.columns and 'Total_Nurse_HPRD' in state_df.columns:
@@ -10184,6 +10190,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                         state_hprd_placeholder = format_metric_value(state_hprd_numeric, 'Total_Nurse_HPRD')
         except Exception:
             pass
+        _psec('state_metrics', _t_st)
     def _classify(reported, benchmark):
         if benchmark is None or benchmark == 0:
             return 'compared to'
@@ -10193,9 +10200,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if r < b * 0.95:
             return 'below'
         return 'around'
+    _t_ch = time.perf_counter()
     chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index, case_mix_index_ratio)
+    _psec('charts', _t_ch)
     _rcm_cd = chart_data.get('reportedCaseMix')
     if isinstance(_rcm_cd, dict) and raw_quarter:
+        _t_cmi = time.perf_counter()
         _cref = get_provider_info_cmi_reference_stats(str(raw_quarter))
         if _cref:
             _rcm_cd['cmiRef'] = _cref
@@ -10205,13 +10215,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             )
             if _sref:
                 _rcm_cd['cmiStateRef'] = _sref
+        _psec('cmi_refs', _t_cmi)
     if isinstance(_rcm_cd, dict):
         _rcm_cd['facilityName'] = (facility_name or '').strip()
+    _t_pct = time.perf_counter()
     state_percentile_total, _ = get_facility_state_percentile(
         prov, state_code, raw_quarter, reported_total or 0, reported_rn
     )
+    _psec('state_percentile', _t_pct)
     _casemix_title = f'CMS Case-Mix ({html.escape(str(quarter_display))})' if quarter_display else 'CMS Case-Mix'
+    _t_ch_html = time.perf_counter()
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, casemix_title=_casemix_title)
+    _psec('charts', _t_ch_html)
     hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     casemix_str = format_metric_value(case_mix_total, 'Total_Nurse_HPRD') if case_mix_total is not None else '—'
     above_below_state = _classify(reported_total or 0, None)
@@ -10223,9 +10238,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     if case_mix_total is None:
         narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
+    _t_risk = time.perf_counter()
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
     sff_entry = next((f for f in (sff_facilities_list or []) if (str(f.get('provider_number') or '').strip().zfill(6)) == prov), None)
+    _psec('sff_risk_search', _t_risk)
     is_sff = sff_entry is not None
     is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
     if risk_flag and risk_reason:
@@ -10360,6 +10377,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             pass
     entity_summary_html = ''
     if entity_id and entity_name:
+        _t_ent = time.perf_counter()
         try:
             _ent_name, ent_facilities = load_entity_facilities(entity_id)
             if ent_facilities and len(ent_facilities) >= 1:
@@ -10398,6 +10416,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                 entity_summary_html = f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in {state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing below their respective state ratio this quarter.</div>'
         except Exception:
             pass
+        _psec('entity', _t_ent)
     orientation_parts = []
     if state_hprd_numeric is not None and reported_total is not None:
         r, b = float(reported_total), float(state_hprd_numeric)
@@ -10468,6 +10487,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if state_code
         else ''
     )
+    _t_mac = time.perf_counter()
     _macpac_chart = get_macpac_chart_info(state_code) if state_code else None
     _macpac_factset_line = ''
     if _macpac_chart and (_macpac_chart.get('label_long') or _macpac_chart.get('label_short')):
@@ -10482,6 +10502,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                 '(Public Act 21-2 / SB 1030) plus ~0.06 HPRD DON in DPH regs — different definitions '
                 'than PBJ role lines; verify DPH before compliance claims.'
             )
+    _psec('macpac_state', _t_mac)
     def _cms_star_line(label: str, raw) -> str:
         if raw is None or (isinstance(raw, float) and pd.isna(raw)):
             return ''
@@ -10528,6 +10549,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         overall_rating_raw=_overall_raw,
         staffing_rating_raw=_staffing_raw,
     )
+    _t_own = time.perf_counter()
     try:
         from ownership.page_integrations import render_provider_ownership_chow_block
         from ownership.chow_lookup import chow_summary_line_for_ccn
@@ -10550,6 +10572,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         traceback.print_exc()
         _provider_ownership_chow_block = ''
         _ownership_chow_ai = ''
+    _psec('ownership', _t_own)
+    _t_html = time.perf_counter()
     _facility_ai_ctx = build_dashboard_context(
         page_type='facility',
         page_url=_facility_page_url,
@@ -10820,6 +10844,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    _psec('html_build', _t_html)
     return html_content
 
 _PROVIDER_INFO_ENTITY_CACHE = None
@@ -14154,13 +14179,24 @@ def _provider_page_impl(ccn):
                 {'Content-Type': 'text/plain; charset=utf-8'},
             )
 
+        from pbj_provider_perf import (
+            get_provider_sections_ms,
+            init_provider_sections,
+            provider_section_record,
+        )
+
+        init_provider_sections()
         t_cold = time.perf_counter()
+        t_sec = time.perf_counter()
         facility_df = load_facility_quarterly_for_provider(prov)
+        provider_section_record('facility_quarterly', t_sec)
         if facility_df is None or facility_df.empty:
             timer.status = 404
             timer.outcome = 'not_found'
             abort(404)
+        t_sec = time.perf_counter()
         provider_info_row = _provider_info_row_for_ccn(prov)
+        provider_section_record('provider_info', t_sec)
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
         timer.cold_render_ms = round((time.perf_counter() - t_cold) * 1000, 1)
         try:
@@ -14168,6 +14204,7 @@ def _provider_page_impl(ccn):
             timer.chart_build_ms = float(getattr(g, 'pbj_chart_build_ms', 0.0) or 0.0)
         except Exception:
             pass
+        timer.sections_ms = get_provider_sections_ms()
 
         if _provider_page_cache_enabled() and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()

@@ -5879,25 +5879,39 @@ __REPORT_SSR_TABLE_ROWS__
     }
     
     // Get metric value for a state based on current settings
+    function reportMapModeSuffix(metric) {
+      if (mapDisplayMode === 'median') {
+        if (excludeAdminDON && (metric === 'Total_Nurse_HPRD' || metric === 'Total_RN_HPRD')) {
+          return ' (Median, excl. Admin/DON)';
+        }
+        return ' (Median)';
+      }
+      if (excludeAdminDON && (metric === 'Total_Nurse_HPRD' || metric === 'Total_RN_HPRD')) {
+        return ' (excl. Admin/DON)';
+      }
+      return '';
+    }
+
     function getMetricValue(stateName, metric) {
       const state = stateData[stateName];
       if (!state) return 0;
       
-      // If mapDisplayMode is 'median', return the median value for this state
-      // BUT: if excludeAdminDON is enabled, we need to use state-level values instead
-      // because medians are pre-calculated and don't account for the toggle
-      if (mapDisplayMode === 'median' && !excludeAdminDON) {
+      // Median mode: per-state facility medians from state_quarterly_metrics *_Median columns
+      if (mapDisplayMode === 'median') {
         const stateMedian = stateMedians[stateName];
         if (!stateMedian) return 0;
-        
-        // Map metric to median field - handle all metrics that have medians
-        switch(metric) {
+
+        switch (metric) {
           case 'Total_Nurse_HPRD':
-            return stateMedian.Total_Nurse_HPRD || 0;
+            return excludeAdminDON
+              ? (stateMedian.Nurse_Care_HPRD || 0)
+              : (stateMedian.Total_Nurse_HPRD || 0);
           case 'Direct_Care_HPRD_Excl':
             return stateMedian.Nurse_Care_HPRD || 0;
           case 'Total_RN_HPRD':
-            return stateMedian.RN_HPRD || 0;
+            return excludeAdminDON
+              ? (stateMedian.RN_Care_HPRD || 0)
+              : (stateMedian.RN_HPRD || 0);
           case 'Nurse_Assistant_HPRD':
             return stateMedian.Nurse_Assistant_HPRD || 0;
           case 'Contract_Percentage':
@@ -6032,11 +6046,16 @@ __REPORT_SSR_TABLE_ROWS__
           totalHPRD = totalResidentDays > 0 ? totalDirectCareHours / totalResidentDays : 0;
           rnHPRD = totalResidentDays > 0 ? totalRNCareHours / totalResidentDays : 0;
           
-          // Calculate medians excluding admin/DON
-          const directCareValues = Object.keys(stateData).map(stateName => calculateDirectCareExclAdmin(stateName)).filter(v => v > 0);
-          const rnCareValues = Object.keys(stateData).map(stateName => calculateRNCareExclAdmin(stateName)).filter(v => v > 0);
-          totalHPRDMedian = directCareValues.length > 0 ? calculateMedian(directCareValues) : 0;
-          rnHPRDMedian = rnCareValues.length > 0 ? calculateMedian(rnCareValues) : 0;
+          const smVals = Object.values(stateMedians);
+          if (hasStateMedianColumns && smVals.length) {
+            totalHPRDMedian = calculateMedian(smVals.map(s => s.Nurse_Care_HPRD).filter(v => v > 0));
+            rnHPRDMedian = calculateMedian(smVals.map(s => s.RN_Care_HPRD).filter(v => v > 0));
+          } else {
+            const directCareValues = Object.keys(stateData).map(stateName => calculateDirectCareExclAdmin(stateName)).filter(v => v > 0);
+            const rnCareValues = Object.keys(stateData).map(stateName => calculateRNCareExclAdmin(stateName)).filter(v => v > 0);
+            totalHPRDMedian = directCareValues.length > 0 ? calculateMedian(directCareValues) : 0;
+            rnHPRDMedian = rnCareValues.length > 0 ? calculateMedian(rnCareValues) : 0;
+          }
         } else {
           totalHPRD = nationalData.Total_Nurse_HPRD || 0;
           rnHPRD = nationalData.RN_HPRD || 0;
@@ -6044,7 +6063,6 @@ __REPORT_SSR_TABLE_ROWS__
           rnHPRDMedian = medians.RN_HPRD;
         }
         
-        // Use median if toggle is on
         const totalHPRDDisplay = showMedians ? totalHPRDMedian : totalHPRD;
         const rnHPRDDisplay = showMedians ? rnHPRDMedian : rnHPRD;
         
@@ -6111,13 +6129,16 @@ __REPORT_SSR_TABLE_ROWS__
           totalHPRD = totalResidentDays > 0 ? totalDirectCareHours / totalResidentDays : 0;
           rnHPRD = totalResidentDays > 0 ? totalRNCareHours / totalResidentDays : 0;
           
-          // Calculate medians excluding admin/DON
-          // Use state-level values (accurate) instead of synthetic facility-level estimates
-          // We do NOT create synthetic facility-level direct care values
-          const directCareValues = Object.keys(stateData).map(stateName => calculateDirectCareExclAdmin(stateName)).filter(v => v > 0);
-          const rnCareValues = Object.keys(stateData).map(stateName => calculateRNCareExclAdmin(stateName)).filter(v => v > 0);
-          totalHPRDMedian = directCareValues.length > 0 ? calculateMedian(directCareValues) : 0;
-          rnHPRDMedian = rnCareValues.length > 0 ? calculateMedian(rnCareValues) : 0;
+          const smValsDesktop = Object.values(stateMedians);
+          if (hasStateMedianColumns && smValsDesktop.length) {
+            totalHPRDMedian = calculateMedian(smValsDesktop.map(s => s.Nurse_Care_HPRD).filter(v => v > 0));
+            rnHPRDMedian = calculateMedian(smValsDesktop.map(s => s.RN_Care_HPRD).filter(v => v > 0));
+          } else {
+            const directCareValues = Object.keys(stateData).map(stateName => calculateDirectCareExclAdmin(stateName)).filter(v => v > 0);
+            const rnCareValues = Object.keys(stateData).map(stateName => calculateRNCareExclAdmin(stateName)).filter(v => v > 0);
+            totalHPRDMedian = directCareValues.length > 0 ? calculateMedian(directCareValues) : 0;
+            rnHPRDMedian = rnCareValues.length > 0 ? calculateMedian(rnCareValues) : 0;
+          }
         } else {
           // Use standard values
           totalHPRD = nationalData.Total_Nurse_HPRD || 0;
@@ -7148,12 +7169,7 @@ __REPORT_SSR_TABLE_ROWS__
                 metricLabel = 'RN HPRD';
               }
               
-              // Add mode suffix if needed
-              if (mapDisplayMode === 'median' && !excludeAdminDON) {
-                metricLabel += ' (Median)';
-              } else if (excludeAdminDON) {
-                metricLabel += ' (excl. Admin/DON)';
-              }
+              metricLabel += reportMapModeSuffix(currentMetric);
               
               // Case-mix removed from desktop hover tooltips
               tooltip.transition()
@@ -7225,12 +7241,7 @@ __REPORT_SSR_TABLE_ROWS__
               formattedValue = value.toFixed(2);
             }
             
-            // Add mode suffix if needed
-            if (mapDisplayMode === 'median' && !excludeAdminDON) {
-              metricLabel += ' (Median)';
-            } else if (excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
-              metricLabel += ' (excl. Admin/DON)';
-            }
+            metricLabel += reportMapModeSuffix(currentMetric);
             
             // Calculate tooltip position to keep it on screen
             const touchX = event.touches[0].pageX;
@@ -7387,11 +7398,7 @@ __REPORT_SSR_TABLE_ROWS__
       // Build legend title with dynamic text
       const displayMetric = metric || currentMetric;
       let legendTitle = metricLabels[displayMetric] || displayMetric;
-      if (mapDisplayMode === 'median' && !excludeAdminDON) {
-        legendTitle += ' (Median)';
-      } else if (excludeAdminDON && (displayMetric === 'Total_Nurse_HPRD' || displayMetric === 'Total_RN_HPRD')) {
-        legendTitle += ' (excl. Admin/DON)';
-      }
+      legendTitle += reportMapModeSuffix(displayMetric);
       
       legend.append('div')
         .attr('class', 'legend-title')
@@ -7548,17 +7555,21 @@ __REPORT_SSR_TABLE_ROWS__
           let reportedValue = 0;
           let reportedLabel = '';
           if (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_CaseMix_Ratio') {
-            if (mapDisplayMode === 'median' && !excludeAdminDON) {
-              reportedValue = stateMedians[stateName]?.Total_Nurse_HPRD || 0;
-              reportedLabel = 'Total Nurse HPRD';
+            if (mapDisplayMode === 'median') {
+              reportedValue = excludeAdminDON
+                ? (stateMedians[stateName]?.Nurse_Care_HPRD || 0)
+                : (stateMedians[stateName]?.Total_Nurse_HPRD || 0);
+              reportedLabel = excludeAdminDON ? 'Direct Care HPRD' : 'Total Nurse HPRD';
             } else {
               reportedValue = excludeAdminDON ? calculateDirectCareExclAdmin(stateName) : (data.Total_Nurse_HPRD || 0);
               reportedLabel = excludeAdminDON ? 'Direct Care (excl. Admin/DON)' : 'Total Nurse HPRD';
             }
           } else if (currentMetric === 'Total_RN_HPRD' || currentMetric === 'RN_CaseMix_Ratio') {
-            if (mapDisplayMode === 'median' && !excludeAdminDON) {
-              reportedValue = stateMedians[stateName]?.RN_HPRD || 0;
-              reportedLabel = 'RN HPRD';
+            if (mapDisplayMode === 'median') {
+              reportedValue = excludeAdminDON
+                ? (stateMedians[stateName]?.RN_Care_HPRD || 0)
+                : (stateMedians[stateName]?.RN_HPRD || 0);
+              reportedLabel = excludeAdminDON ? 'RN Direct Care HPRD' : 'RN HPRD';
             } else {
               reportedValue = excludeAdminDON ? calculateRNCareExclAdmin(stateName) : (data.RN_HPRD || 0);
               reportedLabel = excludeAdminDON ? 'RN Care (excl. Admin/DON)' : 'RN HPRD';
@@ -7596,11 +7607,7 @@ __REPORT_SSR_TABLE_ROWS__
           let primaryValue = '';
           let modeSuffix = '';
           
-          if (mapDisplayMode === 'median' && !excludeAdminDON) {
-            modeSuffix = ' (Median)';
-          } else if (excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
-            modeSuffix = ' (excl. Admin/DON)';
-          }
+          modeSuffix = reportMapModeSuffix(currentMetric);
           
           // Get facilities and residents count
           const facilities = data.facility_count || 0;

@@ -4694,7 +4694,7 @@ __REPORT_SSR_TABLE_ROWS__
     let currentSort = { column: 'rank', direction: 'asc' };
     let sortedStatesList = [];
     let providerDataByState = {}; // Store provider-level data for admin/DON calculations
-    let facilityQuarterlyData = {}; // Store facility-level direct care data from facility_quarterly_metrics.csv, keyed by CCN and quarter
+    let hasStateMedianColumns = false; // true when state_quarterly_metrics.csv includes *_Median columns
     let regionQuarterlyData = {}; // Store region-level data from cms_region_quarterly_metrics.csv, keyed by region full name
     // currentQuarterYear is already declared globally at the top of the script
 
@@ -4974,8 +4974,9 @@ __REPORT_SSR_TABLE_ROWS__
             };
           }
 
-          // Calculate medians for each metric
+          // Calculate medians for each metric (state_quarterly_metrics *_Median columns)
           calculateStateMedians();
+          updateStateDataTitle();
           
           // Calculate state rankings
           calculateStateRankings();
@@ -5073,55 +5074,6 @@ __REPORT_SSR_TABLE_ROWS__
           }
 
           reportFirstPaint();
-
-          async function loadFacilityQuarterlyDeferred(quarterLabel) {
-            if (!quarterLabel) return;
-            try {
-              const fqResp = await fetch('/facility_quarterly_metrics_latest.csv');
-              if (!fqResp.ok) return;
-              const facilityQuarterlyText = await fqResp.text();
-              const facilityQuarterlyRows = parseCSV(facilityQuarterlyText);
-              let q2FacilityData = facilityQuarterlyRows.filter(row => {
-                const rowQuarter = row.CY_Qtr?.trim();
-                return !rowQuarter || rowQuarter === quarterLabel;
-              });
-              if (q2FacilityData.length === 0 && facilityQuarterlyRows.length > 0) {
-                const fqSet = new Set();
-                facilityQuarterlyRows.forEach(row => {
-                  const q = (row.CY_Qtr || '').trim();
-                  if (q) fqSet.add(q);
-                });
-                const fallbackQ = Array.from(fqSet).sort().reverse()[0];
-                if (fallbackQ) {
-                  q2FacilityData = facilityQuarterlyRows.filter(row => {
-                    const rowQuarter = row.CY_Qtr?.trim();
-                    return !rowQuarter || rowQuarter === fallbackQ;
-                  });
-                }
-              }
-              q2FacilityData.forEach(row => {
-                const ccn = parseInt(row.PROVNUM) || 0;
-                if (ccn > 0) {
-                  facilityQuarterlyData[ccn] = {
-                    ccn: ccn,
-                    state: row.STATE?.trim() || '',
-                    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-                    RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-                    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-                    RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-                    Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-                    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-                    avg_daily_census: parseFloat(row.avg_daily_census) || 0
-                  };
-                }
-              });
-              if (reportEmbedDebug()) {
-                console.log('[report] deferred facility_quarterly_metrics_latest rows:', Object.keys(facilityQuarterlyData).length);
-              }
-            } catch (e) {
-              console.warn('[report] deferred facility quarterly load failed:', e);
-            }
-          }
 
           function mergeHighRiskStatesPayload(hrPayload) {
             if (!hrPayload) return;
@@ -5224,7 +5176,6 @@ __REPORT_SSR_TABLE_ROWS__
           }
 
           function runReportDeferredWork() {
-            loadFacilityQuarterlyDeferred(mostRecentQuarter);
             loadReportDeferredEmbeds(mostRecentQuarter);
           }
           if (typeof window.requestIdleCallback === 'function') {
@@ -5314,9 +5265,16 @@ __REPORT_SSR_TABLE_ROWS__
       const medianToggleMap = document.getElementById('medianToggleMap');
       if (medianToggleMap) {
         medianToggleMap.addEventListener('change', function(e) {
+          if (!hasStateMedianColumns) {
+            e.target.checked = false;
+            mapDisplayMode = 'hprd';
+            showMedians = false;
+            return;
+          }
           mapDisplayMode = e.target.checked ? 'median' : 'hprd';
           showMedians = e.target.checked; // Update showMedians for summary box
           updateMap();
+          updateStateDataTitle();
           renderUSSummary(); // Update summary box when median toggle changes
         });
       }
@@ -5601,46 +5559,68 @@ __REPORT_SSR_TABLE_ROWS__
       return calculateMedian(values);
     }
     
+    function syncMedianMapToggleAvailability() {
+      const medianToggleMap = document.getElementById('medianToggleMap');
+      if (!medianToggleMap) return;
+      const label = medianToggleMap.closest('label') || medianToggleMap.parentElement;
+      if (!hasStateMedianColumns) {
+        medianToggleMap.checked = false;
+        medianToggleMap.disabled = true;
+        mapDisplayMode = 'hprd';
+        showMedians = false;
+        if (label) {
+          label.style.opacity = '0.45';
+          label.title = 'State median columns are not available in state_quarterly_metrics.csv';
+        }
+        return;
+      }
+      medianToggleMap.disabled = false;
+      if (label) {
+        label.style.opacity = '';
+        label.title = 'Show median HPRD across facilities in each state (unweighted by census)';
+      }
+    }
+
     function calculateStateMedians() {
-      // Use pre-calculated medians from CSV (calculated from facility-level data)
-      // This gives us the median of all facilities within each state
+      // Pre-calculated medians: median of facility-level values within each state (from state_quarterly_metrics.csv)
       stateMedians = {};
-      
-      // Use pre-calculated medians from state_quarterly_metrics.csv
-      let medianColumnsFound = false;
+      hasStateMedianColumns = false;
+
+      const hasMedian = (val) => val !== null && val !== undefined && val !== '' && !isNaN(val);
+      let statesWithMedian = 0;
+      let statesWhereMedianDiffers = 0;
+
       Object.keys(stateData).forEach(stateName => {
         const state = stateData[stateName];
-        // Check if median columns exist in the data (check if property exists, not just if it has a value)
-        if (!medianColumnsFound && state.hasOwnProperty('Contract_Percentage_Median')) {
-          medianColumnsFound = true;
+        const totalMed = hasMedian(state.Total_Nurse_HPRD_Median) ? Number(state.Total_Nurse_HPRD_Median) : null;
+        if (totalMed !== null) {
+          statesWithMedian += 1;
+          const avg = Number(state.Total_Nurse_HPRD) || 0;
+          if (Math.abs(totalMed - avg) > 0.005) {
+            statesWhereMedianDiffers += 1;
+          }
         }
-        
-        // Check if median columns exist and have valid values (handle both null and undefined)
-        const hasMedian = (val) => val !== null && val !== undefined && !isNaN(val);
-        
+
         stateMedians[stateName] = {
-          Total_Nurse_HPRD: hasMedian(state.Total_Nurse_HPRD_Median) ? state.Total_Nurse_HPRD_Median : (state.Total_Nurse_HPRD || 0),
-          RN_HPRD: hasMedian(state.RN_HPRD_Median) ? state.RN_HPRD_Median : (state.RN_HPRD || 0),
-          Nurse_Care_HPRD: hasMedian(state.Nurse_Care_HPRD_Median) ? state.Nurse_Care_HPRD_Median : (state.Nurse_Care_HPRD || 0),
-          RN_Care_HPRD: hasMedian(state.RN_Care_HPRD_Median) ? state.RN_Care_HPRD_Median : (state.RN_Care_HPRD || 0),
-          Nurse_Assistant_HPRD: hasMedian(state.Nurse_Assistant_HPRD_Median) ? state.Nurse_Assistant_HPRD_Median : (state.Nurse_Assistant_HPRD || 0),
-          Contract_Percentage: hasMedian(state.Contract_Percentage_Median) ? state.Contract_Percentage_Median : (state.Contract_Percentage || 0),
-          // Case-mix still needs to be calculated from provider data (not in CSV)
+          Total_Nurse_HPRD: hasMedian(state.Total_Nurse_HPRD_Median) ? Number(state.Total_Nurse_HPRD_Median) : (state.Total_Nurse_HPRD || 0),
+          RN_HPRD: hasMedian(state.RN_HPRD_Median) ? Number(state.RN_HPRD_Median) : (state.RN_HPRD || 0),
+          Nurse_Care_HPRD: hasMedian(state.Nurse_Care_HPRD_Median) ? Number(state.Nurse_Care_HPRD_Median) : (state.Nurse_Care_HPRD || 0),
+          RN_Care_HPRD: hasMedian(state.RN_Care_HPRD_Median) ? Number(state.RN_Care_HPRD_Median) : (state.RN_Care_HPRD || 0),
+          Nurse_Assistant_HPRD: hasMedian(state.Nurse_Assistant_HPRD_Median) ? Number(state.Nurse_Assistant_HPRD_Median) : (state.Nurse_Assistant_HPRD || 0),
+          Contract_Percentage: hasMedian(state.Contract_Percentage_Median) ? Number(state.Contract_Percentage_Median) : (state.Contract_Percentage || 0),
           caseMixTotalHPRD: 0,
           caseMixRNHPRD: 0,
           caseMixNurseAideHPRD: 0
         };
       });
-      
-      if (!medianColumnsFound) {
-        console.warn('?? Median columns not found in state_quarterly_metrics.csv. Please run add_medians_to_state_quarterly.py to add them.');
-      } else {
-        console.log('? Loaded pre-calculated medians from state_quarterly_metrics.csv');
-        // Debug: log a sample state's medians
-        const sampleState = Object.keys(stateMedians)[0];
-        if (sampleState) {
-          console.log(`Sample medians for ${sampleState}:`, stateMedians[sampleState]);
-        }
+
+      hasStateMedianColumns = statesWithMedian >= 40 && statesWhereMedianDiffers >= 5;
+      syncMedianMapToggleAvailability();
+
+      if (!hasStateMedianColumns) {
+        console.warn('[report] State median columns missing or identical to averages; map median toggle disabled.');
+      } else if (reportEmbedDebug()) {
+        console.log('[report] Loaded state facility-level medians from state_quarterly_metrics.csv');
       }
       
       // Calculate case-mix medians from provider data (not available in CSV)
@@ -5980,40 +5960,22 @@ __REPORT_SSR_TABLE_ROWS__
       };
       }
       
-      // Calculate medians from facility-level data
-      // Now we can calculate facility-level medians for direct care using facility_quarterly_metrics.csv
-      
-      // Get facility-level direct care values from facility_quarterly_metrics.csv
-      const directCareValues = [];
-      const rnCareValues = [];
-      const contractValues = [];
-      
-      allFacilities.forEach(facility => {
-        const ccn = parseInt(facility.ccn) || 0;
-        if (ccn > 0 && facilityQuarterlyData[ccn]) {
-          const facilityData = facilityQuarterlyData[ccn];
-          if (facilityData.Nurse_Care_HPRD > 0) {
-            directCareValues.push(facilityData.Nurse_Care_HPRD);
-          }
-          if (facilityData.RN_Care_HPRD > 0) {
-            rnCareValues.push(facilityData.RN_Care_HPRD);
-          }
-          if (facilityData.Contract_Percentage >= 0) {
-            contractValues.push(facilityData.Contract_Percentage);
-          }
-        }
-      });
-      
-      // Fallback to state-level medians if no facility-level direct care data
+      const stateMedianValues = Object.values(stateMedians);
       const stateValues = Object.values(stateData);
-      
+
       return {
         Total_Nurse_HPRD: calculateFacilityMedian(allFacilities, 'reported_total_nurse_hrs_per_resident_per_day'),
         RN_HPRD: calculateFacilityMedian(allFacilities, 'reported_rn_hrs_per_resident_per_day'),
-        Nurse_Care_HPRD: directCareValues.length > 0 ? calculateMedian(directCareValues) : calculateMedian(stateValues.map(s => s.Nurse_Care_HPRD)), // Facility-level median if available, else state-level
-        RN_Care_HPRD: rnCareValues.length > 0 ? calculateMedian(rnCareValues) : calculateMedian(stateValues.map(s => s.RN_Care_HPRD)), // Facility-level median if available, else state-level
+        Nurse_Care_HPRD: hasStateMedianColumns
+          ? calculateMedian(stateMedianValues.map(s => s.Nurse_Care_HPRD))
+          : calculateMedian(stateValues.map(s => s.Nurse_Care_HPRD)),
+        RN_Care_HPRD: hasStateMedianColumns
+          ? calculateMedian(stateMedianValues.map(s => s.RN_Care_HPRD))
+          : calculateMedian(stateValues.map(s => s.RN_Care_HPRD)),
         Nurse_Assistant_HPRD: calculateFacilityMedian(allFacilities, 'reported_na_hrs_per_resident_per_day'),
-        Contract_Percentage: contractValues.length > 0 ? calculateMedian(contractValues) : calculateMedian(stateValues.map(s => s.Contract_Percentage)) // Facility-level median if available, else state-level
+        Contract_Percentage: hasStateMedianColumns
+          ? calculateMedian(stateMedianValues.map(s => s.Contract_Percentage))
+          : calculateMedian(stateValues.map(s => s.Contract_Percentage))
       };
     }
 
@@ -7264,7 +7226,7 @@ __REPORT_SSR_TABLE_ROWS__
             }
             
             // Add mode suffix if needed
-            if (mapDisplayMode === 'median' && !excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
+            if (mapDisplayMode === 'median' && !excludeAdminDON) {
               metricLabel += ' (Median)';
             } else if (excludeAdminDON && (currentMetric === 'Total_Nurse_HPRD' || currentMetric === 'Total_RN_HPRD')) {
               metricLabel += ' (excl. Admin/DON)';

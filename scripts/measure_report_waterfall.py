@@ -44,6 +44,7 @@ def main() -> None:
     deferred_fq = "facility_quarterly_metrics_latest.csv" in load_block and "loadFacilityQuarterlyDeferred" in load_block
 
     print("=== REPORT.HTML loadData FETCH AUDIT ===")
+    print(f"loadFacilityQuarterlyDeferred present (should be False): {'loadFacilityQuarterlyDeferred' in load_block}")
     print("Initial fetch() URLs in loadData (first ~8k chars of function):")
     for u in initial_fetches:
         mb = file_mb(u.lstrip("/"))

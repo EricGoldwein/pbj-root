@@ -99,18 +99,18 @@ export const SiteFooter: React.FC = () => {
           target="_blank"
           rel="noopener noreferrer"
           className="pbj-footer-icon-link"
-          style={{ display: 'inline-flex', alignItems: 'center', transition: 'opacity 0.3s ease' }}
+          style={{ display: 'inline-flex', alignItems: 'center' }}
           title="LinkedIn"
           aria-label="LinkedIn"
         >
-          <img src="/LI-In-Bug.png" alt="" width={24} height={24} className="pbj-footer-icon" />
+          <img src="/LI-In-Bug.png" alt="" width={28} height={24} className="pbj-footer-icon pbj-footer-icon--linkedin" />
         </a>
         <a
           href="https://320insight.substack.com/"
           target="_blank"
           rel="noopener noreferrer"
           className="pbj-footer-icon-link"
-          style={{ display: 'inline-flex', alignItems: 'center', transition: 'opacity 0.3s ease' }}
+          style={{ display: 'inline-flex', alignItems: 'center' }}
           title="The 320 Newsletter"
           aria-label="The 320 Newsletter"
         >

@@ -5962,6 +5962,7 @@ def _provider_is_rural(urban_val):
 def _build_rural_shares_for_quarter(raw_quarter):
     """Return (national_pct, {state: pct}) for share of facilities labeled rural (latest CMS snapshot)."""
     del raw_quarter  # rural/urban flag is from latest provider snapshot, not PBJ quarter
+    get_pd()
     national_rural = 0
     national_total = 0
     by_state: dict[str, list[int]] = {}

@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/premium-assets/premium-site.css?v=24">
-    <link rel="stylesheet" href="/premium-assets/premium-hub.css?v=32">
+    <link rel="stylesheet" href="/premium-assets/premium-hub.css?v=36">
 </head>
 <body class="pbj-premium-hub pbj-premium-hub--audit">
     <a href="#main-content" class="visually-hidden-focusable btn btn-sm btn-primary position-fixed top-0 start-0 m-2" style="z-index:1080;">Skip to main content</a>
@@ -83,7 +83,7 @@
                 <section class="pbj-audit-features anchor-target" aria-labelledby="audit-cap-heading">
                     <div class="pbj-audit-features__intro">
                         <h2 id="audit-cap-heading" class="pbj-audit-features__heading">What&rsquo;s in the PBJ320 Dashboard</h2>
-                        <p class="pbj-audit-features__dek"><strong class="pbj-audit-features__dek-lead">Built for one facility. Designed to save time and build stronger, data-driven cases.</strong> Each PBJ320 Premium dashboard is a facility workspace tied to a single CCN. It brings up to nine years of daily PBJ staffing, employee-level detail, case-mix context, compliance indicators, citation history, and Report Builder exports into one place.</p>
+                        <p class="pbj-audit-features__dek"><strong class="pbj-audit-features__dek-lead">Built around one facility. Designed to save time and build stronger, data-driven cases.</strong></p>
                     </div>
                     <div class="row g-3 pbj-audit-features__row d-none d-md-flex">
                         <div class="col-md-4 d-flex">
@@ -91,7 +91,7 @@
                                 <div class="pbj-audit-card__thumb-wrap">
                                     <img class="pbj-audit-card__thumb" src="/premium-assets/media/state-compliance.jpg" alt="Sample daily HPRD chart with state reference threshold for compliance screening" width="400" height="225" loading="lazy" decoding="async">
                                 </div>
-                                <h3 class="pbj-audit-card__title">Compliance Checks</h3>
+                                <h3 class="pbj-audit-card__title">Staffing Checks</h3>
                                 <p class="pbj-audit-card__text">Flag daily PBJ totals against state thresholds, RN rules, and custom HPRD rules—facility-level CMS data for screening.</p>
                                 <a class="pbj-audit-card__evidence mt-auto" href="/premium/335513#complianceStandardsSection">View sample dashboard →</a>
                             </article>
@@ -124,7 +124,7 @@
                                 <div class="pbj-audit-card__thumb-wrap">
                                     <img class="pbj-audit-card__thumb" src="/premium-assets/media/state-compliance.jpg" alt="Sample daily HPRD chart with state reference threshold for compliance screening" width="400" height="225" loading="lazy" decoding="async">
                                 </div>
-                                <h3 class="pbj-audit-card__title">Compliance Checks</h3>
+                                <h3 class="pbj-audit-card__title">Staffing Checks</h3>
                                 <p class="pbj-audit-card__text">Flag daily PBJ totals against state thresholds, RN rules, and custom HPRD rules—facility-level CMS data for screening.</p>
                                 <a class="pbj-audit-card__evidence mt-auto" href="/premium/335513#complianceStandardsSection">View sample dashboard →</a>
                             </article>
@@ -147,10 +147,13 @@
                         </div>
                         </div>
                         <div class="pbj-audit-features__dots" id="audit-features-dots" role="tablist" aria-label="Capability slides">
-                            <button type="button" class="pbj-audit-features__dot is-active" role="tab" aria-selected="true" aria-label="Compliance Checks" data-slide="0"></button>
+                            <button type="button" class="pbj-audit-features__dot is-active" role="tab" aria-selected="true" aria-label="Staffing Checks" data-slide="0"></button>
                             <button type="button" class="pbj-audit-features__dot" role="tab" aria-selected="false" aria-label="Employee Roster" data-slide="1"></button>
                             <button type="button" class="pbj-audit-features__dot" role="tab" aria-selected="false" aria-label="Acuity and Case-Mix" data-slide="2"></button>
                         </div>
+                    </div>
+                    <div class="pbj-audit-features__detail">
+                        <p class="pbj-audit-features__note">Each PBJ320 Premium dashboard is tied to a single CMS-certified nursing home. It combines up to nine years of daily PBJ staffing data, employee-level detail, case-mix context, staffing compliance checks, citation history, ownership context, and report-ready exports in one place.</p>
                     </div>
                 </section>
 
@@ -185,10 +188,16 @@
 
                 <section class="pbj-audit-page-end anchor-target" aria-labelledby="audit-about-heading">
                     <div class="pbj-audit-page-end__strip">
-                        <p class="pbj-audit-media-note">Reporters: need advanced staffing, ownership, or facility data? <a href="mailto:eric@320insight.com?subject=PBJ320%20%E2%80%94%20media%20question">Email</a> the facility name, organization, topic, and deadline.</p>
-                        <aside class="pbj-audit-oss-panel" aria-label="Public PBJ320">
-                            <p class="pbj-audit-oss-note"><a href="https://www.pbj320.com/">PBJ320&rsquo;s public nursing home staffing dashboard</a> — Payroll-Based Journal (PBJ) data across ~15,000 U.S. nursing homes.</p>
-                        </aside>
+                        <div class="row g-2 pbj-audit-page-end__utility-row">
+                            <div class="col-12 col-md-6">
+                                <p class="pbj-audit-media-note">Reporters: Need advanced staffing, ownership, or facility data? <a href="mailto:eric@320insight.com?subject=PBJ320%20%E2%80%94%20media%20question">Email PBJ320</a> with the facility name, organization, topic, and deadline.</p>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <aside class="pbj-audit-oss-panel" aria-label="Free public dashboard">
+                                    <p class="pbj-audit-oss-note"><a href="https://www.pbj320.com/">Free public dashboard</a>: Search nine years of CMS Payroll-Based Journal staffing data across ~15,000 U.S. nursing homes.</p>
+                                </aside>
+                            </div>
+                        </div>
                     </div>
                     <div class="pbj-audit-about">
                         <h2 id="audit-about-heading" class="pbj-audit-about__heading">About PBJ320</h2>
@@ -212,8 +221,6 @@
                                 <a href="https://data.cms.gov/quality-of-care/payroll-based-journal-employee-detail-nursing-home-staffing" target="_blank" rel="noopener">Employee Detail</a>
                                 <span aria-hidden="true">·</span>
                                 <a href="https://www.pbj320.com/">PBJ320</a>
-                                <span aria-hidden="true">·</span>
-                                <a href="https://www.pbj320.com/contact">Contact</a>
                             </span>
                         </div>
                     </div>

@@ -8332,6 +8332,140 @@ def _stream_facility_quarterly_latest_for_ccns(ccns, latest_quarter):
 _STATE_FQ_SLICE_CACHE = {}
 _STATE_FQ_SLICE_TTL = 300  # 5 min
 
+_STATE_PERCENTILE_HPRD_INDEX_CACHE: tuple[str, int, dict[str, dict[str, dict[str, list[float]]]]] | None = None
+_STATE_PERCENTILE_HPRD_INDEX_LOCK = threading.Lock()
+
+
+def _build_state_percentile_hprd_index_from_csv(path: str) -> dict[str, dict[str, dict[str, list[float]]]]:
+    """One chunked pass: {state: {quarter: {total: sorted HPRD list, rn: sorted RN list}}}."""
+    from collections import defaultdict
+
+    pdm = get_pd()
+    if pdm is None:
+        return {}
+    usecols = ['STATE', 'CY_Qtr', 'Total_Nurse_HPRD', 'RN_HPRD']
+    totals: dict[tuple[str, str], list[float]] = defaultdict(list)
+    rns: dict[tuple[str, str], list[float]] = defaultdict(list)
+    try:
+        head = pdm.read_csv(path, nrows=0)
+        cols = [c for c in usecols if c in head.columns]
+        if 'STATE' not in cols or 'CY_Qtr' not in cols or 'Total_Nurse_HPRD' not in cols:
+            return {}
+        for chunk in pdm.read_csv(path, usecols=cols, low_memory=False, chunksize=150000):
+            if chunk.empty:
+                continue
+            chunk = chunk.copy()
+            chunk['STATE'] = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
+            chunk['CY_Qtr'] = chunk['CY_Qtr'].astype(str).str.strip()
+            total_s = pdm.to_numeric(chunk['Total_Nurse_HPRD'], errors='coerce')
+            for st, qtr, val in zip(chunk['STATE'], chunk['CY_Qtr'], total_s):
+                if not st or not qtr or pd.isna(val):
+                    continue
+                totals[(st, qtr)].append(float(val))
+            if 'RN_HPRD' in chunk.columns:
+                rn_s = pdm.to_numeric(chunk['RN_HPRD'], errors='coerce')
+                for st, qtr, val in zip(chunk['STATE'], chunk['CY_Qtr'], rn_s):
+                    if not st or not qtr or pd.isna(val):
+                        continue
+                    rns[(st, qtr)].append(float(val))
+    except Exception as e:
+        print(f'State percentile HPRD index build failed ({path}): {e}')
+        return {}
+    out: dict[str, dict[str, dict[str, list[float]]]] = {}
+    for (st, qtr), tlist in totals.items():
+        if len(tlist) < 2:
+            continue
+        entry = {'total': sorted(tlist)}
+        rn_list = rns.get((st, qtr)) or []
+        if len(rn_list) >= 2:
+            entry['rn'] = sorted(rn_list)
+        out.setdefault(st, {})[qtr] = entry
+    return out
+
+
+def _state_percentile_hprd_index() -> dict[str, dict[str, dict[str, list[float]]]]:
+    """Cached national index for within-state HPRD percentiles (rebuilt on CSV mtime change)."""
+    global _STATE_PERCENTILE_HPRD_INDEX_CACHE
+    path = _facility_quarterly_csv_path()
+    if not path or not HAS_PANDAS:
+        return {}
+    try:
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        return {}
+    cached = _STATE_PERCENTILE_HPRD_INDEX_CACHE
+    if cached and cached[0] == path and cached[1] == mtime:
+        return cached[2]
+    with _STATE_PERCENTILE_HPRD_INDEX_LOCK:
+        cached = _STATE_PERCENTILE_HPRD_INDEX_CACHE
+        if cached and cached[0] == path and cached[1] == mtime:
+            return cached[2]
+        t0 = time.perf_counter()
+        index = _build_state_percentile_hprd_index_from_csv(path)
+        build_ms = round((time.perf_counter() - t0) * 1000, 1)
+        _STATE_PERCENTILE_HPRD_INDEX_CACHE = (path, mtime, index)
+        try:
+            from pbj_provider_perf import provider_perf_log_enabled
+            if provider_perf_log_enabled():
+                import json as _json
+                n_pairs = sum(len(qm) for qm in index.values())
+                print(
+                    '[PBJ_PROVIDER_INDEX] '
+                    + _json.dumps(
+                        {
+                            'index': 'state_percentile_hprd',
+                            'build_ms': build_ms,
+                            'states': len(index),
+                            'state_quarters': n_pairs,
+                            'path': os.path.basename(path),
+                        },
+                        separators=(',', ':'),
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+        except Exception:
+            pass
+        return index
+
+
+def _percentiles_for_state_quarter(
+    state_code: str,
+    quarter: str,
+    facility_hprd_total,
+    facility_hprd_rn=None,
+):
+    """Within-state percentile via pre-built index (no per-provider CSV scan)."""
+    if get_pd() is None or not state_code or not quarter or facility_hprd_total is None:
+        return None, None
+    sc = str(state_code).strip().upper()[:2]
+    if len(sc) != 2:
+        return None, None
+    q = str(quarter).strip()
+    bucket = (_state_percentile_hprd_index().get(sc) or {}).get(q)
+    if not bucket:
+        return None, None
+    total_vals = bucket.get('total') or []
+    if len(total_vals) < 2:
+        return None, None
+    import bisect
+    n = len(total_vals)
+    count_le_total = bisect.bisect_right(total_vals, float(facility_hprd_total))
+    _pt = round_half_up(100 * count_le_total / n, 0)
+    pct_total = int(_pt) if _pt is not None else 0
+    if pct_total > 100:
+        pct_total = 100
+    pct_rn = None
+    if facility_hprd_rn is not None:
+        rn_vals = bucket.get('rn') or []
+        if len(rn_vals) >= 2:
+            count_le_rn = bisect.bisect_right(rn_vals, float(facility_hprd_rn))
+            _pr = round_half_up(100 * count_le_rn / len(rn_vals), 0)
+            pct_rn = int(_pr) if _pr is not None else None
+            if pct_rn is not None and pct_rn > 100:
+                pct_rn = 100
+    return pct_total, pct_rn
+
 
 def _state_facility_metrics_slice_for_percentiles(state_code):
     """State-filtered facility_quarterly slice for percentiles; streams CSV (cached per state)."""
@@ -8413,11 +8547,8 @@ def _percentiles_from_state_slice(state_slice, quarter, facility_hprd_total, fac
 def get_facility_state_percentile(ccn, state_code, quarter, facility_hprd_total, facility_hprd_rn=None):
     """Compute facility percentile within state for given quarter. Returns (pct_total, pct_rn) 0-100 or (None, None) if unavailable.
     ``ccn`` is accepted for API parity; percentiles are within-state for the quarter and do not filter by facility."""
-    if get_pd() is None or not state_code or not quarter or facility_hprd_total is None:
-        return None, None
     _ = normalize_ccn(ccn)
-    sl = _state_facility_metrics_slice_for_percentiles(state_code)
-    return _percentiles_from_state_slice(sl, quarter, facility_hprd_total, facility_hprd_rn)
+    return _percentiles_for_state_quarter(state_code, quarter, facility_hprd_total, facility_hprd_rn)
 
 
 _CMI_REF_STATS_CACHE = {}
@@ -9855,7 +9986,6 @@ def _build_facility_snapshot_csv_rows(
         return rows
     page_url = f'{base_url}/provider/{prov}'
     st_label = state_name or state_code or ''
-    state_slice = _state_facility_metrics_slice_for_percentiles(state_code) if state_code else None
     try:
         sorted_df = facility_df.sort_values('CY_Qtr')
     except Exception:
@@ -9910,7 +10040,7 @@ def _build_facility_snapshot_csv_rows(
                     cm_total = None
         pct_total = None
         if rt is not None and state_code:
-            pct_total, _ = _percentiles_from_state_slice(state_slice, q_raw, rt, rn)
+            pct_total, _ = _percentiles_for_state_quarter(state_code, q_raw, rt, rn)
         state_hprd_numeric = _state_total_nurse_hprd_for_quarter(state_code, q_raw)
         _state_hprd_csv = (
             format_metric_value(state_hprd_numeric, 'Total_Nurse_HPRD')
@@ -9973,7 +10103,6 @@ def _build_facility_quarterly_trend_csv_rows(
         return rows
     page_url = f'{base_url}/provider/{prov}'
     st_label = state_name or state_code or ''
-    state_slice = _state_facility_metrics_slice_for_percentiles(state_code) if state_code else None
     try:
         sorted_df = facility_df.sort_values('CY_Qtr')
     except Exception:
@@ -10028,7 +10157,7 @@ def _build_facility_quarterly_trend_csv_rows(
                     cm_total = None
         pct_total = None
         if rt is not None and state_code:
-            pct_total, _ = _percentiles_from_state_slice(state_slice, q_raw, rt, rn)
+            pct_total, _ = _percentiles_for_state_quarter(state_code, q_raw, rt, rn)
         census_disp = _facility_quarterly_census_display(row, pi_q if allow_pi_case_mix else {}, format_metric_value)
         rows.append(
             build_facility_trend_csv_row(

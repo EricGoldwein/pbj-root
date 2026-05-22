@@ -245,9 +245,12 @@ else:
     # Render: keep rendered provider HTML longer under bot traffic (override via env if needed).
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
-    # GPTBot etc.: allow crawl but cap cold-render pressure on /provider and /entity.
-    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '12')
+    # GPTBot etc.: rate-limit; cache MISS on /provider does not cold-render (see PBJ_AI_PROVIDER_CACHE_ONLY).
+    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '6')
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_WINDOW', '60')
+    os.environ.setdefault('PBJ_AI_PROVIDER_CACHE_ONLY', '1')
+    os.environ.setdefault('PBJ_PROVIDER_PERF_LOG', '1')
+    os.environ.setdefault('PBJ_PROVIDER_BROWSER_CACHE', '1')
 
 # SECRET_KEY required for CSRF (e.g. /subscribe). Set SECRET_KEY or FLASK_SECRET_KEY in .env or production env.
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
@@ -741,8 +744,6 @@ _AGGRESSIVE_BOT_MARKERS = (
     'dataforseo',
 )
 
-# Training/search crawlers: rate-limit (not block) on heavy routes so humans keep capacity.
-_DEFAULT_AI_CRAWLER_MARKERS = ('gptbot', 'oai-searchbot')
 _AI_CRAWLER_HITS = {}
 _AI_CRAWLER_HITS_LOCK = threading.Lock()
 
@@ -762,11 +763,8 @@ def _is_aggressive_bot() -> bool:
 
 
 def _ai_crawler_markers() -> tuple[str, ...]:
-    raw = (os.environ.get('PBJ_AI_CRAWLER_MARKERS') or '').strip()
-    if raw:
-        parts = [p.strip().lower() for p in raw.split(',') if p.strip()]
-        return tuple(parts) if parts else _DEFAULT_AI_CRAWLER_MARKERS
-    return _DEFAULT_AI_CRAWLER_MARKERS
+    from pbj_provider_perf import ai_crawler_markers
+    return ai_crawler_markers()
 
 
 def _is_ai_crawler() -> bool:
@@ -831,7 +829,11 @@ def _ai_crawler_rate_limit_exceeded() -> int | None:
 
 @app.before_request
 def _throttle_ai_crawlers_on_heavy_routes():
-    """Rate-limit GPTBot-style crawlers on /provider and /entity (429 + Retry-After, not a full ban)."""
+    """Rate-limit AI crawlers on /provider and /entity (429 + Retry-After).
+
+    Provider: cache MISS also returns 429 when PBJ_AI_PROVIDER_CACHE_ONLY=1 (no cold render).
+    Entity: no HTML cache; same flag returns 429 before any heavy load.
+    """
     if request.path in ('/health', '/warmup', '/debug/mem'):
         return
     if not _ai_crawler_rate_limit_enabled() or not _is_ai_crawler():
@@ -13874,14 +13876,16 @@ PBJ_CASEMIX_UI_REV = '13'
 
 
 def _provider_page_html_headers(*, cache_hit=False):
+    from pbj_provider_perf import provider_browser_cache_control
+    cache_ctl = provider_browser_cache_control()
     h = {
         'Content-Type': 'text/html; charset=utf-8',
-        # Provider HTML is generated from app logic + CSVs; avoid sticky browser disk cache while iterating locally.
-        'Cache-Control': 'no-store, must-revalidate',
-        'Pragma': 'no-cache',
+        'Cache-Control': cache_ctl,
         'X-PBJ-Provider-Cache': 'HIT' if cache_hit else 'MISS',
         'X-PBJ-CaseMix-UI': PBJ_CASEMIX_UI_REV,
     }
+    if cache_ctl.startswith('no-store'):
+        h['Pragma'] = 'no-cache'
     try:
         h['X-PBJ-App-Mtime'] = str(int(os.path.getmtime(os.path.abspath(__file__))))
     except OSError:
@@ -13940,45 +13944,109 @@ def _provider_info_row_sufficient_for_page(row: dict | None) -> bool:
 # Canonical provider/state/entity pages (pbj320.com/provider/xxx, /state/pa, /entity/123)
 def _provider_page_impl(ccn):
     from flask import abort
-    if not HAS_PANDAS:
-        return "Pandas not available. Provider pages require pandas.", 503
-    prov = normalize_ccn(ccn)
-    if not prov:
-        abort(404)
-    now = time.time()
-    hit = _provider_page_cached_response(prov, now)
-    if hit is not None:
-        return hit
+    from pbj_provider_perf import (
+        ProviderRequestTimer,
+        ai_provider_cache_only_enabled,
+        classify_user_agent,
+    )
 
-    sem = _provider_cold_render_semaphore()
-    acquired = sem.acquire(blocking=False)
-    if not acquired:
-        hit = _provider_page_cached_response(prov, now)
-        if hit is not None:
-            return hit
-        wait_s = _provider_cold_render_wait_seconds()
-        acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else False
-        if not acquired:
-            return make_response('Server busy; retry shortly.', 503, {
-                'Content-Type': 'text/plain; charset=utf-8',
-                'Retry-After': '30',
-            })
+    prov = normalize_ccn(ccn) or ''
+    ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
+    timer = ProviderRequestTimer(prov or str(ccn or ''), ua_class=ua_class, pid=os.getpid())
+    sem = None
+    acquired = False
+
     try:
+        if not HAS_PANDAS:
+            timer.status = 503
+            timer.outcome = 'no_pandas'
+            return "Pandas not available. Provider pages require pandas.", 503
+        if not prov:
+            timer.status = 404
+            timer.outcome = 'not_found'
+            abort(404)
+
+        now = time.time()
         hit = _provider_page_cached_response(prov, now)
         if hit is not None:
+            timer.cache = 'HIT'
+            timer.outcome = 'cache_hit'
+            timer.status = 200
             return hit
+
+        if ua_class == 'ai_crawler' and ai_provider_cache_only_enabled():
+            timer.outcome = 'ai_cache_only'
+            timer.status = 429
+            return make_response(
+                'Provider page not in cache; AI crawlers do not trigger cold render.',
+                429,
+                {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': '3600',
+                    'X-PBJ-Provider-Cache': 'MISS',
+                },
+            )
+
+        sem = _provider_cold_render_semaphore()
+        t_queue = time.perf_counter()
+        acquired = sem.acquire(blocking=False)
+        if not acquired:
+            hit = _provider_page_cached_response(prov, now)
+            if hit is not None:
+                timer.cache = 'HIT'
+                timer.stale_serve = True
+                timer.outcome = 'cache_hit_after_queue_busy'
+                timer.status = 200
+                timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+                return hit
+            wait_s = _provider_cold_render_wait_seconds()
+            acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else False
+            timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+            if not acquired:
+                hit = _provider_page_cached_response(prov, now)
+                if hit is not None:
+                    timer.cache = 'HIT'
+                    timer.stale_serve = True
+                    timer.outcome = 'cache_hit_after_queue_timeout'
+                    timer.status = 200
+                    return hit
+                timer.outcome = 'queue_rejected'
+                timer.status = 503
+                return make_response('Server busy; retry shortly.', 503, {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': '30',
+                    'X-PBJ-Provider-Cache': 'MISS',
+                })
+        else:
+            timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+
+        hit = _provider_page_cached_response(prov, now)
+        if hit is not None:
+            timer.cache = 'HIT'
+            timer.outcome = 'cache_hit_race'
+            timer.status = 200
+            return hit
+
         if _facility_quarterly_csv_path() is None:
+            timer.status = 503
+            timer.outcome = 'no_facility_csv'
             return make_response(
                 'Facility quarterly metrics are not loaded on this server. '
                 'Deploy must run scripts/ensure_deploy_csvs.py (see docs/DATA_DEPLOY.md).',
                 503,
                 {'Content-Type': 'text/plain; charset=utf-8'},
             )
+
+        t_cold = time.perf_counter()
         facility_df = load_facility_quarterly_for_provider(prov)
         if facility_df is None or facility_df.empty:
+            timer.status = 404
+            timer.outcome = 'not_found'
             abort(404)
         provider_info_row = _provider_info_row_for_ccn(prov)
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
+        timer.cold_render_ms = round((time.perf_counter() - t_cold) * 1000, 1)
+
         if _provider_page_cache_enabled() and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()
             if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
@@ -13986,9 +14054,25 @@ def _provider_page_impl(ccn):
                 _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
             _PROVIDER_PAGE_CACHE[prov] = (now, html)
         _log_mem("route_provider_after")
+        timer.outcome = 'cold_render'
+        timer.status = 200
         return html, 200, _provider_page_html_headers(cache_hit=False)
+    except Exception as exc:
+        from werkzeug.exceptions import HTTPException
+        if isinstance(exc, HTTPException):
+            timer.status = exc.code or timer.status
+            if timer.outcome == 'ok':
+                timer.outcome = 'http_error'
+        else:
+            if timer.status == 200:
+                timer.status = 500
+            if timer.outcome == 'ok':
+                timer.outcome = 'error'
+        raise
     finally:
-        sem.release()
+        if acquired and sem is not None:
+            sem.release()
+        timer.emit_log()
 
 def _state_page_impl(state_slug):
     _log_mem("route_state_before")
@@ -14002,6 +14086,20 @@ def _state_page_impl(state_slug):
 
 def _entity_page_impl(entity_id):
     from flask import abort
+    from pbj_provider_perf import ai_heavy_routes_cache_only_enabled, classify_user_agent
+
+    if (
+        classify_user_agent(request.headers.get('User-Agent', '')) == 'ai_crawler'
+        and ai_heavy_routes_cache_only_enabled()
+    ):
+        return make_response(
+            'Entity pages are not served to AI crawlers.',
+            429,
+            {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '3600',
+            },
+        )
     _log_mem("route_entity_before")
     if not HAS_PANDAS:
         return "Pandas not available. Entity pages require pandas.", 503

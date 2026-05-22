@@ -28,6 +28,24 @@ Defaults are unchanged unless you set env vars in the Render dashboard (**Enviro
 
 **Profiling:** After deploy with `PBJ_MEM_DEBUG=1`, hit `/health`, one `/provider/…`, one `/entity/…`, then `GET /debug/mem` to see cache sizes.
 
+## Provider cache warming (optional, modest)
+
+Cold `/provider/{ccn}` is **CPU-heavy** (~5–15s). Warming only helps URLs you fetch; it does **not** fix national slowness. Anchor CCNs (075325, 335513, 075263) are **deploy smoke fixtures**, not important facilities.
+
+```bash
+# Recommended after deploy (costs CPU — avoid huge limits on 1-CPU instances)
+python scripts/warm_provider_cache.py --base-url https://www.pbj320.com --limit 20 --passes 3
+
+# Smoke only (3 anchor CCNs)
+python scripts/warm_provider_cache.py --anchors-only
+```
+
+Env overrides: `PBJ_WARM_BASE_URL`, `PBJ_WARM_PROVIDER_LIMIT`, `PBJ_WARM_PROVIDER_PASSES`, `PBJ_WARM_PROVIDER_TIMEOUT`, `PBJ_WARM_PROVIDER_DELAY`.
+
+`python scripts/check_deploy_53c6698.py` runs the modest warm (`--limit 20 --passes 3`) before smoke checks.
+
+See `docs/PROVIDER_PAGE_PERFORMANCE.md` for diagnosis, `[PBJ_PROVIDER]` logs, and Render CPU guidance.
+
 **Code behavior (safe):**
 
 - Entity/chain pages load provider info only for CCNs on that page (not the full national index).

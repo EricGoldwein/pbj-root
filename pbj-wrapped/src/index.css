@@ -41,9 +41,16 @@
 }
 .footer .pbj-footer-icon {
   display: block;
+  object-fit: contain;
+}
+.footer .pbj-footer-icon:not(.pbj-footer-icon--linkedin) {
   width: 24px;
   height: 24px;
-  object-fit: contain;
+}
+.footer .pbj-footer-icon--linkedin {
+  height: 20px;
+  width: auto;
+  max-height: 20px;
 }
 .footer .pbj-footer-svg {
   display: block;

@@ -7,6 +7,7 @@ import React from 'react';
 
 const FOOTER_PHONE_DISPLAY = '(929) 804-4996';
 const FOOTER_SMS_HREF = 'sms:+19298084996';
+const FOOTER_LINKEDIN_LOGO = '/static/img/linkedin-in-logo.png';
 
 const FOOTER_BLURB =
   'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets.';
@@ -22,16 +23,6 @@ const footerIconLinkStyle: React.CSSProperties = {
   alignItems: 'center',
   justifyContent: 'center',
 };
-
-const FooterLinkedInIcon: React.FC = () => (
-  <svg className="pbj-footer-svg" width={24} height={24} viewBox="0 0 24 24" fill="none" aria-hidden>
-    <rect width={24} height={24} rx={2} fill="#0A66C2" />
-    <path
-      fill="#fff"
-      d="M7.2 9.4h2.1v9H7.2V9.4zm1.05-3.15a1.22 1.22 0 110 2.44 1.22 1.22 0 010-2.44zm3.28 3.15h2.05v1.1h.03c.29-.55.98-1.11 2.01-1.11 2.15 0 2.55 1.42 2.55 3.25v5.66h-2.1v-5.02c0-1.18-.02-2.69-1.55-2.69-1.55 0-1.79 1.21-1.79 2.47v5.24H11.5V9.4z"
-    />
-  </svg>
-);
 
 export const SiteFooter: React.FC = () => {
   const year = new Date().getFullYear();
@@ -123,7 +114,12 @@ export const SiteFooter: React.FC = () => {
           title="LinkedIn"
           aria-label="LinkedIn"
         >
-          <FooterLinkedInIcon />
+          <img
+            src={FOOTER_LINKEDIN_LOGO}
+            alt=""
+            height={20}
+            className="pbj-footer-icon pbj-footer-icon--linkedin"
+          />
         </a>
         <a
           href="https://320insight.substack.com/"

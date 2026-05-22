@@ -95,7 +95,7 @@
 
     function fetchStateQuarterlyMetricsCsvText() {
       if (!_stateQuarterlyCsvTextPromise) {
-        _stateQuarterlyCsvTextPromise = fetch('/state_quarterly_metrics.csv')
+        _stateQuarterlyCsvTextPromise = fetch('/state_quarterly_metrics.csv?medians=1', { cache: 'no-cache' })
           .then(function (response) {
             if (!response.ok) {
               throw new Error('state_quarterly_metrics.csv HTTP ' + response.status);
@@ -679,11 +679,35 @@
       height: 26px;
       display: inline-block;
     }
+
+    .toggle-switch--with-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: auto;
+      cursor: pointer;
+    }
+
+    .toggle-switch--with-text .toggle-switch-text {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.9);
+      white-space: nowrap;
+    }
+
+    .toggle-switch--with-text .toggle-slider {
+      flex-shrink: 0;
+      position: relative;
+    }
     
     .toggle-switch input {
+      position: absolute;
       opacity: 0;
-      width: 0;
-      height: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      z-index: 2;
+      cursor: pointer;
     }
     
     .toggle-slider {
@@ -4313,10 +4337,10 @@
           </label>
         </div>
         <div>
-          <label for="medianToggleMap"><span class="mobile-label">Median</span><span class="desktop-label">Median:</span></label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="medianToggleMap">
-            <span class="toggle-slider"></span>
+          <label class="toggle-switch toggle-switch--with-text" for="medianToggleMap" id="medianToggleMapLabel">
+            <span class="toggle-switch-text"><span class="mobile-label">Median</span><span class="desktop-label">Median:</span></span>
+            <input type="checkbox" id="medianToggleMap" aria-labelledby="medianToggleMapLabel">
+            <span class="toggle-slider" aria-hidden="true"></span>
           </label>
         </div>
       </div>
@@ -4974,6 +4998,10 @@ __REPORT_SSR_TABLE_ROWS__
             };
           }
 
+          if (!stateRowsHaveMedianColumns(stateRows)) {
+            console.warn('[report] state_quarterly_metrics.csv missing *_Median columns — hard refresh may be needed');
+          }
+
           // Calculate medians for each metric (state_quarterly_metrics *_Median columns)
           calculateStateMedians();
           updateStateDataTitle();
@@ -5264,19 +5292,29 @@ __REPORT_SSR_TABLE_ROWS__
       // Set up map display mode toggle (Median toggle - default is statewide/ratio)
       const medianToggleMap = document.getElementById('medianToggleMap');
       if (medianToggleMap) {
-        medianToggleMap.addEventListener('change', function(e) {
+        function applyMedianToggleFromInput() {
           if (!hasStateMedianColumns) {
-            e.target.checked = false;
+            medianToggleMap.checked = false;
             mapDisplayMode = 'hprd';
             showMedians = false;
             return;
           }
-          mapDisplayMode = e.target.checked ? 'median' : 'hprd';
-          showMedians = e.target.checked; // Update showMedians for summary box
+          mapDisplayMode = medianToggleMap.checked ? 'median' : 'hprd';
+          showMedians = medianToggleMap.checked;
           updateMap();
           updateStateDataTitle();
-          renderUSSummary(); // Update summary box when median toggle changes
-        });
+          renderUSSummary();
+        }
+        medianToggleMap.addEventListener('change', applyMedianToggleFromInput);
+        const medianLabel = document.getElementById('medianToggleMapLabel');
+        if (medianLabel) {
+          medianLabel.addEventListener('click', function(e) {
+            if (medianToggleMap.disabled) {
+              e.preventDefault();
+              return;
+            }
+          });
+        }
       }
       
       // Set up exclude admin toggle (map controls)
@@ -5562,7 +5600,7 @@ __REPORT_SSR_TABLE_ROWS__
     function syncMedianMapToggleAvailability() {
       const medianToggleMap = document.getElementById('medianToggleMap');
       if (!medianToggleMap) return;
-      const label = medianToggleMap.closest('label') || medianToggleMap.parentElement;
+      const label = document.getElementById('medianToggleMapLabel') || medianToggleMap.closest('label');
       if (!hasStateMedianColumns) {
         medianToggleMap.checked = false;
         medianToggleMap.disabled = true;
@@ -5570,7 +5608,7 @@ __REPORT_SSR_TABLE_ROWS__
         showMedians = false;
         if (label) {
           label.style.opacity = '0.45';
-          label.title = 'State median columns are not available in state_quarterly_metrics.csv';
+          label.title = 'Median unavailable — refresh the page or wait for updated state_quarterly_metrics.csv';
         }
         return;
       }
@@ -5579,6 +5617,12 @@ __REPORT_SSR_TABLE_ROWS__
         label.style.opacity = '';
         label.title = 'Show median HPRD across facilities in each state (unweighted by census)';
       }
+    }
+
+    function stateRowsHaveMedianColumns(stateRows) {
+      if (!stateRows || !stateRows.length) return false;
+      const row = stateRows[0];
+      return row && Object.prototype.hasOwnProperty.call(row, 'Total_Nurse_HPRD_Median');
     }
 
     function calculateStateMedians() {
@@ -5614,7 +5658,9 @@ __REPORT_SSR_TABLE_ROWS__
         };
       });
 
-      hasStateMedianColumns = statesWithMedian >= 40 && statesWhereMedianDiffers >= 5;
+      hasStateMedianColumns = statesWithMedian >= 40 && (
+        statesWhereMedianDiffers >= 5 || statesWithMedian >= 45
+      );
       syncMedianMapToggleAvailability();
 
       if (!hasStateMedianColumns) {

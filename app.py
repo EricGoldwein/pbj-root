@@ -7664,6 +7664,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .footer {{ padding: 22px 12px 28px; font-size: 0.85rem; }}
 }}
 .pbj-badge-mobile-only {{ display: none !important; }}
+.pbj-hprd-rank-mobile-only {{ display: none !important; }}
+.pbj-hprd-rank-desktop-only {{ display: inline-block !important; }}
 @media (max-width: 768px) {{
   .pbj-metrics-row {{ grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }}
   .pbj-content {{ padding: 20px 16px; }}
@@ -13329,7 +13331,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     )
     # Badge order: HPRD (rank), RN HPRD, contract %, then state min
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
-    _bs = 'display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease;'
+    _bs = 'padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease; white-space: nowrap;'
     state_total_hprd_badge_title = html.escape(
         'Average total nurse staffing hours per resident day (HPRD) for this state, including rank among states.',
         quote=True
@@ -13343,9 +13345,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         quote=True
     )
     state_rural_badge_html = render_state_rural_badge_html(state_code, raw_quarter)
-    _rank_ord = _ordinal_rank_label(rank_total_nurse) if rank_total_nurse else ''
     _hprd_desktop = f'{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})'
-    _hprd_mobile = f'{total_hprd_val} HPRD ({_rank_ord})' if _rank_ord else f'{total_hprd_val} HPRD'
+    _hprd_mobile = (
+        f'{total_hprd_val} HPRD · Rk {rank_total_nurse}'
+        if rank_total_nurse
+        else f'{total_hprd_val} HPRD'
+    )
     badges_line = (
         f'<span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
         f'<span class="pbj-hprd-rank-desktop-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_desktop}</span>'

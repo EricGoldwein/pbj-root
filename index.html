@@ -2821,18 +2821,34 @@
             if (e.key === 'Escape' && infoPopup.getAttribute('aria-hidden') === 'false') closeInfoPopup();
           });
         }
-        Promise.all([
-          fetch('/search_index.json').then(function(r) { return r.json(); }),
-          fetch('/state_historical_data.json').then(function(r) { return r.json(); })
-        ]).then(function([data, stateHprd]) {
-            searchIndex = { f: data.f || [], e: data.e || [], s: data.s || [] };
-            indexReady = true;
-            populateStateFilterOptions();
-            stateHprdData = stateHprd || null;
-            setMode('facility');
-            renderResults(input.value);
-            maybeFocusHomeSearchFromHash();
-          })
+        var homeBundleCacheKey = 'pbj-home-search-bundle-v1';
+        function applyHomeSearchBundle(bundle) {
+          searchIndex = { f: bundle.f || [], e: bundle.e || [], s: bundle.s || [] };
+          indexReady = true;
+          populateStateFilterOptions();
+          stateHprdData = bundle.stateHprd || null;
+          setMode('facility');
+          renderResults(input.value);
+          maybeFocusHomeSearchFromHash();
+        }
+        function loadHomeSearchBundle() {
+          try {
+            var cached = sessionStorage.getItem(homeBundleCacheKey);
+            if (cached) {
+              applyHomeSearchBundle(JSON.parse(cached));
+              return Promise.resolve();
+            }
+          } catch (e) { /* ignore */ }
+          return Promise.all([
+            fetch('/search_index.json').then(function(r) { return r.json(); }),
+            fetch('/state_historical_data.json').then(function(r) { return r.json(); })
+          ]).then(function([data, stateHprd]) {
+            var bundle = { f: data.f || [], e: data.e || [], s: data.s || [], stateHprd: stateHprd || null };
+            try { sessionStorage.setItem(homeBundleCacheKey, JSON.stringify(bundle)); } catch (e) { /* quota */ }
+            applyHomeSearchBundle(bundle);
+          });
+        }
+        loadHomeSearchBundle()
           .catch(function() {
             indexReady = true;
             markStateFilterReady();

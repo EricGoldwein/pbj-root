@@ -1257,10 +1257,12 @@
     .modal-header {
       background: linear-gradient(135deg, #1769aa 0%, #1e88e5 100%);
       color: white;
-      padding: 24px 30px;
+      padding: 24px 48px 24px 30px;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      position: relative;
+      flex-shrink: 0;
     }
     
     .modal-header h3 {
@@ -1283,6 +1285,11 @@
       justify-content: center;
       transition: all 0.2s ease;
       line-height: 1;
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      flex-shrink: 0;
+      z-index: 2;
     }
     
     .modal-close:hover {
@@ -3967,7 +3974,7 @@
       }
       
       .modal-header {
-        padding: 12px 16px 12px 16px;
+        padding: 12px 52px 12px 16px;
         min-height: auto;
         align-items: flex-start;
       }
@@ -3977,16 +3984,19 @@
         line-height: 1.3;
         padding-top: 0;
         flex: 1;
+        min-width: 0;
+        padding-right: 0;
       }
       
       .modal-close {
         width: 36px;
         height: 36px;
         font-size: 1.5rem;
-        min-width: 44px; /* Touch target */
+        min-width: 44px;
         min-height: 44px;
-        margin-top: -4px; /* Move up a bit */
-        align-self: flex-start;
+        top: 8px;
+        right: 8px;
+        margin-top: 0;
       }
       
       .modal-state-name-mobile {
@@ -4977,7 +4987,6 @@ __REPORT_SSR_TABLE_ROWS__
               sffCandidates: [],
               abuse: [],
               oneStarOverall: [],
-              oneStarStaffing: [],
               caseMixTotalHPRD: 0,
               caseMixRNHPRD: 0,
               caseMixNurseAideHPRD: 0,
@@ -5027,7 +5036,7 @@ __REPORT_SSR_TABLE_ROWS__
             );
             if (hrPayload) {
               const by = hrPayload.states || {};
-              const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing'];
+              const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
               Object.keys(by).forEach(abbrRaw => {
                 const abbr = String(abbrRaw || '').trim().toUpperCase().slice(0, 2);
                 const stateName = abbrToName[abbr];
@@ -5160,7 +5169,7 @@ __REPORT_SSR_TABLE_ROWS__
             Object.keys(stateData).forEach(sn => {
               const s = stateData[sn];
               const n = (s.sff || []).length + (s.sffCandidates || []).length + (s.abuse || []).length
-                + (s.oneStarOverall || []).length + (s.oneStarStaffing || []).length;
+                + (s.oneStarOverall || []).length;
               if (n > 0) anyHighRiskState = true;
               else anyEmptyStateBuckets = true;
             });
@@ -5169,7 +5178,7 @@ __REPORT_SSR_TABLE_ROWS__
             Object.keys(regionData).forEach(rk => {
               const r = regionData[rk];
               const n = (r.sff || []).length + (r.sffCandidates || []).length + (r.abuse || []).length
-                + (r.oneStarOverall || []).length + (r.oneStarStaffing || []).length;
+                + (r.oneStarOverall || []).length;
               if (n > 0) anyRegionRisk = true;
               else anyEmptyRegionBuckets = true;
             });
@@ -5184,7 +5193,7 @@ __REPORT_SSR_TABLE_ROWS__
               );
               if (regPayload) {
                 const byReg = regPayload.regions || {};
-                const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing'];
+                const catKeys = ['sff', 'sffCandidates', 'abuse', 'oneStarOverall'];
                 Object.keys(regionData).forEach(rk => {
                   const b = byReg[rk];
                   if (!b || typeof b !== 'object') return;
@@ -5515,44 +5524,15 @@ __REPORT_SSR_TABLE_ROWS__
         const forProfitCount = stateFacilities.filter(row => ownershipIsForProfit(row.ownership_type)).length;
         stateData[stateName].forProfitPercent = (forProfitCount / nRows) * 100;
       });
-      const stateHPRDValues = {};
-      recentData.forEach(row => {
-        if (row.ccn && row.state) {
-          const stateAbbr = providerStateAbbr(row.state);
-          const stateName = abbrToName[stateAbbr];
-          const hprd = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day);
-          if (stateName && !isNaN(hprd) && hprd > 0) {
-            if (!stateHPRDValues[stateName]) {
-              stateHPRDValues[stateName] = [];
-            }
-            stateHPRDValues[stateName].push(hprd);
-          }
-        }
-      });
-      const stateBottom10Percentile = {};
-      Object.keys(stateHPRDValues).forEach(stateName => {
-        const values = stateHPRDValues[stateName].sort((a, b) => a - b);
-        const percentileIndex = Math.floor(values.length * 0.1);
-        stateBottom10Percentile[stateName] = values[percentileIndex] || 0;
-      });
       const highRiskFacilities = recentData.filter(row => {
         const sffStatus = (row.sff_status || '').trim();
         const overallRating = parseInt(row.overall_rating) || 0;
-        const staffingRating = parseInt(row.staffing_rating) || 0;
         const hasAbuse = row.abuse_icon === 'Y' || row.abuse_icon === '1' || row.has_abuse_icon === 'Y' || row.has_abuse_icon === '1';
-        const stateAbbr = providerStateAbbr(row.state);
-        const stateName = abbrToName[stateAbbr];
-        const totalHPRD = parseFloat(row.reported_total_nurse_hrs_per_resident_per_day) || 0;
-        const caseMixHPRD = parseFloat(row.case_mix_total_nurse_hrs_per_resident_per_day) || 0;
-        const isUnderstaffed = staffingRating === 1 ||
-          (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
-          (stateName && stateBottom10Percentile[stateName] && totalHPRD <= stateBottom10Percentile[stateName]);
         return row.ccn && row.state && (
           sffStatus === 'SFF' ||
           sffStatus === 'SFF Candidate' ||
           hasAbuse ||
-          overallRating === 1 ||
-          isUnderstaffed
+          overallRating === 1
         );
       });
       highRiskFacilities.forEach(row => {
@@ -5573,17 +5553,10 @@ __REPORT_SSR_TABLE_ROWS__
           categories: []
         };
         const overallRating = parseInt(row.overall_rating) || 0;
-        const staffingRating = parseInt(row.staffing_rating) || 0;
-        const totalHPRD = facility.total_nurse_hprd || 0;
-        const caseMixHPRD = facility.case_mix_total_hprd || 0;
-        const isUnderstaffed = staffingRating === 1 ||
-          (caseMixHPRD > 0 && totalHPRD > 0 && (totalHPRD / caseMixHPRD) < 0.8) ||
-          (stateBottom10Percentile[stateName] && totalHPRD > 0 && totalHPRD <= stateBottom10Percentile[stateName]);
         if (row.sff_status && row.sff_status.trim() === 'SFF') facility.categories.push('sff');
         if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') facility.categories.push('candidate');
         if (facility.hasAbuse) facility.categories.push('abuse');
         if (overallRating === 1) facility.categories.push('oneStarOverall');
-        if (isUnderstaffed) facility.categories.push('understaffing');
         if (row.sff_status && row.sff_status.trim() === 'SFF') {
           stateData[stateName].sff.push(facility);
         } else if (row.sff_status && row.sff_status.trim() === 'SFF Candidate') {
@@ -5592,8 +5565,6 @@ __REPORT_SSR_TABLE_ROWS__
           stateData[stateName].abuse.push(facility);
         } else if (overallRating === 1) {
           stateData[stateName].oneStarOverall.push(facility);
-        } else if (isUnderstaffed) {
-          stateData[stateName].oneStarStaffing.push(facility);
         }
       });
     }
@@ -5723,7 +5694,6 @@ __REPORT_SSR_TABLE_ROWS__
             sffCandidates: [],
             abuse: [],
             oneStarOverall: [],
-            oneStarStaffing: []
           };
         }
         
@@ -5756,7 +5726,6 @@ __REPORT_SSR_TABLE_ROWS__
         if (state.sffCandidates) region.sffCandidates.push(...state.sffCandidates);
         if (state.abuse) region.abuse.push(...state.abuse);
         if (state.oneStarOverall) region.oneStarOverall.push(...state.oneStarOverall);
-        if (state.oneStarStaffing) region.oneStarStaffing.push(...state.oneStarStaffing);
       });
       
       // Calculate weighted averages for regions and for-profit percentage
@@ -6290,7 +6259,6 @@ __REPORT_SSR_TABLE_ROWS__
             ...(state.sffCandidates || []),
             ...(state.abuse || []),
             ...(state.oneStarOverall || []),
-            ...(state.oneStarStaffing || [])
           ];
           const uniqueCCNs = new Set();
           allHighRisk.forEach(f => { if (f.ccn) uniqueCCNs.add(f.ccn); });
@@ -6467,7 +6435,6 @@ __REPORT_SSR_TABLE_ROWS__
           ...(state.sffCandidates || []),
           ...(state.abuse || []),
           ...(state.oneStarOverall || []),
-          ...(state.oneStarStaffing || [])
         ];
         const uniqueCCNs = new Set();
         allHighRiskFacilities.forEach(f => {
@@ -6703,9 +6670,42 @@ __REPORT_SSR_TABLE_ROWS__
       return (n >= 1 && n <= 5) ? '\u2605'.repeat(n) : '';
     }
 
-    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
+    function escapeHtml(s) {
+      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function capitalizeFacilityName(name) {
+      const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+      if (!words.length) return '';
+      const small = new Set(['at', 'and', 'of', 'the', 'for', 'in', 'on', 'to', 'a', 'an']);
+      return words.map((word, i) => {
+        if (i > 0 && small.has(word.toLowerCase()) && !(i > 0 && /[.,;:]$/.test(words[i - 1]))) {
+          return word.toLowerCase();
+        }
+        const capPart = (p) => (p ? p.charAt(0).toUpperCase() + p.slice(1).toLowerCase() : p);
+        if (word.includes('-')) return word.split('-').map(capPart).join('-');
+        if (word.includes("'")) return word.split("'").map(capPart).join("'");
+        return capPart(word);
+      }).join(' ');
+    }
+
+    function capitalizeCityName(city) {
+      return String(city || '').trim().split(/\s+/).filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
+
+    function facilityCityLabel(f, stateAbbrForModal) {
       const inStateView = stateAbbrForModal && f.state === stateAbbrForModal;
-      const city = inStateView ? (f.city ? ` (${f.city})` : '') : (f.city && f.state ? ` (${f.city}, ${f.state})` : f.city ? ` (${f.city})` : '');
+      const city = capitalizeCityName(f.city);
+      if (!city) return '';
+      if (inStateView) return ` (${city})`;
+      const st = (f.state || '').trim().toUpperCase();
+      return st ? ` (${city}, ${st})` : ` (${city})`;
+    }
+
+    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
+      const displayName = capitalizeFacilityName(f.name || 'Unknown provider');
+      const city = facilityCityLabel(f, stateAbbrForModal);
       const overallStars = cmsStarIcons(f.overall_rating);
       const staffingStars = cmsStarIcons(f.staffing_rating);
       const overallRating = overallStars ? `Overall: ${overallStars}` : '';
@@ -6726,16 +6726,13 @@ __REPORT_SSR_TABLE_ROWS__
       let multipleCriteriaNote = '';
       if (showMultipleCriteria && f.categories && f.categories.length > 1) {
         // Show only the OTHER categories (exclude the current one)
-        // Handle both 'oneStarStaffing' and 'understaffing' as the same category
-        const normalizedCurrentCategory = (currentCategory === 'oneStarStaffing' || currentCategory === 'understaffing') ? ['oneStarStaffing', 'understaffing'] : [currentCategory];
-        const otherCategories = f.categories.filter(cat => !normalizedCurrentCategory.includes(cat));
+        const otherCategories = f.categories.filter(cat => cat !== currentCategory);
         if (otherCategories.length > 0) {
           const categoryNames = otherCategories.map(cat => {
             if (cat === 'sff') return 'SFF';
             if (cat === 'candidate') return 'SFF Candidate';
             if (cat === 'abuse') return 'Abuse';
             if (cat === 'oneStarOverall') return '1-Star Overall';
-            if (cat === 'oneStarStaffing' || cat === 'understaffing') return 'Understaffing';
             return cat;
           }).join(', ');
           multipleCriteriaNote = `<div class="ccn" style="margin-top: 2px; font-size: 0.75em; color: #fbbf24; font-style: italic;">Also meets: ${categoryNames}</div>`;
@@ -6749,12 +6746,12 @@ __REPORT_SSR_TABLE_ROWS__
       
       return `
         <li>
-          <div style="font-weight: 600;">${f.name.toUpperCase()}${city}</div>
+          <div style="font-weight: 600;">${escapeHtml(displayName)}${escapeHtml(city)}</div>
           ${ratings ? `<div class="ccn" style="margin-top: 4px;">${ratings}</div>` : ''}
           ${multipleCriteriaNote}
           ${staffingText}
           <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px;">
-            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">Dashboard</a>
+            <a href="${pbjLink}" target="_blank" style="display: inline-block; padding: 6px 12px; background: #3b82f6; color: white; text-decoration: none; border-radius: 4px; font-size: 0.85rem; text-align: center; font-weight: 500; max-width: 200px; width: auto;">PBJ320 Dashboard</a>
             <a href="${cmsLink}" target="_blank" style="font-size: 0.75rem; font-style: italic; color: rgba(255,255,255,0.7); text-decoration: underline;">View on CMS Care Compare</a>
           </div>
         </li>
@@ -6773,10 +6770,9 @@ __REPORT_SSR_TABLE_ROWS__
       const candidates = state.sffCandidates || [];
       const abuse = state.abuse || [];
       const oneStarOverall = state.oneStarOverall || [];
-      const oneStarStaffing = state.oneStarStaffing || [];
       
       // Count all unique high-risk facilities
-      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall, ...oneStarStaffing];
+      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall];
       const uniqueCCNs = new Set();
       allFacilities.forEach(f => {
         if (f.ccn) uniqueCCNs.add(f.ccn);
@@ -6786,9 +6782,9 @@ __REPORT_SSR_TABLE_ROWS__
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, understaffing, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & candidates, abuse icon, and 1-star overall.</span>`;
       } else {
-        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, understaffing, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF candidates, abuse icon, and 1-star overall.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -6875,28 +6871,6 @@ __REPORT_SSR_TABLE_ROWS__
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
-            </ul>
-          </div>
-        `;
-      }
-      
-      // Understaffing fifth
-      if (oneStarStaffing.length > 0) {
-        const uniqueOneStarStaffing = oneStarStaffing.filter(f => {
-          if (shownCCNs.has(f.ccn)) return false;
-          shownCCNs.add(f.ccn);
-          return true;
-        }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        html += `
-          <div class="sff-section">
-            <h4>
-              <span class="badge" style="background: #f87171;">Understaffing</span>
-              <span class="desktop-text">Facilities with Understaffing Indicators (${uniqueOneStarStaffing.length})</span>
-              <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
-            </h4>
-            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
-            <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing')).join('')}
             </ul>
           </div>
         `;
@@ -7774,10 +7748,9 @@ __REPORT_SSR_TABLE_ROWS__
       const candidates = region.sffCandidates || [];
       const abuse = region.abuse || [];
       const oneStarOverall = region.oneStarOverall || [];
-      const oneStarStaffing = region.oneStarStaffing || [];
       
       // Count all unique high-risk facilities
-      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall, ...oneStarStaffing];
+      const allFacilities = [...sff, ...candidates, ...abuse, ...oneStarOverall];
       const uniqueCCNs = new Set();
       allFacilities.forEach(f => {
         if (f.ccn) uniqueCCNs.add(f.ccn);
@@ -7793,9 +7766,9 @@ __REPORT_SSR_TABLE_ROWS__
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & Candidates, abuse history, understaffing, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & candidates, abuse icon, and 1-star overall.</span>`;
       } else {
-        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF Candidates, abuse icons, understaffing, and 1-star facilities.</span>`;
+        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF candidates, abuse icon, and 1-star overall.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -7882,28 +7855,6 @@ __REPORT_SSR_TABLE_ROWS__
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', '')).join('')}
-            </ul>
-          </div>
-        `;
-      }
-      
-      // Understaffing fifth
-      if (oneStarStaffing.length > 0) {
-        const uniqueOneStarStaffing = oneStarStaffing.filter(f => {
-          if (shownCCNs.has(f.ccn)) return false;
-          shownCCNs.add(f.ccn);
-          return true;
-        }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-        html += `
-          <div class="sff-section">
-            <h4>
-              <span class="badge" style="background: #f87171;">Understaffing</span>
-              <span class="desktop-text">Facilities with Understaffing Indicators (${uniqueOneStarStaffing.length})</span>
-              <span class="mobile-text">${uniqueOneStarStaffing.length} Nursing Homes</span>
-            </h4>
-            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin: 8px 0 12px 0; line-height: 1.4;">Includes facilities with 1-star staffing rating, reported staffing below 80% of case-mix, or in the bottom 10% of total reported staffing HPRD within the state.</p>
-            <ul class="sff-list">
-              ${uniqueOneStarStaffing.map(f => renderFacilityItem(f, true, 'understaffing', '')).join('')}
             </ul>
           </div>
         `;

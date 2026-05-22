@@ -638,7 +638,7 @@ def _get_search_index_data():
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
     'Shown when CMS Provider Information flags the facility: SFF or SFF candidate, '
-    '1-star overall or staffing rating, or abuse icon. PBJ320 displays CMS fields—it does not assign them.'
+    '1-star overall rating, or abuse icon. PBJ320 displays CMS fields—it does not assign them.'
 )
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
@@ -1938,7 +1938,6 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                     return cached, (effective_cy_qtr if not is_snapshot else cy_qtr)
                 return cached
 
-            state_hprds = {}
             slim_rows = []
             for chunk in pd_local.read_csv(path_used, usecols=usecols, low_memory=False, chunksize=100000):
                 for row in chunk.to_dict('records'):
@@ -1948,33 +1947,11 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                     parsed = _high_risk_facility_payload_from_row(row, col_refs, pd_local)
                     if not parsed:
                         continue
-                    _fac, _sff, _overall_rt, _sr, _ha, th, _cm, st_abbr = parsed
-                    if th and th > 0:
-                        state_hprds.setdefault(st_abbr, []).append(th)
                     slim_rows.append(parsed)
-
-            state_bottom10 = {}
-            for st_abbr, vals in state_hprds.items():
-                arr = sorted([v for v in vals if v and v > 0])
-                if arr:
-                    idx = int(len(arr) * 0.1)
-                    state_bottom10[st_abbr] = arr[idx] if idx < len(arr) else arr[-1]
-                else:
-                    state_bottom10[st_abbr] = 0.0
 
             out = {}
             for parsed in slim_rows:
                 fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
-                bottom = state_bottom10.get(st_abbr) or 0.0
-                is_understaffed = (
-                    staffing_rating == 1
-                    or (
-                        case_mix_hprd > 0
-                        and total_hprd > 0
-                        and (total_hprd / case_mix_hprd) < 0.8
-                    )
-                    or (bottom > 0 and total_hprd > 0 and total_hprd <= bottom)
-                )
                 sff_trim = (sff_raw or '').strip()
                 qualifies = (
                     fac['ccn']
@@ -1984,7 +1961,6 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                         or sff_trim == 'SFF Candidate'
                         or has_abuse
                         or overall_rating == 1
-                        or is_understaffed
                     )
                 )
                 if not qualifies:
@@ -1998,12 +1974,10 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                     fac['categories'].append('abuse')
                 if overall_rating == 1:
                     fac['categories'].append('oneStarOverall')
-                if is_understaffed:
-                    fac['categories'].append('understaffing')
 
                 bucket = out.setdefault(
                     st_abbr,
-                    {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': [], 'oneStarStaffing': []},
+                    {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': []},
                 )
                 if sff_trim == 'SFF':
                     bucket['sff'].append(fac)
@@ -2013,8 +1987,6 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                     bucket['abuse'].append(fac)
                 elif overall_rating == 1:
                     bucket['oneStarOverall'].append(fac)
-                elif is_understaffed:
-                    bucket['oneStarStaffing'].append(fac)
 
             _HIGH_RISK_BY_STATE_CACHE_KEY = cache_key
             _HIGH_RISK_BY_STATE_CACHE_VAL = (out, effective_cy_qtr if not is_snapshot else cy_qtr)
@@ -2074,7 +2046,6 @@ def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
                 quarters_in_file = _provider_csv_collect_quarters(path_used, col_refs, pd_local)
                 effective_cy_qtr = _resolve_effective_cy_qtr(cy_qtr, quarters_in_file)
 
-            state_hprds: dict[str, list[float]] = {}
             slim_rows: list[tuple] = []
             for chunk in pd_local.read_csv(path_used, usecols=usecols, low_memory=False, chunksize=100000):
                 for row in chunk.to_dict("records"):
@@ -2087,46 +2058,22 @@ def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
                     fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
                     if st_abbr != st:
                         continue
-                    if total_hprd and total_hprd > 0:
-                        state_hprds.setdefault(st_abbr, []).append(total_hprd)
                     slim_rows.append(parsed)
-
-            state_bottom10 = {}
-            vals = state_hprds.get(st) or []
-            if vals:
-                arr = sorted([v for v in vals if v and v > 0])
-                if arr:
-                    idx = int(len(arr) * 0.1)
-                    state_bottom10[st] = arr[idx] if idx < len(arr) else arr[-1]
-                else:
-                    state_bottom10[st] = 0.0
 
             out = {
                 "sff": [],
                 "sffCandidates": [],
                 "abuse": [],
                 "oneStarOverall": [],
-                "oneStarStaffing": [],
             }
             for parsed in slim_rows:
                 fac, sff_raw, overall_rating, staffing_rating, has_abuse, total_hprd, case_mix_hprd, st_abbr = parsed
-                bottom = state_bottom10.get(st_abbr) or 0.0
-                is_understaffed = (
-                    staffing_rating == 1
-                    or (
-                        case_mix_hprd > 0
-                        and total_hprd > 0
-                        and (total_hprd / case_mix_hprd) < 0.8
-                    )
-                    or (bottom > 0 and total_hprd > 0 and total_hprd <= bottom)
-                )
                 sff_trim = (sff_raw or "").strip()
                 qualifies = fac["ccn"] and (
                     sff_trim == "SFF"
                     or sff_trim == "SFF Candidate"
                     or has_abuse
                     or overall_rating == 1
-                    or is_understaffed
                 )
                 if not qualifies:
                     continue
@@ -2138,8 +2085,6 @@ def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
                     out["abuse"].append(fac)
                 elif overall_rating == 1:
                     out["oneStarOverall"].append(fac)
-                elif is_understaffed:
-                    out["oneStarStaffing"].append(fac)
             return out
         except Exception as e:
             print(f"high-risk state scan failed for {path_used} ({st}): {e}", flush=True)
@@ -2153,7 +2098,7 @@ def _high_risk_buckets_for_state_page(state_code: str, cy_qtr: str | None) -> di
     if not st:
         return {}
     cached = _high_risk_buckets_for_state_cached(st)
-    if cached and any(cached.get(k) for k in ("sff", "sffCandidates", "abuse", "oneStarOverall", "oneStarStaffing")):
+    if cached and any(cached.get(k) for k in ("sff", "sffCandidates", "abuse", "oneStarOverall")):
         return cached
     if cy_qtr:
         return _compute_high_risk_buckets_for_state(st, cy_qtr)
@@ -2179,7 +2124,7 @@ def _load_state_abbr_to_cms_region_full():
 
 def _rollup_high_risk_states_to_regions(states_by_abbr):
     mm = _load_state_abbr_to_cms_region_full()
-    keys = ('sff', 'sffCandidates', 'abuse', 'oneStarOverall', 'oneStarStaffing')
+    keys = ('sff', 'sffCandidates', 'abuse', 'oneStarOverall')
     regions = {}
     for abbr, bucket in (states_by_abbr or {}).items():
         if not isinstance(bucket, dict):
@@ -2189,7 +2134,7 @@ def _rollup_high_risk_states_to_regions(states_by_abbr):
             continue
         rb = regions.setdefault(
             rfull,
-            {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': [], 'oneStarStaffing': []},
+            {'sff': [], 'sffCandidates': [], 'abuse': [], 'oneStarOverall': []},
         )
         for k in keys:
             for fac in bucket.get(k) or []:
@@ -7597,12 +7542,15 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-takeaway-title-name {{ display: none; }}
   /* On mobile hide residents, direct (HPRD), contract badges, and overall rating */
   .pbj-badge-mobile-hide {{ display: none !important; }}
+  .pbj-hprd-rank-mobile-only {{ display: none !important; }}
   .pbj-rural-meter-track {{ position: relative; }}
   .pbj-rural-meter-nat {{ position: absolute; top: -1px; bottom: -1px; width: 2px; margin-left: -1px; background: rgba(248, 250, 252, 0.92); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.55); z-index: 2; pointer-events: none; }}
   .pbj-badge-mobile-only {{ display: none !important; }}
   @media (max-width: 768px) {{
     .pbj-overall-badge {{ display: none !important; }}
     .pbj-badge-mobile-only {{ display: inline-block !important; }}
+    .pbj-hprd-rank-desktop-only {{ display: none !important; }}
+    .pbj-hprd-rank-mobile-only {{ display: inline-block !important; }}
   }}
   /* High-risk tooltip: less narrow on mobile; position clamped by JS so it never bleeds off left or right */
   .pbj-high-risk-tooltip {{ min-width: 280px; max-width: min(320px, calc(100vw - 24px)); width: max-content; padding: 12px 14px; font-size: 0.875rem; line-height: 1.45; }}
@@ -8191,6 +8139,19 @@ def capitalize_city_name(city):
     if not city:
         return city
     return ' '.join([word.capitalize() for word in city.split()])
+
+
+def _ordinal_rank_label(rank) -> str:
+    """Format rank as 1st, 2nd, 36th, etc."""
+    try:
+        n = int(rank)
+    except (TypeError, ValueError):
+        return ''
+    if 10 <= (n % 100) <= 20:
+        suffix = 'th'
+    else:
+        suffix = {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th')
+    return f'{n}{suffix}'
 
 # Known acronyms to preserve in entity/chain names (e.g. "Nhs management" -> "NHS Management")
 ENTITY_NAME_ACRONYMS = {'NHS', 'CMS', 'RN', 'LPN', 'CCRC', 'PBJ', 'HPRD', 'SNF', 'ALF', 'LTAC', 'ID/DD', 'PACS'}
@@ -12091,7 +12052,6 @@ def _render_state_pbj_high_risk_section(
         ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
         ('sffCandidates', 'SFF candidates', 'Facilities monitored for potential SFF designation.'),
         ('oneStarOverall', '1-star overall', 'CMS overall rating of 1 star.'),
-        ('oneStarStaffing', '1-star staffing', 'CMS staffing rating of 1 star.'),
         ('abuse', 'Abuse icon', 'Facilities flagged with the CMS abuse icon.'),
     ]
     all_by_ccn: dict[str, dict] = {}
@@ -12399,7 +12359,10 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     _macpac_info = get_macpac_chart_info(state_code) if state_code else None
     if _macpac_info is not None and _macpac_info.get('line_value') is not None and _macpac_info['line_value'] > 1.5:
         label_short = _macpac_info.get('label_short') or f"{state_code} Min. ~{_macpac_info['line_value']:.2f}"
-        state_standard_badge = f'<span class="pbj-state-min-badge" title="State minimum staffing benchmark (MACPAC estimate).">{label_short} HPRD</span>'
+        state_standard_badge = (
+            f'<span class="pbj-state-min-badge pbj-badge-mobile-hide" '
+            f'title="State minimum staffing benchmark (MACPAC estimate).">{label_short} HPRD</span>'
+        )
 
     # Get basics: prefer facility count from facility_quarterly for this same quarter; fall back to state_quarterly (same quarter). Never show 0 when both missing; no synthetic data.
     _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
@@ -12688,9 +12651,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         quote=True
     )
     state_rural_badge_html = render_state_rural_badge_html(state_code, raw_quarter)
+    _rank_ord = _ordinal_rank_label(rank_total_nurse) if rank_total_nurse else ''
+    _hprd_desktop = f'{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})'
+    _hprd_mobile = f'{total_hprd_val} HPRD ({_rank_ord})' if _rank_ord else f'{total_hprd_val} HPRD'
     badges_line = (
         f'<span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
-        f'<span style="{_bs}" title="{state_total_hprd_badge_title}">{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})</span>'
+        f'<span class="pbj-hprd-rank-desktop-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_desktop}</span>'
+        f'<span class="pbj-hprd-rank-mobile-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_mobile}</span>'
         f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_rn_hprd_badge_title}">{rn_hprd_val} RN HPRD</span>'
         f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_contract_badge_title}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>'
         f'{state_standard_badge}{state_rural_badge_html}'
@@ -13850,6 +13817,30 @@ def _provider_cold_render_semaphore():
     return _PROVIDER_COLD_RENDER_SEM
 
 
+def _provider_cold_render_wait_seconds() -> float:
+    """Seconds to wait for a cold-render slot before returning 503 Server busy."""
+    try:
+        return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', '20')))
+    except (TypeError, ValueError):
+        return 20.0
+
+
+def _provider_page_cached_response(prov: str, now: float):
+    """Return cached provider HTML tuple if valid, else None."""
+    if not _provider_page_cache_enabled():
+        return None
+    cached = _PROVIDER_PAGE_CACHE.get(prov)
+    if cached is None:
+        return None
+    cached_at, html = cached
+    if now - cached_at >= _provider_page_cache_ttl_seconds():
+        return None
+    row_peek = _provider_info_row_for_ccn(prov)
+    if not _provider_page_cache_hit_ok(prov, html, row_peek):
+        return None
+    return html, 200, _provider_page_html_headers(cache_hit=True)
+
+
 def _provider_page_cache_max_entries() -> int:
     raw = (os.environ.get('PBJ_PROVIDER_PAGE_CACHE_MAX') or '').strip()
     if raw:
@@ -13955,39 +13946,27 @@ def _provider_page_impl(ccn):
     if not prov:
         abort(404)
     now = time.time()
-    use_cache = _provider_page_cache_enabled()
-    if use_cache:
-        cached = _PROVIDER_PAGE_CACHE.get(prov)
-        if cached is not None:
-            cached_at, html = cached
-            if now - cached_at < _provider_page_cache_ttl_seconds():
-                row_peek = _provider_info_row_for_ccn(prov)
-                if _provider_page_cache_hit_ok(prov, html, row_peek):
-                    return html, 200, _provider_page_html_headers(cache_hit=True)
+    hit = _provider_page_cached_response(prov, now)
+    if hit is not None:
+        return hit
 
     sem = _provider_cold_render_semaphore()
-    if not sem.acquire(blocking=False):
-        if use_cache:
-            cached = _PROVIDER_PAGE_CACHE.get(prov)
-            if cached is not None:
-                cached_at, html = cached
-                if now - cached_at < _provider_page_cache_ttl_seconds():
-                    row_peek = _provider_info_row_for_ccn(prov)
-                    if _provider_page_cache_hit_ok(prov, html, row_peek):
-                        return html, 200, _provider_page_html_headers(cache_hit=True)
-        return make_response('Server busy; retry shortly.', 503, {
-            'Content-Type': 'text/plain; charset=utf-8',
-            'Retry-After': '30',
-        })
+    acquired = sem.acquire(blocking=False)
+    if not acquired:
+        hit = _provider_page_cached_response(prov, now)
+        if hit is not None:
+            return hit
+        wait_s = _provider_cold_render_wait_seconds()
+        acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else False
+        if not acquired:
+            return make_response('Server busy; retry shortly.', 503, {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '30',
+            })
     try:
-        if use_cache:
-            cached = _PROVIDER_PAGE_CACHE.get(prov)
-            if cached is not None:
-                cached_at, html = cached
-                if now - cached_at < _provider_page_cache_ttl_seconds():
-                    row_peek = _provider_info_row_for_ccn(prov)
-                    if _provider_page_cache_hit_ok(prov, html, row_peek):
-                        return html, 200, _provider_page_html_headers(cache_hit=True)
+        hit = _provider_page_cached_response(prov, now)
+        if hit is not None:
+            return hit
         if _facility_quarterly_csv_path() is None:
             return make_response(
                 'Facility quarterly metrics are not loaded on this server. '
@@ -14000,7 +13979,7 @@ def _provider_page_impl(ccn):
             abort(404)
         provider_info_row = _provider_info_row_for_ccn(prov)
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
-        if use_cache and _provider_info_row_sufficient_for_page(provider_info_row):
+        if _provider_page_cache_enabled() and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()
             if max_entries and len(_PROVIDER_PAGE_CACHE) >= max_entries:
                 oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])

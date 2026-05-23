@@ -889,6 +889,8 @@ def _throttle_ai_crawlers_on_heavy_routes():
     """
     if request.path in ('/health', '/warmup', '/debug/mem'):
         return
+    if request.path == '/warmup/facility-indexes':
+        return
     if not _ai_crawler_rate_limit_enabled() or not _is_ai_crawler():
         return
     if not (request.path.startswith('/provider/') or request.path.startswith('/entity/')):
@@ -906,6 +908,8 @@ def _throttle_ai_crawlers_on_heavy_routes():
 def _reject_aggressive_bots_on_heavy_routes():
     """Cheap 429 for crawlers that hammer /provider and /entity (keeps workers for real users)."""
     if request.path in ('/health', '/warmup', '/debug/mem'):
+        return
+    if request.path == '/warmup/facility-indexes':
         return
     if not _block_aggressive_bots_enabled() or not _is_aggressive_bot():
         return
@@ -991,8 +995,107 @@ def warmup():
     return jsonify({'ok': ok, 'checks': checks}), (200 if ok else 503)
 
 
+def _warmup_secret_ok() -> bool:
+    """Require X-PBJ-Warmup-Key matching PBJ_WARMUP_SECRET (not enabled when secret unset)."""
+    secret = (os.environ.get('PBJ_WARMUP_SECRET') or '').strip()
+    if not secret:
+        return False
+    return (request.headers.get('X-PBJ-Warmup-Key') or '').strip() == secret
+
+
+def _facility_provider_indexes_warm() -> bool:
+    """True when contract-median and percentile indexes match current facility CSV mtime."""
+    path = _facility_quarterly_csv_path()
+    if not path or not HAS_PANDAS:
+        return False
+    try:
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        mtime = 0
+    c = _STATE_CONTRACT_MEDIAN_CACHE
+    p = _STATE_PERCENTILE_HPRD_INDEX_CACHE
+    if not c or c[0] != path or c[1] != mtime:
+        return False
+    if not p or p[0] != path or p[1] != mtime:
+        return False
+    return True
+
+
+def warm_facility_quarterly_provider_indexes() -> dict:
+    """Pre-build provider cold-path facility CSV indexes (contract median + state percentile).
+
+    Does not build the national latest-quarter HPRD map (entity provider path streams CCNs).
+    Safe to call from a protected warmup route or deploy script after workers start.
+    """
+    global pd
+    if pd is None:
+        pd = get_pd()
+    rss_before = None
+    if _psutil_process is not None:
+        try:
+            rss_before = round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
+        except Exception:
+            pass
+    path = _facility_quarterly_csv_path()
+    already_warm = _facility_provider_indexes_warm()
+    t0 = time.perf_counter()
+    contract_states = 0
+    percentile_states = 0
+    if not already_warm:
+        t_contract = time.perf_counter()
+        contract = _state_contract_median_index()
+        contract_states = len(contract) if isinstance(contract, dict) else 0
+        contract_ms = round((time.perf_counter() - t_contract) * 1000, 1)
+        t_pct = time.perf_counter()
+        percentile = _state_percentile_hprd_index()
+        percentile_states = len(percentile) if isinstance(percentile, dict) else 0
+        percentile_ms = round((time.perf_counter() - t_pct) * 1000, 1)
+    else:
+        contract_ms = 0.0
+        percentile_ms = 0.0
+        if _STATE_CONTRACT_MEDIAN_CACHE and len(_STATE_CONTRACT_MEDIAN_CACHE) >= 3:
+            contract_states = len(_STATE_CONTRACT_MEDIAN_CACHE[2] or {})
+        if _STATE_PERCENTILE_HPRD_INDEX_CACHE and len(_STATE_PERCENTILE_HPRD_INDEX_CACHE) >= 3:
+            percentile_states = len(_STATE_PERCENTILE_HPRD_INDEX_CACHE[2] or {})
+    total_ms = round((time.perf_counter() - t0) * 1000, 1)
+    rss_after = None
+    if _psutil_process is not None:
+        try:
+            rss_after = round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
+        except Exception:
+            pass
+    out = {
+        'ok': bool(path),
+        'already_warm': already_warm,
+        'path': os.path.basename(path) if path else None,
+        'canonical_quarter': get_canonical_latest_quarter(),
+        'contract_median_ms': contract_ms,
+        'state_percentile_hprd_ms': percentile_ms,
+        'total_ms': total_ms,
+        'contract_states': contract_states,
+        'percentile_states': percentile_states,
+        'rss_mb_before': rss_before,
+        'rss_mb_after': rss_after,
+    }
+    print(
+        '[PBJ_WARMUP] '
+        + json.dumps(out, separators=(',', ':'), sort_keys=True),
+        flush=True,
+    )
+    return out
+
+
+@app.route('/warmup/facility-indexes', methods=['POST'])
+def warmup_facility_indexes():
+    """Protected: pre-build facility CSV indexes for provider cold path (requires PBJ_WARMUP_SECRET)."""
+    from flask import abort
+    if not _warmup_secret_ok():
+        abort(403)
+    return jsonify(warm_facility_quarterly_provider_indexes())
+
+
 # Simple email format check (not RFC-strict; rejects obviously invalid)
-_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z]{2,}$')
 
 def _rewrite_universal_js_version(html_content: str) -> str:
     """Static HTML files may pin stale ?v=; always serve the current universal footer script."""

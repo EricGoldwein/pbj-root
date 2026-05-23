@@ -548,8 +548,11 @@
       border: 1px solid rgba(100, 116, 139, 0.45);
       color: rgba(226, 232, 240, 0.75);
     }
-    /* Desktop: taller search row inside card */
+    /* Desktop: taller search row inside card; subtitle uses full card width (38rem orphans "homes.") */
     @media (min-width: 1024px) {
+      .home-search-label-row {
+        max-width: 100%;
+      }
       .home-search-wrap {
         max-width: 100%;
         margin: 0;

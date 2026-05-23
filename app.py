@@ -748,6 +748,8 @@ _AGGRESSIVE_BOT_MARKERS = (
 
 _AI_CRAWLER_HITS = {}
 _AI_CRAWLER_HITS_LOCK = threading.Lock()
+_PROVIDER_COLD_BURST_HITS = {}
+_PROVIDER_COLD_BURST_LOCK = threading.Lock()
 
 
 def _block_aggressive_bots_enabled() -> bool:
@@ -826,6 +828,55 @@ def _ai_crawler_rate_limit_exceeded() -> int | None:
             stale = [k for k, ts in _AI_CRAWLER_HITS.items() if not ts or ts[-1] <= cutoff]
             for k in stale[:1000]:
                 _AI_CRAWLER_HITS.pop(k, None)
+    return None
+
+
+def _provider_cold_burst_limit_enabled() -> bool:
+    """Only when PBJ_PROVIDER_COLD_BURST_LIMIT is set to a positive integer (off by default)."""
+    v = (os.environ.get('PBJ_PROVIDER_COLD_BURST_LIMIT') or '').strip()
+    if not v or v.lower() in ('0', 'false', 'no', 'off'):
+        return False
+    try:
+        return int(v) > 0
+    except ValueError:
+        return False
+
+
+def _provider_cold_burst_limit_config() -> tuple[int, int]:
+    """(max cold renders per IP per window, window_seconds)."""
+    try:
+        limit = int((os.environ.get('PBJ_PROVIDER_COLD_BURST_LIMIT') or '12').strip())
+    except ValueError:
+        limit = 12
+    try:
+        window = int((os.environ.get('PBJ_PROVIDER_COLD_BURST_WINDOW') or '60').strip())
+    except ValueError:
+        window = 60
+    return max(1, limit), max(1, window)
+
+
+def _provider_cold_burst_rate_limit_exceeded() -> int | None:
+    """Return Retry-After seconds when an IP triggers too many uncached provider cold renders."""
+    if not _provider_cold_burst_limit_enabled():
+        return None
+    limit, window = _provider_cold_burst_limit_config()
+    ip = _client_ip_for_rate_limit()
+    now = time.monotonic()
+    cutoff = now - window
+    with _PROVIDER_COLD_BURST_LOCK:
+        hits = _PROVIDER_COLD_BURST_HITS.get(ip)
+        if hits is None:
+            hits = []
+            _PROVIDER_COLD_BURST_HITS[ip] = hits
+        hits[:] = [t for t in hits if t > cutoff]
+        if len(hits) >= limit:
+            oldest = hits[0]
+            return max(1, int(window - (now - oldest)) + 1)
+        hits.append(now)
+        if len(_PROVIDER_COLD_BURST_HITS) > 5000:
+            stale = [k for k, ts in _PROVIDER_COLD_BURST_HITS.items() if not ts or ts[-1] <= cutoff]
+            for k in stale[:1000]:
+                _PROVIDER_COLD_BURST_HITS.pop(k, None)
     return None
 
 
@@ -8518,22 +8569,28 @@ _FACILITY_LATEST_HPRD_BY_CCN_KEY = None  # (path, mtime, cy_qtr)
 _FACILITY_LATEST_HPRD_BY_CCN_VAL = None  # ccn -> metrics dict
 _FACILITY_LATEST_HPRD_BY_CCN_AT = 0.0
 _FACILITY_LATEST_HPRD_BY_CCN_TTL = 300
+_FACILITY_LATEST_HPRD_BUILD_LOCK = threading.Lock()
 
 
-def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
-    """One chunked pass: latest-quarter HPRD metrics keyed by CCN (entity provider block)."""
-    global _FACILITY_LATEST_HPRD_BY_CCN_KEY, _FACILITY_LATEST_HPRD_BY_CCN_VAL, _FACILITY_LATEST_HPRD_BY_CCN_AT
+def _facility_latest_hprd_cache_key(cy_qtr: str) -> tuple | None:
     qtr = str(cy_qtr or '').strip()
     if not qtr:
-        return {}
+        return None
     path = _facility_quarterly_csv_path()
     if not path:
-        return {}
+        return None
     try:
         mtime = os.path.getmtime(path)
     except OSError:
         mtime = 0.0
-    key = (path, mtime, qtr)
+    return (path, mtime, qtr)
+
+
+def _facility_latest_hprd_by_ccn_if_warm(cy_qtr: str) -> dict[str, dict] | None:
+    """Return national latest-quarter HPRD index when already built; None if a full scan is required."""
+    key = _facility_latest_hprd_cache_key(cy_qtr)
+    if key is None:
+        return None
     now = time.time()
     if (
         _FACILITY_LATEST_HPRD_BY_CCN_VAL is not None
@@ -8541,10 +8598,18 @@ def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
         and (now - _FACILITY_LATEST_HPRD_BY_CCN_AT) < _FACILITY_LATEST_HPRD_BY_CCN_TTL
     ):
         return _FACILITY_LATEST_HPRD_BY_CCN_VAL
+    return None
+
+
+def _build_facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str, key: tuple) -> dict[str, dict]:
+    """One chunked pass: latest-quarter HPRD metrics keyed by CCN (entity pages / warm path)."""
+    path = key[0]
+    qtr = key[2]
     pdm = get_pd()
     if pdm is None:
         return {}
     out: dict[str, dict] = {}
+    t0 = time.perf_counter()
     try:
         head = pdm.read_csv(path, nrows=0)
         cols = [
@@ -8579,14 +8644,33 @@ def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
     except Exception as e:
         print(f'facility latest HPRD index failed: {e}', flush=True)
         return {}
-    _FACILITY_LATEST_HPRD_BY_CCN_KEY = key
-    _FACILITY_LATEST_HPRD_BY_CCN_VAL = out
-    _FACILITY_LATEST_HPRD_BY_CCN_AT = now
+    build_ms = round((time.perf_counter() - t0) * 1000, 1)
     print(
-        f'[PBJ_PROVIDER_INDEX] facility_latest_hprd ccns={len(out)} quarter={qtr} path={os.path.basename(path)}',
+        f'[PBJ_PROVIDER_INDEX] facility_latest_hprd ccns={len(out)} quarter={qtr} '
+        f'build_ms={build_ms} path={os.path.basename(path)}',
         flush=True,
     )
     return out
+
+
+def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
+    """National latest-quarter HPRD index; single-flight build per worker."""
+    global _FACILITY_LATEST_HPRD_BY_CCN_KEY, _FACILITY_LATEST_HPRD_BY_CCN_VAL, _FACILITY_LATEST_HPRD_BY_CCN_AT
+    warm = _facility_latest_hprd_by_ccn_if_warm(cy_qtr)
+    if warm is not None:
+        return warm
+    key = _facility_latest_hprd_cache_key(cy_qtr)
+    if key is None:
+        return {}
+    with _FACILITY_LATEST_HPRD_BUILD_LOCK:
+        warm = _facility_latest_hprd_by_ccn_if_warm(cy_qtr)
+        if warm is not None:
+            return warm
+        out = _build_facility_latest_hprd_by_ccn_for_quarter(cy_qtr, key)
+        _FACILITY_LATEST_HPRD_BY_CCN_KEY = key
+        _FACILITY_LATEST_HPRD_BY_CCN_VAL = out
+        _FACILITY_LATEST_HPRD_BY_CCN_AT = time.time()
+        return out
 
 
 def _stream_facility_quarterly_latest_for_ccns(ccns, latest_quarter):
@@ -8608,10 +8692,20 @@ def _stream_facility_quarterly_latest_for_ccns(ccns, latest_quarter):
     qstr = str(latest_quarter).strip()
     out = {}
     remaining = set(want)
+    want_min = min(want)
+    want_max = max(want)
     try:
         for chunk in pdm.read_csv(path, low_memory=False, chunksize=100000):
             if 'PROVNUM' not in chunk.columns or 'CY_Qtr' not in chunk.columns:
                 continue
+            normalized = _normalize_provnum_series(chunk['PROVNUM'])
+            if not normalized.empty:
+                chunk_min = normalized.iloc[0]
+                chunk_max = normalized.iloc[-1]
+                if chunk_max < want_min:
+                    continue
+                if chunk_min > want_max:
+                    break
             chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == qstr]
             if chunk.empty:
                 continue
@@ -11251,6 +11345,7 @@ _ENTITY_FACILITIES_INDEX_VAL = None  # entity_id -> {ccn: {ccn, name, city, stat
 _ENTITY_FACILITIES_INDEX_NAMES = None  # entity_id -> raw name from CSV
 _ENTITY_FACILITIES_INDEX_AT = 0.0
 _ENTITY_FACILITIES_INDEX_TTL = 300
+_ENTITY_FACILITIES_INDEX_BUILD_LOCK = threading.Lock()
 
 _ENTITY_FACILITIES_RESULT_CACHE = {}  # (abs_path, mtime, entity_id, quarter) -> (name, facilities)
 _ENTITY_FACILITIES_RESULT_CACHE_AT = 0.0
@@ -11415,17 +11510,27 @@ def _get_entity_facilities_index() -> tuple[str, float, dict, dict]:
             and (now - _ENTITY_FACILITIES_INDEX_AT) < _ENTITY_FACILITIES_INDEX_TTL
         ):
             return path, mtime, _ENTITY_FACILITIES_INDEX_VAL, _ENTITY_FACILITIES_INDEX_NAMES or {}
-        index, names = _build_entity_facilities_index_from_path(path)
-        if index:
-            _ENTITY_FACILITIES_INDEX_KEY = key
-            _ENTITY_FACILITIES_INDEX_VAL = index
-            _ENTITY_FACILITIES_INDEX_NAMES = names
-            _ENTITY_FACILITIES_INDEX_AT = now
-            print(
-                f'[PBJ_PROVIDER_INDEX] entity_facilities_index entities={len(index)} path={os.path.basename(path)}',
-                flush=True,
-            )
-            return path, mtime, index, names
+        with _ENTITY_FACILITIES_INDEX_BUILD_LOCK:
+            if (
+                _ENTITY_FACILITIES_INDEX_VAL is not None
+                and _ENTITY_FACILITIES_INDEX_KEY == key
+                and (now - _ENTITY_FACILITIES_INDEX_AT) < _ENTITY_FACILITIES_INDEX_TTL
+            ):
+                return path, mtime, _ENTITY_FACILITIES_INDEX_VAL, _ENTITY_FACILITIES_INDEX_NAMES or {}
+            t0 = time.perf_counter()
+            index, names = _build_entity_facilities_index_from_path(path)
+            if index:
+                _ENTITY_FACILITIES_INDEX_KEY = key
+                _ENTITY_FACILITIES_INDEX_VAL = index
+                _ENTITY_FACILITIES_INDEX_NAMES = names
+                _ENTITY_FACILITIES_INDEX_AT = time.time()
+                build_ms = round((time.perf_counter() - t0) * 1000, 1)
+                print(
+                    f'[PBJ_PROVIDER_INDEX] entity_facilities_index entities={len(index)} '
+                    f'build_ms={build_ms} path={os.path.basename(path)}',
+                    flush=True,
+                )
+                return path, mtime, index, names
     return '', 0.0, {}, {}
 
 
@@ -11480,23 +11585,56 @@ def _state_total_nurse_hprd_by_state_for_quarter(cy_qtr: str) -> dict[str, float
     return out
 
 
+def _apply_facility_quarterly_metrics_row(fac: dict, row, latest_q: str) -> None:
+    """Copy HPRD fields from a facility_quarterly row onto one entity roster dict."""
+    fac['Total_Nurse_HPRD'] = row.get('Total_Nurse_HPRD')
+    fac['RN_HPRD'] = row.get('RN_HPRD')
+    fac['Contract_Percentage'] = row.get('Contract_Percentage')
+    census = row.get('avg_daily_census')
+    if census is None:
+        census = row.get('Avg_Daily_Census')
+    if census is not None:
+        fac['avg_daily_census'] = census
+    fac['quarter'] = latest_q
+
+
 def _attach_entity_facility_quarterly_metrics(facilities: list, latest_q: str | None) -> None:
-    """Mutate facility dicts with latest-quarter PBJ metrics (national CCN index, one pass per worker)."""
+    """Mutate facility dicts with latest-quarter PBJ metrics.
+
+    Uses the warm national CCN index when present; otherwise streams only this entity's CCNs
+    so provider cold renders do not trigger a full facility_quarterly_metrics.csv scan.
+    """
     if not facilities or not latest_q:
         return
-    by_ccn = _facility_latest_hprd_by_ccn_for_quarter(latest_q)
-    if not by_ccn:
+    by_ccn = _facility_latest_hprd_by_ccn_if_warm(latest_q)
+    if by_ccn is not None:
+        for fac in facilities:
+            r = by_ccn.get(fac['ccn'])
+            if not r:
+                continue
+            fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
+            fac['RN_HPRD'] = r.get('RN_HPRD')
+            fac['Contract_Percentage'] = r.get('Contract_Percentage')
+            if r.get('avg_daily_census') is not None:
+                fac['avg_daily_census'] = r.get('avg_daily_census')
+            fac['quarter'] = latest_q
         return
+    ccn_list = [fac['ccn'] for fac in facilities if fac.get('ccn')]
+    if not ccn_list:
+        return
+    t0 = time.perf_counter()
+    rows = _stream_facility_quarterly_latest_for_ccns(ccn_list, latest_q)
     for fac in facilities:
-        r = by_ccn.get(fac['ccn'])
-        if not r:
-            continue
-        fac['Total_Nurse_HPRD'] = r.get('Total_Nurse_HPRD')
-        fac['RN_HPRD'] = r.get('RN_HPRD')
-        fac['Contract_Percentage'] = r.get('Contract_Percentage')
-        if r.get('avg_daily_census') is not None:
-            fac['avg_daily_census'] = r.get('avg_daily_census')
-        fac['quarter'] = latest_q
+        row = rows.get(fac['ccn'])
+        if row is not None:
+            _apply_facility_quarterly_metrics_row(fac, row, latest_q)
+    stream_ms = round((time.perf_counter() - t0) * 1000, 1)
+    if stream_ms >= 500:
+        print(
+            f'[PBJ_PROVIDER_INDEX] entity_metrics_stream ccns={len(ccn_list)} found={len(rows)} '
+            f'quarter={latest_q} stream_ms={stream_ms}',
+            flush=True,
+        )
 
 
 def load_entity_facilities(entity_id):
@@ -14713,6 +14851,7 @@ def _provider_page_impl(ccn):
         ProviderRequestTimer,
         ai_provider_cache_only_enabled,
         classify_user_agent,
+        provider_perf_log_enabled,
     )
 
     prov = normalize_ccn(ccn) or ''
@@ -14748,6 +14887,26 @@ def _provider_page_impl(ccn):
                 {
                     'Content-Type': 'text/plain; charset=utf-8',
                     'Retry-After': '3600',
+                    'X-PBJ-Provider-Cache': 'MISS',
+                },
+            )
+
+        cold_burst_retry = _provider_cold_burst_rate_limit_exceeded()
+        if cold_burst_retry is not None:
+            timer.outcome = 'cold_burst_limited'
+            timer.status = 429
+            if provider_perf_log_enabled():
+                print(
+                    f'[PBJ_PROVIDER] cold_burst_limited ccn={prov} ip={_client_ip_for_rate_limit()} '
+                    f'retry_after={cold_burst_retry}',
+                    flush=True,
+                )
+            return make_response(
+                'Too many uncached provider requests; retry shortly.',
+                429,
+                {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': str(cold_burst_retry),
                     'X-PBJ-Provider-Cache': 'MISS',
                 },
             )

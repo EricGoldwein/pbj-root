@@ -1579,11 +1579,19 @@ def insights_theme_css():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'insights-theme.css', mimetype='text/css'))
 
 
+@app.route('/insights/trends')
+@app.route('/insights/trends/')
+def insights_trends():
+    """Interactive staffing trend dashboards (maps, charts)."""
+    return _serve_public_html('insights.html')
+
+
 @app.route('/insights-visualizations')
 @app.route('/insights-visualizations/')
-def insights_visualizations():
-    """Legacy interactive visualizations now housed under the Insights article track."""
-    return _serve_public_html('insights.html')
+def insights_visualizations_redirect():
+    """Permanent redirect from legacy URL."""
+    from flask import redirect
+    return redirect('/insights/trends', code=301)
 
 _PBJ_AI_SAMPLE_BLOCK_RE = re.compile(
     r'<!--\s*PBJ_AI_SAMPLE_BLOCK\s*-->.*?<!--\s*/PBJ_AI_SAMPLE_BLOCK\s*-->',
@@ -4085,7 +4093,7 @@ def _render_native_content(post: dict) -> str:
         '<aside class="dashboard-callout" role="note">'
         '<p class="dashboard-callout-title">Interactive dashboards</p>'
         '<p class="dashboard-callout-desc">Maps and quarter-by-quarter staffing open in a full window—clearer than nesting the whole tool inside this article.</p>'
-        '<a class="dashboard-callout-btn" href="/insights-visualizations" target="_blank" rel="noopener">Open dashboards</a>'
+        '<a class="dashboard-callout-btn" href="/insights/trends" target="_blank" rel="noopener">Open dashboards</a>'
         '</aside>'
     )
     content_html = (post.get('content_html') or '').strip()
@@ -5378,7 +5386,7 @@ def sitemap():
         ('/', '1.0', 'weekly'),
         ('/report', '0.9', 'weekly'),
         ('/insights', '0.9', 'weekly'),
-        ('/insights-visualizations', '0.75', 'monthly'),
+        ('/insights/trends', '0.75', 'monthly'),
         ('/press', '0.8', 'monthly'),
         ('/pbj-sample', '0.6', 'monthly'),
         ('/phoebe', '0.8', 'monthly'),

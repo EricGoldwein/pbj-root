@@ -7,8 +7,8 @@ previewImage: /insights-native-preview.svg
 readTime: 6 min read
 tags: PBJ Trends, CMS
 referenceTitle: PBJ320 Insights Launch Notes
-referenceUrl: https://pbj320.com/insights-visualizations
-url: /insights-visualizations
+referenceUrl: https://pbj320.com/insights/trends
+url: /insights/trends
 targetEntity:
 targetEntityType:
 ---

@@ -268,6 +268,7 @@
       if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
       if (!match && linkPath === '/owners-test' && (path === '/owners-test' || path.indexOf('/owners-test/') === 0)) match = true;
       if (!match && linkPath === '/insights' && path.indexOf('/insights') === 0) match = true;
+      if (!match && linkPath === '/insights/trends' && (path === '/insights/trends' || path.indexOf('/insights/trends/') === 0)) match = true;
       if (!match && linkPath === '/report' && path.indexOf('/report') === 0) match = true;
       if (!match && linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) match = true;
       if (!match && linkPath === '/about' && path.indexOf('/about') === 0) match = true;
@@ -283,27 +284,13 @@
     return h === '/owner' || h === '/owners';
   }
 
-  /** Ensure one FEC Contributions link (/owner) and Premium last; remove legacy duplicate /owners nav items. */
+  /** Hide FEC /owner nav link (page stays live); ensure Premium is last. */
   function ensureSiteNavLinks() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
-    var ownerLinks = [];
     var navAnchors = menu.querySelectorAll('a[href]');
     for (var i = 0; i < navAnchors.length; i++) {
-      if (ownershipNavHref(navAnchors[i])) ownerLinks.push(navAnchors[i]);
-    }
-    var ownership = ownerLinks[0] || null;
-    for (var j = 1; j < ownerLinks.length; j++) ownerLinks[j].remove();
-    if (ownership) {
-      ownership.href = '/owner';
-      ownership.classList.remove('nav-link--ownership-beta');
-      ownership.textContent = 'FEC Contributions';
-    } else {
-      ownership = document.createElement('a');
-      ownership.href = '/owner';
-      ownership.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
-      ownership.textContent = 'FEC Contributions';
-      menu.appendChild(ownership);
+      if (ownershipNavHref(navAnchors[i])) navAnchors[i].remove();
     }
     var premium = menu.querySelector('a[href="/premium"]');
     if (!premium) {
@@ -317,9 +304,6 @@
       if (!menu.classList.contains('nav-links')) {
         premium.className = 'nav-link' + (premium.classList.contains('active') ? ' active' : '');
       }
-    }
-    if (ownership.nextElementSibling !== premium) {
-      menu.insertBefore(ownership, premium);
     }
     if (premium !== menu.lastElementChild) {
       menu.appendChild(premium);
@@ -361,6 +345,7 @@
       '.navbar .nav-links a.active:hover{color:#60a5fa !important;}',
       '.navbar .nav-brand a{display:flex !important;align-items:center !important;gap:0 !important;}',
       '.navbar .nav-brand img{width:32px !important;height:32px !important;min-width:32px !important;min-height:32px !important;margin-right:8px !important;object-fit:contain !important;flex-shrink:0 !important;display:block !important;vertical-align:middle !important;}',
+      '.navbar .nav-brand span span:last-child{color:#818cf8 !important;}',
       '@media (max-width:768px){',
       '  .navbar .nav-menu{height:calc(100vh - 60px) !important;top:60px !important;left:-100% !important;padding:0 !important;gap:0 !important;justify-content:flex-start !important;align-items:stretch !important;border-top:1px solid rgba(71,85,105,0.45) !important;background:rgba(10,15,26,0.98) !important;backdrop-filter:blur(12px) !important;-webkit-backdrop-filter:blur(12px) !important;}',
       '  .navbar .nav-menu.active{left:0 !important;}',

@@ -27,7 +27,7 @@
       <div class="nav-brand">
         <a href="/">
           <img src="/pbj_favicon.png" alt="PBJ320" width="32" height="32" style="margin-right:8px;">
-          <span><span style="color:white;">PBJ</span><span style="color:#60a5fa;">320</span></span>
+          <span><span style="color:white;">PBJ</span><span style="color:#818cf8;">320</span></span>
         </a>
       </div>
       <div class="nav-menu" id="navMenu">
@@ -56,7 +56,7 @@
       </ul>
 
       <h2>CMS provider &amp; facility context</h2>
-      <p>Ratings, special-focus status, abuse icon, ownership type, and case-mix benchmarks on facility pages come from <strong>Nursing Home Provider Information</strong>—not from PBJ staffing files. That dataset is published on CMS’s provider data site (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">dataset 4pq5-n9py</a>). Consumer-facing profiles: <a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Medicare Care Compare</a>.</p>
+      <p>Ratings, special focus status, abuse icon, ownership type, and case-mix benchmarks come from <a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">CMS Nursing Home Provider Information dataset</a>.</p>
 
       <h2>CMS chain &amp; affiliated entity data</h2>
       <p>Chain-level summaries on entity pages use CMS nursing home chain performance measures where available.</p>
@@ -90,10 +90,8 @@
       <ul>
         <li id="hprd"><strong><a href="/what-is-hprd">HPRD</a>:</strong> Total nurse hours ÷ average residents (CMS-reported).</li>
         <li><strong>Direct care:</strong> Excludes admin and DON where noted.</li>
-        <li><strong>Case-mix:</strong> PDPM benchmark from Nursing Home Provider Information (<a href="__CMS_PROVIDER_INFO_DATASET__" rel="noopener noreferrer" target="_blank">4pq5-n9py</a>)—reference, not a legal minimum.</li>
+        <li><strong>Case-mix:</strong> acuity metrics based on distribution of MDS 3.0 assessments by nursing case-mix Groups (CMGs) from the Patient-Driven Payment Model (PDPM). See the <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" rel="noopener noreferrer" target="_blank">Five-Star / Care Compare Technical Users&rsquo; Guide (PDF)</a>.</li>
         <li id="percentiles"><strong>Within-state ranks</strong> (e.g. bottom 10%): Facility <strong>total nurse HPRD</strong> vs. other homes in the same state for the <strong>quarter on that page</strong>; not case-mix adjusted.</li>
-        <li id="rankings"><strong><a href="/report">Report</a> rankings:</strong> Default = state <strong>mean</strong> total nurse HPRD for the selected quarter (<code>state_quarterly_metrics.csv</code>); rank 1 = highest. <strong>Median</strong> toggle = median across facilities (equal weight). <strong>Exclude Admin/DON</strong> drops RN Admin, RN DON, LPN Admin. Puerto Rico excluded. CMS region rows pool facilities by CMS region. Not acuity-adjusted.</li>
-        <li id="pbj-exclusions"><strong>CMS PBJ public-file exclusions</strong> (when CMS publishes quarterly PUFs): facilities may be omitted for incomplete/erroneous submissions, missing nurse staffing on multiple days when census is non-zero, or quarterly aggregates outside CMS bounds (e.g. total nurse HPRD below 1.5 or above 12, nurse aide above 5.25). Rules are in CMS PUF documentation and the policy manual on the <a href="__CMS_PBJ_STAFFING_SUBMISSION__" rel="noopener noreferrer" target="_blank">CMS PBJ staffing data submission</a> page.</li>
         <li id="high-risk"><strong>CMS quality flags</strong> (SFF, SFF candidate, 1-star overall rating, abuse icon): PBJ320 shows these when they appear in CMS Provider Information—the same underlying fields Care Compare uses. PBJ320 reads and displays CMS’s flags; it does not run surveys or assign ratings. Confirm on <a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Care Compare</a>.</li>
         <li id="owners-fec"><strong><a href="/owner">FEC contributions tool</a> (beta):</strong> Name match to FEC filings; verify each Source link.</li>
       </ul>

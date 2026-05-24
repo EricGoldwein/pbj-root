@@ -7,7 +7,7 @@
   <meta name="description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters. CMS Payroll-Based Journal (PBJ) data from 320 Consulting.">
   <meta name="keywords" content="nursing home staffing, 2025, 320 consulting, pbj320, payroll-based journal, nursing home residents, long-term care, pbj data, CMS PBJ, nursing home quality, staffing levels, HPRD, hours per resident day, data visualizations">
   <meta name="author" content="320 Consulting">
-  <link rel="canonical" href="https://www.pbj320.com/insights-visualizations">
+  <link rel="canonical" href="https://www.pbj320.com/insights/trends">
   <link rel="icon" type="image/png" href="phoebe.png">
   <link rel="stylesheet" href="/contact-popup-shared.css?v=2">
   
@@ -23,7 +23,7 @@
   
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://www.pbj320.com/insights-visualizations">
+  <meta property="og:url" content="https://www.pbj320.com/insights/trends">
   <meta property="og:title" content="PBJ Insights - Nursing Home Data Visualizations">
   <meta property="og:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
   <meta property="og:image" content="https://www.pbj320.com/og-image-1200x630.png">
@@ -33,7 +33,7 @@
   
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://www.pbj320.com/insights-visualizations">
+  <meta property="twitter:url" content="https://www.pbj320.com/insights/trends">
   <meta property="twitter:title" content="PBJ Insights - Nursing Home Data Visualizations">
   <meta property="twitter:description" content="Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.">
   <meta property="twitter:image" content="https://www.pbj320.com/og-image-1200x630.png">
@@ -58,7 +58,7 @@
     "@context": "https://schema.org",
     "@type": "WebPage",
     "name": "PBJ Insights - Nursing Home Data Visualizations",
-    "url": "https://www.pbj320.com/insights-visualizations",
+    "url": "https://www.pbj320.com/insights/trends",
     "description": "Interactive maps and staffing insights for nursing home data analysis. Explore state-level HPRD trends, contract staffing patterns, and RN staffing across quarters.",
     "isPartOf": {
       "@type": "WebSite",
@@ -143,12 +143,22 @@
       box-sizing: border-box;
     }
     
-    /* Insights 5 & 6: stack two charts in one column so section width matches 1–4 */
+    /* Insights 5 & 6: two-column layout on desktop (same width rhythm as section 3) */
     .insights-stacked-two-charts {
       display: grid;
       grid-template-columns: 1fr;
       gap: 2rem;
       margin: 2rem 0;
+      max-width: 100%;
+    }
+
+    @media (min-width: 769px) {
+      .insights-stacked-two-charts {
+        grid-template-columns: 1fr 1fr;
+      }
+      .insights-stacked-two-charts .chart-container {
+        max-width: 100%;
+      }
     }
     
     .section h2 {
@@ -861,7 +871,7 @@
       <div class="nav-brand" style="color: inherit;">
         <a href="/" style="color: inherit; text-decoration: none; display: flex; align-items: center;">
           <img src="pbj_favicon.png" alt="PBJ320" style="height: 32px; vertical-align: middle; margin-right: 8px;">
-          <span><span style="color: white;">PBJ</span><span style="color: #60a5fa;">320</span></span>
+          <span><span style="color: white;">PBJ</span><span style="color: #818cf8;">320</span></span>
         </a>
       </div>
       <div class="nav-menu" id="navMenu">
@@ -869,7 +879,6 @@
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-                <a href="/owner" class="nav-link">FEC Contributions</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle">
@@ -882,7 +891,7 @@
 
   <div class="container">
     <div class="header">
-      <h1><img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;"> <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #60a5fa; font-weight: 700;">320</span> <span style="color: white; font-weight: 700;">Insights</span></h1>
+      <h1><img src="phoebe.png" alt="Phoebe J" style="width: 48px; height: 48px; border-radius: 50%; vertical-align: middle; margin-right: 4px; margin-bottom: 4px; border: 2px solid #1769aa;"> <span style="color: white; font-weight: 700;">PBJ</span><span style="color: #818cf8; font-weight: 700;">320</span> <span style="color: white; font-weight: 700;">Insights</span></h1>
       <p class="intro-text">Patterns and perspectives from 9 years of US nursing home payroll-based journal (PBJ) staffing data</p>
     </div>
 
@@ -1280,15 +1289,15 @@
       <h2>6. Total vs Direct Care</h2>
       
       <div class="insights-stacked-two-charts">
-        <div style="max-width: 100%;">
+        <div>
           <h4 style="color: #ff7f0e; margin-bottom: 1rem;">Total Nurse vs Direct Care</h4>
-          <div class="chart-container" style="max-width: 100%;">
+          <div class="chart-container">
             <canvas id="careTypeChart" width="400" height="200"></canvas>
           </div>
         </div>
-        <div style="max-width: 100%;">
+        <div>
           <h4 style="color: #ff7f0e; margin-bottom: 1rem;">RN Staffing: Total vs Direct Care</h4>
-          <div class="chart-container" style="max-width: 100%;">
+          <div class="chart-container">
             <canvas id="rnTypeChart" width="400" height="200"></canvas>
           </div>
         </div>

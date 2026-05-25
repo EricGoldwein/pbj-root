@@ -34,6 +34,15 @@ def _is_lfs_pointer(path: str) -> bool:
     return head.startswith(b'version https://git-lfs.github.com/spec/v1')
 
 
+def _header_has_cy_qtr(path: str) -> bool:
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            return bool(reader.fieldnames and 'CY_Qtr' in reader.fieldnames)
+    except OSError:
+        return False
+
+
 def _count_cy_qtr(path: str) -> tuple[int, list[str]]:
     quarters: set[str] = set()
     rows = 0
@@ -63,10 +72,21 @@ def _link_or_copy(src: str, dest: str) -> None:
         _log(f'ensure_deploy_csvs: copied -> {dest}')
 
 
-def _gunzip_facility_metrics() -> None:
+def _gunzip_facility_metrics(*, verify_rows: bool = True) -> None:
     gz_path = os.path.join(APP_ROOT, FACILITY_GZIP)
     out_path = os.path.join(APP_ROOT, FACILITY_CSV)
     if os.path.isfile(out_path) and not _is_lfs_pointer(out_path):
+        if not verify_rows:
+            if not _header_has_cy_qtr(out_path):
+                _log(f'ensure_deploy_csvs: ERROR {FACILITY_CSV} missing CY_Qtr column')
+                sys.exit(1)
+            size_mb = os.path.getsize(out_path) / (1024 * 1024)
+            _log(
+                f'ensure_deploy_csvs: quick OK {FACILITY_CSV} present '
+                f'size_mb={size_mb:.1f} (skipped row scan; use --full or RUN_DEPLOY_CSV_CHECK=1)'
+            )
+            _link_or_copy(out_path, os.path.join(APP_ROOT, FACILITY_LATEST))
+            return
         rows, quarters = _count_cy_qtr(out_path)
         if len(quarters) >= MIN_FACILITY_QUARTERS:
             _log(
@@ -122,14 +142,28 @@ def _check_provider_combined() -> None:
 
 def main() -> int:
     os.chdir(APP_ROOT)
-    _log('ensure_deploy_csvs: start')
-    _gunzip_facility_metrics()
+    argv = set(sys.argv[1:])
+    quick = '--quick' in argv
+    force_full = (
+        '--full' in argv
+        or (os.environ.get('RUN_DEPLOY_CSV_CHECK') or '').strip().lower() in ('1', 'true', 'yes', 'on')
+    )
+    verify_rows = force_full or not quick
+    _log(f'ensure_deploy_csvs: start verify_rows={verify_rows}')
+    _gunzip_facility_metrics(verify_rows=verify_rows)
     norm = _newest_provider_norm_rel()
     if not norm:
         _log('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv')
         return 1
     _log(f'ensure_deploy_csvs: OK {norm}')
     _check_provider_combined()
+    if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
+        _log('ensure_deploy_csvs: building provider lookup indexes...')
+        import subprocess
+        idx_script = os.path.join(APP_ROOT, 'scripts', 'build_facility_provider_indexes.py')
+        rc = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
+        if rc != 0:
+            _log('ensure_deploy_csvs: WARN provider index build failed (cold path will use CSV streams)')
     _log('ensure_deploy_csvs: done')
     return 0
 

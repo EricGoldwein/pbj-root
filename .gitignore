@@ -22,6 +22,10 @@ donor/.env
 provider_info_combined.csv
 facility_lite_metrics.csv
 facility_quarterly_metrics.csv
+# Built at deploy (scripts/build_facility_provider_indexes.py) — do not commit
+data/provider_indexes/*.sqlite
+data/provider_indexes/*.pkl
+data/provider_indexes/meta.json
 state_quarterly_metrics.csv
 national_quarterly_metrics.csv
 cms_region_quarterly_metrics.csv

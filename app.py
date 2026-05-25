@@ -537,7 +537,7 @@ def _entity_portfolio_ai_line(entity_id) -> str:
     except (TypeError, ValueError):
         return ''
     try:
-        _en, facilities = load_entity_facilities(eid)
+        _en, facilities = load_entity_facilities(eid, attach_quarterly_metrics=True)
         if not facilities:
             return ''
         chain_perf = load_chain_performance() or {}
@@ -750,6 +750,8 @@ _AI_CRAWLER_HITS = {}
 _AI_CRAWLER_HITS_LOCK = threading.Lock()
 _PROVIDER_COLD_BURST_HITS = {}
 _PROVIDER_COLD_BURST_LOCK = threading.Lock()
+_PROVIDER_CRAWLER_COLD_HITS = {}
+_PROVIDER_CRAWLER_COLD_LOCK = threading.Lock()
 
 
 def _block_aggressive_bots_enabled() -> bool:
@@ -832,20 +834,76 @@ def _ai_crawler_rate_limit_exceeded() -> int | None:
 
 
 def _provider_cold_burst_limit_enabled() -> bool:
-    """Only when PBJ_PROVIDER_COLD_BURST_LIMIT is set to a positive integer (off by default)."""
+    """IP cold-render burst limit. On Render defaults on unless PBJ_PROVIDER_COLD_BURST_LIMIT=0."""
     v = (os.environ.get('PBJ_PROVIDER_COLD_BURST_LIMIT') or '').strip()
-    if not v or v.lower() in ('0', 'false', 'no', 'off'):
+    if v.lower() in ('0', 'false', 'no', 'off'):
         return False
+    if v:
+        try:
+            return int(v) > 0
+        except ValueError:
+            return False
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _provider_crawler_cold_limit_enabled() -> bool:
+    """IP+UA bucket limit for high-volume mobile-UA provider crawlers (Render default on)."""
+    v = (os.environ.get('PBJ_PROVIDER_CRAWLER_COLD_LIMIT') or '').strip()
+    if v.lower() in ('0', 'false', 'no', 'off'):
+        return False
+    if v:
+        try:
+            return int(v) > 0
+        except ValueError:
+            return False
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _provider_crawler_cold_limit_config() -> tuple[int, int]:
     try:
-        return int(v) > 0
+        limit = int((os.environ.get('PBJ_PROVIDER_CRAWLER_COLD_LIMIT') or '6').strip())
     except ValueError:
-        return False
+        limit = 6
+    try:
+        window = int((os.environ.get('PBJ_PROVIDER_CRAWLER_COLD_WINDOW') or '60').strip())
+    except ValueError:
+        window = 60
+    return max(1, limit), max(1, window)
+
+
+def _provider_crawler_cold_rate_limit_exceeded() -> int | None:
+    """Return Retry-After when IP+UA bucket exceeds uncached provider cold budget."""
+    if not _provider_crawler_cold_limit_enabled():
+        return None
+    from pbj_provider_perf import provider_crawler_bucket_key
+
+    limit, window = _provider_crawler_cold_limit_config()
+    ip = _client_ip_for_rate_limit()
+    ua = (request.headers.get('User-Agent') or '').strip()
+    bucket = provider_crawler_bucket_key(ip, ua)
+    now = time.monotonic()
+    cutoff = now - window
+    with _PROVIDER_CRAWLER_COLD_LOCK:
+        hits = _PROVIDER_CRAWLER_COLD_HITS.get(bucket)
+        if hits is None:
+            hits = []
+            _PROVIDER_CRAWLER_COLD_HITS[bucket] = hits
+        hits[:] = [t for t in hits if t > cutoff]
+        if len(hits) >= limit:
+            oldest = hits[0]
+            return max(1, int(window - (now - oldest)) + 1)
+        hits.append(now)
+        if len(_PROVIDER_CRAWLER_COLD_HITS) > 8000:
+            stale = [k for k, ts in _PROVIDER_CRAWLER_COLD_HITS.items() if not ts or ts[-1] <= cutoff]
+            for k in stale[:1500]:
+                _PROVIDER_CRAWLER_COLD_HITS.pop(k, None)
+    return None
 
 
 def _provider_cold_burst_limit_config() -> tuple[int, int]:
     """(max cold renders per IP per window, window_seconds)."""
     try:
-        limit = int((os.environ.get('PBJ_PROVIDER_COLD_BURST_LIMIT') or '12').strip())
+        limit = int((os.environ.get('PBJ_PROVIDER_COLD_BURST_LIMIT') or '8').strip())
     except ValueError:
         limit = 12
     try:
@@ -887,7 +945,7 @@ def _throttle_ai_crawlers_on_heavy_routes():
     Provider: cache MISS also returns 429 when PBJ_AI_PROVIDER_CACHE_ONLY=1 (no cold render).
     Entity: no HTML cache; same flag returns 429 before any heavy load.
     """
-    if request.path in ('/health', '/warmup', '/debug/mem'):
+    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
         return
     if request.path == '/warmup/facility-indexes':
         return
@@ -907,7 +965,7 @@ def _throttle_ai_crawlers_on_heavy_routes():
 @app.before_request
 def _reject_aggressive_bots_on_heavy_routes():
     """Cheap 429 for crawlers that hammer /provider and /entity (keeps workers for real users)."""
-    if request.path in ('/health', '/warmup', '/debug/mem'):
+    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
         return
     if request.path == '/warmup/facility-indexes':
         return
@@ -1022,11 +1080,7 @@ def _facility_provider_indexes_warm() -> bool:
 
 
 def warm_facility_quarterly_provider_indexes() -> dict:
-    """Pre-build provider cold-path facility CSV indexes (contract median + state percentile).
-
-    Does not build the national latest-quarter HPRD map (entity provider path streams CCNs).
-    Safe to call from a protected warmup route or deploy script after workers start.
-    """
+    """Load deploy-built provider indexes (SQLite + pickles) or build from CSV if artifacts missing."""
     global pd
     if pd is None:
         pd = get_pd()
@@ -1041,6 +1095,9 @@ def warm_facility_quarterly_provider_indexes() -> dict:
     t0 = time.perf_counter()
     contract_states = 0
     percentile_states = 0
+    if not already_warm:
+        _ensure_provider_indexes_hydrated()
+        already_warm = _facility_provider_indexes_warm()
     if not already_warm:
         t_contract = time.perf_counter()
         contract = _state_contract_median_index()
@@ -1092,6 +1149,38 @@ def warmup_facility_indexes():
     if not _warmup_secret_ok():
         abort(403)
     return jsonify(warm_facility_quarterly_provider_indexes())
+
+
+def _provider_index_status_payload() -> dict:
+    """Snapshot of deploy artifacts + in-process hydrate state (for ops)."""
+    path = _facility_quarterly_csv_path()
+    import facility_provider_indexes as fpi
+
+    pct_warm = contract_warm = False
+    if path:
+        try:
+            mtime = int(os.path.getmtime(path))
+        except OSError:
+            mtime = -1
+        p = _STATE_PERCENTILE_HPRD_INDEX_CACHE
+        c = _STATE_CONTRACT_MEDIAN_CACHE
+        pct_warm = bool(p and p[0] == path and p[1] == mtime)
+        contract_warm = bool(c and c[0] == path and c[1] == mtime)
+    return fpi.provider_index_status(
+        path,
+        worker_hydrated=_PROVIDER_INDEXES_HYDRATED,
+        percentile_warm=pct_warm,
+        contract_warm=contract_warm,
+    )
+
+
+@app.route('/debug/provider-indexes', methods=['GET'])
+def debug_provider_indexes():
+    """Protected: provider index artifact status (requires PBJ_WARMUP_SECRET). Not for public crawlers."""
+    from flask import abort
+    if not _warmup_secret_ok():
+        abort(403)
+    return jsonify(_provider_index_status_payload())
 
 
 # Simple email format check (not RFC-strict; rejects obviously invalid)
@@ -8603,24 +8692,144 @@ def _facility_quarterly_load_lock(prov: str) -> threading.Lock:
         return lock
 
 
+def _set_provider_request_facility_df(prov: str, facility_df) -> None:
+    """Reuse one facility_quarterly slice for all sections in a single /provider request."""
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            g.pbj_provider_ccn = prov
+            g.pbj_provider_facility_df = facility_df
+    except Exception:
+        pass
+
+
 def load_facility_quarterly_for_provider(ccn):
     """Load facility quarterly metrics for one provider (PROVNUM). Returns DataFrame or None."""
     prov = normalize_ccn(ccn)
     if not prov:
         return None
+    try:
+        from flask import g, has_request_context
+        if has_request_context():
+            cached_ccn = getattr(g, 'pbj_provider_ccn', None)
+            cached_df = getattr(g, 'pbj_provider_facility_df', None)
+            if cached_ccn == prov and cached_df is not None:
+                return cached_df
+    except Exception:
+        pass
     with _facility_quarterly_load_lock(prov):
-        return _load_facility_quarterly_for_provider_cached(prov)
+        df = _load_facility_quarterly_for_provider_cached(prov)
+    _set_provider_request_facility_df(prov, df)
+    return df
+
+
+_PROVIDER_INDEXES_HYDRATED = False
+_PROVIDER_INDEXES_HYDRATE_LOCK = threading.Lock()
+
+
+def _ensure_provider_indexes_hydrated() -> None:
+    """Load deploy-built SQLite/pickle indexes once per worker (no per-request CSV scans)."""
+    global _PROVIDER_INDEXES_HYDRATED
+    global _STATE_PERCENTILE_HPRD_INDEX_CACHE, _STATE_CONTRACT_MEDIAN_CACHE
+    global _FACILITY_LATEST_HPRD_BY_CCN_KEY, _FACILITY_LATEST_HPRD_BY_CCN_VAL, _FACILITY_LATEST_HPRD_BY_CCN_AT
+    if _PROVIDER_INDEXES_HYDRATED:
+        return
+    with _PROVIDER_INDEXES_HYDRATE_LOCK:
+        if _PROVIDER_INDEXES_HYDRATED:
+            return
+        path = _facility_quarterly_csv_path()
+        try:
+            import facility_provider_indexes as fpi
+        except ImportError:
+            _PROVIDER_INDEXES_HYDRATED = True
+            return
+        if not path or not fpi.meta_matches_csv(path):
+            fpi.log_index_event(
+                'provider_index_fallback',
+                reason=fpi.fallback_reason(path),
+                scope='hydrate',
+                sqlite_exists=fpi.sqlite_exists(),
+                meta_exists=fpi.meta_exists(),
+                meta_matches_csv=fpi.meta_matches_csv(path) if path else False,
+                path=os.path.basename(path) if path else None,
+            )
+            _PROVIDER_INDEXES_HYDRATED = True
+            return
+        try:
+            mtime = int(os.path.getmtime(path))
+        except OSError:
+            mtime = 0
+        t0 = time.perf_counter()
+        pct = fpi.load_pickle_index(fpi.PERCENTILE_PKL, path)
+        if pct is not None:
+            _STATE_PERCENTILE_HPRD_INDEX_CACHE = (path, mtime, pct)
+        contract = fpi.load_pickle_index(fpi.CONTRACT_PKL, path)
+        if contract is not None:
+            _STATE_CONTRACT_MEDIAN_CACHE = (path, mtime, contract)
+        latest_q = get_canonical_latest_quarter() or ''
+        by_ccn: dict = {}
+        if latest_q:
+            loaded = fpi.load_latest_hprd_by_ccn(latest_q)
+            if loaded:
+                by_ccn = loaded
+                key = _facility_latest_hprd_cache_key(latest_q)
+                if key is not None:
+                    _FACILITY_LATEST_HPRD_BY_CCN_KEY = key
+                    _FACILITY_LATEST_HPRD_BY_CCN_VAL = by_ccn
+                    _FACILITY_LATEST_HPRD_BY_CCN_AT = time.time()
+        hydrate_ms = round((time.perf_counter() - t0) * 1000, 1)
+        fpi.log_index_event(
+            'provider_indexes_hydrated',
+            source='artifacts',
+            hydrate_ms=hydrate_ms,
+            percentile_states=len(pct) if isinstance(pct, dict) else 0,
+            contract_states=len(contract) if isinstance(contract, dict) else 0,
+            latest_ccns=len(by_ccn),
+            path=os.path.basename(path),
+        )
+        _PROVIDER_INDEXES_HYDRATED = True
 
 
 @lru_cache(maxsize=128)
 def _load_facility_quarterly_for_provider_cached(prov):
-    """Cached per-process slice from facility_quarterly_metrics.csv (keyed by normalized CCN)."""
+    """Cached per-process slice from deploy SQLite or facility_quarterly_metrics.csv."""
     pdm = get_pd()
     if pdm is None:
         return None
     path = _facility_quarterly_csv_path()
     if not path:
         return None
+    import facility_provider_indexes as fpi
+
+    fallback_reason = 'csv_stream'
+    try:
+        if fpi.meta_matches_csv(path):
+            df = fpi.load_ccn_longitudinal_df(prov, pdm)
+            if df is not None and not df.empty:
+                fpi.log_index_event(
+                    'facility_quarterly_lookup',
+                    source='sqlite',
+                    ccn=prov,
+                    rows=len(df),
+                    path=os.path.basename(path),
+                )
+                return df
+            fallback_reason = 'sqlite_ccn_not_found'
+        else:
+            fallback_reason = fpi.fallback_reason(path, ccn=prov)
+    except Exception as e:
+        fallback_reason = 'sqlite_exception'
+        fpi.log_index_event('sqlite_error', ccn=prov, error=str(e)[:200])
+    fpi.log_index_event(
+        'provider_index_fallback',
+        reason=fallback_reason,
+        scope='facility_quarterly',
+        ccn=prov,
+        sqlite_exists=fpi.sqlite_exists(),
+        meta_exists=fpi.meta_exists(),
+        meta_matches_csv=fpi.meta_matches_csv(path),
+        path=os.path.basename(path),
+    )
     _log_mem("facility_quarterly_stream_start")
     chunks_list = []
     try:
@@ -8767,9 +8976,24 @@ def _build_facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str, key: tuple) -> d
 def _facility_latest_hprd_by_ccn_for_quarter(cy_qtr: str) -> dict[str, dict]:
     """National latest-quarter HPRD index; single-flight build per worker."""
     global _FACILITY_LATEST_HPRD_BY_CCN_KEY, _FACILITY_LATEST_HPRD_BY_CCN_VAL, _FACILITY_LATEST_HPRD_BY_CCN_AT
+    _ensure_provider_indexes_hydrated()
     warm = _facility_latest_hprd_by_ccn_if_warm(cy_qtr)
     if warm is not None:
         return warm
+    try:
+        import facility_provider_indexes as fpi
+        path = _facility_quarterly_csv_path()
+        if path and fpi.meta_matches_csv(path):
+            by_ccn = fpi.load_latest_hprd_by_ccn(cy_qtr)
+            if by_ccn:
+                key = _facility_latest_hprd_cache_key(cy_qtr)
+                if key is not None:
+                    _FACILITY_LATEST_HPRD_BY_CCN_KEY = key
+                    _FACILITY_LATEST_HPRD_BY_CCN_VAL = by_ccn
+                    _FACILITY_LATEST_HPRD_BY_CCN_AT = time.time()
+                return by_ccn
+    except Exception:
+        pass
     key = _facility_latest_hprd_cache_key(cy_qtr)
     if key is None:
         return {}
@@ -8894,9 +9118,23 @@ def _build_state_percentile_hprd_index_from_csv(path: str) -> dict[str, dict[str
     return out
 
 
-def _state_percentile_hprd_index() -> dict[str, dict[str, dict[str, list[float]]]]:
+def _state_percentile_index_is_warm() -> bool:
+    """True when the process-level state percentile index matches the current CSV mtime."""
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return False
+    try:
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        return False
+    cached = _STATE_PERCENTILE_HPRD_INDEX_CACHE
+    return bool(cached and cached[0] == path and cached[1] == mtime)
+
+
+def _state_percentile_hprd_index(*, allow_build: bool = True) -> dict[str, dict[str, dict[str, list[float]]]]:
     """Cached national index for within-state HPRD percentiles (rebuilt on CSV mtime change)."""
     global _STATE_PERCENTILE_HPRD_INDEX_CACHE
+    _ensure_provider_indexes_hydrated()
     path = _facility_quarterly_csv_path()
     if not path or not HAS_PANDAS:
         return {}
@@ -8906,35 +9144,51 @@ def _state_percentile_hprd_index() -> dict[str, dict[str, dict[str, list[float]]
         return {}
     cached = _STATE_PERCENTILE_HPRD_INDEX_CACHE
     if cached and cached[0] == path and cached[1] == mtime:
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                reused = getattr(g, 'pbj_provider_indexes_reused', None)
+                if reused is None:
+                    reused = []
+                    g.pbj_provider_indexes_reused = reused
+                if 'state_percentile_hprd' not in reused:
+                    reused.append('state_percentile_hprd')
+        except Exception:
+            pass
         return cached[2]
+    if not allow_build:
+        return {}
     with _STATE_PERCENTILE_HPRD_INDEX_LOCK:
         cached = _STATE_PERCENTILE_HPRD_INDEX_CACHE
         if cached and cached[0] == path and cached[1] == mtime:
+            try:
+                from flask import g, has_request_context
+                if has_request_context():
+                    reused = getattr(g, 'pbj_provider_indexes_reused', None)
+                    if reused is None:
+                        reused = []
+                        g.pbj_provider_indexes_reused = reused
+                    if 'state_percentile_hprd' not in reused:
+                        reused.append('state_percentile_hprd')
+            except Exception:
+                pass
             return cached[2]
         t0 = time.perf_counter()
         index = _build_state_percentile_hprd_index_from_csv(path)
         build_ms = round((time.perf_counter() - t0) * 1000, 1)
         _STATE_PERCENTILE_HPRD_INDEX_CACHE = (path, mtime, index)
         try:
-            from pbj_provider_perf import provider_perf_log_enabled
-            if provider_perf_log_enabled():
-                import json as _json
-                n_pairs = sum(len(qm) for qm in index.values())
-                print(
-                    '[PBJ_PROVIDER_INDEX] '
-                    + _json.dumps(
-                        {
-                            'index': 'state_percentile_hprd',
-                            'build_ms': build_ms,
-                            'states': len(index),
-                            'state_quarters': n_pairs,
-                            'path': os.path.basename(path),
-                        },
-                        separators=(',', ':'),
-                        sort_keys=True,
-                    ),
-                    flush=True,
-                )
+            import facility_provider_indexes as fpi
+            n_pairs = sum(len(qm) for qm in index.values())
+            fpi.log_index_event(
+                'provider_index_fallback',
+                reason='state_percentile_csv_rebuild',
+                scope='state_percentile',
+                build_ms=build_ms,
+                states=len(index),
+                state_quarters=n_pairs,
+                path=os.path.basename(path),
+            )
         except Exception:
             pass
         return index
@@ -8945,6 +9199,8 @@ def _percentiles_for_state_quarter(
     quarter: str,
     facility_hprd_total,
     facility_hprd_rn=None,
+    *,
+    allow_index_build: bool = True,
 ):
     """Within-state percentile via pre-built index (no per-provider CSV scan)."""
     if get_pd() is None or not state_code or not quarter or facility_hprd_total is None:
@@ -8953,7 +9209,7 @@ def _percentiles_for_state_quarter(
     if len(sc) != 2:
         return None, None
     q = str(quarter).strip()
-    bucket = (_state_percentile_hprd_index().get(sc) or {}).get(q)
+    bucket = (_state_percentile_hprd_index(allow_build=allow_index_build).get(sc) or {}).get(q)
     if not bucket:
         return None, None
     total_vals = bucket.get('total') or []
@@ -9460,6 +9716,7 @@ def _build_state_contract_median_index_from_csv(path: str) -> dict[str, dict[str
 def _state_contract_median_index() -> dict[str, dict[str, float | None]]:
     """Cached state x quarter contract % medians; rebuild when facility CSV mtime changes."""
     global _STATE_CONTRACT_MEDIAN_CACHE
+    _ensure_provider_indexes_hydrated()
     path = _facility_quarterly_csv_path()
     if not path or not HAS_PANDAS:
         return {}
@@ -10697,6 +10954,47 @@ def _build_facility_quarterly_trend_csv_rows(
     )
 
 
+def _provider_minimal_chart_data(
+    reported_total,
+    reported_rn,
+    reported_lpn,
+    reported_na,
+    case_mix_total,
+    case_mix_rn,
+    case_mix_lpn,
+    case_mix_na,
+    case_mix_index,
+    case_mix_index_ratio,
+):
+    """Lightweight chart payload when longitudinal charts are skipped for cold-render budget."""
+    def _round_val(v):
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return None
+        return round_half_up(float(v), 2)
+    case_mix = None
+    if case_mix_total is not None or case_mix_rn is not None or case_mix_lpn is not None or case_mix_na is not None:
+        case_mix = [
+            _round_val(case_mix_total),
+            _round_val(case_mix_rn),
+            _round_val(case_mix_lpn),
+            _round_val(case_mix_na),
+        ]
+    return {
+        'reportedCaseMix': {
+            'labels': ['Total', 'RN', 'LPN', 'Nurse aide'],
+            'reported': [
+                _round_val(reported_total),
+                _round_val(reported_rn),
+                _round_val(reported_lpn),
+                _round_val(reported_na),
+            ],
+            'caseMix': case_mix,
+            'caseMixIndex': _round_val(case_mix_index),
+            'caseMixIndexRatio': _round_val(case_mix_index_ratio),
+        },
+    }
+
+
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
     """Generate HTML for facility (provider) page per pbj-page-guide: header block, key metrics, longitudinal chart, basic info, full table, summary."""
     from pbj_provider_perf import provider_section_record as _psec
@@ -10842,7 +11140,20 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     _t_ch = time.perf_counter()
-    chart_data = _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index, case_mix_index_ratio)
+    chart_data = _provider_charts_chartjs_data(
+        facility_df,
+        state_code,
+        reported_total,
+        reported_rn,
+        reported_lpn,
+        reported_na,
+        case_mix_total,
+        case_mix_rn,
+        case_mix_lpn,
+        case_mix_na,
+        case_mix_index,
+        case_mix_index_ratio,
+    )
     _psec('charts', _t_ch)
     _rcm_cd = chart_data.get('reportedCaseMix')
     if isinstance(_rcm_cd, dict) and raw_quarter:
@@ -11733,6 +12044,20 @@ def _attach_entity_facility_quarterly_metrics(facilities: list, latest_q: str | 
     ccn_list = [fac['ccn'] for fac in facilities if fac.get('ccn')]
     if not ccn_list:
         return
+    try:
+        import facility_provider_indexes as fpi
+        fpi.log_index_event(
+            'provider_index_fallback',
+            reason='entity_latest_index_unavailable',
+            scope='entity_metrics',
+            ccns=len(ccn_list),
+            quarter=latest_q,
+            sqlite_exists=fpi.sqlite_exists(),
+            meta_exists=fpi.meta_exists(),
+            path=os.path.basename(_facility_quarterly_csv_path() or '') or None,
+        )
+    except Exception:
+        pass
     t0 = time.perf_counter()
     rows = _stream_facility_quarterly_latest_for_ccns(ccn_list, latest_q)
     for fac in facilities:
@@ -11740,15 +12065,20 @@ def _attach_entity_facility_quarterly_metrics(facilities: list, latest_q: str | 
         if row is not None:
             _apply_facility_quarterly_metrics_row(fac, row, latest_q)
     stream_ms = round((time.perf_counter() - t0) * 1000, 1)
-    if stream_ms >= 500:
-        print(
-            f'[PBJ_PROVIDER_INDEX] entity_metrics_stream ccns={len(ccn_list)} found={len(rows)} '
-            f'quarter={latest_q} stream_ms={stream_ms}',
-            flush=True,
+    try:
+        import facility_provider_indexes as fpi
+        fpi.log_index_event(
+            'entity_metrics_stream',
+            ccns=len(ccn_list),
+            found=len(rows),
+            quarter=latest_q,
+            stream_ms=stream_ms,
         )
+    except Exception:
+        pass
 
 
-def load_entity_facilities(entity_id):
+def load_entity_facilities(entity_id, *, attach_quarterly_metrics: bool = True):
     """Load entity name and facility roster (ccn, name, city, state, optional latest PBJ metrics).
 
     Uses a chunked entity index (path + mtime) and per-entity result cache instead of loading the
@@ -11765,7 +12095,7 @@ def load_entity_facilities(entity_id):
     path, mtime, index, csv_names = _get_entity_facilities_index()
     if not path or eid not in index:
         return '', []
-    result_key = (path, mtime, eid, latest_q)
+    result_key = (path, mtime, eid, latest_q, attach_quarterly_metrics)
     now = time.time()
     if (
         result_key in _ENTITY_FACILITIES_RESULT_CACHE
@@ -11782,7 +12112,8 @@ def load_entity_facilities(entity_id):
     canonical_name = get_entity_name_from_search_index(eid)
     if canonical_name:
         entity_name = canonical_name
-    _attach_entity_facility_quarterly_metrics(facilities, latest_q or None)
+    if attach_quarterly_metrics:
+        _attach_entity_facility_quarterly_metrics(facilities, latest_q or None)
     out = (entity_name, facilities)
     _ENTITY_FACILITIES_RESULT_CACHE[result_key] = out
     _ENTITY_FACILITIES_RESULT_CACHE_AT = now
@@ -11791,7 +12122,13 @@ def load_entity_facilities(entity_id):
     return out
 
 
-def _provider_entity_summary_html(entity_id, entity_name: str, raw_quarter: str) -> str:
+def _provider_entity_summary_html(
+    entity_id,
+    entity_name: str,
+    raw_quarter: str,
+    *,
+    attach_metrics: bool = True,
+) -> str:
     """Affiliated-entity summary line for provider takeaway (records entity sub-timings when enabled)."""
     from pbj_provider_perf import provider_section_record as _psec
 
@@ -11804,31 +12141,32 @@ def _provider_entity_summary_html(entity_id, entity_name: str, raw_quarter: str)
         display_name = canonical_name or entity_name
 
         _t_fac = time.perf_counter()
-        _ent_name, ent_facilities = load_entity_facilities(entity_id)
+        _ent_name, ent_facilities = load_entity_facilities(
+            entity_id, attach_quarterly_metrics=attach_metrics
+        )
         _psec('entity_facilities_ms', _t_fac)
         if not ent_facilities:
             return ''
         if _ent_name:
             display_name = _ent_name
 
-        _t_state = time.perf_counter()
-        state_avgs = _state_total_nurse_hprd_by_state_for_quarter(raw_quarter) if raw_quarter else {}
-        _psec('entity_state_metrics_ms', _t_state)
-
-        below_count = 0
-        states_seen = set()
-        for fac in ent_facilities:
-            st = (fac.get('state') or '').strip().upper()[:2]
-            if st:
-                states_seen.add(st)
-            hprd = fac.get('Total_Nurse_HPRD')
-            if hprd is not None and st and st in state_avgs:
-                try:
-                    if float(hprd) < state_avgs[st]:
-                        below_count += 1
-                except (TypeError, ValueError):
-                    pass
+        states_seen = {((fac.get('state') or '').strip().upper()[:2]) for fac in ent_facilities}
+        states_seen.discard('')
         state_count = len(states_seen)
+        below_count = 0
+        if attach_metrics and raw_quarter:
+            _t_state = time.perf_counter()
+            state_avgs = _state_total_nurse_hprd_by_state_for_quarter(raw_quarter)
+            _psec('entity_state_metrics_ms', _t_state)
+            for fac in ent_facilities:
+                st = (fac.get('state') or '').strip().upper()[:2]
+                hprd = fac.get('Total_Nurse_HPRD')
+                if hprd is not None and st and st in state_avgs:
+                    try:
+                        if float(hprd) < state_avgs[st]:
+                            below_count += 1
+                    except (TypeError, ValueError):
+                        pass
 
         _t_chain = time.perf_counter()
         chain_perf = load_chain_performance()
@@ -11841,11 +12179,17 @@ def _provider_entity_summary_html(entity_id, entity_name: str, raw_quarter: str)
             facility_count = len(ent_facilities)
 
         _t_html = time.perf_counter()
-        html_out = (
-            f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in '
-            f'{state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing '
-            f'below their respective state ratio this quarter.</div>'
-        )
+        if attach_metrics and below_count:
+            html_out = (
+                f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in '
+                f'{state_count} state{"s" if state_count != 1 else ""}. {below_count} facilities report staffing '
+                f'below their respective state ratio this quarter.</div>'
+            )
+        else:
+            html_out = (
+                f'<div class="pbj-entity-summary">Part of a {facility_count}-facility network operating in '
+                f'{state_count} state{"s" if state_count != 1 else ""}.</div>'
+            )
         _psec('entity_html_ms', _t_html)
         return html_out
     except Exception:
@@ -14826,7 +15170,7 @@ def _provider_cold_render_semaphore():
     global _PROVIDER_COLD_RENDER_SEM
     if _PROVIDER_COLD_RENDER_SEM is None:
         try:
-            slots = max(1, int(os.environ.get('PBJ_PROVIDER_COLD_SLOTS', '2')))
+            slots = max(1, int(os.environ.get('PBJ_PROVIDER_COLD_SLOTS', '1')))
         except (TypeError, ValueError):
             slots = 2
         _PROVIDER_COLD_RENDER_SEM = threading.Semaphore(slots)
@@ -14834,11 +15178,12 @@ def _provider_cold_render_semaphore():
 
 
 def _provider_cold_render_wait_seconds() -> float:
-    """Seconds to wait for a cold-render slot before returning 503 Server busy."""
+    """Seconds to wait for HTML render slot (data lookups run outside this lock)."""
+    default = '45' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '25'
     try:
-        return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', '20')))
+        return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', default)))
     except (TypeError, ValueError):
-        return 20.0
+        return 45.0 if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else 25.0
 
 
 def _provider_page_cached_response(prov: str, now: float):
@@ -14887,6 +15232,34 @@ def _provider_page_cache_enabled():
 
 
 PBJ_CASEMIX_UI_REV = '13'
+
+
+def _provider_busy_minimal_html(retry_after: str = '30') -> str:
+    """Minimal HTML when cold render queue is saturated (no full CSV work)."""
+    ra = html.escape(str(retry_after), quote=True)
+    return f'''<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PBJ320 — loading</title>
+<meta http-equiv="refresh" content="{ra};url=">
+<style>body{{font-family:system-ui,sans-serif;background:#0f0f12;color:#e4e4e7;margin:2rem;line-height:1.5}}</style>
+</head><body>
+<h1>Provider page is loading</h1>
+<p>Another facility page is being prepared. Please retry in a few seconds.</p>
+<p><a href="/">Return to PBJ320 home</a></p>
+</body></html>'''
+
+
+def _provider_busy_response(retry_after: str = '30'):
+    return make_response(
+        _provider_busy_minimal_html(retry_after),
+        503,
+        {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Retry-After': str(retry_after),
+            'X-PBJ-Provider-Cache': 'MISS',
+            'Cache-Control': 'no-store',
+        },
+    )
 
 
 def _provider_page_html_headers(*, cache_hit=False):
@@ -15002,6 +15375,20 @@ def _provider_page_impl(ccn):
                 },
             )
 
+        crawler_retry = _provider_crawler_cold_rate_limit_exceeded()
+        if crawler_retry is not None:
+            timer.outcome = 'crawler_cold_limited'
+            timer.status = 429
+            return make_response(
+                'Too many uncached provider requests; retry shortly.',
+                429,
+                {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': str(crawler_retry),
+                    'X-PBJ-Provider-Cache': 'MISS',
+                },
+            )
+
         cold_burst_retry = _provider_cold_burst_rate_limit_exceeded()
         if cold_burst_retry is not None:
             timer.outcome = 'cold_burst_limited'
@@ -15022,46 +15409,6 @@ def _provider_page_impl(ccn):
                 },
             )
 
-        sem = _provider_cold_render_semaphore()
-        t_queue = time.perf_counter()
-        acquired = sem.acquire(blocking=False)
-        if not acquired:
-            hit = _provider_page_cached_response(prov, now)
-            if hit is not None:
-                timer.cache = 'HIT'
-                timer.stale_serve = True
-                timer.outcome = 'cache_hit_after_queue_busy'
-                timer.status = 200
-                timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
-                return hit
-            wait_s = _provider_cold_render_wait_seconds()
-            acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else False
-            timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
-            if not acquired:
-                hit = _provider_page_cached_response(prov, now)
-                if hit is not None:
-                    timer.cache = 'HIT'
-                    timer.stale_serve = True
-                    timer.outcome = 'cache_hit_after_queue_timeout'
-                    timer.status = 200
-                    return hit
-                timer.outcome = 'queue_rejected'
-                timer.status = 503
-                return make_response('Server busy; retry shortly.', 503, {
-                    'Content-Type': 'text/plain; charset=utf-8',
-                    'Retry-After': '30',
-                    'X-PBJ-Provider-Cache': 'MISS',
-                })
-        else:
-            timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
-
-        hit = _provider_page_cached_response(prov, now)
-        if hit is not None:
-            timer.cache = 'HIT'
-            timer.outcome = 'cache_hit_race'
-            timer.status = 200
-            return hit
-
         if _facility_quarterly_csv_path() is None:
             timer.status = 503
             timer.outcome = 'no_facility_csv'
@@ -15079,7 +15426,7 @@ def _provider_page_impl(ccn):
         )
 
         init_provider_sections()
-        t_cold = time.perf_counter()
+        _ensure_provider_indexes_hydrated()
         t_sec = time.perf_counter()
         facility_df = load_facility_quarterly_for_provider(prov)
         provider_section_record('facility_quarterly', t_sec)
@@ -15090,6 +15437,36 @@ def _provider_page_impl(ccn):
         t_sec = time.perf_counter()
         provider_info_row = _provider_info_row_for_ccn(prov)
         provider_section_record('provider_info', t_sec)
+
+        sem = _provider_cold_render_semaphore()
+        t_queue = time.perf_counter()
+        wait_s = _provider_cold_render_wait_seconds()
+        acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else sem.acquire(blocking=False)
+        timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
+        if not acquired:
+            hit = _provider_page_cached_response(prov, now)
+            if hit is not None:
+                timer.cache = 'HIT'
+                timer.stale_serve = True
+                timer.outcome = 'cache_hit_after_queue_timeout'
+                timer.status = 200
+                return hit
+            timer.outcome = 'queue_rejected'
+            timer.status = 503
+            return _provider_busy_response('30')
+
+        hit = _provider_page_cached_response(prov, now)
+        if hit is not None:
+            timer.cache = 'HIT'
+            timer.outcome = 'cache_hit_race'
+            timer.status = 200
+            return hit
+
+        timer.outcome = 'cold_render_started'
+        if provider_perf_log_enabled():
+            print(f'[PBJ_PROVIDER] cold_render_started ccn={prov} pid={os.getpid()}', flush=True)
+
+        t_cold = time.perf_counter()
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
         timer.cold_render_ms = round((time.perf_counter() - t_cold) * 1000, 1)
         try:
@@ -15098,6 +15475,23 @@ def _provider_page_impl(ccn):
         except Exception:
             pass
         timer.sections_ms = get_provider_sections_ms()
+        from pbj_provider_perf import get_provider_sections_skipped
+        timer.sections_skipped = get_provider_sections_skipped()
+        try:
+            from flask import g
+            indexes_reused = getattr(g, 'pbj_provider_indexes_reused', None)
+            if indexes_reused and provider_perf_log_enabled():
+                print(
+                    '[PBJ_PROVIDER] '
+                    + json.dumps(
+                        {'ccn': prov, 'indexes_reused': list(indexes_reused)},
+                        separators=(',', ':'),
+                        sort_keys=True,
+                    ),
+                    flush=True,
+                )
+        except Exception:
+            pass
 
         if _provider_page_cache_enabled() and _provider_info_row_sufficient_for_page(provider_info_row):
             max_entries = _provider_page_cache_max_entries()

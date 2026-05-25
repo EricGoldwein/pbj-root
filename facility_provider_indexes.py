@@ -21,6 +21,29 @@ _SQLITE_CONN: sqlite3.Connection | None = None
 _SQLITE_LOCK = threading.Lock()
 _META_CACHE: dict[str, Any] | None = None
 
+# Inverse of scripts/build_facility_provider_indexes.py slim.rename — provider HTML/charts expect CSV names.
+_SQLITE_TO_CSV_COLUMNS: dict[str, str] = {
+    'total_nurse_hprd': 'Total_Nurse_HPRD',
+    'rn_hprd': 'RN_HPRD',
+    'nurse_assistant_hprd': 'Nurse_Assistant_HPRD',
+    'nurse_care_hprd': 'Nurse_Care_HPRD',
+    'rn_care_hprd': 'RN_Care_HPRD',
+    'contract_percentage': 'Contract_Percentage',
+    'lpn_hprd': 'LPN_HPRD',
+    'lpn_care_hprd': 'LPN_Care_HPRD',
+    'total_lpn_hours': 'Total_LPN_Hours',
+}
+
+
+def _restore_csv_column_names(df):
+    """Copy sqlite metric columns to uppercase CSV names expected by app.py."""
+    if df is None or getattr(df, 'empty', True):
+        return df
+    for sqlite_col, csv_col in _SQLITE_TO_CSV_COLUMNS.items():
+        if sqlite_col in df.columns and csv_col not in df.columns:
+            df[csv_col] = df[sqlite_col]
+    return df
+
 
 def log_index_event(event: str, **fields: Any) -> None:
     """Structured ops log: [PBJ_PROVIDER_INDEX] {json}."""
@@ -207,7 +230,7 @@ def load_ccn_longitudinal_df(prov: str, pdm):
             df['STATE'] = df['state']
         if 'county_name' in df.columns and 'COUNTY_NAME' not in df.columns:
             df['COUNTY_NAME'] = df['county_name']
-        return df
+        return _restore_csv_column_names(df)
     except sqlite3.Error as e:
         log_index_event('sqlite_error', ccn=prov, error=str(e)[:200])
         return None

@@ -73,6 +73,11 @@ def main() -> int:
         'state_percentile': 'percentile' in html.lower() or 'pbj-percentile' in html,
         'entity_summary': 'pbj-entity-summary' in html or 'pbj-details-entity' in html,
         'total_hprd': 'Total Nurse HPRD' in html or 'HPRD' in html,
+        'reported_hprd_numeric': bool(
+            re.search(r'reported\s+<strong>\d+\.\d+\s+HPRD</strong>', html, re.I)
+        ),
+        'no_na_narrative': 'reported <strong>N/A HPRD</strong>' not in html
+            and 'reported <strong>N/A</strong>' not in html,
     }
     for name, ok in checks.items():
         print(f'content_{name}:', ok)

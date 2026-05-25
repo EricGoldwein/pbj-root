@@ -138,11 +138,16 @@ def _extract_html_evidence(html: str) -> dict[str, Any]:
     }
 
 
-def _metrics_from_df(df, prov: str, canonical_q: str) -> dict[str, Any]:
+def _metrics_from_df(df, prov: str, canonical_q: str, *, strict_csv_columns: bool = False) -> dict[str, Any]:
     import pandas as pd
+    from facility_provider_indexes import REQUIRED_PROVIDER_DF_CSV_COLUMNS, provider_df_schema_errors
 
     if df is None or df.empty:
         return {'row_count': 0}
+    if strict_csv_columns:
+        schema_err = provider_df_schema_errors(df, ccn=prov)
+        if schema_err:
+            return {'row_count': len(df), 'schema_error': ';'.join(schema_err)}
     d = df.copy()
     if 'CY_Qtr' in d.columns:
         d['_q'] = d['CY_Qtr'].astype(str).str.strip()
@@ -153,14 +158,33 @@ def _metrics_from_df(df, prov: str, canonical_q: str) -> dict[str, Any]:
         latest = d.sort_values('_q').iloc[-1]
     else:
         latest = latest_rows.iloc[0]
+    if strict_csv_columns:
+        for col in REQUIRED_PROVIDER_DF_CSV_COLUMNS:
+            if col not in d.columns:
+                return {'row_count': len(d), 'schema_error': f'missing_{col}'}
+    total = latest.get('Total_Nurse_HPRD') if strict_csv_columns else latest.get(
+        'Total_Nurse_HPRD', latest.get('total_nurse_hprd')
+    )
+    rn = latest.get('RN_HPRD') if strict_csv_columns else latest.get('RN_HPRD', latest.get('rn_hprd'))
+    lpn = latest.get('LPN_HPRD') if strict_csv_columns else latest.get('LPN_HPRD', latest.get('lpn_hprd'))
+    aide = (
+        latest.get('Nurse_Assistant_HPRD')
+        if strict_csv_columns
+        else latest.get('Nurse_Assistant_HPRD', latest.get('nurse_assistant_hprd'))
+    )
+    contract = (
+        latest.get('Contract_Percentage')
+        if strict_csv_columns
+        else latest.get('Contract_Percentage', latest.get('contract_percentage'))
+    )
     return {
         'row_count': len(d),
         'latest_quarter': str(latest.get('CY_Qtr', latest.get('cy_qtr', ''))),
-        'total_nurse_hprd': _num(latest.get('Total_Nurse_HPRD', latest.get('total_nurse_hprd'))),
-        'rn_hprd': _num(latest.get('RN_HPRD', latest.get('rn_hprd'))),
-        'lpn_hprd': _num(latest.get('LPN_HPRD', latest.get('lpn_hprd'))),
-        'aide_hprd': _num(latest.get('Nurse_Assistant_HPRD', latest.get('nurse_assistant_hprd'))),
-        'contract_pct': _num(latest.get('Contract_Percentage', latest.get('contract_percentage'))),
+        'total_nurse_hprd': _num(total),
+        'rn_hprd': _num(rn),
+        'lpn_hprd': _num(lpn),
+        'aide_hprd': _num(aide),
+        'contract_pct': _num(contract),
         'state': str(latest.get('STATE', latest.get('state', ''))).strip().upper()[:2],
     }
 
@@ -199,7 +223,7 @@ def _parity_row(prov: str, canonical_q: str) -> dict[str, Any]:
     csv_df = _load_csv_path(prov)
     fast_df = _load_fast_path(prov)
     row['csv_metrics'] = _metrics_from_df(csv_df, prov, canonical_q)
-    row['fast_metrics'] = _metrics_from_df(fast_df, prov, canonical_q)
+    row['fast_metrics'] = _metrics_from_df(fast_df, prov, canonical_q, strict_csv_columns=True)
 
     pi = m._provider_info_row_for_ccn(prov) or {}
     row['entity_id'] = pi.get('entity_id')
@@ -342,6 +366,9 @@ def main() -> int:
             continue
         cm = row['csv_metrics']
         fm = row['fast_metrics']
+        if fm.get('schema_error'):
+            mismatches.append(f'{prov}.schema: fast={fm.get("schema_error")}')
+            continue
         for field in ('row_count', 'latest_quarter', 'total_nurse_hprd', 'rn_hprd', 'lpn_hprd', 'aide_hprd', 'contract_pct'):
             a, b = cm.get(field), fm.get(field)
             cls = _classify_mismatch(field, a, b)

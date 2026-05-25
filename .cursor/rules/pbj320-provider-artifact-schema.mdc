@@ -1,0 +1,59 @@
+---
+description: Provider index SQLite/pickle schema contract — column parity, build gates, prod vs local path
+globs:
+  - facility_provider_indexes.py
+  - scripts/build_facility_provider_indexes.py
+  - scripts/validate_provider_index_schema.py
+  - scripts/check_provider_indexes.py
+  - scripts/audit_provider*.py
+  - scripts/verify_provider*.py
+  - app.py
+---
+
+# Provider artifact schema (mandatory)
+
+## Single source of truth
+
+- Column map lives in **`facility_provider_indexes.py`**: `CSV_TO_SQLITE_COLUMNS` (build) and `SQLITE_TO_CSV_COLUMNS` (load).
+- **Never** duplicate rename maps in `build_facility_provider_indexes.py` or `app.py`.
+- After `load_ccn_longitudinal_df`, `REQUIRED_PROVIDER_DF_CSV_COLUMNS` must be present (especially `Total_Nurse_HPRD`).
+
+## Prod vs local
+
+| Environment | Typical path |
+|-------------|----------------|
+| Render (post-deploy) | SQLite + pickles always |
+| Local without `data/provider_indexes/` or stale `meta.json` | CSV stream fallback — **hides column bugs** |
+
+Before claiming provider work is done locally:
+
+1. `python scripts/build_facility_provider_indexes.py` (must end with `schema_validation PASS`)
+2. `python scripts/validate_provider_index_schema.py`
+3. `python scripts/verify_provider_fast_path.py` — must show numeric `reported <strong>X.XX HPRD</strong>`, not `N/A HPRD`
+
+## Pre-deploy gates (required for index changes)
+
+```powershell
+python scripts/build_facility_provider_indexes.py
+python scripts/validate_provider_index_schema.py
+python scripts/audit_provider_index_safety.py
+python scripts/verify_provider_fast_path.py
+```
+
+- **Fail** if `provider_index_fallback` during normal sqlite render (except intentional fallback tests).
+- **Fail** if parity uses lowercase-only columns on fast path (`strict_csv_columns` in safety audit).
+- **Fail** if HTML has `reported <strong>N/A HPRD</strong>` when CSV has numeric HPRD for that CCN.
+
+## Consumer checklist (any new artifact reader)
+
+1. List exact column names the consumer reads (`rg Total_Nurse_HPRD` in `app.py` / chart helpers).
+2. Trace loader: does it restore CSV names from sqlite?
+3. Add sample CCN to `validate_built_sqlite_against_csv` default list if high-traffic regression case.
+
+## Render build
+
+`render.yaml` `buildCommand` must include, in order:
+
+`ensure_deploy_csvs.py` → `build_facility_provider_indexes.py` → `validate_provider_index_schema.py`
+
+Build exit code **1** blocks deploy on schema/HPRD mismatch.

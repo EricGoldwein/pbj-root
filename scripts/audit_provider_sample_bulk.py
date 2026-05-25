@@ -30,6 +30,10 @@ def _critical_ok(html: str, status: int, prov: str = '') -> tuple[bool, list[str
         fails.append('no_charts')
     if 'HPRD' not in html:
         fails.append('no_hprd')
+    if re.search(r'reported\s+<strong>N/A\s+HPRD</strong>', html, re.I):
+        fails.append('na_hprd_narrative')
+    if not re.search(r'reported\s+<strong>\d+\.\d+\s+HPRD</strong>', html, re.I):
+        fails.append('no_numeric_reported_hprd')
     ccn_ok = bool(prov and prov in html) or bool(
         re.search(r'data-ccn=["\'](\d{6})', html, re.I)
     )

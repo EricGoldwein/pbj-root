@@ -17,32 +17,135 @@ META_PATH = os.path.join(INDEX_DIR, 'meta.json')
 PERCENTILE_PKL = os.path.join(INDEX_DIR, 'state_percentile_hprd.pkl')
 CONTRACT_PKL = os.path.join(INDEX_DIR, 'state_contract_median.pkl')
 
+# Single schema contract: build renames CSV -> sqlite; load must restore CSV names for app.py/charts.
+CSV_TO_SQLITE_COLUMNS: dict[str, str] = {
+    'PROVNUM': 'provnum',
+    'CY_Qtr': 'cy_qtr',
+    'PROVNAME': 'provname',
+    'STATE': 'state',
+    'COUNTY_NAME': 'county_name',
+    'Total_Nurse_HPRD': 'total_nurse_hprd',
+    'RN_HPRD': 'rn_hprd',
+    'Nurse_Assistant_HPRD': 'nurse_assistant_hprd',
+    'Nurse_Care_HPRD': 'nurse_care_hprd',
+    'RN_Care_HPRD': 'rn_care_hprd',
+    'Contract_Percentage': 'contract_percentage',
+    'LPN_HPRD': 'lpn_hprd',
+    'LPN_Care_HPRD': 'lpn_care_hprd',
+    'Total_LPN_Hours': 'total_lpn_hours',
+}
+
+SQLITE_TO_CSV_COLUMNS: dict[str, str] = {v: k for k, v in CSV_TO_SQLITE_COLUMNS.items() if k != v}
+
+# Columns app.py / chart builders read from facility_df (must exist after load_ccn_longitudinal_df).
+REQUIRED_PROVIDER_DF_CSV_COLUMNS: tuple[str, ...] = (
+    'PROVNUM',
+    'CY_Qtr',
+    'Total_Nurse_HPRD',
+    'RN_HPRD',
+    'Nurse_Assistant_HPRD',
+    'LPN_HPRD',
+    'Contract_Percentage',
+    'avg_daily_census',
+)
+
+_DEFAULT_VALIDATION_CCNS: tuple[str, ...] = ('676230', '035297', '335513')
+
 _SQLITE_CONN: sqlite3.Connection | None = None
 _SQLITE_LOCK = threading.Lock()
 _META_CACHE: dict[str, Any] | None = None
 
-# Inverse of scripts/build_facility_provider_indexes.py slim.rename — provider HTML/charts expect CSV names.
-_SQLITE_TO_CSV_COLUMNS: dict[str, str] = {
-    'total_nurse_hprd': 'Total_Nurse_HPRD',
-    'rn_hprd': 'RN_HPRD',
-    'nurse_assistant_hprd': 'Nurse_Assistant_HPRD',
-    'nurse_care_hprd': 'Nurse_Care_HPRD',
-    'rn_care_hprd': 'RN_Care_HPRD',
-    'contract_percentage': 'Contract_Percentage',
-    'lpn_hprd': 'LPN_HPRD',
-    'lpn_care_hprd': 'LPN_Care_HPRD',
-    'total_lpn_hours': 'Total_LPN_Hours',
-}
+
+def csv_rename_map_for_build() -> dict[str, str]:
+    """Pass to DataFrame.rename when writing facility_quarterly SQLite table."""
+    return dict(CSV_TO_SQLITE_COLUMNS)
 
 
 def _restore_csv_column_names(df):
     """Copy sqlite metric columns to uppercase CSV names expected by app.py."""
     if df is None or getattr(df, 'empty', True):
         return df
-    for sqlite_col, csv_col in _SQLITE_TO_CSV_COLUMNS.items():
+    for sqlite_col, csv_col in SQLITE_TO_CSV_COLUMNS.items():
         if sqlite_col in df.columns and csv_col not in df.columns:
             df[csv_col] = df[sqlite_col]
     return df
+
+
+def provider_df_schema_errors(df, *, ccn: str = '') -> list[str]:
+    """Return list of schema violations (empty list = OK for page render)."""
+    if df is None or getattr(df, 'empty', True):
+        return ['empty_dataframe']
+    missing = [c for c in REQUIRED_PROVIDER_DF_CSV_COLUMNS if c not in df.columns]
+    if missing:
+        return [f'missing_csv_columns:{",".join(missing)}']
+    if ccn and 'PROVNUM' in df.columns:
+        got = str(df['PROVNUM'].iloc[-1]).strip().zfill(6)
+        if got != str(ccn).strip().zfill(6):
+            return [f'provnum_mismatch:{got}!={ccn}']
+    return []
+
+
+def validate_built_sqlite_against_csv(
+    csv_path: str,
+    *,
+    sample_ccns: tuple[str, ...] | None = None,
+    canonical_quarter: str | None = None,
+    rtol: float = 1e-5,
+) -> list[str]:
+    """
+    Post-build gate: load CCNs from SQLite via load_ccn_longitudinal_df and compare to CSV.
+    Returns human-readable errors (empty = pass).
+    """
+    import pandas as pd
+
+    errors: list[str] = []
+    if not sqlite_available() or not os.path.isfile(csv_path):
+        return ['artifacts_or_csv_missing']
+
+    close_sqlite()
+    global _META_CACHE  # noqa: PLW0603
+    _META_CACHE = None
+
+    ccns = list(sample_ccns or _DEFAULT_VALIDATION_CCNS)
+    latest_q = (canonical_quarter or _read_meta().get('canonical_quarter') or '').strip()
+
+    for prov in ccns:
+        prov = str(prov).strip().zfill(6)
+        df = load_ccn_longitudinal_df(prov, pd)
+        schema_err = provider_df_schema_errors(df, ccn=prov)
+        if schema_err:
+            errors.append(f'{prov}:{";".join(schema_err)}')
+            continue
+        if not latest_q or 'CY_Qtr' not in df.columns:
+            errors.append(f'{prov}:no_canonical_quarter')
+            continue
+        sub = df[df['CY_Qtr'].astype(str).str.strip() == latest_q]
+        if sub.empty:
+            errors.append(f'{prov}:no_rows_for_{latest_q}')
+            continue
+        fast_hprd = sub.iloc[0].get('Total_Nurse_HPRD')
+        csv_hprd = None
+        for chunk in pd.read_csv(csv_path, low_memory=False, chunksize=100000):
+            if 'PROVNUM' not in chunk.columns:
+                continue
+            chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            m = chunk[(chunk['PROVNUM'] == prov) & (chunk['CY_Qtr'].astype(str).str.strip() == latest_q)]
+            if not m.empty:
+                csv_hprd = m.iloc[0].get('Total_Nurse_HPRD')
+                break
+        if csv_hprd is None or (isinstance(csv_hprd, float) and pd.isna(csv_hprd)):
+            continue
+        try:
+            a, b = float(fast_hprd), float(csv_hprd)
+        except (TypeError, ValueError):
+            errors.append(f'{prov}:hprd_not_numeric fast={fast_hprd} csv={csv_hprd}')
+            continue
+        if pd.isna(a) and pd.isna(b):
+            continue
+        if pd.isna(a) != pd.isna(b) or (not pd.isna(a) and abs(a - b) > rtol * max(abs(b), 1e-9)):
+            errors.append(f'{prov}:hprd_mismatch fast={a} csv={b} q={latest_q}')
+
+    return errors
 
 
 def log_index_event(event: str, **fields: Any) -> None:
@@ -147,6 +250,15 @@ def provider_index_status(
     sqlite_rows = None
     latest_q = meta.get('canonical_quarter')
     latest_table_rows = None
+    schema_errors: list[str] = []
+    if sqlite_exists() and matches and csv_path:
+        try:
+            schema_errors = validate_built_sqlite_against_csv(
+                csv_path,
+                canonical_quarter=str(latest_q or ''),
+            )
+        except Exception as e:
+            schema_errors = [f'validate_exception:{e}']
     if sqlite_exists():
         try:
             conn = _get_sqlite_conn()
@@ -166,13 +278,14 @@ def provider_index_status(
         except OSError:
             pass
     return {
-        'ok': bool(csv_path) and sqlite_exists() and meta_exists() and matches,
+        'ok': bool(csv_path) and sqlite_exists() and meta_exists() and matches and not schema_errors,
         'index_dir': INDEX_DIR,
         'sqlite_exists': sqlite_exists(),
         'meta_exists': meta_exists(),
         'percentile_pkl_exists': os.path.isfile(PERCENTILE_PKL),
         'contract_pkl_exists': os.path.isfile(CONTRACT_PKL),
         'meta_matches_csv': matches,
+        'schema_validation_errors': schema_errors,
         'facility_csv_path': os.path.basename(csv_path) if csv_path else None,
         'facility_csv_mtime': csv_mtime,
         'meta_source_basename': meta.get('source_basename'),
@@ -230,7 +343,15 @@ def load_ccn_longitudinal_df(prov: str, pdm):
             df['STATE'] = df['state']
         if 'county_name' in df.columns and 'COUNTY_NAME' not in df.columns:
             df['COUNTY_NAME'] = df['county_name']
-        return _restore_csv_column_names(df)
+        df = _restore_csv_column_names(df)
+        schema_err = provider_df_schema_errors(df, ccn=prov)
+        if schema_err:
+            log_index_event(
+                'provider_df_schema_error',
+                ccn=prov,
+                errors=schema_err,
+            )
+        return df
     except sqlite3.Error as e:
         log_index_event('sqlite_error', ccn=prov, error=str(e)[:200])
         return None

@@ -1,0 +1,80 @@
+---
+description: PBJ320 agent operating protocol — PowerShell, schema verification, encoding, live-page proof, git scope, performance evidence
+alwaysApply: true
+---
+
+# PBJ320 agent operating protocol
+
+**Default posture:** do not infer repo state from memory. Inspect the serving file, route, schema, API, or command environment before making claims or edits that depend on them.
+
+## 1. PowerShell-first
+
+- Assume terminal is **PowerShell** unless the user explicitly says Git Bash.
+- **Never** use `&&`, bash heredocs, `$(cat <<'EOF')`, `export VAR=`, or other bash-only syntax.
+- **Use instead:**
+  - Chain: `cd path; git status; git diff`
+  - Commit: `git commit -m "Short title" -m "Longer body"` — or write the message to a temp file only if needed (`git commit -F path\to\msg.txt`)
+  - Env var: `$env:PYTHONIOENCODING = "utf-8"`
+  - Pipe first N lines: `git diff file | Select-Object -First 40`
+  - HTTP smoke: `curl.exe -s -m 120 "http://127.0.0.1:10000/path"`
+
+## 2. No unverified schema assumptions
+
+Before changing code that depends on **CSV columns**, **cached row shape**, **route prefixes**, or **API payloads**, inspect the actual source. Then add a one-line **Verified from:** note (file path, header list, route name, or sample response field).
+
+| Check | How |
+|-------|-----|
+| CSV headers | `python -c "import pandas as pd; print(list(pd.read_csv('path', nrows=0).columns))"` |
+| Provider SQLite load | `facility_provider_indexes.REQUIRED_PROVIDER_DF_CSV_COLUMNS`; run `python scripts/validate_provider_index_schema.py` after build |
+| Flask routes | `rg "@app\.route|Blueprint|register_blueprint" app.py donor/` |
+| API payload | `curl.exe -s "http://127.0.0.1:PORT/owners/api/stats"` (or relevant path) |
+| Template served | `rg "render_template|send_file" app.py` + which `.html` path |
+
+Do not assume normalized names (`urban` vs `Urban`), `ccn` on row dicts vs cache keys, or `/api` vs `/owners/api` without checking.
+
+**Provider indexes:** follow `.cursor/rules/pbj320-provider-artifact-schema.mdc` and skill `pbj320-provider-indexes`. Local CSV fallback masks sqlite column bugs — build indexes before signing off `/provider` work.
+
+## 3. Encoding guardrails
+
+- **Avoid** PowerShell bulk find/replace on `.html`, `.js`, `.py`, `.tsx` when stars, bullets, quotes, em dashes, or non-ASCII are involved. Prefer targeted `StrReplace` / editor edits.
+- In JS templates, prefer escaped Unicode (e.g. `'\u2605'.repeat(n)`) over pasting raw ★ when encoding risk exists.
+- **After** such edits, search for likely corruption (mojibake, replacement chars, star placeholders):
+
+```powershell
+rg -n "\uFFFD|â|Ã|???" --glob "*.{html,js,py,tsx}"
+rg -n "Overall:.*\?|Staffing:.*\?|stars?.*\?" --glob "*.{html,js,py,tsx}"
+```
+
+Do not treat every literal `?` as corruption; inspect context.
+
+## 4. Template / route / live-page verification
+
+Do **not** blame browser cache until all of the following are checked (record the exact command):
+
+1. **Route** — which handler serves the URL (`rg` in `app.py` / blueprints).
+2. **Template** — which file is rendered (path in `render_template` or static send).
+3. **Live HTML marker** — e.g. `curl.exe -s "http://127.0.0.1:10000/owners/" | Select-String "Political Contributions|Political Donations"`
+4. **API data** — stats/search returns non-empty expected fields before UI diagnosis.
+
+Only after (1)–(4) fail, suggest hard refresh, restart `python app.py`, or `PBJ_SITE_UNIVERSAL_JS_VERSION` bump.
+
+## 5. Scope and git discipline
+
+- **Do not commit** unless the user explicitly asks.
+- **Do not push** unless the user explicitly asks.
+- For **non-trivial** edits, and **always** for route/data/API/template/performance work, state **files to touch** and classify each as:
+  - **requested** — directly in the user ask
+  - **necessary dependency** — required for the fix to work (e.g. cache version bump with `pbj-site-universal.js`)
+  - **optional / out of scope** — defer unless user approves
+- If the fix expands beyond the original ask, **stop and explain why** before editing further.
+
+## 6. Performance proof
+
+- Do **not** claim a performance fix worked without evidence on the **cold path** (first request / cache MISS / fresh worker).
+- State what still runs before first paint: e.g. `facility_quarterly_metrics_latest.csv` (~181 MB), full `load_csv_data('facility_quarterly_metrics.csv')`, cold provider render, `/report/embed/*`.
+- Prefer log markers (`[PBJ_PROVIDER]`, `X-PBJ-Provider-Cache`, `chart_build_ms`) or a before/after waterfall table.
+- For `/report`, provider pages, owners dashboards: explicitly answer **“Is the large CSV still loaded before first paint?”** yes/no with file name.
+
+---
+
+If this rule creates noise in pure copy/docs sessions, narrow it later with `globs` rather than weakening the protocol.

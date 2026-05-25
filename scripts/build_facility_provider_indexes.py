@@ -53,17 +53,18 @@ def main() -> int:
         CONTRACT_PKL,
         INDEX_DIR,
         PERCENTILE_PKL,
+        csv_rename_map_for_build,
         save_pickle_index,
+        validate_built_sqlite_against_csv,
     )
 
     os.makedirs(INDEX_DIR, exist_ok=True)
     if os.path.isfile(SQLITE_PATH):
         os.remove(SQLITE_PATH)
 
+    rename_map = csv_rename_map_for_build()
     t0 = time.perf_counter()
-    usecols = None
     head = pd.read_csv(csv_path, nrows=0)
-    cols = list(head.columns)
     conn = sqlite3.connect(SQLITE_PATH)
     try:
         row_count = 0
@@ -73,23 +74,7 @@ def main() -> int:
             chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
             chunk['CY_Qtr'] = chunk['CY_Qtr'].astype(str).str.strip()
             chunk['STATE'] = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
-            slim = chunk.rename(columns={
-                'PROVNUM': 'provnum',
-                'CY_Qtr': 'cy_qtr',
-                'PROVNAME': 'provname',
-                'STATE': 'state',
-                'COUNTY_NAME': 'county_name',
-                'Total_Nurse_HPRD': 'total_nurse_hprd',
-                'RN_HPRD': 'rn_hprd',
-                'Nurse_Assistant_HPRD': 'nurse_assistant_hprd',
-                'Nurse_Care_HPRD': 'nurse_care_hprd',
-                'RN_Care_HPRD': 'rn_care_hprd',
-                'Contract_Percentage': 'contract_percentage',
-                'avg_daily_census': 'avg_daily_census',
-                'LPN_HPRD': 'lpn_hprd',
-                'LPN_Care_HPRD': 'lpn_care_hprd',
-                'Total_LPN_Hours': 'total_lpn_hours',
-            })
+            slim = chunk.rename(columns={k: v for k, v in rename_map.items() if k in chunk.columns})
             keep = [
                 c for c in (
                     'provnum', 'cy_qtr', 'provname', 'state', 'county_name',
@@ -159,6 +144,13 @@ def main() -> int:
     }
     with open(META_PATH, 'w', encoding='utf-8') as f:
         json.dump(meta, f, indent=2)
+
+    schema_errors = validate_built_sqlite_against_csv(csv_path, canonical_quarter=latest_q)
+    if schema_errors:
+        for err in schema_errors:
+            _log(f'build_facility_provider_indexes: SCHEMA_FAIL {err}')
+        return 1
+    _log('build_facility_provider_indexes: schema_validation PASS')
     _log(f'build_facility_provider_indexes: done meta={meta}')
     return 0
 

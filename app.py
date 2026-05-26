@@ -8068,6 +8068,14 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-state-title .pbj-state-title-full {{ display: none !important; }}
   .pbj-state-title .pbj-state-title-mobile {{ display: inline !important; }}
   .pbj-page-footer {{ margin-top: 1.5rem; padding-top: 0.4rem; }}
+  .pbj-page-footer-sources {{
+    flex-wrap: nowrap;
+    font-size: clamp(0.62rem, 2.65vw, 0.78rem);
+    line-height: 1.35;
+    gap: 0.05rem 0.2rem;
+    letter-spacing: -0.012em;
+  }}
+  .pbj-page-footer-sources .pbj-sources-sep {{ margin: 0 0.08rem; }}
   .entity-chain-metrics {{ grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }}
   .pbj-chart-container {{ padding: 12px; }}
   .pbj-chart-container.pbj-casemix-card {{ padding: 0.48rem 0.52rem 0.42rem; margin: 12px 0; }}
@@ -8178,10 +8186,18 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     if (!overlay || !dialog) return;
     function focusables() { return dialog.querySelectorAll('button, [href], input:not([disabled]), select, textarea'); }
     function openContact(topic, subjectType) {
+      var titleEl = document.getElementById('pbj-contact-popup-title');
       var nextEl = document.getElementById('pbj-contact-next');
       if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
       var subjectEl = document.getElementById('pbj-contact-subject-type');
       if (subjectEl) subjectEl.value = subjectType || '';
+      if (titleEl) {
+        if (subjectType === 'premium_dashboard_request') {
+          titleEl.textContent = 'PBJ320 Premium Dashboard';
+        } else {
+          titleEl.textContent = 'Request PBJ Analysis';
+        }
+      }
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       if (messageEl && topic) messageEl.value = topic;
@@ -8414,6 +8430,7 @@ def render_custom_report_cta(context, page_url, **kwargs):
     email = 'eric@320insight.com'
     contact_display = '(929) 804-4996'
     header_text = ""
+    contact_subject_type = ''
     sub_text_desktop = (
         '<strong>Request custom analysis</strong>'
         '<span class="custom-report-cta-sub"> — litigation, investigations, and policy work.</span>'
@@ -8429,8 +8446,18 @@ def render_custom_report_cta(context, page_url, **kwargs):
     if context == 'facility':
         facility_name = kwargs.get('facility_name', '') or 'This facility'
         ccn = kwargs.get('ccn', '') or ''
-        topic_default = f"{facility_name} ({ccn}) staffing data." if facility_name or ccn else ""
-        subj_att = f"Custom Staffing Analysis – {facility_name} (CCN {ccn})"
+        contact_subject_type = 'premium_dashboard_request'
+        sub_text_desktop = (
+            '<strong>Request Premium Dashboard</strong>'
+            '<span class="custom-report-cta-sub"> — Daily PBJ patterns, employee rosters, and advanced staffing analysis.'
+            ' Learn more at <a href="https://www.pbj320.com/premium" target="_blank" rel="noopener">https://www.pbj320.com/premium</a>.</span>'
+        )
+        sub_text_mobile = (
+            "Request Premium Dashboard — Daily PBJ patterns, employee rosters, and advanced staffing analysis. "
+            "Learn more at https://www.pbj320.com/premium."
+        )
+        contact_topic = f"I'm interested in PBJ320's premium dashboard for {facility_name} ({ccn})"
+        subj_att = f"Premium Dashboard Request – {facility_name} (CCN {ccn})"
         body_att = f"""Hello Eric,
 
 I'm reviewing {facility_name} (CCN {ccn}) and would like to connect regarding its staffing data.
@@ -8460,11 +8487,10 @@ Thank you,"""
         link_att = mailto(subj_att, '')
         link_media = mailto(subj_media, '')
         link_adv = mailto(subj_adv, '')
-        sms_body = f"I'm reviewing {facility_name} (CCN {ccn}) and would like to connect regarding its staffing data. {page_url}"
+        sms_body = f"I'm interested in PBJ320's premium dashboard for {facility_name} (CCN {ccn}). {page_url}"
         sms_href = f"sms:+19298084996?body={quote(sms_body)}"
         primary_mailto = link_media
-        cta_label = "Request custom analysis"
-        contact_topic = topic_default
+        cta_label = "Request Premium Dashboard"
 
     elif context == 'state':
         state_name = kwargs.get('state_name', '') or 'this state'
@@ -8544,9 +8570,17 @@ Thank you,"""
     # Escape topic for HTML data attribute (prefill message in contact overlay)
     topic_attr = html.escape(contact_topic).replace('"', '&quot;') if contact_topic else ''
     # Single CTA: sentence is the trigger; opens contact overlay with topic prefill (no separate "Contact us")
+    aria_label = (
+        "Open contact form to request PBJ320 premium dashboard"
+        if contact_subject_type == 'premium_dashboard_request'
+        else "Open contact form to request custom PBJ analysis"
+    )
+    subject_type_attr = (
+        f' data-subject-type="{html.escape(contact_subject_type)}"' if contact_subject_type else ''
+    )
     link_attrs = (
-        f'href="#" class="custom-report-cta pbj-contact-trigger" data-topic="{topic_attr}" '
-        f'aria-label="Open contact form to request custom PBJ analysis"'
+        f'href="#" class="custom-report-cta pbj-contact-trigger" data-topic="{topic_attr}"'
+        f'{subject_type_attr} aria-label="{html.escape(aria_label)}"'
     )
     return (
         f'<a {link_attrs}>'

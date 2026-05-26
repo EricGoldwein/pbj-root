@@ -8450,11 +8450,9 @@ def render_custom_report_cta(context, page_url, **kwargs):
         sub_text_desktop = (
             '<strong>Request Premium Dashboard</strong>'
             '<span class="custom-report-cta-sub"> — Daily PBJ patterns, employee rosters, and advanced staffing analysis.'
-            ' Learn more at <a href="https://www.pbj320.com/premium" target="_blank" rel="noopener">https://www.pbj320.com/premium</a>.</span>'
         )
         sub_text_mobile = (
-            "Request Premium Dashboard — Daily PBJ patterns, employee rosters, and advanced staffing analysis. "
-            "Learn more at https://www.pbj320.com/premium."
+            "Request Premium Dashboard"
         )
         contact_topic = f"I'm interested in PBJ320's premium dashboard for {facility_name} ({ccn})"
         subj_att = f"Premium Dashboard Request – {facility_name} (CCN {ccn})"

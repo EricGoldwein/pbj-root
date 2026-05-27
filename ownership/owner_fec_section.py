@@ -37,15 +37,14 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
       <section class="owner-fec-section" id="ownerFecContributions"
         data-owner-name="{name_attr}" data-owner-type="{type_attr}"
         aria-labelledby="ownerFecHeading">
-        <div class="owner-fec-heading-row">
-          <h2 class="section-header owner-fec-heading" id="ownerFecHeading">
-            FEC political contributions
-          </h2>
-          <span class="owner-fec-beta" title="Beta tool — verify each filing on FEC.gov">Beta</span>
-        </div>
+        <h2 class="section-header owner-fec-heading" id="ownerFecHeading">
+          FEC political contributions
+          <span class="owner-fec-beta" title="Beta — verify each filing on FEC.gov">Beta</span>
+        </h2>
         <p class="owner-fec-lead">
-          Federal Election Commission records matched to <strong>{title_name}</strong> by name.
-          Similar names may appear; open each <span class="owner-fec-lead-k">FEC filing</span> link to confirm on FEC.gov.
+          FEC records matched to <strong>{title_name}</strong> by name.
+          Similar names may appear—confirm each
+          <span class="owner-fec-lead-k">FEC filing</span> on FEC.gov.
         </p>
         <button type="button" class="owner-fec-load-btn" id="ownerFecLoadBtn"
           aria-controls="ownerFecPanel" aria-expanded="false">
@@ -54,40 +53,49 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
         <div id="ownerFecPanel" class="owner-fec-panel" hidden role="region"
           aria-label="FEC political contributions for {title_name}"></div>
         <details class="owner-fec-methodology">
-          <summary>Sources, methodology &amp; disclaimers</summary>
+          <summary class="owner-fec-methodology-summary">
+            <span class="owner-fec-methodology-summary-title">Sources, methodology &amp; disclaimers</span>
+            <span class="owner-fec-methodology-summary-hint">How this search works</span>
+          </summary>
           <div class="owner-fec-methodology-body">
-            <p class="owner-fec-disclaimer-block">
-              <strong>Disclaimer:</strong> This view displays public FEC and CMS data.
-              Committee groupings are based on committee names and filings.
-              No ideological classification is assigned.
-            </p>
-            <p>
-              Contributions are queried live from the
-              <a href="https://api.open.fec.gov/" target="_blank" rel="noopener">FEC API</a>
-              using the owner name on this profile. The FEC uses fuzzy name matching;
-              always confirm each filing via the linked FEC.gov record.
-            </p>
-            <h3>Matching methodology</h3>
-            <ol>
-              <li>Owner name from CMS SNF All Owners (this profile).</li>
-              <li>FEC Schedule A search with name variants (nicknames, order).</li>
-              <li>Individual vs organization filters per CMS party type when available.</li>
-            </ol>
-            <h3>Data sources</h3>
-            <ul>
-              <li><a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" rel="noopener">CMS SNF All Owners</a></li>
-              <li><a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">FEC individual contributions</a></li>
-            </ul>
-            <div class="owner-fec-disclaimer-warn">
-              <p><strong>Beta:</strong> Matching errors and incomplete data are possible.</p>
-              <p><strong>Name matching:</strong> Similar names may appear in results.</p>
-              <p><strong>Completeness:</strong> No FEC rows does not prove zero contributions.</p>
+            <div class="owner-fec-method-grid">
+              <div class="owner-fec-method-card owner-fec-method-card--disclaimer">
+                <h3 class="owner-fec-method-card-title">Disclaimer</h3>
+                <p>Public FEC and CMS data only. Committee groupings follow committee names and filings—no ideological labels.</p>
+              </div>
+              <div class="owner-fec-method-card">
+                <h3 class="owner-fec-method-card-title">Live FEC query</h3>
+                <p>Contributions load from the
+                  <a href="https://api.open.fec.gov/" target="_blank" rel="noopener">FEC API</a>
+                  using the owner name on this profile. Fuzzy matching may return similar names.</p>
+              </div>
+              <div class="owner-fec-method-card">
+                <h3 class="owner-fec-method-card-title">Matching steps</h3>
+                <ol>
+                  <li>Owner name from CMS SNF All Owners (this profile).</li>
+                  <li>Schedule A search with name variants.</li>
+                  <li>Individual vs organization filter when CMS type is known.</li>
+                </ol>
+              </div>
+              <div class="owner-fec-method-card">
+                <h3 class="owner-fec-method-card-title">Data sources</h3>
+                <ul class="owner-fec-method-links">
+                  <li><a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners/data" target="_blank" rel="noopener">CMS SNF All Owners</a></li>
+                  <li><a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">FEC individual contributions</a></li>
+                </ul>
+              </div>
+              <div class="owner-fec-method-card owner-fec-method-card--warn">
+                <h3 class="owner-fec-method-card-title">Limits</h3>
+                <ul>
+                  <li>Beta: matching errors and gaps are possible.</li>
+                  <li>Similar names may appear in results.</li>
+                  <li>No FEC rows does not prove zero contributions.</li>
+                </ul>
+              </div>
             </div>
             <p class="owner-fec-contact">
-              Questions:
               <a href="mailto:eric@320insight.com">eric@320insight.com</a>
-              · Full search:
-              <a href="/owner">Political contributions tool</a>
+              · <a href="/owner">Full political contributions search</a>
             </p>
           </div>
         </details>

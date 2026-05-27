@@ -13,13 +13,14 @@
   };
 
   var FOOTER_TRUST_BLURB =
-    'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal ' +
+    'PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal' +
+    '<br class="footer-boilerplate-br-desktop" aria-hidden="true"> ' +
     'and other public federal and state datasets.';
 
   var FOOTER_LINK_STYLE = 'color:rgba(148,163,184,0.95)';
 
   var FOOTER_BOILERPLATE =
-    '<p class="footer-boilerplate" style="margin:0 0 0.65rem 0;font-size:0.75rem;line-height:1.5;text-align:center;color:rgba(148,163,184,0.82);max-width:720px;margin-left:auto;margin-right:auto">' +
+    '<p class="footer-boilerplate" style="margin:0 0 0.65rem 0;font-size:0.75rem;line-height:1.5;text-align:center;color:rgba(148,163,184,0.82);max-width:52rem;margin-left:auto;margin-right:auto">' +
     FOOTER_TRUST_BLURB +
     '</p>';
 

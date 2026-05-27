@@ -893,14 +893,14 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
         ).lower()
         rows.append(
             f'<tr data-search="{html.escape(search)}">'
-            f'<td class="owner-col-facility" data-sort="{names_sort}">{names_html}</td>'
-            f'<td data-sort="{_sort_attr(f.get("state"))}">{st}</td>'
-            f'<td class="owner-col-county" data-sort="{_sort_attr(f.get("county"))}">{co}</td>'
-            f'<td class="owner-role-cell" data-sort="{role_sort}">{role_html}</td>'
-            f'<td class="num" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
-            f'<td class="num owner-col-ratings" data-sort="{html.escape(stars_sort)}">{stars_html}</td>'
-            f'<td class="num owner-col-census" data-sort="{_sort_attr(census if verified else "")}">{census}</td>'
-            f'<td class="owner-col-flags" data-sort="">{flags}</td></tr>'
+            f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
+            f'<td class="owner-col-state" data-label="State" data-sort="{_sort_attr(f.get("state"))}">{st}</td>'
+            f'<td class="owner-col-county" data-label="County" data-sort="{_sort_attr(f.get("county"))}">{co}</td>'
+            f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
+            f'<td class="num owner-col-hprd" data-label="HPRD" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
+            f'<td class="num owner-col-ratings" data-label="Ratings" data-sort="{html.escape(stars_sort)}">{stars_html}</td>'
+            f'<td class="num owner-col-census" data-label="Census" data-sort="{_sort_attr(census if verified else "")}">{census}</td>'
+            f'<td class="owner-col-flags" data-label="Flags" data-sort="">{flags}</td></tr>'
         )
     return rows
 
@@ -944,8 +944,8 @@ def _owner_facilities_table_html(
         f"{filter_html}</div>"
     )
     table = (
-        '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll" style="max-height:min(70vh,560px);">'
-        '<table class="chow-table owner-facilities-table" id="ownerFacilitiesTable">'
+        '<div class="chow-table-scroll owner-facilities-scroll">'
+        '<table class="chow-table owner-facilities-table chow-table--cards-sm" id="ownerFacilitiesTable">'
         f"<thead><tr>{thead}</tr></thead><tbody>"
         + "".join(_facilities_owner_rows(fac_list))
         + "</tbody></table></div>"

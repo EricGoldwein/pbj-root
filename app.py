@@ -8001,6 +8001,17 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .footer a {{ color: #cbd5e1; text-decoration: none; transition: color 0.2s ease, opacity 0.2s ease; }}
 .footer a:hover {{ color: #f8fafc; opacity: 1; }}
 .footer a:hover img {{ opacity: 1; }}
+.footer-boilerplate-br-desktop {{ display: none; }}
+@media (min-width: 900px) {{
+  .footer-boilerplate {{
+    max-width: 56rem;
+    line-height: 1.55;
+    text-wrap: balance;
+  }}
+  .footer-boilerplate-br-desktop {{
+    display: inline;
+  }}
+}}
 @media (max-width: 768px) {{
   .footer {{ padding: 22px 12px 28px; font-size: 0.85rem; }}
 }}

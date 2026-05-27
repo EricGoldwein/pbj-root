@@ -367,7 +367,7 @@ def _kind_banner(kind: str, is_chow_only: bool) -> str:
 def _snf_owners_source_line(profile: dict[str, Any]) -> str:
     from ownership.owner_profile import snf_owners_source_citation
 
-    return str(profile.get("ownership_source") or snf_owners_source_citation())
+    return snf_owners_source_citation()
 
 
 def _owner_page_help_body(

@@ -174,15 +174,15 @@ def _sqlite_pac_in_column(pac: str, column: str) -> bool:
 
 
 def snf_owners_source_citation(path: Path | None = None) -> str:
-    """Human-readable CMS source line tied to the exact snapshot file in use."""
+    """Human-readable CMS source line (release month only — no filename in UI copy)."""
     p = path or snf_owners_csv_path()
     if not p:
-        return "CMS SNF All Owners (no snapshot file in ownership/)"
+        return "CMS SNF All Owners"
     ym = snf_owners_release_month_year(p)
     if ym:
         month = calendar.month_name[ym[1]]
-        return f"CMS SNF All Owners ({month} {ym[0]} CMS snapshot, {p.name})"
-    return f"CMS SNF All Owners ({p.name})"
+        return f"CMS SNF All Owners ({month} {ym[0]} snapshot)"
+    return "CMS SNF All Owners"
 
 
 def _clean(val: Any) -> str:

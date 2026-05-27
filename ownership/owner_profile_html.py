@@ -175,8 +175,10 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     owner_type = html.escape(profile.get("owner_type") or "")
     states = profile.get("states") or []
     facilities = profile.get("facilities") or []
-    en_label = html.escape(profile.get("enrollment_pac_label") or "Enrollment PAC")
-    ow_label = html.escape(profile.get("owner_pac_label") or "Owner PAC")
+    en_raw = str(profile.get("enrollment_pac_label") or "Enrollment PAC")
+    ow_raw = str(profile.get("owner_pac_label") or "Owner PAC")
+    en_label = html.escape(en_raw)
+    ow_label = html.escape(ow_raw)
     page_title, meta_desc, owner_intro_html = owner_page_seo_from_profile(profile)
     states_meta = _states_meta_html(profile)
     states_modal = _states_breakdown_modal_html(profile)
@@ -202,12 +204,12 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
         states_meta=states_meta,
         pac_meta=pac_meta,
         kind=kind,
+        en_label=en_raw,
+        ow_label=ow_raw,
     )
-    pac_glossary = _pac_glossary_note_html(en_label, ow_label)
     body = f"""
       <div class="owner-profile-root">
       {header_html}
-      {pac_glossary}
       {owner_intro_html}
       {states_modal}
       {_owner_info_modal_html()}
@@ -295,21 +297,6 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
       </dialog>"""
 
 
-def _pac_glossary_note_html(en_label: str, ow_label: str) -> str:
-    """One-line CMS PAC definitions — shown under profile header, not after FEC block."""
-    en = html.escape(en_label)
-    ow = html.escape(ow_label)
-    return (
-        '<aside class="owner-pac-glossary" aria-label="CMS PAC definitions">'
-        f'<span class="owner-pac-glossary-k">{en}</span> '
-        "<span class=\"owner-pac-glossary-d\">facility enrollment in CMS (typical buyer/seller in ownership changes)</span>"
-        '<span class="owner-pac-glossary-sep" aria-hidden="true">·</span> '
-        f'<span class="owner-pac-glossary-k">{ow}</span> '
-        '<span class="owner-pac-glossary-d">reported owner or control party</span>'
-        "</aside>"
-    )
-
-
 def _pac_meta_html(
     profile: dict[str, Any],
     kind: str,
@@ -383,8 +370,14 @@ def _snf_owners_source_line(profile: dict[str, Any]) -> str:
     return str(profile.get("ownership_source") or snf_owners_source_citation())
 
 
-def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
-    """Page-level methodology for the ownership profile ? control."""
+def _owner_page_help_body(
+    profile: dict[str, Any],
+    kind: str,
+    *,
+    en_label: str,
+    ow_label: str,
+) -> str:
+    """Page-level methodology (? help on owner profile header)."""
     n = len(profile.get("facilities") or [])
     snf_src = _snf_owners_source_line(profile)
     kind_line = {
@@ -392,25 +385,33 @@ def _owner_page_help_body(profile: dict[str, Any], kind: str) -> str:
             f"Owner/control party with {n} linked nursing homes in {snf_src}."
         ),
         "enrollment": (
-            f"CMS enrollment entity with {n} linked facility record(s), owners, and control parties."
+            f"CMS enrollment entity with {n} linked facilities, owners, and control parties "
+            f"in {snf_src}."
         ),
         "both": (
-            f"Enrollment and owner/control PAC with {n} linked facilities in CMS data."
+            f"Enrollment and owner/control PAC with {n} linked facilities in {snf_src}."
         ),
         "chow_only": (
-            f"Party in CMS ownership-change records with {n} linked facility reference(s); "
-            f"may be absent from {snf_src}."
+            f"Party in CMS ownership-change records with {n} linked facility references; "
+            "may be absent from the current SNF All Owners file."
         ),
-    }.get(kind, f"CMS ownership profile with {n} linked record(s).")
-    from ownership.owner_portfolio_metrics import PORTFOLIO_METHODOLOGY_SUMMARY
+    }.get(kind, f"CMS ownership profile with {n} linked records in {snf_src}.")
+
+    pac_line = (
+        f"{en_label} — facility enrollment in CMS (typical buyer/seller in ownership changes). "
+        f"{ow_label} — reported owner or control party."
+    )
 
     return (
         f"{kind_line}\n\n"
-        "Facility table: reported ownership % and CMS role, PBJ staffing (HPRD), "
-        "CMS star ratings, and regulatory flags where data are linked.\n\n"
-        f"Portfolio summary metrics: {PORTFOLIO_METHODOLOGY_SUMMARY}\n\n"
-        f"Sources: {snf_src}; CMS Payroll-Based Journal (PBJ); "
-        "CMS provider data; PBJ320 CHOW index (ownership changes and frequent associates)."
+        f"{pac_line}\n\n"
+        "Facility table: ownership %, CMS role, PBJ staffing (HPRD), star ratings, and flags "
+        "where linked.\n\n"
+        "Portfolio summary: PBJ-verified facilities only (enrollment legal name matches "
+        "provider-info). Means omit missing HPRD or stars; exclude implausible HPRD "
+        "(below 1.5 or above 12) and overall stars outside 1–5. Weighted means use census "
+        "when published, else certified beds.\n\n"
+        f"Sources: {snf_src}; CMS PBJ; CMS provider data; PBJ320 CHOW index."
     )
 
 
@@ -422,10 +423,12 @@ def _owner_profile_header_html(
     states_meta: str,
     pac_meta: str,
     kind: str,
+    en_label: str,
+    ow_label: str,
 ) -> str:
     page_help = _info_button(
         "PBJ320 Ownership",
-        _owner_page_help_body(profile, kind),
+        _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label),
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-page-help",
     )

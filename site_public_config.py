@@ -215,6 +215,7 @@ LLMS_TXT = build_llms_txt()
 # Canonical robots.txt body — www sitemap only; never disallow /provider/ or /entity/.
 ROBOTS_TXT_CANONICAL = """User-agent: *
 Allow: /
+Allow: /owners/
 Disallow: /owner/
 Disallow: /owners/api/
 Disallow: /owners/_dev/

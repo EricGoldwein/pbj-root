@@ -42,7 +42,15 @@ _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     ),
     "abuse": (
         "Abuse",
-        "Flagged for abuse on CMS provider data.",
+        "Flagged for abuse on CMS.",
+    ),
+    "star_overall": (
+        "1-Star Overall",
+        "CMS overall star rating is 1 (lowest tier).",
+    ),
+    "star_staff": (
+        "1-Star Staffing",
+        "CMS staffing star rating is 1 (lowest tier).",
     ),
 }
 
@@ -741,9 +749,13 @@ def _facility_flags_cell(f: dict[str, Any], *, verified: bool) -> str:
     if sff_up == "SFF":
         badges.append(_flag_explainer_button("sff", "SFF", "owner-flag--sff"))
     elif "CANDIDATE" in sff_up:
-        badges.append(_flag_explainer_button("sffc", "SFFC", "owner-flag--sffc"))
+        badges.append(_flag_explainer_button("sffc", "SFF-C", "owner-flag--sffc"))
     if f.get("has_abuse"):
         badges.append(_flag_explainer_button("abuse", "Abuse", "owner-flag--abuse"))
+    if format_cms_star_rating(f.get("overall_rating")) == "1":
+        badges.append(_flag_explainer_button("star_overall", "1★", "owner-flag--star"))
+    if format_cms_star_rating(f.get("staffing_rating")) == "1":
+        badges.append(_flag_explainer_button("star_staff", "1★S", "owner-flag--staff"))
     if not badges:
         return "—"
     return '<span class="owner-flags">' + "".join(badges) + "</span>"

@@ -46,6 +46,142 @@
     return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function toTitleCaseName(str) {
+    if (!str) return '';
+    return String(str).toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
+  }
+
+  var hideDonorPopupTimer = null;
+
+  function positionDonorPopup(el, wrap) {
+    var pad = 8;
+    if (window.innerWidth <= 768) {
+      el.style.left = '50%';
+      el.style.top = '50%';
+      el.style.transform = 'translate(-50%, -50%)';
+    } else {
+      var r = wrap.getBoundingClientRect();
+      var popupHeight = el.offsetHeight || 220;
+      var spaceBelow = window.innerHeight - 20 - r.bottom;
+      var spaceAbove = r.top - 20;
+      var centerX = r.left + r.width / 2;
+      el.style.left = centerX + 'px';
+      if (spaceBelow >= popupHeight + pad || spaceBelow >= spaceAbove) {
+        el.style.top = (r.bottom + pad) + 'px';
+        el.style.transform = 'translate(-50%, 0)';
+      } else {
+        el.style.top = (r.top - pad) + 'px';
+        el.style.transform = 'translate(-50%, -100%)';
+      }
+    }
+  }
+
+  function showDonorPopup(uid) {
+    if (hideDonorPopupTimer) {
+      clearTimeout(hideDonorPopupTimer);
+      hideDonorPopupTimer = null;
+    }
+    var el = document.getElementById(uid);
+    if (!el) return;
+    var wrap = el.closest('.donor-info-wrap');
+    if (!wrap) return;
+    if (!el._donorPopupParent) {
+      el._donorPopupParent = wrap;
+      document.body.appendChild(el);
+    }
+    positionDonorPopup(el, wrap);
+    el.classList.add('show');
+  }
+
+  function hideDonorPopup(uid) {
+    hideDonorPopupTimer = setTimeout(function () {
+      var el = document.getElementById(uid);
+      if (el) {
+        el.classList.remove('show');
+        if (el._donorPopupParent) {
+          el._donorPopupParent.appendChild(el);
+          el._donorPopupParent = null;
+        }
+      }
+    }, 200);
+  }
+
+  function toggleDonorPopup(uid) {
+    var el = document.getElementById(uid);
+    if (!el) return;
+    if (el.classList.contains('show')) hideDonorPopup(uid);
+    else showDonorPopup(uid);
+  }
+
+  window.showDonorPopup = showDonorPopup;
+  window.hideDonorPopup = hideDonorPopup;
+  window.toggleDonorPopup = toggleDonorPopup;
+
+  function formatFecContributor(d) {
+    if (!d || !d.donor_name) return '';
+    var name = escapeHtml(toTitleCaseName(d.donor_name));
+    var cityDisplay = d.donor_city ? toTitleCaseName(d.donor_city) : '';
+    var stateDisplay = d.donor_state ? String(d.donor_state).toUpperCase() : '';
+    var loc = (cityDisplay && stateDisplay)
+      ? ' (' + escapeHtml(cityDisplay) + ', ' + escapeHtml(stateDisplay) + ')'
+      : '';
+    var inlineText = name + loc;
+    var hasPopup = !!(d.donor_city || d.donor_state || d.employer || d.occupation || d.committee || d.candidate);
+    if (!hasPopup) return '<strong>FEC listing:</strong> ' + inlineText;
+    var popupParts = [];
+    if (name) popupParts.push('<strong>' + name + '</strong>');
+    if (d.employer || d.occupation) {
+      popupParts.push(
+        '<div><strong>Employer/Occupation:</strong> ' +
+        escapeHtml([d.employer, d.occupation].filter(Boolean).map(function (s) {
+          return toTitleCaseName(s);
+        }).join(' — ')) +
+        '</div>'
+      );
+    }
+    if (d.committee) popupParts.push('<div><strong>Committee:</strong> ' + escapeHtml(d.committee) + '</div>');
+    if (d.candidate) {
+      popupParts.push(
+        '<div><strong>Candidate:</strong> ' + escapeHtml(d.candidate) +
+        (d.office ? ' (' + escapeHtml(d.office) + ')' : '') + '</div>'
+      );
+    }
+    if (d.date) popupParts.push('<div><strong>Date:</strong> ' + formatDonationDate(d.date) + '</div>');
+    popupParts.push('<div style="margin-top:0.5rem;">' + fecLinkHtml(d) + '</div>');
+    var uid = 'popup-' + Math.random().toString(36).slice(2);
+    var touch = 'ontouchstart' in window;
+    var hoverOn = touch ? '' : ' onmouseenter="showDonorPopup(\'' + uid + '\')" onmouseleave="hideDonorPopup(\'' + uid + '\')"';
+    return (
+      '<strong>FEC listing:</strong> ' +
+      '<span class="donor-info-wrap" style="position:relative;display:inline-block;"' + hoverOn + '>' +
+      '<span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" ' +
+      'onclick="event.stopPropagation();toggleDonorPopup(\'' + uid + '\')" ' +
+      'onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();toggleDonorPopup(\'' + uid + '\')}">' +
+      inlineText + '</span>' +
+      '<div id="' + uid + '" class="donor-popup">' + popupParts.join('') + '</div></span>'
+    );
+  }
+
+  function fecContributionMetaHtml(d) {
+    var fecBlock = formatFecContributor(d);
+    var meta = fecBlock ? fecBlock : '';
+    if (!fecBlock && d.donor_name) {
+      meta += '<div><strong>FEC contributor:</strong> ' + escapeHtml(d.donor_name) + '</div>';
+    }
+    if (d.date) {
+      meta += (meta ? '<br>' : '') + 'Date: ' + formatDonationDate(d.date);
+    }
+    if (!fecBlock && d.committee) {
+      meta += '<br><strong>Committee:</strong> ' + escapeHtml(d.committee);
+    }
+    if (!fecBlock && d.candidate) {
+      meta += '<br><strong>Candidate:</strong> ' + escapeHtml(d.candidate) +
+        (d.office ? ' (' + escapeHtml(d.office) + ')' : '') +
+        (d.party ? ' — ' + escapeHtml(d.party) : '');
+    }
+    return meta;
+  }
+
   function renderDonations(donations, total, count, ownerLabel, oType) {
     if (!donations || !donations.length) {
       panel.innerHTML = '<p class="owner-fec-empty">No contributions found in FEC records for this name.</p>';
@@ -149,18 +285,13 @@
     var list = document.getElementById('ownerFecList');
     if (list) {
       list.innerHTML = slice.map(function (d) {
+        var meta = fecContributionMetaHtml(d);
         return '<article class="owner-fec-card">' +
           '<div class="owner-fec-card-amt">' + formatContributionAmount(d.amount) +
           fecLinkHtml(d) +
           '</div>' +
-          '<div class="owner-fec-card-meta">' +
-          (d.donor_name ? '<div><strong>FEC contributor:</strong> ' + escapeHtml(d.donor_name) + '</div>' : '') +
-          (d.date ? '<div>Date: ' + formatDonationDate(d.date) + '</div>' : '') +
-          (d.committee ? '<div><strong>Committee:</strong> ' + escapeHtml(d.committee) + '</div>' : '') +
-          (d.candidate ? '<div><strong>Candidate:</strong> ' + escapeHtml(d.candidate) +
-            (d.office ? ' (' + escapeHtml(d.office) + ')' : '') +
-            (d.party ? ' — ' + escapeHtml(d.party) : '') + '</div>' : '') +
-          '</div></article>';
+          (meta ? '<div class="owner-fec-card-meta">' + meta + '</div>' : '') +
+          '</article>';
       }).join('');
     }
     var pag = document.getElementById('ownerFecPagination');

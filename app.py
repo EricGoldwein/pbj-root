@@ -7270,7 +7270,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-casemix-card-head {{ margin-bottom: 0.35rem; }}
 .pbj-casemix-section-header {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; }}
 .pbj-casemix-section-title {{ margin: 0; flex: 1 1 auto; min-width: 0; font-size: 1.35em; font-weight: 700; color: #818cf8; letter-spacing: 0.02em; line-height: 1.25; }}
-.pbj-casemix-card-body {{ display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; }}
+.pbj-casemix-card-body {{ display: flex; flex-direction: column; gap: 0.65rem; width: 100%; min-width: 0; }}
 .pbj-casemix-summary {{ width: 100%; max-width: 100%; min-width: 0; }}
 .pbj-casemix-card-eyebrow {{ flex-shrink: 0; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #94a3b8; line-height: 1.15; }}
 .pbj-casemix-interpret {{ margin: 0.22rem 0 0; font-size: 0.6rem; line-height: 1.32; color: rgba(203, 213, 225, 0.88); font-weight: 400; }}
@@ -7881,7 +7881,7 @@ button.pbj-casemix-cmi-trigger .v {{ font-weight: 700; color: #f8fafc; }}
 .pbj-casemix-bar-legend-gap {{ font-weight: 600; color: rgba(212, 212, 216, 0.95); }}
 .pbj-casemix-flag-line {{ margin: 0; font-size: 0.6rem; font-weight: 500; color: rgba(252, 165, 165, 0.92); line-height: 1.32; }}
 .pbj-casemix-caveat {{ margin: 0.18rem 0 0 0; font-size: 0.54rem; line-height: 1.28; color: rgba(113, 113, 122, 0.98); font-weight: 400; }}
-.pbj-casemix-caveat-foot {{ margin: 0.35rem 0 0; font-size: 0.54rem; line-height: 1.32; color: rgba(113, 113, 122, 0.98); font-weight: 400; }}
+.pbj-casemix-caveat-foot {{ margin: 0; padding: 0; font-size: 0.54rem; line-height: 1.28; color: rgba(113, 113, 122, 0.98); font-weight: 400; }}
 .pbj-casemix-interpret--breakdown {{ margin: 0.28rem 0 0.12rem; }}
 .pbj-casemix-details:not([open]) .pbj-casemix-interpret--breakdown {{ display: none !important; }}
 .pbj-casemix-metric-head-block {{ display: flex; flex-direction: column; gap: 0.02rem; min-width: 0; }}
@@ -17624,10 +17624,23 @@ def _is_blocked_public_filename(path_value: str) -> bool:
         return False
     return base in _BLOCKED_PUBLIC_FILENAMES
 
+def _is_cms_owner_profile_path(path: str) -> bool:
+    """Public CMS ownership profile at /owners/<9–11 digit PAC> (CT/NY launch)."""
+    p = (path or '').rstrip('/')
+    if not p.startswith('/owners/'):
+        return False
+    segment = p.split('/owners/', 1)[-1]
+    return segment.isdigit() and 9 <= len(segment) <= 11
+
+
 def _path_should_send_noindex() -> bool:
     """Routes that must not appear in search indexes (API, JSON, premium, auth)."""
     path = (request.path or '').lower()
     if path.endswith('.json'):
+        return True
+    if _is_cms_owner_profile_path(path):
+        return False
+    if path in ('/owners', '/owners/'):
         return True
     noindex_prefixes = (
         '/api/',
@@ -17637,7 +17650,9 @@ def _path_should_send_noindex() -> bool:
         '/logout',
         '/admin',
         '/test/',
-        '/owners/',
+        '/owners/api/',
+        '/owners/_dev/',
+        '/owners-test/',
         '/owner/',
         '/ownership/',
         '/report_builder',

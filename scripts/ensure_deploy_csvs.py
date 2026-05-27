@@ -142,6 +142,9 @@ def _check_provider_combined() -> None:
 
 def main() -> int:
     os.chdir(APP_ROOT)
+    import time as _time
+
+    t_main = _time.perf_counter()
     argv = set(sys.argv[1:])
     quick = '--quick' in argv
     force_full = (
@@ -149,8 +152,10 @@ def main() -> int:
         or (os.environ.get('RUN_DEPLOY_CSV_CHECK') or '').strip().lower() in ('1', 'true', 'yes', 'on')
     )
     verify_rows = force_full or not quick
-    _log(f'ensure_deploy_csvs: start verify_rows={verify_rows}')
+    _log(f'ensure_deploy_csvs: begin verify_rows={verify_rows} quick={quick}')
+    t_fac = _time.perf_counter()
     _gunzip_facility_metrics(verify_rows=verify_rows)
+    _log(f'ensure_deploy_csvs: facility step elapsed_s={_time.perf_counter() - t_fac:.2f}')
     norm = _newest_provider_norm_rel()
     if not norm:
         _log('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv')
@@ -168,7 +173,7 @@ def main() -> int:
         rc = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
         if rc != 0:
             _log('ensure_deploy_csvs: WARN provider index build failed (cold path will use CSV streams)')
-    _log('ensure_deploy_csvs: done')
+    _log(f'ensure_deploy_csvs: done total_elapsed_s={_time.perf_counter() - t_main:.2f}')
     return 0
 
 

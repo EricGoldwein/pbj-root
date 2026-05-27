@@ -5,14 +5,17 @@ services:
     runtime: python
     # Skip LFS smudge on clone (saves LFS bandwidth). Real CSVs: scripts/ensure_deploy_csvs.py
     buildCommand: pip install -r requirements.txt && PBJ_SKIP_BUILD_PROVIDER_INDEXES=1 python scripts/ensure_deploy_csvs.py --quick && python scripts/build_state_page_aggregates.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && python scripts/build_snf_owners_index.py && python scripts/build_snf_owners_ccn_index.py && python scripts/validate_ownership_linkage.py && python scripts/build_owners_database.py && cd pbj-wrapped && npm install && npm run build
-    # CSV materialization runs at build; skip 520k-row verify on every restart (RUN_DEPLOY_CSV_CHECK=1 to enable).
-    startCommand: gunicorn app:app -c gunicorn_config.py --bind 0.0.0.0:10000
+    # CSV/index work runs in buildCommand only. Start must bind :10000 quickly for /health (see scripts/render_start.py).
+    startCommand: python scripts/render_start.py
     healthCheckPath: /health
     envVars:
       - key: GIT_LFS_SKIP_SMUDGE
         value: "1"
       - key: PORT
         value: "10000"
+      # Build already ran ensure_deploy_csvs; do not block Gunicorn on restart (Dashboard must not prepend ensure_deploy).
+      - key: PBJ_SKIP_START_CSV_ENSURE
+        value: "1"
       # CT + NY facility pages only — not /pbj-ai-support, not other states
       - key: PBJ_AI_SUPPORT
         value: "dashboards"

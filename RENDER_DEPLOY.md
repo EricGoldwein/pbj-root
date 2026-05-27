@@ -72,10 +72,26 @@ Current settings (publish directory `.`, empty build command) publish the **enti
 
 ## Health check
 
-- Web service: **Health Check Path** = `/health`
-- Start command: `gunicorn app:app -c gunicorn_config.py --bind 0.0.0.0:10000` (see `render.yaml` / `Procfile`)
+- Web service: **Health Check Path** = `/health` (HTTP GET; must return 2xx).
+- Start command: `python scripts/render_start.py` (see `render.yaml` / `Procfile`) — **not** `ensure_deploy_csvs.py && gunicorn …`.
+- `/health` is side-effect free (no pandas, no provider indexes). Render probes as soon as Gunicorn binds.
 
-## "No open HTTP ports"
+### Startup timing (Render logs)
 
-- **render.yaml** binds `0.0.0.0:$PORT` (10000).
-- Dashboard → **Health Check** → Path `/health` → Redeploy.
+After deploy, grep logs for:
+
+| Marker | Meaning |
+|--------|---------|
+| `[render_start] start command begins` | Instance start |
+| `[render_start] ensure_deploy_csvs skipped` | Expected when `PBJ_SKIP_START_CSV_ENSURE=1` and build artifacts exist |
+| `[render_start] gunicorn launch` | About to exec Gunicorn |
+| `[gunicorn] Listening on 0.0.0.0:10000 at …` | Port open — health checks can succeed |
+| `ensure_deploy_csvs: begin` in **build** logs only | CSV materialization at deploy build |
+
+If you see `ensure_deploy_csvs` for **20+ seconds before** any `[gunicorn] Listening` line, the **Dashboard Start Command** still prepends CSV work — change it to match `render.yaml`.
+
+## "No open HTTP ports" / connection refused on :10000
+
+- **Cause:** Gunicorn not listening yet (often `ensure_deploy_csvs` in start command blocks exec).
+- **Fix:** Dashboard → **Settings** → **Start Command** = `python scripts/render_start.py` (or sync Blueprint).
+- **render.yaml** binds `0.0.0.0:$PORT` via Gunicorn; **Health Check Path** = `/health`.

@@ -8,11 +8,13 @@ GitHub LFS bandwidth blocks Render from smudging large files at clone. **Full lo
 | `provider_info_combined_latest.csv` | ~10 MB | Used as-is |
 | `provider_info/ProviderInfoNorm_*.csv` | varies | Used as-is (newest wins in app) |
 
-Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` **and** `Procfile` start). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress.
+Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` `buildCommand`, **not** in start). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress (full verify on build; use `--quick` only when CSV already present).
+
+**Start command:** `python scripts/render_start.py` → Gunicorn on `0.0.0.0:$PORT` immediately. With `PBJ_SKIP_START_CSV_ENSURE=1`, restart does not re-run CSV work. **Do not** set Dashboard start to `ensure_deploy_csvs && gunicorn` — health checks get `connection refused` until Gunicorn binds (~20–30s).
 
 **State pages (`/state/*`):** `python scripts/build_state_page_aggregates.py` runs after CSV materialization and writes `data/state_page_aggregates.json.gz` (facility counts, case-mix medians, rural shares, high-risk buckets for the canonical quarter). At runtime the app hydrates in-memory caches from that file; if missing or stale (CSV mtime changed), it falls back to the same compute paths as before.
 
-If provider pages return 404 instantly, Render likely skipped the build script — confirm **Start Command** includes `python scripts/ensure_deploy_csvs.py &&` (see `Procfile`).
+If provider pages return 404 instantly, Render likely skipped the build script — confirm **Build Command** starts with `python scripts/ensure_deploy_csvs.py` (see `render.yaml`).
 
 ## Ownership + provider info (structural)
 

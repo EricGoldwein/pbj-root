@@ -41,7 +41,10 @@ graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Rende
 
 def when_ready(server):
     """Log so Render/ops see that we're listening."""
-    sys.stderr.write(f"[gunicorn] Listening on {bind}\n")
+    import time
+
+    ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    sys.stderr.write(f"[gunicorn] Listening on {bind} at {ts}\n")
     sys.stderr.write(
         f"Owner donor dashboard loads on first /owners visit; / and /health respond immediately "
         f"({workers} x {worker_class}, threads={threads}).\n"

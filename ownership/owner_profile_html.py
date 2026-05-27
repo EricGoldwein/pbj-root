@@ -337,7 +337,7 @@ def _internal_preview_banner_html(profile: dict[str, Any]) -> str:
     return (
         '<div class="owner-scope-note owner-scope-note--preview" role="status">'
         "<strong>Internal preview.</strong> This profile is visible for review only "
-        f"({label}{extra}) and is not part of the public Connecticut ownership launch."
+        f"({label}{extra}) and is not part of the public CT/NY ownership launch."
         "</div>"
     )
 

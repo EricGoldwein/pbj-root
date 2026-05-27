@@ -13,6 +13,6 @@ services:
         value: "1"
       - key: PORT
         value: "10000"
-      # Connecticut facility pages only — not /pbj-ai-support, not other states
+      # CT + NY facility pages only — not /pbj-ai-support, not other states
       - key: PBJ_AI_SUPPORT
         value: "dashboards"

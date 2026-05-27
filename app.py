@@ -234,13 +234,13 @@ except ImportError:
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-# CMS ownership hub at /owners/ — off until launch; /owners/<10-digit PAC> CT profiles stay public.
+# CMS ownership hub at /owners/ — off until launch; /owners/<10-digit PAC> CT+NY profiles stay public.
 _OWNERS_CMS_HUB_PUBLIC = False
 # Local (non-Render): always rebuild provider HTML so case-mix / chart edits show on refresh.
 if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
     if (os.environ.get('PBJ_SKIP_PROVIDER_PAGE_CACHE') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
         os.environ.setdefault('PBJ_SKIP_PROVIDER_PAGE_CACHE', '1')
-    # Local: preview ownership/CHOW blocks for all states (production stays CT-only unless env set).
+    # Local: preview ownership/CHOW blocks for all states (production stays CT+NY unless env set).
     if (os.environ.get('PBJ_OWNERSHIP_PREVIEW') or '').strip().lower() not in ('0', 'false', 'no', 'off'):
         os.environ.setdefault('PBJ_OWNERSHIP_PREVIEW', '1')
 else:
@@ -11512,9 +11512,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             provider_info_row=provider_info_row or pi_header,
             state_code=state_code or '',
         )
+        from ownership.beta_gate import ownership_public_enabled_for_state
+
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
-            if (state_code or '').strip().upper() == 'CT'
+            if ownership_public_enabled_for_state(state_code)
             else ''
         )
     except Exception as _ownership_block_err:
@@ -15341,9 +15343,11 @@ def _provider_info_row_for_ccn(prov: str) -> dict:
 
 
 def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
-    """Reject stale provider-page cache missing CT ownership block after deploy."""
+    """Reject stale provider-page cache missing ownership block for public-launch states."""
+    from ownership.beta_gate import ownership_public_enabled_for_state
+
     st = str((row or {}).get('state') or '').strip().upper()[:2]
-    if st == 'CT' and 'pbj-details-ownership' not in (html or ''):
+    if ownership_public_enabled_for_state(st) and 'pbj-details-ownership' not in (html or ''):
         return False
     return True
 

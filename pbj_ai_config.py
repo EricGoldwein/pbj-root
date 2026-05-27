@@ -19,7 +19,14 @@ import re
 
 _VALID = frozenset({'off', 'dashboards', 'page', 'all'})
 
-_CONNECTICUT_ALIASES = frozenset({'ct', 'connecticut'})
+_PUBLIC_AI_LAUNCH_STATES = frozenset({'CT', 'NY'})
+
+_STATE_NAME_ALIASES: dict[str, str] = {
+    'ct': 'CT',
+    'connecticut': 'CT',
+    'ny': 'NY',
+    'new york': 'NY',
+}
 
 
 def pbj_ai_support_mode() -> str:
@@ -79,9 +86,18 @@ def normalize_state_code_for_ai(
         if re.fullmatch(r'[A-Z]{2}', upper):
             return upper
         lower = token.lower().replace('-', ' ').strip()
-        if lower in _CONNECTICUT_ALIASES:
-            return 'CT'
+        if lower in _STATE_NAME_ALIASES:
+            return _STATE_NAME_ALIASES[lower]
     return ''
+
+
+def is_public_ai_launch_state_facility(
+    *,
+    state_code: str | None = None,
+    state: str | None = None,
+    state_label: str | None = None,
+) -> bool:
+    return normalize_state_code_for_ai(state_code, state=state, state_label=state_label) in _PUBLIC_AI_LAUNCH_STATES
 
 
 def is_connecticut_facility(
@@ -99,10 +115,12 @@ def should_show_public_ai_tools(
     state: str | None = None,
     state_label: str | None = None,
 ) -> bool:
-    """Facility AI buttons, CSV handoff, and Claude/ChatGPT launchers (CT preview only)."""
+    """Facility AI buttons, CSV handoff, and Claude/ChatGPT launchers (CT + NY public launch)."""
     if not pbj_ai_dashboards_enabled():
         return False
-    return is_connecticut_facility(state_code=state_code, state=state, state_label=state_label)
+    return is_public_ai_launch_state_facility(
+        state_code=state_code, state=state, state_label=state_label
+    )
 
 
 def allowed_public_audience_modes() -> tuple[str, ...]:

@@ -1555,6 +1555,17 @@ def owner_profile_js():
     )
 
 
+@app.route('/owner-fec-contributions.js')
+def owner_fec_contributions_js():
+    return _static_cache_headers(
+        send_from_directory(
+            os.path.join(APP_ROOT, 'ownership'),
+            'owner-fec-contributions.js',
+            mimetype='application/javascript',
+        )
+    )
+
+
 @app.route('/owners-hub.js')
 def owners_hub_js():
     if not _OWNERS_CMS_HUB_PUBLIC:
@@ -4995,6 +5006,8 @@ def _static_asset_version(filename: str) -> int:
         path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.css')
     elif filename == 'owner-profile.js':
         path = os.path.join(APP_ROOT, 'ownership', 'owner-profile.js')
+    elif filename == 'owner-fec-contributions.js':
+        path = os.path.join(APP_ROOT, 'ownership', 'owner-fec-contributions.js')
     elif filename == 'owners-hub.js':
         path = os.path.join(APP_ROOT, 'ownership', 'owners-hub.js')
     else:
@@ -5250,6 +5263,7 @@ def generate_owner_profile_html(profile):
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
             f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
+            f'<script src="/owner-fec-contributions.js?v={_static_asset_version("owner-fec-contributions.js")}" defer></script>'
         ),
     )
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'

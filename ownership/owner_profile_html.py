@@ -15,6 +15,7 @@ from typing import Any
 import re
 
 from ownership.beta_gate import profile_has_public_state
+from ownership.owner_fec_section import render_owner_fec_contributions_section
 from utils.seo_utils import owner_page_seo_from_profile
 from ownership.display_format import (
     cms_rating_stars_html,
@@ -215,10 +216,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {facilities_html}
       {associates_html}
       {owner_section_html}
-      <h2 class="section-header">Related on PBJ320</h2>
-      <ul class="chow-future-list">
-        <li><a href="/owner">Political contributions search</a> (FEC)</li>
-      </ul>
+      {render_owner_fec_contributions_section(profile)}
       <p class="pbj-meta-line" style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;">
         <strong>PACs:</strong> {en_label} = facility enrollment (typical buyer/seller in ownership changes).
         {ow_label} = reported owner or control party.

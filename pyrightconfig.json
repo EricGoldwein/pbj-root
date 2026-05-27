@@ -1,1 +1,6 @@
-{"include":["."],"extraPaths":["."],"exclude":["app.py","donor/owner_donor_dashboard.py"]}
+{
+  "include": ["."],
+  "extraPaths": ["."],
+  "exclude": ["app.py", "donor/owner_donor_dashboard.py"],
+  "ignore": ["donor/owner_donor_dashboard.py"]
+}

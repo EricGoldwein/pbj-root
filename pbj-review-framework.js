@@ -89,6 +89,11 @@
     return lines.join('\n');
   }
 
+  function sectionDisplayTitle(title, mode) {
+    var overrides = (mode && mode.sectionTitleOverrides) || {};
+    return overrides[title] || title;
+  }
+
   function formatTierSections(tierKey, mode, audience) {
     var aud = audience || DEFAULT_AUDIENCE;
     var legacy = (mode && mode.sections) || [];
@@ -110,8 +115,10 @@
     sectionList.forEach(function (pair) {
       var title = pair[0];
       var instruction = pair[1];
-      parts.push('## ' + title);
+      var displayTitle = sectionDisplayTitle(title, mode);
+      parts.push('## ' + displayTitle);
       if (instructions[title]) parts.push(instructions[title]);
+      else if (instructions[displayTitle]) parts.push(instructions[displayTitle]);
       else if (instruction) parts.push(instruction);
       parts.push('');
     });

@@ -123,11 +123,12 @@ def query_donations_by_name(
         
         # Add optional filters - FEC API requires "individual" or "committee" (not "IND"/"ORG")
         if contributor_type:
-            ct = contributor_type.upper()
-            if ct in ("IND", "INDIVIDUAL"):
+            # Map our values to FEC API values
+            if contributor_type.upper() == "IND":
                 params["contributor_type"] = "individual"
-            elif ct == "ORG":
-                # Organizations are searched by name only (no contributor_type filter)
+            elif contributor_type.upper() == "ORG":
+                # For organizations, don't use contributor_type - it's for individuals/committees
+                # Organizations are searched by name only
                 pass
         
         if min_date:
@@ -286,13 +287,6 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
     Returns:
         Normalized dictionary with standard field names
     """
-    committee = record.get("committee")
-    if not isinstance(committee, dict):
-        committee = {}
-    candidate = record.get("candidate")
-    if not isinstance(candidate, dict):
-        candidate = {}
-    committee_id = (record.get("committee_id") or committee.get("committee_id") or "").strip()
     return {
         "donor_name": record.get("contributor_name", ""),
         "donor_type": record.get("contributor_type", ""),
@@ -303,13 +297,13 @@ def normalize_fec_donation(record: Dict[str, Any]) -> Dict[str, Any]:
         "occupation": record.get("contributor_occupation", ""),
         "donation_amount": record.get("contribution_receipt_amount", 0),
         "donation_date": record.get("contribution_receipt_date", ""),
-        "committee_id": committee_id,
-        "committee_name": committee.get("name", "") or record.get("committee_name", ""),
-        "committee_type": committee.get("committee_type", ""),
-        "candidate_id": candidate.get("candidate_id", ""),
-        "candidate_name": candidate.get("name", ""),
-        "candidate_office": candidate.get("office", ""),
-        "candidate_party": candidate.get("party", ""),
+        "committee_id": record.get("committee", {}).get("committee_id", ""),
+        "committee_name": record.get("committee", {}).get("name", ""),
+        "committee_type": record.get("committee", {}).get("committee_type", ""),
+        "candidate_id": record.get("candidate", {}).get("candidate_id", ""),
+        "candidate_name": record.get("candidate", {}).get("name", ""),
+        "candidate_office": record.get("candidate", {}).get("office", ""),
+        "candidate_party": record.get("candidate", {}).get("party", ""),
         "fec_record_id": record.get("sub_id", ""),
         "memo_code": record.get("memo_code", ""),
         "memo_text": record.get("memo_text", ""),

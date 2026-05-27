@@ -8432,10 +8432,10 @@ def render_custom_report_cta(context, page_url, **kwargs):
     header_text = ""
     contact_subject_type = ''
     sub_text_desktop = (
-        '<strong>Request custom analysis</strong>'
-        '<span class="custom-report-cta-sub"> — litigation, investigations, and policy work.</span>'
+        '<strong>Request PBJ320 Premium Dashboard</strong>'
+        '<span class="custom-report-cta-sub"> - Daily PBJ, employee rosters, and advanced staffing analysis</span>'
     )
-    sub_text_mobile = "Request custom analysis"
+    sub_text_mobile = "Request PBJ320 Premium Dashboard"
     footer_text = ""
 
     def mailto(subject, body):
@@ -8448,11 +8448,11 @@ def render_custom_report_cta(context, page_url, **kwargs):
         ccn = kwargs.get('ccn', '') or ''
         contact_subject_type = 'premium_dashboard_request'
         sub_text_desktop = (
-            '<strong>Request Premium Dashboard</strong>'
-            '<span class="custom-report-cta-sub"> — Daily PBJ patterns, employee rosters, and advanced staffing analysis.'
+            '<strong>Request PBJ320 Premium Dashboard</strong>'
+            '<span class="custom-report-cta-sub"> - Daily PBJ, employee rosters, and advanced staffing analysis</span>'
         )
         sub_text_mobile = (
-            "Request Premium Dashboard"
+            "Request PBJ320 Premium Dashboard"
         )
         contact_topic = f"I'm interested in PBJ320's premium dashboard for {facility_name} ({ccn})"
         subj_att = f"Premium Dashboard Request – {facility_name} (CCN {ccn})"
@@ -10233,9 +10233,9 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var pctHtml = ratio < 0.9 ? '<span class="pct-em pct--low">' + pct + '%</span>' : ('<span class="pct-em">' + pct + '%</span>');
       var compact = typeof window !== 'undefined' && window.innerWidth <= 768;
       if (compact) {
-        line.innerHTML = '<span class="tag">Total ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' / ' + hprd(caseMix) + ' CMS)</span>';
+        line.innerHTML = '<span class="tag">Case-Mix Ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
       } else {
-        line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' reported, ' + hprd(caseMix) + ' CMS case-mix)</span>';
+        line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + hprd(caseMix) + ' CMS case-mix)</span>';
       }
     } else {
       line.innerHTML = '<span class="tag">Total</span><span class="primary">' + hprd(actual) + ' HPRD reported</span>';
@@ -10277,7 +10277,12 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var pct2 = Math.round(100 * Number(actual) / Number(caseMix));
       var pctCls = pct2 < 90 ? 'pct-em pct--low' : 'pct-em';
       var hprdPair = ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
-      lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>' + (compact ? hprdPair : '');
+      if (compact) {
+        var roleShort = (label === 'Aide') ? 'Nurse Aide' : roleLbl;
+        lab.innerHTML = roleShort + ' CM ratio: <span class="' + pctCls + '">' + pct2 + '%</span>' + hprdPair;
+      } else {
+        lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>';
+      }
     } else {
       lab.textContent = roleLbl + ' staffing' + (compact ? ' (' + hprd(actual) + ' HPRD reported)' : '');
     }
@@ -11318,7 +11323,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if overall_star_icons != '—' else ''
     )
     staffing_badge_html = (
-        f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">Staffing: '
+        f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">'
+        f'<span class="pbj-badge-mobile-hide">Staffing:</span>'
+        f'<span class="pbj-badge-mobile-only">Staff:</span> '
         f'{_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
         if staffing_star_icons != '—' else ''
     )
@@ -14177,7 +14184,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         seo_description_parts.append(f"Ranked #{rank_total_nurse} of {total_states} states.")
     if _macpac_info is not None and _macpac_info.get('min_display_str'):
         seo_description_parts.append(f"State minimum: {_macpac_info['min_display_str']} HPRD.")
-    seo_description_parts.append("CMS Payroll-Based Journal (PBJ) data.")
+    seo_description_parts.append("Nursing home staffing trends over time from CMS Payroll-Based Journal (PBJ) public data.")
     seo_description = " ".join(seo_description_parts)
     
     # Canonical slug for URL (state page has its own URL, not under /pbjpedia)

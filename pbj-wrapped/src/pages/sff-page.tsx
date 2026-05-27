@@ -1422,7 +1422,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/medicare/health-safety-standards/certification-compliance/special-focus-facility-program'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
+              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/Medicare/Provider-Enrollment-and-Certification/SurveyCertificationGenInfo/Policy-and-Memos-to-States-and-Regions-Items/CMS1215978'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">

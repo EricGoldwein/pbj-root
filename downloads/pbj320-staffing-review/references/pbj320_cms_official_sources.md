@@ -4,7 +4,7 @@ Anchors reviewers and counsel to **primary CMS** URLs. PDFs update; verify the e
 
 ## Payroll-Based Journal (PBJ)
 
-- **CMS PBJ landing** (datasets, specs, FAQs): https://www.cms.gov/data-research/statistics-trends-and-reports/payroll-based-journal  
+- **CMS PBJ landing** (datasets, specs, FAQs): https://www.cms.gov/medicare/quality/nursing-home-improvement/staffing-data-submission  
 - **Daily staffing** dataset (catalog entry; API paths change): https://data.cms.gov/quality-of-care/payroll-based-journal-daily-nurse-staffing  
 
 Use for: what PBJ collects, exclusions, linkage to census/quarters, methodological caveats CMS publishes alongside the data.

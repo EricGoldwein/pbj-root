@@ -147,6 +147,34 @@ PBJ_REVIEW_CORE_LIMITATIONS = (
     'without further records, or whether a facility violated a legal standard.'
 )
 
+PBJ_COMPARATIVE_RANKING_RULE = (
+    '**Comparative ranking check:** Before any superlative or tail claim ("lowest," "highest," "in the entire '
+    'dataset," "all quarters," "never," "historical floor"), verify against the **supplied quarterly rows**. If a '
+    'prior quarter shows a lower or higher value, do not use the superlative — name the period and values instead '
+    '(e.g. "0.52 RN HPRD in Q4 2025 — near the facility\'s recent floor; prior low was 0.41 in Q1–Q2 2024"). Never '
+    'claim both "lowest in the dataset" and a lower prior value in the same memo.'
+)
+
+PBJ_JOURNALIST_OPENING_SECTION_INSTRUCTION = (
+    '**Heading:** **Main staffing signal** (or **Summary**) — never **Provisional bottom line**.\n'
+    'Write **4 short sequential sentences** (~150 words max) readable to a non-technical reporter:\n'
+    '1. One plain-English sentence naming the main staffing signal (no thesis stack).\n'
+    '2. One sentence with the key numbers — at most **3** core metrics (e.g. total nurse HPRD, state percentile '
+    'or benchmark gap, census if relevant).\n'
+    '3. One sentence explaining any census/denominator caveat in normal language (e.g. "average daily census was '
+    '~132, so the low HPRD is not easily explained by unusually low census") — not "denominator effect" or '
+    '"confounding factor" unless you immediately define it in plain English.\n'
+    '4. One sentence previewing the longer trend (defer trough/recovery detail to **Key staffing signals**).\n'
+    'Separate **finding** (reported numbers), **interpretation** (what the pattern may suggest), **caveat** (limits '
+    'on that claim), and **next verification** (defer full checklist to later sections). Use **reported** when '
+    'referring to PBJ staffing data.\n'
+    'Do **not** cram percentile + benchmark + census + pandemic logic + multi-year trend + renewed slide into one '
+    'paragraph. Do **not** use compressed analytical phrases such as "denominator effect," "confounding factor," or '
+    '"structural decline" in this opening unless immediately translated.\n'
+    'Keep the rest of the memo full-length and detailed; only this opening should read like a newsroom briefing '
+    'lead-in, not a legal memo proving a thesis.'
+)
+
 PBJ_REVIEW_CORE_CHECKS = [
     'Run the analytic gate before interpreting: date range/sample size, mean vs median, census stability, comparison group, outliers, data quality, free vs premium source level.',
     'Fulfill DATA VISUAL rule (Presentation block): strongest-supported finding clarified by one concise exhibit—or chart-ready Markdown—or explicit omission with reason.',
@@ -155,6 +183,7 @@ PBJ_REVIEW_CORE_CHECKS = [
     'State averages may mask wide within-state variation — note peer-group limits when relevant.',
     'If daily aide or CNA data is available, assess whether low aide staffing is isolated or repeated across the quarter.',
     'Treat red flags as screening signals, not findings.',
+    PBJ_COMPARATIVE_RANKING_RULE,
 ]
 
 PBJ_REVIEW_CORE_RULES = """Use cautious, evidence-based language. Do not assume neglect, misconduct, negligence, causation, or legal violations. Do not invent facts not shown in the material. If something is unclear, say what additional information would be needed.
@@ -666,8 +695,9 @@ PBJ_AUDIENCE_MODE_INSTRUCTIONS: dict[str, str] = {
         'Tone: practical, plain English, non-sensational—no legal conclusions or journalist-style publication framing.'
     ),
     'journalist': (
-        'Newsroom research memo: newsworthiness, defensible comparison context, embedded caveats, and the next '
-        'verification checks (rules, inspection history, Care Compare, facility response)—not what reporters must do before publishing.'
+        'Newsroom research memo: sequential plain-English opening, defensible comparison context, embedded caveats, '
+        'and the next verification checks (rules, inspection history, Care Compare, facility response)—not what '
+        'reporters must do before publishing.'
     ),
     'attorney': (
         'Litigation-support screening memo: evidentiary use, timing limits, records worth requesting, and what PBJ '
@@ -775,8 +805,9 @@ PBJ_LENS_QUICK_TAKEAWAY: dict[str, str] = {
         'what questions to ask the facility, and what this page cannot tell me.'
     ),
     'journalist': (
-        'Give a quick newsroom research memo. Identify the strongest defensible lead, supporting signals, '
-        'the next verification checks, and what not to claim. Memo voice—no "reporters should" or "before publishing" phrasing.'
+        'Give a quick newsroom research memo. Open with a plain-English staffing signal and key numbers before '
+        'interpretation; list supporting signals, the next verification checks, and what not to claim. '
+        'Memo voice—no "reporters should" or "before publishing" phrasing.'
     ),
     'attorney': (
         'Give a quick litigation-support screening memo. Identify staffing signals worth reviewing, useful records to request, '
@@ -897,7 +928,17 @@ PBJ_REVIEW_MODES: dict[str, dict[str, Any]] = {
                 'Avoid "understaffed" unless the comparison is explicit.',
             ),
         ],
-        'section_instructions': {},
+        'section_title_overrides': {
+            'Provisional bottom line': 'Main staffing signal',
+        },
+        'section_instructions': {
+            'Provisional bottom line': PBJ_JOURNALIST_OPENING_SECTION_INSTRUCTION,
+            'What the data shows': (
+                'Directly supported conclusions only. Use **reported** for PBJ staffing figures. '
+                'Keep caveats close to the claim they qualify. '
+                + PBJ_COMPARATIVE_RANKING_RULE
+            ),
+        },
         'quick_modifier': PBJ_AUDIENCE_MODE_INSTRUCTIONS['journalist'],
     },
     'advocate': {
@@ -1282,6 +1323,11 @@ def format_context_block(config: ReviewConfig) -> str:
     return '\n'.join(lines)
 
 
+def _section_display_title(title: str, mode: dict[str, Any]) -> str:
+    overrides = mode.get('section_title_overrides') or {}
+    return overrides.get(title, title)
+
+
 def _format_advanced_sections(mode: dict[str, Any], audience: str) -> str:
     tier = mode.get('output_tier') or output_tier_for_audience(audience)
     legacy = mode.get('sections') or []
@@ -1302,9 +1348,14 @@ def _format_advanced_sections(mode: dict[str, Any], audience: str) -> str:
     else:
         section_list.extend(extra)
     parts = [f'Format your response using the {tier} output tier:', '']
+    instructions = mode.get('section_instructions') or {}
     for title, instruction in section_list:
-        parts.append(f'## {title}')
-        if instruction:
+        display_title = _section_display_title(title, mode)
+        parts.append(f'## {display_title}')
+        override = instructions.get(title) or instructions.get(display_title)
+        if override:
+            parts.append(override)
+        elif instruction:
             parts.append(instruction)
         parts.append('')
     parts.append(
@@ -1745,8 +1796,9 @@ def _format_tier_sections(tier: str, mode: dict[str, Any], audience: str) -> str
     parts = [f'Format your response using the {tier} output tier:', '']
     instructions = mode.get('section_instructions') or {}
     for title, instruction in section_list:
-        parts.append(f'## {title}')
-        override = instructions.get(title)
+        display_title = _section_display_title(title, mode)
+        parts.append(f'## {display_title}')
+        override = instructions.get(title) or instructions.get(display_title)
         if override:
             parts.append(override)
         elif instruction:
@@ -1851,6 +1903,7 @@ def framework_export_for_js() -> dict[str, Any]:
                 'prependExtraSections': bool(v.get('prepend_extra_sections')),
                 'quickModifier': v.get('quick_modifier', ''),
                 'sectionInstructions': v.get('section_instructions', {}),
+                'sectionTitleOverrides': v.get('section_title_overrides', {}),
                 'legacyOutputFormat': (v.get('legacy_output_format') or '').strip(),
                 'legacyPresentation': (v.get('legacy_presentation') or '').strip(),
             }

@@ -279,7 +279,7 @@ def provider_page_meta_description(
         where = 'the United States'
     return (
         f'CMS Payroll-Based Journal staffing data for {name} in {where}, including nurse staffing, '
-        'RN staffing, aide staffing, and quarterly trends.'
+        'RN staffing, aide staffing, and facility staffing trends by quarter since 2017.'
     )
 
 

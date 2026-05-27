@@ -6,10 +6,12 @@ This speeds up facility matching in the dashboard.
 import pandas as pd
 from pathlib import Path
 import sys
-import re
 
 BASE_DIR = Path(__file__).parent.parent
 
+# Paths
+PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Dec2025.csv"
+OWNERSHIP_FILE = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"
 OUTPUT_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"
 
 def normalize_name(name):
@@ -18,64 +20,19 @@ def normalize_name(name):
         return ""
     return str(name).upper().strip()
 
-
-def _read_csv_safe(path: Path) -> pd.DataFrame:
-    for enc in ("utf-8", "utf-8-sig", "latin-1", "cp1252"):
-        try:
-            return pd.read_csv(path, dtype=str, low_memory=False, encoding=enc)
-        except UnicodeDecodeError:
-            continue
-    return pd.read_csv(path, dtype=str, low_memory=False)
-
-
-def _latest_provider_info_path():
-    provider_dir = BASE_DIR / "provider_info"
-    files = list(provider_dir.glob("NH_ProviderInfo_*.csv"))
-    if not files:
-        return None
-    return max(files, key=lambda p: p.stat().st_mtime)
-
-
-def _latest_ownership_path():
-    ownership_dir = BASE_DIR / "ownership"
-    files = list(ownership_dir.glob("SNF_All_Owners*.csv"))
-    if not files:
-        return None
-    # Prefer latest date parsed from filename when available.
-    scored = []
-    for p in files:
-        m = re.search(r'(\d{4})[._-](\d{1,2})(?:[._-](\d{1,2}))?', p.stem)
-        if m:
-            scored.append((int(m.group(1)), int(m.group(2)), p))
-            continue
-        m2 = re.search(r'_(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[_-](\d{4})', p.stem, re.IGNORECASE)
-        if m2:
-            month_map = {
-                "jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6,
-                "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12,
-            }
-            scored.append((int(m2.group(2)), month_map[m2.group(1).lower()], p))
-    if scored:
-        scored.sort(reverse=True)
-        return scored[0][2]
-    return max(files, key=lambda p: p.stat().st_mtime)
-
 def create_facility_mapping():
     """Create mapping between Legal Business Name and ORGANIZATION NAME"""
     print("="*60)
     print("Creating Facility Name Mapping")
     print("="*60)
     
-    provider_info_latest = _latest_provider_info_path()
-    ownership_file = _latest_ownership_path()
-
     # Load provider info
-    if provider_info_latest is None or not provider_info_latest.exists():
-        print("❌ Provider info file not found in provider_info/")
+    if not PROVIDER_INFO_LATEST.exists():
+        print(f"❌ Provider info file not found: {PROVIDER_INFO_LATEST}")
         return False
     
-    print(f"Loading provider info: {provider_info_latest}")
-    provider_df = _read_csv_safe(provider_info_latest)
+    print(f"Loading provider info: {PROVIDER_INFO_LATEST}")
+    provider_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False)
     print(f"✓ Loaded {len(provider_df)} provider records")
     
     # Check for Legal Business Name column
@@ -85,12 +42,12 @@ def create_facility_mapping():
         return False
     
     # Load ownership file
-    if ownership_file is None or not ownership_file.exists():
-        print("❌ Ownership file not found in ownership/")
+    if not OWNERSHIP_FILE.exists():
+        print(f"❌ Ownership file not found: {OWNERSHIP_FILE}")
         return False
     
-    print(f"Loading ownership file: {ownership_file}")
-    ownership_df = _read_csv_safe(ownership_file)
+    print(f"Loading ownership file: {OWNERSHIP_FILE}")
+    ownership_df = pd.read_csv(OWNERSHIP_FILE, dtype=str, low_memory=False, nrows=None)
     print(f"✓ Loaded {len(ownership_df)} ownership records")
     
     # Extract unique ORGANIZATION NAME values

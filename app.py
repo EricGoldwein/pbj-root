@@ -5107,9 +5107,13 @@ def owners_dev_ping():
             py_lines = sum(1 for _ in f)
     legacy = (
         'Nursing Home Owner Political Donations</h1>' in body
-        or ('>All Owners</option>' in body and 'Search by Owner' not in body)
+        or ('>All Owners</option>' in body and 'Political Contributions' not in body)
     )
-    restored_may17 = 'class="navbar"' in body and 'Search by Owner' in body and 'page-title' in body
+    restored_may17 = (
+        'class="navbar"' in body
+        and 'Political Contributions' in body
+        and 'page-title' in body
+    )
     return jsonify({
         'fec_ui': 'legacy_broken' if legacy else ('may17_restored' if restored_may17 else 'unknown'),
         'template_path': tpl,

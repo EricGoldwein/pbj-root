@@ -334,9 +334,11 @@ def load_data():
 
 
 @app.route('/')
+@app.route('/test')
+@app.route('/test/')
 def index():
-    """Main dashboard page"""
-    return render_template('owner_donor_dashboard.html')
+    """FEC contributions search — canonical UI (not legacy owner_donor_dashboard.html)."""
+    return render_template('owner_donor_dashboard_test.html')
 
 
 @app.route('/api/autocomplete')

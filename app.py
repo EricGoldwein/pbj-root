@@ -1922,8 +1922,8 @@ def download_pbj_claude_skill_zip():
 # ---------------------------------------------------------------------------
 # Report page: same-origin JSON/CSV via GET /report?p=… (report.html relies on this)
 # ---------------------------------------------------------------------------
-# Pinned snapshot for GET /report?p=pi (report.html embed); path relative to app root.
-_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_04.csv')
+# GET /report?p=pi prefers newest ProviderInfoNorm_* with populated urban (see _preferred_provider_norm_snapshot_path).
+_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_05.csv')
 _HIGH_RISK_BY_STATE_CACHE_KEY = None
 _HIGH_RISK_BY_STATE_CACHE_VAL = None
 _HIGH_RISK_BY_STATE_CACHE_AT = 0.0
@@ -1942,10 +1942,13 @@ def _report_first_provider_snapshot_path():
 
 
 def _provider_paths_report_prefer_pinned():
-    """Paths for /report provider-derived JSON: pinned Norm snapshot first when present, then newest-first discovery."""
+    """Paths for /report provider-derived JSON: newest valid Norm snapshot first, then other snapshots."""
     out = []
+    preferred = _preferred_provider_norm_snapshot_path()
+    if preferred and os.path.isfile(preferred):
+        out.append(preferred)
     pinned = os.path.join(APP_ROOT, _REPORT_PINNED_PROVIDER_NORM_REL.replace('/', os.sep))
-    if os.path.isfile(pinned):
+    if os.path.isfile(pinned) and pinned not in out:
         out.append(pinned)
     for p in _provider_info_snapshot_paths_newest_first():
         if p not in out:
@@ -2431,7 +2434,7 @@ def _rollup_high_risk_states_to_regions(states_by_abbr):
 def _report_embed_provider_latest_csv():
     path = os.path.join(APP_ROOT, _REPORT_PINNED_PROVIDER_NORM_REL.replace('/', os.sep))
     if not os.path.isfile(path):
-        return jsonify({'error': 'Pinned provider snapshot missing: provider_info/ProviderInfoNorm_2026_04.csv'}), 404
+        return jsonify({'error': 'Provider snapshot missing: provider_info/ProviderInfoNorm_*.csv'}), 404
     return send_file(path, mimetype='text/csv', max_age=3600, download_name=os.path.basename(path))
 
 
@@ -5927,9 +5930,52 @@ def _provider_metrics_from_csv_row(row: dict) -> dict:
     }
 
 
+def _provider_snapshot_recency_key(path: str) -> tuple:
+    """Sort key: (year, month, prefer_norm) newest first."""
+    from pathlib import Path
+    from utils.date_utils import _parse_provider_filename
+
+    abs_p = path if os.path.isabs(path) else os.path.join(APP_ROOT, path.replace('/', os.sep))
+    parsed = _parse_provider_filename(Path(abs_p))
+    y, m = parsed if parsed else (0, 0)
+    prefer_norm = 1 if Path(abs_p).name.lower().startswith('providerinfonorm_') else 0
+    return (y, m, prefer_norm)
+
+
+def _preferred_provider_norm_snapshot_path() -> str | None:
+    """Newest ProviderInfoNorm_* CSV that has CMS urban/rural labels populated."""
+    provider_dir = os.path.join(APP_ROOT, 'provider_info')
+    try:
+        names = [
+            n for n in os.listdir(provider_dir)
+            if n.startswith('ProviderInfoNorm_') and n.lower().endswith('.csv')
+        ]
+    except Exception:
+        return None
+    if not names:
+        return None
+    names.sort(
+        key=lambda n: _provider_snapshot_recency_key(os.path.join(provider_dir, n)),
+        reverse=True,
+    )
+    pd_local = get_pd()
+    for n in names:
+        path = os.path.join(provider_dir, n)
+        if pd_local is None:
+            return path
+        try:
+            sample = pd_local.read_csv(path, usecols=['urban'], nrows=12000)
+            if sample['urban'].notna().any():
+                return path
+        except Exception:
+            continue
+    return os.path.join(provider_dir, names[0])
+
+
 def _provider_snapshot_candidate_paths():
-    """Discover provider snapshots dynamically (ProviderInfoNorm_* and NH_ProviderInfo_*)."""
+    """Discover provider snapshots: newest month first; Norm before NH for the same month."""
     out = []
+    seen = set()
     provider_dir = os.path.join(APP_ROOT, 'provider_info')
     try:
         names = [n for n in os.listdir(provider_dir) if n.lower().endswith('.csv')]
@@ -5939,10 +5985,15 @@ def _provider_snapshot_candidate_paths():
         n for n in names
         if n.startswith('ProviderInfoNorm_') or n.startswith('NH_ProviderInfo_')
     ]
-    # Prefer latest snapshots first by filename sort (newer naming conventions are sortable).
-    for n in sorted(snapshot_names, reverse=True):
-        out.append(os.path.join(provider_dir, n))
-        out.append(f'provider_info/{n}')
+    for n in sorted(
+        snapshot_names,
+        key=lambda name: _provider_snapshot_recency_key(os.path.join(provider_dir, name)),
+        reverse=True,
+    ):
+        abs_p = os.path.join(provider_dir, n)
+        if os.path.isfile(abs_p) and abs_p not in seen:
+            seen.add(abs_p)
+            out.append(abs_p)
     return out
 
 def _get_latest_quarter_values(path, n_quarters=_LATEST_PROVIDER_QUARTERS):
@@ -6477,6 +6528,7 @@ def _build_rural_shares_for_quarter(raw_quarter):
         for path in _resolved_provider_info_paths():
             if not os.path.isfile(path):
                 continue
+            rows_before = national_total
             try:
                 header_cols = set(pd.read_csv(path, nrows=0).columns)
                 state_col = next((c for c in header_cols if str(c).lower() == 'state'), None)
@@ -6494,9 +6546,11 @@ def _build_rural_shares_for_quarter(raw_quarter):
                         ccn = str(row.get(ccn_col) or '').strip().replace('.0', '').zfill(6)
                         if len(ccn) != 6 or ccn in seen_ccn:
                             continue
+                        if _provider_is_rural(row.get(urban_col)) is None:
+                            continue
                         seen_ccn.add(ccn)
                         _accumulate_row(str(row.get(state_col) or ''), row.get(urban_col))
-                if seen_ccn:
+                if national_total > rows_before:
                     return True
             except Exception as e:
                 print(f"Error building rural shares from {path}: {e}")
@@ -13522,15 +13576,15 @@ def _render_state_pbj_high_risk_section(
                 f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
             )
         if fac.get('hasAbuse'):
-            badges.append('<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon">Abuse</span>')
+            badges.append('<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">!</span>')
         try:
             if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
-                badges.append('<span class="state-hr-badge state-hr-badge--1ovr">1★ ovr</span>')
+                badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
         except (TypeError, ValueError):
             pass
         try:
             if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
-                badges.append('<span class="state-hr-badge state-hr-badge--1stf">1★ stf</span>')
+                badges.append('<span class="state-hr-badge state-hr-badge--1stf" title="1-star staffing">1★S</span>')
         except (TypeError, ValueError):
             pass
         return ' '.join(badges) if badges else '—'
@@ -13565,16 +13619,21 @@ def _render_state_pbj_high_risk_section(
             if hprd_raw is not None and str(hprd_raw).strip()
             else '—'
         )
+        city_bit = (
+            f'<span class="state-hr-city">({html.escape(city)})</span>' if city else ''
+        )
         facility_cell = (
-            f'<a href="/provider/{html.escape(ccn)}">{html.escape(name)}</a>'
-            + (f' <span class="state-hr-city">({html.escape(city)})</span>' if city else '')
+            f'<div class="state-hr-facility-cell">'
+            f'<a class="state-hr-facility-name" href="/provider/{html.escape(ccn)}">{html.escape(name)}</a>'
+            f'{city_bit}</div>'
         )
         flags_cell = _risk_flags_html(fac, ccn)
         tr_attr = ' class="state-hr-row-more" hidden' if row_hidden else ''
         return (
-            f'<tr{tr_attr}><td>{facility_cell}</td><td class="num state-hr-census">{html.escape(census_cell)}</td>'
+            f'<tr{tr_attr}><td class="state-hr-col-facility">{facility_cell}</td>'
+            f'<td class="num state-hr-census">{html.escape(census_cell)}</td>'
             f'<td class="state-hr-ratings">{ratings_cell}</td>'
-            f'<td>{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
+            f'<td class="state-hr-col-flags">{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
         )
 
     tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
@@ -13630,14 +13689,13 @@ def _render_state_pbj_high_risk_section(
             show_all_btn = ''
             if hidden_lst:
                 more_note = (
-                    f'<p class="pbj-meta-line state-hr-more-note" style="margin:0.5rem 0 0;font-size:0.85rem;">'
-                    f'Showing {len(show_lst):,} of {len(lst):,} high-risk facilities.</p>'
+                    f'<p class="pbj-meta-line state-hr-more-note" style="margin:0.35rem 0 0;font-size:0.85rem;">'
+                    f'<span class="state-hr-more-text">Showing {len(show_lst):,} of {len(lst):,} · </span>'
+                    f'<button type="button" class="state-hr-show-all-btn state-hr-show-all-btn--inline" '
+                    f'data-panel="{pid}" data-hidden-count="{len(hidden_lst)}" aria-expanded="false">'
+                    f'Show all {len(lst):,}</button></p>'
                 )
-                show_all_btn = (
-                    f'<button type="button" class="state-hr-show-all-btn" data-panel="{pid}" '
-                    f'data-hidden-count="{len(hidden_lst)}" aria-expanded="false">'
-                    f'Show all {len(lst):,} facilities</button>'
-                )
+                show_all_btn = ''
             section += f'''
     <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
     <table class="state-hr-table" style="width:100%; min-width:360px; border-collapse:collapse; font-size:0.875rem;">
@@ -13662,8 +13720,14 @@ def _render_state_pbj_high_risk_section(
     .state-hr-table th.num, .state-hr-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
     .state-hr-table th { background: rgba(67, 56, 202, 0.22); color: #818cf8; font-weight:600; }
     .state-hr-table tbody tr:nth-child(even) { background: rgba(15,23,42,0.4); }
-    .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.92em; }
-    .state-hr-badge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 0.1rem 0.4rem; border-radius: 4px; margin: 0 0.15rem 0.15rem 0; white-space: nowrap; }
+    .state-hr-facility-cell { line-height: 1.25; }
+    .state-hr-facility-name { display: inline; }
+    .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.85em; white-space: nowrap; margin-left: 0.2rem; }
+    .state-hr-col-flags { white-space: nowrap; }
+    .state-hr-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; margin: 0 0.1rem 0 0; white-space: nowrap; vertical-align: middle; }
+    .state-hr-show-all-btn--inline { margin: 0; padding: 0; font-size: inherit; background: none; border: none; color: #a5b4fc; text-decoration: underline; cursor: pointer; }
+    .state-hr-show-all-btn--inline:hover { color: #c7d2fe; background: none; }
+    .state-hr-section-foot { margin-top: 0.35rem; }
     .state-hr-badge--sff { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(248,113,113,0.35); }
     .state-hr-badge--sffc { background: rgba(234,88,12,0.18); color: #fdba74; border: 1px solid rgba(251,146,60,0.35); }
     .state-hr-badge--abuse { background: rgba(127,29,29,0.35); color: #fecaca; border: 1px solid rgba(248,113,113,0.4); }
@@ -13677,7 +13741,19 @@ def _render_state_pbj_high_risk_section(
     .state-hr-ratings .owner-rating-none { color: #64748b; }
     .state-hr-show-all-btn { margin: 0.35rem 0 0.5rem; padding: 0.35rem 0.75rem; font-size: 0.85rem; background: rgba(99,102,241,0.25); color: #e2e8f0; border: 1px solid rgba(129,140,248,0.45); border-radius: 6px; cursor: pointer; }
     .state-hr-show-all-btn:hover { background: rgba(99,102,241,0.4); }
-    @media (max-width: 640px) { .state-hr-table { font-size: 0.8rem; } .state-hr-table th, .state-hr-table td { padding: 0.35rem 0.25rem; } }
+    @media (max-width: 640px) {
+      .state-hr-table { font-size: 0.78rem; }
+      .state-hr-table th, .state-hr-table td { padding: 0.3rem 0.2rem; vertical-align: middle; }
+      .state-hr-col-facility { max-width: 9.5rem; }
+      .state-hr-facility-cell { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .state-hr-city { display: inline; margin-left: 0.15rem; }
+      .state-hr-ratings .owner-ratings-stack { flex-direction: row; flex-wrap: wrap; gap: 0.15rem 0.35rem; align-items: center; }
+      .state-hr-ratings .owner-rating-row { font-size: 0.68rem; gap: 0.12rem; }
+      .state-hr-ratings .owner-rating-k { min-width: auto; }
+      .state-hr-ratings .owner-rating-stars { font-size: 0.62rem; letter-spacing: 0; }
+      .state-hr-badge { font-size: 0.6rem; padding: 0.05rem 0.22rem; }
+      .state-hr-col-flags { max-width: 3.4rem; line-height: 1.1; }
+    }
     </style>
     <script>
     (function(){
@@ -13703,24 +13779,26 @@ def _render_state_pbj_high_risk_section(
             if (expanded) row.setAttribute("hidden", "");
             else row.removeAttribute("hidden");
           });
-          var note = btn.parentElement.querySelector(".state-hr-more-note");
+          var note = btn.closest(".state-hr-more-note");
+          var moreText = note ? note.querySelector(".state-hr-more-text") : null;
+          var total = tbody.querySelectorAll("tr").length;
           if (expanded) {
             btn.setAttribute("aria-expanded", "false");
             var shown = tbody.querySelectorAll("tr:not(.state-hr-row-more)").length;
-            var total = tbody.querySelectorAll("tr").length;
-            btn.textContent = "Show all " + total.toLocaleString() + " facilities";
-            if (note) note.textContent = "Showing " + shown.toLocaleString() + " of " + total.toLocaleString() + " high-risk facilities.";
+            btn.textContent = "Show all " + total.toLocaleString();
+            if (moreText) moreText.textContent = "Showing " + shown.toLocaleString() + " of " + total.toLocaleString() + " · ";
           } else {
             btn.setAttribute("aria-expanded", "true");
             btn.textContent = "Show fewer";
-            if (note) note.textContent = "Showing all high-risk facilities in this tab.";
+            if (moreText) moreText.textContent = "Showing all " + total.toLocaleString() + ". ";
           }
         });
       });
     })();
     </script>
     '''
-    section += (footer_html or '').strip()
+    if (footer_html or '').strip():
+        section += f'<div class="state-hr-section-foot">{(footer_html or "").strip()}</div>'
     section += '''
     </div></details>'''
     return section
@@ -13901,15 +13979,16 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     _rankings_href = report_href_for_state(_canonical_slug)
     _staffing_rankings_footer = (
         f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
-        f'<a href="{html.escape(_rankings_href, quote=True)}">'
-        f'{html.escape(state_name)} staffing rankings</a></p>'
+        f'<a href="{html.escape(_rankings_href, quote=True)}">State staffing rankings</a></p>'
     )
     _sff_footer = ''
     if sff_facilities and state_code:
+        _st_abbr = state_code.strip().upper()[:2]
         _sff_href = f'/sff/{state_code.strip().lower()[:2]}'
         _sff_footer = (
-            f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
-            f'<a href="{html.escape(_sff_href, quote=True)}">Special Focus Facilities</a></p>'
+            f'<p class="pbj-cross-links state-hr-sff-link" style="margin:0.35rem 0 0;">'
+            f'<a href="{html.escape(_sff_href, quote=True)}">'
+            f'{html.escape(_st_abbr)} Special Focus Facilities</a></p>'
         )
     # PBJ320 High-Risk: SFF, candidates, 1-star ratings, abuse icon (provider snapshot scan)
     sff_section = _render_state_pbj_high_risk_section(
@@ -14179,7 +14258,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details pbj-state-staffing-table">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Staffing table &amp; ranks</summary>
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {html.escape((state_code or '').strip().upper()[:2] or state_name)} Staffing Stats</summary>
     <div class="pbj-details-content">
     <div class="pbj-table-wrap"><table style="max-width: 600px;">
         <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>

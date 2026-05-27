@@ -156,6 +156,10 @@ def main() -> int:
         _log('ensure_deploy_csvs: ERROR no ProviderInfoNorm_*.csv')
         return 1
     _log(f'ensure_deploy_csvs: OK {norm}')
+    backfill_script = os.path.join(APP_ROOT, 'scripts', 'backfill_provider_norm_urban.py')
+    if os.path.isfile(backfill_script):
+        import subprocess
+        subprocess.call([sys.executable, backfill_script], cwd=APP_ROOT)
     _check_provider_combined()
     if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
         _log('ensure_deploy_csvs: building provider lookup indexes...')

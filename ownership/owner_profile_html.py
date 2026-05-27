@@ -651,13 +651,11 @@ def _facilities_match_note(profile: dict[str, Any]) -> str:
     if not n or (verified >= n and not suggested):
         return ""
     if suggested:
-        dba_abbr = (
-            f'<abbr title="{html.escape(_DBA_ABBR_TITLE, quote=True)}">DBA</abbr>'
-        )
+        row_word = "rows" if suggested != 1 else "row"
         return (
-            f'<p class="owner-table-note">{suggested} row(s) use a tentative {dba_abbr} '
-            f"or name match ({_ccn_match_badge('name_exact')} / {_ccn_match_badge('fuzzy')}) "
-            "— PBJ columns show only for verified legal-name links.</p>"
+            f'<p class="owner-table-note owner-table-note--compact">'
+            f"{suggested} {row_word} linked by facility name only; "
+            "PBJ staffing and ratings show when the legal-name match is verified.</p>"
         )
     return (
         f'<p class="owner-table-note">{n - verified} of {n} facilities have no verified PBJ link; '
@@ -944,8 +942,8 @@ def _owner_facilities_table_html(
         f"{filter_html}</div>"
     )
     table = (
-        '<div class="chow-table-scroll owner-facilities-scroll">'
-        '<table class="chow-table owner-facilities-table chow-table--cards-sm" id="ownerFacilitiesTable">'
+        '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll">'
+        '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
         f"<thead><tr>{thead}</tr></thead><tbody>"
         + "".join(_facilities_owner_rows(fac_list))
         + "</tbody></table></div>"

@@ -417,6 +417,13 @@
   max-width: 52rem;
 }
 
+.owner-table-note--compact {
+  margin: 0.35rem 0 0.55rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  max-width: none;
+}
+
 .owner-table-note code {
   font-size: 0.78rem;
   color: #cbd5e1;
@@ -1537,28 +1544,29 @@ button.owner-flag:hover {
   .owner-portfolio-grid--3,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid--3 {
-    grid-template-columns: 1fr 1fr !important;
-    gap: 0.4rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.35rem;
     margin: 0.25rem 0 0.45rem;
   }
 
-  .owner-portfolio-grid--3 > .owner-snapshot-card:first-child,
-  .owner-portfolio-grid > .owner-snapshot-card:first-child {
-    grid-column: 1 / -1;
-  }
-
   .owner-snapshot-value {
-    font-size: 1.05rem;
+    font-size: 0.95rem;
   }
 
   .owner-snapshot-card {
-    padding: 0.45rem 0.55rem;
+    padding: 0.4rem 0.45rem;
     min-height: 0;
   }
 
   .owner-snapshot-label {
-    font-size: 0.65rem;
-    margin-bottom: 0.12rem;
+    font-size: 0.58rem;
+    margin-bottom: 0.1rem;
+    letter-spacing: 0.02em;
+  }
+
+  .owner-snapshot-card .owner-info-btn {
+    transform: scale(0.9);
+    margin-left: 0.05rem;
   }
 
   .owner-facilities-section {
@@ -1599,43 +1607,77 @@ button.owner-flag:hover {
   }
 
   .owner-facilities-scroll {
-    max-height: none;
-    overflow: visible;
+    max-height: min(52vh, 400px);
+    overflow: auto;
+  }
+
+  .owner-facilities-table {
+    min-width: 19.5rem;
   }
 
   .owner-facilities-table th .sort-icon {
     display: none;
   }
 
-  .owner-facilities-table.chow-table--cards-sm .owner-col-county,
-  .owner-facilities-table.chow-table--cards-sm .owner-col-census {
+  .owner-facilities-table th,
+  .owner-facilities-table td {
+    font-size: 0.76rem;
+    padding: 0.38rem 0.35rem;
+  }
+
+  .owner-facilities-table th.owner-col-hprd,
+  .owner-facilities-table td.owner-col-hprd {
+    display: table-cell;
+    width: 2.85rem;
+    min-width: 2.85rem;
+  }
+
+  .owner-facilities-table th.owner-col-ratings,
+  .owner-facilities-table td.owner-col-ratings {
+    width: 4rem;
+    min-width: 3.75rem;
+  }
+
+  .owner-facilities-table .owner-col-county,
+  .owner-facilities-table th.owner-col-county,
+  .owner-facilities-table .owner-col-census,
+  .owner-facilities-table th.owner-col-census {
     display: none;
   }
 
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-facility {
-    display: block;
-    padding: 0 0 0.4rem;
-    border-bottom: 1px solid rgba(71, 85, 105, 0.45);
-    margin-bottom: 0.15rem;
+  .owner-facilities-table th:first-child,
+  .owner-facilities-table td.owner-col-facility {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #1e293b;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.28);
+    min-width: 6.75rem;
+    max-width: 9.5rem;
   }
 
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-facility::before {
-    display: none;
+  .owner-facilities-table thead th:first-child {
+    z-index: 3;
+    background: #334155;
   }
 
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-state,
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-role {
-    padding: 0.28rem 0;
+  .owner-facilities-table .owner-col-role,
+  .owner-facilities-table th.owner-col-role {
+    width: 3.5rem;
+    min-width: 3.5rem;
   }
 
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-hprd,
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-ratings {
-    padding: 0.28rem 0;
+  .owner-facilities-table .owner-col-flags {
+    max-width: 3.75rem;
   }
 
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-hprd::before,
-  .owner-facilities-table.chow-table--cards-sm td.owner-col-ratings::before {
-    flex: 0 0 3.5rem;
+  .owner-ratings-stack {
+    gap: 0.05rem;
+  }
+
+  .owner-rating-k {
+    font-size: 0.52rem;
+    flex: 0 0 1.15rem;
   }
 
   .owner-profile-root .chow-table th,

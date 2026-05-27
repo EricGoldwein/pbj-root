@@ -120,7 +120,7 @@
       '<h4 class="owner-fec-list-heading">All contributions (' + donationCount + ')</h4>' +
       '<div id="ownerFecList" class="owner-fec-list"></div>' +
       '<div id="ownerFecPagination" class="owner-fec-pagination"></div>' +
-      '<p class="owner-fec-source">Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">Federal Election Commission</a></p>' +
+      '<p class="owner-fec-source">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">Federal Election Commission</a></p>' +
       '</div>';
 
     renderPage(1);
@@ -139,7 +139,7 @@
       list.innerHTML = slice.map(function (d) {
         return '<article class="owner-fec-card">' +
           '<div class="owner-fec-card-amt">' + formatContributionAmount(d.amount) +
-          (d.fec_link ? ' <a href="' + escapeHtml(d.fec_link) + '" target="_blank" rel="noopener" class="owner-fec-source-btn">Source</a>' : '') +
+          (d.fec_link ? ' <a href="' + escapeHtml(d.fec_link) + '" target="_blank" rel="noopener" class="owner-fec-source-btn">FEC filing</a>' : '') +
           '</div>' +
           '<div class="owner-fec-card-meta">' +
           (d.donor_name ? '<div><strong>FEC contributor:</strong> ' + escapeHtml(d.donor_name) + '</div>' : '') +
@@ -156,7 +156,7 @@
       pag.innerHTML =
         '<span>Page ' + page + ' of ' + totalPages + '</span>' +
         (page > 1 ? '<button type="button" class="owner-fec-page-btn" data-page="' + (page - 1) + '">Prev</button>' : '') +
-        (page < totalPages ? '<button type="button" class="owner-fec-page-btn" data-page="' + (page + 1) + '">Next</button>' : '') : '';
+        (page < totalPages ? '<button type="button" class="owner-fec-page-btn" data-page="' + (page + 1) + '">Next</button>' : '');
       pag.querySelectorAll('.owner-fec-page-btn').forEach(function (b) {
         b.addEventListener('click', function () { renderPage(parseInt(b.getAttribute('data-page'), 10)); });
       });

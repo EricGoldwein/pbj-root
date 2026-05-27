@@ -203,9 +203,11 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
         pac_meta=pac_meta,
         kind=kind,
     )
+    pac_glossary = _pac_glossary_note_html(en_label, ow_label)
     body = f"""
       <div class="owner-profile-root">
       {header_html}
+      {pac_glossary}
       {owner_intro_html}
       {states_modal}
       {_owner_info_modal_html()}
@@ -217,10 +219,6 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {associates_html}
       {owner_section_html}
       {render_owner_fec_contributions_section(profile)}
-      <p class="pbj-meta-line" style="margin-top:1rem;font-size:0.85rem;color:#94a3b8;">
-        <strong>PACs:</strong> {en_label} = facility enrollment (typical buyer/seller in ownership changes).
-        {ow_label} = reported owner or control party.
-      </p>
       </div>
     """
     return body, page_title, meta_desc, f"/owners/{pac}"
@@ -295,6 +293,21 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
           </div>
         </div>
       </dialog>"""
+
+
+def _pac_glossary_note_html(en_label: str, ow_label: str) -> str:
+    """One-line CMS PAC definitions — shown under profile header, not after FEC block."""
+    en = html.escape(en_label)
+    ow = html.escape(ow_label)
+    return (
+        '<aside class="owner-pac-glossary" aria-label="CMS PAC definitions">'
+        f'<span class="owner-pac-glossary-k">{en}</span> '
+        "<span class=\"owner-pac-glossary-d\">facility enrollment in CMS (typical buyer/seller in ownership changes)</span>"
+        '<span class="owner-pac-glossary-sep" aria-hidden="true">·</span> '
+        f'<span class="owner-pac-glossary-k">{ow}</span> '
+        '<span class="owner-pac-glossary-d">reported owner or control party</span>'
+        "</aside>"
+    )
 
 
 def _pac_meta_html(

@@ -37,11 +37,15 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
       <section class="owner-fec-section" id="ownerFecContributions"
         data-owner-name="{name_attr}" data-owner-type="{type_attr}"
         aria-labelledby="ownerFecHeading">
-        <h2 class="section-header owner-fec-heading" id="ownerFecHeading">FEC political contributions</h2>
+        <div class="owner-fec-heading-row">
+          <h2 class="section-header owner-fec-heading" id="ownerFecHeading">
+            FEC political contributions
+          </h2>
+          <span class="owner-fec-beta" title="Beta tool — verify each filing on FEC.gov">Beta</span>
+        </div>
         <p class="owner-fec-lead">
-          Federal Election Commission records matched to this owner by name.
-          <span class="owner-fec-beta">Beta</span>
-          Results may include similar names; verify each Source link on FEC.gov.
+          Federal Election Commission records matched to <strong>{title_name}</strong> by name.
+          Similar names may appear; open each <span class="owner-fec-lead-k">FEC filing</span> link to confirm on FEC.gov.
         </p>
         <button type="button" class="owner-fec-load-btn" id="ownerFecLoadBtn"
           aria-controls="ownerFecPanel" aria-expanded="false">
@@ -60,8 +64,8 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
             <p>
               Contributions are queried live from the
               <a href="https://api.open.fec.gov/" target="_blank" rel="noopener">FEC API</a>
-              using the owner name shown on this profile. The FEC uses fuzzy name matching;
-              always confirm each filing via the Source link.
+              using the owner name on this profile. The FEC uses fuzzy name matching;
+              always confirm each filing via the linked FEC.gov record.
             </p>
             <h3>Matching methodology</h3>
             <ol>

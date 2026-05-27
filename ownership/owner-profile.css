@@ -1803,32 +1803,83 @@ button.owner-flag:hover {
 }
 
 /* Inline FEC contributions on /owners/<pac> (CT/NY) */
+.owner-pac-glossary {
+  margin: 0.35rem 0 1.1rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  border-radius: 8px;
+  max-width: 44rem;
+}
+
+.owner-pac-glossary-k {
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.owner-pac-glossary-d {
+  color: #94a3b8;
+}
+
+.owner-pac-glossary-sep {
+  margin: 0 0.4rem;
+  color: #64748b;
+}
+
 .owner-fec-section {
   margin-top: 2rem;
-  padding-top: 1.25rem;
+  padding-top: 1.35rem;
   border-top: 1px solid rgba(100, 116, 139, 0.35);
+}
+
+.owner-fec-heading-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.owner-fec-heading-row .owner-fec-heading {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 12rem;
+}
+
+.owner-fec-beta {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.45);
+  border-radius: 999px;
+  line-height: 1.3;
 }
 
 .owner-fec-lead {
   color: #94a3b8;
   font-size: 0.92rem;
   line-height: 1.55;
-  margin: 0.35rem 0 1rem;
-  max-width: 42rem;
+  margin: 0 0 1rem;
+  max-width: 44rem;
 }
 
-.owner-fec-beta {
-  display: inline-block;
-  margin-left: 0.35rem;
-  padding: 0.1rem 0.45rem;
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #eab308;
-  border: 1px solid rgba(234, 179, 8, 0.45);
-  border-radius: 4px;
-  vertical-align: middle;
+.owner-fec-lead strong {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.owner-fec-lead-k {
+  color: #93c5fd;
+  font-weight: 500;
 }
 
 .owner-fec-load-btn {
@@ -2004,15 +2055,22 @@ button.owner-flag:hover {
 
 .owner-fec-source-btn {
   display: inline-block;
-  margin-left: 0.35rem;
-  padding: 0.15rem 0.45rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #fff !important;
-  background: rgba(102, 126, 234, 0.55);
+  margin-left: 0.4rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #e0e7ff !important;
+  background: rgba(102, 126, 234, 0.35);
+  border: 1px solid rgba(129, 140, 248, 0.45);
   border-radius: 4px;
   text-decoration: none;
   vertical-align: middle;
+  white-space: nowrap;
+}
+
+.owner-fec-source-btn:hover {
+  background: rgba(102, 126, 234, 0.55);
+  text-decoration: underline;
 }
 
 .owner-fec-pagination {
@@ -2109,6 +2167,21 @@ button.owner-flag:hover {
 }
 
 @media (max-width: 768px) {
+  .owner-pac-glossary {
+    font-size: 0.8rem;
+  }
+
+  .owner-pac-glossary-sep {
+    display: block;
+    margin: 0.35rem 0;
+    height: 0;
+    overflow: hidden;
+  }
+
+  .owner-fec-heading-row {
+    align-items: flex-start;
+  }
+
   .owner-fec-load-btn {
     max-width: none;
     width: 100%;

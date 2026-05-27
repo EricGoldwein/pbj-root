@@ -132,6 +132,9 @@ def build() -> None:
 
     n_ct = write_public_owner_search_catalog_file()
     print(f"[build_snf_owners_index] ct_owner_search_catalog: {n_ct:,} rows")
+    from ownership.owner_indexability import refresh_owner_indexability_cache  # noqa: E402
+
+    refresh_owner_indexability_cache()
 
 
 def build_state_top_owners() -> None:

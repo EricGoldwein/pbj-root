@@ -554,13 +554,18 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         + "</tbody></table></div>"
     )
     return (
+        '<div class="owner-associates-block">'
+        f'<div class="owner-associates-head">'
+        f'<span class="owner-associates-head-label">Frequent associates · {n_show}</span>'
+        f"{associates_help}"
+        f"</div>"
         '<details class="owner-collapsible owner-associates-collapsible">'
         f'<summary class="owner-associates-summary">'
-        f'<span class="owner-associates-summary-label">Frequent associates · {n_show}</span>'
-        f"{associates_help}"
+        f'<span class="owner-associates-summary-label">Show associates</span>'
         f"</summary>"
         f"{table}"
         "</details>"
+        "</div>"
     )
 
 

@@ -1522,16 +1522,10 @@ def _public_owner_search_catalog() -> tuple[tuple[str, str, str], ...]:
 
 
 def public_owner_associate_ids_for_sitemap() -> list[str]:
-    """10-digit PACs for CT/NY ownership profiles (sitemap + SEO discovery)."""
-    rows = _build_public_owner_search_catalog_entries()
-    pacs: list[str] = []
-    seen: set[str] = set()
-    for row in rows:
-        pac = normalize_associate_id(str(row.get("associate_id") or ""))
-        if len(pac) == 10 and pac.isdigit() and pac not in seen:
-            seen.add(pac)
-            pacs.append(pac)
-    return sorted(pacs)
+    """10-digit PACs classified indexable (see ownership.owner_indexability)."""
+    from ownership.owner_indexability import public_owner_associate_ids_for_sitemap as _indexable_pacs
+
+    return _indexable_pacs()
 
 
 def search_public_owner_profiles(query: str, *, limit: int = 12) -> list[dict[str, str]]:

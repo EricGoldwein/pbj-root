@@ -2247,132 +2247,69 @@ button.owner-flag:hover {
   color: #667eea;
 }
 
-.owner-fec-methodology {
+.owner-associates-block {
   margin-top: 1.25rem;
-  font-size: 0.88rem;
+}
+
+.owner-associates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.owner-associates-head-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.owner-fec-methodology {
+  margin-top: 1rem;
+  font-size: 0.86rem;
   color: #94a3b8;
-  border: 1px solid rgba(100, 116, 139, 0.35);
-  border-radius: 10px;
-  background: rgba(15, 23, 42, 0.35);
-  overflow: hidden;
+  border-top: 1px solid rgba(100, 116, 139, 0.28);
+  padding-top: 0.65rem;
 }
 
 .owner-fec-methodology-summary {
   cursor: pointer;
   list-style: none;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem 0.75rem;
-  padding: 0.75rem 1rem;
-  min-height: 2.75rem;
-  background: rgba(30, 41, 59, 0.45);
-  border-bottom: 1px solid transparent;
-}
-
-.owner-fec-methodology[open] .owner-fec-methodology-summary {
-  border-bottom-color: rgba(100, 116, 139, 0.3);
+  font-weight: 600;
+  color: #cbd5e1;
+  font-size: 0.86rem;
 }
 
 .owner-fec-methodology-summary::-webkit-details-marker {
   display: none;
 }
 
-.owner-fec-methodology-summary-title {
-  font-weight: 600;
-  color: #e2e8f0;
-  font-size: 0.92rem;
-}
-
-.owner-fec-methodology-summary-hint {
-  font-size: 0.78rem;
-  color: #64748b;
-  font-weight: 500;
-}
-
 .owner-fec-methodology-body {
-  padding: 0.85rem 1rem 1rem;
+  margin-top: 0.45rem;
   line-height: 1.5;
   max-width: none;
 }
 
-.owner-fec-method-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: 0.65rem;
-  margin-bottom: 0.75rem;
+.owner-fec-methodology-body p {
+  margin: 0 0 0.45rem;
+  font-size: 0.84rem;
+  color: #94a3b8;
 }
 
-.owner-fec-method-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(100, 116, 139, 0.28);
-  border-radius: 8px;
-  padding: 0.7rem 0.8rem;
-}
-
-.owner-fec-method-card--disclaimer {
-  border-left: 3px solid #667eea;
-  background: rgba(102, 126, 234, 0.08);
-}
-
-.owner-fec-method-card--warn {
-  border-left: 3px solid #eab308;
-  background: rgba(234, 179, 8, 0.08);
-}
-
-.owner-fec-method-card-title {
-  margin: 0 0 0.35rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #cbd5e1;
-}
-
-.owner-fec-method-card p {
+.owner-fec-methodology-links {
   margin: 0;
-  font-size: 0.84rem;
-  color: #94a3b8;
+  font-size: 0.82rem;
 }
 
-.owner-fec-method-card ol,
-.owner-fec-method-card ul {
-  margin: 0.25rem 0 0 1.1rem;
-  padding: 0;
-  font-size: 0.84rem;
-  color: #94a3b8;
-}
-
-.owner-fec-method-card li {
-  margin-bottom: 0.2rem;
-}
-
-.owner-fec-method-links {
-  list-style: none;
-  margin: 0.15rem 0 0;
-  padding: 0;
-}
-
-.owner-fec-method-links li {
-  margin-bottom: 0.35rem;
-}
-
-.owner-fec-method-links a {
+.owner-fec-methodology-links a {
   color: #93c5fd;
   font-weight: 500;
 }
 
-.owner-fec-contact {
-  margin: 0;
-  padding-top: 0.65rem;
-  border-top: 1px solid rgba(100, 116, 139, 0.25);
-  font-size: 0.82rem;
-  text-align: center;
-}
-
-.owner-fec-contact a {
-  color: #60a5fa;
+.owner-fec-empty a {
+  color: #93c5fd;
+  font-weight: 500;
 }
 
 @media (max-width: 768px) {

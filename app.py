@@ -55,6 +55,7 @@ from site_public_config import (
     SITEMAP_EXCLUDED_PATHS,
     SITEMAP_TRUST_PAGES,
     build_robots_txt,
+    inject_public_site_verification_meta,
     normalize_public_site_origin,
     pbjpedia_is_public,
     sitemap_loc_is_allowed,
@@ -1213,6 +1214,7 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = inject_public_html_cms_urls(html_content)
     except ImportError:
         pass
+    html_content = inject_public_site_verification_meta(html_content)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
     resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
@@ -5243,7 +5245,7 @@ if csrf_protect:
     csrf_protect.exempt(owner_api_proxy)
 
 
-def generate_owner_profile_html(profile):
+def generate_owner_profile_html(profile, *, robots_meta=None):
     """Public CMS profile at /owners/<pac> — enrollment, owner/control, or CHOW fallback."""
     from ownership.owner_profile_html import render_owner_profile_body
 
@@ -5262,6 +5264,7 @@ def generate_owner_profile_html(profile):
         page_title,
         meta_desc,
         canon,
+        robots_meta=robots_meta,
         extra_head=owner_json_ld + (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
@@ -5299,8 +5302,17 @@ def cms_owner_profile_page(owner_id):
     if not profile_is_visible(profile):
         from flask import abort
         abort(404)
+    from ownership.owner_indexability import classification_for_pac, owner_robots_meta
+
+    index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
+    if index_class == 'suppress':
+        from flask import abort
+        abort(404)
+    robots_meta = owner_robots_meta(index_class)
+    if not profile_has_public_state(profile):
+        robots_meta = 'noindex, follow'
     try:
-        html = generate_owner_profile_html(profile)
+        html = generate_owner_profile_html(profile, robots_meta=robots_meta)
     except Exception as _owner_render_err:
         import traceback
         print(f'owner profile render failed for {pac}: {_owner_render_err}', flush=True)
@@ -5312,8 +5324,8 @@ def cms_owner_profile_page(owner_id):
     resp = make_response(html)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-    if not profile_has_public_state(profile):
-        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    if robots_meta:
+        resp.headers['X-Robots-Tag'] = robots_meta
     return resp
 
 
@@ -5527,26 +5539,40 @@ def sitemap():
         slug = get_canonical_slug(state_code)
         urls.append(f'  <url><loc>{base}/state/{slug}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>')
     try:
+        from ownership.owner_indexability import (
+            load_owner_indexability_cache,
+            log_owner_indexability_summary,
+            provider_ccns_for_sitemap,
+            public_owner_associate_ids_for_sitemap,
+        )
+
+        provider_ccns, provider_included, provider_excluded = provider_ccns_for_sitemap()
+        for ccn in provider_ccns:
+            urls.append(
+                f'  <url><loc>{base}/provider/{ccn}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
+            )
         data = _get_search_index_data()
         if data:
-            for fac in (data.get('f') or []):
-                if fac and fac.get('c'):
-                    urls.append(f'  <url><loc>{base}/provider/{fac.get("c")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
             for ent in (data.get('e') or []):
                 if ent and ent.get('id') is not None:
-                    urls.append(f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
-    except Exception as e:
-        print(f"Sitemap: could not load search_index: {e}")
-    try:
-        from ownership.owner_profile import public_owner_associate_ids_for_sitemap
-
+                    urls.append(
+                        f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                        f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
+                    )
+        owner_cache = load_owner_indexability_cache()
         for pac in public_owner_associate_ids_for_sitemap():
             urls.append(
                 f'  <url><loc>{base}/owners/{pac}</loc><lastmod>{today}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.55</priority></url>'
             )
+        log_owner_indexability_summary(
+            list(owner_cache.values()) if owner_cache else [],
+            provider_included=provider_included,
+            provider_excluded=provider_excluded,
+        )
     except Exception as e:
-        print(f"Sitemap: could not load public owner profiles: {e}")
+        print(f"Sitemap: could not load provider/owner index lists: {e}")
     filtered = []
     for entry in urls:
         m = re.search(r'<loc>([^<]+)</loc>', entry)
@@ -7120,18 +7146,21 @@ def get_latest_provider_info_for_ccn(ccn):
     """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
     return _latest_provider_info_row_for_ccn(ccn)
 
-def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=''):
+def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
     base = _public_site_origin()
     canon = canonical_url or base
     og_image = f'{base}/og-image-1200x630.png'
+    robots_line = ''
+    if robots_meta:
+        robots_line = f'<meta name="robots" content="{html.escape(str(robots_meta), quote=True)}">\n'
     head = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0a0f1a">
-<title>{page_title}</title>
+{robots_line}<title>{page_title}</title>
 <meta name="description" content="{meta_description}">
 <meta property="og:title" content="{html.escape(page_title)}">
 <meta property="og:description" content="{html.escape(meta_description)}">
@@ -8514,6 +8543,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
             '  <script src="/pbj-ai-support.js?v=48"></script>\n</body>\n</html>',
             1,
         )
+    head = inject_public_site_verification_meta(head)
     return {'head': head, 'nav': nav, 'content_open': content_open, 'content_close': content_close}
 
 

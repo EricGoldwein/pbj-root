@@ -46,6 +46,18 @@
     return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
+  function fecSearchUrl(name) {
+    return 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' +
+      encodeURIComponent(name || '').replace(/%20/g, '+');
+  }
+
+  function fecEmptyMessageHtml(name) {
+    var label = escapeHtml(name || 'this name');
+    var fecUrl = fecSearchUrl(name);
+    return '<p class="owner-fec-empty">No FEC contributions found for <strong>' + label +
+      '</strong>. <a href="' + escapeHtml(fecUrl) + '" target="_blank" rel="noopener">Search on FEC.gov</a></p>';
+  }
+
   function toTitleCaseName(str) {
     if (!str) return '';
     return String(str).toLowerCase().replace(/\b\w/g, function (c) { return c.toUpperCase(); });
@@ -184,7 +196,7 @@
 
   function renderDonations(donations, total, count, ownerLabel, oType) {
     if (!donations || !donations.length) {
-      panel.innerHTML = '<p class="owner-fec-empty">No contributions found in FEC records for this name.</p>';
+      panel.innerHTML = fecEmptyMessageHtml(ownerLabel || ownerName);
       return;
     }
 
@@ -325,22 +337,19 @@
         body: JSON.stringify({ owner_name: ownerName, owner_type: ownerType })
       });
       if (!response.ok) {
-        var msg = 'Request failed. Please try again.';
-        if (response.status === 502) msg = 'FEC request timed out. Try again.';
-        else if (response.status === 503) msg = 'Search temporarily unavailable.';
-        panel.innerHTML = '<p class="owner-fec-error">' + escapeHtml(msg) + '</p>';
+        panel.innerHTML = fecEmptyMessageHtml(ownerName);
         return;
       }
       var data = await response.json();
       if (data.error) {
-        panel.innerHTML = '<p class="owner-fec-error">' + escapeHtml(data.error) + '</p>';
+        panel.innerHTML = fecEmptyMessageHtml(ownerName);
         return;
       }
       renderDonations(data.donations, data.total, data.count, ownerName, ownerType);
       loaded = true;
       btn.textContent = 'Refresh FEC contributions';
     } catch (err) {
-      panel.innerHTML = '<p class="owner-fec-error">Error: ' + escapeHtml(err.message || 'Network error') + '</p>';
+      panel.innerHTML = fecEmptyMessageHtml(ownerName);
     } finally {
       btn.disabled = false;
       btn.removeAttribute('aria-busy');

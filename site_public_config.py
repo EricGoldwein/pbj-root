@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 # Canonical public origin (www). Override in staging via PBJ_PUBLIC_BASE_URL.
 _PUBLIC_ORIGIN_RAW = (
@@ -74,6 +75,20 @@ def inject_public_html_cms_urls(html: str) -> str:
     for placeholder, url in PUBLIC_HTML_CMS_PLACEHOLDERS.items():
         html = html.replace(placeholder, url)
     return html
+
+
+# Bing Webmaster Tools — single source for production <head> injection.
+BING_WEBMASTER_VERIFICATION_META = (
+    '<meta name="msvalidate.01" content="CC0F94D1A8752537CA398E018C7F316E" />'
+)
+_HEAD_OPEN_RE = re.compile(r'(<head(?:\s[^>]*)?>)', re.IGNORECASE)
+
+
+def inject_public_site_verification_meta(html: str) -> str:
+    """Insert Bing Webmaster Tools verification meta once per HTML document."""
+    if 'msvalidate.01' in html:
+        return html
+    return _HEAD_OPEN_RE.sub(r'\1\n' + BING_WEBMASTER_VERIFICATION_META, html, count=1)
 
 
 # Path fragments that must never appear in sitemap.xml <loc> entries.

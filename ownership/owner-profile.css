@@ -1680,12 +1680,6 @@ button.owner-flag:hover {
     flex: 0 0 1.15rem;
   }
 
-  .owner-profile-root .chow-table th,
-  .owner-profile-root .chow-table td {
-    font-size: 0.78rem;
-    padding: 0.45rem 0.4rem;
-  }
-
   .owner-role-since-long {
     display: none;
   }

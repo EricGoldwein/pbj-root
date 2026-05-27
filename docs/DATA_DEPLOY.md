@@ -12,6 +12,28 @@ Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` **and
 
 If provider pages return 404 instantly, Render likely skipped the build script — confirm **Start Command** includes `python scripts/ensure_deploy_csvs.py &&` (see `Procfile`).
 
+## Ownership + provider info (structural)
+
+Provider-page **Ownership** blocks need three artifacts in sync:
+
+| Artifact | Build |
+|----------|--------|
+| `ownership/SNF_All_Owners_*.csv` | CMS download (newest dated file in `ownership/`) |
+| `ownership/snf_owners_lookup.sqlite` + `snf_owners_org_index.json.gz` | `python scripts/build_snf_owners_index.py` |
+| `ownership/snf_owners_ccn_index.json.gz` | `python scripts/build_snf_owners_ccn_index.py` |
+
+**Provider legal names:** `lookup_cms_ownership_for_provider` crosswalks CMS enrollment legal names to CCNs using `legal_business_name` from **`provider_info_combined_latest.csv` first**. Monthly `provider_info/ProviderInfoNorm_*.csv` (e.g. PBJapp exports) is used for Care Compare fields but often has an empty `legal_business_name` column — do not drop or stop reading the combined file when adding a new Norm export.
+
+After any SNF owners or provider-info upload:
+
+```powershell
+python scripts/build_snf_owners_index.py
+python scripts/build_snf_owners_ccn_index.py
+python scripts/validate_ownership_linkage.py
+```
+
+Deploy runs the same steps via `render.yaml` and **fails the build** if validation fails.
+
 ## Updating facility metrics (quarterly release)
 
 1. Rebuild local `facility_quarterly_metrics.csv` (full history).

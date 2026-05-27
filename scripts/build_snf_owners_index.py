@@ -18,8 +18,10 @@ if str(REPO) not in sys.path:
 from ownership.owner_profile import (  # noqa: E402
     ENROLLMENT_PAC_COL,
     OWNER_PAC_COL,
+    _CCN_MATCH_METHOD_RANK,
     _CSV_USECOLS,
     _norm_org_key,
+    _resolve_ccn_with_method,
     normalize_associate_id,
     snf_owners_csv_path,
 )
@@ -27,6 +29,7 @@ from ownership.owner_profile import (  # noqa: E402
 OWNERSHIP_DIR = REPO / "ownership"
 DB_PATH = OWNERSHIP_DIR / "snf_owners_lookup.sqlite"
 ORG_INDEX_PATH = OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
+CCN_INDEX_PATH = OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
 STATE_TOP_OWNERS_PATH = OWNERSHIP_DIR / "state_top_owners.json.gz"
 TABLE = "snf_owners"
 CHUNK = 100_000
@@ -42,6 +45,26 @@ def _write_org_keys(org_map: dict[str, str], row: pd.Series) -> None:
             org_map[key] = pac
 
 
+def _write_ccn_key(
+    ccn_map: dict[str, dict[str, str]],
+    seen_enrollment_pacs: set[str],
+    row: pd.Series,
+) -> None:
+    pac = normalize_associate_id(str(row.get(ENROLLMENT_PAC_COL) or ""))
+    if len(pac) != 10 or pac in seen_enrollment_pacs:
+        return
+    seen_enrollment_pacs.add(pac)
+    org_name = str(row.get("ORGANIZATION NAME") or "")
+    ccn, method = _resolve_ccn_with_method(org_name)
+    if not ccn:
+        return
+    rank = _CCN_MATCH_METHOD_RANK.get(method or "", 0)
+    prev = ccn_map.get(ccn)
+    prev_rank = _CCN_MATCH_METHOD_RANK.get((prev or {}).get("method") or "", 0)
+    if prev is None or rank > prev_rank:
+        ccn_map[ccn] = {"pac": pac, "method": method or ""}
+
+
 def build() -> None:
     csv_path = snf_owners_csv_path()
     if not csv_path or not csv_path.is_file():
@@ -52,6 +75,7 @@ def build() -> None:
     if DB_PATH.is_file():
         DB_PATH.unlink()
     ORG_INDEX_PATH.unlink(missing_ok=True)
+    CCN_INDEX_PATH.unlink(missing_ok=True)
 
     header = pd.read_csv(csv_path, nrows=0, encoding="latin-1").columns.tolist()
     cols = [c for c in _CSV_USECOLS if c in header]
@@ -61,6 +85,8 @@ def build() -> None:
 
     conn = sqlite3.connect(DB_PATH)
     org_map: dict[str, str] = {}
+    ccn_map: dict[str, dict[str, str]] = {}
+    seen_enrollment_pacs: set[str] = set()
     total = 0
     try:
         for i, chunk in enumerate(
@@ -76,6 +102,7 @@ def build() -> None:
             chunk.to_sql(TABLE, conn, if_exists="append", index=False)
             for _, row in chunk.iterrows():
                 _write_org_keys(org_map, row)
+                _write_ccn_key(ccn_map, seen_enrollment_pacs, row)
             total += len(chunk)
             print(f"[build_snf_owners_index] rows {total:,}")
         conn.execute(
@@ -92,9 +119,13 @@ def build() -> None:
     with gzip.open(ORG_INDEX_PATH, "wt", encoding="utf-8") as f:
         json.dump(org_map, f, separators=(",", ":"))
 
+    with gzip.open(CCN_INDEX_PATH, "wt", encoding="utf-8") as f:
+        json.dump(ccn_map, f, separators=(",", ":"))
+
     print(
         f"[build_snf_owners_index] Done: {DB_PATH.name} ({DB_PATH.stat().st_size // 1024 // 1024} MB), "
-        f"{len(org_map):,} org keys -> {ORG_INDEX_PATH.name}"
+        f"{len(org_map):,} org keys -> {ORG_INDEX_PATH.name}, "
+        f"{len(ccn_map):,} CCN keys -> {CCN_INDEX_PATH.name}"
     )
     build_state_top_owners()
     from ownership.owner_profile import write_public_owner_search_catalog_file  # noqa: E402

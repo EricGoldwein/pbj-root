@@ -4,7 +4,7 @@ services:
     name: pbj
     runtime: python
     # Skip LFS smudge on clone (saves LFS bandwidth). Real CSVs: scripts/ensure_deploy_csvs.py
-    buildCommand: python scripts/ensure_deploy_csvs.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && pip install -r requirements.txt && cd pbj-wrapped && npm install && npm run build
+    buildCommand: python scripts/ensure_deploy_csvs.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && python scripts/build_snf_owners_index.py && python scripts/build_snf_owners_ccn_index.py && python scripts/validate_ownership_linkage.py && pip install -r requirements.txt && cd pbj-wrapped && npm install && npm run build
     # CSV materialization runs at build; skip 520k-row verify on every restart (RUN_DEPLOY_CSV_CHECK=1 to enable).
     startCommand: gunicorn app:app -c gunicorn_config.py --bind 0.0.0.0:10000
     healthCheckPath: /health

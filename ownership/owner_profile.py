@@ -23,14 +23,17 @@ from typing import Any, cast
 import pandas as pd
 
 from ownership.display_format import format_org_display, format_role_text
-from ownership.owner_portfolio_metrics import _provider_info_csv_paths
+from ownership.owner_portfolio_metrics import _provider_info_csv_paths, provider_info_crosswalk_paths
 
 _REPO = Path(__file__).resolve().parent.parent
 _OWNERSHIP_DIR = _REPO / "ownership"
 _SNF_OWNERS_GLOB = "SNF_All_Owners*.csv"
 _OWNERS_LOOKUP_DB = _OWNERSHIP_DIR / "snf_owners_lookup.sqlite"
 _ORG_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
+_CCN_ENROLLMENT_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
 _OWNERS_TABLE = "snf_owners"
+
+_CCN_MATCH_METHOD_RANK = {"legal_exact": 3, "name_exact": 2, "fuzzy": 1, "": 0}
 
 ENROLLMENT_PAC_COL = "ASSOCIATE ID"
 OWNER_PAC_COL = "ASSOCIATE ID - OWNER"
@@ -251,7 +254,7 @@ def _iter_provider_info_chunks(path: Path, usecols: list[str]) -> Iterator[pd.Da
 def _legal_business_name_to_ccn() -> dict[str, str]:
     """CMS enrollment legal name (ORGANIZATION NAME) -> CCN via provider_info legal_business_name."""
     out: dict[str, str] = {}
-    for path in _provider_info_csv_paths():
+    for path in provider_info_crosswalk_paths():
         try:
             header = pd.read_csv(path, nrows=0).columns.tolist()
             ccn_col = next((c for c in header if c.lower() in ("ccn", "provnum")), None)
@@ -266,8 +269,6 @@ def _legal_business_name_to_ccn() -> dict[str, str]:
                         out[legal] = ccn
         except Exception:
             pass
-        if out:
-            break
     return out
 
 
@@ -288,7 +289,7 @@ def _facility_name_to_ccn() -> dict[str, str]:
                     out[name] = ccn
         except Exception:
             pass
-    for path in _provider_info_csv_paths():
+    for path in provider_info_crosswalk_paths():
         try:
             header = pd.read_csv(path, nrows=0).columns.tolist()
             ccn_col = next((c for c in header if c.lower() in ("ccn", "provnum")), None)
@@ -309,7 +310,6 @@ def _facility_name_to_ccn() -> dict[str, str]:
                             out[k] = ccn
         except Exception:
             pass
-        break
     return out
 
 
@@ -679,6 +679,93 @@ def _enrollment_org_to_pac() -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
+def _ccn_to_enrollment_pac() -> dict[str, str]:
+    """CCN -> CMS enrollment ASSOCIATE ID (built from SNF All Owners org names + provider crosswalk)."""
+    if _CCN_ENROLLMENT_INDEX_GZ.is_file():
+        try:
+            with gzip.open(_CCN_ENROLLMENT_INDEX_GZ, "rt", encoding="utf-8") as f:
+                raw = json.load(f)
+            if isinstance(raw, dict):
+                out: dict[str, str] = {}
+                for ccn, val in raw.items():
+                    ccn_norm = _norm_ccn_key(str(ccn))
+                    if not ccn_norm:
+                        continue
+                    if isinstance(val, dict):
+                        pac = normalize_associate_id(str(val.get("pac") or val.get("associate_id") or ""))
+                    else:
+                        pac = normalize_associate_id(str(val))
+                    if len(pac) == 10:
+                        out[ccn_norm] = pac
+                if out:
+                    return out
+        except Exception:
+            pass
+    return {}
+
+
+def _enrollment_pac_for_ccn_sqlite(ccn_norm: str, provider_name: str = "") -> str:
+    """Targeted SQLite match for one CCN (no full-table scan). Uses DBA tokens from search index."""
+    conn = _sqlite_conn()
+    if not conn or not ccn_norm:
+        return ""
+    label = re.sub(r"\s+", " ", str(provider_name or "").strip().upper())
+    if not label:
+        for name, ccn, _state, _city in _search_index_facility_rows():
+            if ccn == ccn_norm:
+                label = name
+                break
+    tokens = sorted(
+        {t for t in re.findall(r"[A-Z]{4,}", label) if t not in _NAME_STOP},
+        key=len,
+        reverse=True,
+    )
+    if not tokens:
+        return ""
+    for token in tokens[:3]:
+        try:
+            rows = conn.execute(
+                f'SELECT DISTINCT "{ENROLLMENT_PAC_COL}", "ORGANIZATION NAME" FROM "{_OWNERS_TABLE}" '
+                f'WHERE UPPER("ORGANIZATION NAME") LIKE ? LIMIT 40',
+                (f"%{token}%",),
+            ).fetchall()
+        except Exception:
+            continue
+        for pac_raw, org_name in rows:
+            resolved, _method = _resolve_ccn_with_method(str(org_name or ""))
+            if _norm_ccn_key(resolved) == ccn_norm:
+                pac = normalize_associate_id(str(pac_raw or ""))
+                if len(pac) == 10:
+                    return pac
+    return ""
+
+
+def _ownership_lookup_from_enrollment_pac(
+    pac: str,
+    *,
+    matched_via: str,
+) -> dict[str, Any] | None:
+    from ownership.owner_portfolio_metrics import sort_control_parties_for_display
+
+    if len(pac) != 10:
+        return None
+    en_rows, _ = _fetch_rows_for_pac(pac)
+    if not en_rows:
+        return None
+    enrollment_name = _clean(en_rows[0].get("ORGANIZATION NAME")) or matched_via
+    parties = sort_control_parties_for_display(_build_control_parties(en_rows))
+    path = snf_owners_csv_path()
+    return {
+        "enrollment_pac": pac,
+        "enrollment_name": enrollment_name,
+        "enrollment_profile_url": associate_profile_url(pac),
+        "control_parties": parties,
+        "matched_via": matched_via,
+        **_ownership_source_fields(path),
+    }
+
+
+@lru_cache(maxsize=1)
 def _ccn_to_legal_business_name() -> dict[str, str]:
     """CCN -> CMS legal business name (from provider_info snapshots)."""
     out: dict[str, str] = {}
@@ -697,11 +784,9 @@ def lookup_cms_ownership_for_provider(
     ccn: str = "",
 ) -> dict[str, Any] | None:
     """
-    Match facility to CMS SNF All Owners enrollment via legal business name or provider DBA.
+    Match facility to CMS SNF All Owners enrollment via legal/DBA name or CCN crosswalk.
     Returns enrollment PAC, display name, and deduped control parties.
     """
-    from ownership.owner_portfolio_metrics import sort_control_parties_for_display
-
     pi = provider_info_row or {}
     ccn_norm = _norm_ccn_key(ccn) or _norm_ccn_key(str(pi.get("ccn") or pi.get("PROVNUM") or ""))
     legal = _clean(legal_business_name) or _clean(pi.get("legal_business_name"))
@@ -717,20 +802,15 @@ def lookup_cms_ownership_for_provider(
         if not pac or pac in tried:
             continue
         tried.add(pac)
-        en_rows, _ = _fetch_rows_for_pac(pac)
-        if not en_rows:
-            continue
-        enrollment_name = _clean(en_rows[0].get("ORGANIZATION NAME")) or matched_name
-        parties = sort_control_parties_for_display(_build_control_parties(en_rows))
-        path = snf_owners_csv_path()
-        return {
-            "enrollment_pac": pac,
-            "enrollment_name": enrollment_name,
-            "enrollment_profile_url": associate_profile_url(pac),
-            "control_parties": parties,
-            "matched_via": matched_name,
-            **_ownership_source_fields(path),
-        }
+        hit = _ownership_lookup_from_enrollment_pac(pac, matched_via=matched_name)
+        if hit:
+            return hit
+    if ccn_norm:
+        pac = _ccn_to_enrollment_pac().get(ccn_norm) or _enrollment_pac_for_ccn_sqlite(ccn_norm, dba)
+        if pac and pac not in tried:
+            hit = _ownership_lookup_from_enrollment_pac(pac, matched_via=f"ccn:{ccn_norm}")
+            if hit:
+                return hit
     return None
 
 

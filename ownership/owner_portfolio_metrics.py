@@ -91,6 +91,26 @@ def _provider_info_csv_paths() -> list[Path]:
     return paths
 
 
+def provider_info_crosswalk_paths() -> list[Path]:
+    """
+    Provider files for ownership CCN / legal-name crosswalks.
+
+    Combined snapshots are first: monthly ProviderInfoNorm exports (e.g. from PBJapp)
+    may omit legal_business_name even when the column exists.
+    """
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+    for path in _provider_info_csv_paths():
+        if "combined" in path.name.lower() and path.is_file() and path not in seen:
+            ordered.append(path)
+            seen.add(path)
+    for path in _provider_info_csv_paths():
+        if path.is_file() and path not in seen:
+            ordered.append(path)
+            seen.add(path)
+    return ordered
+
+
 @lru_cache(maxsize=1)
 def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
     """Latest provider-info row per CCN (state, county, city, beds, HPRD, ratings)."""

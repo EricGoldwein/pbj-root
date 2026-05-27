@@ -126,7 +126,10 @@ def _provider_ownership_intro_html(ownership_type: str, cms: dict[str, Any] | No
                 f'<a href="{en_url}">{html.escape(en_name)}</a></span>'
             )
         matched = _format_org_display(str(cms.get("matched_via") or ""))
-        if matched and _norm_name_key(matched) != _norm_name_key(en_name):
+        matched_raw = str(cms.get("matched_via") or "")
+        if matched_raw.startswith("ccn:"):
+            match_details = ""
+        elif matched and _norm_name_key(matched) != _norm_name_key(en_name):
             match_details = (
                 '<details class="pbj-ownership-mini-details">'
                 '<summary>Legal name match</summary>'

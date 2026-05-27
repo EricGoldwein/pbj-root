@@ -10,6 +10,8 @@ GitHub LFS bandwidth blocks Render from smudging large files at clone. **Full lo
 
 Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` **and** `Procfile` start). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress.
 
+**State pages (`/state/*`):** `python scripts/build_state_page_aggregates.py` runs after CSV materialization and writes `data/state_page_aggregates.json.gz` (facility counts, case-mix medians, rural shares, high-risk buckets for the canonical quarter). At runtime the app hydrates in-memory caches from that file; if missing or stale (CSV mtime changed), it falls back to the same compute paths as before.
+
 If provider pages return 404 instantly, Render likely skipped the build script — confirm **Start Command** includes `python scripts/ensure_deploy_csvs.py &&` (see `Procfile`).
 
 ## Ownership + provider info (structural)

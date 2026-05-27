@@ -1012,6 +1012,7 @@ def debug_mem():
                 if isinstance(_STATE_CASE_MIX_MEDIANS, dict) and _STATE_CASE_MIX_MEDIANS
                 else None
             ),
+            'state_page_aggregates_hydrated': _STATE_PAGE_AGGREGATES_HYDRATE_OK,
             'provider_info_full_cache': bool(_LOAD_PROVIDER_INFO_CACHE),
             'state_fq_slices': len(_STATE_FQ_SLICE_CACHE),
         },
@@ -1051,6 +1052,13 @@ def warmup():
     except Exception as e:
         checks['error'] = str(e)
         ok = False
+    try:
+        checks['state_page_aggregates'] = {
+            'ok': _hydrate_state_page_aggregates_from_disk(),
+            'hydrated': _STATE_PAGE_AGGREGATES_HYDRATE_OK,
+        }
+    except Exception as e:
+        checks['state_page_aggregates'] = {'ok': False, 'error': str(e)}
     return jsonify({'ok': ok, 'checks': checks}), (200 if ok else 503)
 
 
@@ -2384,7 +2392,7 @@ def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
 
 
 def _high_risk_buckets_for_state_page(state_code: str, cy_qtr: str | None) -> dict:
-    """High-risk buckets for state page: warm cache, else single-state provider scan."""
+    """High-risk buckets for state page: warm national cache, else one provider scan for all states."""
     st = (state_code or "").strip().upper()[:2]
     if not st:
         return {}
@@ -2392,7 +2400,13 @@ def _high_risk_buckets_for_state_page(state_code: str, cy_qtr: str | None) -> di
     if cached and any(cached.get(k) for k in ("sff", "sffCandidates", "abuse", "oneStarOverall")):
         return cached
     if cy_qtr:
-        return _compute_high_risk_buckets_for_state(st, cy_qtr)
+        warmed, _effective = _compute_high_risk_by_state_for_quarter(cy_qtr)
+        states_map = {}
+        if isinstance(warmed, tuple) and len(warmed) >= 1 and isinstance(warmed[0], dict):
+            states_map = warmed[0]
+        elif isinstance(warmed, dict):
+            states_map = warmed
+        return states_map.get(st) or {}
     return cached
 
 
@@ -5893,6 +5907,12 @@ _STATE_CASE_MIX_MEDIANS = None  # raw_quarter -> {state_code: median float}
 _STATE_CASE_MIX_MEDIANS_AT = 0.0
 _STATE_CASE_MIX_MEDIANS_KEY = None
 _STATE_CASE_MIX_MEDIANS_TTL = 900
+_STATE_FACILITY_COUNTS_BY_QUARTER = None  # CY_Qtr -> {state_abbr: int}
+_STATE_FACILITY_COUNTS_BUILD_KEY = None  # (path, mtime)
+_STATE_FACILITY_COUNTS_AT = 0.0
+_STATE_FACILITY_COUNTS_TTL = 900
+_STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED = False
+_STATE_PAGE_AGGREGATES_HYDRATE_OK = False
 # Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
 _LATEST_PROVIDER_QUARTERS = 4
 
@@ -6311,6 +6331,76 @@ def _median_positive(vals: list[float]) -> float | None:
     return vals[mid]
 
 
+def _hydrate_state_page_aggregates_from_disk() -> bool:
+    """Load deploy-built data/state_page_aggregates.json.gz into process caches (fast state pages)."""
+    global _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED, _STATE_PAGE_AGGREGATES_HYDRATE_OK
+    global _STATE_FACILITY_COUNTS_BY_QUARTER, _STATE_FACILITY_COUNTS_BUILD_KEY, _STATE_FACILITY_COUNTS_AT
+    global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_KEY, _STATE_CASE_MIX_MEDIANS_AT
+    global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
+    global _HIGH_RISK_BY_STATE_CACHE_KEY, _HIGH_RISK_BY_STATE_CACHE_VAL, _HIGH_RISK_BY_STATE_CACHE_AT
+
+    if _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED:
+        return _STATE_PAGE_AGGREGATES_HYDRATE_OK
+    _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED = True
+    try:
+        import state_page_aggregates as spa
+
+        bundle = spa.load_bundle(APP_ROOT)
+    except Exception as e:
+        print(f'[state_page] aggregate hydrate import/load failed: {e}', flush=True)
+        _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+        return False
+    if not bundle:
+        _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+        return False
+
+    q = str(bundle.get('canonical_quarter') or '').strip()
+    if not q:
+        _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+        return False
+
+    now = time.time()
+    sources = bundle.get('sources') or {}
+    fq_meta = sources.get('facility_quarterly') or {}
+    prov_meta = sources.get('provider_primary') or {}
+    fq_abs = spa.resolve_source_path(APP_ROOT, str(fq_meta.get('path') or ''))
+    prov_abs = spa.resolve_source_path(APP_ROOT, str(prov_meta.get('path') or ''))
+    fq_mtime = float(fq_meta.get('mtime') or 0)
+    prov_mtime = float(prov_meta.get('mtime') or 0)
+
+    fc_all = bundle.get('facility_counts_by_quarter') or {}
+    if isinstance(fc_all.get(q), dict):
+        _STATE_FACILITY_COUNTS_BY_QUARTER = {str(kq): dict(v) for kq, v in fc_all.items() if isinstance(v, dict)}
+        _STATE_FACILITY_COUNTS_BUILD_KEY = (fq_abs, fq_mtime)
+        _STATE_FACILITY_COUNTS_AT = now
+
+    cm_all = bundle.get('case_mix_medians_by_quarter') or {}
+    if isinstance(cm_all.get(q), dict):
+        if _STATE_CASE_MIX_MEDIANS is None:
+            _STATE_CASE_MIX_MEDIANS = {}
+        for kq, vals in cm_all.items():
+            if isinstance(vals, dict):
+                _STATE_CASE_MIX_MEDIANS[str(kq)] = dict(vals)
+        _STATE_CASE_MIX_MEDIANS_KEY = (prov_abs, prov_mtime, q)
+        _STATE_CASE_MIX_MEDIANS_AT = now
+
+    rural_all = bundle.get('rural_shares_by_quarter') or {}
+    rural_block = rural_all.get(q) if isinstance(rural_all, dict) else None
+    if isinstance(rural_block, dict):
+        _store_rural_shares_cache(q, rural_block.get('national'), rural_block.get('states') or {})
+
+    hr_all = bundle.get('high_risk_by_quarter') or {}
+    eff = str(bundle.get('effective_high_risk_quarter') or q).strip()
+    if isinstance(hr_all.get(q), dict):
+        _HIGH_RISK_BY_STATE_CACHE_KEY = (prov_abs, prov_mtime, '__cms_snapshot__')
+        _HIGH_RISK_BY_STATE_CACHE_VAL = (hr_all[q], eff)
+        _HIGH_RISK_BY_STATE_CACHE_AT = now
+
+    _STATE_PAGE_AGGREGATES_HYDRATE_OK = True
+    print(f'[state_page] hydrated deploy aggregates for {q}', flush=True)
+    return True
+
+
 def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
     """One CSV pass: per-state median case-mix HPRD for a quarter (no national provider dict)."""
     global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_AT, _STATE_CASE_MIX_MEDIANS_KEY
@@ -6333,6 +6423,10 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
     ):
         return _STATE_CASE_MIX_MEDIANS.get(q) or {}
     by_state: dict[str, list[float]] = {}
+    rural_seen_ccn: set[str] = set()
+    rural_by_state: dict[str, list[int]] = {}
+    national_rural = 0
+    national_total = 0
     for csv_path in paths:
         if not os.path.isfile(csv_path):
             continue
@@ -6352,8 +6446,36 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
                 or 'NH_ProviderInfo' in csv_path
                 or 'ProviderInfoNorm_' in csv_path
             )
+            urban_col = _resolve_provider_urban_col(header_cols)
+            ccn_col = next(
+                (
+                    c
+                    for c in header_cols
+                    if str(c).lower() in ('ccn', 'provnum') or 'ccn' in str(c).lower()
+                ),
+                None,
+            )
+            scan_usecols = list(dict.fromkeys([c for c in (state_col, qcol, cm_col, urban_col, ccn_col) if c]))
             latest_quarters = None if is_latest else _get_latest_quarter_values(csv_path, _LATEST_PROVIDER_QUARTERS)
-            for chunk in pd.read_csv(csv_path, usecols=usecols, low_memory=False, chunksize=150000):
+            for chunk in pd.read_csv(csv_path, usecols=scan_usecols, low_memory=False, chunksize=150000):
+                if is_latest and urban_col and ccn_col:
+                    for _, row in chunk.iterrows():
+                        is_rural = _provider_is_rural(row.get(urban_col))
+                        if is_rural is None:
+                            continue
+                        ccn = str(row.get(ccn_col) or '').strip().replace('.0', '').zfill(6)
+                        if len(ccn) != 6 or ccn in rural_seen_ccn:
+                            continue
+                        st_r = str(row.get(state_col) or '').strip().upper()[:2]
+                        if not st_r:
+                            continue
+                        rural_seen_ccn.add(ccn)
+                        bucket = rural_by_state.setdefault(st_r, [0, 0])
+                        bucket[1] += 1
+                        national_total += 1
+                        if is_rural:
+                            bucket[0] += 1
+                            national_rural += 1
                 if latest_quarters is not None:
                     if qcol == 'CY_Qtr':
                         chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
@@ -6391,6 +6513,14 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
         except Exception as e:
             print(f"Error building state case-mix medians from {csv_path}: {e}")
             continue
+    if national_total > 0 and not _rural_shares_cache_valid(q):
+        nat_pct = round(100.0 * national_rural / national_total, 1)
+        state_pcts = {
+            st: round(100.0 * counts[0] / counts[1], 1)
+            for st, counts in rural_by_state.items()
+            if counts[1] > 0
+        }
+        _store_rural_shares_cache(q, nat_pct, state_pcts)
     medians = {st: m for st, vals in by_state.items() if (m := _median_positive(vals)) is not None}
     if _STATE_CASE_MIX_MEDIANS is None:
         _STATE_CASE_MIX_MEDIANS = {}
@@ -6519,7 +6649,31 @@ def get_rank_for_state_case_mix_median(state_code, raw_quarter):
 
 _RURAL_SHARE_BY_QUARTER_CACHE = None
 _RURAL_SHARE_BY_QUARTER_AT = 0
-_RURAL_SHARE_CACHE_TTL = 300
+_RURAL_SHARE_CACHE_TTL = 900
+
+
+def _store_rural_shares_cache(raw_quarter: str, nat_pct, state_pcts: dict) -> None:
+    """Persist rural share aggregates (shared across state pages for the same quarter label)."""
+    global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
+    q = str(raw_quarter or '').strip()
+    if not q:
+        return
+    _RURAL_SHARE_BY_QUARTER_CACHE = {'q': q, 'national': nat_pct, 'states': dict(state_pcts or {})}
+    _RURAL_SHARE_BY_QUARTER_AT = time.time()
+
+
+def _rural_shares_cache_valid(raw_quarter: str) -> bool:
+    q = str(raw_quarter or '').strip()
+    if not q or _RURAL_SHARE_BY_QUARTER_CACHE is None:
+        return False
+    now = time.time()
+    if _RURAL_SHARE_BY_QUARTER_CACHE.get('q') != q:
+        return False
+    if (now - _RURAL_SHARE_BY_QUARTER_AT) >= _RURAL_SHARE_CACHE_TTL:
+        return False
+    cached_nat = _RURAL_SHARE_BY_QUARTER_CACHE.get('national')
+    cached_states = _RURAL_SHARE_BY_QUARTER_CACHE.get('states') or {}
+    return cached_nat != 0.0 or bool(cached_states)
 
 
 def _provider_is_rural(urban_val):
@@ -6536,7 +6690,10 @@ def _provider_is_rural(urban_val):
 
 def _build_rural_shares_for_quarter(raw_quarter):
     """Return (national_pct, {state: pct}) for share of facilities labeled rural (latest CMS snapshot)."""
-    del raw_quarter  # rural/urban flag is from latest provider snapshot, not PBJ quarter
+    q = str(raw_quarter or '').strip()
+    if _rural_shares_cache_valid(q):
+        cached = _RURAL_SHARE_BY_QUARTER_CACHE or {}
+        return cached.get('national'), cached.get('states') or {}
     get_pd()
     national_rural = 0
     national_total = 0
@@ -6610,29 +6767,20 @@ def _build_rural_shares_for_quarter(raw_quarter):
         for st, counts in by_state.items()
         if counts[1] > 0
     }
+    if q:
+        _store_rural_shares_cache(q, nat_pct, state_pcts)
     return nat_pct, state_pcts
 
 
 def get_rural_shares_for_quarter(raw_quarter):
     """Cached national + per-state rural facility share for a quarter."""
-    global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
     if not raw_quarter:
         return None, {}
     q = str(raw_quarter).strip()
-    now = time.time()
-    if (
-        _RURAL_SHARE_BY_QUARTER_CACHE is not None
-        and _RURAL_SHARE_BY_QUARTER_CACHE.get('q') == q
-        and (now - _RURAL_SHARE_BY_QUARTER_AT) < _RURAL_SHARE_CACHE_TTL
-    ):
-        cached_nat = _RURAL_SHARE_BY_QUARTER_CACHE.get('national')
-        cached_states = _RURAL_SHARE_BY_QUARTER_CACHE.get('states') or {}
-        # Stale bad cache from broken urban reads (0% U.S., empty states).
-        if cached_nat != 0.0 or cached_states:
-            return cached_nat, cached_states
+    if _rural_shares_cache_valid(q):
+        cached = _RURAL_SHARE_BY_QUARTER_CACHE or {}
+        return cached.get('national'), cached.get('states') or {}
     nat, states = _build_rural_shares_for_quarter(q)
-    _RURAL_SHARE_BY_QUARTER_CACHE = {'q': q, 'national': nat, 'states': states}
-    _RURAL_SHARE_BY_QUARTER_AT = now
     return nat, states
 
 
@@ -13273,23 +13421,68 @@ def get_state_historical_data(state_code):
         return None
 
 
-def get_state_facility_count_from_facility_quarterly(state_code, raw_quarter):
-    """Count distinct facilities in state for quarter from facility_quarterly_metrics (avoids wrong state_quarterly facility_count)."""
-    if not HAS_PANDAS or not state_code or not raw_quarter:
-        return None
+def _ensure_state_facility_counts_for_quarter(raw_quarter: str) -> dict[str, int]:
+    """One streaming pass over facility_quarterly (STATE, PROVNUM, CY_Qtr only) — all states for a quarter."""
+    global _STATE_FACILITY_COUNTS_BY_QUARTER, _STATE_FACILITY_COUNTS_BUILD_KEY, _STATE_FACILITY_COUNTS_AT
+    q = str(raw_quarter or '').strip()
+    if not q or not HAS_PANDAS:
+        return {}
+    path = _facility_quarterly_csv_path()
+    if not path:
+        return {}
     try:
-        df = load_csv_data('facility_quarterly_metrics.csv')
-        if df is None or not isinstance(df, pd.DataFrame):
-            df = load_csv_data('facility_quarterly_metrics_latest.csv')
-        if df is None or not isinstance(df, pd.DataFrame) or 'PROVNUM' not in df.columns or 'STATE' not in df.columns:
-            return None
-        df = df.copy()
-        df['STATE'] = df['STATE'].astype(str).str.strip().str.upper()
-        df['CY_Qtr'] = df['CY_Qtr'].astype(str)
-        sub = df[(df['STATE'] == state_code.strip().upper()[:2]) & (df['CY_Qtr'] == str(raw_quarter))]
-        return int(sub['PROVNUM'].nunique()) if not sub.empty else 0  # 0 = known empty result set
-    except Exception:
+        mtime = os.path.getmtime(path)
+    except OSError:
+        mtime = 0
+    build_key = (path, mtime)
+    now = time.time()
+    if (
+        isinstance(_STATE_FACILITY_COUNTS_BY_QUARTER, dict)
+        and _STATE_FACILITY_COUNTS_BUILD_KEY == build_key
+        and q in _STATE_FACILITY_COUNTS_BY_QUARTER
+        and (now - _STATE_FACILITY_COUNTS_AT) < _STATE_FACILITY_COUNTS_TTL
+    ):
+        return _STATE_FACILITY_COUNTS_BY_QUARTER.get(q) or {}
+    pdm = get_pd()
+    if pdm is None:
+        return {}
+    by_state: dict[str, set[str]] = {}
+    try:
+        for chunk in pdm.read_csv(
+            path, usecols=['STATE', 'PROVNUM', 'CY_Qtr'], low_memory=False, chunksize=200000
+        ):
+            if chunk.empty:
+                continue
+            chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == q]
+            if chunk.empty:
+                continue
+            for _, row in chunk.iterrows():
+                st = str(row.get('STATE') or '').strip().upper()[:2]
+                prov = str(row.get('PROVNUM') or '').strip().replace('.0', '').zfill(6)
+                if len(st) != 2 or len(prov) != 6:
+                    continue
+                by_state.setdefault(st, set()).add(prov)
+    except Exception as e:
+        print(f"Error streaming state facility counts from {path}: {e}")
+        return {}
+    counts = {st: len(provs) for st, provs in by_state.items()}
+    if _STATE_FACILITY_COUNTS_BY_QUARTER is None:
+        _STATE_FACILITY_COUNTS_BY_QUARTER = {}
+    _STATE_FACILITY_COUNTS_BY_QUARTER[q] = counts
+    _STATE_FACILITY_COUNTS_BUILD_KEY = build_key
+    _STATE_FACILITY_COUNTS_AT = now
+    return counts
+
+
+def get_state_facility_count_from_facility_quarterly(state_code, raw_quarter):
+    """Count distinct facilities in state for quarter (streaming; avoids loading full facility CSV)."""
+    if not state_code or not raw_quarter:
         return None
+    st = str(state_code).strip().upper()[:2]
+    counts = _ensure_state_facility_counts_for_quarter(raw_quarter)
+    if not counts:
+        return None
+    return counts.get(st, 0)
 
 
 def get_national_historical_data():
@@ -13844,7 +14037,7 @@ def _render_state_pbj_high_risk_section(
     return section
 
 
-def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None):
+def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None, state_rankings_df=None):
     """Generate state page content. Returns (content, page_title, seo_description, canonical_url) for use with get_pbj_site_layout (state page is separate from PBJpedia)."""
     try:
         from pbj_format import format_metric_value, na_display, NA_HINT_CASE_MIX, NA_HINT_DEFAULT
@@ -13882,18 +14075,24 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         if not HAS_PANDAS or raw_quarter is None:
             return None
         try:
-            # Load all state data for latest quarter
-            state_df = load_csv_data('state_quarterly_metrics.csv')
-            if state_df is None:
-                return None
-            latest_all = state_df[(state_df['CY_Qtr'] == raw_quarter) & (state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING))]
-            if latest_all.empty:
+            latest_all = None
+            if state_rankings_df is not None and isinstance(state_rankings_df, pd.DataFrame):
+                latest_all = state_rankings_df
+            if latest_all is None or latest_all.empty:
+                state_df = load_csv_data('state_quarterly_metrics.csv')
+                if state_df is None:
+                    return None
+                latest_all = state_df[
+                    (state_df['CY_Qtr'] == raw_quarter)
+                    & (state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING))
+                ]
+            if latest_all is None or latest_all.empty or metric_key not in latest_all.columns:
                 return None
             latest_all_sorted = latest_all.sort_values(metric_key, ascending=False).reset_index(drop=True)
             state_idx = latest_all_sorted[latest_all_sorted['STATE'] == state_code].index
             if not state_idx.empty:
                 return int(state_idx[0]) + 1
-        except:
+        except Exception:
             pass
         return None
     
@@ -15873,6 +16072,8 @@ def generate_state_page(state_code):
     if not HAS_PANDAS:
         return "Pandas not available. Dynamic state pages require pandas.", 503
 
+    _hydrate_state_page_aggregates_from_disk()
+
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     
     # Load data
@@ -15962,9 +16163,10 @@ def generate_state_page(state_code):
     
     # Generate state page content (state has its own page; PBJpedia is separate)
     content, page_title, seo_description, canonical_url = generate_state_page_html(
-        state_name, state_code, latest_data, macpac_standard, region_info, 
-        formatted_quarter, state_rank_total, state_rank_rn, total_states, 
-        state_sff, latest_quarter, contact_info, high_risk_buckets=state_high_risk_buckets
+        state_name, state_code, latest_data, macpac_standard, region_info,
+        formatted_quarter, state_rank_total, state_rank_rn, total_states,
+        state_sff, latest_quarter, contact_info, high_risk_buckets=state_high_risk_buckets,
+        state_rankings_df=latest_all_states,
     )
     try:
         from pbj_format import format_metric_value as _fmt_metric

@@ -7,10 +7,10 @@ from flask import Flask, render_template, jsonify, request
 import pandas as pd
 import os
 import re
+import threading
 from pathlib import Path
 import json
 import sys
-from pathlib import Path
 # Add donor directory to path for imports
 donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
@@ -41,6 +41,27 @@ facility_name_mapping_df = None  # Pre-computed mapping
 entity_lookup_df = None
 donations_df = None
 facility_metrics_df = None
+
+_data_loaded = False
+_data_load_lock = threading.Lock()
+
+
+def ensure_data_loaded() -> None:
+    """Load CSV/parquet indexes once (required when mounted under app.py /owner proxy)."""
+    global _data_loaded
+    if _data_loaded:
+        return
+    with _data_load_lock:
+        if _data_loaded:
+            return
+        load_data()
+        _data_loaded = True
+
+
+@app.before_request
+def _load_data_before_request():
+    if request.path.startswith("/api/") or request.path in ("/", "/test", "/test/"):
+        ensure_data_loaded()
 
 # Name variation mapping (common nicknames)
 NAME_VARIATIONS = {
@@ -165,12 +186,16 @@ def load_data():
     print("="*60)
     
     # PART 1: Load pre-processed owners database (FAST - for search only)
-    # This should be created by running: python donor/owner_donor.py MODE=extract
-    # NO FEC API CALLS HERE - just owner names for search
-    if OWNERS_DB.exists():
+    # Built on deploy: python scripts/build_owners_database.py (donor/output is gitignored)
+    owners_parquet = OWNERS_DB.with_suffix(".parquet")
+    owners_source = owners_parquet if owners_parquet.is_file() else OWNERS_DB
+    if owners_source.is_file():
         try:
-            print(f"Loading pre-processed owners database: {OWNERS_DB}")
-            owners_df = pd.read_csv(OWNERS_DB, dtype=str, low_memory=False)
+            print(f"Loading pre-processed owners database: {owners_source}")
+            if owners_source.suffix.lower() == ".parquet":
+                owners_df = pd.read_parquet(owners_source)
+            else:
+                owners_df = pd.read_csv(owners_source, dtype=str, low_memory=False)
             print(f"✓ Loaded {len(owners_df)} owners from database (FAST)")
             if 'owner_type' in owners_df.columns:
                 individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])

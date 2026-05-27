@@ -26,6 +26,18 @@
     return String(dateStr);
   }
 
+  function fecLinkHtml(d) {
+    if (d.fec_link) {
+      return ' <a href="' + escapeHtml(d.fec_link) + '" target="_blank" rel="noopener" class="owner-fec-source-btn" title="View FEC filing">View on FEC</a>';
+    }
+    if (d.donor_name) {
+      var url = 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' +
+        encodeURIComponent(d.donor_name).replace(/%20/g, '+');
+      return ' <a href="' + url + '" target="_blank" rel="noopener" class="owner-fec-source-btn" title="Search contributor on FEC">Search on FEC</a>';
+    }
+    return '';
+  }
+
   function formatContributionAmount(amount) {
     var n = Number(amount);
     if (isNaN(n)) return '$0';
@@ -139,7 +151,7 @@
       list.innerHTML = slice.map(function (d) {
         return '<article class="owner-fec-card">' +
           '<div class="owner-fec-card-amt">' + formatContributionAmount(d.amount) +
-          (d.fec_link ? ' <a href="' + escapeHtml(d.fec_link) + '" target="_blank" rel="noopener" class="owner-fec-source-btn">FEC filing</a>' : '') +
+          fecLinkHtml(d) +
           '</div>' +
           '<div class="owner-fec-card-meta">' +
           (d.donor_name ? '<div><strong>FEC contributor:</strong> ' + escapeHtml(d.donor_name) + '</div>' : '') +

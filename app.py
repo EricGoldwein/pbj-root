@@ -5537,6 +5537,16 @@ def sitemap():
                     urls.append(f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>monthly</changefreq><priority>0.6</priority></url>')
     except Exception as e:
         print(f"Sitemap: could not load search_index: {e}")
+    try:
+        from ownership.owner_profile import public_owner_associate_ids_for_sitemap
+
+        for pac in public_owner_associate_ids_for_sitemap():
+            urls.append(
+                f'  <url><loc>{base}/owners/{pac}</loc><lastmod>{today}</lastmod>'
+                f'<changefreq>monthly</changefreq><priority>0.55</priority></url>'
+            )
+    except Exception as e:
+        print(f"Sitemap: could not load public owner profiles: {e}")
     filtered = []
     for entry in urls:
         m = re.search(r'<loc>([^<]+)</loc>', entry)

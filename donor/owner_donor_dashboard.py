@@ -16,8 +16,72 @@ donor_dir = Path(__file__).parent
 if str(donor_dir) not in sys.path:
     sys.path.insert(0, str(donor_dir))
 
-from fec_api_client import query_donations_by_name, normalize_fec_donation, FEC_API_KEY, FEC_API_BASE_URL
+from fec_api_client import (
+    build_schedule_a_docquery_link,
+    query_donations_by_name,
+    normalize_fec_donation,
+    FEC_API_KEY,
+    FEC_API_BASE_URL,
+)
 import requests
+
+
+def _donation_api_payload(norm: dict) -> dict:
+    """JSON donation row for /owner/api and /owners/<pac> FEC UI (includes docquery link)."""
+    fec_link = (norm.get('fec_docquery_url') or '').strip()
+    if not fec_link:
+        cid = (norm.get('committee_id') or '').strip()
+        fid = norm.get('fec_file_number')
+        if cid and fid:
+            built = build_schedule_a_docquery_link(
+                committee_id=cid,
+                image_number=fid,
+                form_type=(norm.get('form_type') or '').strip() or None,
+                verify_link=False,
+            )
+            fec_link = (built.get('url') or '').strip()
+    try:
+        amount = float(norm.get('donation_amount', 0) or 0)
+    except (TypeError, ValueError):
+        amount = 0.0
+    return {
+        'amount': amount,
+        'date': norm.get('donation_date', '') or '',
+        'committee': norm.get('committee_name', '') or '',
+        'committee_id': norm.get('committee_id', '') or '',
+        'candidate': norm.get('candidate_name', '') or '',
+        'office': norm.get('candidate_office', '') or '',
+        'party': norm.get('candidate_party', '') or '',
+        'employer': norm.get('employer', '') or '',
+        'occupation': norm.get('occupation', '') or '',
+        'donor_name': norm.get('donor_name', '') or '',
+        'donor_city': norm.get('donor_city', '') or '',
+        'donor_state': norm.get('donor_state', '') or '',
+        'fec_link': fec_link,
+    }
+
+
+def _donation_api_payload_from_csv_row(row) -> dict:
+    """Pre-processed owner_donations_database.csv row -> API donation dict."""
+    norm = {
+        'donation_amount': row.get('donation_amount', 0),
+        'donation_date': row.get('donation_date', ''),
+        'committee_name': row.get('committee_name', ''),
+        'committee_id': row.get('committee_id', ''),
+        'candidate_name': row.get('candidate_name', ''),
+        'candidate_office': row.get('candidate_office', ''),
+        'candidate_party': row.get('candidate_party', ''),
+        'employer': row.get('employer', ''),
+        'occupation': row.get('occupation', ''),
+        'donor_name': row.get('donor_name', ''),
+        'donor_city': row.get('donor_city', ''),
+        'donor_state': row.get('donor_state', ''),
+        'fec_docquery_url': row.get('fec_docquery_url', '') or row.get('fec_link', ''),
+        'fec_file_number': row.get('fec_file_number', '') or row.get('fec_record_id', ''),
+        'fec_record_id': row.get('fec_record_id', '') or row.get('sub_id', ''),
+        'form_type': row.get('form_type', ''),
+    }
+    return _donation_api_payload(norm)
 
 app = Flask(__name__, template_folder='templates')
 
@@ -818,26 +882,7 @@ def get_owner_details(owner_name):
         ]
         if not owner_donations.empty:
             for _, d in owner_donations.iterrows():
-                try:
-                    donation_amt = d.get('donation_amount', 0)
-                    if pd.notna(donation_amt) and donation_amt != '':
-                        amount = float(str(donation_amt))
-                    else:
-                        amount = 0.0
-                except (ValueError, TypeError):
-                    amount = 0.0
-                donations.append({
-                    'amount': amount,
-                    'date': d.get('donation_date', ''),
-                    'committee': d.get('committee_name', ''),
-                    'candidate': d.get('candidate_name', ''),
-                    'office': d.get('candidate_office', ''),
-                    'party': d.get('candidate_party', ''),
-                    'employer': d.get('employer', ''),
-                    'occupation': d.get('occupation', ''),
-                    'donor_city': d.get('donor_city', ''),
-                    'donor_state': d.get('donor_state', '')
-                })
+                donations.append(_donation_api_payload_from_csv_row(d))
     
     # Calculate portfolio summary
     portfolio_summary = {
@@ -931,22 +976,10 @@ def query_fec():
             except:
                 pass
         
-        # Normalize all donations
-        normalized = []
-        for donation in all_donations:
-            norm = normalize_fec_donation(donation)
-            normalized.append({
-                'amount': float(norm.get('donation_amount', 0)) if pd.notna(norm.get('donation_amount')) else 0,
-                'date': norm.get('donation_date', ''),
-                'committee': norm.get('committee_name', ''),
-                'candidate': norm.get('candidate_name', ''),
-                'office': norm.get('candidate_office', ''),
-                'party': norm.get('candidate_party', ''),
-                'employer': norm.get('employer', ''),
-                'occupation': norm.get('occupation', ''),
-                'donor_city': norm.get('donor_city', ''),
-                'donor_state': norm.get('donor_state', '')
-            })
+        normalized = [
+            _donation_api_payload(normalize_fec_donation(donation))
+            for donation in all_donations
+        ]
         
         # Sort by date (most recent first)
         normalized.sort(key=lambda x: x['date'] if x['date'] else '', reverse=True)

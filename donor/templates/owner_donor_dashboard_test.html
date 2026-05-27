@@ -720,6 +720,27 @@
             border-color: rgba(102,126,234,0.6);
             color: #fff;
         }
+        .donor-info-trigger {
+            cursor: pointer;
+            touch-action: manipulation;
+            border-bottom: 1px dotted rgba(102,126,234,0.55);
+        }
+        .donor-popup {
+            display: none;
+            position: fixed;
+            padding: 0.75rem 1rem;
+            background: #1e293b;
+            border: 1px solid rgba(102, 126, 234, 0.45);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.95);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.45);
+            z-index: 10001;
+            min-width: 200px;
+            max-width: min(300px, calc(100vw - 2rem));
+        }
+        .donor-popup.show { display: block; }
         
         .facility-link-icon {
             margin-left: 0.3rem;
@@ -1097,6 +1118,118 @@
             const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
             if (isMobile) return '$' + Math.round(n).toLocaleString();
             return '$' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function fecLinkHtml(d) {
+            if (d.fec_link) {
+                return ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn" title="View FEC filing">View on FEC</a>`;
+            }
+            if (d.donor_name) {
+                const url = 'https://www.fec.gov/data/receipts/individual-contributions/?contributor_name=' +
+                    encodeURIComponent(d.donor_name).replace(/%20/g, '+');
+                return ` <a href="${url}" target="_blank" rel="noopener" class="donor-source-btn" title="Search contributor on FEC">Search on FEC</a>`;
+            }
+            return '';
+        }
+
+        function toTitleCaseName(str) {
+            if (!str) return '';
+            return str.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function formatFecContributor(d) {
+            if (!d || !d.donor_name) return '';
+            const name = escapeHtml(toTitleCaseName(d.donor_name));
+            const cityDisplay = d.donor_city ? toTitleCaseName(d.donor_city) : '';
+            const stateDisplay = d.donor_state ? d.donor_state.toUpperCase() : '';
+            const loc = (cityDisplay && stateDisplay) ? ` (${escapeHtml(cityDisplay)}, ${escapeHtml(stateDisplay)})` : '';
+            const inlineText = name + loc;
+            const hasPopup = (d.donor_city || d.donor_state || d.employer || d.occupation || d.committee || d.candidate);
+            if (!hasPopup) return `<strong>FEC listing:</strong> ${inlineText}`;
+            const popupParts = [];
+            if (name) popupParts.push(`<strong>${name}</strong>`);
+            if (d.employer || d.occupation) {
+                popupParts.push(`<div><strong>Employer/Occupation:</strong> ${escapeHtml([d.employer, d.occupation].filter(Boolean).map(s => toTitleCaseName(s)).join(' — '))}</div>`);
+            }
+            if (d.committee) popupParts.push(`<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>`);
+            if (d.candidate) popupParts.push(`<div><strong>Candidate:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${escapeHtml(d.office)})` : ''}</div>`);
+            if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
+            popupParts.push(`<div style="margin-top:0.5rem;">${fecLinkHtml(d)}</div>`);
+            const uid = 'popup-' + Math.random().toString(36).slice(2);
+            const touch = 'ontouchstart' in window;
+            const hoverOn = touch ? '' : ` onmouseenter="showDonorPopup('${uid}')" onmouseleave="hideDonorPopup('${uid}')"`;
+            return `<strong>FEC listing:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOn}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation();toggleDonorPopup('${uid}')">${inlineText}</span><div id="${uid}" class="donor-popup">${popupParts.join('')}</div></span>`;
+        }
+
+        var hideDonorPopupTimer = null;
+        function positionDonorPopup(el, wrap) {
+            const pad = 8;
+            const margin = 10;
+            if (window.innerWidth <= 768) {
+                el.style.left = '50%';
+                el.style.top = '50%';
+                el.style.transform = 'translate(-50%, -50%)';
+            } else {
+                const r = wrap.getBoundingClientRect();
+                const popupHeight = el.offsetHeight || 220;
+                const spaceBelow = window.innerHeight - 20 - r.bottom;
+                const spaceAbove = r.top - 20;
+                let centerX = r.left + r.width / 2;
+                el.style.left = centerX + 'px';
+                if (spaceBelow >= popupHeight + pad || spaceBelow >= spaceAbove) {
+                    el.style.top = (r.bottom + pad) + 'px';
+                    el.style.transform = 'translate(-50%, 0)';
+                } else {
+                    el.style.top = (r.top - pad) + 'px';
+                    el.style.transform = 'translate(-50%, -100%)';
+                }
+            }
+        }
+        function showDonorPopup(uid) {
+            if (hideDonorPopupTimer) { clearTimeout(hideDonorPopupTimer); hideDonorPopupTimer = null; }
+            const el = document.getElementById(uid);
+            if (!el) return;
+            const wrap = el.closest('.donor-info-wrap');
+            if (!wrap) return;
+            if (!el._donorPopupParent) {
+                el._donorPopupParent = wrap;
+                document.body.appendChild(el);
+            }
+            positionDonorPopup(el, wrap);
+            el.classList.add('show');
+        }
+        function hideDonorPopup(uid) {
+            hideDonorPopupTimer = setTimeout(function() {
+                const el = document.getElementById(uid);
+                if (el) {
+                    el.classList.remove('show');
+                    if (el._donorPopupParent) {
+                        el._donorPopupParent.appendChild(el);
+                        el._donorPopupParent = null;
+                    }
+                }
+            }, 200);
+        }
+        function toggleDonorPopup(uid) {
+            const el = document.getElementById(uid);
+            if (!el) return;
+            if (el.classList.contains('show')) hideDonorPopup(uid);
+            else showDonorPopup(uid);
+        }
+
+        function donationListItemHtml(d) {
+            const fecBlock = formatFecContributor(d);
+            let meta = fecBlock ? fecBlock + '<br>' : '';
+            if (!fecBlock && d.donor_name) meta += `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>`;
+            if (d.date) meta += `Date: ${formatDonationDate(d.date)}`;
+            if (!fecBlock && d.committee) meta += `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}`;
+            if (!fecBlock && d.candidate) meta += `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}`;
+            return `<div style="display:flex;justify-content:space-between;align-items:start;padding:0.7rem;background:rgba(255,255,255,0.05);border-radius:4px;margin-bottom:0.5rem;">
+                <div style="flex:1;">
+                    <div style="font-weight:600;color:white;margin-bottom:0.2rem;">${formatContributionAmount(d.amount)}${fecLinkHtml(d)}</div>
+                    <div style="color:rgba(255,255,255,0.7);font-size:0.85rem;">${meta}</div>
+                </div>
+            </div>`;
         }
 
         // Mobile menu toggle
@@ -1737,7 +1870,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px;">
                                     <div style="flex: 1;">
                                         <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                            ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
+                                            ${formatContributionAmount(d.amount)}${fecLinkHtml(d)}
                                         </div>
                                         <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
                                             ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
@@ -2575,23 +2708,7 @@
                 
                 <h4 style="margin-bottom: 0.8rem; font-size: 1rem;">All Contributions (${donationCount})</h4>
                 <div id="donationsListContainer" style="max-height: 400px; overflow-y: auto;">
-                    ${donations.slice(0, 20).map(d => `
-                        <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
-                            <div style="flex: 1;">
-                                <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                    ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
-                                </div>
-                                <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                    ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
-                                    ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                    ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
-                                    ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
-                                    ${d.office ? ` (${d.office})` : ''}
-                                    ${d.party ? ` - ${d.party}` : ''}
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
+                    ${donations.slice(0, 20).map(d => donationListItemHtml(d)).join('')}
                 </div>
                 <div id="donationsPagination" style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.75rem; flex-wrap: wrap;">
                     ${donations.length > 20 ? `
@@ -2620,23 +2737,7 @@
             const pageDonations = data.donations.slice(start, start + PER_PAGE);
             const container = document.getElementById('donationsListContainer');
             if (container) {
-                container.innerHTML = pageDonations.map(d => `
-                    <div style="display: flex; justify-content: space-between; align-items: start; padding: 0.7rem; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 0.5rem;">
-                        <div style="flex: 1;">
-                            <div style="font-weight: 600; color: white; margin-bottom: 0.2rem;">
-                                ${formatContributionAmount(d.amount)}${d.fec_link ? ` <a href="${escapeHtml(d.fec_link)}" target="_blank" rel="noopener" class="donor-source-btn">Source</a>` : ''}
-                            </div>
-                            <div style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">
-                                ${d.donor_name ? `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>` : ''}
-                                ${d.date ? `Date: ${formatDonationDate(d.date)}` : ''}
-                                ${d.committee ? `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}` : ''}
-                                ${d.candidate ? `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}` : ''}
-                                ${d.office ? ` (${d.office})` : ''}
-                                ${d.party ? ` - ${d.party}` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
+                container.innerHTML = pageDonations.map(d => donationListItemHtml(d)).join('');
             }
             const pageNumEl = document.getElementById('donationsPageNum');
             const totalPagesEl = document.getElementById('donationsTotalPages');

@@ -628,16 +628,25 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
       <section class="owner-snapshot-section" aria-label="Portfolio summary">
         <div class="owner-portfolio-grid owner-portfolio-grid--3" aria-label="Portfolio summary metrics">
           <div class="owner-snapshot-card owner-snapshot-card--accent">
-            <div class="owner-snapshot-label">Facilities {_info_button("Facilities", fac_help)}</div>
-            <div class="owner-snapshot-value">{n}</div>
+            <div class="owner-snapshot-label">Facilities</div>
+            <div class="owner-snapshot-value-row">
+              <div class="owner-snapshot-value">{n}</div>
+              {_info_button("Facilities", fac_help)}
+            </div>
           </div>
           <div class="owner-snapshot-card owner-snapshot-card--warn">
-            <div class="owner-snapshot-label">Overall rating {_info_button("Overall rating", ovr_help)}</div>
-            <div class="owner-snapshot-value">{html.escape(str(ovr_val))}</div>
+            <div class="owner-snapshot-label">Overall rating</div>
+            <div class="owner-snapshot-value-row">
+              <div class="owner-snapshot-value">{html.escape(str(ovr_val))}</div>
+              {_info_button("Overall rating", ovr_help)}
+            </div>
           </div>
           <div class="owner-snapshot-card">
-            <div class="owner-snapshot-label">Staffing (HPRD) {_info_button("Staffing (HPRD)", hprd_help)}</div>
-            <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
+            <div class="owner-snapshot-label" title="Resident-weighted mean from PBJ (verified facilities)">HPRD (weighted)</div>
+            <div class="owner-snapshot-value-row">
+              <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
+              {_info_button("Staffing (HPRD)", hprd_help)}
+            </div>
           </div>
         </div>
       </section>"""
@@ -740,6 +749,14 @@ def _facility_flags_cell(f: dict[str, Any], *, verified: bool) -> str:
     return '<span class="owner-flags">' + "".join(badges) + "</span>"
 
 
+def _facility_primary_state_suffix(f: dict[str, Any]) -> str:
+    """Mobile: state beside facility name; hidden on desktop when State column shows."""
+    st = str(f.get("state") or "").strip().upper()[:2]
+    if len(st) != 2:
+        return ""
+    return f' <span class="owner-facility-state-inline">({html.escape(st)})</span>'
+
+
 def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     """Provider/DBA on top (linked); CMS legal name below when different."""
     legal_raw = format_org_display(str(f.get("facility_name") or "—"))
@@ -762,13 +779,17 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         if href and link_label
         else ""
     )
+    state_suffix = _facility_primary_state_suffix(f)
     if provider_esc and not same:
         if href:
             primary_html = (
-                f'<a href="{href}" class="owner-facility-primary"{title_attr}>{provider_esc}</a>'
+                f'<a href="{href}" class="owner-facility-primary"{title_attr}>'
+                f"{provider_esc}{state_suffix}</a>"
             )
         else:
-            primary_html = f'<span class="owner-facility-primary">{provider_esc}</span>'
+            primary_html = (
+                f'<span class="owner-facility-primary">{provider_esc}{state_suffix}</span>'
+            )
         sub_parts = [legal_esc]
         if badge:
             sub_parts.append(badge)
@@ -776,10 +797,13 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     else:
         if href:
             primary_html = (
-                f'<a href="{href}" class="owner-facility-primary"{title_attr}>{legal_esc}</a>'
+                f'<a href="{href}" class="owner-facility-primary"{title_attr}>'
+                f"{legal_esc}{state_suffix}</a>"
             )
         else:
-            primary_html = f'<span class="owner-facility-primary">{legal_esc}</span>'
+            primary_html = (
+                f'<span class="owner-facility-primary">{legal_esc}{state_suffix}</span>'
+            )
         sub_html = ""
 
     inner = f"{primary_html}{sub_html}"
@@ -892,7 +916,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
         rows.append(
             f'<tr data-search="{html.escape(search)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
-            f'<td class="owner-col-state" data-label="State" data-sort="{_sort_attr(f.get("state"))}">{st}</td>'
+            f'<td class="owner-col-state" data-label="State" data-sort="{_sort_attr(f.get("state"))}">{st}</td>'  # hidden on mobile; state in facility name
             f'<td class="owner-col-county" data-label="County" data-sort="{_sort_attr(f.get("county"))}">{co}</td>'
             f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
             f'<td class="num owner-col-hprd" data-label="HPRD" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
@@ -919,7 +943,7 @@ def _owner_facilities_table_html(
         '<th data-sort="county" class="sortable owner-col-county">County <span class="sort-icon"></span></th>'
         '<th data-sort="role" class="sortable owner-col-role" title="Percent ownership">'
         '% Own. <span class="sort-icon"></span></th>'
-        '<th data-sort="hprd" class="sortable num owner-col-hprd">HPRD <span class="sort-icon"></span></th>'
+        '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Resident-weighted PBJ total nurse HPRD">HPRD (wtd) <span class="sort-icon"></span></th>'
         '<th data-sort="stars" class="sortable num owner-col-ratings">'
         'Ratings <span class="sort-icon"></span></th>'
         '<th data-sort="census" class="sortable num owner-col-census">Census <span class="sort-icon"></span></th>'

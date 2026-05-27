@@ -86,7 +86,8 @@ SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
     '/login',
     '/logout',
     '/static/',
-    '/owners/',
+    '/owners/api/',
+    '/owners/_dev/',
     '/owner/',
     '/admin',
     '/test/',
@@ -129,14 +130,15 @@ FOOTER_TRUST_BLURB = (
 )
 
 # Sitemap policy: only list URLs allowed by ROBOTS_TXT and not served with noindex.
-# Include /provider/ and /entity/ (CMS-linked records). Omit /owners/ (disallowed).
-# Omit /premium/ and other private/dashboard paths. When multi-state owner profiles launch,
-# a dedicated public route (e.g. /operator/<slug>) may be preferable to unblocking /owners/.
+# Include /provider/, /entity/, and public /owners/<10-digit PAC> (CT/NY CMS profiles).
+# Omit /owner/ (FEC search tool), /owners/api/, and /premium/.
 
 # Paths that must never appear in sitemap.xml (legacy, gated, or unfinished pages).
 SITEMAP_EXCLUDED_PATHS: frozenset[str] = frozenset({
     '/owners',
     '/owners/',
+    '/owner',
+    '/owner/',
     '/attorneys',
     '/pbj-ai-support',
     '/pbjpedia',
@@ -213,8 +215,10 @@ LLMS_TXT = build_llms_txt()
 # Canonical robots.txt body — www sitemap only; never disallow /provider/ or /entity/.
 ROBOTS_TXT_CANONICAL = """User-agent: *
 Allow: /
-Disallow: /owners/
 Disallow: /owner/
+Disallow: /owners/api/
+Disallow: /owners/_dev/
+Disallow: /owners-test/
 Disallow: /api/
 Disallow: /test/
 Disallow: /premium/

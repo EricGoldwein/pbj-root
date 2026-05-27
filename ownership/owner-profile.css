@@ -2187,7 +2187,8 @@ button.owner-flag:hover {
   border-bottom-color: rgba(129, 140, 248, 0.85);
 }
 
-.owner-fec-section .donor-popup {
+/* Popups are reparented to document.body — do not scope under .owner-fec-section */
+.donor-popup {
   display: none;
   position: fixed;
   padding: 0.75rem 1rem;
@@ -2198,20 +2199,21 @@ button.owner-flag:hover {
   line-height: 1.45;
   color: rgba(255, 255, 255, 0.95);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-  z-index: 10001;
+  z-index: 10050;
   min-width: 200px;
   max-width: min(300px, calc(100vw - 2rem));
+  pointer-events: auto;
 }
 
-.owner-fec-section .donor-popup.show {
+.donor-popup.show {
   display: block;
 }
 
-.owner-fec-section .donor-popup strong {
+.donor-popup strong {
   color: #f8fafc;
 }
 
-.owner-fec-section .donor-popup div {
+.donor-popup div {
   margin-top: 0.35rem;
 }
 

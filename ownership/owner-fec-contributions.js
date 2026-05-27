@@ -93,9 +93,15 @@
       clearTimeout(hideDonorPopupTimer);
       hideDonorPopupTimer = null;
     }
+    document.querySelectorAll('.donor-popup.show').forEach(function (open) {
+      if (open.id !== uid) {
+        open.classList.remove('show');
+        open.style.display = '';
+      }
+    });
     var el = document.getElementById(uid);
     if (!el) return;
-    var wrap = el.closest('.donor-info-wrap');
+    var wrap = el._donorPopupParent || el.closest('.donor-info-wrap');
     if (!wrap) return;
     if (!el._donorPopupParent) {
       el._donorPopupParent = wrap;
@@ -103,6 +109,7 @@
     }
     positionDonorPopup(el, wrap);
     el.classList.add('show');
+    el.style.display = 'block';
   }
 
   function hideDonorPopup(uid) {
@@ -110,6 +117,7 @@
       var el = document.getElementById(uid);
       if (el) {
         el.classList.remove('show');
+        el.style.display = '';
         if (el._donorPopupParent) {
           el._donorPopupParent.appendChild(el);
           el._donorPopupParent = null;
@@ -174,22 +182,30 @@
     );
   }
 
+  function fecRecipientLineHtml(d) {
+    if (d.candidate) {
+      return '<div><strong>To:</strong> ' + escapeHtml(d.candidate) +
+        (d.office ? ' (' + escapeHtml(d.office) + ')' : '') +
+        (d.party ? ' — ' + escapeHtml(d.party) : '') + '</div>';
+    }
+    if (d.committee) {
+      return '<div><strong>Committee:</strong> ' + escapeHtml(d.committee) + '</div>';
+    }
+    return '';
+  }
+
   function fecContributionMetaHtml(d) {
     var fecBlock = formatFecContributor(d);
     var meta = fecBlock ? fecBlock : '';
     if (!fecBlock && d.donor_name) {
       meta += '<div><strong>FEC contributor:</strong> ' + escapeHtml(d.donor_name) + '</div>';
     }
+    var recipient = fecRecipientLineHtml(d);
+    if (recipient) {
+      meta += (meta ? '<br>' : '') + recipient;
+    }
     if (d.date) {
       meta += (meta ? '<br>' : '') + 'Date: ' + formatDonationDate(d.date);
-    }
-    if (!fecBlock && d.committee) {
-      meta += '<br><strong>Committee:</strong> ' + escapeHtml(d.committee);
-    }
-    if (!fecBlock && d.candidate) {
-      meta += '<br><strong>Candidate:</strong> ' + escapeHtml(d.candidate) +
-        (d.office ? ' (' + escapeHtml(d.office) + ')' : '') +
-        (d.party ? ' — ' + escapeHtml(d.party) : '');
     }
     return meta;
   }

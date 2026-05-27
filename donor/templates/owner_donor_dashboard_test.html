@@ -1187,9 +1187,19 @@
         }
         function showDonorPopup(uid) {
             if (hideDonorPopupTimer) { clearTimeout(hideDonorPopupTimer); hideDonorPopupTimer = null; }
+            document.querySelectorAll('.donor-popup.show').forEach(function (open) {
+                if (open.id !== uid) {
+                    open.classList.remove('show');
+                    open.style.display = '';
+                    if (open._donorPopupParent) {
+                        open._donorPopupParent.appendChild(open);
+                        open._donorPopupParent = null;
+                    }
+                }
+            });
             const el = document.getElementById(uid);
             if (!el) return;
-            const wrap = el.closest('.donor-info-wrap');
+            const wrap = el._donorPopupParent || el.closest('.donor-info-wrap');
             if (!wrap) return;
             if (!el._donorPopupParent) {
                 el._donorPopupParent = wrap;
@@ -1197,12 +1207,14 @@
             }
             positionDonorPopup(el, wrap);
             el.classList.add('show');
+            el.style.display = 'block';
         }
         function hideDonorPopup(uid) {
             hideDonorPopupTimer = setTimeout(function() {
                 const el = document.getElementById(uid);
                 if (el) {
                     el.classList.remove('show');
+                    el.style.display = '';
                     if (el._donorPopupParent) {
                         el._donorPopupParent.appendChild(el);
                         el._donorPopupParent = null;
@@ -1217,13 +1229,23 @@
             else showDonorPopup(uid);
         }
 
+        function fecRecipientLineHtml(d) {
+            if (d.candidate) {
+                return `<div><strong>To:</strong> ${escapeHtml(d.candidate)}${d.office ? ` (${escapeHtml(d.office)})` : ''}${d.party ? ` — ${escapeHtml(d.party)}` : ''}</div>`;
+            }
+            if (d.committee) {
+                return `<div><strong>Committee:</strong> ${escapeHtml(d.committee)}</div>`;
+            }
+            return '';
+        }
+
         function donationListItemHtml(d) {
             const fecBlock = formatFecContributor(d);
             let meta = fecBlock ? fecBlock + '<br>' : '';
             if (!fecBlock && d.donor_name) meta += `<strong>FEC contributor:</strong> ${escapeHtml(d.donor_name)}<br>`;
-            if (d.date) meta += `Date: ${formatDonationDate(d.date)}`;
-            if (!fecBlock && d.committee) meta += `<br><strong>Committee:</strong> ${escapeHtml(d.committee)}`;
-            if (!fecBlock && d.candidate) meta += `<br><strong>Candidate:</strong> ${escapeHtml(d.candidate)}`;
+            const recipient = fecRecipientLineHtml(d);
+            if (recipient) meta += (meta ? '<br>' : '') + recipient;
+            if (d.date) meta += (meta ? '<br>' : '') + `Date: ${formatDonationDate(d.date)}`;
             return `<div style="display:flex;justify-content:space-between;align-items:start;padding:0.7rem;background:rgba(255,255,255,0.05);border-radius:4px;margin-bottom:0.5rem;">
                 <div style="flex:1;">
                     <div style="font-weight:600;color:white;margin-bottom:0.2rem;">${formatContributionAmount(d.amount)}${fecLinkHtml(d)}</div>

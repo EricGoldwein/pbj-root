@@ -62,11 +62,11 @@
 }
 
 .owner-profile-brand-pbj {
-  color: #f8fafc;
+  color: #e2e8f0;
 }
 
 .owner-profile-brand-320 {
-  color: #60a5fa;
+  color: #818cf8;
 }
 
 .owner-profile-brand-suffix {
@@ -473,12 +473,39 @@
   margin-bottom: 0.25rem;
 }
 
+.owner-snapshot-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.2rem;
+  margin-top: auto;
+}
+
+.owner-snapshot-value-row .owner-snapshot-value {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.owner-snapshot-value-row .owner-info-btn {
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+  align-self: center;
+}
+
 .owner-snapshot-value {
   font-size: 1.45rem;
   font-weight: 700;
   color: #f1f5f9;
   line-height: 1.2;
   font-variant-numeric: tabular-nums;
+}
+
+.owner-facility-state-inline {
+  display: none;
+  font-weight: 600;
+  font-size: 0.82em;
+  color: #94a3b8;
+  white-space: nowrap;
 }
 
 .owner-snapshot-sub {
@@ -1549,10 +1576,6 @@ button.owner-flag:hover {
     margin: 0.25rem 0 0.45rem;
   }
 
-  .owner-snapshot-value {
-    font-size: 0.95rem;
-  }
-
   .owner-snapshot-card {
     padding: 0.4rem 0.45rem;
     min-height: 0;
@@ -1564,9 +1587,25 @@ button.owner-flag:hover {
     letter-spacing: 0.02em;
   }
 
-  .owner-snapshot-card .owner-info-btn {
-    transform: scale(0.9);
-    margin-left: 0.05rem;
+  .owner-snapshot-value {
+    font-size: 0.95rem;
+  }
+
+  .owner-snapshot-value-row .owner-info-btn {
+    min-width: 1rem;
+    height: 1rem;
+    font-size: 0.65rem;
+    margin-left: 0.1rem;
+  }
+
+  .owner-facility-state-inline {
+    display: inline;
+  }
+
+  .owner-facilities-table .owner-col-state,
+  .owner-facilities-table th.owner-col-state,
+  .owner-facilities-table td.owner-col-state {
+    display: none;
   }
 
   .owner-facilities-section {

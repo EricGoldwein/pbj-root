@@ -307,6 +307,24 @@ def _facility_col_from_record(rec: dict[str, Any]) -> str:
     return _facility_link_from_record(rec)
 
 
+def _state_ownership_summary_label(
+    state_code: str,
+    state_name: str,
+    *,
+    variant: str,
+    count: int,
+) -> str:
+    """Compact one-line <summary> text for state ownership sections."""
+    st = str(state_code or "").strip().upper()[:2]
+    if len(st) == 2:
+        short = f"{st}'s"
+    else:
+        short = html.escape((state_name or st).strip())
+    if variant == "top_orgs":
+        return f"{short} Top Ownership Orgs ({count})"
+    return f"Recent Ownership Changes · {st} ({count:,})"
+
+
 def _render_state_chow_recent_table(
     state_code: str,
     *,
@@ -351,20 +369,20 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         url = html.escape(str(p.get("profile_url") or ""))
         name_cell = f'<a href="{url}">{name}</a>' if url else name
         trs.append(
-            f'<tr><td class="chow-org-name">{name_cell}</td>'
-            f'<td class="num">{cnt}</td></tr>'
+            f'<tr><td class="chow-org-name" data-label="Organization">{name_cell}</td>'
+            f'<td class="num" data-label="Facilities">{cnt}</td></tr>'
         )
 
     org_count = len(top)
+    summary = _state_ownership_summary_label(st, state_name, variant="top_orgs", count=org_count)
     return (
         f'<details class="pbj-details pbj-page-bottom-details pbj-details-top-owners">'
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
-        f"Top ownership organizations · {label} ({org_count})</summary>"
+        f'<span class="chow-state-summary-text">{summary}</span></summary>'
         f'<div class="pbj-details-content chow-state-block">'
-        f'<p class="chow-state-lead">Organizations with the most nursing homes linked in {label} '
-        f"(CMS SNF All Owners snapshot).</p>"
+        f'<p class="chow-state-lead chow-state-lead--compact">Most facilities linked in CMS SNF All Owners ({label}).</p>'
         f'<div class="chow-table-scroll chow-table-scroll--touch chow-state-owners-scroll">'
-        f'<table class="chow-table chow-state-owners-table chow-table--compact-sm">'
+        f'<table class="chow-table chow-state-owners-table chow-table--compact-sm chow-table--cards-sm">'
         f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
         f"<tbody>{''.join(trs)}</tbody></table></div></div></details>"
     )
@@ -382,7 +400,7 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
     stats = chow_state_stats(st)
     events = int(stats.get("events") or cnt)
     u_ccn = int(stats.get("unique_facilities") or 0)
-    recent_n = min(10, events)
+    recent_n = min(20, events)
 
     date_rng = chow_index_date_range_label()
     date_bit = (
@@ -391,25 +409,34 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         else ""
     )
     lead = (
-        f'<p class="chow-state-lead">{events:,} reported ownership changes '
-        f'at {u_ccn:,} {label} facilities{date_bit}. '
-        f"CMS enrollment filings—not proof of staffing or care quality.</p>"
+        f'<p class="chow-state-lead chow-state-lead--compact">{events:,} ownership changes '
+        f'at {u_ccn:,} {label} facilities{date_bit}.</p>'
     )
 
     foot_html = ""
     if events > recent_n:
+        chow_href = html.escape(f"/chow?state={st}")
         foot_html = (
-            f'<p class="chow-state-foot">Showing {recent_n} newest of {events:,} '
-            f"in this index.</p>"
+            f'<p class="chow-state-actions">'
+            f"Newest {recent_n} below. "
+            f'<a href="{chow_href}" class="chow-state-all-link">View all {events:,} in CHOW monitor</a>'
+            f"</p>"
+        )
+    elif events > 0:
+        chow_href = html.escape(f"/chow?state={st}")
+        foot_html = (
+            f'<p class="chow-state-actions">'
+            f'<a href="{chow_href}" class="chow-state-all-link">Open in CHOW monitor</a>'
+            f"</p>"
         )
 
     table_html = _render_state_chow_recent_table(st, limit=recent_n, foot_html=foot_html)
-    summary_label = f"Recent ownership changes · {label} ({events:,})"
+    summary_label = _state_ownership_summary_label(st, state_name, variant="recent", count=events)
 
     return (
         f'<details class="pbj-details pbj-page-bottom-details pbj-details-ownership-chow">'
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
-        f"{summary_label}</summary>"
+        f'<span class="chow-state-summary-text">{summary_label}</span></summary>'
         f'<div class="pbj-details-content chow-state-block">'
         f"{lead}"
         f"{table_html}"

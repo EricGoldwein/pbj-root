@@ -363,8 +363,8 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         f'<div class="pbj-details-content chow-state-block">'
         f'<p class="chow-state-lead">Organizations with the most nursing homes linked in {label} '
         f"(CMS SNF All Owners snapshot).</p>"
-        f'<div class="chow-table-scroll chow-state-owners-scroll">'
-        f'<table class="chow-table chow-state-owners-table">'
+        f'<div class="chow-table-scroll chow-table-scroll--touch chow-state-owners-scroll">'
+        f'<table class="chow-table chow-state-owners-table chow-table--compact-sm">'
         f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
         f"<tbody>{''.join(trs)}</tbody></table></div></div></details>"
     )
@@ -454,7 +454,10 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
             else pname
         )
         trs.append(
-            f"<tr><td>{name_cell}</td><td>{ptype}</td><td>{role_cell}</td><td>{since}</td></tr>"
+            f'<tr><td data-label="Name">{name_cell}</td>'
+            f'<td data-label="Type">{ptype}</td>'
+            f'<td data-label="Role">{role_cell}</td>'
+            f'<td data-label="Since">{since}</td></tr>'
         )
     extra = ""
     if len(parties) > preview:
@@ -464,8 +467,10 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         )
     return (
         f"{extra}"
-        '<div class="chow-table-scroll" style="max-height:360px;">'
-        '<table class="chow-table chow-provider-owners-table"><thead><tr>'
+        '<div class="chow-table-scroll chow-table-scroll--touch chow-provider-owners-scroll" '
+        'style="max-height:360px;">'
+        '<table class="chow-table chow-provider-owners-table chow-table--cards-sm">'
+        "<thead><tr>"
         "<th>Name</th><th>Type</th><th>Role</th><th>Since</th>"
         "</tr></thead><tbody>"
         + "".join(trs)

@@ -289,7 +289,7 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
             <h2 id="ownerStatesModalTitle">By state</h2>
             <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
           </header>
-          <div class="chow-table-scroll owner-states-modal-body">
+          <div class="chow-table-scroll chow-table-scroll--touch owner-states-modal-body">
             <table class="chow-table owner-states-table">
               <thead><tr><th>State</th><th class="num">#</th></tr></thead>
               <tbody>{"".join(rows)}{total_row}</tbody>
@@ -930,7 +930,7 @@ def _owner_facilities_table_html(
         f"{filter_html}</div>"
     )
     table = (
-        '<div class="chow-table-scroll owner-facilities-scroll" style="max-height:min(70vh,560px);">'
+        '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll" style="max-height:min(70vh,560px);">'
         '<table class="chow-table owner-facilities-table" id="ownerFacilitiesTable">'
         f"<thead><tr>{thead}</tr></thead><tbody>"
         + "".join(_facilities_owner_rows(fac_list))
@@ -961,8 +961,8 @@ def _table_with_preview(
     preview_rows = all_rows[:preview]
     rest_rows = all_rows[preview:]
     table = (
-        '<div class="chow-table-scroll" style="max-height:480px;">'
-        f'<table class="chow-table"><thead><tr>{thead}</tr></thead><tbody>'
+        '<div class="chow-table-scroll chow-table-scroll--touch" style="max-height:480px;">'
+        f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(preview_rows)
         + "</tbody></table></div>"
     )
@@ -976,8 +976,8 @@ def _table_with_preview(
     extra = (
         f'<details class="owner-collapsible"><summary>Show all {n} {html.escape(entity_label)} '
         f"({len(rest_rows)} more)</summary>"
-        '<div class="chow-table-scroll">'
-        f'<table class="chow-table"><thead><tr>{thead}</tr></thead><tbody>'
+        '<div class="chow-table-scroll chow-table-scroll--touch">'
+        f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(all_rows)
         + "</tbody></table></div></details>"
     )
@@ -1151,8 +1151,10 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         )
 
     inner = (
-        '<div class="chow-table-scroll" style="max-height:360px;">'
-        '<table class="chow-table"><thead><tr>'
+        '<div class="chow-table-scroll chow-table-scroll--touch owner-tx-scroll" '
+        'style="max-height:360px;">'
+        '<table class="chow-table chow-tx-table chow-tx-table--mobile owner-tx-table">'
+        "<thead><tr>"
         "<th>Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Role</th>"
         "</tr></thead><tbody>"
         + "".join(tx_rows)

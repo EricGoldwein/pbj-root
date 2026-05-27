@@ -1581,6 +1581,73 @@ button.owner-flag:hover {
   .owner-flags {
     max-width: 4.25rem;
   }
+
+  .owner-facilities-scroll.chow-table-scroll--touch {
+    max-height: min(65vh, 480px);
+  }
+
+  .owner-tx-scroll .owner-tx-table {
+    min-width: 26rem;
+  }
+
+  .owner-tx-table th:nth-child(2),
+  .owner-tx-table td:nth-child(2) {
+    min-width: 6.5rem;
+    max-width: 9.5rem;
+    word-break: break-word;
+  }
+
+  .owner-facilities-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .owner-facilities-header-actions {
+    width: 100%;
+    min-width: 0;
+    justify-content: stretch;
+  }
+
+  .owner-facilities-header-actions .owner-table-filter-input {
+    max-width: none;
+    min-height: 2.5rem;
+    font-size: 16px;
+  }
+
+  .owner-facilities-table {
+    min-width: 22rem;
+  }
+
+  .owner-facilities-table th:first-child,
+  .owner-facilities-table td.owner-col-facility {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: #1e293b;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.35);
+  }
+
+  .owner-facilities-table thead th:first-child {
+    z-index: 3;
+    background: #334155;
+  }
+
+  .owner-facilities-table .owner-col-hprd,
+  .owner-facilities-table th.owner-col-hprd {
+    display: none;
+  }
+
+  .owner-facilities-table .owner-col-facility {
+    min-width: 7.5rem;
+    max-width: 11rem;
+  }
+
+  a.owner-facility-primary,
+  button.owner-role-pct-btn {
+    min-height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+  }
 }
 
 @media (max-width: 520px) {

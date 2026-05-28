@@ -644,8 +644,9 @@ def _get_search_index_data():
 
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
-    'Shown when CMS Provider Information flags the facility: SFF or SFF candidate, '
-    '1-star overall rating, or abuse icon. PBJ320 displays CMS fields—it does not assign them.'
+    'PBJ320 Flags include the following CMS-assigned indicators: '
+    'SFF / Candidate, Abuse, 1-star overall, and 1-star staffing. '
+    'PBJ320 displays CMS fields—it does not assign them.'
 )
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 

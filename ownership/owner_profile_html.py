@@ -313,25 +313,31 @@ def _pac_meta_html(
     ow_label: str,
 ) -> str:
     enrollment_ids = profile.get("enrollment_ids") or []
-    parts: list[str] = []
+    rows: list[str] = []
     if kind == "both":
-        parts.append(f'<span class="owner-meta-item"><span class="owner-meta-k">PAC</span> {pac}</span>')
+        label = "PAC"
     elif kind == "owner_control":
-        parts.append(
-            f'<span class="owner-meta-item"><span class="owner-meta-k">{ow_label}</span> {pac}</span>'
-        )
+        label = ow_label
     else:
-        parts.append(
-            f'<span class="owner-meta-item"><span class="owner-meta-k">{en_label}</span> {pac}</span>'
-        )
+        label = en_label
+
+    rows.append(
+        f'<span class="owner-meta-item owner-meta-row">'
+        f'<span class="owner-meta-k">{label}</span>'
+        f'<span class="owner-meta-v">{pac}</span>'
+        "</span>"
+    )
     if enrollment_ids:
         ids = ", ".join(html.escape(e) for e in enrollment_ids[:4])
         if len(enrollment_ids) > 4:
             ids += f" (+{len(enrollment_ids) - 4})"
-        parts.append(
-            f'<span class="owner-meta-item"><span class="owner-meta-k">Enrollment ID</span> {ids}</span>'
+        rows.append(
+            f'<span class="owner-meta-item owner-meta-row">'
+            f'<span class="owner-meta-k">Enrollment ID</span>'
+            f'<span class="owner-meta-v">{ids}</span>'
+            "</span>"
         )
-    return f'<span class="owner-profile-pac-meta">{" · ".join(parts)}</span>'
+    return f'<span class="owner-profile-pac-meta">{"".join(rows)}</span>'
 
 
 def _internal_preview_banner_html(profile: dict[str, Any]) -> str:
@@ -983,7 +989,8 @@ def _owner_facilities_table_html(
         f"{filter_html}</div>"
     )
     table = (
-        '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll">'
+        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
+        '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll owner-facilities-scroll">'
         '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
         f"<thead><tr>{thead}</tr></thead><tbody>"
         + "".join(_facilities_owner_rows(fac_list))
@@ -1014,7 +1021,8 @@ def _table_with_preview(
     preview_rows = all_rows[:preview]
     rest_rows = all_rows[preview:]
     table = (
-        '<div class="chow-table-scroll chow-table-scroll--touch" style="max-height:480px;">'
+        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
+        '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll" style="max-height:480px;">'
         f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(preview_rows)
         + "</tbody></table></div>"
@@ -1029,7 +1037,8 @@ def _table_with_preview(
     extra = (
         f'<details class="owner-collapsible"><summary>Show all {n} {html.escape(entity_label)} '
         f"({len(rest_rows)} more)</summary>"
-        '<div class="chow-table-scroll chow-table-scroll--touch">'
+        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
+        '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll">'
         f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(all_rows)
         + "</tbody></table></div></details>"
@@ -1091,9 +1100,9 @@ def _control_parties_html(
     )
     intro = (
         f'<p class="owner-control-summary">'
-        f"<strong>{n}</strong> reported parties "
+        f"<strong>{n}</strong> parties "
         f"({orgs} organizations · {inds} individuals). "
-        f"Sorted by ownership % and role. Names link to owner profiles.</p>"
+        f"Sorted by ownership %. Names link to owner profiles.</p>"
     )
     table_block = _table_with_preview(
         title,

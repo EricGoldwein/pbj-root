@@ -208,7 +208,8 @@ def render_chow_events_table(
         return ""
     return (
         f'<div class="chow-tx-table-wrap">'
-        f'<div class="chow-table-scroll chow-tx-scroll chow-table-scroll--touch">'
+        f'<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
+        f'<div class="chow-table-scroll chow-tx-scroll chow-table-scroll--touch mobile-table-scroll">'
         f'<table class="{table_class} chow-tx-table--mobile"><thead><tr>'
         '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'
         "</tr></thead><tbody>"

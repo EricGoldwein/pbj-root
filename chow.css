@@ -577,6 +577,7 @@
   border-radius: 10px;
   margin-top: 0.5rem;
   background: var(--chow-surface-inset);
+  max-width: 100%;
 }
 
 .chow-table {
@@ -584,6 +585,7 @@
   border-collapse: collapse;
   font-size: 0.84rem;
   background: var(--chow-surface-inset);
+  table-layout: auto;
 }
 
 .chow-table th,
@@ -685,6 +687,9 @@
 .chow-org-name {
   font-weight: 500;
   line-height: 1.35;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .chow-partner-badges {
@@ -1157,40 +1162,36 @@ body.chow-modal-open {
   position: relative;
 }
 
+.mobile-table-hint {
+  display: none;
+}
+
+.chow-table-scroll--touch.mobile-table-scroll {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
 @media (max-width: 768px) {
-  .chow-table-scroll--touch:has(.chow-table--cards-sm)::before,
-  .chow-table-scroll--touch:has(.chow-table--cards-sm)::after,
-  .owner-facilities-scroll.chow-table-scroll--touch::before,
-  .owner-facilities-scroll.chow-table-scroll--touch::after,
-  .owner-facilities-scroll::before,
-  .owner-facilities-scroll::after {
-    display: none;
+  .chow-table th {
+    font-size: 0.72rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
+  }
+
+  .chow-table td {
+    font-size: 0.82rem;
   }
 
   .chow-provider-owners-scroll {
     max-height: none;
   }
 
-  .chow-table-scroll--touch::before {
-    content: "Swipe sideways for more columns";
+  .mobile-table-hint {
     display: block;
+    margin: 0.15rem 0 0.35rem;
     font-size: 0.72rem;
-    font-weight: 500;
+    line-height: 1.25;
     color: var(--chow-subtle);
-    margin: 0 0 0.35rem;
-    letter-spacing: 0.01em;
-  }
-
-  .chow-table-scroll--touch::after {
-    content: "";
-    position: absolute;
-    top: 1.6rem;
-    right: 0;
-    bottom: 0;
-    width: 1.25rem;
-    pointer-events: none;
-    background: linear-gradient(to left, var(--chow-surface-inset) 30%, transparent);
-    border-radius: 0 10px 10px 0;
   }
 
   .pbj-ownership-chow-content .chow-table-scroll--touch,
@@ -1214,11 +1215,6 @@ body.chow-modal-open {
     line-height: 1.25;
   }
 
-  .chow-state-block .chow-table-scroll--touch::before,
-  .chow-state-block .chow-table-scroll--touch::after {
-    display: none;
-  }
-
   .chow-state-owners-table.chow-table--cards-sm td.chow-org-name {
     display: block;
     padding: 0 0 0.35rem;
@@ -1235,21 +1231,7 @@ body.chow-modal-open {
   }
 
   .chow-state-block .chow-tx-table--mobile {
-    min-width: 22rem;
-  }
-
-  .chow-state-block .chow-tx-table--mobile th:first-child,
-  .chow-state-block .chow-tx-table--mobile td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--chow-surface-inset);
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.22);
-  }
-
-  .chow-state-block .chow-tx-table--mobile thead th:first-child {
-    background: var(--chow-surface-raised);
-    z-index: 3;
+    min-width: 44rem;
   }
 
   .chow-state-block .chow-tx-table--mobile th,
@@ -1260,9 +1242,11 @@ body.chow-modal-open {
 
   .chow-state-block .chow-tx-table--mobile .chow-tx-facility,
   .chow-state-block .chow-tx-table--mobile .chow-tx-org {
-    min-width: 5.5rem;
-    max-width: 8rem;
-    word-break: break-word;
+    min-width: 12rem;
+    max-width: 16rem;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   .chow-state-actions {
@@ -1277,32 +1261,43 @@ body.chow-modal-open {
 
   .chow-table--compact-sm .chow-org-name {
     min-width: 0;
-    word-break: break-word;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   .chow-tx-table--mobile {
-    min-width: 28rem;
-  }
-
-  .chow-tx-table--mobile th:first-child,
-  .chow-tx-table--mobile td:first-child {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: var(--chow-surface-inset);
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.25);
-  }
-
-  .chow-tx-table--mobile thead th:first-child {
-    background: var(--chow-surface-raised);
-    z-index: 3;
+    min-width: 44rem;
   }
 
   .chow-tx-table--mobile .chow-tx-facility,
   .chow-tx-table--mobile .chow-tx-org {
-    min-width: 6.5rem;
-    max-width: 9rem;
-    word-break: break-word;
+    min-width: 12rem;
+    max-width: 16rem;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .chow-tx-table--mobile th:nth-child(1),
+  .chow-tx-table--mobile td:nth-child(1) {
+    min-width: 8rem;
+  }
+
+  .chow-tx-table--mobile th:nth-child(2),
+  .chow-tx-table--mobile td:nth-child(2) {
+    min-width: 14rem;
+  }
+
+  .chow-tx-table--mobile th:nth-child(3),
+  .chow-tx-table--mobile td:nth-child(3),
+  .chow-tx-table--mobile th:nth-child(4),
+  .chow-tx-table--mobile td:nth-child(4) {
+    min-width: 14rem;
+  }
+
+  .chow-tx-table--mobile th:nth-child(5),
+  .chow-tx-table--mobile td:nth-child(5) {
+    min-width: 16rem;
   }
 
   .chow-tx-table--mobile .chow-view-details {

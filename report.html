@@ -2446,6 +2446,15 @@
       background: rgba(15, 23, 42, 0.6);
       border: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      max-width: 100%;
+    }
+
+    .mobile-table-hint {
+      display: none;
+      color: rgba(255, 255, 255, 0.62);
+      font-size: 0.72rem;
+      line-height: 1.25;
+      margin: 0.35rem 0 0.25rem;
     }
     
     /* Table Base */
@@ -2456,55 +2465,59 @@
       background: transparent;
       font-size: 0.9rem;
       table-layout: fixed;
+      max-width: none;
     }
     
     /* Prevent width expansion on mobile - apply immediately to prevent flash */
-    @media (max-width: 600px) {
+    @media (max-width: 700px) {
+      .mobile-table-hint {
+        display: block;
+      }
+
       /* Table container - allow vertical scrolling */
       .table-container {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
         overflow-x: auto !important; /* Horizontal scrolling */
-        overflow-y: auto !important; /* Vertical scrolling */
+        overflow-y: visible !important;
         max-height: 75vh !important; /* Limit height to allow scrolling */
         -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
         position: relative !important;
         display: block !important;
         transform: none !important;
-        padding-bottom: 160px !important; /* Add padding at bottom to ensure last rows are visible */
+        padding-bottom: 0 !important;
     }
     
       /* Make the table itself scrollable */
       #stateTable {
         display: table !important; /* Keep as table for proper layout */
-        overflow-x: auto !important; /* Horizontal scrolling on table */
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
         table-layout: auto !important;
-        width: 100% !important;
-        min-width: 100% !important;
-        max-width: 100% !important;
+        width: auto !important;
+        min-width: 44rem !important;
+        max-width: none !important;
         box-sizing: border-box !important;
-        margin: 0 0 60px 0 !important; /* Add margin at bottom */
-        padding: 0 0 40px 0 !important; /* Add padding at bottom */
+        margin: 0 !important;
+        padding: 0 !important;
       }
       
       /* Reduce padding for region view (fewer rows) */
       .table-container.region-view {
-        padding-bottom: 100px !important;
+        padding-bottom: 0 !important;
       }
       
       .table-container.region-view #stateTable {
-        margin-bottom: 30px !important;
-        padding-bottom: 15px !important;
+        margin-bottom: 0 !important;
+        padding-bottom: 0 !important;
       }
       
       /* Make state column wider for regions on mobile to prevent city name cutoff */
       #stateTable tbody td.col-state.region-cell {
-        width: 60px !important;
-        min-width: 60px !important;
-        max-width: 60px !important;
+        width: 72px !important;
+        min-width: 72px !important;
+        max-width: 72px !important;
       }
       
       #stateTable tbody td.col-state.region-cell span {
@@ -2957,10 +2970,14 @@
     /* Mobile td padding - minimal */
     @media (max-width: 768px) {
       #stateTable td {
-        padding: 8px 2px;
+        padding: 7px 4px;
         color: var(--table-text);
         font-size: 0.8rem;
         vertical-align: middle;
+      }
+
+      #stateTable th {
+        padding: 13px 8px;
       }
     }
     
@@ -2986,7 +3003,8 @@
       padding: 16px 10px;
       box-shadow: var(--frozen-shadow);
       white-space: normal;
-      word-wrap: break-word;
+      word-break: normal;
+      overflow-wrap: break-word;
       line-height: 1.4;
     }
     
@@ -2997,8 +3015,62 @@
     #stateTable tbody td.col-state a {
       display: inline-block;
       max-width: 100%;
-      word-wrap: break-word;
+      word-break: normal;
+      overflow-wrap: break-word;
       line-height: 1.3;
+    }
+
+    @media (max-width: 700px) {
+      #stateTable thead,
+      #stateTable thead tr:first-child th,
+      #stateTable thead tr:nth-child(2) th,
+      #stateTable tbody td.col-rank,
+      #stateTable tbody td.col-state,
+      #stateTable th.col-rank,
+      #stateTable th.col-state {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: auto !important;
+        box-shadow: none !important;
+      }
+
+      #stateTable th,
+      #stateTable td {
+        white-space: normal;
+        word-break: normal;
+        overflow-wrap: break-word;
+      }
+
+      #stateTable th.col-state,
+      #stateTable td.col-state {
+        min-width: 11rem !important;
+        max-width: 14rem !important;
+      }
+
+      #stateTable th.col-facilities,
+      #stateTable td.col-facilities {
+        min-width: 7.5rem !important;
+      }
+
+      #stateTable th.col-residents,
+      #stateTable td.col-residents {
+        min-width: 7rem !important;
+      }
+
+      #stateTable th.col-hprd,
+      #stateTable td.col-hprd {
+        min-width: 6.75rem !important;
+      }
+
+      #stateTable th.col-contract,
+      #stateTable td.col-contract,
+      #stateTable th.col-forprofit,
+      #stateTable td.col-forprofit,
+      #stateTable th.col-highrisk,
+      #stateTable td.col-highrisk {
+        min-width: 6.25rem !important;
+      }
     }
     
     /* Links */
@@ -4041,22 +4113,25 @@
       }
       
       .sff-section h4 {
-        font-size: 1rem;
-        margin-bottom: 12px;
-        flex-wrap: nowrap !important;
-        white-space: nowrap !important;
-        overflow-x: auto !important;
-        -webkit-overflow-scrolling: touch !important;
+        font-size: 0.92rem;
+        margin-bottom: 10px;
+        flex-wrap: wrap !important;
+        white-space: normal !important;
+        overflow: visible !important;
+        gap: 6px !important;
+        line-height: 1.2;
       }
       
       .sff-section h4 .badge {
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+        font-size: 0.66rem !important;
+        padding: 3px 8px !important;
       }
       
       .sff-section h4 > *:not(.badge) {
-        white-space: nowrap !important;
-        flex-shrink: 0 !important;
+        white-space: normal !important;
+        flex: 1 1 auto;
       }
       
       .sff-section h4 .desktop-text {
@@ -4065,6 +4140,7 @@
       
       .sff-section h4 .mobile-text {
         display: inline !important;
+        font-size: 0.76rem;
       }
       
       .sff-list li {
@@ -4257,6 +4333,51 @@
       max-height: none !important;
       overflow: visible !important;
     }
+
+    /* Final mobile table usability override */
+    @media (max-width: 700px) {
+      .table-container {
+        overflow-x: auto !important;
+        overflow-y: visible !important;
+        max-width: 100% !important;
+        padding: 0 !important;
+      }
+
+      #stateTable {
+        width: auto !important;
+        min-width: 44rem !important;
+        max-width: none !important;
+        table-layout: auto !important;
+      }
+
+      #stateTable thead,
+      #stateTable thead th,
+      #stateTable tbody td.col-rank,
+      #stateTable tbody td.col-state,
+      #stateTable th.col-rank,
+      #stateTable th.col-state {
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        z-index: auto !important;
+        box-shadow: none !important;
+      }
+
+      #stateTable th,
+      #stateTable td {
+        white-space: normal !important;
+        word-break: normal !important;
+        overflow-wrap: break-word !important;
+      }
+
+      #stateTable th {
+        padding: 11px 8px !important;
+      }
+
+      #stateTable td {
+        padding: 7px 4px !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -4384,6 +4505,7 @@
       -->
       
       <!-- REBUILT TABLE STRUCTURE -->
+      <p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>
       <div class="table-container">
         <table id="stateTable">
           <thead>
@@ -6822,9 +6944,9 @@ __REPORT_SSR_TABLE_ROWS__
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & candidates, abuse icon, and 1-star overall.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       } else {
-        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF candidates, abuse icon, and 1-star overall.</span>`;
+        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -6844,7 +6966,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge">SFF</span>
               <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
-              <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueSFF.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
@@ -6865,7 +6987,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge candidate">SFF Candidate</span>
               <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
-              <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueCandidates.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
@@ -6886,7 +7008,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
               <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
-              <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueAbuse.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
@@ -6907,7 +7029,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
-              <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueOneStarOverall.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
@@ -7792,9 +7914,9 @@ __REPORT_SSR_TABLE_ROWS__
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
       if (isMobile) {
-        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFFs & candidates, abuse icon, and 1-star overall.</span>`;
+        modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       } else {
-        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFFs, SFF candidates, abuse icon, and 1-star overall.</span>`;
+        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
@@ -7814,7 +7936,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge">SFF</span>
               <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
-              <span class="mobile-text">${uniqueSFF.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueSFF.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', '')).join('')}
@@ -7835,7 +7957,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge candidate">SFF Candidate</span>
               <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
-              <span class="mobile-text">${uniqueCandidates.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueCandidates.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', '')).join('')}
@@ -7856,7 +7978,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
               <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
-              <span class="mobile-text">${uniqueAbuse.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueAbuse.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', '')).join('')}
@@ -7877,7 +7999,7 @@ __REPORT_SSR_TABLE_ROWS__
             <h4>
               <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
-              <span class="mobile-text">${uniqueOneStarOverall.length} Nursing Homes</span>
+              <span class="mobile-text">${uniqueOneStarOverall.length} NHs</span>
             </h4>
             <ul class="sff-list">
               ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', '')).join('')}

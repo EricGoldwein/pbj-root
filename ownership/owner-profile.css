@@ -192,6 +192,18 @@
   line-height: 1.4;
 }
 
+.owner-meta-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.owner-meta-v {
+  color: #cbd5e1;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .owner-profile-subtitle {
   margin-top: 0;
   margin-bottom: 0.25rem;
@@ -732,6 +744,7 @@ button.owner-flag.owner-flag--abuse:hover,
   max-height: min(70vh, 560px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  max-width: 100%;
 }
 
 .owner-facilities-table {
@@ -745,10 +758,11 @@ button.owner-flag.owner-flag--abuse:hover,
 
 .owner-facilities-table .owner-col-facility,
 .owner-facilities-table td.owner-col-facility {
-  min-width: 8rem;
-  max-width: 16rem;
+  min-width: 11.5rem;
+  max-width: 15rem;
   white-space: normal;
-  word-break: break-word;
+  word-break: normal;
+  overflow-wrap: break-word;
   line-height: 1.3;
   vertical-align: top;
 }
@@ -1297,24 +1311,30 @@ button.owner-flag:hover {
 
 .owner-facilities-table .owner-col-role,
 .owner-facilities-table th.owner-col-role {
-  width: 5.25rem;
-  min-width: 5.25rem;
-  text-align: right;
-  white-space: nowrap;
+  width: 10rem;
+  min-width: 10rem;
+  text-align: left;
+  white-space: normal;
 }
 
 .owner-facilities-table td.owner-role-cell {
-  text-align: right;
+  text-align: left;
 }
 
 .owner-role-cell {
-  max-width: 4.5rem;
+  max-width: 16rem;
   line-height: 1.25;
   font-size: 0.8rem;
 }
 
 .owner-facilities-table .owner-role-cell .owner-role-full {
   display: none !important;
+}
+
+.owner-role-cell-inner {
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .owner-stars {
@@ -1549,6 +1569,12 @@ button.owner-flag:hover {
 }
 
 @media (max-width: 768px) {
+  .owner-profile-root .chow-table th {
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-size: 0.72rem;
+  }
+
   .owner-profile-header--branded {
     margin-bottom: 0.35rem;
   }
@@ -1570,7 +1596,7 @@ button.owner-flag:hover {
   .owner-portfolio-grid--3,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid--3 {
-    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 0.35rem;
     margin: 0.25rem 0 0.45rem;
   }
@@ -1584,6 +1610,7 @@ button.owner-flag:hover {
     font-size: 0.58rem;
     margin-bottom: 0.1rem;
     letter-spacing: 0.02em;
+    min-height: 1.65em;
   }
 
   .owner-snapshot-value {
@@ -1650,7 +1677,8 @@ button.owner-flag:hover {
   }
 
   .owner-facilities-table {
-    min-width: 19.5rem;
+    min-width: 42rem;
+    table-layout: auto;
   }
 
   .owner-facilities-table th .sort-icon {
@@ -1661,6 +1689,9 @@ button.owner-flag:hover {
   .owner-facilities-table td {
     font-size: 0.76rem;
     padding: 0.38rem 0.35rem;
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   .owner-facilities-table th.owner-col-hprd,
@@ -1685,24 +1716,14 @@ button.owner-flag:hover {
 
   .owner-facilities-table th:first-child,
   .owner-facilities-table td.owner-col-facility {
-    position: sticky;
-    left: 0;
-    z-index: 2;
-    background: #1e293b;
-    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.28);
-    min-width: 6.75rem;
-    max-width: 9.5rem;
-  }
-
-  .owner-facilities-table thead th:first-child {
-    z-index: 3;
-    background: #334155;
+    min-width: 12rem;
+    max-width: 15rem;
   }
 
   .owner-facilities-table .owner-col-role,
   .owner-facilities-table th.owner-col-role {
-    width: 3.5rem;
-    min-width: 3.5rem;
+    width: 15rem;
+    min-width: 15rem;
   }
 
   .owner-facilities-table .owner-col-flags {
@@ -1746,14 +1767,15 @@ button.owner-flag:hover {
   }
 
   .owner-tx-scroll .owner-tx-table {
-    min-width: 26rem;
+    min-width: 44rem;
   }
 
   .owner-tx-table th:nth-child(2),
   .owner-tx-table td:nth-child(2) {
-    min-width: 6.5rem;
-    max-width: 9.5rem;
-    word-break: break-word;
+    min-width: 12rem;
+    max-width: 16rem;
+    word-break: normal;
+    overflow-wrap: break-word;
   }
 
   a.owner-facility-primary,
@@ -1761,6 +1783,77 @@ button.owner-flag:hover {
     min-height: 2rem;
     display: inline-flex;
     align-items: center;
+  }
+}
+
+@media (max-width: 700px) {
+  .owner-profile-header--branded {
+    padding-left: 0.15rem;
+    padding-right: 0.15rem;
+  }
+
+  .owner-profile-brand-row {
+    align-items: flex-start;
+    gap: 0.45rem;
+  }
+
+  .owner-profile-brand {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .owner-profile-brand-lockup {
+    font-size: 0.86rem;
+    gap: 0.25rem;
+  }
+
+  .owner-profile-brand-suffix {
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+  }
+
+  .owner-profile-header-actions {
+    flex: 0 1 11.5rem;
+    min-width: 0;
+    max-width: 11.5rem;
+    align-items: flex-end;
+    gap: 0.35rem;
+  }
+
+  .owner-profile-header-actions .owner-profile-pac-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28rem;
+    text-align: right;
+    font-size: 0.71rem;
+    line-height: 1.25;
+    min-width: 0;
+  }
+
+  .owner-profile-header-actions .owner-meta-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    min-width: 0;
+  }
+
+  .owner-profile-header-actions .owner-meta-k {
+    color: #94a3b8;
+    font-size: 0.66rem;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .owner-profile-header-actions .owner-meta-v {
+    color: #e2e8f0;
+    font-size: 0.75rem;
+    white-space: nowrap;
+  }
+
+  .owner-profile-brand-row .owner-page-help {
+    margin-top: 0.1rem;
+    margin-left: 0.15rem;
+    align-self: flex-start;
   }
 }
 

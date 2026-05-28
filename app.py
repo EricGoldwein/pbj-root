@@ -250,9 +250,16 @@ else:
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
     # GPTBot etc.: rate-limit; cache MISS on /provider does not cold-render (see PBJ_AI_PROVIDER_CACHE_ONLY).
-    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '6')
+    os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '4')
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_WINDOW', '60')
     os.environ.setdefault('PBJ_AI_PROVIDER_CACHE_ONLY', '1')
+    os.environ.setdefault('PBJ_SEARCH_BOT_PROVIDER_CACHE_ONLY', '1')
+    os.environ.setdefault('PBJ_PROVIDER_COLD_BURST_LIMIT', '4')
+    os.environ.setdefault('PBJ_PROVIDER_COLD_BURST_WINDOW', '60')
+    os.environ.setdefault('PBJ_PROVIDER_CRAWLER_COLD_LIMIT', '4')
+    os.environ.setdefault('PBJ_OTHER_BOT_RATE_LIMIT', '20')
+    os.environ.setdefault('PBJ_OTHER_BOT_RATE_WINDOW', '60')
+    os.environ.setdefault('PBJ_SITEMAP_CACHE_TTL', '3600')
     os.environ.setdefault('PBJ_PROVIDER_PERF_LOG', '1')
     os.environ.setdefault('PBJ_PROVIDER_BROWSER_CACHE', '1')
 
@@ -719,7 +726,7 @@ def _mem_route_timer():
 @app.before_request
 def _ensure_pandas():
     """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
-    if request.path in ('/health', '/warmup'):
+    if request.path in ('/health', '/warmup', '/sitemap.xml'):
         return
     global pd
     if pd is None:
@@ -755,6 +762,19 @@ _PROVIDER_COLD_BURST_HITS = {}
 _PROVIDER_COLD_BURST_LOCK = threading.Lock()
 _PROVIDER_CRAWLER_COLD_HITS = {}
 _PROVIDER_CRAWLER_COLD_LOCK = threading.Lock()
+_OTHER_BOT_HITS = {}
+_OTHER_BOT_LOCK = threading.Lock()
+_SITEMAP_XML_CACHE: str | None = None
+_SITEMAP_XML_AT: float = 0.0
+_SITEMAP_BUILD_LOCK = threading.Lock()
+
+_HEAVY_BOT_PATH_PREFIXES = (
+    '/provider/',
+    '/entity/',
+    '/owners/',
+    '/owner/',
+    '/sitemap.xml',
+)
 
 
 def _block_aggressive_bots_enabled() -> bool:
@@ -965,6 +985,83 @@ def _throttle_ai_crawlers_on_heavy_routes():
     })
 
 
+def _path_is_heavy_bot_route(path: str) -> bool:
+    if path == '/sitemap.xml':
+        return True
+    return any(path.startswith(p) for p in _HEAVY_BOT_PATH_PREFIXES if p != '/sitemap.xml')
+
+
+def _other_bot_rate_limit_enabled() -> bool:
+    v = (os.environ.get('PBJ_OTHER_BOT_RATE_LIMIT') or '').strip()
+    if v.lower() in ('0', 'false', 'no', 'off'):
+        return False
+    if v:
+        try:
+            return int(v) > 0
+        except ValueError:
+            return False
+    return bool(os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _other_bot_rate_limit_config() -> tuple[int, int]:
+    try:
+        limit = int((os.environ.get('PBJ_OTHER_BOT_RATE_LIMIT') or '20').strip())
+    except ValueError:
+        limit = 20
+    try:
+        window = int((os.environ.get('PBJ_OTHER_BOT_RATE_WINDOW') or '60').strip())
+    except ValueError:
+        window = 60
+    return max(1, limit), max(1, window)
+
+
+def _other_bot_rate_limit_exceeded() -> int | None:
+    limit, window = _other_bot_rate_limit_config()
+    ip = _client_ip_for_rate_limit()
+    now = time.monotonic()
+    cutoff = now - window
+    with _OTHER_BOT_LOCK:
+        hits = _OTHER_BOT_HITS.get(ip)
+        if hits is None:
+            hits = []
+            _OTHER_BOT_HITS[ip] = hits
+        hits[:] = [t for t in hits if t > cutoff]
+        if len(hits) >= limit:
+            oldest = hits[0]
+            return max(1, int(window - (now - oldest)) + 1)
+        hits.append(now)
+        if len(_OTHER_BOT_HITS) > 5000:
+            stale = [k for k, ts in _OTHER_BOT_HITS.items() if not ts or ts[-1] <= cutoff]
+            for k in stale[:1000]:
+                _OTHER_BOT_HITS.pop(k, None)
+    return None
+
+
+@app.before_request
+def _throttle_other_bots_on_heavy_routes():
+    """Rate-limit generic bots (UA contains bot/crawler/spider) on expensive routes."""
+    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
+        return
+    if request.path == '/warmup/facility-indexes':
+        return
+    if not _other_bot_rate_limit_enabled():
+        return
+    from pbj_provider_perf import classify_user_agent
+
+    ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
+    if ua_class not in ('other_bot',):
+        return
+    if not _path_is_heavy_bot_route(request.path):
+        return
+    retry_after = _other_bot_rate_limit_exceeded()
+    if retry_after is None:
+        return
+    return make_response('Too Many Requests', 429, {
+        'Content-Type': 'text/plain; charset=utf-8',
+        'Retry-After': str(retry_after),
+    })
+
+
 @app.before_request
 def _reject_aggressive_bots_on_heavy_routes():
     """Cheap 429 for crawlers that hammer /provider and /entity (keeps workers for real users)."""
@@ -974,7 +1071,7 @@ def _reject_aggressive_bots_on_heavy_routes():
         return
     if not _block_aggressive_bots_enabled() or not _is_aggressive_bot():
         return
-    if request.path.startswith('/provider/') or request.path.startswith('/entity/'):
+    if _path_is_heavy_bot_route(request.path):
         return make_response('Too Many Requests', 429, {
             'Content-Type': 'text/plain; charset=utf-8',
             'Retry-After': '3600',
@@ -5514,9 +5611,16 @@ def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
     return fallback
 
 
-@app.route('/sitemap.xml')
-def sitemap():
-    """Dynamic sitemap: indexable public HTML only (www canonical, no API/JSON/premium)."""
+def _sitemap_cache_ttl_sec() -> int:
+    raw = (os.environ.get('PBJ_SITEMAP_CACHE_TTL') or '').strip()
+    try:
+        return max(60, int(raw))
+    except ValueError:
+        return 3600
+
+
+def _build_sitemap_xml() -> str:
+    """Build sitemap XML (expensive; cached by sitemap() route)."""
     base = normalize_public_site_origin(PUBLIC_SITE_ORIGIN)
     today = datetime.now().strftime('%Y-%m-%d')
     quarter_lastmod = _cy_qtr_to_iso_date(get_canonical_latest_quarter())
@@ -5562,7 +5666,9 @@ def sitemap():
             public_owner_associate_ids_for_sitemap,
         )
 
-        provider_ccns, provider_included, provider_excluded = provider_ccns_for_sitemap()
+        provider_ccns, provider_included, provider_excluded = provider_ccns_for_sitemap(
+            count_excluded=False
+        )
         for ccn in provider_ccns:
             urls.append(
                 f'  <url><loc>{base}/provider/{ccn}</loc><lastmod>{quarter_lastmod}</lastmod>'
@@ -5597,13 +5703,44 @@ def sitemap():
         loc = m.group(1).strip()
         if sitemap_loc_is_allowed(loc, robots_blocked):
             filtered.append(entry)
-    xml = (
+    return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + '\n'.join(filtered)
         + '\n</urlset>'
     )
-    return xml, 200, {'Content-Type': 'application/xml; charset=utf-8'}
+
+
+@app.route('/sitemap.xml')
+def sitemap():
+    """Dynamic sitemap: indexable public HTML only (www canonical, no API/JSON/premium)."""
+    global _SITEMAP_XML_CACHE, _SITEMAP_XML_AT
+    headers = {'Content-Type': 'application/xml; charset=utf-8'}
+    ttl = _sitemap_cache_ttl_sec()
+    now = time.time()
+    if _SITEMAP_XML_CACHE and (now - _SITEMAP_XML_AT) < ttl:
+        resp = make_response(_SITEMAP_XML_CACHE, 200)
+        resp.headers.update(headers)
+        resp.headers['X-PBJ-Sitemap-Cache'] = 'HIT'
+        return resp
+    with _SITEMAP_BUILD_LOCK:
+        now = time.time()
+        if _SITEMAP_XML_CACHE and (now - _SITEMAP_XML_AT) < ttl:
+            resp = make_response(_SITEMAP_XML_CACHE, 200)
+            resp.headers.update(headers)
+            resp.headers['X-PBJ-Sitemap-Cache'] = 'HIT'
+            return resp
+        t0 = time.perf_counter()
+        xml = _build_sitemap_xml()
+        _SITEMAP_XML_CACHE = xml
+        _SITEMAP_XML_AT = time.time()
+        elapsed_ms = (time.perf_counter() - t0) * 1000.0
+        print(f'[sitemap] built len={len(xml)} elapsed_ms={elapsed_ms:.0f}', flush=True)
+    resp = make_response(_SITEMAP_XML_CACHE or xml, 200)
+    resp.headers.update(headers)
+    resp.headers['X-PBJ-Sitemap-Cache'] = 'MISS'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
 
 
 # State name to code mapping

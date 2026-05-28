@@ -39,6 +39,15 @@ except (TypeError, ValueError):
 timeout = 120
 graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Render deploy); reduces 502s during deploy
 
+# Recycle workers on Render to limit slow RSS growth from pandas / large caches.
+if _on_render:
+    try:
+        max_requests = max(100, int(os.environ.get('PBJ_GUNICORN_MAX_REQUESTS', '400')))
+    except (TypeError, ValueError):
+        max_requests = 400
+else:
+    max_requests = 0
+
 # No --preload: each gthread worker imports app:app after fork (see post_fork / when_ready logs).
 
 

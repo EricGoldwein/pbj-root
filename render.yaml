@@ -16,6 +16,23 @@ services:
       # Build already ran ensure_deploy_csvs; do not block Gunicorn on restart (Dashboard must not prepend ensure_deploy).
       - key: PBJ_SKIP_START_CSV_ENSURE
         value: "1"
+      # Crawler / cold-render guards (override in Dashboard if needed)
+      - key: PBJ_AI_CRAWLER_RATE_LIMIT
+        value: "4"
+      - key: PBJ_AI_PROVIDER_CACHE_ONLY
+        value: "1"
+      - key: PBJ_SEARCH_BOT_PROVIDER_CACHE_ONLY
+        value: "1"
+      - key: PBJ_PROVIDER_COLD_BURST_LIMIT
+        value: "4"
+      - key: PBJ_PROVIDER_CRAWLER_COLD_LIMIT
+        value: "4"
+      - key: PBJ_OTHER_BOT_RATE_LIMIT
+        value: "20"
+      - key: PBJ_SITEMAP_CACHE_TTL
+        value: "3600"
+      - key: PBJ_GUNICORN_MAX_REQUESTS
+        value: "400"
       # CT + NY facility pages only — not /pbj-ai-support, not other states
       - key: PBJ_AI_SUPPORT
         value: "dashboards"

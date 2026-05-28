@@ -410,14 +410,21 @@ def classification_for_pac(pac: str, profile: dict[str, Any] | None) -> tuple[Ow
     return classify_owner_profile(profile)
 
 
-def provider_ccns_for_sitemap() -> tuple[list[str], int, int]:
+def provider_ccns_for_sitemap(*, count_excluded: bool = True) -> tuple[list[str], int, int]:
     """
     Active provider CCNs for sitemap (search_index roster).
 
     Returns (ccn_list, included_count, excluded_count_from_combined_roster).
+    When count_excluded=False, skips the combined provider_info CSV scan (sitemap hot path).
     """
     included = sorted(_active_provider_ccns())
     excluded = 0
+    if not count_excluded:
+        historic_raw = __import__("os").environ.get("PBJ_SITEMAP_HISTORIC_PROVIDER_CCNS", "")
+        if historic_raw.strip():
+            extra = {_norm_ccn(p.strip()) for p in historic_raw.split(",") if p.strip()}
+            included = sorted(set(included) | {c for c in extra if c})
+        return included, len(included), 0
     try:
         import pandas as pd
 

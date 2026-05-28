@@ -29,6 +29,10 @@ def _is_lfs_pointer(path: str) -> bool:
 
 
 def _needs_start_ensure() -> bool:
+    # On Render, CSV/index work belongs in buildCommand only. Running ensure_deploy_csvs
+    # at start delays or prevents Gunicorn bind → health check "connection refused".
+    if os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'):
+        return False
     skip = (os.environ.get('PBJ_SKIP_START_CSV_ENSURE') or '').strip().lower()
     if skip in ('1', 'true', 'yes', 'on'):
         return False
@@ -98,7 +102,14 @@ def main() -> int:
         '--bind',
         bind,
     ]
-    os.execvp(gunicorn_argv[0], gunicorn_argv)
+    try:
+        os.execvp(gunicorn_argv[0], gunicorn_argv)
+    except FileNotFoundError:
+        _log('FATAL: gunicorn not found on PATH — pip install -r requirements.txt')
+        return 127
+    except OSError as e:
+        _log(f'FATAL: could not exec gunicorn: {e}')
+        return 127
     return 127
 
 

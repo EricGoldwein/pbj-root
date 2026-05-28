@@ -54,13 +54,21 @@ def render_facility_sources_footer(
     *,
     include_chow: bool = False,
     include_macpac: bool = False,
+    care_compare_url: str = '',
 ) -> str:
-    """Facility page: PBJ quarter + CMS Provider Info (compact footer line)."""
+    """Facility page: PBJ quarter + CMS Provider Info + Care Compare (one footer line)."""
     _ = include_chow, include_macpac, pbj_quarter_display
     line_parts = [
         f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")}</span>',
         f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "CMS Provider Info")}</span>',
     ]
+    cc = (care_compare_url or '').strip()
+    if cc:
+        line_parts.append(
+            f'<span class="pbj-sources-item">'
+            f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">View on Care Compare</a>'
+            f'</span>'
+        )
     line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
         line_parts
     )
@@ -77,9 +85,10 @@ def render_entity_sources_footer(
     """Entity page: PBJ + CMS chain metrics + optional Care Compare."""
     _ = pbj_quarter_display
     chain_label_text = (chain_label or '').strip()
-    chain_link = _ext_link(CMS_CHAIN_PERF_URL, 'CMS Chain Metrics')
+    chain_link_label = 'CMS Chain Metrics'
     if chain_label_text:
-        chain_link += f' <span class="pbj-sources-quarter">({html.escape(chain_label_text)})</span>'
+        chain_link_label = f'CMS Chain Metrics ({chain_label_text})'
+    chain_link = _ext_link(CMS_CHAIN_PERF_URL, chain_link_label)
     line_parts = [
         f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")}</span>',
         f'<span class="pbj-sources-item">{chain_link}</span>',

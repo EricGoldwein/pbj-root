@@ -2465,23 +2465,15 @@ def render_facility_csv_page_footer(
                 f'<textarea id="{trend_id}" class="pbj-ai-csv-data" readonly hidden aria-hidden="true">{html.escape(trends_csv)}</textarea>'
             )
     show_csv_btn = ai_on and has_csv
-    if not cc and not hidden and not show_csv_btn:
-        return ''
-    parts: list[str] = ['<div class="pbj-care-footer-row">']
-    if cc:
-        esc_cc = html.escape(cc, quote=True)
-        parts.append(
-            f'<a href="{esc_cc}" target="_blank" rel="noopener" class="pbj-care-compare-badge">View on Care Compare</a>'
-        )
-    if show_csv_btn:
-        if cc:
-            parts.append('<span class="pbj-care-footer-sep" aria-hidden="true">·</span>')
-        parts.append(
-            f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
-            'title="Download PBJ320 snapshot and trends CSVs" aria-label="Download PBJ320 CSV">'
-            'PBJ320 CSV</button>'
-        )
-    parts.append('</div>')
+    if not show_csv_btn:
+        return ''.join(hidden)
+    parts: list[str] = [
+        '<div class="pbj-care-footer-row">',
+        f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
+        'title="Download PBJ320 snapshot and trends CSVs" aria-label="Download PBJ320 CSV">'
+        'PBJ320 CSV</button>',
+        '</div>',
+    ]
     parts.append(''.join(hidden))
     return ''.join(parts)
 

@@ -648,6 +648,14 @@
       color: white;
       border-color: #1769aa;
     }
+
+    .report-table-toolbar .view-tab .mobile-text {
+      display: none;
+    }
+
+    .report-table-toolbar .view-tab .desktop-text {
+      display: inline;
+    }
     
     .report-data-title {
       margin: 0 0 10px;
@@ -1735,40 +1743,66 @@
         margin-right: auto !important;
       }
 
+      /* Table toolbar: one row — tabs left, Excl Admin/DON toggle right (no overlap) */
       .report-table-toolbar {
-        flex-wrap: nowrap !important;
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) auto;
         align-items: center !important;
-        justify-content: space-between !important;
-        gap: 4px 6px !important;
+        column-gap: 6px !important;
+        row-gap: 0 !important;
         margin-bottom: 10px !important;
-        overflow: hidden;
+        overflow: visible;
       }
 
       .report-table-toolbar .report-view-tabs,
       .report-table-toolbar #viewTabsContainer {
-        margin-left: 0 !important;
-        margin-right: 0 !important;
-        flex: 1 1 auto;
-        min-width: 0;
+        margin: 0 !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 4px !important;
+        min-width: 0;
+        max-width: 100%;
       }
 
       .report-table-toolbar .view-tab {
-        padding: 5px 7px !important;
-        font-size: 0.72rem !important;
-        line-height: 1.15 !important;
+        padding: 5px 4px !important;
+        font-size: 0.68rem !important;
+        line-height: 1.1 !important;
         white-space: nowrap;
         min-width: 0;
-        flex: 1 1 0;
+        width: 100%;
+        box-sizing: border-box;
       }
 
-      .report-table-toolbar__controls {
-        flex: 0 0 auto !important;
-        margin-bottom: 0 !important;
+      .report-table-toolbar .view-tab .desktop-text {
+        display: none !important;
+      }
+
+      .report-table-toolbar .view-tab .mobile-text {
+        display: inline !important;
+      }
+
+      .report-table-toolbar__controls.table-controls {
+        flex: none !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        margin: 0 !important;
         padding: 0 !important;
         background: transparent !important;
+        border-radius: 0 !important;
         gap: 0 !important;
         min-width: 0;
+        justify-self: end;
+        position: relative;
+        z-index: 2;
+      }
+
+      .report-table-toolbar .table-controls .view-toggle:first-child,
+      .report-table-toolbar .table-controls .view-toggle:last-child {
+        flex: 0 0 auto !important;
+        max-width: none !important;
+        min-width: 0 !important;
       }
 
       .report-table-toolbar__controls .view-toggle {
@@ -1777,40 +1811,40 @@
         flex-wrap: nowrap !important;
         align-items: center !important;
         padding: 0 !important;
-        gap: 5px !important;
+        gap: 4px !important;
         min-height: 0 !important;
         background: transparent !important;
         border-radius: 0 !important;
       }
 
       .report-table-toolbar__controls .view-toggle label:first-of-type {
-        font-size: 0.62rem !important;
-        line-height: 1.1 !important;
+        font-size: 0.58rem !important;
+        line-height: 1.05 !important;
         white-space: nowrap !important;
         margin: 0 !important;
-        flex-shrink: 1;
-        min-width: 0;
+        flex-shrink: 0;
+        word-break: normal !important;
       }
 
       .report-table-toolbar__controls .toggle-switch {
-        width: 34px !important;
-        height: 18px !important;
+        width: 32px !important;
+        height: 17px !important;
         flex-shrink: 0;
       }
 
       .report-table-toolbar__controls .toggle-slider {
-        height: 18px !important;
+        height: 17px !important;
       }
 
       .report-table-toolbar__controls .toggle-slider:before {
-        height: 12px !important;
-        width: 12px !important;
+        height: 11px !important;
+        width: 11px !important;
         left: 2px !important;
         bottom: 2px !important;
       }
 
       .report-table-toolbar__controls .toggle-switch input:checked + .toggle-slider:before {
-        transform: translateX(14px) !important;
+        transform: translateX(13px) !important;
       }
       
       /* Info box */
@@ -4634,11 +4668,11 @@
       <div class="report-table-toolbar">
         <div id="viewTabsContainer" class="report-view-tabs">
           <button id="stateViewTab" class="view-tab active" onclick="switchTableView('state')">State</button>
-          <button id="regionViewTab" class="view-tab" onclick="switchTableView('region')">CMS Region</button>
+          <button id="regionViewTab" class="view-tab" onclick="switchTableView('region')"><span class="desktop-text">CMS Region</span><span class="mobile-text">Region</span></button>
         </div>
         <div class="table-controls report-table-toolbar__controls">
           <div class="view-toggle">
-            <label for="excludeAdminToggleTable"><span class="mobile-label">Excl. Admin/DON</span><span class="desktop-label">Exclude Admin / DON:</span></label>
+            <label for="excludeAdminToggleTable"><span class="mobile-label">Excl Admin/DON</span><span class="desktop-label">Exclude Admin / DON:</span></label>
             <label class="toggle-switch">
               <input type="checkbox" id="excludeAdminToggleTable">
               <span class="toggle-slider"></span>

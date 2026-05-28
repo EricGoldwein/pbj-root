@@ -1331,12 +1331,12 @@ body.chow-modal-open {
     overflow-wrap: break-word;
   }
 
-  .chow-tx-table--mobile {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) {
     min-width: 44rem;
   }
 
-  .chow-tx-table--mobile .chow-tx-facility,
-  .chow-tx-table--mobile .chow-tx-org {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) .chow-tx-facility,
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) .chow-tx-org {
     min-width: 12rem;
     max-width: 16rem;
     white-space: normal;
@@ -1344,29 +1344,29 @@ body.chow-modal-open {
     overflow-wrap: break-word;
   }
 
-  .chow-tx-table--mobile th:nth-child(1),
-  .chow-tx-table--mobile td:nth-child(1) {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) th:nth-child(1),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) td:nth-child(1) {
     min-width: 8rem;
   }
 
-  .chow-tx-table--mobile th:nth-child(2),
-  .chow-tx-table--mobile td:nth-child(2) {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) th:nth-child(2),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) td:nth-child(2) {
     min-width: 14rem;
   }
 
-  .chow-tx-table--mobile th:nth-child(3),
-  .chow-tx-table--mobile td:nth-child(3),
-  .chow-tx-table--mobile th:nth-child(4),
-  .chow-tx-table--mobile td:nth-child(4) {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) th:nth-child(3),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) td:nth-child(3),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) th:nth-child(4),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) td:nth-child(4) {
     min-width: 14rem;
   }
 
-  .chow-tx-table--mobile th:nth-child(5),
-  .chow-tx-table--mobile td:nth-child(5) {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) th:nth-child(5),
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) td:nth-child(5) {
     min-width: 16rem;
   }
 
-  .chow-tx-table--mobile .chow-view-details {
+  .chow-tx-table--mobile:not(.chow-tx-table--provider-mobile) .chow-view-details {
     display: inline-block;
     min-height: 2.25rem;
     padding: 0.2rem 0;
@@ -1422,6 +1422,210 @@ body.chow-modal-open {
 
   .chow-table--cards-sm .owner-role-pct-stack {
     align-items: flex-end;
+  }
+
+  .chow-provider-owners-table.chow-table--cards-sm .chow-party-col-desktop {
+    display: none !important;
+  }
+
+  .chow-provider-owners-table.chow-table--cards-sm .chow-party-meta {
+    display: block;
+    padding: 0.15rem 0 0;
+    border: none;
+  }
+
+  .chow-provider-owners-table.chow-table--cards-sm .chow-party-meta::before {
+    display: none;
+  }
+
+  .chow-provider-owners-table.chow-table--cards-sm .chow-org-name::before {
+    display: none;
+  }
+
+  .chow-provider-owners-table.chow-table--cards-sm .chow-org-name {
+    display: block;
+    padding-bottom: 0.12rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+
+  .chow-party-meta-line {
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: #94a3b8;
+  }
+
+  .chow-party-meta-sep {
+    color: #64748b;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile {
+    min-width: 0 !important;
+    width: 100%;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile thead {
+    display: none;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-desktop-col {
+    display: none !important;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-provider-stack {
+    display: block;
+    padding: 0.48rem 0.42rem;
+    border-bottom: 1px solid var(--chow-border);
+  }
+
+  .pbj-ownership-chow-content .chow-tx-row--provider-mobile:last-child .chow-tx-provider-stack {
+    border-bottom: none;
+  }
+
+  .chow-tx-provider-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.4rem 0.6rem;
+    align-items: start;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-provider-details .chow-view-details {
+    display: inline-block;
+    padding: 0.3rem 0.55rem;
+    border-radius: 6px;
+    border: 1px solid rgba(129, 140, 248, 0.45);
+    background: rgba(99, 102, 241, 0.22);
+    color: #e0e7ff;
+    text-decoration: none;
+    font-size: 0.74rem;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+
+  .chow-tx-provider-meta {
+    font-size: 0.78rem;
+    line-height: 1.32;
+    color: #cbd5e1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chow-tx-provider-change {
+    color: #a5b4fc;
+    font-weight: 600;
+  }
+
+  .chow-tx-provider-parties {
+    margin-top: 0.22rem;
+    font-size: 0.74rem;
+    line-height: 1.35;
+    color: #94a3b8;
+  }
+
+  .chow-tx-provider-parties a {
+    color: #c7d2fe;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .chow-detail-modal {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+
+  .chow-detail-modal__dialog {
+    width: 100%;
+    max-height: min(92vh, 720px);
+    border-radius: 10px 10px 0 0;
+  }
+
+  .chow-compare-table thead {
+    display: none;
+  }
+
+  .chow-compare-table tbody tr {
+    display: block;
+    margin-bottom: 0.45rem;
+    padding: 0.42rem 0.48rem;
+    border: 1px solid rgba(71, 85, 105, 0.45);
+    border-radius: 6px;
+    background: rgba(15, 23, 42, 0.4);
+  }
+
+  .chow-compare-table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .chow-compare-table tbody th {
+    display: block;
+    padding: 0 0 0.22rem;
+    border: none;
+    background: transparent;
+    font-size: 0.7rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #94a3b8;
+  }
+
+  .chow-compare-table tbody td {
+    display: block;
+    padding: 0.08rem 0 0.2rem;
+    border: none;
+    background: transparent;
+    font-size: 0.8rem;
+  }
+
+  .chow-compare-table tbody td.chow-compare-before::before {
+    content: "Before: ";
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  .chow-compare-table tbody td.chow-compare-after::before {
+    content: "After: ";
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #94a3b8;
+  }
+
+  .provider-chow-block .chow-btn-chow-toggle {
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 769px) {
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-provider-stack,
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-provider-stack-head {
+    display: none !important;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-desktop-col {
+    display: table-cell !important;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile {
+    min-width: 0;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-facility.chow-tx-desktop-col {
+    display: none !important;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-details.chow-tx-desktop-col {
+    min-width: 7.5rem;
+    white-space: nowrap;
+  }
+
+  .pbj-ownership-chow-content .chow-tx-table--provider-mobile .chow-tx-summary {
+    display: inline;
+    margin-right: 0.35rem;
+  }
+
+  .chow-detail-modal__dialog {
+    width: min(640px, calc(100vw - 2rem));
   }
 }
 

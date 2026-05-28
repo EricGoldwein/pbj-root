@@ -691,12 +691,12 @@ def _pbj320_high_risk_reasons(provider_row: dict, *, ccn: str = '', sff_status: 
         reasons.append('Abuse')
     try:
         if pi.get('overall_rating') is not None and int(round_half_up(float(pi.get('overall_rating')), 0) or 0) == 1:
-            reasons.append('1 star')
+            reasons.append('1-star overall')
     except (TypeError, ValueError):
         pass
     try:
         if pi.get('staffing_rating') is not None and int(round_half_up(float(pi.get('staffing_rating')), 0) or 0) == 1:
-            reasons.append('1 star staffing')
+            reasons.append('1-star staffing')
     except (TypeError, ValueError):
         pass
     return reasons
@@ -715,9 +715,9 @@ def _sort_risk_reason_display(label: str) -> str:
             return 0
         if 'abuse' in pl:
             return 1
-        if 'staffing' in pl:
+        if 'staffing' in pl and 'overall' not in pl:
             return 2
-        if '1 star' in pl or '1-star' in pl:
+        if 'overall' in pl or '1 star' in pl or '1-star' in pl:
             return 3
         return 4
 
@@ -8296,6 +8296,11 @@ abbr.pbj-na {{
     flex-wrap: nowrap; justify-content: space-between; align-items: baseline;
   }}
   .pbj-care-footer-row {{ flex: 0 0 auto; }}
+  .pbj-page-footer-sources {{
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }}
+  .pbj-sources-item {{ white-space: nowrap; }}
 }}
 .pbj-page-source {{
   margin: 0.35rem 0 0 0; font-size: 0.8rem; color: rgba(226, 232, 240, 0.6); line-height: 1.45;
@@ -8403,10 +8408,20 @@ abbr.pbj-na {{
 .pbj-casemix-hero-line .pct-em {{ font-weight: 700; font-size: 0.88rem; color: #f8fafc; letter-spacing: 0.01em; }}
 .pbj-casemix-sub-line .pct-em {{ font-weight: 700; color: #f8fafc; font-size: 0.68rem; }}
 .pbj-casemix-breakdown-aside .h {{ color: rgba(226, 232, 240, 0.94); font-weight: 700; }}
-.pbj-casemix-hero-main {{ display: flex; align-items: center; gap: 0.45rem 0.55rem; flex-wrap: wrap; }}
-.pbj-casemix-hero-copy {{ flex: 1 1 58%; min-width: 10rem; max-width: 62%; }}
-.pbj-casemix-hero-cmi-col {{ flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.28rem 0.35rem; margin-left: auto; }}
+.pbj-casemix-hero-toprow {{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.35rem 0.65rem; margin-bottom: 0.28rem; }}
+.pbj-casemix-hero-toprow .pbj-casemix-hero-line {{ margin: 0; flex: 1 1 auto; min-width: 0; }}
+.pbj-casemix-hero-toprow .pbj-casemix-cmi-strip {{ margin: 0; padding: 0; border: 0; flex: 0 0 auto; }}
+.pbj-casemix-hero-main {{ display: flex; align-items: center; gap: 0.45rem 0.55rem; flex-wrap: wrap; width: 100%; }}
+.pbj-casemix-hero-copy {{ flex: 1 1 100%; min-width: 10rem; max-width: 100%; }}
+.pbj-casemix-hero-cmi-col {{ flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.28rem 0.35rem; }}
 .pbj-casemix-hero-cmi-col.pbj-casemix-cmi-strip {{ margin: 0; padding: 0; border: 0; }}
+button.pbj-casemix-inline-help {{
+  display: inline; margin: 0; padding: 0; border: 0; background: none; font: inherit; font-size: inherit; line-height: inherit;
+  color: #a5b4fc; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
+}}
+button.pbj-casemix-inline-help:hover {{ color: #c7d2fe; }}
+button.pbj-casemix-inline-help:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px; border-radius: 2px; }}
+.pbj-casemix-help-trigger--footer {{ display: none; margin: 0.35rem 0 0; }}
 .pbj-casemix-pct-bar {{ margin: 0; }}
 .pbj-casemix-pct-caption {{ display: none; }}
 .pbj-casemix-pct-track {{ position: relative; height: 9px; border-radius: 4px; background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(51, 65, 85, 0.8); overflow: hidden; }}
@@ -8512,6 +8527,8 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
 .pbj-casemix-metric.total .pbj-casemix-bar-cell {{ max-width: 100%; width: 100%; align-self: stretch; }}
 @media (min-width: 769px) {{
   .pbj-casemix-section-header {{ flex-wrap: nowrap; }}
+  .pbj-casemix-hero-toprow {{ flex-wrap: nowrap; align-items: baseline; }}
+  .pbj-casemix-hero-toprow .pbj-casemix-hero-line {{ white-space: nowrap; }}
   .pbj-casemix-summary .pbj-casemix-metric.total .pbj-casemix-bar-rail-wrap,
   .pbj-casemix-summary .pbj-casemix-metric.total .pbj-casemix-bar-cell {{ max-width: 100%; }}
 }}
@@ -8532,7 +8549,11 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     overflow: hidden;
     text-overflow: ellipsis;
   }}
-  button.pbj-casemix-help-trigger {{
+  button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--header {{
+    display: none !important;
+  }}
+  button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--footer {{
+    display: inline-flex;
     margin-left: 0;
     align-self: flex-start;
     padding: 0.22rem 0.5rem;
@@ -8553,6 +8574,15 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
   .pbj-casemix-hero-line .tag {{ font-size: 0.55rem; margin-right: 0.15rem; }}
   .pbj-casemix-hero-line .pct-em {{ font-size: 0.72rem; }}
   .pbj-casemix-hero-line .secondary {{ font-size: 0.58rem; }}
+  .pbj-casemix-hero-toprow {{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.28rem;
+  }}
+  .pbj-casemix-hero-toprow .pbj-casemix-cmi-col {{
+    margin-left: 0;
+    justify-content: flex-start;
+  }}
   .pbj-casemix-hero-main {{
     flex-direction: column;
     align-items: stretch;
@@ -8562,10 +8592,6 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     flex: 1 1 100%;
     max-width: 100%;
     min-width: 0;
-  }}
-  .pbj-casemix-hero-cmi-col {{
-    margin-left: 0;
-    justify-content: flex-start;
   }}
   .pbj-casemix-breakdown-main {{ max-width: 100%; }}
   .pbj-casemix-breakdown-row {{ align-items: flex-start; }}
@@ -8625,7 +8651,7 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
 .pbj-cta-premium a:hover {{ color: #a5b4fc; }}
 .pbj-state-min-badge {{ display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; color: #fecaca; background: rgba(127, 29, 29, 0.38); border: 1px solid rgba(248, 113, 113, 0.55); }}
 a.custom-report-cta {{
-  display: block; margin: 1.75rem 0; padding: 1rem 1.2rem; max-width: 42rem; font-size: 0.9375rem; font-weight: 500;
+  display: block; margin: 1.75rem 0; padding: 1rem 1.2rem; max-width: 56rem; font-size: 0.9375rem; font-weight: 500;
   line-height: 1.5; color: #e2e8f0; text-decoration: none; cursor: pointer; box-sizing: border-box;
   background: linear-gradient(135deg, rgba(49, 46, 129, 0.28) 0%, rgba(15, 23, 42, 0.92) 55%, rgba(15, 23, 42, 0.96) 100%);
   border: 1px solid rgba(129, 140, 248, 0.42); border-left: 4px solid rgba(129, 140, 248, 0.85); border-radius: 10px;
@@ -8642,6 +8668,7 @@ a.custom-report-cta:active {{ transform: translateY(0); box-shadow: 0 2px 12px r
 a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75); outline-offset: 3px; }}
 .custom-report-cta-sub {{ font-weight: 400; color: rgba(226, 232, 240, 0.88); }}
 .custom-report-cta-mobile {{ display: none; }}
+@media (min-width: 769px) {{ .custom-report-cta-desktop .custom-report-cta-sub {{ white-space: nowrap; }} }}
 @media (max-width: 768px) {{ .custom-report-cta-desktop {{ display: none; }} .custom-report-cta-mobile {{ display: inline; }} a.custom-report-cta {{ max-width: none; padding: 0.9rem 1rem; font-size: 0.9rem; }} }}
 .pbj-care-compare-badge {{ display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; background: rgba(99, 102, 241, 0.12); border: 1px solid rgba(129, 140, 248, 0.35); color: #a5b4fc; text-decoration: none; white-space: nowrap; }}
 .pbj-care-compare-badge:hover {{ background: rgba(99, 102, 241, 0.2); color: #c7d2fe; }}
@@ -10639,12 +10666,12 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
-<!-- pbj-casemix-ui:13 -->
-<div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="13">
+<!-- pbj-casemix-ui:14 -->
+<div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="14">
 <div class="pbj-casemix-card-head">
   <div class="pbj-casemix-section-header">
     <h2 class="pbj-casemix-section-title">''' + html.escape(str(casemix_title or 'CMS Case-Mix')) + '''</h2>
-    <button type="button" class="pbj-casemix-help-trigger" id="pbjCaseMixInfoBtn" aria-label="What is case-mix? Definitions and distributions" title="What is case-mix?">
+    <button type="button" class="pbj-casemix-help-trigger pbj-casemix-help-trigger--header" id="pbjCaseMixInfoBtn" aria-label="What is case-mix? Definitions and distributions" title="What is case-mix?">
       <span class="pbj-casemix-help-label">What is case-mix?</span>
     </button>
   </div>
@@ -10663,6 +10690,9 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     </div>
   </details>
   <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</p>
+  <button type="button" class="pbj-casemix-help-trigger pbj-casemix-help-trigger--footer" id="pbjCaseMixInfoBtnFoot" aria-label="What is case-mix? Definitions and distributions" title="What is case-mix?">
+    <span class="pbj-casemix-help-label">What is case-mix?</span>
+  </button>
 </div>
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
@@ -10946,26 +10976,31 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var pct = Math.round(100 * ratio);
       var pctHtml = ratio < 0.9 ? '<span class="pct-em pct--low">' + pct + '%</span>' : ('<span class="pct-em">' + pct + '%</span>');
       var compact = typeof window !== 'undefined' && window.innerWidth <= 768;
+      var cmsBench = hprd(caseMix) + ' CMS case-mix';
+      var cmsLink = '<button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">' + cmsBench + '</button>';
       if (compact) {
-        line.innerHTML = '<span class="tag">Case-Mix Ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
+        line.innerHTML = '<span class="tag">Case-Mix Ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + cmsLink + ')</span>';
       } else {
-        line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + hprd(caseMix) + ' CMS case-mix)</span>';
+        line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + cmsBench + ')</span>';
       }
     } else {
       line.innerHTML = '<span class="tag">Total</span><span class="primary">' + hprd(actual) + ' HPRD reported</span>';
     }
-    panel.appendChild(line);
+    var toprow = document.createElement('div');
+    toprow.className = 'pbj-casemix-hero-toprow';
+    var cmiHost = document.createElement('div');
+    cmiHost.id = 'pbjCaseMixCmiStrip';
+    cmiHost.className = 'pbj-casemix-cmi-strip pbj-casemix-hero-cmi-col pbj-casemix-cmi-strip--intoprow';
+    cmiHost.setAttribute('hidden', '');
+    toprow.appendChild(line);
+    toprow.appendChild(cmiHost);
+    panel.appendChild(toprow);
     var main = document.createElement('div');
     main.className = 'pbj-casemix-hero-main';
     var copy = document.createElement('div');
     copy.className = 'pbj-casemix-hero-copy';
     if (hasCaseMix) appendCaseMixPctBar(copy, actual, caseMix, false);
-    var cmiHost = document.createElement('div');
-    cmiHost.id = 'pbjCaseMixCmiStrip';
-    cmiHost.className = 'pbj-casemix-cmi-strip pbj-casemix-hero-cmi-col';
-    cmiHost.setAttribute('hidden', '');
     main.appendChild(copy);
-    main.appendChild(cmiHost);
     panel.appendChild(main);
     return panel;
   }
@@ -11122,10 +11157,22 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
   var modal = document.getElementById('pbjCaseMixModal');
   var auxModal = document.getElementById('pbjCaseMixAuxModal');
   var modalBtn = document.getElementById('pbjCaseMixInfoBtn');
+  var modalBtnFoot = document.getElementById('pbjCaseMixInfoBtnFoot');
   var modalClose = document.getElementById('pbjCaseMixModalClose');
   var auxModalClose = document.getElementById('pbjCaseMixAuxModalClose');
   function closeCaseMixModal() { if (modal) modal.setAttribute('aria-hidden', 'true'); }
-  if (modalBtn && modal) modalBtn.addEventListener('click', function(){ closeCaseMixAuxModal(); modal.setAttribute('aria-hidden', 'false'); });
+  function openCaseMixHelpModal() { closeCaseMixAuxModal(); if (modal) modal.setAttribute('aria-hidden', 'false'); }
+  if (modalBtn && modal) modalBtn.addEventListener('click', openCaseMixHelpModal);
+  if (modalBtnFoot && modal) modalBtnFoot.addEventListener('click', openCaseMixHelpModal);
+  if (heroWrap) {
+    heroWrap.addEventListener('click', function(e) {
+      var t = e.target;
+      if (t && t.getAttribute && t.getAttribute('data-pbj-casemix-help') === '1') {
+        e.preventDefault();
+        openCaseMixHelpModal();
+      }
+    });
+  }
   if (modalClose) modalClose.addEventListener('click', closeCaseMixModal);
   if (auxModalClose) auxModalClose.addEventListener('click', closeCaseMixAuxModal);
   if (modal) {
@@ -12477,6 +12524,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             _pbj_quarter_display_for_footer(),
             include_chow=bool((_provider_ownership_chow_block or '').strip()),
             include_macpac=bool((_macpac_factset_line or '').strip()),
+            care_compare_url=care_compare_facility_url,
         )
     except Exception:
         _facility_sources_footer = ''
@@ -13357,8 +13405,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             p2 = "Staffing averages are not available for this chain for the latest quarter."
 
         # Paragraph 3 — High-risk % (search_index logic) + fines; no turnover (factual: PBJ320 criteria, not editorial)
-        high_risk_span = '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">high-risk</span><span class="pbj-high-risk-tooltip" role="tooltip">' + html.escape(HIGH_RISK_CRITERIA_TOOLTIP) + '</span></span>'
-        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are PBJ320 {high_risk_span}. "
+        high_risk_span = (
+            '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">PBJ320 high-risk</span>'
+            '<span class="pbj-high-risk-tooltip" role="tooltip">' + html.escape(HIGH_RISK_CRITERIA_TOOLTIP) + '</span></span>'
+        )
+        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are {high_risk_span}. "
         if fines_dollars is not None and fines_dollars > 0:
             fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
             if total_fines_count is not None and total_fines_count > 0:
@@ -13441,8 +13492,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         cms_stars_html = f'<div class="section-header">Avg. CMS 5-Star Rating<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
         cms_stars_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
         cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Overall</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Health Inspection</div><div class="value">{(f"{hi_rating:.1f}" if hi_rating is not None else "—")}</div></div>'
         cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Staffing</div><div class="value">{(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</div></div>'
+        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Health Inspection</div><div class="value">{(f"{hi_rating:.1f}" if hi_rating is not None else "—")}</div></div>'
         cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Quality Measures</div><div class="value">{(f"{quality_rating:.1f}" if quality_rating is not None else "—")}</div></div>'
         cms_stars_html += '</div>'
         fp = for_profit or 0
@@ -13508,6 +13559,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             facility_cell = (
                 f'<span class="pbj-high-risk-help-wrap entity-facility-risk-wrap">'
                 f'<a href="/provider/{ccn}">{name}</a>'
+                f'<span class="entity-facility-risk-icon" aria-hidden="true" style="color:#fca5a5;font-size:0.85em;margin-left:3px;">\u26a0</span>'
                 f'<span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">'
                 f'{html.escape(risk_reason)}</span></span>'
             )
@@ -14215,7 +14267,7 @@ def _render_state_pbj_high_risk_section(
         ('all', 'All', 'All PBJ320 high-risk indicators in this state (deduplicated by facility).'),
         ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
         ('sffCandidates', 'SFF cand.', 'Facilities monitored for potential SFF designation.'),
-        ('oneStarOverall', '★ overall', 'CMS overall rating of 1 star.'),
+        ('oneStarOverall', '★ Overall', 'CMS overall rating of 1 star.'),
         ('abuse', 'Abuse', 'Facilities flagged with the CMS abuse icon.'),
     ]
     all_by_ccn: dict[str, dict] = {}
@@ -14229,11 +14281,22 @@ def _render_state_pbj_high_risk_section(
             else:
                 prev = all_by_ccn[ccn]
                 prev['hasAbuse'] = prev.get('hasAbuse') or fac.get('hasAbuse')
-                for rk in ('overall_rating', 'staffing_rating', 'status'):
+                for rk in (
+                    'overall_rating', 'staffing_rating', 'health_inspection_rating',
+                    'qm_rating', 'status',
+                ):
                     if not prev.get(rk) and fac.get(rk):
                         prev[rk] = fac.get(rk)
     buckets['all'] = list(all_by_ccn.values())
     total = len(all_by_ccn) if all_by_ccn else sum(len(buckets.get(k) or []) for k, _, _ in tab_defs[1:])
+    if not provider_info and total:
+        _hr_ccns = {
+            str(f.get('ccn') or '').strip().zfill(6)
+            for f in buckets.get('all') or []
+            if str(f.get('ccn') or '').strip().isdigit()
+        }
+        if _hr_ccns:
+            provider_info = load_provider_info(ccn_set=_hr_ccns) or {}
     if not total and not sff_by_ccn:
         return ''
 
@@ -14257,7 +14320,10 @@ def _render_state_pbj_high_risk_section(
                 f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
             )
         if fac.get('hasAbuse'):
-            badges.append('<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">!</span>')
+            badges.append(
+                '<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">'
+                '\u26a0</span>'
+            )
         try:
             if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
                 badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
@@ -14281,7 +14347,18 @@ def _render_state_pbj_high_risk_section(
         prov = provider_info.get(ccn) or {} if ccn else {}
         ovr = fac.get('overall_rating') or prov.get('overall_rating')
         staff = fac.get('staffing_rating') or prov.get('staffing_rating')
-        ratings_cell = cms_ratings_stack_html(ovr, staff, include_qm=False)
+        _hi = (
+            fac.get('health_inspection_rating')
+            or prov.get('health_inspection_rating')
+            or prov.get('health_inspection')
+        )
+        _qm = (
+            fac.get('qm_rating')
+            or prov.get('qm_rating')
+            or prov.get('quality_measures_rating')
+            or prov.get('quality_measure_rating')
+        )
+        ratings_cell = cms_ratings_stack_html(ovr, staff, _qm, health_inspection=_hi)
         census_raw = fac.get('census') or prov.get('avg_residents_per_day')
         try:
             if census_raw is None or str(census_raw).strip() in ('', '—', '-'):
@@ -14323,9 +14400,9 @@ def _render_state_pbj_high_risk_section(
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
     <div class="pbj-details-content">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
-      <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--below"><span class="pbj-high-risk-help">High-risk</span>
+      <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--below"><span class="pbj-high-risk-help">PBJ320 high-risk</span>
       <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span></span>
-      nursing homes in {html.escape(state_name)} ({total:,} facilities across categories; a facility may appear in more than one tab).
+      nursing homes in {html.escape(state_name)} ({total:,} facilities).
     </p>
     <div class="state-hr-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
     '''

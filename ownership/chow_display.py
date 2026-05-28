@@ -159,6 +159,7 @@ def render_chow_table_rows(
     table_id: str = "",
     max_rows: int = 0,
     mobile_change_stack: bool = False,
+    mobile_provider_stack: bool = False,
 ) -> str:
     """HTML tbody rows: Effective, Facility, Buyer, Seller, Details (modal)."""
     fac_fn = facility_link_fn or _default_facility_link
@@ -179,7 +180,29 @@ def render_chow_table_rows(
             f'<button type="button" class="chow-view-details" '
             f'data-chow-detail-store="{panel_id}" aria-expanded="false">Details</button>'
         )
-        if mobile_change_stack:
+        if mobile_provider_stack:
+            trs.append(
+                f'<tr class="chow-tx-row chow-tx-row--provider-mobile" data-chow-id="{rid}">'
+                f'<td class="chow-tx-provider-stack">'
+                f'<div class="chow-tx-provider-row">'
+                f'<div class="chow-tx-provider-details">{details_btn}</div>'
+                f'<div class="chow-tx-provider-main">'
+                f'<div class="chow-tx-provider-meta">'
+                f'<span class="chow-tx-provider-date">{eff}</span>'
+                f'<span class="chow-tx-provider-sep" aria-hidden="true"> · </span>'
+                f'<span class="chow-tx-provider-change">{summary_esc}</span>'
+                f"</div>"
+                f'<div class="chow-tx-provider-parties">{buyer} → {seller}</div>'
+                f"</div></div></td>"
+                f'<td class="num chow-tx-date chow-tx-desktop-col">{eff}</td>'
+                f'<td class="chow-tx-facility chow-tx-desktop-col">{facility}</td>'
+                f'<td class="chow-tx-org chow-tx-desktop-col">{buyer}</td>'
+                f'<td class="chow-tx-org chow-tx-desktop-col">{seller}</td>'
+                f'<td class="chow-tx-details chow-tx-desktop-col">'
+                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
+                f"</td></tr>"
+            )
+        elif mobile_change_stack:
             trs.append(
                 f'<tr class="chow-tx-row chow-tx-row--stacked" data-chow-id="{rid}">'
                 f'<td class="chow-tx-change-stack">'
@@ -227,6 +250,7 @@ def render_chow_events_table(
     max_rows: int = 0,
     table_class: str = "chow-table chow-tx-table",
     mobile_change_stack: bool = False,
+    mobile_provider_stack: bool = False,
 ) -> str:
     body, stores = render_chow_table_rows(
         rows,
@@ -234,11 +258,25 @@ def render_chow_events_table(
         facility_link_fn=facility_link_fn,
         max_rows=max_rows,
         mobile_change_stack=mobile_change_stack,
+        mobile_provider_stack=mobile_provider_stack,
     )
     if not body:
         return ""
-    stack_class = " chow-tx-table--change-stack" if mobile_change_stack else ""
-    if mobile_change_stack:
+    stack_class = ""
+    if mobile_provider_stack:
+        stack_class = " chow-tx-table--provider-mobile"
+    elif mobile_change_stack:
+        stack_class = " chow-tx-table--change-stack"
+    if mobile_provider_stack:
+        thead = (
+            '<th class="chow-tx-provider-stack-head">Ownership change</th>'
+            '<th class="num chow-tx-desktop-col">Effective</th>'
+            '<th class="chow-tx-desktop-col">Facility</th>'
+            '<th class="chow-tx-desktop-col">Buyer</th>'
+            '<th class="chow-tx-desktop-col">Seller</th>'
+            '<th class="chow-tx-desktop-col">Details</th>'
+        )
+    elif mobile_change_stack:
         thead = '<th>Change</th><th class="num chow-tx-desktop-col">Effective</th><th class="chow-tx-desktop-col">Facility</th><th class="chow-tx-desktop-col">Buyer</th><th class="chow-tx-desktop-col">Seller</th><th class="chow-tx-desktop-col">Details</th>'
     else:
         thead = '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'

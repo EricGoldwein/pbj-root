@@ -1345,8 +1345,27 @@ button.owner-flag:hover {
 
 /* chow.css .pbj-content-box .chow-table th sets text-align:left !important */
 .owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.owner-col-role,
-.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.num {
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.num,
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.owner-col-hprd,
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.owner-col-ratings,
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.owner-col-census {
   text-align: right !important;
+}
+
+.owner-facilities-table td.owner-col-hprd,
+.owner-facilities-table td.owner-col-census,
+.owner-facilities-table td.owner-col-ratings {
+  text-align: right;
+}
+
+.owner-facility-meta-line {
+  display: none;
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
 }
 
 .owner-facilities-table td.owner-role-cell {
@@ -2258,12 +2277,8 @@ button.owner-flag:hover {
   font-size: 0.7rem;
 }
 
-.owner-m-card .owner-facility-state-inline {
-  display: inline;
-  font-size: 0.92em;
-  font-weight: 500;
-  color: #94a3b8;
-  margin-left: 0.12rem;
+.owner-m-card__names .owner-facility-meta-line {
+  display: block;
 }
 
 .owner-m-card__role .owner-role-pct-stack {
@@ -2363,6 +2378,19 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 }
 
 @media (max-width: 699px) {
+  .owner-facility-meta-line {
+    display: block;
+  }
+
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table th.owner-col-hprd,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table td.owner-col-hprd,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table th.owner-col-census,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table td.owner-col-census,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table th.owner-col-ratings,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table td.owner-col-ratings {
+    text-align: right;
+  }
+
   .owner-table-view-toggle {
     display: inline-block;
   }

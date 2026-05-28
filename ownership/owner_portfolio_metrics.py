@@ -132,6 +132,19 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
         ),
         "overall": next((c for c in header if c.lower() == "overall_rating"), None),
         "staffing": next((c for c in header if c.lower() == "staffing_rating"), None),
+        "health_inspection": next(
+            (
+                c
+                for c in header
+                if c.lower()
+                in (
+                    "health_inspection_rating",
+                    "health_inspection",
+                    "health inspection rating",
+                )
+            ),
+            None,
+        ),
         "qm": next((c for c in header if c.lower() == "qm_rating"), None),
         "sff": next(
             (
@@ -188,6 +201,9 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
                 "hprd": str(row.get(col_map["hprd"]) or "").strip() if col_map["hprd"] else "",
                 "overall_rating": str(row.get(col_map["overall"]) or "").strip() if col_map["overall"] else "",
                 "staffing_rating": str(row.get(col_map["staffing"]) or "").strip() if col_map["staffing"] else "",
+                "health_inspection_rating": str(row.get(col_map["health_inspection"]) or "").strip()
+                if col_map["health_inspection"]
+                else "",
                 "qm_rating": str(row.get(col_map["qm"]) or "").strip() if col_map["qm"] else "",
                 "sff": str(row.get(col_map["sff"]) or "").strip() if col_map["sff"] else "",
                 "sff_status": str(row.get(col_map["sff"]) or "").strip() if col_map["sff"] else "",
@@ -221,6 +237,7 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
             "hprd",
             "overall_rating",
             "staffing_rating",
+            "health_inspection_rating",
             "qm_rating",
             "sff",
             "sff_status",

@@ -474,18 +474,35 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         ptype = html.escape(p.get("party_type") or "—")
         role_cell = _party_role_and_ownership_cell(p)
         dates = (p.get("association_dates") or [])[:1]
-        since = html.escape(format_chow_date(dates[0]) if dates else "—")
+        since_raw = format_chow_date(dates[0]) if dates else ""
+        since = html.escape(since_raw) if since_raw else "—"
         owner_url = p.get("profile_url") or ""
         name_cell = (
             f'<a href="{html.escape(owner_url)}">{pname}</a>'
             if owner_url and p.get("is_owner_control_pac")
             else pname
         )
+        meta_sep = '<span class="chow-party-meta-sep" aria-hidden="true"> · </span>'
+        meta_bits: list[str] = []
+        if ptype and ptype != "—":
+            meta_bits.append(ptype)
+        if role_cell and role_cell != "—":
+            meta_bits.append(role_cell)
+        if since != "—":
+            meta_bits.append(f"Since {since}")
+        meta_html = (
+            f'<span class="chow-party-meta-line">{meta_sep.join(meta_bits)}</span>'
+            if meta_bits
+            else '<span class="chow-party-meta-line">—</span>'
+        )
         trs.append(
-            f'<tr><td data-label="Name">{name_cell}</td>'
-            f'<td data-label="Type">{ptype}</td>'
-            f'<td data-label="Role">{role_cell}</td>'
-            f'<td data-label="Since">{since}</td></tr>'
+            f'<tr class="chow-provider-owner-row">'
+            f'<td class="chow-org-name" data-label="Name">{name_cell}</td>'
+            f'<td class="chow-party-meta" data-label="">{meta_html}</td>'
+            f'<td class="chow-party-col-desktop" data-label="Type">{ptype}</td>'
+            f'<td class="chow-party-col-desktop" data-label="Role">{role_cell}</td>'
+            f'<td class="chow-party-col-desktop" data-label="Since">{since}</td>'
+            f"</tr>"
         )
     extra = ""
     if len(parties) > preview:
@@ -497,9 +514,11 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         f"{extra}"
         '<div class="chow-table-scroll chow-table-scroll--touch chow-provider-owners-scroll" '
         'style="max-height:360px;">'
-        '<table class="chow-table chow-provider-owners-table">'
+        '<table class="chow-table chow-provider-owners-table chow-table--cards-sm">'
         "<thead><tr>"
-        "<th>Name</th><th>Type</th><th>Role</th><th>Since</th>"
+        "<th>Name</th><th class=\"chow-party-col-desktop\">Type</th>"
+        "<th class=\"chow-party-col-desktop\">Role</th>"
+        "<th class=\"chow-party-col-desktop\">Since</th>"
         "</tr></thead><tbody>"
         + "".join(trs)
         + "</tbody></table></div>"
@@ -515,13 +534,13 @@ def _render_provider_chow_block(ccn_norm: str) -> str:
     uid = re.sub(r"[^a-zA-Z0-9_-]", "", ccn_norm)[:12]
     panel_id = f"providerChowPanel-{uid}"
     btn_id = f"providerChowBtn-{uid}"
-    label = f"View {n:,} CHOW record{'s' if n != 1 else ''} for this facility"
     table = render_chow_events_table(
         rows[:40],
         org_link_fn=_org_link_from_chow_record,
         facility_link_fn=_facility_col_from_record,
         max_rows=40,
         table_class="chow-table chow-tx-table chow-tx-table--provider",
+        mobile_provider_stack=True,
     )
     more = ""
     if n > 40:
@@ -530,10 +549,9 @@ def _render_provider_chow_block(ccn_norm: str) -> str:
         )
     return (
         '<div class="provider-chow-block">'
-        '<p class="provider-chow-heading"><strong>Ownership changes (CHOW)</strong></p>'
         f'<button type="button" class="chow-btn chow-btn-chow chow-btn-chow-toggle" '
         f'id="{btn_id}" aria-controls="{panel_id}" aria-expanded="false">'
-        f"{html.escape(label)}</button>"
+        f"View Facility Ownership Changes</button>"
         f'<div id="{panel_id}" class="provider-chow-panel" hidden>'
         f"{table}{more}</div></div>"
         + CHOW_TABLE_INIT_SCRIPT

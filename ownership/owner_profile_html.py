@@ -254,8 +254,24 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
     )
 
 
+def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
+    """Mobile / narrow: state and census under facility name (e.g. TN · 61 residents)."""
+    st = str(f.get("state") or "").strip().upper()[:2]
+    census = _fmt_census(f.get("census") if verified else None)
+    parts: list[str] = []
+    if len(st) == 2:
+        parts.append(st)
+    if census and census != "—":
+        parts.append(f"{census} residents")
+    if not parts:
+        return ""
+    return (
+        f'<div class="owner-facility-meta-line">{html.escape(" · ".join(parts))}</div>'
+    )
+
+
 def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
-    """State shown inline on facility name lines, not a separate row."""
+    """Legacy hook — location line is rendered via _facility_location_residents_line."""
     return ""
 
 
@@ -300,12 +316,6 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
             f'<span class="owner-m-card__metric owner-m-card__metric--hprd">'
             f"{html.escape(hprd)} HPRD</span>"
         )
-    census_html = ""
-    if census and census != "—":
-        census_html = (
-            f'<span class="owner-m-card__census">'
-            f"{html.escape(census)} residents</span>"
-        )
     flags_html = f'<div class="owner-m-card__flags">{flags}</div>' if flags else ""
     search = " ".join(
         [
@@ -325,7 +335,6 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
         f'<div class="owner-m-card__role">{role_html}</div>'
         f"{hprd_html}"
         f'<div class="owner-m-card__ratings">{stars_html}</div>'
-        f"{census_html}"
         f"{flags_html}"
         "</div></li>"
     )
@@ -965,10 +974,12 @@ def _cms_stars_cell(f: dict[str, Any], *, verified: bool) -> tuple[str, str]:
     if ovr == "—" and staff == "—" and qm == "—":
         return "—", ""
     sort_key = f"{ovr}.{staff}.{qm}".replace("—", "")
+    hi = f.get("health_inspection_rating") or f.get("health_inspection")
     return cms_ratings_stack_html(
         f.get("overall_rating"),
         f.get("staffing_rating"),
         f.get("qm_rating"),
+        health_inspection=hi,
     ), sort_key
 
 
@@ -1013,14 +1024,6 @@ def _facility_flags_cell(
     return '<span class="owner-flags">' + "".join(badges) + "</span>"
 
 
-def _facility_primary_state_suffix(f: dict[str, Any]) -> str:
-    """Mobile: state beside facility name; hidden on desktop when State column shows."""
-    st = str(f.get("state") or "").strip().upper()[:2]
-    if len(st) != 2:
-        return ""
-    return f' <span class="owner-facility-state-inline">({html.escape(st)})</span>'
-
-
 def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     """Provider/DBA on top (linked); CMS legal name below when different."""
     legal_raw = format_org_display(str(f.get("facility_name") or "—"))
@@ -1043,7 +1046,8 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         if href and link_label
         else ""
     )
-    state_suffix = _facility_primary_state_suffix(f)
+    verified = method == "legal_exact"
+    location_line = _facility_location_residents_line(f, verified=verified)
     if provider_esc and not same:
         if href:
             primary_html = (
@@ -1054,24 +1058,23 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
             primary_html = (
                 f'<span class="owner-facility-primary">{provider_esc}</span>'
             )
-        legal_with_state = f"{legal_esc}{state_suffix}" if state_suffix else legal_esc
-        sub_parts = [legal_with_state]
+        sub_parts = [legal_esc]
         if badge:
             sub_parts.append(badge)
-        sub_html = f'<div class="owner-facility-sub">{"".join(sub_parts)}</div>'
+        sub_html = f'<div class="owner-facility-sub">{"".join(sub_parts)}</div>' if sub_parts else ""
     else:
         if href:
             primary_html = (
                 f'<a href="{href}" class="owner-facility-primary"{title_attr}>'
-                f"{legal_esc}{state_suffix}</a>"
+                f"{legal_esc}</a>"
             )
         else:
             primary_html = (
-                f'<span class="owner-facility-primary">{legal_esc}{state_suffix}</span>'
+                f'<span class="owner-facility-primary">{legal_esc}</span>'
             )
         sub_html = ""
 
-    inner = f"{primary_html}{sub_html}"
+    inner = f"{primary_html}{sub_html}{location_line}"
     sort_key = _sort_attr(f.get("facility_name"))
     return f'<div class="owner-facility-names">{inner}</div>', sort_key
 

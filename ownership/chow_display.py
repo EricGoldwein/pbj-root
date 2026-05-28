@@ -158,6 +158,7 @@ def render_chow_table_rows(
     compact: bool = False,
     table_id: str = "",
     max_rows: int = 0,
+    mobile_change_stack: bool = False,
 ) -> str:
     """HTML tbody rows: Effective, Facility, Buyer, Seller, Details (modal)."""
     fac_fn = facility_link_fn or _default_facility_link
@@ -174,18 +175,46 @@ def render_chow_table_rows(
         summary_esc = html.escape(summary) if summary else "—"
         panel_id = f"chow-detail-{rid}"
         panel = render_chow_detail_panel(rec, panel_id=panel_id)
-        trs.append(
-            f'<tr class="chow-tx-row" data-chow-id="{rid}">'
-            f'<td class="num chow-tx-date">{eff}</td>'
-            f'<td class="chow-tx-facility">{facility}</td>'
-            f'<td class="chow-tx-org">{buyer}</td>'
-            f'<td class="chow-tx-org">{seller}</td>'
-            f'<td class="chow-tx-details">'
-            f'<span class="chow-tx-summary">{summary_esc}</span> '
+        details_btn = (
             f'<button type="button" class="chow-view-details" '
-            f'data-chow-detail-store="{panel_id}" aria-expanded="false">View details</button>'
-            f"</td></tr>"
+            f'data-chow-detail-store="{panel_id}" aria-expanded="false">Details</button>'
         )
+        if mobile_change_stack:
+            trs.append(
+                f'<tr class="chow-tx-row chow-tx-row--stacked" data-chow-id="{rid}">'
+                f'<td class="chow-tx-change-stack">'
+                f'<div class="chow-tx-stack-line chow-tx-stack-line--change">'
+                f'<span class="chow-tx-stack-k">Change</span>'
+                f'<span class="chow-tx-stack-v">{summary_esc}</span></div>'
+                f'<div class="chow-tx-stack-line chow-tx-stack-line--date">'
+                f'<span class="chow-tx-stack-k">Date</span>'
+                f'<span class="chow-tx-stack-v">{eff}</span></div>'
+                f'<div class="chow-tx-stack-line chow-tx-stack-line--action">'
+                f'<span class="chow-tx-stack-k">Details</span>'
+                f'<span class="chow-tx-stack-v">{details_btn}</span></div>'
+                f'<div class="chow-tx-stack-extra">'
+                f'<div class="chow-tx-stack-facility">{facility}</div>'
+                f'<div class="chow-tx-stack-parties">{buyer} → {seller}</div>'
+                f"</div></td>"
+                f'<td class="num chow-tx-date chow-tx-desktop-col">{eff}</td>'
+                f'<td class="chow-tx-facility chow-tx-desktop-col">{facility}</td>'
+                f'<td class="chow-tx-org chow-tx-desktop-col">{buyer}</td>'
+                f'<td class="chow-tx-org chow-tx-desktop-col">{seller}</td>'
+                f'<td class="chow-tx-details chow-tx-desktop-col">'
+                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
+                f"</td></tr>"
+            )
+        else:
+            trs.append(
+                f'<tr class="chow-tx-row" data-chow-id="{rid}">'
+                f'<td class="num chow-tx-date">{eff}</td>'
+                f'<td class="chow-tx-facility">{facility}</td>'
+                f'<td class="chow-tx-org">{buyer}</td>'
+                f'<td class="chow-tx-org">{seller}</td>'
+                f'<td class="chow-tx-details">'
+                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
+                f"</td></tr>"
+            )
         stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
     return "".join(trs), "".join(stores)
 
@@ -197,20 +226,27 @@ def render_chow_events_table(
     facility_link_fn=None,
     max_rows: int = 0,
     table_class: str = "chow-table chow-tx-table",
+    mobile_change_stack: bool = False,
 ) -> str:
     body, stores = render_chow_table_rows(
         rows,
         org_link_fn=org_link_fn,
         facility_link_fn=facility_link_fn,
         max_rows=max_rows,
+        mobile_change_stack=mobile_change_stack,
     )
     if not body:
         return ""
+    stack_class = " chow-tx-table--change-stack" if mobile_change_stack else ""
+    if mobile_change_stack:
+        thead = '<th>Change</th><th class="num chow-tx-desktop-col">Effective</th><th class="chow-tx-desktop-col">Facility</th><th class="chow-tx-desktop-col">Buyer</th><th class="chow-tx-desktop-col">Seller</th><th class="chow-tx-desktop-col">Details</th>'
+    else:
+        thead = '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'
     return (
         f'<div class="chow-tx-table-wrap">'
         f'<div class="chow-table-scroll chow-tx-scroll chow-table-scroll--touch mobile-table-scroll">'
-        f'<table class="{table_class} chow-tx-table--mobile"><thead><tr>'
-        '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'
+        f'<table class="{table_class} chow-tx-table--mobile{stack_class}"><thead><tr>'
+        f"{thead}"
         "</tr></thead><tbody>"
         + body
         + "</tbody></table></div>"

@@ -2669,6 +2669,21 @@
           if (!q) return true;
           return (str || '').toLowerCase().indexOf(q.toLowerCase()) !== -1;
         }
+        function stateSearchScore(row, q) {
+          if (!row || !q) return 0;
+          var name = String(row.n || '').toLowerCase();
+          var abbr = String(row.abbr || '').toLowerCase();
+          var ql = String(q).toLowerCase().trim();
+          if (!ql) return 0;
+          if (abbr === ql) return 1000;
+          if (abbr.indexOf(ql) === 0) return 900;
+          if (name.indexOf(ql) === 0) return 800;
+          var wordRe = new RegExp('(^|[\\s\\-])' + ql.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+          if (wordRe.test(row.n || '')) return 700;
+          if (abbr.indexOf(ql) !== -1) return 500;
+          if (name.indexOf(ql) !== -1) return 100;
+          return 0;
+        }
         function setMode(mode) {
           searchMode = mode;
           tabFacility.classList.toggle('active', mode === 'facility');
@@ -2753,14 +2768,19 @@
             }
           } else {
             const limit = 15;
-            let count = 0;
+            var stateHits = [];
             for (const row of searchIndex.s) {
-              if (count >= limit) break;
               if (!row || !row.abbr) continue;
-              const matchName = matchQuery(row.n, q);
-              const matchAbbr = matchQuery(row.abbr, q);
-              if (!matchName && !matchAbbr) continue;
-              count++;
+              var score = stateSearchScore(row, q);
+              if (!score) continue;
+              stateHits.push({ row: row, score: score });
+            }
+            stateHits.sort(function(a, b) {
+              if (b.score !== a.score) return b.score - a.score;
+              return String(a.row.n || a.row.abbr || '').localeCompare(String(b.row.n || b.row.abbr || ''));
+            });
+            for (var hi = 0; hi < stateHits.length && hi < limit; hi++) {
+              const row = stateHits[hi].row;
               var stateSlug = (row.n || '').toLowerCase().replace(/\s+/g, '-');
               const url = stateSlug ? (DASHBOARD_BASE + '/state/' + encodeURIComponent(stateSlug)) : (DASHBOARD_BASE + '/state/' + encodeURIComponent(row.abbr || ''));
               var stateName = row.n || row.abbr;

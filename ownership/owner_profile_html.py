@@ -237,7 +237,10 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
     pac_html = f'<span class="owner-m-card__meta">PAC {pac_inner}</span>'
     aside_bits = [f'<span class="owner-m-card__pill">{ptype}</span>']
     if pcts:
-        aside_bits.append(f'<span class="owner-m-card__metric">{pcts}</span>')
+        pct_label = pcts if str(pcts).strip().lower().startswith("own") else f"Own. {pcts}"
+        aside_bits.append(
+            f'<span class="owner-m-card__metric">{html.escape(pct_label)}</span>'
+        )
     if roles:
         aside_bits.append(f'<span class="owner-m-card__muted">{roles}</span>')
     return (
@@ -252,31 +255,62 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
 
 
 def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
-    legal = format_org_display(str(f.get("facility_name") or "").strip())
-    provider = format_org_display(str(f.get("provider_name") or "").strip())
+    """State pill only — legal name already shown in facility cell sub-line when needed."""
     st = str(f.get("state") or "").strip().upper()[:2]
-    bits: list[str] = []
-    if legal and provider and legal.upper() != provider.upper():
-        bits.append(html.escape(legal))
-    elif legal and not provider:
-        bits.append(html.escape(legal))
-    if st and len(st) == 2:
-        bits.append(f'<span class="owner-m-card__state">{html.escape(st)}</span>')
-    if not bits:
+    if len(st) != 2:
         return ""
-    return f'<span class="owner-m-card__meta">{" · ".join(bits)}</span>'
+    return (
+        f'<span class="owner-m-card__meta">'
+        f'<span class="owner-m-card__state">{html.escape(st)}</span></span>'
+    )
+
+
+def _facility_mobile_own_line(f: dict[str, Any]) -> str:
+    """Compact ownership % for mobile facility cards."""
+    role_raw = str(f.get("role") or "")
+    role_text = format_role_text(role_raw) if role_raw else ""
+    adate = _fmt_date_mdyy(f.get("association_date"))
+    pct_raw = str(f.get("pct") or "").strip()
+    pct = ""
+    if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
+        pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
+    pct_display = html.escape(pct) if pct else html.escape(_pct_fallback_label(role_raw) or "—")
+    label = pct_display if pct_display == "—" else f"Own. {pct_display}"
+    if role_text or (adate and adate != "—"):
+        modal_title = html.escape(pct or "Ownership", quote=True)
+        return (
+            f'<button type="button" class="owner-m-card-own-pct" data-owner-info '
+            f'data-info-format="ownership" data-info-title="{modal_title}" '
+            f'data-role-text="{html.escape(role_text, quote=True)}" '
+            f'data-role-since="{html.escape(adate if adate != "—" else "", quote=True)}" '
+            f'aria-label="Ownership details">{label}</button>'
+        )
+    return f'<span class="owner-m-card-own-pct">{label}</span>'
 
 
 def _facility_mobile_card(f: dict[str, Any]) -> str:
     names_html, _ = _facility_names_cell(f)
     names_html = names_html.replace('class="owner-facility-names"', 'class="owner-m-card__names"', 1)
     meta = _facility_mobile_meta_line(f)
-    role_html, _ = _role_ownership_cell(f)
+    role_html = _facility_mobile_own_line(f)
     method = str(f.get("ccn_match_method") or "")
     verified = method == "legal_exact"
-    hprd = html.escape(_fmt_hprd(f.get("hprd") if verified else None))
+    hprd = _fmt_hprd(f.get("hprd") if verified else None)
+    census = _fmt_census(f.get("census") if verified else None)
     stars_html, _ = _cms_stars_cell(f, verified=verified)
-    flags = _facility_flags_cell(f, verified=verified)
+    flags = _facility_flags_cell(f, verified=verified, skip_star_flags=True)
+    metric_bits: list[str] = []
+    if census and census != "—":
+        metric_bits.append(f"{html.escape(census)} Residents")
+    if hprd and hprd != "—":
+        metric_bits.append(f"{html.escape(hprd)} HPRD")
+    metrics_html = ""
+    if metric_bits:
+        metrics_html = (
+            f'<span class="owner-m-card__metric">'
+            f'{" | ".join(metric_bits)}</span>'
+        )
+    flags_html = f'<div class="owner-m-card__flags">{flags}</div>' if flags else ""
     search = " ".join(
         [
             str(f.get("facility_name") or ""),
@@ -293,13 +327,9 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
         "</div>"
         '<div class="owner-m-card__aside">'
         f'<div class="owner-m-card__role">{role_html}</div>'
-        + (
-            f'<span class="owner-m-card__metric">HPRD {hprd}</span>'
-            if hprd != "—"
-            else ""
-        )
-        + f'<div class="owner-m-card__ratings">{stars_html}</div>'
-        + f'<div class="owner-m-card__flags">{flags}</div>'
+        f"{metrics_html}"
+        f'<div class="owner-m-card__ratings">{stars_html}</div>'
+        f"{flags_html}"
         "</div></li>"
     )
 
@@ -668,7 +698,7 @@ def _owner_profile_header_html(
               <span class="owner-profile-brand-suffix">Ownership</span>
             </span>
           </a>
-          {header_actions}
+          <div class="owner-profile-brand-row-mobile-meta">{header_actions}</div>
         </div>
         <h1 class="owner-profile-name">{name}</h1>
         {meta_row}
@@ -953,7 +983,9 @@ def _facilities_portfolio_title(profile: dict[str, Any]) -> str:
     return f"{name} — Nursing Home Portfolio"
 
 
-def _facility_flags_cell(f: dict[str, Any], *, verified: bool) -> str:
+def _facility_flags_cell(
+    f: dict[str, Any], *, verified: bool, skip_star_flags: bool = False
+) -> str:
     """Regulatory screening badges (SFF, abuse icon, etc.)."""
     if not verified:
         return "—"
@@ -966,12 +998,13 @@ def _facility_flags_cell(f: dict[str, Any], *, verified: bool) -> str:
         badges.append(_flag_explainer_button("sffc", "SFF-C", "owner-flag--sffc"))
     if f.get("has_abuse"):
         badges.append(_flag_explainer_button("abuse", "Abuse", "owner-flag--abuse"))
-    if format_cms_star_rating(f.get("overall_rating")) == "1":
-        badges.append(_flag_explainer_button("star_overall", "1★", "owner-flag--star"))
-    if format_cms_star_rating(f.get("staffing_rating")) == "1":
-        badges.append(_flag_explainer_button("star_staff", "1★S", "owner-flag--staff"))
+    if not skip_star_flags:
+        if format_cms_star_rating(f.get("overall_rating")) == "1":
+            badges.append(_flag_explainer_button("star_overall", "1★", "owner-flag--star"))
+        if format_cms_star_rating(f.get("staffing_rating")) == "1":
+            badges.append(_flag_explainer_button("star_staff", "1★S", "owner-flag--staff"))
     if not badges:
-        return "—"
+        return ""
     return '<span class="owner-flags">' + "".join(badges) + "</span>"
 
 
@@ -1179,7 +1212,9 @@ def _owner_facilities_table_html(
     if n >= FACILITIES_FILTER_MIN:
         filter_html = (
             '<div class="owner-facilities-header-actions">'
-            f'<input type="search" id="ownerFacilitiesFilter" class="owner-table-filter-input" '
+            '<button type="button" class="owner-table-view-toggle" id="ownerFacilitiesTableViewBtn" '
+            'aria-pressed="false" aria-label="Switch to table view">Table view</button>'
+            f'<input type="search" id="ownerFacilitiesFilter" class="owner-table-filter-input owner-table-filter-input--desktop" '
             f'placeholder="Filter…" autocomplete="off" '
             f'aria-label="Filter {n} facilities">'
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCount" hidden></span>'

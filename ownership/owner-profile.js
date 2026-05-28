@@ -156,6 +156,8 @@
   var mobileCards = mobileList
     ? Array.prototype.slice.call(mobileList.querySelectorAll('.owner-m-card--facility'))
     : [];
+  var facilitiesSection = root.querySelector('.owner-facilities-section');
+  var tableViewBtn = document.getElementById('ownerFacilitiesTableViewBtn');
   var filterInput = document.getElementById('ownerFacilitiesFilter');
   var filterCount = document.getElementById('ownerFacilitiesFilterCount');
   var sortKey = 'legal';
@@ -286,6 +288,18 @@
 
   if (filterInput) {
     filterInput.addEventListener('input', applyFilter);
+  }
+
+  if (tableViewBtn && facilitiesSection) {
+    tableViewBtn.addEventListener('click', function () {
+      var on = facilitiesSection.classList.toggle('owner-facilities-section--table-view');
+      tableViewBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      tableViewBtn.textContent = on ? 'Card view' : 'Table view';
+      tableViewBtn.setAttribute(
+        'aria-label',
+        on ? 'Switch to card view' : 'Switch to table view'
+      );
+    });
   }
 
   applySort();

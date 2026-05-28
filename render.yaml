@@ -4,7 +4,7 @@ services:
     name: pbj
     runtime: python
     # Skip LFS smudge on clone (saves LFS bandwidth). Real CSVs: scripts/ensure_deploy_csvs.py
-    buildCommand: pip install -r requirements.txt && PBJ_SKIP_BUILD_PROVIDER_INDEXES=1 python scripts/ensure_deploy_csvs.py --quick && python scripts/build_state_page_aggregates.py && python scripts/build_sitemap_xml.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && python scripts/build_snf_owners_index.py && python scripts/build_snf_owners_ccn_index.py && python scripts/validate_ownership_linkage.py && python scripts/build_owners_database.py && cd pbj-wrapped && npm install && npm run build
+    buildCommand: pip install -r requirements.txt && PBJ_SKIP_BUILD_PROVIDER_INDEXES=1 python scripts/ensure_deploy_csvs.py --quick && python scripts/build_state_page_aggregates.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && python scripts/build_snf_owners_index.py && python scripts/build_snf_owners_ccn_index.py && python scripts/validate_ownership_linkage.py && python scripts/build_owners_database.py && python scripts/build_sitemap_xml.py && cd pbj-wrapped && npm install && npm run build
     # CSV/index work runs in buildCommand only. Start must bind :10000 quickly for /health (see scripts/render_start.py).
     startCommand: python scripts/render_start.py
     healthCheckPath: /health

@@ -5714,7 +5714,7 @@ def _build_sitemap_xml() -> str:
                         f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
                     )
         owner_cache = load_owner_indexability_cache()
-        for pac in public_owner_associate_ids_for_sitemap():
+        for pac in public_owner_associate_ids_for_sitemap(cache_only=True):
             urls.append(
                 f'  <url><loc>{base}/owners/{pac}</loc><lastmod>{today}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.55</priority></url>'
@@ -5726,6 +5726,10 @@ def _build_sitemap_xml() -> str:
         )
     except Exception as e:
         print(f"Sitemap: could not load provider/owner index lists: {e}")
+    return _sitemap_xml_from_url_lines(urls, base, robots_blocked)
+
+
+def _sitemap_xml_from_url_lines(urls: list[str], base: str, robots_blocked) -> str:
     filtered = []
     for entry in urls:
         m = re.search(r'<loc>([^<]+)</loc>', entry)
@@ -5740,6 +5744,80 @@ def _build_sitemap_xml() -> str:
         + '\n'.join(filtered)
         + '\n</urlset>'
     )
+
+
+def _sitemap_static_url_lines(base: str, today: str, quarter_lastmod: str) -> list[str]:
+    """Trust pages + insights + states (no provider/entity/owner enumeration)."""
+    urls: list[str] = []
+    static_pages = [
+        ('/', '1.0', 'weekly'),
+        ('/report', '0.9', 'weekly'),
+        ('/insights', '0.9', 'weekly'),
+        ('/insights/trends', '0.75', 'monthly'),
+        ('/press', '0.8', 'monthly'),
+        ('/pbj-sample', '0.6', 'monthly'),
+        ('/phoebe', '0.8', 'monthly'),
+        ('/what-is-hprd', '0.7', 'monthly'),
+        ('/nursing-home-staffing-data', '0.7', 'monthly'),
+    ]
+    seen_paths = {p for p, _, _ in static_pages}
+    for path, priority, changefreq in SITEMAP_TRUST_PAGES:
+        if path not in seen_paths:
+            static_pages.append((path, priority, changefreq))
+            seen_paths.add(path)
+    for path, priority, changefreq in static_pages:
+        if path in SITEMAP_EXCLUDED_PATHS:
+            continue
+        lastmod = quarter_lastmod if path == '/report' else today
+        urls.append(
+            f'  <url><loc>{base}{path}</loc><lastmod>{lastmod}</lastmod>'
+            f'<changefreq>{changefreq}</changefreq><priority>{priority}</priority></url>'
+        )
+    for post in _get_native_insights_posts():
+        if not _insights_post_is_published(post):
+            continue
+        slug = (post.get('slug') or '').strip()
+        if slug:
+            lm = _sitemap_lastmod_for_insight_post(post, today)
+            urls.append(
+                f'  <url><loc>{base}/insights/{slug}</loc><lastmod>{lm}</lastmod>'
+                f'<changefreq>monthly</changefreq><priority>0.8</priority></url>'
+            )
+    for state_code in sorted(STATE_CODE_TO_NAME.keys()):
+        slug = get_canonical_slug(state_code)
+        urls.append(
+            f'  <url><loc>{base}/state/{slug}</loc><lastmod>{quarter_lastmod}</lastmod>'
+            f'<changefreq>weekly</changefreq><priority>0.6</priority></url>'
+        )
+    return urls
+
+
+def _build_sitemap_xml_minimal() -> str:
+    """Fast sitemap (~15k URLs from search_index.json only). Safe on live worker if deploy file missing."""
+    base = normalize_public_site_origin(PUBLIC_SITE_ORIGIN)
+    today = datetime.now().strftime('%Y-%m-%d')
+    quarter_lastmod = _sitemap_quarter_lastmod()
+    robots_blocked = sitemap_paths_blocked_by_robots(ROBOTS_TXT)
+    urls = _sitemap_static_url_lines(base, today, quarter_lastmod)
+    try:
+        from ownership.owner_indexability import provider_ccns_for_sitemap
+
+        for ccn in provider_ccns_for_sitemap(count_excluded=False):
+            urls.append(
+                f'  <url><loc>{base}/provider/{ccn}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
+            )
+        data = _get_search_index_data()
+        if data:
+            for ent in (data.get('e') or []):
+                if ent and ent.get('id') is not None:
+                    urls.append(
+                        f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                        f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
+                    )
+    except Exception as e:
+        print(f'Sitemap minimal: search_index section skipped: {e}', flush=True)
+    return _sitemap_xml_from_url_lines(urls, base, robots_blocked)
 
 
 @app.route('/sitemap.xml')
@@ -5757,13 +5835,34 @@ def sitemap():
         resp.headers['X-PBJ-Sitemap-Cache'] = 'STATIC'
         resp.headers['Cache-Control'] = f'public, max-age={_sitemap_cache_ttl_sec()}'
         return resp
-    if not _sitemap_runtime_build_allowed():
-        return make_response(
-            'Sitemap is generated at deploy; retry after the next successful build.',
-            503,
-            {'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '300'},
-        )
     global _SITEMAP_XML_CACHE, _SITEMAP_XML_AT
+    if not _sitemap_runtime_build_allowed():
+        ttl = _sitemap_cache_ttl_sec()
+        now = time.time()
+        if _SITEMAP_XML_CACHE and (now - _SITEMAP_XML_AT) < ttl:
+            resp = make_response(_SITEMAP_XML_CACHE, 200)
+            resp.headers.update(headers)
+            resp.headers['X-PBJ-Sitemap-Cache'] = 'MINIMAL-HIT'
+            return resp
+        with _SITEMAP_BUILD_LOCK:
+            if _SITEMAP_XML_CACHE and (time.time() - _SITEMAP_XML_AT) < ttl:
+                resp = make_response(_SITEMAP_XML_CACHE, 200)
+                resp.headers.update(headers)
+                resp.headers['X-PBJ-Sitemap-Cache'] = 'MINIMAL-HIT'
+                return resp
+            t0 = time.perf_counter()
+            xml = _build_sitemap_xml_minimal()
+            _SITEMAP_XML_CACHE = xml
+            _SITEMAP_XML_AT = time.time()
+            print(
+                f'[sitemap] minimal fallback len={len(xml)} elapsed_ms={(time.perf_counter() - t0) * 1000:.0f}',
+                flush=True,
+            )
+        resp = make_response(_SITEMAP_XML_CACHE or xml, 200)
+        resp.headers.update(headers)
+        resp.headers['X-PBJ-Sitemap-Cache'] = 'MINIMAL'
+        resp.headers['Cache-Control'] = f'public, max-age={min(300, ttl)}'
+        return resp
     ttl = _sitemap_cache_ttl_sec()
     now = time.time()
     if _SITEMAP_XML_CACHE and (now - _SITEMAP_XML_AT) < ttl:
@@ -7611,6 +7710,21 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-page-bottom-details {{ margin: 0; width: 100%; max-width: none; }}
 .pbj-details.pbj-state-staffing-table {{ margin-bottom: 0; }}
 .pbj-details.pbj-state-staffing-table + .pbj-page-bottom-stack {{ margin-top: 0.75rem; }}
+.pbj-state-staffing-table .pbj-table-wrap table th,
+.pbj-state-staffing-table .pbj-table-wrap table td {{
+  border: 1px solid rgba(148, 163, 184, 0.42);
+}}
+.pbj-state-staffing-table .pbj-table-wrap table th {{
+  background: rgba(30, 41, 59, 0.82);
+  color: #c7d2fe;
+  font-weight: 600;
+}}
+.pbj-state-staffing-table .pbj-table-wrap table tbody tr:nth-child(even) td {{
+  background: rgba(15, 23, 42, 0.55);
+}}
+.pbj-state-staffing-table .pbj-table-wrap table tbody tr:nth-child(odd) td {{
+  background: rgba(15, 23, 42, 0.35);
+}}
 .pbj-details summary {{ list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9375rem; color: #c7d2fe; background: rgba(30, 41, 59, 0.45); transition: background 0.2s ease, color 0.2s ease; user-select: none; }}
 .pbj-details summary::-webkit-details-marker {{ display: none; }}
 .pbj-details summary:hover {{ background: rgba(51, 65, 85, 0.55); color: #e0e7ff; }}
@@ -8488,6 +8602,18 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-content-box h1 {{ font-size: 1.5rem; }}
   .pbj-content-box h2 {{ font-size: 1.2rem; }}
   .section-header {{ font-size: 1.2em; }}
+  .pbj-state-staffing-table summary,
+  .state-high-risk-details summary,
+  .pbj-details-methodology summary {{
+    padding: 0.6rem 0.75rem;
+    font-size: 0.84rem;
+    gap: 0.4rem;
+  }}
+  .state-page-charts .pbj-chart-header-state-mobile.section-header {{
+    font-size: 0.84rem;
+    margin-bottom: 0.15rem;
+    padding-bottom: 0.2rem;
+  }}
   .navbar {{ position: relative; }}
   .nav-menu {{
     display: flex !important;
@@ -13993,9 +14119,9 @@ def _render_state_pbj_high_risk_section(
     tab_defs = [
         ('all', 'All', 'All PBJ320 high-risk indicators in this state (deduplicated by facility).'),
         ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
-        ('sffCandidates', 'SFF candidates', 'Facilities monitored for potential SFF designation.'),
-        ('oneStarOverall', '1-star overall', 'CMS overall rating of 1 star.'),
-        ('abuse', 'Abuse icon', 'Facilities flagged with the CMS abuse icon.'),
+        ('sffCandidates', 'SFF cand.', 'Facilities monitored for potential SFF designation.'),
+        ('oneStarOverall', '★ overall', 'CMS overall rating of 1 star.'),
+        ('abuse', 'Abuse', 'Facilities flagged with the CMS abuse icon.'),
     ]
     all_by_ccn: dict[str, dict] = {}
     for cat_key, _, _ in tab_defs[1:]:
@@ -14202,8 +14328,11 @@ def _render_state_pbj_high_risk_section(
     .state-hr-show-all-btn { margin: 0.35rem 0 0.5rem; padding: 0.35rem 0.75rem; font-size: 0.85rem; background: rgba(99,102,241,0.25); color: #e2e8f0; border: 1px solid rgba(129,140,248,0.45); border-radius: 6px; cursor: pointer; }
     .state-hr-show-all-btn:hover { background: rgba(99,102,241,0.4); }
     @media (max-width: 640px) {
-      .state-hr-table { font-size: 0.78rem; }
+      .state-hr-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.22rem; }
+      .state-hr-tab-btn { font-size: 0.68rem; padding: 0.32rem 0.35rem; line-height: 1.2; white-space: normal; text-align: center; }
+      .state-hr-table { font-size: 0.76rem; }
       .state-hr-table th, .state-hr-table td { padding: 0.3rem 0.2rem; vertical-align: middle; }
+      .state-hr-table th { font-size: 0.68rem; font-weight: 600; text-transform: none; letter-spacing: 0; color: #a5b4fc; }
       .state-hr-col-facility { max-width: 9.5rem; }
       .state-hr-facility-cell { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .state-hr-city { display: inline; margin-left: 0.15rem; }

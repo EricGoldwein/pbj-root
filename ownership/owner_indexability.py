@@ -358,7 +358,7 @@ def refresh_owner_indexability_cache(
     return rows, summarize_owner_indexability_rows(rows)
 
 
-def public_owner_associate_ids_for_sitemap() -> list[str]:
+def public_owner_associate_ids_for_sitemap(*, cache_only: bool = False) -> list[str]:
     """10-digit PACs classified as index (falls back to live classify if cache missing)."""
     cache = load_owner_indexability_cache()
     if cache:
@@ -367,6 +367,8 @@ def public_owner_associate_ids_for_sitemap() -> list[str]:
             for pac, row in cache.items()
             if str(row.get("classification") or "") == "index" and len(pac) == 10
         )
+    if cache_only:
+        return []
 
     from ownership.owner_profile import (
         load_owner_profile_resolved,

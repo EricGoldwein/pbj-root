@@ -1218,23 +1218,101 @@ body.chow-modal-open {
     max-height: min(50vh, 380px);
   }
 
-  .chow-state-block .chow-tx-table--mobile {
+  .chow-state-block .chow-tx-table--mobile:not(.chow-tx-table--change-stack) {
     min-width: 44rem;
   }
 
-  .chow-state-block .chow-tx-table--mobile th,
-  .chow-state-block .chow-tx-table--mobile td {
+  .chow-state-block .chow-tx-table--mobile:not(.chow-tx-table--change-stack) th,
+  .chow-state-block .chow-tx-table--mobile:not(.chow-tx-table--change-stack) td {
     font-size: 0.76rem;
     padding: 0.38rem 0.35rem;
   }
 
-  .chow-state-block .chow-tx-table--mobile .chow-tx-facility,
-  .chow-state-block .chow-tx-table--mobile .chow-tx-org {
+  .chow-state-block .chow-tx-table--mobile:not(.chow-tx-table--change-stack) .chow-tx-facility,
+  .chow-state-block .chow-tx-table--mobile:not(.chow-tx-table--change-stack) .chow-tx-org {
     min-width: 12rem;
     max-width: 16rem;
     white-space: normal;
     word-break: normal;
     overflow-wrap: break-word;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack .chow-tx-desktop-col {
+    display: none !important;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack th:not(:first-child),
+  .chow-state-block .chow-tx-table--change-stack td:not(.chow-tx-change-stack) {
+    display: none !important;
+  }
+
+  .chow-state-block .chow-tx-change-stack {
+    display: block;
+    padding: 0.45rem 0.4rem;
+    border-bottom: 1px solid var(--chow-border);
+  }
+
+  .chow-state-block .chow-tx-stack-line {
+    display: grid;
+    grid-template-columns: 3.4rem minmax(0, 1fr);
+    gap: 0.35rem;
+    align-items: baseline;
+    margin-bottom: 0.28rem;
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }
+
+  .chow-state-block .chow-tx-stack-line--action {
+    margin-bottom: 0.15rem;
+  }
+
+  .chow-state-block .chow-tx-stack-k {
+    color: #64748b;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: none;
+  }
+
+  .chow-state-block .chow-tx-stack-v {
+    color: #e2e8f0;
+    min-width: 0;
+    word-break: normal;
+    overflow-wrap: break-word;
+  }
+
+  .chow-state-block .chow-tx-stack-extra {
+    margin-top: 0.2rem;
+    padding-top: 0.25rem;
+    border-top: 1px dashed rgba(148, 163, 184, 0.28);
+    font-size: 0.72rem;
+    line-height: 1.35;
+    color: #94a3b8;
+  }
+
+  .chow-state-block .chow-tx-stack-facility a {
+    color: #c7d2fe;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .chow-state-block .chow-tx-stack-parties a {
+    color: #a5b4fc;
+    text-decoration: none;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack .chow-view-details {
+    font-size: 0.74rem;
+    padding: 0.15rem 0;
+    color: #a5b4fc;
+    background: none;
+    border: none;
+    text-decoration: underline;
+    cursor: pointer;
   }
 
   .chow-state-actions {
@@ -1344,6 +1422,21 @@ body.chow-modal-open {
 
   .chow-table--cards-sm .owner-role-pct-stack {
     align-items: flex-end;
+  }
+}
+
+@media (min-width: 641px) {
+  .chow-state-block .chow-tx-table--change-stack th:first-child,
+  .chow-state-block .chow-tx-table--change-stack td.chow-tx-change-stack {
+    display: none !important;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack .chow-tx-desktop-col {
+    display: table-cell !important;
+  }
+
+  .chow-state-block .chow-tx-table--change-stack {
+    min-width: 44rem;
   }
 }
 

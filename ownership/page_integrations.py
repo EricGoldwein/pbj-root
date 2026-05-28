@@ -342,6 +342,7 @@ def _render_state_chow_recent_table(
         org_link_fn=_org_link_from_chow_record,
         facility_link_fn=_facility_col_from_record,
         max_rows=limit,
+        mobile_change_stack=True,
     )
     foot = foot_html or ""
     return table_inner + foot + CHOW_TABLE_INIT_SCRIPT

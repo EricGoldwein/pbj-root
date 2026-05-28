@@ -1162,10 +1162,6 @@ body.chow-modal-open {
   position: relative;
 }
 
-.mobile-table-hint {
-  display: none;
-}
-
 .chow-table-scroll--touch.mobile-table-scroll {
   overflow-x: auto;
   max-width: 100%;
@@ -1184,14 +1180,6 @@ body.chow-modal-open {
 
   .chow-provider-owners-scroll {
     max-height: none;
-  }
-
-  .mobile-table-hint {
-    display: block;
-    margin: 0.15rem 0 0.35rem;
-    font-size: 0.72rem;
-    line-height: 1.25;
-    color: var(--chow-subtle);
   }
 
   .pbj-ownership-chow-content .chow-table-scroll--touch,

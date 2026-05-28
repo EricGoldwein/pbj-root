@@ -382,7 +382,7 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         f'<div class="pbj-details-content chow-state-block">'
         f'<p class="chow-state-lead chow-state-lead--compact">Most facilities linked in CMS SNF All Owners ({label}).</p>'
         f'<div class="chow-table-scroll chow-table-scroll--touch chow-state-owners-scroll">'
-        f'<table class="chow-table chow-state-owners-table chow-table--compact-sm chow-table--cards-sm">'
+        f'<table class="chow-table chow-state-owners-table chow-table--compact-sm">'
         f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
         f"<tbody>{''.join(trs)}</tbody></table></div></div></details>"
     )
@@ -496,7 +496,7 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         f"{extra}"
         '<div class="chow-table-scroll chow-table-scroll--touch chow-provider-owners-scroll" '
         'style="max-height:360px;">'
-        '<table class="chow-table chow-provider-owners-table chow-table--cards-sm">'
+        '<table class="chow-table chow-provider-owners-table">'
         "<thead><tr>"
         "<th>Name</th><th>Type</th><th>Role</th><th>Since</th>"
         "</tr></thead><tbody>"

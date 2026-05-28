@@ -106,6 +106,16 @@ def format_chow_date(iso: str) -> str:
     return iso
 
 
+def format_chow_date_dashed(iso: str) -> str:
+    """US display date MM-DD-YYYY from ISO (source date unchanged in data)."""
+    if not iso or len(iso) < 10:
+        return iso or "—"
+    p = iso.split("-")
+    if len(p) == 3:
+        return f"{p[1]}-{p[2]}-{p[0]}"
+    return iso
+
+
 def chow_index_date_range_label() -> str:
     """Human-readable effective-date span for the current CHOW index."""
     summary = _load_index().get("summary") or {}

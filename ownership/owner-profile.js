@@ -152,6 +152,10 @@
   if (!tbody) return;
 
   var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
+  var mobileList = root.querySelector('.owner-mobile-card-list--facilities');
+  var mobileCards = mobileList
+    ? Array.prototype.slice.call(mobileList.querySelectorAll('.owner-m-card--facility'))
+    : [];
   var filterInput = document.getElementById('ownerFacilitiesFilter');
   var filterCount = document.getElementById('ownerFacilitiesFilterCount');
   var sortKey = 'legal';
@@ -167,6 +171,11 @@
   };
 
   function visibleRows() {
+    if (mobileCards.length && window.matchMedia('(max-width: 699px)').matches) {
+      return mobileCards.filter(function (li) {
+        return li.style.display !== 'none';
+      });
+    }
     return rows.filter(function (tr) {
       return tr.style.display !== 'none';
     });
@@ -211,6 +220,20 @@
     rows.forEach(function (tr) {
       tbody.appendChild(tr);
     });
+    syncMobileOrder();
+  }
+
+  function syncMobileOrder() {
+    if (!mobileList || !mobileCards.length) return;
+    rows.forEach(function (tr) {
+      var key = tr.getAttribute('data-search') || '';
+      for (var i = 0; i < mobileCards.length; i++) {
+        if ((mobileCards[i].getAttribute('data-search') || '') === key) {
+          mobileList.appendChild(mobileCards[i]);
+          break;
+        }
+      }
+    });
   }
 
   function applyFilter() {
@@ -222,6 +245,14 @@
       }
       var blob = tr.getAttribute('data-search') || tr.textContent || '';
       tr.style.display = blob.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+    });
+    mobileCards.forEach(function (li) {
+      if (!q) {
+        li.style.display = '';
+        return;
+      }
+      var blob = li.getAttribute('data-search') || li.textContent || '';
+      li.style.display = blob.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
     });
     updateCounts();
   }

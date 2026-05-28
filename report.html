@@ -3026,56 +3026,140 @@
       line-height: 1.3;
     }
 
-    @media (max-width: 700px) {
-      #stateTable thead,
-      #stateTable thead tr:first-child th,
-      #stateTable thead tr:nth-child(2) th,
-      #stateTable tbody td.col-rank,
-      #stateTable tbody td.col-state,
-      #stateTable th.col-rank,
-      #stateTable th.col-state {
-        position: static !important;
-        left: auto !important;
-        top: auto !important;
-        z-index: auto !important;
-        box-shadow: none !important;
+    /* Mobile rankings: card list (desktop table hidden below 700px) */
+    .report-rankings-mobile {
+      display: none;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .report-rank-card {
+      border: 1px solid rgba(71, 85, 105, 0.55);
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.55);
+      padding: 0.5rem 0.55rem;
+      line-height: 1.3;
+    }
+
+    .report-rank-card__head {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.45rem;
+      margin-bottom: 0.35rem;
+    }
+
+    .report-rank-card__rank {
+      flex: 0 0 auto;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+      min-width: 1.6rem;
+    }
+
+    .report-rank-card__title-block {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .report-rank-card__name,
+    .report-rank-card__name a {
+      display: block;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #e2e8f0;
+      text-decoration: none;
+      word-break: normal;
+      overflow-wrap: normal;
+      line-height: 1.25;
+    }
+
+    .report-rank-card__name a:hover {
+      color: #c7d2fe;
+      text-decoration: underline;
+    }
+
+    .report-rank-card__sub {
+      margin-top: 0.1rem;
+      font-size: 0.72rem;
+      color: #94a3b8;
+    }
+
+    .report-rank-risk-chip {
+      margin-top: 0.28rem;
+      padding: 0.12rem 0.4rem;
+      font-size: 0.62rem;
+      font-weight: 600;
+      line-height: 1.2;
+      background: rgba(251, 191, 36, 0.18);
+      color: #fcd34d;
+      border: 1px solid rgba(251, 191, 36, 0.45);
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .report-rank-card__metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.28rem 0.55rem;
+      margin: 0;
+    }
+
+    .report-rank-card__metric {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    .report-rank-card__metric dt {
+      margin: 0;
+      font-size: 0.68rem;
+      font-weight: 500;
+      color: #64748b;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    .report-rank-card__metric dd {
+      margin: 0;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .report-rank-card--message {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.85rem;
+      padding: 0.75rem;
+    }
+
+    @media (max-width: 699px) {
+      .report-rankings-desktop {
+        display: none !important;
       }
 
-      #stateTable th,
-      #stateTable td {
-        white-space: normal;
-        word-break: normal;
-        overflow-wrap: break-word;
+      .report-rankings-mobile {
+        display: flex;
+        flex-direction: column;
+        gap: 0.42rem;
       }
 
-      #stateTable th.col-state,
-      #stateTable td.col-state {
-        min-width: 11rem !important;
-        max-width: 14rem !important;
+      .table-container.report-rankings-desktop {
+        overflow: visible !important;
+        max-height: none !important;
       }
+    }
 
-      #stateTable th.col-facilities,
-      #stateTable td.col-facilities {
-        min-width: 7.5rem !important;
-      }
-
-      #stateTable th.col-residents,
-      #stateTable td.col-residents {
-        min-width: 7rem !important;
-      }
-
-      #stateTable th.col-hprd,
-      #stateTable td.col-hprd {
-        min-width: 6.75rem !important;
-      }
-
-      #stateTable th.col-contract,
-      #stateTable td.col-contract,
-      #stateTable th.col-forprofit,
-      #stateTable td.col-forprofit,
-      #stateTable th.col-highrisk,
-      #stateTable td.col-highrisk {
-        min-width: 6.25rem !important;
+    @media (min-width: 700px) {
+      .report-rankings-mobile {
+        display: none !important;
       }
     }
     
@@ -4575,8 +4659,9 @@
       </div>
       -->
       
-      <!-- REBUILT TABLE STRUCTURE -->
-      <div class="table-container">
+      <!-- REBUILT TABLE STRUCTURE (desktop) + mobile card list (<700px) -->
+      <div class="report-rankings-wrap">
+      <div class="table-container report-rankings-desktop">
         <table id="stateTable">
           <thead>
             <tr>
@@ -4598,6 +4683,8 @@
 __REPORT_SSR_TABLE_ROWS__
           </tbody>
         </table>
+      </div>
+      <ul id="stateRankingsMobileList" class="report-rankings-mobile" role="list" aria-label="Staffing rankings by state or CMS region"></ul>
       </div>
       
       <!-- Desktop Terms Section -->
@@ -4927,6 +5014,7 @@ __REPORT_SSR_TABLE_ROWS__
       const hl = (new URLSearchParams(window.location.search).get('state') || '').toLowerCase().trim();
       if (!hl) return;
       const row = document.getElementById('report-state-' + hl)
+        || document.getElementById('report-state-mobile-' + hl)
         || document.querySelector('tr[data-state-slug="' + hl + '"]');
       if (!row) return;
       row.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -5387,6 +5475,7 @@ __REPORT_SSR_TABLE_ROWS__
         const isMobileError = window.innerWidth <= 600;
         const errorColspan = '10';
         document.getElementById('stateTableBody').innerHTML = `<tr><td colspan="${errorColspan}" class="loading">Error loading data.</td></tr>`;
+        setReportRankingsMobileMessage('Error loading data.');
       }
     }
     
@@ -6545,19 +6634,90 @@ __REPORT_SSR_TABLE_ROWS__
       return td;
     }
     
-    // Helper function to abbreviate state names for mobile
-    function abbreviateStateNameForMobile(stateName) {
-      if (window.innerWidth <= 768) {
-        const abbreviations = {
-          'Massachusetts': 'Mass.',
-          'Connecticut': 'Conn.',
-          'Pennsylvania': 'Penn.',
-          'Washington': 'Wash.',
-          'Mississippi': 'Miss.'
-        };
-        return abbreviations[stateName] || stateName;
+    function isReportRankingsMobile() {
+      return window.matchMedia('(max-width: 699px)').matches;
+    }
+
+    function setReportRankingsMobileMessage(message) {
+      const list = document.getElementById('stateRankingsMobileList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!message) return;
+      const li = document.createElement('li');
+      li.className = 'report-rank-card report-rank-card--message';
+      li.textContent = message;
+      list.appendChild(li);
+    }
+
+    function createStateRankingMobileCard(opts) {
+      const li = document.createElement('li');
+      li.className = 'report-rank-card';
+      if (opts.stateSlug) {
+        li.setAttribute('data-state-slug', opts.stateSlug);
+        li.id = 'report-state-mobile-' + opts.stateSlug;
       }
-      return stateName;
+      if (opts.isRegion) li.classList.add('report-rank-card--region');
+
+      const head = document.createElement('div');
+      head.className = 'report-rank-card__head';
+
+      const rankSpan = document.createElement('span');
+      rankSpan.className = 'report-rank-card__rank';
+      rankSpan.textContent = '#' + opts.rank;
+      head.appendChild(rankSpan);
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'report-rank-card__title-block';
+
+      if (opts.isRegion) {
+        const nameEl = document.createElement('div');
+        nameEl.className = 'report-rank-card__name';
+        if (opts.displayNameHtml) {
+          nameEl.innerHTML = opts.displayNameHtml;
+        } else {
+          nameEl.textContent = opts.displayName;
+        }
+        titleWrap.appendChild(nameEl);
+      } else {
+        const link = createLink(opts.stateLink, opts.displayName, 'report-rank-card__name');
+        titleWrap.appendChild(link);
+      }
+
+      const sub = document.createElement('div');
+      sub.className = 'report-rank-card__sub';
+      const nhWord = opts.facilityCount === 1 ? 'nursing home' : 'nursing homes';
+      sub.textContent = opts.facilityCount.toLocaleString() + ' ' + nhWord;
+      titleWrap.appendChild(sub);
+
+      if (opts.hasSFF && opts.riskOnClick) {
+        const chip = createButton('Risk list', opts.riskOnClick, false, 'report-rank-risk-chip');
+        chip.type = 'button';
+        titleWrap.appendChild(chip);
+      }
+
+      head.appendChild(titleWrap);
+      li.appendChild(head);
+
+      const metrics = document.createElement('dl');
+      metrics.className = 'report-rank-card__metrics';
+      [
+        ['Total HPRD', opts.totalHprd],
+        ['RN HPRD', opts.rnHprd],
+        ['Contract', opts.contract],
+        ['For-profit', opts.forProfit],
+      ].forEach(function(pair) {
+        const row = document.createElement('div');
+        row.className = 'report-rank-card__metric';
+        const dt = document.createElement('dt');
+        dt.textContent = pair[0];
+        const dd = document.createElement('dd');
+        dd.textContent = pair[1];
+        row.appendChild(dt);
+        row.appendChild(dd);
+        metrics.appendChild(row);
+      });
+      li.appendChild(metrics);
+      return li;
     }
     
     // Helper function to create a link element
@@ -6615,6 +6775,8 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Clear existing rows first
       tbody.innerHTML = '';
+      const mobileList = document.getElementById('stateRankingsMobileList');
+      if (mobileList) mobileList.innerHTML = '';
       
       // Update colspan for section headers on mobile (span 2 columns instead of 3)
       // No colspan updates needed - all columns are individual now
@@ -6764,26 +6926,20 @@ __REPORT_SSR_TABLE_ROWS__
             stateCell.classList.add('region-cell');
           }
         } else {
-          const displayStateName = abbreviateStateNameForMobile(state.name);
-          const stateLinkEl = createLink(stateLink, displayStateName, '');
+          const stateLinkEl = createLink(stateLink, state.name, '');
           stateInner.appendChild(stateLinkEl);
         }
-        if (hasSFF) {
+        if (hasSFF && !isReportRankingsMobile()) {
           stateCell.classList.add('state-cell-has-risk');
-          const isDesktopRisk = window.innerWidth > 600;
-          const buttonText = isDesktopRisk ? 'View Risk List' : 'Risk List';
           const onClick = currentTableView === 'region'
             ? () => openRegionSFFModal(state.name, state.regionNumber || '')
             : () => openSFFModal(state.name, stateAbbr);
           const riskBtn = createButton(
-            buttonText,
+            'View Risk List',
             onClick,
             false,
-            isDesktopRisk ? 'desktop-risk-list-button' : 'btn-sff-mobile'
+            'desktop-risk-list-button'
           );
-          if (!isDesktopRisk) {
-            stateCell.classList.add('mobile-risk-list-cell');
-          }
           stateInner.appendChild(riskBtn);
         }
         stateCell.appendChild(stateInner);
@@ -6863,6 +7019,29 @@ __REPORT_SSR_TABLE_ROWS__
         
         // Append row to tbody
         tbody.appendChild(tr);
+
+        if (mobileList) {
+          const riskOnClick = hasSFF
+            ? (currentTableView === 'region'
+              ? () => openRegionSFFModal(state.name, state.regionNumber || '')
+              : () => openSFFModal(state.name, stateAbbr))
+            : null;
+          mobileList.appendChild(createStateRankingMobileCard({
+            rank: rank,
+            displayName: currentTableView === 'region' ? state.name : state.name,
+            displayNameHtml: currentTableView === 'region' && displayName.includes('<br/>') ? displayName : '',
+            isRegion: currentTableView === 'region',
+            stateLink: stateLink,
+            stateSlug: currentTableView === 'region' ? '' : stateSlug,
+            facilityCount: state.facility_count || 0,
+            hasSFF: hasSFF,
+            riskOnClick: riskOnClick,
+            totalHprd: reportedTotalText,
+            rnHprd: reportedRNText,
+            contract: contractPercent !== null ? (contractPercent.toFixed(1) + '%') : '-',
+            forProfit: forProfitPercent !== null ? (forProfitPercent.toFixed(1) + '%') : '-',
+          }));
+        }
       });
       
       // Update sort indicators

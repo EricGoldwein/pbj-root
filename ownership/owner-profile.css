@@ -1434,6 +1434,40 @@ button.owner-flag:hover {
   margin: 0.35rem 0 0.65rem;
 }
 
+.owner-control-summary--compact {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  margin: 0.2rem 0 0.4rem;
+  color: #94a3b8;
+}
+
+.owner-control-summary--compact strong {
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.owner-tx-section {
+  margin: 0.75rem 0 1rem;
+}
+
+.owner-tx-count {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+.owner-profile-root .owner-tx-facility,
+.owner-profile-root .owner-m-card__facility,
+.owner-profile-root .owner-m-card__facility a,
+.owner-profile-root .owner-facility-primary,
+.owner-profile-root .owner-facility-primary a,
+.owner-profile-root .owner-m-card__names .owner-facility-primary,
+.owner-profile-root .owner-m-card__names .owner-facility-primary a {
+  text-transform: none !important;
+  letter-spacing: normal;
+}
+
 .owner-profile-root .chow-table th,
 .owner-profile-root .chow-table td {
   font-size: 0.85rem;
@@ -1944,6 +1978,357 @@ button.owner-flag:hover {
   .owner-facilities-table td {
     font-size: 0.71rem;
     padding: 0.26rem 0.26rem;
+  }
+}
+
+/* Owner profile — mobile card lists (<700px); desktop keeps tables */
+.owner-profile-root .mobile-table-hint {
+  display: none !important;
+}
+
+.owner-profile-root .owner-table-only-mobile {
+  display: none;
+}
+
+@media (min-width: 700px) {
+  .owner-profile-root .owner-table-only-mobile {
+    display: none !important;
+  }
+}
+
+.owner-pac-block {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.08rem;
+  line-height: 1.2;
+}
+
+.owner-pac-block__label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: none;
+  letter-spacing: 0.01em;
+}
+
+.owner-pac-block__value {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-mobile-card-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+}
+
+.owner-m-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.55rem;
+  padding: 0.48rem 0.52rem;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.5);
+  line-height: 1.3;
+}
+
+.owner-m-card__main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.owner-m-card__aside {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.12rem;
+  max-width: 42%;
+  text-align: right;
+}
+
+.owner-m-card__title,
+.owner-m-card__title a {
+  display: block;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-decoration: none;
+  line-height: 1.25;
+}
+
+.owner-m-card__title a:hover {
+  color: #c7d2fe;
+}
+
+.owner-m-card__meta {
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  line-height: 1.25;
+}
+
+.owner-m-card__meta a {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+
+.owner-m-card__muted {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  line-height: 1.25;
+}
+
+.owner-m-card__metric {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.owner-m-card__pill {
+  display: inline-block;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(99, 102, 241, 0.18);
+  border: 1px solid rgba(129, 140, 248, 0.32);
+  border-radius: 999px;
+  padding: 0.06rem 0.38rem;
+  white-space: nowrap;
+}
+
+.owner-m-card--facility .owner-m-card__aside {
+  flex: 0 0 auto;
+  min-width: 4.8rem;
+  max-width: 38%;
+}
+
+.owner-m-card__state {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 600;
+  color: #cbd5e1;
+  background: rgba(51, 65, 85, 0.55);
+  border-radius: 4px;
+  padding: 0.04rem 0.28rem;
+  line-height: 1.2;
+  vertical-align: middle;
+}
+
+.owner-m-card--tx {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.22rem;
+}
+
+.owner-m-card__kv {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 0.2rem 0.45rem;
+  align-items: baseline;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.owner-m-card__k {
+  color: #64748b;
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: none;
+}
+
+.owner-m-card__v {
+  color: #e2e8f0;
+  min-width: 0;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.owner-m-card__v a {
+  color: #c7d2fe;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.owner-m-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.55rem;
+}
+
+.owner-m-card__date {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #a5b4fc;
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-m-card__facility,
+.owner-m-card__facility a {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  text-decoration: none;
+}
+
+.owner-m-card__line {
+  font-size: 0.76rem;
+  color: #cbd5e1;
+  line-height: 1.35;
+}
+
+.owner-m-card__names .owner-facility-primary,
+.owner-m-card__names .owner-facility-primary a {
+  font-size: 0.86rem;
+}
+
+.owner-m-card__names .owner-facility-sub {
+  font-size: 0.7rem;
+}
+
+.owner-m-card .owner-facility-state-inline {
+  display: none;
+}
+
+.owner-m-card__role .owner-role-pct-stack {
+  align-items: flex-end;
+}
+
+.owner-m-card__ratings .owner-ratings-stack {
+  align-items: flex-end;
+}
+
+.owner-m-card__flags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.12rem;
+}
+
+.owner-m-card--associate {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
+@media (max-width: 699px) {
+  .owner-profile-root .owner-table-only-desktop {
+    display: none !important;
+  }
+
+  .owner-profile-root .owner-table-only-mobile {
+    display: block;
+  }
+
+  .owner-profile-root .chow-table-scroll--touch,
+  .owner-profile-root .owner-facilities-scroll,
+  .owner-profile-root .owner-tx-scroll,
+  .owner-profile-root .owner-preview-table-scroll {
+    overflow: visible !important;
+    max-height: none !important;
+    max-width: 100% !important;
+  }
+
+  .owner-profile-root .owner-facilities-table,
+  .owner-profile-root .owner-associate-table,
+  .owner-profile-root .owner-tx-table {
+    min-width: 0 !important;
+  }
+
+  .owner-profile-header--branded {
+    margin-bottom: 0.15rem;
+  }
+
+  .owner-profile-header-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    max-width: 100%;
+  }
+
+  .owner-profile-header-actions .owner-profile-pac-meta {
+    text-align: right;
+    width: 100%;
+  }
+
+  .owner-profile-meta-row {
+    margin-top: 0.1rem;
+  }
+
+  .owner-snapshot-section {
+    margin: 0.08rem 0 0.18rem;
+  }
+
+  .owner-portfolio-grid,
+  .owner-portfolio-grid--3,
+  .pbj-content-box .owner-profile-root .owner-portfolio-grid,
+  .pbj-content-box .owner-profile-root .owner-portfolio-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.24rem;
+    margin: 0.08rem 0 0.15rem;
+  }
+
+  .owner-snapshot-label {
+    text-transform: none;
+    letter-spacing: 0.01em;
+    font-size: 0.52rem;
+  }
+
+  .owner-control-summary,
+  .owner-control-summary--compact {
+    font-size: 0.76rem;
+    margin: 0.12rem 0 0.28rem;
+  }
+
+  .owner-tx-section {
+    margin: 0.45rem 0 0.65rem;
+  }
+
+  .owner-tx-count {
+    margin-bottom: 0.32rem;
+  }
+
+  .owner-primary-owners {
+    margin: 0.65rem 0 0.75rem;
+  }
+
+  .owner-facilities-section {
+    margin-top: 0.35rem;
+  }
+
+  .owner-mobile-card-list--parties {
+    margin-top: 0.15rem;
+  }
+
+  .owner-associates-head-label,
+  .owner-associates-summary-label {
+    text-transform: none;
+    letter-spacing: 0.01em;
+  }
+
+  .owner-profile-root .section-header {
+    font-size: 0.95rem;
+    margin-top: 0.45rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .owner-collapsible--txns > summary {
+    font-size: 0.84rem;
+    text-transform: none;
+    letter-spacing: 0.01em;
   }
 }
 

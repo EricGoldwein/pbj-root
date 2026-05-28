@@ -1466,8 +1466,7 @@ button.owner-flag:hover {
   display: none;
 }
 
-.pbj-ownership-mini-text,
-.pbj-ownership-about-text {
+.pbj-ownership-mini-text {
   margin: 0.25rem 0 0;
   font-size: 0.8rem;
   line-height: 1.45;
@@ -1483,12 +1482,12 @@ button.owner-flag:hover {
   background: rgba(30, 41, 59, 0.45);
 }
 
-.pbj-ownership-about-title {
-  margin: 0 0 0.2rem;
+.pbj-ownership-about-callout .pbj-ownership-about-text {
+  margin: 0;
   font-size: 0.78rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #c7d2fe;
+  line-height: 1.4;
+  color: #94a3b8;
+  max-width: none;
 }
 
 @media (max-width: 640px) {

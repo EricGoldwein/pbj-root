@@ -4975,7 +4975,7 @@ __REPORT_SSR_TABLE_ROWS__
           }
 
           // Calculate medians for each metric (state_quarterly_metrics *_Median columns)
-          calculateStateMedians();
+          calculateStateMedians({ silent: true });
           updateStateDataTitle();
           
           // Calculate state rankings
@@ -5151,6 +5151,11 @@ __REPORT_SSR_TABLE_ROWS__
             }
             if (providerText) {
               applyProviderSnapshotCsv(providerText, quarterLabel);
+              calculateStateMedians();
+              renderUSSummary();
+              if (typeof updateMap === 'function') {
+                updateMap();
+              }
             }
             let anyHighRiskState = false;
             let anyEmptyStateBuckets = false;
@@ -5581,7 +5586,30 @@ __REPORT_SSR_TABLE_ROWS__
       }
     }
 
-    function calculateStateMedians() {
+    function applyProviderFacilityMediansToStateMedians() {
+      const providerFields = {
+        Total_Nurse_HPRD: 'reported_total_nurse_hrs_per_resident_per_day',
+        RN_HPRD: 'reported_rn_hrs_per_resident_per_day',
+        Nurse_Assistant_HPRD: 'reported_na_hrs_per_resident_per_day'
+      };
+      Object.keys(providerDataByState).forEach(stateName => {
+        const facilities = providerDataByState[stateName];
+        if (!facilities || facilities.length === 0) return;
+        if (!stateMedians[stateName]) {
+          stateMedians[stateName] = {};
+        }
+        Object.keys(providerFields).forEach(metric => {
+          const med = calculateFacilityMedian(facilities, providerFields[metric]);
+          if (med > 0) {
+            stateMedians[stateName][metric] = med;
+          }
+        });
+      });
+    }
+
+    function calculateStateMedians(options) {
+      const opts = options || {};
+      const silent = !!opts.silent;
       // Pre-calculated medians: median of facility-level values within each state (from state_quarterly_metrics.csv)
       stateMedians = {};
       hasStateMedianColumns = false;
@@ -5615,12 +5643,31 @@ __REPORT_SSR_TABLE_ROWS__
       });
 
       hasStateMedianColumns = statesWithMedian >= 40 && statesWhereMedianDiffers >= 5;
+
+      if (!hasStateMedianColumns && Object.keys(providerDataByState).length > 0) {
+        applyProviderFacilityMediansToStateMedians();
+        let statesWithFacilityMedian = 0;
+        let statesWhereFacilityMedianDiffers = 0;
+        Object.keys(stateData).forEach(stateName => {
+          const sm = stateMedians[stateName];
+          if (!sm) return;
+          const totalMed = Number(sm.Total_Nurse_HPRD) || 0;
+          if (totalMed <= 0) return;
+          statesWithFacilityMedian += 1;
+          const avg = Number(stateData[stateName].Total_Nurse_HPRD) || 0;
+          if (Math.abs(totalMed - avg) > 0.005) {
+            statesWhereFacilityMedianDiffers += 1;
+          }
+        });
+        hasStateMedianColumns = statesWithFacilityMedian >= 40 && statesWhereFacilityMedianDiffers >= 5;
+      }
+
       syncMedianMapToggleAvailability();
 
-      if (!hasStateMedianColumns) {
+      if (!hasStateMedianColumns && !silent) {
         console.warn('[report] State median columns missing or identical to averages; map median toggle disabled.');
-      } else if (reportEmbedDebug()) {
-        console.log('[report] Loaded state facility-level medians from state_quarterly_metrics.csv');
+      } else if (hasStateMedianColumns && reportEmbedDebug()) {
+        console.log('[report] Loaded state facility-level medians for map median mode');
       }
       
       // Calculate case-mix medians from provider data (not available in CSV)

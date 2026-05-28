@@ -149,10 +149,10 @@ def _provider_ownership_intro_html(ownership_type: str, cms: dict[str, Any] | No
 def _provider_ownership_about_html() -> str:
     return (
         '<div class="pbj-ownership-about-callout" role="note">'
-        '<p class="pbj-ownership-about-title">About CMS ownership data</p>'
-        '<p class="pbj-ownership-about-text">From CMS SNF All Owners and Provider Information. '
-        "Listed roles and percentages are reported filings—not proof of who operates the facility "
-        "or quality of care.</p></div>"
+        '<p class="pbj-ownership-about-text">'
+        "CMS SNF All Owners roles and percentages are reported filings, "
+        "not proof of who operates the facility or care quality."
+        "</p></div>"
     )
 
 

@@ -140,6 +140,53 @@ def _check_provider_combined() -> None:
     _log('ensure_deploy_csvs: OK provider_info_combined_latest.csv')
 
 
+STATE_MEDIAN_COLUMNS = (
+    'Total_Nurse_HPRD_Median',
+    'RN_HPRD_Median',
+    'Nurse_Care_HPRD_Median',
+    'RN_Care_HPRD_Median',
+    'Nurse_Assistant_HPRD_Median',
+    'Contract_Percentage_Median',
+)
+
+
+def _ensure_state_quarterly_median_columns() -> None:
+    """Add *_Median columns to state_quarterly_metrics.csv when missing (/report map toggle)."""
+    state_csv = os.path.join(APP_ROOT, 'state_quarterly_metrics.csv')
+    if not os.path.isfile(state_csv):
+        _log('ensure_deploy_csvs: WARN state_quarterly_metrics.csv missing; skip median patch')
+        return
+    if not os.path.isfile(os.path.join(APP_ROOT, FACILITY_CSV)):
+        _log('ensure_deploy_csvs: WARN facility CSV missing; skip state median patch')
+        return
+    try:
+        with open(state_csv, newline='', encoding='utf-8') as f:
+            headers = csv.DictReader(f).fieldnames or []
+    except OSError as exc:
+        _log(f'ensure_deploy_csvs: WARN could not read state_quarterly_metrics header: {exc}')
+        return
+    missing = [c for c in STATE_MEDIAN_COLUMNS if c not in headers]
+    if not missing:
+        _log('ensure_deploy_csvs: OK state_quarterly_metrics.csv has *_Median columns')
+        return
+    patch_script = os.path.join(APP_ROOT, 'scripts', 'patch_state_quarterly_medians.py')
+    if not os.path.isfile(patch_script):
+        _log('ensure_deploy_csvs: WARN missing patch_state_quarterly_medians.py')
+        return
+    _log(
+        'ensure_deploy_csvs: patching state_quarterly_metrics medians (missing: '
+        + ', '.join(missing)
+        + ')'
+    )
+    import subprocess
+
+    rc = subprocess.call([sys.executable, patch_script], cwd=APP_ROOT)
+    if rc != 0:
+        _log(f'ensure_deploy_csvs: WARN patch_state_quarterly_medians.py exited {rc}')
+    else:
+        _log('ensure_deploy_csvs: OK state_quarterly_metrics.csv medians patched')
+
+
 def main() -> int:
     os.chdir(APP_ROOT)
     import time as _time
@@ -166,6 +213,7 @@ def main() -> int:
         import subprocess
         subprocess.call([sys.executable, backfill_script], cwd=APP_ROOT)
     _check_provider_combined()
+    _ensure_state_quarterly_median_columns()
     if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
         _log('ensure_deploy_csvs: building provider lookup indexes...')
         import subprocess

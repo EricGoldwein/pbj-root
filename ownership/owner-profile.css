@@ -222,13 +222,13 @@
 
 .owner-states-trigger {
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.76rem;
   font-weight: 600;
   color: #c7d2fe;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(129, 140, 248, 0.45);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(129, 140, 248, 0.34);
   border-radius: 999px;
-  padding: 0.2rem 0.65rem;
+  padding: 0.14rem 0.5rem;
   cursor: pointer;
 }
 
@@ -635,12 +635,12 @@ button.owner-match-badge--tip:focus-visible {
 .owner-flag {
   display: inline-block;
   font-family: inherit;
-  font-size: 0.62rem;
+  font-size: 0.56rem;
   font-weight: 700;
   letter-spacing: 0.02em;
-  padding: 0.1rem 0.35rem;
+  padding: 0.08rem 0.28rem;
   border-radius: 4px;
-  line-height: 1.2;
+  line-height: 1.15;
   white-space: nowrap;
   margin: 0;
   min-width: 0;
@@ -753,7 +753,25 @@ button.owner-flag.owner-flag--abuse:hover,
 
 .owner-facilities-table th,
 .owner-facilities-table td {
-  padding: 0.38rem 0.45rem;
+  padding: 0.34rem 0.42rem;
+}
+
+.owner-facilities-table th.owner-col-facility,
+.owner-facilities-table td.owner-col-facility {
+  text-align: left;
+}
+
+.owner-facilities-table th.owner-col-role,
+.owner-facilities-table td.owner-col-role,
+.owner-facilities-table th.owner-col-hprd,
+.owner-facilities-table td.owner-col-hprd,
+.owner-facilities-table th.owner-col-ratings,
+.owner-facilities-table td.owner-col-ratings,
+.owner-facilities-table th.owner-col-census,
+.owner-facilities-table td.owner-col-census,
+.owner-facilities-table th.owner-col-flags,
+.owner-facilities-table td.owner-col-flags {
+  vertical-align: middle;
 }
 
 .owner-facilities-table .owner-col-facility,
@@ -784,9 +802,9 @@ a.owner-facility-primary:hover {
 }
 
 .owner-facility-sub {
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   color: #94a3b8;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .owner-role-cell-inner {
@@ -856,18 +874,19 @@ button.owner-role-pct-btn:focus-visible {
 
 .owner-facilities-table .owner-col-hprd,
 .owner-facilities-table .owner-col-census {
-  width: 3.25rem;
+  width: 4.6rem;
+  min-width: 4.6rem;
 }
 
 .owner-facilities-table .owner-col-ratings {
-  width: 4.5rem;
-  min-width: 4.25rem;
+  width: 4.9rem;
+  min-width: 4.9rem;
 }
 
 .owner-ratings-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.1rem;
+  gap: 0.03rem;
   line-height: 1.1;
 }
 
@@ -879,18 +898,18 @@ button.owner-role-pct-btn:focus-visible {
 }
 
 .owner-rating-k {
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   font-weight: 700;
   letter-spacing: 0.02em;
   color: #94a3b8;
   text-transform: uppercase;
-  flex: 0 0 1.35rem;
+  flex: 0 0 1.1rem;
 }
 
 .owner-rating-stars {
   display: inline-flex;
   align-items: center;
-  font-size: 0.58rem;
+  font-size: 0.54rem;
   letter-spacing: -0.04em;
   line-height: 1;
 }
@@ -1294,7 +1313,8 @@ a.owner-associate-name:hover {
 }
 
 .owner-facilities-table .owner-col-flags {
-  width: 4.5rem;
+  width: 4.2rem;
+  min-width: 4.2rem;
 }
 
 button.owner-flag:hover {
@@ -1311,18 +1331,24 @@ button.owner-flag:hover {
 
 .owner-facilities-table .owner-col-role,
 .owner-facilities-table th.owner-col-role {
-  width: 10rem;
-  min-width: 10rem;
-  text-align: left;
-  white-space: normal;
+  width: 6rem;
+  min-width: 6rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* chow.css .pbj-content-box .chow-table th sets text-align:left !important */
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.owner-col-role,
+.owner-profile-root .pbj-content-box .chow-table.owner-facilities-table th.num {
+  text-align: right !important;
 }
 
 .owner-facilities-table td.owner-role-cell {
-  text-align: left;
+  text-align: right;
 }
 
 .owner-role-cell {
-  max-width: 16rem;
+  max-width: 6rem;
   line-height: 1.25;
   font-size: 0.8rem;
 }
@@ -1576,11 +1602,12 @@ button.owner-flag:hover {
   }
 
   .owner-profile-header--branded {
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.2rem;
   }
 
   .owner-profile-meta-row {
-    margin-top: 0.25rem;
+    margin-top: 0.15rem;
+    gap: 0.22rem 0.45rem;
   }
 
   .owner-profile-root .owner-profile-intro,
@@ -1589,32 +1616,34 @@ button.owner-flag:hover {
   }
 
   .owner-snapshot-section {
-    margin: 0.2rem 0 0.45rem;
+    margin: 0.12rem 0 0.25rem;
   }
 
   .owner-portfolio-grid,
   .owner-portfolio-grid--3,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid,
   .pbj-content-box .owner-profile-root .owner-portfolio-grid--3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 0.35rem;
-    margin: 0.25rem 0 0.45rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.28rem;
+    margin: 0.12rem 0 0.22rem;
   }
 
   .owner-snapshot-card {
-    padding: 0.4rem 0.45rem;
+    padding: 0.32rem 0.34rem;
     min-height: 0;
+    border-radius: 9px;
   }
 
   .owner-snapshot-label {
-    font-size: 0.58rem;
-    margin-bottom: 0.1rem;
+    font-size: 0.5rem;
+    margin-bottom: 0.06rem;
     letter-spacing: 0.02em;
-    min-height: 1.65em;
+    min-height: 0;
   }
 
   .owner-snapshot-value {
-    font-size: 0.95rem;
+    font-size: 0.88rem;
+    line-height: 1.1;
   }
 
   .owner-snapshot-value-row .owner-info-btn {
@@ -1635,7 +1664,7 @@ button.owner-flag:hover {
   }
 
   .owner-facilities-section {
-    margin-top: 0.35rem;
+    margin-top: 0.2rem;
   }
 
   .owner-facilities-section .section-header,
@@ -1644,31 +1673,33 @@ button.owner-flag:hover {
   }
 
   .owner-facilities-header {
-    flex-direction: row;
-    align-items: center;
-    gap: 0.35rem 0.5rem;
-    margin: 0 0 0.3rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.2rem;
+    margin: 0 0 0.2rem;
   }
 
   .owner-facilities-header .owner-facilities-heading {
-    flex: 1 1 8rem;
-    font-size: 0.92rem;
+    flex: none;
+    font-size: 0.88rem;
     line-height: 1.25;
     margin: 0;
   }
 
   .owner-facilities-header-actions {
-    flex: 0 1 9.5rem;
+    flex: none;
     min-width: 0;
-    width: auto;
-    justify-content: flex-end;
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .owner-facilities-header-actions .owner-table-filter-input {
+    width: 100%;
     max-width: none;
-    min-height: 2.35rem;
+    min-height: 2.05rem;
     font-size: 16px;
-    padding: 0.4rem 0.55rem;
+    padding: 0.34rem 0.5rem;
+    border-radius: 8px;
   }
 
   .owner-facilities-scroll {
@@ -1677,7 +1708,7 @@ button.owner-flag:hover {
   }
 
   .owner-facilities-table {
-    min-width: 42rem;
+    min-width: 32.5rem;
     table-layout: auto;
   }
 
@@ -1687,8 +1718,8 @@ button.owner-flag:hover {
 
   .owner-facilities-table th,
   .owner-facilities-table td {
-    font-size: 0.76rem;
-    padding: 0.38rem 0.35rem;
+    font-size: 0.73rem;
+    padding: 0.3rem 0.3rem;
     white-space: normal;
     word-break: normal;
     overflow-wrap: break-word;
@@ -1697,37 +1728,44 @@ button.owner-flag:hover {
   .owner-facilities-table th.owner-col-hprd,
   .owner-facilities-table td.owner-col-hprd {
     display: table-cell;
-    width: 2.85rem;
-    min-width: 2.85rem;
+    width: 4.5rem;
+    min-width: 4.5rem;
   }
 
   .owner-facilities-table th.owner-col-ratings,
   .owner-facilities-table td.owner-col-ratings {
-    width: 4rem;
-    min-width: 3.75rem;
+    width: 5rem;
+    min-width: 5rem;
   }
 
   .owner-facilities-table .owner-col-county,
   .owner-facilities-table th.owner-col-county,
   .owner-facilities-table .owner-col-census,
-  .owner-facilities-table th.owner-col-census {
+  .owner-facilities-table th.owner-col-census,
+  .owner-facilities-table .owner-col-state,
+  .owner-facilities-table th.owner-col-state,
+  .owner-facilities-table td.owner-col-state {
     display: none;
   }
 
   .owner-facilities-table th:first-child,
   .owner-facilities-table td.owner-col-facility {
-    min-width: 12rem;
-    max-width: 15rem;
+    min-width: 12.5rem;
+    max-width: 13.8rem;
   }
 
   .owner-facilities-table .owner-col-role,
   .owner-facilities-table th.owner-col-role {
-    width: 15rem;
-    min-width: 15rem;
+    width: 5.25rem;
+    min-width: 5.25rem;
+    text-align: right;
+    white-space: nowrap;
   }
 
   .owner-facilities-table .owner-col-flags {
-    max-width: 3.75rem;
+    width: 4rem;
+    min-width: 4rem;
+    max-width: 4rem;
   }
 
   .owner-ratings-stack {
@@ -1735,8 +1773,8 @@ button.owner-flag:hover {
   }
 
   .owner-rating-k {
-    font-size: 0.52rem;
-    flex: 0 0 1.15rem;
+    font-size: 0.48rem;
+    flex: 0 0 0.98rem;
   }
 
   .owner-role-since-long {
@@ -1747,6 +1785,21 @@ button.owner-flag:hover {
     display: inline;
   }
 
+  .owner-role-pct-stack {
+    align-items: flex-end;
+    text-align: right;
+    gap: 0.04rem;
+  }
+
+  .owner-role-pct-btn,
+  .owner-role-pct-plain {
+    font-size: 0.8rem;
+  }
+
+  .owner-role-since {
+    font-size: 0.58rem;
+  }
+
   .chow-provider-owners-table th:nth-child(3),
   .chow-provider-owners-table td:nth-child(3) {
     max-width: 7.5rem;
@@ -1755,7 +1808,7 @@ button.owner-flag:hover {
   }
 
   .pbj-content-box {
-    padding: 24px 16px;
+    padding: 18px 14px;
   }
 
   .owner-role-cell .owner-role-full {
@@ -1780,7 +1833,7 @@ button.owner-flag:hover {
 
   a.owner-facility-primary,
   button.owner-role-pct-btn {
-    min-height: 2rem;
+    min-height: 1.35rem;
     display: inline-flex;
     align-items: center;
   }
@@ -1813,17 +1866,17 @@ button.owner-flag:hover {
   }
 
   .owner-profile-header-actions {
-    flex: 0 1 11.5rem;
+    flex: 0 1 10.9rem;
     min-width: 0;
-    max-width: 11.5rem;
+    max-width: 10.9rem;
     align-items: flex-end;
-    gap: 0.35rem;
+    gap: 0.22rem;
   }
 
   .owner-profile-header-actions .owner-profile-pac-meta {
     display: flex;
     flex-direction: column;
-    gap: 0.28rem;
+    gap: 0.2rem;
     text-align: right;
     font-size: 0.71rem;
     line-height: 1.25;
@@ -1839,14 +1892,14 @@ button.owner-flag:hover {
 
   .owner-profile-header-actions .owner-meta-k {
     color: #94a3b8;
-    font-size: 0.66rem;
+    font-size: 0.62rem;
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
 
   .owner-profile-header-actions .owner-meta-v {
     color: #e2e8f0;
-    font-size: 0.75rem;
+    font-size: 0.72rem;
     white-space: nowrap;
   }
 
@@ -1854,6 +1907,43 @@ button.owner-flag:hover {
     margin-top: 0.1rem;
     margin-left: 0.15rem;
     align-self: flex-start;
+  }
+
+  .owner-states-trigger {
+    font-size: 0.7rem;
+    padding: 0.12rem 0.42rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .owner-profile-name {
+    font-size: clamp(1.28rem, 8vw, 1.55rem);
+  }
+
+  .owner-snapshot-card {
+    padding: 0.28rem 0.3rem;
+  }
+
+  .owner-snapshot-label {
+    font-size: 0.48rem;
+  }
+
+  .owner-snapshot-value {
+    font-size: 0.82rem;
+  }
+
+  .owner-facilities-header .owner-facilities-heading {
+    font-size: 0.84rem;
+  }
+
+  .owner-facilities-table {
+    min-width: 31.5rem;
+  }
+
+  .owner-facilities-table th,
+  .owner-facilities-table td {
+    font-size: 0.71rem;
+    padding: 0.26rem 0.26rem;
   }
 }
 

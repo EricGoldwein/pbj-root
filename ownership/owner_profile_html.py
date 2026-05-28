@@ -661,7 +661,7 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
             </div>
           </div>
           <div class="owner-snapshot-card">
-            <div class="owner-snapshot-label" title="Resident-weighted mean from PBJ (verified facilities)">HPRD (weighted)</div>
+            <div class="owner-snapshot-label" title="Resident-weighted mean from PBJ (verified facilities)">Portfolio HPRD</div>
             <div class="owner-snapshot-value-row">
               <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
               {_info_button("Staffing (HPRD)", hprd_help)}
@@ -964,9 +964,9 @@ def _owner_facilities_table_html(
         '<th data-sort="legal" class="sortable owner-col-facility">Facility <span class="sort-icon"></span></th>'
         '<th data-sort="state" class="sortable owner-col-state">State <span class="sort-icon"></span></th>'
         '<th data-sort="county" class="sortable owner-col-county">County <span class="sort-icon"></span></th>'
-        '<th data-sort="role" class="sortable owner-col-role" title="Percent ownership">'
+        '<th data-sort="role" class="sortable num owner-col-role" title="Percent ownership">'
         '% Own. <span class="sort-icon"></span></th>'
-        '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Resident-weighted PBJ total nurse HPRD">HPRD (wtd) <span class="sort-icon"></span></th>'
+        '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Facility-reported PBJ total nurse HPRD">HPRD <span class="sort-icon"></span></th>'
         '<th data-sort="stars" class="sortable num owner-col-ratings">'
         'Ratings <span class="sort-icon"></span></th>'
         '<th data-sort="census" class="sortable num owner-col-census">Census <span class="sort-icon"></span></th>'
@@ -989,7 +989,6 @@ def _owner_facilities_table_html(
         f"{filter_html}</div>"
     )
     table = (
-        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
         '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll owner-facilities-scroll">'
         '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
         f"<thead><tr>{thead}</tr></thead><tbody>"
@@ -1021,7 +1020,6 @@ def _table_with_preview(
     preview_rows = all_rows[:preview]
     rest_rows = all_rows[preview:]
     table = (
-        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
         '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll" style="max-height:480px;">'
         f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(preview_rows)
@@ -1037,7 +1035,6 @@ def _table_with_preview(
     extra = (
         f'<details class="owner-collapsible"><summary>Show all {n} {html.escape(entity_label)} '
         f"({len(rest_rows)} more)</summary>"
-        '<p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>'
         '<div class="chow-table-scroll chow-table-scroll--touch mobile-table-scroll">'
         f'<table class="chow-table chow-tx-table--mobile"><thead><tr>{thead}</tr></thead><tbody>'
         + "".join(all_rows)

@@ -60,10 +60,10 @@ def state_rank_link_html(
         t = int(total_states)
     except (TypeError, ValueError):
         return f'<strong>#{html.escape(str(rank))}</strong> out of {html.escape(str(total_states))} states'
-    href = report_href_for_state(state_slug)
+    # Rank phrase always links to the national rankings table (not ?state=).
+    _ = state_slug  # kept for call-site compatibility
     return (
-        f' and ranks <a href="{href}" class="pbj-inline-link">#{r}</a> '
-        f'out of {t} states'
+        f' and <a href="/report" class="pbj-inline-link">ranks #{r} out of {t} states</a>'
     )
 
 

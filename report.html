@@ -2450,11 +2450,7 @@
     }
 
     .mobile-table-hint {
-      display: none;
-      color: rgba(255, 255, 255, 0.62);
-      font-size: 0.72rem;
-      line-height: 1.25;
-      margin: 0.35rem 0 0.25rem;
+      display: none !important;
     }
     
     /* Table Base */
@@ -2470,10 +2466,6 @@
     
     /* Prevent width expansion on mobile - apply immediately to prevent flash */
     @media (max-width: 700px) {
-      .mobile-table-hint {
-        display: block;
-      }
-
       /* Table container - allow vertical scrolling */
       .table-container {
         width: 100% !important;
@@ -2584,6 +2576,26 @@
       cursor: pointer;
       user-select: none;
       transition: all 0.2s ease;
+    }
+
+    /* Uniform column titles (HPRD cols had larger type + blue gradient) */
+    #stateTable thead th {
+      font-size: 0.75rem !important;
+      font-weight: 700 !important;
+      letter-spacing: 1px;
+      vertical-align: bottom !important;
+      line-height: 1.25;
+    }
+
+    #stateTable thead th.col-rank,
+    #stateTable thead th.col-state,
+    #stateTable thead th.col-facilities,
+    #stateTable thead th.col-residents,
+    #stateTable thead th.col-hprd,
+    #stateTable thead th.col-contract,
+    #stateTable thead th.col-forprofit {
+      font-size: 0.75rem !important;
+      font-weight: 700 !important;
     }
     
     /* Add border-bottom only to first header row, not second row */
@@ -2769,8 +2781,6 @@
       max-width: 130px !important;
       text-align: center;
       padding: 16px 10px !important;
-      font-weight: 600;
-      font-size: 0.95rem;
     }
     
     #stateTable th.col-hprd {
@@ -2854,10 +2864,6 @@
       max-width: 115px !important;
     }
     
-    /* HPRD headers - slightly different color */
-    #stateTable th.hprd-header {
-      background: linear-gradient(135deg, rgba(30, 64, 175, 0.9) 0%, rgba(59, 130, 246, 0.9) 100%) !important;
-    }
     
     /* Border between Nurse Aide HPRD and Contract % - match the left border */
     #stateTable th[data-sort="nurseAideHPRD"] {
@@ -4371,11 +4377,76 @@
       }
 
       #stateTable th {
-        padding: 11px 8px !important;
+        padding: 10px 6px !important;
+        font-size: 0.64rem !important;
+        line-height: 1.15 !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        letter-spacing: 0.01em !important;
+        text-align: center !important;
       }
 
       #stateTable td {
-        padding: 7px 4px !important;
+        padding: 6px 4px !important;
+        font-size: 0.68rem !important;
+        line-height: 1.2 !important;
+        text-align: center !important;
+      }
+
+      #stateTable th.col-rank,
+      #stateTable td.col-rank {
+        min-width: 2.4rem !important;
+        width: 2.4rem !important;
+        text-align: center !important;
+      }
+
+      #stateTable th.col-state,
+      #stateTable td.col-state {
+        min-width: 5.6rem !important;
+        max-width: 7rem !important;
+        text-align: left !important;
+      }
+
+      #stateTable th.col-facilities,
+      #stateTable td.col-facilities {
+        min-width: 4.8rem !important;
+      }
+
+      #stateTable th.col-hprd,
+      #stateTable td.col-hprd,
+      #stateTable th.col-contract,
+      #stateTable td.col-contract,
+      #stateTable th.col-forprofit,
+      #stateTable td.col-forprofit,
+      #stateTable th.col-highrisk,
+      #stateTable td.col-highrisk {
+        min-width: 5rem !important;
+      }
+
+      #stateTable th .desktop-text {
+        display: none !important;
+      }
+
+      #stateTable th .mobile-text {
+        display: inline !important;
+        font-size: inherit !important;
+        line-height: inherit !important;
+      }
+    }
+
+    @media (max-width: 420px) {
+      #stateTable {
+        min-width: 42rem !important;
+      }
+
+      #stateTable th {
+        padding: 9px 5px !important;
+        font-size: 0.6rem !important;
+      }
+
+      #stateTable td {
+        padding: 5px 3px !important;
+        font-size: 0.64rem !important;
       }
     }
   </style>
@@ -4505,7 +4576,6 @@
       -->
       
       <!-- REBUILT TABLE STRUCTURE -->
-      <p class="mobile-table-hint" aria-hidden="true">Swipe for more columns</p>
       <div class="table-container">
         <table id="stateTable">
           <thead>

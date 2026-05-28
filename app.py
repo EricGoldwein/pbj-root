@@ -6460,23 +6460,38 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
             latest_quarters = None if is_latest else _get_latest_quarter_values(csv_path, _LATEST_PROVIDER_QUARTERS)
             for chunk in pd.read_csv(csv_path, usecols=scan_usecols, low_memory=False, chunksize=150000):
                 if is_latest and urban_col and ccn_col:
-                    for _, row in chunk.iterrows():
-                        is_rural = _provider_is_rural(row.get(urban_col))
-                        if is_rural is None:
-                            continue
-                        ccn = str(row.get(ccn_col) or '').strip().replace('.0', '').zfill(6)
-                        if len(ccn) != 6 or ccn in rural_seen_ccn:
-                            continue
-                        st_r = str(row.get(state_col) or '').strip().upper()[:2]
-                        if not st_r:
-                            continue
-                        rural_seen_ccn.add(ccn)
-                        bucket = rural_by_state.setdefault(st_r, [0, 0])
-                        bucket[1] += 1
-                        national_total += 1
-                        if is_rural:
-                            bucket[0] += 1
-                            national_rural += 1
+                    ccn_norm = (
+                        chunk[ccn_col]
+                        .fillna('')
+                        .astype(str)
+                        .str.strip()
+                        .str.replace('.0', '', regex=False)
+                        .str.zfill(6)
+                    )
+                    state_norm = chunk[state_col].fillna('').astype(str).str.strip().str.upper().str.slice(0, 2)
+                    urban_s = chunk[urban_col].fillna('').astype(str).str.strip().str.upper()
+                    is_rural = pd.Series([pd.NA] * len(chunk), index=chunk.index, dtype='boolean')
+                    rural_mask = urban_s.isin(('N', 'NO', 'R', 'RURAL'))
+                    urban_mask = urban_s.isin(('Y', 'YES', 'U', 'URBAN'))
+                    is_rural.loc[rural_mask] = True
+                    is_rural.loc[urban_mask] = False
+                    valid_mask = (ccn_norm.str.len() == 6) & state_norm.ne('') & is_rural.notna()
+                    if bool(valid_mask.any()):
+                        rural_df = pd.DataFrame(
+                            {'ccn': ccn_norm[valid_mask], 'state': state_norm[valid_mask], 'is_rural': is_rural[valid_mask]}
+                        )
+                        rural_df = rural_df[~rural_df['ccn'].isin(rural_seen_ccn)]
+                        if not rural_df.empty:
+                            rural_seen_ccn.update(rural_df['ccn'].tolist())
+                            rural_counts = rural_df.groupby('state')['is_rural'].agg(['sum', 'count'])
+                            for st_r, row_counts in rural_counts.iterrows():
+                                rural_n = int(row_counts['sum'])
+                                total_n = int(row_counts['count'])
+                                bucket = rural_by_state.setdefault(st_r, [0, 0])
+                                bucket[0] += rural_n
+                                bucket[1] += total_n
+                                national_rural += rural_n
+                                national_total += total_n
                 if latest_quarters is not None:
                     if qcol == 'CY_Qtr':
                         chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip().isin(latest_quarters)]
@@ -6496,19 +6511,14 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
                     chunk = chunk[cy == q]
                 if chunk.empty:
                     continue
-                for _, row in chunk.iterrows():
-                    st = str(row.get(state_col) or '').strip().upper()[:2]
-                    if not st:
-                        continue
-                    v = row.get(cm_col)
-                    if v is None or (isinstance(v, float) and pd.isna(v)):
-                        continue
-                    try:
-                        fv = float(v)
-                        if fv > 0:
-                            by_state.setdefault(st, []).append(fv)
-                    except (TypeError, ValueError):
-                        continue
+                state_series = chunk[state_col].fillna('').astype(str).str.strip().str.upper().str.slice(0, 2)
+                value_series = pd.to_numeric(chunk[cm_col], errors='coerce')
+                valid = state_series.ne('') & value_series.gt(0)
+                if not bool(valid.any()):
+                    continue
+                med_df = pd.DataFrame({'state': state_series[valid], 'value': value_series[valid]})
+                for st, vals in med_df.groupby('state')['value']:
+                    by_state.setdefault(st, []).extend(vals.tolist())
             if by_state:
                 break
         except Exception as e:
@@ -6689,6 +6699,19 @@ def _provider_is_rural(urban_val):
     return None
 
 
+def _provider_is_rural_series(urban_series):
+    """Vectorized version of _provider_is_rural for large provider-info chunks."""
+    if urban_series is None:
+        return None
+    s = urban_series.fillna('').astype(str).str.strip().str.upper()
+    out = pd.Series([pd.NA] * len(s), index=s.index, dtype="boolean")
+    rural_mask = s.isin(('N', 'NO', 'R', 'RURAL'))
+    urban_mask = s.isin(('Y', 'YES', 'U', 'URBAN'))
+    out.loc[rural_mask] = True
+    out.loc[urban_mask] = False
+    return out
+
+
 def _build_rural_shares_for_quarter(raw_quarter):
     """Return (national_pct, {state: pct}) for share of facilities labeled rural (latest CMS snapshot)."""
     q = str(raw_quarter or '').strip()
@@ -6719,6 +6742,7 @@ def _build_rural_shares_for_quarter(raw_quarter):
             national_rural += 1
 
     def _scan_provider_csv_paths() -> bool:
+        nonlocal national_rural, national_total
         for path in _resolved_provider_info_paths():
             if not os.path.isfile(path):
                 continue
@@ -6736,14 +6760,43 @@ def _build_rural_shares_for_quarter(raw_quarter):
                 for chunk in pd.read_csv(
                     path, usecols=[state_col, urban_col, ccn_col], low_memory=False, chunksize=150000
                 ):
-                    for _, row in chunk.iterrows():
-                        ccn = str(row.get(ccn_col) or '').strip().replace('.0', '').zfill(6)
-                        if len(ccn) != 6 or ccn in seen_ccn:
-                            continue
-                        if _provider_is_rural(row.get(urban_col)) is None:
-                            continue
-                        seen_ccn.add(ccn)
-                        _accumulate_row(str(row.get(state_col) or ''), row.get(urban_col))
+                    if chunk.empty:
+                        continue
+
+                    ccn_norm = (
+                        chunk[ccn_col]
+                        .fillna('')
+                        .astype(str)
+                        .str.strip()
+                        .str.replace('.0', '', regex=False)
+                        .str.zfill(6)
+                    )
+                    state_norm = chunk[state_col].fillna('').astype(str).str.strip().str.upper().str.slice(0, 2)
+                    rural_flags = _provider_is_rural_series(chunk[urban_col])
+                    if rural_flags is None:
+                        continue
+
+                    valid_mask = (ccn_norm.str.len() == 6) & state_norm.ne('') & rural_flags.notna()
+                    if not bool(valid_mask.any()):
+                        continue
+
+                    valid_df = pd.DataFrame(
+                        {'ccn': ccn_norm[valid_mask], 'state': state_norm[valid_mask], 'is_rural': rural_flags[valid_mask]}
+                    )
+                    valid_df = valid_df[~valid_df['ccn'].isin(seen_ccn)]
+                    if valid_df.empty:
+                        continue
+
+                    seen_ccn.update(valid_df['ccn'].tolist())
+                    state_counts = valid_df.groupby('state')['is_rural'].agg(['sum', 'count'])
+                    for st, row_counts in state_counts.iterrows():
+                        rural_n = int(row_counts['sum'])
+                        total_n = int(row_counts['count'])
+                        bucket = by_state.setdefault(st, [0, 0])
+                        bucket[0] += rural_n
+                        bucket[1] += total_n
+                        national_rural += rural_n
+                        national_total += total_n
                 if national_total > rows_before:
                     return True
             except Exception as e:
@@ -6810,9 +6863,10 @@ def get_rank_for_state_rural_share(state_code, raw_quarter):
 
 
 def render_state_rural_badge_html(state_code, raw_quarter):
-    """Phoebe takeaway chip: % rural facilities with color vs U.S. and mini scale."""
-    state_pct = get_state_rural_facility_share(state_code, raw_quarter)
-    national_pct = get_rural_shares_for_quarter(raw_quarter)[0]
+    """Phoebe takeaway chip: percent rural facilities for the state."""
+    national_pct, states = get_rural_shares_for_quarter(raw_quarter)
+    st = str(state_code or '').strip().upper()[:2]
+    state_pct = states.get(st) if st else None
     if state_pct is None:
         return ''
     national_pct = float(national_pct) if national_pct is not None else None
@@ -6823,47 +6877,34 @@ def render_state_rural_badge_html(state_code, raw_quarter):
         chip_bg = 'rgba(217, 119, 6, 0.18)'
         chip_border = 'rgba(251, 191, 36, 0.55)'
         chip_color = '#fde68a'
-        fill_color = 'rgba(251, 191, 36, 0.85)'
         tier_note = 'well above U.S.'
     elif delta >= 5:
         tier = 'above'
         chip_bg = 'rgba(180, 83, 9, 0.14)'
         chip_border = 'rgba(251, 191, 36, 0.4)'
         chip_color = '#fef3c7'
-        fill_color = 'rgba(245, 158, 11, 0.75)'
         tier_note = 'above U.S.'
     elif delta <= -15:
         tier = 'low'
         chip_bg = 'rgba(79, 70, 229, 0.2)'
         chip_border = 'rgba(129, 140, 248, 0.55)'
         chip_color = '#e0e7ff'
-        fill_color = 'rgba(129, 140, 248, 0.9)'
         tier_note = 'well below U.S. (more urban)'
     elif delta <= -5:
         tier = 'below'
         chip_bg = 'rgba(99, 102, 241, 0.14)'
         chip_border = 'rgba(129, 140, 248, 0.42)'
         chip_color = '#e0e7ff'
-        fill_color = 'rgba(99, 102, 241, 0.75)'
         tier_note = 'below U.S. (more urban)'
     else:
         tier = 'near'
         chip_bg = 'rgba(39, 39, 42, 0.65)'
         chip_border = 'rgba(113, 113, 122, 0.55)'
         chip_color = '#e4e4e7'
-        fill_color = 'rgba(148, 163, 184, 0.85)'
         tier_note = 'near U.S.'
-    state_w = max(4.0, min(96.0, state_pct_f))
-    nat_w = max(2.0, min(98.0, national_pct)) if national_pct is not None else None
     title = (
         f'{state_pct_f:.0f}% of nursing homes in this state are in rural areas (CMS urban=N label). '
-        f'U.S. average is about {national_pct:.0f}% for this quarter ({tier_note}). '
-        'Bar shows state share; tick marks the U.S. average.'
-    )
-    nat_tick = (
-        f'<span class="pbj-rural-meter-nat" style="left:{nat_w:.1f}%;" title="U.S. average {national_pct:.0f}% rural"></span>'
-        if nat_w is not None
-        else ''
+        f'U.S. average is about {national_pct:.0f}% for this quarter ({tier_note}).'
     )
     return (
         f'<span class="pbj-rural-badge pbj-rural-badge--{tier}" style="display:inline-flex;align-items:center;gap:8px;'
@@ -6871,12 +6912,7 @@ def render_state_rural_badge_html(state_code, raw_quarter):
         f'color:{chip_color};background:{chip_bg};border:1px solid {chip_border};" '
         f'title="{html.escape(title, quote=True)}">'
         f'<span>{state_pct_f:.0f}% rural</span>'
-        f'<span class="pbj-rural-meter" aria-hidden="true" style="display:inline-flex;align-items:center;width:52px;height:8px;">'
-        f'<span class="pbj-rural-meter-track" style="position:relative;display:block;width:52px;height:6px;'
-        f'border-radius:999px;background:rgba(15,23,42,0.55);overflow:hidden;">'
-        f'<span style="display:block;height:100%;width:{state_w:.1f}%;background:{fill_color};border-radius:999px;"></span>'
-        f'{nat_tick}'
-        f'</span></span></span>'
+        f'</span>'
     )
 
 

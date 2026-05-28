@@ -28,15 +28,54 @@ except (TypeError, ValueError):
     workers = 1 if _on_render else 2
 
 worker_class = "gthread"
-# Render: 2 threads — enough for health/static while one thread runs a cold provider render.
+# Render: 4 threads — keeps /health responsive when provider cold-renders stack up.
+# CPU-heavy provider work is still gated by app-level cold slots/rate limits.
 try:
-    _threads_default = "2" if _on_render else "4"
+    _threads_default = "4" if _on_render else "4"
     threads = max(1, int(os.environ.get("PBJ_GUNICORN_THREADS", _threads_default)))
 except (TypeError, ValueError):
-    threads = 2 if _on_render else 4
+    threads = 4 if _on_render else 4
 
 timeout = 120
 graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Render deploy); reduces 502s during deploy
+
+# No --preload: each gthread worker imports app:app after fork (see post_fork / when_ready logs).
+
+
+def on_starting(server):
+    import time
+
+    ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    sys.stderr.write(
+        f'[gunicorn] on_starting bind={bind} workers={workers} threads={threads} at {ts}\n'
+    )
+    sys.stderr.flush()
+
+
+def post_fork(server, worker):
+    import time
+
+    ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    sys.stderr.write(
+        f'[gunicorn] post_fork worker pid={worker.pid} age={worker.age} at {ts}\n'
+    )
+    sys.stderr.flush()
+
+
+def worker_exit(server, worker):
+    import time
+
+    ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    sys.stderr.write(f'[gunicorn] worker_exit pid={worker.pid} age={worker.age} at {ts}\n')
+    sys.stderr.flush()
+
+
+def worker_abort(worker):
+    import time
+
+    ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
+    sys.stderr.write(f'[gunicorn] worker_abort pid={worker.pid} at {ts}\n')
+    sys.stderr.flush()
 
 
 def when_ready(server):
@@ -47,6 +86,6 @@ def when_ready(server):
     sys.stderr.write(f"[gunicorn] Listening on {bind} at {ts}\n")
     sys.stderr.write(
         f"Owner donor dashboard loads on first /owners visit; / and /health respond immediately "
-        f"({workers} x {worker_class}, threads={threads}).\n"
+        f"({workers} x {worker_class}, threads={threads}, timeout={timeout}s).\n"
     )
     sys.stderr.flush()

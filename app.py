@@ -260,6 +260,7 @@ else:
     os.environ.setdefault('PBJ_OTHER_BOT_RATE_LIMIT', '20')
     os.environ.setdefault('PBJ_OTHER_BOT_RATE_WINDOW', '60')
     os.environ.setdefault('PBJ_SITEMAP_CACHE_TTL', '3600')
+    os.environ.setdefault('PBJ_SITEMAP_ALLOW_RUNTIME_BUILD', '0')
     os.environ.setdefault('PBJ_PROVIDER_PERF_LOG', '1')
     os.environ.setdefault('PBJ_PROVIDER_BROWSER_CACHE', '1')
 
@@ -5619,11 +5620,41 @@ def _sitemap_cache_ttl_sec() -> int:
         return 3600
 
 
+def _deploy_sitemap_path() -> str:
+    override = (os.environ.get('PBJ_SITEMAP_STATIC_PATH') or '').strip()
+    if override:
+        return override if os.path.isabs(override) else os.path.join(APP_ROOT, override.replace('/', os.sep))
+    return os.path.join(APP_ROOT, 'data', 'deploy', 'sitemap.xml')
+
+
+def _sitemap_runtime_build_allowed() -> bool:
+    v = (os.environ.get('PBJ_SITEMAP_ALLOW_RUNTIME_BUILD') or '').strip().lower()
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    if v in ('1', 'true', 'yes', 'on'):
+        return True
+    return not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'))
+
+
+def _sitemap_quarter_lastmod() -> str:
+    """Prefer deploy bundle quarter — avoids load_csv_data() on sitemap hot path."""
+    try:
+        import state_page_aggregates as spa
+
+        bundle = spa.load_bundle(APP_ROOT)
+        q = (bundle or {}).get('canonical_quarter')
+        if q:
+            return _cy_qtr_to_iso_date(str(q))
+    except Exception:
+        pass
+    return _cy_qtr_to_iso_date(get_canonical_latest_quarter())
+
+
 def _build_sitemap_xml() -> str:
-    """Build sitemap XML (expensive; cached by sitemap() route)."""
+    """Build sitemap XML (expensive; run at deploy via scripts/build_sitemap_xml.py)."""
     base = normalize_public_site_origin(PUBLIC_SITE_ORIGIN)
     today = datetime.now().strftime('%Y-%m-%d')
-    quarter_lastmod = _cy_qtr_to_iso_date(get_canonical_latest_quarter())
+    quarter_lastmod = _sitemap_quarter_lastmod()
     robots_blocked = sitemap_paths_blocked_by_robots(ROBOTS_TXT)
     urls = []
     static_pages = [
@@ -5713,9 +5744,26 @@ def _build_sitemap_xml() -> str:
 
 @app.route('/sitemap.xml')
 def sitemap():
-    """Dynamic sitemap: indexable public HTML only (www canonical, no API/JSON/premium)."""
-    global _SITEMAP_XML_CACHE, _SITEMAP_XML_AT
+    """Indexable public HTML URLs. Production serves deploy-built data/deploy/sitemap.xml."""
+    static_path = _deploy_sitemap_path()
     headers = {'Content-Type': 'application/xml; charset=utf-8'}
+    if os.path.isfile(static_path):
+        resp = send_file(
+            static_path,
+            mimetype='application/xml; charset=utf-8',
+            max_age=_sitemap_cache_ttl_sec(),
+            conditional=True,
+        )
+        resp.headers['X-PBJ-Sitemap-Cache'] = 'STATIC'
+        resp.headers['Cache-Control'] = f'public, max-age={_sitemap_cache_ttl_sec()}'
+        return resp
+    if not _sitemap_runtime_build_allowed():
+        return make_response(
+            'Sitemap is generated at deploy; retry after the next successful build.',
+            503,
+            {'Content-Type': 'text/plain; charset=utf-8', 'Retry-After': '300'},
+        )
+    global _SITEMAP_XML_CACHE, _SITEMAP_XML_AT
     ttl = _sitemap_cache_ttl_sec()
     now = time.time()
     if _SITEMAP_XML_CACHE and (now - _SITEMAP_XML_AT) < ttl:

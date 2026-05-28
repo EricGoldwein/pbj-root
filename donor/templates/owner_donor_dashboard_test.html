@@ -741,6 +741,160 @@
             max-width: min(300px, calc(100vw - 2rem));
         }
         .donor-popup.show { display: block; }
+
+        .donor-popup {
+            padding: 1.75rem 1rem 0.75rem;
+        }
+
+        .donor-popup-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(2, 6, 23, 0.62);
+        }
+
+        .donor-popup-backdrop.show {
+            display: block;
+        }
+
+        .donor-popup-close {
+            position: absolute;
+            top: 0.35rem;
+            right: 0.35rem;
+            width: 1.65rem;
+            height: 1.65rem;
+            padding: 0;
+            border: 0;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            font-size: 1.15rem;
+            line-height: 1;
+            cursor: pointer;
+        }
+
+        .donor-popup-close:hover {
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .fec-search-variations-note {
+            margin: 0 0 0.75rem;
+            font-size: 0.78rem;
+            line-height: 1.35;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .fec-search-variations-note span {
+            color: rgba(255, 255, 255, 0.78);
+        }
+
+        .fec-committee-amt-btn {
+            margin: 0;
+            padding: 0;
+            border: 0;
+            background: none;
+            font: inherit;
+            color: #a5b4fc;
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .fec-committee-amt-btn:hover {
+            color: #c7d2fe;
+        }
+
+        .fec-methodology-disclosure > summary {
+            cursor: pointer;
+            list-style: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.42rem 0.72rem;
+            border: 1px solid rgba(129, 140, 248, 0.38);
+            border-radius: 8px;
+            background: rgba(99, 102, 241, 0.1);
+            color: #e2e8f0;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .fec-methodology-disclosure > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .fec-methodology-caret {
+            font-size: 0.72rem;
+            color: #a5b4fc;
+        }
+
+        .fec-methodology-disclosure[open] .fec-methodology-caret {
+            transform: rotate(180deg);
+        }
+
+        .fec-detail-modal {
+            border: 0;
+            padding: 0;
+            background: transparent;
+            color: #e2e8f0;
+            max-width: min(520px, calc(100vw - 2rem));
+        }
+
+        .fec-detail-modal::backdrop {
+            background: rgba(2, 6, 23, 0.65);
+        }
+
+        .fec-detail-modal-card {
+            background: #1e293b;
+            border: 1px solid rgba(102, 126, 234, 0.45);
+            border-radius: 10px;
+            padding: 1rem 1.1rem;
+        }
+
+        .fec-detail-modal-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .fec-detail-modal-header h2 {
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
+            color: #f8fafc;
+        }
+
+        .fec-detail-modal-close {
+            border: 0;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+            width: 1.75rem;
+            height: 1.75rem;
+            border-radius: 6px;
+            font-size: 1.2rem;
+            line-height: 1;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .fec-detail-modal-body {
+            font-size: 0.88rem;
+            line-height: 1.45;
+            max-height: min(60vh, 420px);
+            overflow: auto;
+        }
+
+        .fec-detail-modal-body ul {
+            margin: 0.5rem 0 0;
+            padding-left: 1.1rem;
+        }
+
+        .fec-detail-modal-body li {
+            margin-bottom: 0.35rem;
+        }
         
         .facility-link-icon {
             margin-left: 0.3rem;
@@ -988,6 +1142,16 @@
             <div id="facilitiesContainer"></div>
         </div>
     </div>
+
+    <dialog id="fecDetailModal" class="fec-detail-modal" aria-labelledby="fecDetailModalTitle">
+        <div class="fec-detail-modal-card">
+            <header class="fec-detail-modal-header">
+                <h2 id="fecDetailModalTitle">Details</h2>
+                <button type="button" class="fec-detail-modal-close" id="fecDetailModalClose" aria-label="Close">×</button>
+            </header>
+            <div class="fec-detail-modal-body" id="fecDetailModalBody"></div>
+        </div>
+    </dialog>
     
     <!-- Methodology and Data Sources Section -->
     <section id="methodology" style="max-width: 1200px; margin: 3rem auto 0; padding: 2rem; background: rgba(26, 31, 46, 0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
@@ -1156,12 +1320,83 @@
             if (d.date) popupParts.push(`<div><strong>Date:</strong> ${formatDonationDate(d.date)}</div>`);
             popupParts.push(`<div style="margin-top:0.5rem;">${fecLinkHtml(d)}</div>`);
             const uid = 'popup-' + Math.random().toString(36).slice(2);
+            popupParts.unshift(`<button type="button" class="donor-popup-close" aria-label="Close" onclick="event.stopPropagation();hideDonorPopup('${uid}')">×</button>`);
             const touch = 'ontouchstart' in window;
             const hoverOn = touch ? '' : ` onmouseenter="showDonorPopup('${uid}')" onmouseleave="hideDonorPopup('${uid}')"`;
             return `<strong>FEC listing:</strong> <span class="donor-info-wrap" style="position:relative;display:inline-block;"${hoverOn}><span class="donor-info-trigger" role="button" tabindex="0" aria-label="Show contributor details" onclick="event.stopPropagation();toggleDonorPopup('${uid}')">${inlineText}</span><div id="${uid}" class="donor-popup">${popupParts.join('')}</div></span>`;
         }
 
         var hideDonorPopupTimer = null;
+        var activeDonorPopupId = null;
+
+        function donorPopupBackdropEl() {
+            let el = document.getElementById('donorPopupBackdrop');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'donorPopupBackdrop';
+                el.className = 'donor-popup-backdrop';
+                el.setAttribute('aria-hidden', 'true');
+                el.addEventListener('click', function () {
+                    if (activeDonorPopupId) hideDonorPopup(activeDonorPopupId);
+                });
+                document.body.appendChild(el);
+            }
+            return el;
+        }
+
+        function setDonorBackdropVisible(on) {
+            const backdrop = donorPopupBackdropEl();
+            backdrop.classList.toggle('show', !!on);
+            backdrop.setAttribute('aria-hidden', on ? 'false' : 'true');
+        }
+
+        function fecSearchVariationsNoteHtml(variations) {
+            if (!variations || variations.length < 2) return '';
+            return '<p class="fec-search-variations-note">Showing results for ' +
+                variations.map(n => '<span>' + escapeHtml(n) + '</span>').join(', ') + '</p>';
+        }
+
+        function topCommitteeAmountHtml(name, amt, committeeIds) {
+            const amtStr = '$' + amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+            const nameHtml = committeeIds[name]
+                ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>`
+                : escapeHtml(name);
+            return `${nameHtml}: <button type="button" class="fec-committee-amt-btn" data-committee="${escapeHtml(name)}" aria-label="Show contributions to ${escapeHtml(name)}">${amtStr}</button>`;
+        }
+
+        function openFecCommitteeModal(committeeName, donations) {
+            const dlg = document.getElementById('fecDetailModal');
+            const titleEl = document.getElementById('fecDetailModalTitle');
+            const bodyEl = document.getElementById('fecDetailModalBody');
+            if (!dlg || !bodyEl) return;
+            const rows = donations.filter(d => d.committee === committeeName)
+                .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+            if (titleEl) titleEl.textContent = committeeName;
+            bodyEl.innerHTML = '<p style="margin:0 0 0.5rem;color:rgba(255,255,255,0.75);">' +
+                rows.length + ' contribution' + (rows.length === 1 ? '' : 's') + ' in this list</p>' +
+                '<ul>' + rows.map(d => {
+                    const bits = [formatContributionAmount(d.amount)];
+                    if (d.date) bits.push(formatDonationDate(d.date));
+                    if (d.candidate) bits.push(escapeHtml(d.candidate));
+                    if (d.donor_name) bits.push(escapeHtml(toTitleCaseName(d.donor_name)));
+                    return '<li>' + bits.join(' · ') + '</li>';
+                }).join('') + '</ul>';
+            if (typeof dlg.showModal === 'function') dlg.showModal();
+            else dlg.setAttribute('open', 'open');
+        }
+
+        function bindFecCommitteeAmountButtons(container, donations) {
+            if (!container) return;
+            container.querySelectorAll('.fec-committee-amt-btn').forEach(btn => {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const committee = btn.getAttribute('data-committee') || '';
+                    if (committee) openFecCommitteeModal(committee, donations);
+                });
+            });
+        }
+
         function positionDonorPopup(el, wrap) {
             const pad = 8;
             const margin = 10;
@@ -1208,6 +1443,8 @@
             positionDonorPopup(el, wrap);
             el.classList.add('show');
             el.style.display = 'block';
+            activeDonorPopupId = uid;
+            if (window.innerWidth <= 768) setDonorBackdropVisible(true);
         }
         function hideDonorPopup(uid) {
             hideDonorPopupTimer = setTimeout(function() {
@@ -1219,6 +1456,10 @@
                         el._donorPopupParent.appendChild(el);
                         el._donorPopupParent = null;
                     }
+                }
+                if (activeDonorPopupId === uid) {
+                    activeDonorPopupId = null;
+                    setDonorBackdropVisible(false);
                 }
             }, 200);
         }
@@ -1277,6 +1518,15 @@
         const methodologyDetails = document.querySelector('#methodology details');
         if (methodologyDetails) {
             methodologyDetails.removeAttribute('open');
+        }
+
+        const fecDetailModal = document.getElementById('fecDetailModal');
+        const fecDetailModalClose = document.getElementById('fecDetailModalClose');
+        if (fecDetailModal && fecDetailModalClose) {
+            fecDetailModalClose.addEventListener('click', function () { fecDetailModal.close(); });
+            fecDetailModal.addEventListener('click', function (e) {
+                if (e.target === fecDetailModal) fecDetailModal.close();
+            });
         }
 
         // Load stats on page load
@@ -2334,7 +2584,7 @@
         }
 
         // Display donations
-        function displayDonations(donations, total = null, count = null, ownerType = 'ORGANIZATION') {
+        function displayDonations(donations, total = null, count = null, ownerType = 'ORGANIZATION', searchVariations = null) {
             const container = document.getElementById('donationsContainer');
             
             if (!donations || donations.length === 0) {
@@ -2436,6 +2686,7 @@
             const csvUrl = URL.createObjectURL(csvBlob);
             
             container.innerHTML = `
+                ${fecSearchVariationsNoteHtml(searchVariations)}
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 1.3rem; font-weight: 600; margin-bottom: 0.5rem; color: white;">
@@ -2461,7 +2712,7 @@
                                 <strong>Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.5rem; font-size: 0.9rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${topCommitteeAmountHtml(name, amt, committeeIds)}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2499,8 +2750,8 @@
                     `).join('')}
                 </div>
                 <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <details style="margin-bottom: 1rem;">
-                        <summary style="cursor: pointer; color: rgba(255,255,255,0.7); font-size: 0.85rem; margin-bottom: 0.5rem;">How this data was found</summary>
+                    <details class="fec-methodology-disclosure" style="margin-bottom: 1rem;">
+                        <summary><span>How this data was found</span><span class="fec-methodology-caret" aria-hidden="true">▾</span></summary>
                         <div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 6px; margin-top: 0.5rem; font-size: 0.85rem; color: rgba(255,255,255,0.8); line-height: 1.6;">
                             <p style="margin-bottom: 0.75rem;"><strong>Search Process:</strong></p>
                             <ol style="margin-left: 1.5rem; margin-bottom: 0.75rem;">
@@ -2522,6 +2773,7 @@
                     </p>
                 </div>
             `;
+            bindFecCommitteeAmountButtons(container, donations);
         }
 
         // Query FEC API for owner (from search results or from owner details page)
@@ -2576,14 +2828,22 @@
                     targetContainer.innerHTML = '<div class="error">' + escapeHtml(data.error) + '</div>';
                     return;
                 }
-                displayDonationsInContainer(data.donations, data.total, data.count, targetContainer, ownerName, ownerType);
+                displayDonationsInContainer(
+                    data.donations,
+                    data.total,
+                    data.count,
+                    targetContainer,
+                    ownerName,
+                    ownerType,
+                    data.search_variations
+                );
             } catch (error) {
                 targetContainer.innerHTML = '<div class="error">Error searching for contributions: ' + escapeHtml(error.message) + '</div>';
             }
         }
         
         // Display donations in a specific container (for search results)
-        function displayDonationsInContainer(donations, total, count, container, ownerName = '', ownerType = 'ORGANIZATION') {
+        function displayDonationsInContainer(donations, total, count, container, ownerName = '', ownerType = 'ORGANIZATION', searchVariations = null) {
             if (!donations || donations.length === 0) {
                 container.innerHTML = '<p style="color: rgba(255,255,255,0.7);">No contributions found.</p>';
                 return;
@@ -2682,9 +2942,10 @@
             container.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; position: relative;">
                     ${isMobile ? '' : `<h3 style="margin: 0; color: white; font-weight: 600;">Political Contributions - ${escapeHtml(ownerName)}</h3>`}
-                    <button onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; ${isMobile ? 'position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '?' : '?'}</button>
+                    <button type="button" aria-label="Close" onclick="this.parentElement.parentElement.remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: ${isMobile ? '0.4rem 0.6rem' : '0.3rem 0.8rem'}; border-radius: 4px; cursor: pointer; font-size: ${isMobile ? '1.4rem' : '0.9rem'}; line-height: 1; ${isMobile ? 'position: absolute; top: 0.5rem; right: 0.5rem; z-index: 10;' : ''}">${isMobile ? '×' : 'Close'}</button>
                     ${isMobile ? `<h3 style="margin: 0; color: white; font-weight: 600; padding-right: 2.5rem;">Contributions</h3>` : ''}
                 </div>
+                ${fecSearchVariationsNoteHtml(searchVariations)}
                 <div style="background: rgba(102, 126, 234, 0.2); padding: 1rem; border-radius: 6px; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
                     <div>
                         <div style="font-size: 1.2rem; font-weight: 600; margin-bottom: 0.3rem; color: white;">
@@ -2710,7 +2971,7 @@
                                 <strong style="font-size: 0.9rem;">Top Committees</strong>
                                 ${topCommittees.map(([name, amt]) => `
                                     <div style="margin-top: 0.4rem; font-size: 0.85rem;">
-                                        ${committeeIds[name] ? `<a href="https://www.fec.gov/data/receipts/?committee_id=${encodeURIComponent(committeeIds[name])}" target="_blank" rel="noopener" class="donor-committee-link">${escapeHtml(name)}</a>` : escapeHtml(name)}: $${amt.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                                        ${topCommitteeAmountHtml(name, amt, committeeIds)}
                                     </div>
                                 `).join('')}
                             </div>
@@ -2746,6 +3007,7 @@
                     </p>
                 </div>
             `;
+            bindFecCommitteeAmountButtons(container, donations);
         }
         
         window.showDonationsPage = function(page) {

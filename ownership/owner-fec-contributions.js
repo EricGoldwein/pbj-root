@@ -64,6 +64,28 @@
   }
 
   var hideDonorPopupTimer = null;
+  var activeDonorPopupId = null;
+
+  function donorPopupBackdropEl() {
+    var el = document.getElementById('donorPopupBackdrop');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'donorPopupBackdrop';
+      el.className = 'donor-popup-backdrop';
+      el.setAttribute('aria-hidden', 'true');
+      el.addEventListener('click', function () {
+        if (activeDonorPopupId) hideDonorPopup(activeDonorPopupId);
+      });
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function setDonorBackdropVisible(on) {
+    var backdrop = donorPopupBackdropEl();
+    backdrop.classList.toggle('show', !!on);
+    backdrop.setAttribute('aria-hidden', on ? 'false' : 'true');
+  }
 
   function positionDonorPopup(el, wrap) {
     var pad = 8;
@@ -110,6 +132,8 @@
     positionDonorPopup(el, wrap);
     el.classList.add('show');
     el.style.display = 'block';
+    activeDonorPopupId = uid;
+    if (window.innerWidth <= 768) setDonorBackdropVisible(true);
   }
 
   function hideDonorPopup(uid) {
@@ -122,6 +146,10 @@
           el._donorPopupParent.appendChild(el);
           el._donorPopupParent = null;
         }
+      }
+      if (activeDonorPopupId === uid) {
+        activeDonorPopupId = null;
+        setDonorBackdropVisible(false);
       }
     }, 200);
   }
@@ -169,6 +197,10 @@
     if (d.date) popupParts.push('<div><strong>Date:</strong> ' + formatDonationDate(d.date) + '</div>');
     popupParts.push('<div style="margin-top:0.5rem;">' + fecLinkHtml(d) + '</div>');
     var uid = 'popup-' + Math.random().toString(36).slice(2);
+    popupParts.unshift(
+      '<button type="button" class="donor-popup-close" aria-label="Close" ' +
+      'onclick="event.stopPropagation();hideDonorPopup(\'' + uid + '\')">×</button>'
+    );
     var touch = 'ontouchstart' in window;
     var hoverOn = touch ? '' : ' onmouseenter="showDonorPopup(\'' + uid + '\')" onmouseleave="hideDonorPopup(\'' + uid + '\')"';
     return (
@@ -210,7 +242,62 @@
     return meta;
   }
 
-  function renderDonations(donations, total, count, ownerLabel, oType) {
+  function fecSearchVariationsHtml(variations) {
+    if (!variations || variations.length < 2) return '';
+    return (
+      '<p class="owner-fec-search-variations">Showing results for ' +
+      variations.map(function (n) { return '<span>' + escapeHtml(n) + '</span>'; }).join(', ') +
+      '</p>'
+    );
+  }
+
+  function openCommitteeDetailModal(committeeName, donations) {
+    var dlg = document.getElementById('ownerInfoModal');
+    var infoTitle = document.getElementById('ownerInfoModalTitle');
+    var infoBody = document.getElementById('ownerInfoModalBody');
+    if (!dlg || !infoBody) return;
+    var rows = donations.filter(function (d) { return d.committee === committeeName; });
+    rows.sort(function (a, b) {
+      return String(b.date || '').localeCompare(String(a.date || ''));
+    });
+    if (infoTitle) infoTitle.textContent = committeeName;
+    infoBody.textContent = '';
+    infoBody.className = 'owner-info-modal-body';
+    var lead = document.createElement('p');
+    lead.className = 'owner-info-lead';
+    lead.textContent = rows.length + ' contribution' + (rows.length === 1 ? '' : 's') + ' in this list';
+    infoBody.appendChild(lead);
+    var list = document.createElement('ul');
+    list.className = 'owner-fec-committee-detail-list';
+    rows.forEach(function (d) {
+      var li = document.createElement('li');
+      var bits = [formatContributionAmount(d.amount)];
+      if (d.date) bits.push(formatDonationDate(d.date));
+      if (d.candidate) bits.push(d.candidate);
+      if (d.donor_name && d.donor_name.toUpperCase() !== (ownerName || '').toUpperCase()) {
+        bits.push(toTitleCaseName(d.donor_name));
+      }
+      li.textContent = bits.join(' · ');
+      list.appendChild(li);
+    });
+    infoBody.appendChild(list);
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', 'open');
+  }
+
+  function bindCommitteeAmountButtons(container, donations) {
+    if (!container) return;
+    container.querySelectorAll('.owner-fec-committee-amt-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var committee = btn.getAttribute('data-committee') || '';
+        if (committee) openCommitteeDetailModal(committee, donations);
+      });
+    });
+  }
+
+  function renderDonations(donations, total, count, ownerLabel, oType, searchVariations) {
     if (!donations || !donations.length) {
       panel.innerHTML = fecEmptyMessageHtml(ownerLabel || ownerName);
       return;
@@ -274,7 +361,13 @@
             var link = committeeIds[pair[0]]
               ? '<a href="https://www.fec.gov/data/receipts/?committee_id=' + encodeURIComponent(committeeIds[pair[0]]) + '" target="_blank" rel="noopener" class="owner-fec-link">' + escapeHtml(pair[0]) + '</a>'
               : escapeHtml(pair[0]);
-            return '<div class="owner-fec-top-row">' + link + ': $' + pair[1].toLocaleString(undefined, { maximumFractionDigits: 0 }) + '</div>';
+            var amt = '$' + pair[1].toLocaleString(undefined, { maximumFractionDigits: 0 });
+            return (
+              '<div class="owner-fec-top-row">' + link + ': ' +
+              '<button type="button" class="owner-fec-committee-amt-btn" data-committee="' +
+              escapeHtml(pair[0]) + '" aria-label="Show contributions to ' + escapeHtml(pair[0]) + '">' +
+              amt + '</button></div>'
+            );
           }).join('') + '</div>' : '') +
         (topCandidates.length ? '<div class="owner-fec-top-box"><strong>Top candidates</strong>' +
           topCandidates.map(function (pair) {
@@ -286,6 +379,7 @@
     panel.innerHTML =
       '<div class="owner-fec-results">' +
       '<h3 class="owner-fec-results-title">Political contributions — ' + escapeHtml(ownerLabel) + '</h3>' +
+      fecSearchVariationsHtml(searchVariations) +
       '<div class="owner-fec-total-bar">' +
       '<div><div class="owner-fec-total-amt">Total contributed: $' +
       totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</div>' +
@@ -300,6 +394,7 @@
       '</div>';
 
     renderPage(1);
+    bindCommitteeAmountButtons(panel, donations);
   }
 
   function renderPage(page) {
@@ -361,7 +456,14 @@
         panel.innerHTML = fecEmptyMessageHtml(ownerName);
         return;
       }
-      renderDonations(data.donations, data.total, data.count, ownerName, ownerType);
+      renderDonations(
+        data.donations,
+        data.total,
+        data.count,
+        ownerName,
+        ownerType,
+        data.search_variations
+      );
       loaded = true;
       btn.textContent = 'Refresh FEC contributions';
     } catch (err) {

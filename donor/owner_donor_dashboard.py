@@ -194,6 +194,24 @@ def normalize_name_for_search(name):
     return list(set(variations))
 
 
+def _fec_search_variations_display(variations: list[str]) -> list[str]:
+    """Title-case labels for UI only (same queries as normalize_name_for_search)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in variations:
+        key = str(raw or "").upper().strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        if "," in key:
+            parts = [p.strip() for p in key.split(",", 1)]
+            if len(parts) == 2 and parts[0] and parts[1]:
+                out.append(f"{parts[1].title()} {parts[0].title()}")
+                continue
+        out.append(key.title())
+    return out
+
+
 def _load_facility_metrics_for_dashboard(path: Path) -> pd.DataFrame:
     """
     Load PBJ facility rows needed for the owner detail strip only.
@@ -942,6 +960,7 @@ def query_fec():
         # Generate name variations for comprehensive search
         name_variations = normalize_name_for_search(owner_name)
         name_variations.append(owner_name.upper())  # Add original
+        search_variations = _fec_search_variations_display(name_variations[:5])
         
         # Determine FEC API contributor type
         fec_type = "individual" if owner_type == "INDIVIDUAL" else None
@@ -988,7 +1007,8 @@ def query_fec():
             'donations': normalized,
             'total': sum(d['amount'] for d in normalized),
             'count': len(normalized),
-            'searches_performed': len(name_variations)
+            'searches_performed': len(name_variations),
+            'search_variations': search_variations,
         })
     
     except Exception as e:

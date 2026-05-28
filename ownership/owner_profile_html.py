@@ -704,18 +704,22 @@ def _owner_profile_header_html(
         header_actions = f'<div class="owner-profile-header-actions">{pac_meta}</div>'
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
-        <div class="owner-profile-brand-row">
-          <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
-            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
-            <span class="owner-profile-brand-lockup">
-              <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
-              <span class="owner-profile-brand-suffix">Ownership</span>
-            </span>
-          </a>
-          <div class="owner-profile-brand-row-mobile-meta">{header_actions}</div>
+        <div class="owner-profile-header-top">
+          <div class="owner-profile-header-identity">
+            <h1 class="owner-profile-name">{name}</h1>
+            {meta_row}
+          </div>
+          <div class="owner-profile-brand-row">
+            <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
+              <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
+              <span class="owner-profile-brand-lockup">
+                <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
+                <span class="owner-profile-brand-suffix">Ownership</span>
+              </span>
+            </a>
+            {header_actions}
+          </div>
         </div>
-        <h1 class="owner-profile-name">{name}</h1>
-        {meta_row}
       </header>"""
 
 
@@ -996,7 +1000,7 @@ def _flag_explainer_button(kind: str, label: str, css_class: str) -> str:
 def _facilities_portfolio_title(profile: dict[str, Any]) -> str:
     raw = str(profile.get("display_name") or "").strip()
     name = html.escape(format_org_display(raw) if raw else "Portfolio")
-    return f"{name} — Portfolio"
+    return f"{name} Portfolio"
 
 
 def _facility_flags_cell(

@@ -53,7 +53,10 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
         <div id="ownerFecPanel" class="owner-fec-panel" hidden role="region"
           aria-label="FEC political contributions for {title_name}"></div>
         <details class="owner-fec-methodology">
-          <summary class="owner-fec-methodology-summary">How this search works</summary>
+          <summary class="owner-fec-methodology-summary">
+            <span class="owner-fec-methodology-summary-text">How this search works</span>
+            <span class="owner-fec-methodology-caret" aria-hidden="true">▾</span>
+          </summary>
           <div class="owner-fec-methodology-body">
             <p>Live query against the
               <a href="https://api.open.fec.gov/" target="_blank" rel="noopener">FEC API</a>

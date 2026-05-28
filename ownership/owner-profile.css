@@ -16,12 +16,41 @@
   margin-bottom: 0.85rem;
 }
 
+.owner-profile-header-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+@media (min-width: 701px) {
+  .owner-profile-header-identity {
+    order: 2;
+  }
+
+  .owner-profile-brand-row {
+    order: 1;
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.15rem;
+  }
+
+  .owner-profile-header-actions {
+    margin-left: auto;
+  }
+}
+
+.owner-profile-header-identity {
+  min-width: 0;
+}
+
 .owner-profile-brand-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem 0.75rem;
-  margin-bottom: 0.4rem;
+  margin-bottom: 0;
 }
 
 .owner-profile-brand {
@@ -1731,26 +1760,6 @@ button.owner-flag:hover {
     margin-top: 0.5rem;
   }
 
-  .owner-facilities-header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.2rem;
-    margin: 0 0 0.2rem;
-  }
-
-  .owner-facilities-header .owner-facilities-heading {
-    flex: none;
-    font-size: 0.88rem;
-    line-height: 1.25;
-    margin: 0;
-  }
-
-  .owner-facilities-header-actions {
-    flex: none;
-    min-width: 0;
-    width: 100%;
-    justify-content: flex-start;
-  }
 
   .owner-facilities-header-actions .owner-table-filter-input {
     width: 100%;
@@ -1809,8 +1818,30 @@ button.owner-flag:hover {
 
   .owner-facilities-table th:first-child,
   .owner-facilities-table td.owner-col-facility {
-    min-width: 12.5rem;
-    max-width: 13.8rem;
+    min-width: 9.25rem;
+    max-width: 10.5rem;
+  }
+
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facilities-table {
+    min-width: 27.5rem !important;
+  }
+
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facility-primary {
+    font-size: 0.7rem;
+    line-height: 1.2;
+  }
+
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facility-sub,
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facility-meta-line {
+    font-size: 0.62rem;
+    line-height: 1.2;
+  }
+
+  .owner-facilities-section.owner-facilities-section--table-view .owner-facility-sub {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .owner-facilities-table .owner-col-role,
@@ -1904,106 +1935,128 @@ button.owner-flag:hover {
     padding-right: 0.15rem;
   }
 
+  .owner-profile-header-top {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.35rem 0.5rem;
+  }
+
+  .owner-profile-header-identity {
+    flex: 1 1 auto;
+    min-width: 0;
+    order: 1;
+  }
+
   .owner-profile-brand-row {
-    align-items: center;
-    gap: 0.35rem;
-    flex-wrap: nowrap;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    order: 2;
+    max-width: 42%;
   }
 
   .owner-profile-brand {
-    display: none !important;
-  }
-
-  .owner-profile-brand-row-mobile-meta {
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-  }
-
-  .owner-profile-brand-row-mobile-meta .owner-profile-header-actions {
-    flex: 1 1 auto;
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    gap: 0.35rem 0.5rem;
-    max-width: none;
-    text-align: left;
-  }
-
-  .owner-profile-brand-row-mobile-meta .owner-profile-pac-meta {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    text-align: left;
-    gap: 0.35rem 0.55rem;
-  }
-
-  .owner-profile-brand-row-mobile-meta .owner-page-help {
-    margin: 0;
-    align-self: center;
-  }
-
-  .owner-profile-brand-row-mobile-meta .owner-pac-block {
-    width: 100%;
+    display: inline-flex !important;
   }
 
   .owner-profile-brand-lockup {
-    font-size: 0.86rem;
-    gap: 0.25rem;
+    font-size: 0.78rem;
+    gap: 0.2rem;
+    justify-content: flex-end;
+  }
+
+  .owner-profile-brand-icon {
+    width: 22px;
+    height: 22px;
   }
 
   .owner-profile-brand-suffix {
-    font-size: 0.66rem;
+    font-size: 0.58rem;
     letter-spacing: 0.04em;
   }
 
+  .owner-profile-name {
+    font-size: clamp(1.15rem, 5.2vw, 1.45rem);
+    line-height: 1.15;
+  }
+
+  .owner-profile-meta-row {
+    margin-top: 0.25rem;
+    gap: 0.25rem 0.45rem;
+    font-size: 0.78rem;
+  }
+
   .owner-profile-header-actions {
-    flex: 0 1 10.9rem;
+    flex: none;
     min-width: 0;
-    max-width: 10.9rem;
+    max-width: none;
     align-items: flex-end;
-    gap: 0.22rem;
+    gap: 0.15rem;
+    margin-left: 0;
   }
 
   .owner-profile-header-actions .owner-profile-pac-meta {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.15rem;
-    text-align: left;
-    font-size: 0.71rem;
-    line-height: 1.25;
+    align-items: flex-end;
+    gap: 0.1rem;
+    text-align: right;
+    font-size: 0.66rem;
+    line-height: 1.2;
     min-width: 0;
-    width: 100%;
+    width: auto;
   }
 
   .owner-profile-header-actions .owner-meta-row {
-    display: flex;
     justify-content: flex-end;
-    gap: 0.35rem;
-    min-width: 0;
+    gap: 0.25rem;
   }
 
   .owner-profile-header-actions .owner-meta-k {
     color: #94a3b8;
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     letter-spacing: 0.02em;
     white-space: nowrap;
   }
 
   .owner-profile-header-actions .owner-meta-v {
     color: #e2e8f0;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     white-space: nowrap;
   }
 
   .owner-profile-brand-row .owner-page-help {
-    margin-top: 0.1rem;
-    margin-left: 0.15rem;
-    align-self: flex-start;
+    margin: 0;
+    align-self: flex-end;
+  }
+
+  .owner-pac-block {
+    align-items: flex-end;
+  }
+
+  .owner-facilities-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.35rem 0.5rem;
+    margin: 0 0 0.35rem;
+  }
+
+  .owner-facilities-header .owner-facilities-heading {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.9rem;
+    line-height: 1.2;
+  }
+
+  .owner-facilities-header-actions {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 0;
+    justify-content: flex-end;
   }
 
   .owner-states-trigger {
@@ -2966,7 +3019,7 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 .donor-popup {
   display: none;
   position: fixed;
-  padding: 0.75rem 1rem;
+  padding: 1.75rem 1rem 0.75rem;
   background: #1e293b;
   border: 1px solid rgba(102, 126, 234, 0.45);
   border-radius: 6px;
@@ -3054,12 +3107,108 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   cursor: pointer;
   list-style: none;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #e2e8f0;
   font-size: 0.86rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid rgba(129, 140, 248, 0.38);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.1);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.owner-fec-methodology-summary:hover {
+  background: rgba(99, 102, 241, 0.16);
+  border-color: rgba(129, 140, 248, 0.55);
+}
+
+.owner-fec-methodology-caret {
+  font-size: 0.72rem;
+  color: #a5b4fc;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.owner-fec-methodology[open] .owner-fec-methodology-caret {
+  transform: rotate(180deg);
 }
 
 .owner-fec-methodology-summary::-webkit-details-marker {
   display: none;
+}
+
+.owner-fec-search-variations {
+  margin: 0 0 0.65rem;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.owner-fec-search-variations strong {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.owner-fec-committee-amt-btn {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: #a5b4fc;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.45);
+  text-underline-offset: 2px;
+}
+
+.owner-fec-committee-amt-btn:hover {
+  color: #c7d2fe;
+}
+
+.owner-fec-committee-detail-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.84rem;
+  color: #cbd5e1;
+}
+
+.owner-fec-committee-detail-list li {
+  margin-bottom: 0.3rem;
+}
+
+.donor-popup-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.donor-popup-backdrop.show {
+  display: block;
+}
+
+.donor-popup-close {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  width: 1.65rem;
+  height: 1.65rem;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #e2e8f0;
+  font-size: 1.15rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.donor-popup-close:hover {
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .owner-fec-methodology-body {

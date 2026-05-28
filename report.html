@@ -1739,16 +1739,27 @@
         flex-wrap: nowrap !important;
         align-items: center !important;
         justify-content: space-between !important;
-        gap: 6px 8px !important;
+        gap: 4px 6px !important;
         margin-bottom: 10px !important;
+        overflow: hidden;
       }
 
       .report-table-toolbar .report-view-tabs,
       .report-table-toolbar #viewTabsContainer {
         margin-left: 0 !important;
         margin-right: 0 !important;
-        flex: 0 1 auto;
+        flex: 1 1 auto;
         min-width: 0;
+        gap: 4px !important;
+      }
+
+      .report-table-toolbar .view-tab {
+        padding: 5px 7px !important;
+        font-size: 0.72rem !important;
+        line-height: 1.15 !important;
+        white-space: nowrap;
+        min-width: 0;
+        flex: 1 1 0;
       }
 
       .report-table-toolbar__controls {
@@ -1757,18 +1768,49 @@
         padding: 0 !important;
         background: transparent !important;
         gap: 0 !important;
+        min-width: 0;
       }
 
       .report-table-toolbar__controls .view-toggle {
-        padding: 4px 6px !important;
-        gap: 4px !important;
-        min-height: 32px;
-        background: rgba(30, 41, 59, 0.5);
+        display: inline-flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        padding: 0 !important;
+        gap: 5px !important;
+        min-height: 0 !important;
+        background: transparent !important;
+        border-radius: 0 !important;
       }
 
       .report-table-toolbar__controls .view-toggle label:first-of-type {
-        font-size: 0.68rem !important;
+        font-size: 0.62rem !important;
+        line-height: 1.1 !important;
         white-space: nowrap !important;
+        margin: 0 !important;
+        flex-shrink: 1;
+        min-width: 0;
+      }
+
+      .report-table-toolbar__controls .toggle-switch {
+        width: 34px !important;
+        height: 18px !important;
+        flex-shrink: 0;
+      }
+
+      .report-table-toolbar__controls .toggle-slider {
+        height: 18px !important;
+      }
+
+      .report-table-toolbar__controls .toggle-slider:before {
+        height: 12px !important;
+        width: 12px !important;
+        left: 2px !important;
+        bottom: 2px !important;
+      }
+
+      .report-table-toolbar__controls .toggle-switch input:checked + .toggle-slider:before {
+        transform: translateX(14px) !important;
       }
       
       /* Info box */
@@ -2172,9 +2214,10 @@
         display: none !important;
       }
       
-      table {
+      #stateTable {
         font-size: 0.7rem;
-        min-width: 800px;
+        min-width: 0 !important;
+        width: max-content !important;
       }
       
       th, td {
@@ -2546,8 +2589,8 @@
         overflow-y: visible !important;
         -webkit-overflow-scrolling: touch !important; /* Smooth scrolling on iOS */
         table-layout: auto !important;
-        width: auto !important;
-        min-width: 44rem !important;
+        width: max-content !important;
+        min-width: 0 !important;
         max-width: none !important;
         box-sizing: border-box !important;
         margin: 0 !important;
@@ -4345,8 +4388,8 @@
       }
 
       #stateTable {
-        width: auto !important;
-        min-width: 44rem !important;
+        width: max-content !important;
+        min-width: 0 !important;
         max-width: none !important;
         table-layout: auto !important;
       }
@@ -4448,19 +4491,44 @@
         min-width: 5rem !important;
       }
 
+      #stateTable thead tr:first-child th,
+      #stateTable thead tr:nth-child(2) th,
+      #stateTable thead th.section-header,
+      #stateTable thead th.section-reported,
+      #stateTable thead th.section-casemix,
       #stateTable th.col-rank,
       #stateTable th.col-state,
       #stateTable th.col-facilities,
       #stateTable th.col-hprd,
       #stateTable th.col-contract,
-      #stateTable th.col-forprofit {
+      #stateTable th.col-forprofit,
+      #stateTable th.col-highrisk,
+      #stateTable th[data-sort="totalHPRD"],
+      #stateTable th[data-sort="rnHPRD"],
+      #stateTable th[data-sort="contract"],
+      #stateTable th[data-sort="forProfit"] {
         font-size: 0.6875rem !important;
         line-height: 1.15 !important;
+        font-weight: 600 !important;
+        text-transform: none !important;
+        letter-spacing: 0.01em !important;
       }
 
+      #stateTable thead th.col-facilities .mobile-text,
+      #stateTable thead th.col-facilities .desktop-text,
+      #stateTable thead th .mobile-text {
+        font-size: inherit !important;
+        line-height: inherit !important;
+      }
+
+      #stateTable td.col-rank,
+      #stateTable td.col-state,
+      #stateTable td.col-facilities,
+      #stateTable td.col-hprd,
       #stateTable td.col-contract,
       #stateTable td.col-forprofit {
         font-size: 0.75rem !important;
+        line-height: 1.25 !important;
       }
 
       #stateTable th .desktop-text {
@@ -4476,7 +4544,8 @@
 
     @media (max-width: 420px) {
       #stateTable {
-        min-width: 42rem !important;
+        min-width: 0 !important;
+        width: max-content !important;
       }
 
       #stateTable th {

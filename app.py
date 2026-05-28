@@ -652,10 +652,54 @@ def _get_search_index_data():
 
 
 HIGH_RISK_CRITERIA_TOOLTIP = (
-    'PBJ320 Flags include the following CMS-assigned indicators: '
-    'SFF / Candidate, Abuse, 1-star overall, and 1-star staffing. '
-    'PBJ320 displays CMS fields—it does not assign them.'
+    'PBJ320 high-risk uses CMS-assigned indicators only (PBJ320 does not assign them): '
+    'Special Focus Facility or SFF Candidate; abuse icon; one-star overall; one-star staffing.'
 )
+
+
+def _pbj320_high_risk_reasons(provider_row: dict, *, ccn: str = '', sff_status: str = '') -> list[str]:
+    """CMS-assigned high-risk reasons for one facility (no new inference)."""
+    pi = provider_row if isinstance(provider_row, dict) else {}
+    reasons: list[str] = []
+    sff = (sff_status or str(pi.get('sff_status') or '')).strip()
+    if not sff and ccn:
+        prov = normalize_ccn(ccn)
+        if prov:
+            for entry in load_sff_facilities() or []:
+                entry_ccn = normalize_ccn(
+                    entry.get('ccn')
+                    or entry.get('CCN')
+                    or entry.get('provider_number')
+                    or entry.get('Provider Number')
+                    or ''
+                )
+                if entry_ccn != prov:
+                    continue
+                cat = str(entry.get('category') or entry.get('Category') or '').strip()
+                if cat == 'Candidate':
+                    sff = 'SFF Candidate'
+                elif cat:
+                    sff = 'SFF'
+                break
+    if sff and 'Candidate' in sff:
+        reasons.append('SFF Candidate')
+    elif sff and 'SFF' in sff.upper():
+        reasons.append('SFF')
+    ab = str(pi.get('abuse_icon') or '').strip().upper()
+    ha = str(pi.get('has_abuse_icon') or '').strip().upper()
+    if ab in ('Y', 'YES', '1', 'TRUE') or ha in ('Y', 'YES', '1', 'TRUE'):
+        reasons.append('Abuse')
+    try:
+        if pi.get('overall_rating') is not None and int(round_half_up(float(pi.get('overall_rating')), 0) or 0) == 1:
+            reasons.append('1 star')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if pi.get('staffing_rating') is not None and int(round_half_up(float(pi.get('staffing_rating')), 0) or 0) == 1:
+            reasons.append('1 star staffing')
+    except (TypeError, ValueError):
+        pass
+    return reasons
 FACILITY_RISK_BADGE_TOOLTIP = HIGH_RISK_CRITERIA_TOOLTIP
 
 
@@ -671,29 +715,36 @@ def _sort_risk_reason_display(label: str) -> str:
             return 0
         if 'abuse' in pl:
             return 1
-        if '1 star' in pl or '1-star' in pl:
+        if 'staffing' in pl:
             return 2
-        return 3
+        if '1 star' in pl or '1-star' in pl:
+            return 3
+        return 4
 
     parts = [p.strip() for p in text.split(',') if p.strip()]
     return ', '.join(sorted(parts, key=_prio))
 
 def get_facility_risk_from_search_index(ccn):
-    """Return (risk_flag, reason_str) for a facility CCN from search_index.json (same logic as home search). Cached 2 min."""
+    """Return (risk_flag, reason_str) for a facility CCN (search index, then provider/SFF fallback)."""
     prov = normalize_ccn(ccn)
     if not prov:
         return 0, ''
     data = _get_search_index_data()
-    if not data:
-        return 0, ''
-    try:
-        for row in (data.get('f') or []):
-            if normalize_ccn(row.get('c') or '') == prov:
-                r = 1 if row.get('r') == 1 else 0
-                h = (row.get('h') or '').strip() or ''
-                return r, h
-    except Exception:
-        pass
+    if data:
+        try:
+            for row in (data.get('f') or []):
+                if normalize_ccn(row.get('c') or '') == prov:
+                    r = 1 if row.get('r') == 1 else 0
+                    h = (row.get('h') or '').strip() or ''
+                    if r:
+                        return r, _sort_risk_reason_display(h)
+                    break
+        except Exception:
+            pass
+    pi = (load_provider_info(ccn_only=prov) or {}).get(prov, {})
+    reasons = _pbj320_high_risk_reasons(pi, ccn=prov)
+    if reasons:
+        return 1, _sort_risk_reason_display(', '.join(reasons))
     return 0, ''
 
 
@@ -2360,6 +2411,7 @@ def _compute_high_risk_by_state_for_quarter(cy_qtr):
                         or sff_trim == 'SFF Candidate'
                         or has_abuse
                         or overall_rating == 1
+                        or staffing_rating == 1
                     )
                 )
                 if not qualifies:
@@ -2473,6 +2525,7 @@ def _compute_high_risk_buckets_for_state(state_code: str, cy_qtr: str) -> dict:
                     or sff_trim == "SFF Candidate"
                     or has_abuse
                     or overall_rating == 1
+                    or staffing_rating == 1
                 )
                 if not qualifies:
                     continue
@@ -6499,7 +6552,9 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'case_mix_total_nurse_hrs_per_resident_per_day', 'case_mix_rn_hrs_per_resident_per_day',
                 'case_mix_na_hrs_per_resident_per_day', 'case_mix_lpn_hrs_per_resident_per_day',
                 'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
-                'overall_rating', 'staffing_rating',
+                'overall_rating', 'staffing_rating', 'qm_rating', 'quality_measure_rating',
+                'health_inspection_rating', 'health_inspection',
+                'sff_status', 'Special Focus Status',
                 'abuse_icon', 'Abuse Icon', 'has_abuse_icon',
                 'urban', 'Urban', 'URBAN',
             }
@@ -6592,6 +6647,11 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
+                        'qm_rating': _row_val(row, 'qm_rating', 'quality_measure_rating', 'Quality Measure Rating'),
+                        'health_inspection_rating': _row_val(
+                            row, 'health_inspection_rating', 'health_inspection', 'Health Inspection Rating'
+                        ),
+                        'sff_status': _row_val(row, 'sff_status', 'Special Focus Status'),
                         'abuse_icon': _row_val(row, 'abuse_icon', 'Abuse Icon'),
                         'has_abuse_icon': _row_val(row, 'has_abuse_icon'),
                         'urban': _row_val(row, 'urban', 'Urban', 'URBAN'),
@@ -10576,8 +10636,8 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
             out += footer
         return out + '</div>'
     return '''
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 <!-- pbj-casemix-ui:13 -->
 <div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="13">
@@ -10624,7 +10684,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract Staff %', 'chartContract') + '''
-<script defer>
+<script>
 (function(){
   var d = ''' + data_esc + ''';
   var textColor = 'rgba(228, 228, 231, 0.95)';
@@ -12911,7 +12971,8 @@ def load_chain_performance():
         and (now - _CHAIN_PERF_AT) < _CHAIN_PERF_TTL
     ):
         return _CHAIN_PERF_CACHE
-    if not HAS_PANDAS:
+    pd_local = get_pd()
+    if pd_local is None:
         return {}
     import glob
 
@@ -12977,16 +13038,13 @@ def load_chain_performance():
             return f'{mon} {m.group(2)}' if mon else ''
         return ''
 
+    # Verified from: QUARTER_RELEASE_PLAYBOOK.md — canonical chain file lives in ownership/.
     paths = []
     for g in [
         os.path.join(APP_ROOT, 'ownership', 'Nursing_Home_Chain_Performance_Measures*.csv'),
         os.path.join(APP_ROOT, 'ownership', 'Chain_Performance_*.csv'),
-        os.path.join(APP_ROOT, 'ownership', 'Chain*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Nursing_Home_Chain_Performance_Measures*.csv'),
         os.path.join(APP_ROOT, '2025-11', 'Chain_Performance_*.csv'),
-        os.path.join(APP_ROOT, '2025-11', 'Chain*.csv'),
-        os.path.join(APP_ROOT, 'Nursing_Home_Chain_Performance_Measures*.csv'),
-        os.path.join(APP_ROOT, 'Chain_Performance_*.csv'),
         os.path.join(APP_ROOT, 'chain_performance.csv'),
     ]:
         paths.extend(glob.glob(g))
@@ -12997,14 +13055,14 @@ def load_chain_performance():
         if not os.path.isfile(path):
             continue
         try:
-            df = pd.read_csv(path, low_memory=False)
+            df = pd_local.read_csv(path, low_memory=False)
             df.columns = [str(c).strip() for c in df.columns]
             if 'Chain ID' not in df.columns:
                 continue
             out = {}
             for _, row in df.iterrows():
                 eid = row.get('Chain ID')
-                if pd.isna(eid) or eid == '' or str(eid).strip() == '':
+                if pd_local.isna(eid) or eid == '' or str(eid).strip() == '':
                     continue
                 try:
                     eid_int = int(float(eid))
@@ -13212,12 +13270,14 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         hprd_for_narrative = chain_hprd_total if chain_hprd_total is not None else avg_total
         rn_for_narrative = chain_hprd_rn if chain_hprd_rn is not None else avg_rn
         national_hprd = get_national_hprd_for_quarter(raw_quarter) if raw_quarter else None
-        # High-risk % from same logic as search_index (SFF, 1-star, abuse icon, etc.)
+        # High-risk % from CMS-assigned indicators (provider info + SFF list; matches tooltip criteria).
         n_high_risk = 0
         for fac in facilities:
-            ccn_f = fac.get('ccn')
-            r, _ = get_facility_risk_from_search_index(ccn_f) if ccn_f else (0, '')
-            if r:
+            ccn_f = str(fac.get('ccn') or '').strip().zfill(6)
+            if not ccn_f:
+                continue
+            info_hr = provider_info.get(ccn_f) or {}
+            if _pbj320_high_risk_reasons(info_hr, ccn=ccn_f):
                 n_high_risk += 1
         _ph = round_half_up(100 * n_high_risk / n_fac, 0) if n_fac else None
         pct_high_risk = int(_ph) if _ph is not None else 0
@@ -13298,7 +13358,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         # Paragraph 3 — High-risk % (search_index logic) + fines; no turnover (factual: PBJ320 criteria, not editorial)
         high_risk_span = '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">high-risk</span><span class="pbj-high-risk-tooltip" role="tooltip">' + html.escape(HIGH_RISK_CRITERIA_TOOLTIP) + '</span></span>'
-        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities meet PBJ320 {high_risk_span} criteria (e.g. special focus facility, one-star overall, abuse icon). "
+        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are PBJ320 {high_risk_span}. "
         if fines_dollars is not None and fines_dollars > 0:
             fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
             if total_fines_count is not None and total_fines_count > 0:
@@ -13437,13 +13497,22 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             staff_num = int(round_half_up(float(_staff), 0)) if _staff is not None and not (isinstance(_staff, float) and pd.isna(_staff)) else None
         except (TypeError, ValueError):
             staff_num = None
-        _qm = info.get('qm_rating') or info.get('quality_measures_rating')
-        ratings_cell = cms_ratings_stack_html(_overall, _staff, _qm)
-        risk_flag, risk_reason = get_facility_risk_from_search_index(ccn) if ccn else (False, '')
+        _qm = info.get('qm_rating') or info.get('quality_measures_rating') or info.get('quality_measure_rating')
+        _hi = info.get('health_inspection_rating') or info.get('health_inspection')
+        ratings_cell = cms_ratings_stack_html(_overall, _staff, _qm, health_inspection=_hi)
+        risk_reasons = _pbj320_high_risk_reasons(info, ccn=ccn) if ccn else []
+        risk_flag = bool(risk_reasons)
+        risk_reason = _sort_risk_reason_display(', '.join(risk_reasons)) if risk_reasons else ''
         row_class = 'entity-facility-row high-risk' if risk_flag else 'entity-facility-row'
-        facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
         if risk_flag and risk_reason:
-            facility_cell += f' <span class="pbj-high-risk-help-wrap entity-facility-risk-wrap" style="position:relative;display:inline-flex;align-items:center;vertical-align:middle;"><span class="entity-facility-risk-icon" aria-label="High risk" style="color:#fca5a5;font-size:0.85em;cursor:help;margin-left:2px;">⚠</span><span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">{html.escape(risk_reason)}</span></span>'
+            facility_cell = (
+                f'<span class="pbj-high-risk-help-wrap entity-facility-risk-wrap">'
+                f'<a href="/provider/{ccn}">{name}</a>'
+                f'<span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">'
+                f'{html.escape(risk_reason)}</span></span>'
+            )
+        else:
+            facility_cell = f'<a href="/provider/{ccn}">{name}</a>'
         cells = [state_cell, facility_cell, city or '—', census_disp]
         if tn is not None:
             cells.append(format_metric_value(tn, 'Total_Nurse_HPRD'))
@@ -13580,7 +13649,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {all_chain_data_html}
 
 <div class="section-header">{html.escape(entity_name)} Facilities</div>
-<p class="pbj-subtitle">Associated facilities in PBJ320 data. Latest-quarter staffing from CMS PBJ. Click column headers to sort.</p>
+<p class="pbj-subtitle">Associated facilities in PBJ320 data. Latest-quarter staffing from CMS PBJ.</p>
 <style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table">
 <thead>{thead}</thead>
@@ -13599,7 +13668,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {_entity_ownership_tools}
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
-<p style="margin: 0 0 0.4rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.85); line-height: 1.5;"><a href="/">Home</a></p>
 {_entity_sources_footer}
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']

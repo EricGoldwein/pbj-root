@@ -226,6 +226,12 @@ def main():
             reasons.append('Abuse')
         if rating == 1:
             reasons.append('1 star')
+        try:
+            staff_rating = float(row.get('staffing_rating') or 0)
+        except (TypeError, ValueError):
+            staff_rating = 0
+        if staff_rating == 1:
+            reasons.append('1 star staffing')
         high_risk = 1 if reasons else 0
         high_risk_reason = ', '.join(reasons) if reasons else ''
 

@@ -74,14 +74,14 @@ def render_entity_sources_footer(
     chain_label: str = '',
     care_compare_url: str = '',
 ) -> str:
-    """Entity page: PBJ for facility staffing + chain performance measures."""
-    dialog_id = 'pbj-sources-entity'
-    q = (pbj_quarter_display or '').strip()
-    chain_link = _ext_link(CMS_CHAIN_PERF_URL, 'Chain performance')
-    if (chain_label or '').strip():
-        chain_link += f' <span class="pbj-sources-quarter">({html.escape(chain_label.strip())})</span>'
+    """Entity page: PBJ + CMS chain metrics + optional Care Compare."""
+    _ = pbj_quarter_display
+    chain_label_text = (chain_label or '').strip()
+    chain_link = _ext_link(CMS_CHAIN_PERF_URL, 'CMS Chain Metrics')
+    if chain_label_text:
+        chain_link += f' <span class="pbj-sources-quarter">({html.escape(chain_label_text)})</span>'
     line_parts = [
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")} <span class="pbj-sources-quarter">(facility staffing)</span></span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")}</span>',
         f'<span class="pbj-sources-item">{chain_link}</span>',
     ]
     cc = (care_compare_url or '').strip()
@@ -91,23 +91,7 @@ def render_entity_sources_footer(
             f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">Care Compare</a>'
             f'</span>'
         )
-    line_parts.append(f'<span class="pbj-sources-item">{_about_data_button(dialog_id)}</span>')
     line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
         line_parts
     )
-    q_note = f' through <strong>{html.escape(q)}</strong>' if q else ''
-    sections = [
-        (
-            'CMS Payroll-Based Journal (PBJ)',
-            f'Per-facility staffing in the table below{q_note}.',
-        ),
-        (
-            'CMS nursing home chain performance',
-            'Entity-level ratings, fines, SFF counts, ownership summaries, and related chain metrics. '
-            'May update on a different schedule than PBJ staffing files.',
-        ),
-    ]
-    return (
-        f'<p class="pbj-page-footer-sources">{line}</p>'
-        f'{_sources_dialog(dialog_id, sections)}'
-    )
+    return f'<p class="pbj-page-footer-sources">{line}</p>'

@@ -198,21 +198,35 @@ def cms_ratings_stack_html(
     staffing: object,
     qm: object = None,
     *,
+    health_inspection: object = None,
     include_qm: bool = True,
+    include_health: bool = True,
 ) -> str:
-    """Three-row Ovr / Stf / QM star display (owner profile style)."""
+    """Four-row Ovr / Ins / Stf / QM star display (owner profile style)."""
     ovr = format_cms_star_rating(overall)
+    ins = format_cms_star_rating(health_inspection) if include_health else "—"
     staff = format_cms_star_rating(staffing)
     qm_val = format_cms_star_rating(qm) if include_qm else "—"
-    if ovr == "—" and staff == "—" and (qm_val == "—" or not include_qm):
+    if ovr == "—" and ins == "—" and staff == "—" and (qm_val == "—" or not include_qm):
         return '<span class="owner-rating-none">—</span>'
     rows: list[str] = []
-    for abbrev, val in (("Ovr", ovr), ("Stf", staff)):
+    for abbrev, val in (("Ovr", ovr),):
         rows.append(
             f'<span class="owner-rating-row">'
             f'<span class="owner-rating-k">{abbrev}</span>'
             f"{cms_rating_stars_html(val)}</span>"
         )
+    if include_health:
+        rows.append(
+            f'<span class="owner-rating-row">'
+            f'<span class="owner-rating-k">Ins</span>'
+            f"{cms_rating_stars_html(ins)}</span>"
+        )
+    rows.append(
+        f'<span class="owner-rating-row">'
+        f'<span class="owner-rating-k">Stf</span>'
+        f"{cms_rating_stars_html(staff)}</span>"
+    )
     if include_qm:
         rows.append(
             f'<span class="owner-rating-row">'

@@ -8,7 +8,7 @@
 - **PBJ Wrapped / dashboard data**: `pbj-wrapped/public/data/json/` (e.g. facility/state JSON by region), `pbj-wrapped/public/sff-facilities.json`, `pbj-wrapped/public/data/json/state_standards.json`, `state_agency_contact.json`, etc.
 - **Donor dashboard**: FEC committee master CSVs under `donor/data/fec_committee_master/` (explicitly un-ignored).
 - **Provider info (owner dashboard)**: `provider_info/NH_ProviderInfo_Jan2026.csv` (un-ignored). For **quarter-aligned** provider/entity data (e.g. Q3 2025), use `provider_info_combined.csv` and run `extract_latest_quarter.py` to create `provider_info_combined_latest.csv`; the app prefers that file when present. NH_ProviderInfo is a single snapshot (no quarter column) and is used only when combined/_latest are not available.
-- **Chain performance (entity pages)**: `2025-11/Chain_Performance_*.csv` (e.g. `Chain_Performance_20251205.csv`). Not gitignored; include in repo or place on server for entity-page chain metrics (facilities, states, SFF, abuse, fines, CMS star ratings, ownership mix).
+- **Chain performance (entity pages)**: `ownership/Nursing_Home_Chain_Performance_Measures_<Mon>_<Year>.csv` (canonical; e.g. `Nursing_Home_Chain_Performance_Measures_Apr_2026.csv`). Older snapshots may remain under `2025-11/`. Used for entity-page chain metrics (facilities, states, SFF, abuse, fines, CMS star ratings, ownership mix).
 
 ## What’s gitignored (not in repo – server or local only)
 

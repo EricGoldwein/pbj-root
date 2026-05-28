@@ -649,6 +649,29 @@
       border-color: #1769aa;
     }
     
+    .report-data-title {
+      margin: 0 0 10px;
+    }
+
+    .report-table-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px 12px;
+      margin-bottom: 12px;
+    }
+
+    .report-view-tabs,
+    #viewTabsContainer {
+      display: flex;
+      gap: 8px;
+    }
+
+    .report-table-toolbar__controls {
+      margin-bottom: 0;
+    }
+
     .table-controls {
       display: flex;
       justify-content: flex-start;
@@ -1710,6 +1733,42 @@
       #viewTabsContainer {
         margin-left: 0 !important;
         margin-right: auto !important;
+      }
+
+      .report-table-toolbar {
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 6px 8px !important;
+        margin-bottom: 10px !important;
+      }
+
+      .report-table-toolbar .report-view-tabs,
+      .report-table-toolbar #viewTabsContainer {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        flex: 0 1 auto;
+        min-width: 0;
+      }
+
+      .report-table-toolbar__controls {
+        flex: 0 0 auto !important;
+        margin-bottom: 0 !important;
+        padding: 0 !important;
+        background: transparent !important;
+        gap: 0 !important;
+      }
+
+      .report-table-toolbar__controls .view-toggle {
+        padding: 4px 6px !important;
+        gap: 4px !important;
+        min-height: 32px;
+        background: rgba(30, 41, 59, 0.5);
+      }
+
+      .report-table-toolbar__controls .view-toggle label:first-of-type {
+        font-size: 0.68rem !important;
+        white-space: nowrap !important;
       }
       
       /* Info box */
@@ -3262,23 +3321,18 @@
         table-layout: auto !important;
       }
       
-      /* HPRD column widths on mobile - wider for better readability */
+      /* HPRD columns — compact (final widths at max-width: 700px) */
       #stateTable th[data-sort="totalHPRD"],
       #stateTable th.col-hprd[data-sort="totalHPRD"],
       #stateTable tbody tr > td:nth-child(6),
-      #stateTable tbody td.col-hprd:nth-of-type(1) {
-        width: 60px !important;
-        min-width: 60px !important;
-        max-width: 60px !important;
-      }
-      
+      #stateTable tbody td.col-hprd:nth-of-type(1),
       #stateTable th[data-sort="rnHPRD"],
       #stateTable th.col-hprd[data-sort="rnHPRD"],
       #stateTable tbody tr > td:nth-child(7),
       #stateTable tbody td.col-hprd:nth-of-type(2) {
-        width: 56px !important;
-        min-width: 56px !important;
-        max-width: 56px !important;
+        width: 3.25rem !important;
+        min-width: 3.1rem !important;
+        max-width: 3.4rem !important;
       }
       
       /* Contract % column - flexible width on mobile to fill space */
@@ -3766,7 +3820,7 @@
       
       /* Tighten first three columns - Headers */
       #stateTable thead th.col-rank {
-        font-size: 8px !important; /* Smaller text */
+        font-size: 0.6875rem !important;
         padding: 2px 1px !important; /* Reduced padding for rank */
         min-width: 30px !important;
         max-width: 40px !important;
@@ -3775,7 +3829,7 @@
       
       #stateTable thead th.col-state,
       #stateTable thead th.col-facilities {
-        font-size: 8px !important; /* Smaller text */
+        font-size: 0.6875rem !important;
         padding: 2px 2px !important;
         min-width: 35px !important;
         max-width: 55px !important;
@@ -3790,7 +3844,7 @@
       
       /* Tighten first three columns - Body cells */
       #stateTable tbody td.col-rank {
-        font-size: 9px !important; /* Smaller text */
+        font-size: 0.75rem !important;
         padding: 3px 1px !important; /* Reduced padding for rank */
         min-width: 30px !important;
         max-width: 40px !important;
@@ -3824,7 +3878,7 @@
       }
       
       #stateTable tbody td.col-facilities {
-        font-size: 9px !important; /* Smaller text */
+        font-size: 0.75rem !important;
         padding: 3px 2px !important;
         min-width: 35px !important;
         max-width: 65px !important;
@@ -4264,16 +4318,6 @@
         padding: 6px 2px;
       }
       
-      /* Contract % body text smaller on mobile */
-      #stateTable tbody td.col-contract {
-        font-size: 0.6rem !important;
-      }
-      
-      /* Contract % body text smaller on mobile */
-      #stateTable tbody td.col-contract {
-        font-size: 0.6rem !important;
-      }
-      
       /* Reduce container and section padding even more on iPhone */
       .container {
         padding-left: 4px !important;
@@ -4365,14 +4409,58 @@
       }
 
       #stateTable th.col-hprd,
-      #stateTable td.col-hprd,
+      #stateTable td.col-hprd {
+        min-width: 3.1rem !important;
+        max-width: 3.4rem !important;
+        width: 3.25rem !important;
+      }
+
+      #stateTable th[data-sort="totalHPRD"],
+      #stateTable th[data-sort="rnHPRD"],
+      #stateTable th.col-hprd[data-sort="totalHPRD"],
+      #stateTable th.col-hprd[data-sort="rnHPRD"],
+      #stateTable tbody tr > td:nth-child(6),
+      #stateTable tbody tr > td:nth-child(7),
+      #stateTable tbody td.col-hprd:nth-of-type(1),
+      #stateTable tbody td.col-hprd:nth-of-type(2) {
+        min-width: 3.1rem !important;
+        max-width: 3.4rem !important;
+        width: 3.25rem !important;
+      }
+
       #stateTable th.col-contract,
       #stateTable td.col-contract,
       #stateTable th.col-forprofit,
       #stateTable td.col-forprofit,
+      #stateTable th[data-sort="contract"],
+      #stateTable th[data-sort="forProfit"],
+      #stateTable tbody tr > td:nth-child(9),
+      #stateTable tbody tr > td:nth-child(10) {
+        min-width: 2.75rem !important;
+        max-width: 3.1rem !important;
+        width: 2.9rem !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+      }
+
       #stateTable th.col-highrisk,
       #stateTable td.col-highrisk {
         min-width: 5rem !important;
+      }
+
+      #stateTable th.col-rank,
+      #stateTable th.col-state,
+      #stateTable th.col-facilities,
+      #stateTable th.col-hprd,
+      #stateTable th.col-contract,
+      #stateTable th.col-forprofit {
+        font-size: 0.6875rem !important;
+        line-height: 1.15 !important;
+      }
+
+      #stateTable td.col-contract,
+      #stateTable td.col-forprofit {
+        font-size: 0.75rem !important;
       }
 
       #stateTable th .desktop-text {
@@ -4473,22 +4561,20 @@
 
     <!-- Data Tables -->
     <div class="data-section">
-      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 12px; flex-wrap: wrap;">
-        <h2 id="stateDataTitle" style="margin: 0;">__REPORT_SSR_TABLE_HEADING__</h2>
-        <div id="viewTabsContainer" style="display: flex; gap: 8px; margin-left: auto;">
+      <h2 id="stateDataTitle" class="report-data-title">__REPORT_SSR_TABLE_HEADING__</h2>
+      <div class="report-table-toolbar">
+        <div id="viewTabsContainer" class="report-view-tabs">
           <button id="stateViewTab" class="view-tab active" onclick="switchTableView('state')">State</button>
           <button id="regionViewTab" class="view-tab" onclick="switchTableView('region')">CMS Region</button>
         </div>
-      </div>
-      <p style="color: rgba(255,255,255,0.7); margin-bottom: 12px; font-size: 0.9rem; margin-top: 0;">
-      </p>
-      <div class="table-controls">
-        <div class="view-toggle" style="order: 1;">
-          <label for="excludeAdminToggleTable"><span class="mobile-label">Excl. Admin / DON:</span><span class="desktop-label">Exclude Admin / DON:</span></label>
-          <label class="toggle-switch">
-            <input type="checkbox" id="excludeAdminToggleTable">
-            <span class="toggle-slider"></span>
-          </label>
+        <div class="table-controls report-table-toolbar__controls">
+          <div class="view-toggle">
+            <label for="excludeAdminToggleTable"><span class="mobile-label">Excl. Admin/DON</span><span class="desktop-label">Exclude Admin / DON:</span></label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="excludeAdminToggleTable">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
       </div>
       <!-- OLD TABLE STRUCTURE - PRESERVED FOR REFERENCE (contains critical logic) -->

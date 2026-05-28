@@ -255,14 +255,8 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
 
 
 def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
-    """State pill only — legal name already shown in facility cell sub-line when needed."""
-    st = str(f.get("state") or "").strip().upper()[:2]
-    if len(st) != 2:
-        return ""
-    return (
-        f'<span class="owner-m-card__meta">'
-        f'<span class="owner-m-card__state">{html.escape(st)}</span></span>'
-    )
+    """State shown inline on facility name lines, not a separate row."""
+    return ""
 
 
 def _facility_mobile_own_line(f: dict[str, Any]) -> str:
@@ -279,11 +273,12 @@ def _facility_mobile_own_line(f: dict[str, Any]) -> str:
     if role_text or (adate and adate != "—"):
         modal_title = html.escape(pct or "Ownership", quote=True)
         return (
-            f'<button type="button" class="owner-m-card-own-pct" data-owner-info '
-            f'data-info-format="ownership" data-info-title="{modal_title}" '
+            f'<button type="button" class="owner-m-card-own-pct owner-role-pct-btn" '
+            f'data-owner-info data-info-format="ownership" '
+            f'data-info-title="{modal_title}" '
             f'data-role-text="{html.escape(role_text, quote=True)}" '
             f'data-role-since="{html.escape(adate if adate != "—" else "", quote=True)}" '
-            f'aria-label="Ownership details">{label}</button>'
+            f'aria-label="Ownership details (tap for role and dates)">{label}</button>'
         )
     return f'<span class="owner-m-card-own-pct">{label}</span>'
 
@@ -299,16 +294,17 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
     census = _fmt_census(f.get("census") if verified else None)
     stars_html, _ = _cms_stars_cell(f, verified=verified)
     flags = _facility_flags_cell(f, verified=verified, skip_star_flags=True)
-    metric_bits: list[str] = []
-    if census and census != "—":
-        metric_bits.append(f"{html.escape(census)} Residents")
+    hprd_html = ""
     if hprd and hprd != "—":
-        metric_bits.append(f"{html.escape(hprd)} HPRD")
-    metrics_html = ""
-    if metric_bits:
-        metrics_html = (
-            f'<span class="owner-m-card__metric">'
-            f'{" | ".join(metric_bits)}</span>'
+        hprd_html = (
+            f'<span class="owner-m-card__metric owner-m-card__metric--hprd">'
+            f"{html.escape(hprd)} HPRD</span>"
+        )
+    census_html = ""
+    if census and census != "—":
+        census_html = (
+            f'<span class="owner-m-card__census">'
+            f"{html.escape(census)} residents</span>"
         )
     flags_html = f'<div class="owner-m-card__flags">{flags}</div>' if flags else ""
     search = " ".join(
@@ -327,8 +323,9 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
         "</div>"
         '<div class="owner-m-card__aside">'
         f'<div class="owner-m-card__role">{role_html}</div>'
-        f"{metrics_html}"
+        f"{hprd_html}"
         f'<div class="owner-m-card__ratings">{stars_html}</div>'
+        f"{census_html}"
         f"{flags_html}"
         "</div></li>"
     )
@@ -420,8 +417,6 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
 
     is_chow_only = bool(profile.get("is_chow_only"))
 
-    pac_meta = _pac_meta_html(profile, kind, pac, en_label, ow_label)
-
     kind_banner = _kind_banner(kind, is_chow_only)
     preview_banner = _internal_preview_banner_html(profile)
     portfolio_html = _portfolio_snapshot_html(profile)
@@ -437,8 +432,8 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
         name=name,
         owner_type=owner_type,
         states_meta=states_meta,
-        pac_meta=pac_meta,
         kind=kind,
+        pac=pac,
         en_label=en_raw,
         ow_label=ow_raw,
     )
@@ -538,6 +533,8 @@ def _pac_meta_html(
     pac: str,
     en_label: str,
     ow_label: str,
+    *,
+    page_help: str = "",
 ) -> str:
     enrollment_ids = profile.get("enrollment_ids") or []
     rows: list[str] = []
@@ -551,8 +548,10 @@ def _pac_meta_html(
     rows.append(
         f'<span class="owner-pac-block owner-meta-item">'
         f'<span class="owner-pac-block__label">{label}</span>'
+        f'<span class="owner-pac-block__value-line">'
         f'<span class="owner-pac-block__value">{pac}</span>'
-        "</span>"
+        f"{page_help}"
+        "</span></span>"
     )
     if enrollment_ids:
         ids = ", ".join(html.escape(e) for e in enrollment_ids[:4])
@@ -662,8 +661,8 @@ def _owner_profile_header_html(
     name: str,
     owner_type: str,
     states_meta: str,
-    pac_meta: str,
     kind: str,
+    pac: str,
     en_label: str,
     ow_label: str,
 ) -> str:
@@ -672,6 +671,14 @@ def _owner_profile_header_html(
         _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label),
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-page-help",
+    )
+    pac_meta = _pac_meta_html(
+        profile,
+        kind,
+        pac,
+        html.escape(en_label),
+        html.escape(ow_label),
+        page_help=page_help,
     )
     meta_parts: list[str] = []
     if owner_type:
@@ -684,10 +691,8 @@ def _owner_profile_header_html(
         else ""
     )
     header_actions = ""
-    if pac_meta or page_help:
-        header_actions = (
-            f'<div class="owner-profile-header-actions">{pac_meta}{page_help}</div>'
-        )
+    if pac_meta:
+        header_actions = f'<div class="owner-profile-header-actions">{pac_meta}</div>'
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         <div class="owner-profile-brand-row">
@@ -980,7 +985,7 @@ def _flag_explainer_button(kind: str, label: str, css_class: str) -> str:
 def _facilities_portfolio_title(profile: dict[str, Any]) -> str:
     raw = str(profile.get("display_name") or "").strip()
     name = html.escape(format_org_display(raw) if raw else "Portfolio")
-    return f"{name} — Nursing Home Portfolio"
+    return f"{name} — Portfolio"
 
 
 def _facility_flags_cell(
@@ -1043,13 +1048,14 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         if href:
             primary_html = (
                 f'<a href="{href}" class="owner-facility-primary"{title_attr}>'
-                f"{provider_esc}{state_suffix}</a>"
+                f"{provider_esc}</a>"
             )
         else:
             primary_html = (
-                f'<span class="owner-facility-primary">{provider_esc}{state_suffix}</span>'
+                f'<span class="owner-facility-primary">{provider_esc}</span>'
             )
-        sub_parts = [legal_esc]
+        legal_with_state = f"{legal_esc}{state_suffix}" if state_suffix else legal_esc
+        sub_parts = [legal_with_state]
         if badge:
             sub_parts.append(badge)
         sub_html = f'<div class="owner-facility-sub">{"".join(sub_parts)}</div>'

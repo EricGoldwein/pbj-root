@@ -1964,7 +1964,7 @@ def ai_icons(icon_name):
     if not os.path.isfile(path):
         from flask import abort
         abort(404)
-    return send_file(path, mimetype='image/svg+xml')
+    return _favicon_cache_headers(send_file(path, mimetype='image/svg+xml'))
 
 
 @app.route('/pbj-ai-support.css')
@@ -5138,7 +5138,7 @@ def _static_asset_version(filename: str) -> int:
 
 
 _PUBLIC_JSON_CACHE_SECONDS = int(os.environ.get('PBJ_PUBLIC_JSON_CACHE_SECONDS', '900'))
-_FAVICON_CACHE_SECONDS = int(os.environ.get('PBJ_FAVICON_CACHE_SECONDS', '604800'))
+_FAVICON_CACHE_SECONDS = int(os.environ.get('PBJ_FAVICON_CACHE_SECONDS', '31536000'))
 
 
 def _json_cache_headers(resp, max_age=None):
@@ -5152,9 +5152,36 @@ def _favicon_cache_headers(resp):
     """Long cache for small favicon assets (replace files to bust)."""
     return _static_cache_headers(resp, max_age=_FAVICON_CACHE_SECONDS, immutable=True)
 
+@app.route('/static/img/<path:subpath>')
+def serve_static_img(subpath):
+    """Long-lived cache for static/img (footer icons, OG images)."""
+    safe = os.path.normpath(subpath).replace('\\', '/')
+    if safe.startswith('..') or os.path.isabs(safe):
+        from flask import abort
+        abort(404)
+    directory = os.path.join(APP_ROOT, 'static', 'img')
+    if not os.path.isfile(os.path.join(directory, safe)):
+        from flask import abort
+        abort(404)
+    ext = os.path.splitext(safe)[1].lower()
+    mime = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.webp': 'image/webp',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+    }.get(ext, 'application/octet-stream')
+    return _favicon_cache_headers(
+        send_from_directory(directory, safe, mimetype=mime)
+    )
+
+
 @app.route('/substack.png')
 def serve_substack():
-    return _static_cache_headers(send_from_directory(APP_ROOT, 'substack.png', mimetype='image/png'))
+    return _favicon_cache_headers(
+        send_from_directory(APP_ROOT, 'substack.png', mimetype='image/png')
+    )
 
 
 @app.route('/pbj-site-universal.js')
@@ -7642,6 +7669,7 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
 <meta name="twitter:description" content="{html.escape(meta_description)}">
 <meta name="twitter:image" content="{og_image}">
 <link rel="canonical" href="{canon}">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="icon" type="image/png" href="/pbj_favicon.png">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -10548,8 +10576,8 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
             out += footer
         return out + '</div>'
     return '''
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 <!-- pbj-casemix-ui:13 -->
 <div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="13">
@@ -10596,7 +10624,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
 ''' + chart_block('RN Staffing', 'chartRN') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract Staff %', 'chartContract') + '''
-<script>
+<script defer>
 (function(){
   var d = ''' + data_esc + ''';
   var textColor = 'rgba(228, 228, 231, 0.95)';
@@ -12333,7 +12361,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     _ownership_page_css = (
         f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
-        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
     )
     layout = get_pbj_site_layout(
         page_title,

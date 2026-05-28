@@ -20,12 +20,18 @@ bind = f"0.0.0.0:{_PORT}"
 
 _on_render = bool(os.environ.get("RENDER") or os.environ.get("RENDER_SERVICE_ID"))
 
-# Default 2 workers locally; 1 worker on Render to avoid duplicate pandas indexes per process.
+# Default 2 workers locally; always 1 worker on Render unless PBJ_ALLOW_MULTI_WORKER=1.
 try:
     _workers_default = "1" if _on_render else "2"
     workers = max(1, int(os.environ.get("PBJ_GUNICORN_WORKERS", _workers_default)))
 except (TypeError, ValueError):
     workers = 1 if _on_render else 2
+if _on_render and workers > 1 and not (os.environ.get("PBJ_ALLOW_MULTI_WORKER") or "").strip():
+    sys.stderr.write(
+        "[gunicorn] Render: forcing workers=1 (duplicate workers OOM on 2GB; "
+        "set PBJ_ALLOW_MULTI_WORKER=1 to override)\n"
+    )
+    workers = 1
 
 worker_class = "gthread"
 # Render: 4 threads — keeps /health responsive when provider cold-renders stack up.
@@ -39,14 +45,15 @@ except (TypeError, ValueError):
 timeout = 120
 graceful_timeout = 60  # finish in-flight requests before exit on SIGTERM (Render deploy); reduces 502s during deploy
 
-# Recycle workers on Render to limit slow RSS growth from pandas / large caches.
-if _on_render:
-    try:
-        max_requests = max(100, int(os.environ.get('PBJ_GUNICORN_MAX_REQUESTS', '400')))
-    except (TypeError, ValueError):
-        max_requests = 400
-else:
+# Worker recycle: default OFF on Render. With workers=1, max_requests>0 leaves no listener
+# during fork/re-import → Render health "connection refused" / Instance failed.
+# Set PBJ_GUNICORN_MAX_REQUESTS only after confirming RSS creep (e.g. 5000+).
+try:
+    _mr_raw = (os.environ.get("PBJ_GUNICORN_MAX_REQUESTS") or "").strip()
+    max_requests = int(_mr_raw) if _mr_raw else 0
+except (TypeError, ValueError):
     max_requests = 0
+max_requests = max(0, max_requests)
 
 # No --preload: each gthread worker imports app:app after fork (see post_fork / when_ready logs).
 
@@ -56,7 +63,8 @@ def on_starting(server):
 
     ts = time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())
     sys.stderr.write(
-        f'[gunicorn] on_starting bind={bind} workers={workers} threads={threads} at {ts}\n'
+        f'[gunicorn] on_starting bind={bind} workers={workers} threads={threads} '
+        f'max_requests={max_requests} at {ts}\n'
     )
     sys.stderr.flush()
 

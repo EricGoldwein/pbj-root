@@ -5200,9 +5200,9 @@ def get_owner_app():
         raise _owner_app_error
     try:
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'donor'))
-        from owner_donor_dashboard import app as owner_app, ensure_data_loaded  # type: ignore
-
-        ensure_data_loaded()
+        from owner_donor_dashboard import app as owner_app  # type: ignore
+        # FEC data loads on first dispatched /owner/api request (donor before_request), not here —
+        # eager load_data() on import path OOMs the only Render worker.
         _owner_app = owner_app
         return _owner_app
     except Exception as e:

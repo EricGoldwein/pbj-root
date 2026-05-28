@@ -31,8 +31,7 @@ services:
         value: "20"
       - key: PBJ_SITEMAP_CACHE_TTL
         value: "3600"
-      - key: PBJ_GUNICORN_MAX_REQUESTS
-        value: "400"
+      # Leave PBJ_GUNICORN_MAX_REQUESTS unset (0) — worker recycle with 1 worker drops /health.
       # CT + NY facility pages only — not /pbj-ai-support, not other states
       - key: PBJ_AI_SUPPORT
         value: "dashboards"

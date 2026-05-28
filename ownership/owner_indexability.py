@@ -22,6 +22,7 @@ _PLACEHOLDER_NAME_RE = re.compile(
     re.IGNORECASE,
 )
 _CHOW_RECENT_YEARS = 3
+_CCN_ALLOWED_RE = re.compile(r"^[A-Z0-9]{1,6}$")
 
 
 def _clean_name(val: Any) -> str:
@@ -58,21 +59,19 @@ def _active_provider_ccns() -> frozenset[str]:
         return frozenset()
     out: set[str] = set()
     for fac in data.get("f") or []:
-        raw = str(fac.get("c") or "").strip()
-        if not raw:
-            continue
-        if "." in raw:
-            raw = raw.split(".")[0]
-        if raw.isdigit():
-            out.add(raw.zfill(6)[-6:])
+        raw = _norm_ccn(fac.get("c"))
+        if raw:
+            out.add(raw)
     return frozenset(out)
 
 
 def _norm_ccn(raw: Any) -> str:
-    s = str(raw or "").strip()
+    s = str(raw or "").strip().upper()
     if "." in s:
         s = s.split(".")[0]
-    return s.zfill(6)[-6:] if s.isdigit() else ""
+    if not s or not _CCN_ALLOWED_RE.fullmatch(s):
+        return ""
+    return s.zfill(6)
 
 
 def count_active_facilities(profile: dict[str, Any]) -> int:

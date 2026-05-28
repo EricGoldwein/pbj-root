@@ -71,7 +71,7 @@ def main() -> int:
         latest_q = str(get_canonical_latest_quarter() or '').strip()
         for chunk in pd.read_csv(csv_path, low_memory=False, chunksize=100000):
             chunk = chunk.copy()
-            chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.upper().str.zfill(6)
             chunk['CY_Qtr'] = chunk['CY_Qtr'].astype(str).str.strip()
             chunk['STATE'] = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
             slim = chunk.rename(columns={k: v for k, v in rename_map.items() if k in chunk.columns})

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import pickle
+import re
 import sqlite3
 import threading
 import time
@@ -54,6 +55,16 @@ _DEFAULT_VALIDATION_CCNS: tuple[str, ...] = ('676230', '035297', '335513')
 _SQLITE_CONN: sqlite3.Connection | None = None
 _SQLITE_LOCK = threading.Lock()
 _META_CACHE: dict[str, Any] | None = None
+_CCN_ALLOWED_RE = re.compile(r'^[A-Z0-9]{1,6}$')
+
+
+def _norm_ccn(raw: Any) -> str:
+    s = str(raw or '').strip().upper()
+    if '.' in s:
+        s = s.split('.')[0]
+    if not s or not _CCN_ALLOWED_RE.fullmatch(s):
+        return ''
+    return s.zfill(6)
 
 
 def csv_rename_map_for_build() -> dict[str, str]:
@@ -79,8 +90,8 @@ def provider_df_schema_errors(df, *, ccn: str = '') -> list[str]:
     if missing:
         return [f'missing_csv_columns:{",".join(missing)}']
     if ccn and 'PROVNUM' in df.columns:
-        got = str(df['PROVNUM'].iloc[-1]).strip().zfill(6)
-        if got != str(ccn).strip().zfill(6):
+        got = _norm_ccn(df['PROVNUM'].iloc[-1])
+        if got != _norm_ccn(ccn):
             return [f'provnum_mismatch:{got}!={ccn}']
     return []
 
@@ -110,7 +121,10 @@ def validate_built_sqlite_against_csv(
     latest_q = (canonical_quarter or _read_meta().get('canonical_quarter') or '').strip()
 
     for prov in ccns:
-        prov = str(prov).strip().zfill(6)
+        prov = _norm_ccn(prov)
+        if not prov:
+            errors.append(f'{prov}:invalid_ccn')
+            continue
         df = load_ccn_longitudinal_df(prov, pd)
         schema_err = provider_df_schema_errors(df, ccn=prov)
         if schema_err:
@@ -128,7 +142,7 @@ def validate_built_sqlite_against_csv(
         for chunk in pd.read_csv(csv_path, low_memory=False, chunksize=100000):
             if 'PROVNUM' not in chunk.columns:
                 continue
-            chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.zfill(6)
+            chunk['PROVNUM'] = chunk['PROVNUM'].astype(str).str.strip().str.upper().str.zfill(6)
             m = chunk[(chunk['PROVNUM'] == prov) & (chunk['CY_Qtr'].astype(str).str.strip() == latest_q)]
             if not m.empty:
                 csv_hprd = m.iloc[0].get('Total_Nurse_HPRD')
@@ -324,8 +338,11 @@ def load_ccn_longitudinal_df(prov: str, pdm):
     if conn is None:
         return None
     try:
+        prov = _norm_ccn(prov)
+        if not prov:
+            return None
         cur = conn.execute(
-            'SELECT * FROM facility_quarterly WHERE provnum = ? ORDER BY cy_qtr',
+            'SELECT * FROM facility_quarterly WHERE provnum = ? COLLATE NOCASE ORDER BY cy_qtr',
             (prov,),
         )
         rows = cur.fetchall()
@@ -357,6 +374,25 @@ def load_ccn_longitudinal_df(prov: str, pdm):
         return None
 
 
+def sqlite_ccn_exists(prov: str) -> bool:
+    """True when a CCN exists in facility_quarterly SQLite."""
+    conn = _get_sqlite_conn()
+    if conn is None:
+        return False
+    ccn = _norm_ccn(prov)
+    if not ccn:
+        return False
+    try:
+        cur = conn.execute(
+            'SELECT 1 FROM facility_quarterly WHERE provnum = ? COLLATE NOCASE LIMIT 1',
+            (ccn,),
+        )
+        return cur.fetchone() is not None
+    except sqlite3.Error as e:
+        log_index_event('sqlite_error', scope='ccn_exists', ccn=ccn, error=str(e)[:200])
+        return False
+
+
 def load_latest_hprd_by_ccn(cy_qtr: str) -> dict[str, dict] | None:
     """Latest-quarter HPRD metrics for all CCNs from SQLite facility_latest table."""
     conn = _get_sqlite_conn()
@@ -373,8 +409,8 @@ def load_latest_hprd_by_ccn(cy_qtr: str) -> dict[str, dict] | None:
         )
         out: dict[str, dict] = {}
         for row in cur.fetchall():
-            ccn = str(row[0] or '').strip().zfill(6)
-            if len(ccn) != 6:
+            ccn = _norm_ccn(row[0])
+            if not ccn:
                 continue
             out[ccn] = {
                 'Total_Nurse_HPRD': row[1],

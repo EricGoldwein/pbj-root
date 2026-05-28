@@ -31,6 +31,7 @@ import time
 import threading
 import gzip
 from functools import lru_cache
+import re as _re
 
 from pbj_review_framework import public_framework_json_for_js
 from pbj_ai_config import (
@@ -670,15 +671,15 @@ def _sort_risk_reason_display(label: str) -> str:
 
 def get_facility_risk_from_search_index(ccn):
     """Return (risk_flag, reason_str) for a facility CCN from search_index.json (same logic as home search). Cached 2 min."""
-    if not ccn:
+    prov = normalize_ccn(ccn)
+    if not prov:
         return 0, ''
-    prov = str(ccn).strip().zfill(6)
     data = _get_search_index_data()
     if not data:
         return 0, ''
     try:
         for row in (data.get('f') or []):
-            if (row.get('c') or '').strip().zfill(6) == prov:
+            if normalize_ccn(row.get('c') or '') == prov:
                 r = 1 if row.get('r') == 1 else 0
                 h = (row.get('h') or '').strip() or ''
                 return r, h
@@ -6132,15 +6133,15 @@ def load_provider_info(ccn_only=None, ccn_set=None):
     national in-memory index (avoids OOM on entity pages and bot traffic).
     """
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
-    target_ccn = str(ccn_only or "").strip().zfill(6) if ccn_only else ""
-    if target_ccn and len(target_ccn) != 6:
+    target_ccn = normalize_ccn(ccn_only) if ccn_only else ""
+    if ccn_only and not target_ccn:
         return {}
     partial_targets: set[str] | None = None
     if ccn_set:
         partial_targets = {
-            str(c).strip().zfill(6) for c in ccn_set if str(c or "").strip()
+            normalize_ccn(c) for c in ccn_set if str(c or "").strip()
         }
-        partial_targets = {c for c in partial_targets if len(c) == 6}
+        partial_targets = {c for c in partial_targets if c}
         if not partial_targets:
             return {}
     elif target_ccn:
@@ -6226,10 +6227,9 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                     chunk = chunk.sort_values('CY_Qtr', ascending=False)
                 for row in chunk.to_dict('records'):
                     raw = _row_val(row, 'ccn', 'PROVNUM', 'CCN', 'Provnum', 'CMS Certification Number (CCN)')
-                    provnum = str(raw or '').strip().replace('.0', '')
+                    provnum = normalize_ccn(raw)
                     if not provnum:
                         continue
-                    provnum = provnum.zfill(6)
                     eid_raw = _row_val(row, 'chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID')
                     if eid_raw is None:
                         for col, v in row.items():
@@ -8882,9 +8882,11 @@ def render_methodology_block():
 </details>'''
 
 
+_CCN_ALLOWED_RE = _re.compile(r'^[A-Z0-9]{1,6}$')
+
+
 def normalize_ccn(ccn):
-    """Ensure CCN is 6-digit string (audit: zfill(6)).
-    Handles pandas NA, float NaN, and CSV float artifacts (e.g. 65225.0) consistently with PROVNUM parsing."""
+    """Normalize provider ID to 6-char uppercase CCN (supports alphanumeric CMS IDs)."""
     if ccn is None or ccn == '':
         return ''
     try:
@@ -8898,23 +8900,26 @@ def normalize_ccn(ccn):
             return ''
     except (TypeError, ValueError):
         pass
-    s = str(ccn).strip()
+    s = str(ccn).strip().upper()
     if not s or s.lower() in ('nan', 'none', '<na>', 'nat'):
         return ''
     if '.' in s:
         s = s.split('.')[0]
     if not s:
         return ''
+    if not _CCN_ALLOWED_RE.fullmatch(s):
+        return ''
     return s.zfill(6)
 
 
 def _normalize_provnum_series(series):
-    """Vectorized PROVNUM → 6-digit CCN strings; matches normalize_ccn for float/string cells."""
+    """Vectorized PROVNUM -> 6-char uppercase CCN strings."""
     pdm = get_pd()
     if pdm is None or series is None or not hasattr(series, 'astype'):
         return series
-    s = series.astype(str).str.strip().str.split('.').str[0]
+    s = series.astype(str).str.strip().str.upper().str.split('.').str[0]
     s = s.replace({'nan': '', 'None': '', '<NA>': '', 'NaT': ''}, regex=False)
+    s = s.where(s.str.fullmatch(r'[A-Z0-9]{1,6}', na=False), '')
     mask = s.ne('')
     out = pdm.Series([''] * len(series), index=series.index, dtype=object)
     out.loc[mask] = s.loc[mask].str.zfill(6)
@@ -12188,8 +12193,8 @@ def _build_entity_facilities_index_from_path(path: str) -> tuple[dict, dict]:
                 c_raw = str(row.get(ccn_col, '')).strip()
                 if '.' in c_raw:
                     c_raw = c_raw.split('.')[0]
-                ccn = c_raw.zfill(6)
-                if len(ccn) != 6 or not ccn.isdigit():
+                ccn = normalize_ccn(c_raw)
+                if not ccn:
                     continue
                 _n = (row.get('provider_name') or row.get('PROVNAME') or '')
                 _city = (row.get('city') or row.get('CITY') or '')
@@ -15677,8 +15682,8 @@ def clear_provider_page_cache():
 
 def _provider_info_row_for_ccn(prov: str) -> dict:
     """Provider Info row for one CCN; scan CSV when warm national cache lacks this facility."""
-    prov = str(prov or '').strip().zfill(6)[-6:]
-    if len(prov) != 6:
+    prov = normalize_ccn(prov)
+    if not prov:
         return {}
     now = time.time()
     if (

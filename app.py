@@ -12342,8 +12342,8 @@ def _attach_entity_facility_quarterly_metrics(facilities: list, latest_q: str | 
     """
     if not facilities or not latest_q:
         return
-    by_ccn = _facility_latest_hprd_by_ccn_if_warm(latest_q)
-    if by_ccn is not None:
+    by_ccn = _facility_latest_hprd_by_ccn_for_quarter(latest_q)
+    if by_ccn:
         for fac in facilities:
             r = by_ccn.get(fac['ccn'])
             if not r:

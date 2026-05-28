@@ -229,6 +229,45 @@ def meta_matches_csv(csv_path: str | None) -> bool:
     )
 
 
+def try_resync_meta_mtime(csv_path: str | None) -> bool:
+    """If deploy SQLite is present but meta source_mtime drifted, refresh meta (avoids CSV stream fallback).
+
+    Verified from: Render logs ``reason\":\"meta_mtime_stale\"`` on cold /provider renders.
+    """
+    global _META_CACHE
+    if not csv_path or not os.path.isfile(csv_path) or not sqlite_exists() or not meta_exists():
+        return False
+    if meta_matches_csv(csv_path):
+        return False
+    meta = dict(_read_meta())
+    if os.path.basename(csv_path) != meta.get('source_basename'):
+        return False
+    try:
+        mtime = int(os.path.getmtime(csv_path))
+    except OSError:
+        return False
+    old_mtime = int(meta.get('source_mtime') or -1)
+    if mtime == old_mtime:
+        return False
+    meta['source_mtime'] = mtime
+    meta['resynced_at'] = time.time()
+    try:
+        os.makedirs(os.path.dirname(META_PATH) or INDEX_DIR, exist_ok=True)
+        with open(META_PATH, 'w', encoding='utf-8') as f:
+            json.dump(meta, f, indent=2)
+        _META_CACHE = meta
+        log_index_event(
+            'meta_mtime_resynced',
+            path=os.path.basename(csv_path),
+            old_mtime=old_mtime,
+            new_mtime=mtime,
+        )
+        return True
+    except OSError as e:
+        log_index_event('meta_mtime_resync_failed', error=str(e)[:200])
+        return False
+
+
 def fallback_reason(csv_path: str | None, *, ccn: str | None = None) -> str:
     """Human-readable reason the fast path is unavailable."""
     if not csv_path:

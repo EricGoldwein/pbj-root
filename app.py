@@ -15809,6 +15809,21 @@ def _provider_page_impl(ccn):
                 },
             )
 
+        from pbj_provider_perf import search_bot_provider_cache_only_enabled
+
+        if ua_class in ('bingbot', 'googlebot') and search_bot_provider_cache_only_enabled():
+            timer.outcome = 'search_bot_cache_only'
+            timer.status = 429
+            return make_response(
+                'Provider page not in cache; search crawlers do not trigger cold render.',
+                429,
+                {
+                    'Content-Type': 'text/plain; charset=utf-8',
+                    'Retry-After': '3600',
+                    'X-PBJ-Provider-Cache': 'MISS',
+                },
+            )
+
         crawler_retry = _provider_crawler_cold_rate_limit_exceeded()
         if crawler_retry is not None:
             timer.outcome = 'crawler_cold_limited'

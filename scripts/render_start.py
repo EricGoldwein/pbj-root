@@ -44,6 +44,22 @@ def _needs_start_ensure() -> bool:
     return False
 
 
+def _resync_provider_index_meta() -> None:
+    """Align meta.json mtime with on-disk CSV so cold /provider uses SQLite, not full CSV scans."""
+    try:
+        sys.path.insert(0, APP_ROOT)
+        import facility_provider_indexes as fpi
+
+        for name in ('facility_quarterly_metrics.csv', 'facility_quarterly_metrics_latest.csv'):
+            csv_path = os.path.join(APP_ROOT, name)
+            if os.path.isfile(csv_path) and not _is_lfs_pointer(csv_path):
+                if fpi.try_resync_meta_mtime(csv_path):
+                    _log(f'provider index meta resynced for {name}')
+                break
+    except Exception as e:
+        _log(f'provider index meta resync skipped: {e}')
+
+
 def main() -> int:
     os.chdir(APP_ROOT)
     t_cmd = time.time()
@@ -61,13 +77,18 @@ def main() -> int:
     else:
         _log('ensure_deploy_csvs skipped (build artifacts present; PBJ_SKIP_START_CSV_ENSURE)')
 
+    _resync_provider_index_meta()
+
     port = (os.environ.get('PORT') or '10000').strip()
     try:
         port = str(int(port))
     except (ValueError, TypeError):
         port = '10000'
     bind = f'0.0.0.0:{port}'
-    _log(f'gunicorn launch bind={bind} elapsed_since_start_s={time.time() - t_cmd:.2f}')
+    _log(
+        f'gunicorn launch bind={bind} PORT={port} '
+        f'elapsed_since_start_s={time.time() - t_cmd:.2f}'
+    )
 
     gunicorn_argv = [
         'gunicorn',

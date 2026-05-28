@@ -105,6 +105,16 @@ def ai_provider_cache_only_enabled() -> bool:
     return ai_heavy_routes_cache_only_enabled()
 
 
+def search_bot_provider_cache_only_enabled() -> bool:
+    """When true, Bing/Google bots must not trigger expensive uncached /provider cold renders."""
+    v = (os.environ.get('PBJ_SEARCH_BOT_PROVIDER_CACHE_ONLY') or '').strip().lower()
+    if v in ('0', 'false', 'no', 'off'):
+        return False
+    if v in ('1', 'true', 'yes', 'on'):
+        return True
+    return _on_render()
+
+
 def provider_browser_cache_control() -> str:
     """Browser cache for provider HTML (quarterly CMS/PBJ data)."""
     v = (os.environ.get('PBJ_PROVIDER_BROWSER_CACHE') or '').strip().lower()

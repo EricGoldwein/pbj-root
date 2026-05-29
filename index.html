@@ -2394,7 +2394,11 @@
       var successEl = document.getElementById('hero-subscribe-success');
       var errorEl = document.getElementById('hero-subscribe-error');
       var formEl = document.getElementById('hero-subscribe-form');
-      if (params.get('subscribed') === '1' && successEl) {
+      var sub = params.get('subscribed');
+      if ((sub === '1' || sub === 'already') && successEl) {
+        successEl.textContent = sub === 'already'
+          ? 'That email is already on the staffing updates list.'
+          : "You're subscribed. We'll email you when we publish staffing updates.";
         successEl.hidden = false;
         if (formEl) formEl.style.display = 'none';
         var privacy = document.querySelector('.hero-email-cta-privacy');
@@ -2405,7 +2409,15 @@
       var err = params.get('subscribe_error');
       if (err && errorEl) {
         errorEl.hidden = false;
-        errorEl.textContent = err === 'invalid' ? 'Please enter a valid email address.' : err === 'duplicate' ? 'That email is already subscribed.' : 'Something went wrong. Try again later.';
+        if (err === 'invalid') {
+          errorEl.textContent = 'Please enter a valid email address.';
+        } else if (err === 'csrf') {
+          errorEl.textContent = 'Your session expired. Refresh this page and try again.';
+        } else if (err === 'duplicate') {
+          errorEl.textContent = 'That email is already on the staffing updates list.';
+        } else {
+          errorEl.textContent = 'Something went wrong. Try again later.';
+        }
       }
     })();
   </script>

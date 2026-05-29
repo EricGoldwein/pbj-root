@@ -1344,7 +1344,7 @@ def debug_provider_indexes():
 
 
 # Simple email format check (not RFC-strict; rejects obviously invalid)
-_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z]{2,}$')
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
 
 def _rewrite_universal_js_version(html_content: str) -> str:
     """Static HTML files may pin stale ?v=; always serve the current universal footer script."""
@@ -1396,7 +1396,7 @@ def index():
 def bad_request(err):
     """Redirect /subscribe and /contact CSRF or bad request to friendly page instead of 400."""
     if request.path == '/subscribe':
-        return redirect('/?subscribe_error=invalid')
+        return redirect('/?subscribe_error=csrf')
     if request.path == '/contact':
         return redirect('/contact?error=invalid')
     # Owners API: return JSON so frontend sees real error (e.g. query-fec "Owner name required")
@@ -1488,7 +1488,7 @@ def subscribe():
         try:
             validate_csrf(request.form.get('csrf_token'))
         except Exception:
-            return redirect('/?subscribe_error=invalid')
+            return redirect('/?subscribe_error=csrf')
     raw = request.form.get('email')
     if not raw or not isinstance(raw, str):
         return redirect('/?subscribe_error=invalid')
@@ -1516,8 +1516,7 @@ def subscribe():
         _send_subscribe_notification(email, 'homepage')
         return redirect('/?subscribed=1')
     except sqlite3.IntegrityError:
-        # Duplicate: treat as success (idempotent; don't leak existence)
-        return redirect('/?subscribed=1')
+        return redirect('/?subscribed=already')
     except Exception as e:
         if app.debug:
             raise

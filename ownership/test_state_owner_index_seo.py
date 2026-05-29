@@ -10,6 +10,7 @@ from ownership.state_owner_index import (
     public_owner_index_sitemap_paths,
     state_index_canonical_path,
     state_index_layout_meta,
+    state_index_subtitle,
 )
 from ownership.state_owner_index_html import render_state_owner_index_body
 from ownership.state_owner_index_seo import build_state_owner_index_json_ld
@@ -25,6 +26,20 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("Connecticut", ct["page_title"])
         self.assertIn("PBJ320", ny["page_title"])
         self.assertIn("PAC IDs", ny["meta_description"])
+        self.assertEqual(ny["subtitle"], state_index_subtitle("New York"))
+        self.assertEqual(ct["subtitle"], state_index_subtitle("Connecticut"))
+        self.assertIn("ownership groups", ct["subtitle"])
+        self.assertNotIn("affiliated facilities", ct["subtitle"])
+
+    def test_ct_index_matches_ny_template_markers(self):
+        body, layout = render_state_owner_index_body("CT", get_canonical_slug=lambda s: "connecticut")
+        self.assertIn(layout["subtitle"], body)
+        self.assertIn("owners-state-hero-rail", body)
+        self.assertIn('owners-state-h1-secondary">Ownership Search</span>', body)
+        self.assertIn("owners-state-h1--split", body)
+        self.assertIn("Largest CT portfolios", body)
+        self.assertIn("About this Connecticut ownership index", body)
+        self.assertGreater(body.find("owners-state-method"), body.find("owners-state-panels"))
 
     def test_canonical_paths(self):
         self.assertEqual(state_index_canonical_path("NY"), "/owners/ny")

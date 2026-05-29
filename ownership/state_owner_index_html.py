@@ -308,7 +308,7 @@ def _render_state_h1(h1: str) -> str:
     if h1.endswith(suffix):
         primary = html.escape(h1[: -len(suffix)])
         return (
-            '<h1 class="owners-state-h1">'
+            '<h1 class="owners-state-h1 owners-state-h1--split">'
             f'<span class="owners-state-h1-primary">{primary}</span>'
             '<span class="owners-state-h1-secondary">Ownership Search</span>'
             "</h1>"

@@ -3521,6 +3521,21 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   content: " ";
 }
 
+@media (min-width: 521px) {
+  .owners-state-h1--split {
+    display: block;
+    text-align: center;
+    font-size: clamp(1.2rem, 2.2vw, 1.68rem);
+    line-height: 1.16;
+  }
+
+  .owners-state-h1--split .owners-state-h1-primary,
+  .owners-state-h1--split .owners-state-h1-secondary {
+    display: inline;
+    white-space: nowrap;
+  }
+}
+
 .owners-state-subtitle {
   font-size: 0.8125rem;
   color: #8b9aad;

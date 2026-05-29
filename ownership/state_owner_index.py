@@ -38,16 +38,31 @@ PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
     "ct": "CT",
 }
 
+_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership Search"
+
+
+def state_index_subtitle(state_name: str) -> str:
+    """Hero subhead for all public state ownership index pages."""
+    name = (state_name or "").strip()
+    return (
+        f"Explore {name} nursing home ownership groups, facility portfolios, "
+        "and staffing patterns using public CMS data."
+    )
+
+
+def state_index_h1(state_name: str) -> str:
+    """H1 text; HTML may split before 'Ownership Search' on mobile."""
+    name = (state_name or "").strip()
+    return f"{name}{_STATE_INDEX_H1_SUFFIX}"
+
+
 STATE_INDEX_META: dict[str, dict[str, str]] = {
     "NY": {
         "name": "New York",
         "slug": "ny",
         "state_page_slug": "new-york",
-        "h1": "New York Nursing Home Ownership Search",
-        "subtitle": (
-            "Explore New York nursing home ownership groups, facility portfolios, "
-            "and staffing patterns using public CMS data."
-        ),
+        "h1": state_index_h1("New York"),
+        "subtitle": state_index_subtitle("New York"),
         "title": "New York Nursing Home Ownership Search | PBJ320",
         "meta_description": (
             "Search New York nursing home owners, PAC IDs, affiliated facilities, "
@@ -59,11 +74,8 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "name": "Connecticut",
         "slug": "ct",
         "state_page_slug": "connecticut",
-        "h1": "Connecticut Nursing Home Ownership Search",
-        "subtitle": (
-            "Find Connecticut nursing home owners, affiliated facilities, "
-            "and staffing context from public CMS data."
-        ),
+        "h1": state_index_h1("Connecticut"),
+        "subtitle": state_index_subtitle("Connecticut"),
         "title": "Connecticut Nursing Home Ownership Search | PBJ320",
         "meta_description": (
             "Search Connecticut nursing home owners, PAC IDs, affiliated facilities, "
@@ -88,12 +100,8 @@ def state_index_layout_meta(state_code: str) -> dict[str, str]:
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "canonical_path": state_index_canonical_path(st),
-        "h1": meta.get("h1") or f"{state_name} Nursing Home Ownership Search",
-        "subtitle": meta.get("subtitle")
-        or (
-            f"Find {state_name} nursing home owners, affiliated facilities, "
-            "and staffing context from public CMS data."
-        ),
+        "h1": meta.get("h1") or state_index_h1(state_name),
+        "subtitle": meta.get("subtitle") or state_index_subtitle(state_name),
         "state_name": state_name,
         "state_code": st,
         "state_slug": slug,

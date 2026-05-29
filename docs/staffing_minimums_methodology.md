@@ -90,6 +90,8 @@ Compare to `/api/provider/<ccn>/staffing-compliance-summary.json?quarter=CY2025Q
 
 Rerun `audit_pbj_compliance_data_quality.py` before each new bundle export or new state rollout. Details: `docs/data_quality_and_fallbacks_audit.md` (pre-export guardrail).
 
+**Production browser QA** (after deploy): `docs/ny_ct_production_playwright_qa.md` — `python scripts/audit_ny_ct_playwright.py --out scripts/_ny_ct_playwright_report.json`. Confirms provider warnings match compliance APIs (NY **3.56**, CT **3.06**). Avoid CCN `075001` for CT Q4; use `075011` or another Q4-backed facility.
+
 ---
 
 ## Unresolved

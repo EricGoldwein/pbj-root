@@ -85,3 +85,5 @@ python scripts/build_staffing_compliance_runtime_index.py
 **Skip on Render:** `PBJ_SKIP_STAFFING_COMPLIANCE_BUNDLE=1` (optional artifact; site works without it).
 
 **Runtime:** `staffing_compliance_bundle.lookup_public_summary(ccn, quarter)`; provider takeaway shows count-only bullets when data exists.
+
+**Post-deploy smoke (ownership + compliance pages):** `docs/ny_ct_production_playwright_qa.md` — `python scripts/audit_ny_ct_playwright.py --out scripts/_ny_ct_playwright_report.json`.

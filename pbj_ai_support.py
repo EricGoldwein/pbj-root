@@ -2465,17 +2465,16 @@ def render_facility_csv_page_footer(
                 f'<textarea id="{trend_id}" class="pbj-ai-csv-data" readonly hidden aria-hidden="true">{html.escape(trends_csv)}</textarea>'
             )
     show_csv_btn = ai_on and has_csv
-    if not show_csv_btn:
-        return ''.join(hidden)
-    parts: list[str] = [
-        '<div class="pbj-care-footer-row">',
-        f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
-        'title="Download PBJ320 snapshot and trends CSVs" aria-label="Download PBJ320 CSV">'
-        'PBJ320 CSV</button>',
-        '</div>',
-    ]
-    parts.append(''.join(hidden))
-    return ''.join(parts)
+    export_btn = ''
+    if show_csv_btn:
+        export_btn = (
+            f'<span class="pbj-sources-item">'
+            f'<button type="button" class="pbj-footer-csv-bundle" data-csv-bundle-for="{html.escape(uid, quote=True)}" '
+            'title="Download quarterly snapshot and trend CSV exports for this facility" '
+            'aria-label="Export PBJ320 CSV data">'
+            'Export PBJ320 CSV</button></span>'
+        )
+    return export_btn + ''.join(hidden)
 
 
 def render_ai_facility_helper(

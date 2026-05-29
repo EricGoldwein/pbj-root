@@ -55,6 +55,7 @@ def render_facility_sources_footer(
     include_chow: bool = False,
     include_macpac: bool = False,
     care_compare_url: str = '',
+    csv_export_html: str = '',
 ) -> str:
     """Facility page: PBJ quarter + CMS Provider Info + Care Compare (one footer line)."""
     _ = include_chow, include_macpac, pbj_quarter_display
@@ -69,6 +70,8 @@ def render_facility_sources_footer(
             f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">Care Compare</a>'
             f'</span>'
         )
+    if (csv_export_html or '').strip():
+        line_parts.append(str(csv_export_html).strip())
     line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(
         line_parts
     )

@@ -50,7 +50,7 @@
       "enabled": true,
       "summary_count_col": "below_state_min_days_count",
       "summary_pct_col": "below_state_min_days_pct",
-      "notes": "NY PHL aggregate nursing HPRD minimum; MACPAC compendium lists 3.56 HPRD for New York."
+      "notes": "New York law sets a minimum of 3.56 total nursing hours per resident day (aggregate RN, LPN, and CNA). MACPAC’s state staffing compendium cites the same 3.56 HPRD figure. PBJ320 compares reported PBJ hours to that benchmark."
     },
     {
       "state": "CT",

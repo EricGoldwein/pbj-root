@@ -112,11 +112,8 @@ def _abbrev_provider_ownership_type(ownership_type: str) -> str:
 
 def _provider_ownership_intro_html(ownership_type: str, cms: dict[str, Any] | None) -> str:
     """One scannable lead line; legal-name match in nested details when it adds information."""
+    _ = ownership_type
     chips: list[str] = []
-    if ownership_type:
-        chips.append(
-            f'<span class="pbj-ownership-chip">{html.escape(_abbrev_provider_ownership_type(ownership_type))}</span>'
-        )
     match_details = ""
     if cms:
         en_name = _format_org_display(cms.get("enrollment_name") or "")
@@ -151,7 +148,7 @@ def _provider_ownership_about_html() -> str:
     return (
         '<div class="pbj-ownership-about-callout" role="note">'
         '<p class="pbj-ownership-about-text">'
-        "CMS SNF All Owners roles and percentages are reported filings, "
+        "CMS owner data roles and percentages are reported filings, "
         "not proof of who operates the facility or care quality."
         "</p></div>"
     )
@@ -176,16 +173,14 @@ def _party_org_name_cell(party: dict[str, Any], side: str, state_code: str, name
 
 
 def _facility_link_from_record(rec: dict[str, Any]) -> str:
+    from ownership.chow_lookup import chow_facility_label
+
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
-    fd = str(rec.get("facility_display_name") or "").strip()
-    buyer_org = str(rec.get("buyer_org_name") or "").strip()
-    buyer_dba = str(rec.get("buyer_dba_name") or "").strip()
-    if fd and fd not in (buyer_org, buyer_dba):
-        fac_label = _format_org_display(fd)
-    elif ccn.isdigit():
-        fac_label = f"CCN {ccn}"
+    fac_raw = chow_facility_label(rec)
+    if fac_raw.startswith("CCN "):
+        fac_label = fac_raw
     else:
-        fac_label = "—"
+        fac_label = _format_org_display(fac_raw) if fac_raw and fac_raw != "—" else "—"
     fac = fac_label
     if ccn.isdigit():
         return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
@@ -403,7 +398,7 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
         f'<span class="chow-state-summary-text">{summary}</span></summary>'
         f'<div class="pbj-details-content chow-state-block">'
-        f'<p class="chow-state-lead chow-state-lead--compact">Most facilities linked in CMS SNF All Owners ({label}).</p>'
+        f'<p class="chow-state-lead chow-state-lead--compact">Most facilities linked in CMS owner data ({label}).</p>'
         f'<div class="chow-table-scroll chow-table-scroll--touch chow-state-owners-scroll">'
         f'<table class="chow-table chow-state-owners-table chow-table--compact-sm">'
         f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
@@ -511,6 +506,12 @@ def _party_type_short(party_type: str) -> str:
     return t[:10] if t else "—"
 
 
+def _party_since_display(party: dict[str, Any]) -> str:
+    dates = (party.get("association_dates") or [])[:1]
+    since_raw = format_chow_date(dates[0]) if dates else ""
+    return since_raw if since_raw else "—"
+
+
 def sort_parties_by_stake(parties: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return sorted(
         parties,
@@ -539,25 +540,36 @@ def render_provider_owners_subtitle_control(
         name = html.escape(format_org_display(raw_name) if raw_name != "—" else "—")
         pct = html.escape(_party_pct_display_short(p))
         typ = html.escape(_party_type_short(str(p.get("party_type") or "")))
+        since = html.escape(_party_since_display(p))
         url = str(p.get("profile_url") or "").strip()
         if url and p.get("is_owner_control_pac"):
             name_cell = f'<a href="{html.escape(url)}">{name}</a>'
         else:
-            name_cell = f'<span class="pbj-provider-owners-name">{name}</span>'
+            name_cell = name
         rows.append(
-            f'<li class="pbj-provider-owners-row">'
-            f'<span class="pbj-provider-owners-namecell">{name_cell}</span>'
-            f'<span class="pbj-provider-owners-pct">{pct}</span>'
-            f'<span class="pbj-provider-owners-type">{typ}</span>'
-            f"</li>"
+            f"<tr>"
+            f'<td class="pbj-provider-owners-modal-name">{name_cell}</td>'
+            f'<td class="pbj-provider-owners-modal-pct">{pct}</td>'
+            f'<td class="pbj-provider-owners-modal-type">{typ}</td>'
+            f'<td class="pbj-provider-owners-modal-since">{since}</td>'
+            f"</tr>"
         )
     extra = ""
     if len(ranked) > 30:
         extra = (
             f'<p class="pbj-provider-owners-more">Showing 30 of {len(ranked)} parties. '
-            f'See the Ownership section below for the full CMS table.</p>'
+            f"See Ownership below for the full table.</p>"
         )
-    list_html = f'<ul class="pbj-provider-owners-list">{"".join(rows)}</ul>{extra}'
+    list_html = (
+        '<div class="pbj-provider-owners-modal-scroll">'
+        '<table class="pbj-provider-owners-modal-table">'
+        "<thead><tr>"
+        "<th>Name</th><th>Stake</th><th>Type</th><th>Since</th>"
+        "</tr></thead><tbody>"
+        + "".join(rows)
+        + "</tbody></table></div>"
+        + extra
+    )
     return (
         f' &bull; <button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
         f'aria-haspopup="dialog" aria-controls="{modal_id}" aria-expanded="false">Owners</button>'
@@ -566,9 +578,9 @@ def render_provider_owners_subtitle_control(
         f'aria-modal="true" aria-labelledby="{modal_id}Title">'
         f'<button type="button" class="pbj-casemix-modal-close pbj-provider-owners-close" '
         f'data-pbj-owners-close="{modal_id}" aria-label="Close">&times;</button>'
-        f'<h3 id="{modal_id}Title">CMS ownership parties</h3>'
-        f'<p class="pbj-provider-owners-lead">Reported roles and stakes from CMS SNF All Owners '
-        f'for this enrollment. Confirm each party on CMS before relying on a link.</p>'
+        f'<h3 id="{modal_id}Title">Reported owners</h3>'
+        f'<p class="pbj-provider-owners-lead">Roles and ownership stakes from CMS owner data '
+        f"for this facility&rsquo;s enrollment.</p>"
         f"{list_html}"
         f"</div></div>"
         f"<script>(function(){{"
@@ -732,8 +744,11 @@ def render_provider_ownership_chow_block(
         lines.append(_render_control_parties_table(cms.get("control_parties") or []))
     chow_html = _render_provider_chow_block(ccn_norm) if chow_all else ""
 
+    open_attr = ""
+    if cms and (cms.get("control_parties") or ownership_type):
+        open_attr = " open"
     return (
-        '<details class="pbj-details pbj-details-ownership pbj-page-bottom-details">'
+        f'<details class="pbj-details pbj-details-ownership pbj-page-bottom-details"{open_attr}>'
         '<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
         "Ownership</summary>"
         '<div class="pbj-details-content pbj-ownership-chow-content">'

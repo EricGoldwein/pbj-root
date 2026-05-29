@@ -242,7 +242,18 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
         buyer_assoc = _pick(row, "buyer_associate")
         seller_assoc = _pick(row, "seller_associate")
 
-        facility_display = buyer_dba or buyer_org or seller_dba or ""
+        facility_display = ""
+        if ccn:
+            try:
+                from ownership.owner_portfolio_metrics import _ccn_provider_lookup
+
+                facility_display = str(
+                    (_ccn_provider_lookup().get(ccn) or {}).get("provider_name") or ""
+                ).strip()
+            except Exception:
+                facility_display = ""
+        if not facility_display:
+            facility_display = buyer_dba or buyer_org or seller_dba or ""
         chow_type = _pick(row, "chow_type") or _pick(row, "chow_type_code")
 
         buyer_owner_url = owner_url_for_associate(buyer_assoc, buyer_org) or owner_search_url(buyer_org)

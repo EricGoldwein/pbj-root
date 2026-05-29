@@ -177,12 +177,12 @@ def snf_owners_source_citation(path: Path | None = None) -> str:
     """Human-readable CMS source line (release month only — no filename in UI copy)."""
     p = path or snf_owners_csv_path()
     if not p:
-        return "CMS SNF All Owners"
+        return "CMS owner data"
     ym = snf_owners_release_month_year(p)
     if ym:
         month = calendar.month_name[ym[1]]
-        return f"CMS SNF All Owners ({month} {ym[0]} snapshot)"
-    return "CMS SNF All Owners"
+        return f"CMS owner data ({month} {ym[0]} snapshot)"
+    return "CMS owner data"
 
 
 def _clean(val: Any) -> str:

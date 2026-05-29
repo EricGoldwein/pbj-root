@@ -5654,6 +5654,7 @@ def _owners_state_index_html(state_code: str):
             meta_description=layout_meta['meta_description'],
             canonical_path=layout_meta['canonical_path'],
         )
+        + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
         + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
     )
     layout = get_pbj_site_layout(layout_meta['page_title'], layout_meta['meta_description'], canon, extra_head=extra)
@@ -8712,12 +8713,8 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     text-overflow: ellipsis;
   }}
   button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--header {{
-    display: none !important;
-  }}
-  button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--footer {{
     display: inline-flex;
-    margin-left: 0;
-    align-self: flex-start;
+    flex-shrink: 0;
     padding: 0.22rem 0.5rem;
     font-size: 0.62rem;
     border-radius: 999px;
@@ -10851,10 +10848,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       <div id="pbjCaseMixBreakdownBars" class="pbj-casemix-bars"></div>
     </div>
   </details>
-  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</p>
-  <button type="button" class="pbj-casemix-help-trigger pbj-casemix-help-trigger--footer" id="pbjCaseMixInfoBtnFoot" aria-label="What is case-mix? Definitions and distributions" title="What is case-mix?">
-    <span class="pbj-casemix-help-label">What is case-mix?</span>
-  </button>
+  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient. <button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">What is case-mix?</button></p>
 </div>
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
@@ -11319,13 +11313,11 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
   var modal = document.getElementById('pbjCaseMixModal');
   var auxModal = document.getElementById('pbjCaseMixAuxModal');
   var modalBtn = document.getElementById('pbjCaseMixInfoBtn');
-  var modalBtnFoot = document.getElementById('pbjCaseMixInfoBtnFoot');
   var modalClose = document.getElementById('pbjCaseMixModalClose');
   var auxModalClose = document.getElementById('pbjCaseMixAuxModalClose');
   function closeCaseMixModal() { if (modal) modal.setAttribute('aria-hidden', 'true'); }
   function openCaseMixHelpModal() { closeCaseMixAuxModal(); if (modal) modal.setAttribute('aria-hidden', 'false'); }
   if (modalBtn && modal) modalBtn.addEventListener('click', openCaseMixHelpModal);
-  if (modalBtnFoot && modal) modalBtnFoot.addEventListener('click', openCaseMixHelpModal);
   if (heroWrap) {
     heroWrap.addEventListener('click', function(e) {
       var t = e.target;
@@ -12176,8 +12168,7 @@ def _provider_staffing_compliance_warning(
         f'<ul class="pbj-hprd-means-body" style="margin:0.5rem 0 0 1rem;padding:0;">'
         + ''.join(str(i['modal_line']) for i in issues)
         + '</ul>'
-        f'<p class="pbj-hprd-means-body" style="margin-top:0.75rem;font-size:0.8125rem;opacity:0.9;">'
-        f'Specific calendar dates are not shown on the free site. {meth}.</p>'
+        f'<p class="pbj-hprd-means-body" style="margin-top:0.75rem;font-size:0.8125rem;opacity:0.9;">{meth}</p>'
     )
     uid = f'{prov}-sc-warn'
     mid = f'pbjInfoModal-{uid}'
@@ -12187,8 +12178,15 @@ def _provider_staffing_compliance_warning(
         st_abbr_esc = html.escape(str(top.get('state_abbr') or 'state'))
         n_show = int(top.get('n') or 0)
         total_show = int(top.get('total') or 0)
-        th_disp = html.escape(str(top.get('threshold_display') or '—'))
-        q_esc = html.escape(str(quarter_display or quarter or '').strip())
+        th_raw = str(top.get('threshold_display') or '—').strip()
+        th_disp = html.escape(th_raw)
+        st_u = str(top.get('state_abbr') or '').strip().upper()
+        if st_u == 'NY':
+            min_meta = f'NY Minimum ~{th_disp} HPRD'
+        elif st_u:
+            min_meta = f'{html.escape(st_u)} minimum ~{th_disp} total nursing HPRD'
+        else:
+            min_meta = f'Minimum ~{th_disp} total nursing HPRD'
         flags_note = ''
         if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
             flags_note = (
@@ -12210,7 +12208,7 @@ def _provider_staffing_compliance_warning(
             f'<div class="pbj-compliance-warning__lines">'
             f'<div class="pbj-compliance-warning__line1">{line1}</div>'
             f'<div class="pbj-compliance-warning__line2">'
-            f'<span class="pbj-compliance-warning__meta">{q_esc} · Minimum: {th_disp} total nursing HPRD · </span>'
+            f'<span class="pbj-compliance-warning__meta">{min_meta} · </span>'
             f'{method_btn}</div></div></div>'
         )
     else:
@@ -12970,6 +12968,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             include_chow=bool((_provider_ownership_chow_block or '').strip()),
             include_macpac=bool((_macpac_factset_line or '').strip()),
             care_compare_url=care_compare_facility_url,
+            csv_export_html=_facility_csv_footer,
         )
     except Exception:
         _facility_sources_footer = ''
@@ -12995,9 +12994,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 
 <div class="pbj-page-footer">
 <p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
-<div class="pbj-page-footer-meta">
-{_facility_csv_footer}
-</div>
 {_facility_sources_footer}
 <div class="pbj-cross-links-footer">{_facility_cross_links}</div>
 </div>"""
@@ -15464,20 +15460,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         _state_top_owners_line = ''
         _state_chow_line = ''
     _state_ownership_index_cross_link = ''
-    try:
-        from ownership.beta_gate import ownership_beta_enabled_for_state
-        from ownership.state_owner_index import state_index_canonical_path
-
-        if ownership_beta_enabled_for_state(state_code):
-            _idx_href = html.escape(state_index_canonical_path(state_code))
-            _state_ownership_index_cross_link = (
-                f'<p class="pbj-cross-links">'
-                f'<span class="pbj-cross-links-label">Ownership:</span> '
-                f'<a href="{_idx_href}">{html.escape(state_name)} owners &amp; staffing patterns</a>'
-                f'</p>'
-            )
-    except Exception:
-        _state_ownership_index_cross_link = ''
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>

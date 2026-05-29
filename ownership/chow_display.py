@@ -141,16 +141,14 @@ def render_chow_detail_panel(rec: dict[str, Any], *, panel_id: str = "") -> str:
 
 
 def _default_facility_link(rec: dict[str, Any]) -> str:
+    from ownership.chow_lookup import chow_facility_label
+
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
-    fd = str(rec.get("facility_display_name") or "").strip()
-    buyer_org = str(rec.get("buyer_org_name") or "").strip()
-    buyer_dba = str(rec.get("buyer_dba_name") or "").strip()
-    if fd and fd not in (buyer_org, buyer_dba):
-        fac = format_org_display(fd)
-    elif ccn.isdigit():
-        fac = f"CCN {ccn}"
+    fac_raw = chow_facility_label(rec)
+    if fac_raw.startswith("CCN "):
+        fac = fac_raw
     else:
-        fac = "—"
+        fac = format_org_display(fac_raw) if fac_raw and fac_raw != "—" else "—"
     if ccn.isdigit():
         return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
     return html.escape(fac)
@@ -479,6 +477,7 @@ CHOW_TABLE_INIT_SCRIPT = """
     modal.id = 'chowDetailModal';
     modal.className = 'chow-detail-modal';
     modal.setAttribute('aria-hidden', 'true');
+    modal.style.display = 'none';
     modal.innerHTML =
       '<div class="chow-detail-modal__backdrop" data-chow-modal-close></div>' +
       '<div class="chow-detail-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="chowDetailModalTitle">' +
@@ -490,6 +489,7 @@ CHOW_TABLE_INIT_SCRIPT = """
       var active = document.activeElement;
       if (active && modal.contains(active)) active.blur();
       modal.setAttribute('aria-hidden','true');
+      modal.style.display = 'none';
       document.body.classList.remove('chow-modal-open');
     }
     modal.querySelectorAll('[data-chow-modal-close]').forEach(function(el){
@@ -505,6 +505,7 @@ CHOW_TABLE_INIT_SCRIPT = """
     if (!store || !body) return;
     body.innerHTML = store.innerHTML;
     modal.setAttribute('aria-hidden', 'false');
+    modal.style.display = 'flex';
     document.body.classList.add('chow-modal-open');
   }
   function bind(root){

@@ -98,6 +98,30 @@ def chow_total_count() -> int:
     return int(summary.get("total_records") or len(idx.get("records") or []))
 
 
+def chow_facility_label(rec: dict[str, Any]) -> str:
+    """Provider name for a CHOW row; prefer PBJ provider name over buyer/seller labels."""
+    ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
+    buyer_org = str(rec.get("buyer_org_name") or "").strip()
+    buyer_dba = str(rec.get("buyer_dba_name") or "").strip()
+    fd = str(rec.get("facility_display_name") or "").strip()
+    if fd and fd not in (buyer_org, buyer_dba):
+        return fd
+    if ccn.isdigit():
+        try:
+            from ownership.owner_portfolio_metrics import _ccn_provider_lookup
+
+            prov_name = str((_ccn_provider_lookup().get(ccn) or {}).get("provider_name") or "").strip()
+            if prov_name:
+                return prov_name
+        except Exception:
+            pass
+    if fd:
+        return fd
+    if ccn.isdigit():
+        return f"CCN {ccn}"
+    return "—"
+
+
 def format_chow_date(iso: str) -> str:
     if not iso or len(iso) < 10:
         return iso or "—"

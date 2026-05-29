@@ -158,9 +158,11 @@ python scripts/validate_ownership_linkage.py
 pytest ownership/test_owner_portfolio_metrics.py ownership/test_state_owner_index_seo.py -q
 ```
 
+**Production browser QA** (after deploy): `docs/ny_ct_production_playwright_qa.md` — `python scripts/audit_ny_ct_playwright.py --out scripts/_ny_ct_playwright_report.json`. Pass = hub, `/owners/ny`, `/owners/ct`, and sample profiles load. State index vs profile **count differences are not Playwright failures** (see §4).
+
 Manual spot checks:
 
-- Top 3 NY/CT owners: compare state index count vs `/owners/<pac>` facility table rows.
+- Top 3 NY/CT owners: compare state index count vs `/owners/<pac>` facility table rows (methodology check only, not a deploy blocker).
 - CHOW row: buyer PAC opens profile; CCN opens `/provider/<ccn>`.
 - Profile with fuzzy facilities: means unchanged when tentative rows added.
 - FEC panel: confirm disclaimer visible; no implied CMS linkage.

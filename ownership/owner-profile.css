@@ -3406,10 +3406,10 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
 .owners-state-h1,
 .owners-state-hero h1 {
-  font-size: clamp(1.28rem, 2.9vw, 1.55rem);
+  font-size: clamp(1.38rem, 3.2vw, 1.72rem);
   font-weight: 700;
   margin: 0 0 0.18rem;
-  line-height: 1.16;
+  line-height: 1.14;
   color: #f8fafc;
   letter-spacing: -0.02em;
 }
@@ -3922,7 +3922,7 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   grid-template-columns: 2.85rem minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   column-gap: 0.45rem;
-  row-gap: 0.1rem;
+  row-gap: 0.02rem;
   align-items: start;
   font-size: 0.84rem;
   line-height: 1.32;
@@ -3985,9 +3985,21 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   grid-column: 2 / 4;
   grid-row: 2;
   min-width: 0;
+  margin-top: -0.06rem;
   font-size: 0.73rem;
   color: var(--owners-text-quiet);
-  line-height: 1.35;
+  line-height: 1.28;
+}
+
+/* CHOW detail modal (owners index loads chow.css; keep hidden if script injects early) */
+.chow-detail-modal[aria-hidden="true"] {
+  display: none !important;
+  pointer-events: none;
+}
+
+.chow-detail-modal[aria-hidden="false"] {
+  display: flex;
+  pointer-events: auto;
 }
 
 .owners-state-chow-view-label {

@@ -721,7 +721,7 @@ def _kind_banner(kind: str, is_chow_only: bool) -> str:
     elif is_chow_only:
         text = (
             "<strong>Ownership profile.</strong> Listed in CMS ownership-change records; "
-            "may not appear in the current SNF All Owners enrollment or owner PAC file."
+            "may not appear in the current CMS owner data enrollment or owner PAC file."
         )
     elif kind == "owner_control":
         return ""
@@ -760,7 +760,7 @@ def _owner_page_help_body(
         ),
         "chow_only": (
             f"Party in CMS ownership-change records with {n} linked facility references; "
-            "may be absent from the current SNF All Owners file."
+            "may be absent from the current CMS owner data file."
         ),
     }.get(kind, f"CMS ownership profile with {n} linked records in {snf_src}.")
 
@@ -910,10 +910,10 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         (
             "Parties that appear repeatedly with this owner on CMS records.\n\n"
             "Ownership: co-owners on the same nursing home enrollments in "
-            "CMS SNF All Owners (shared enrollment PACs).\n\n"
+            "CMS owner data (shared enrollment PACs).\n\n"
             "Ownership events: buyer or seller counterparties on CMS-reported ownership "
             "change filings involving this party.\n\n"
-            "Sources: CMS SNF All Owners; PBJ320 CHOW index (CMS ownership change filings)."
+            "Sources: CMS owner data; CMS ownership-change (CHOW) filings."
         ),
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-associates-info",
@@ -1155,7 +1155,9 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     wmean = ps.get("wmean_hprd")
     umean = ps.get("umean_hprd")
     mean_ovr = ps.get("mean_overall_rating")
-    mean_stf = ps.get("mean_staffing_rating")
+    mean_stf = ps.get("umean_staffing_rating")
+    if mean_stf is None:
+        mean_stf = ps.get("mean_staffing_rating")
 
     from ownership.owner_portfolio_metrics import (
         PORTFOLIO_HPRD_MAX,
@@ -1165,7 +1167,7 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     )
 
     fac_help = (
-        f"{n} facilities in CMS SNF All Owners for this party. "
+        f"{n} facilities in CMS owner data for this party. "
         f"{n_matched} have a verified PBJ link (enrollment legal name = provider-info legal name)."
     )
     if n_suggested:
@@ -1182,8 +1184,8 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         "(CMS PBJ quarterly plausible range)."
     )
     stf_help = (
-        "Mean CMS staffing star rating (1–5), resident-weighted where census or beds are "
-        "published. PBJ-verified facilities only."
+        "Average CMS staffing star rating (1–5) across PBJ-verified facilities. "
+        "Not census-weighted (only total nurse HPRD uses resident weighting)."
     )
 
     cards: list[str] = [
@@ -1287,7 +1289,7 @@ def _ccn_match_badge(method: str) -> str:
     if method == "fuzzy":
         return (
             '<button type="button" class="owner-match-badge owner-match-badge--warn owner-match-badge--tip" '
-            'title="Approximate name match only—verify on CMS before relying on link" '
+            'title="Approximate name match—verify legal name on Care Compare" '
             'aria-label="Approximate name match">~</button>'
         )
     return ""

@@ -66,7 +66,7 @@ def render_facility_sources_footer(
     if cc:
         line_parts.append(
             f'<span class="pbj-sources-item">'
-            f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">View on Care Compare</a>'
+            f'<a href="{html.escape(cc, quote=True)}" target="_blank" rel="noopener">Care Compare</a>'
             f'</span>'
         )
     line = '<span class="pbj-sources-label">Sources:</span> ' + ' <span class="pbj-sources-sep" aria-hidden="true">·</span> '.join(

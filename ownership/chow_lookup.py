@@ -5,6 +5,7 @@ Reads chow_index.json (built by scripts/build_chow_index.py). Cached in-process.
 """
 from __future__ import annotations
 
+import calendar
 import json
 from collections import Counter
 from functools import lru_cache
@@ -114,6 +115,33 @@ def format_chow_date_dashed(iso: str) -> str:
     if len(p) == 3:
         return f"{p[1]}-{p[2]}-{p[0]}"
     return iso
+
+
+def format_chow_date_compact(iso: str) -> str:
+    """Short list date MM/DD from ISO."""
+    if not iso or len(iso) < 10:
+        return iso or "—"
+    p = iso.split("-")
+    if len(p) == 3:
+        return f"{p[1]}/{p[2]}"
+    return iso
+
+
+def format_chow_date_short_label(iso: str) -> str:
+    """Compact list label e.g. Jun 01 from ISO."""
+    if not iso or len(iso) < 10:
+        return iso or "—"
+    p = iso.split("-")
+    if len(p) != 3:
+        return iso
+    try:
+        mo = int(p[1])
+        day = int(p[2])
+    except ValueError:
+        return iso
+    if not 1 <= mo <= 12:
+        return iso
+    return f"{calendar.month_abbr[mo]} {day:02d}"
 
 
 def chow_index_date_range_label() -> str:

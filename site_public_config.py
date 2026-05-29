@@ -150,8 +150,6 @@ FOOTER_TRUST_BLURB = (
 
 # Paths that must never appear in sitemap.xml (legacy, gated, or unfinished pages).
 SITEMAP_EXCLUDED_PATHS: frozenset[str] = frozenset({
-    '/owners',
-    '/owners/',
     '/owner',
     '/owner/',
     '/attorneys',

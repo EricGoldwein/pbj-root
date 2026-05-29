@@ -152,14 +152,23 @@
   if (!tbody) return;
 
   var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr'));
-  var mobileList = root.querySelector('.owner-mobile-card-list--facilities');
+  var mobileList =
+    document.getElementById('ownerFacilitiesMobileList') ||
+    root.querySelector('.owner-mobile-card-list--facilities');
   var mobileCards = mobileList
     ? Array.prototype.slice.call(mobileList.querySelectorAll('.owner-m-card--facility'))
     : [];
   var facilitiesSection = root.querySelector('.owner-facilities-section');
   var tableViewBtn = document.getElementById('ownerFacilitiesTableViewBtn');
   var filterInput = document.getElementById('ownerFacilitiesFilter');
+  var filterInputMobile = document.getElementById('ownerFacilitiesFilterMobile');
   var filterCount = document.getElementById('ownerFacilitiesFilterCount');
+  var filterCountMobile = document.getElementById('ownerFacilitiesFilterCountMobile');
+  var showMoreBtn = document.getElementById('ownerFacilitiesShowMore');
+  var mobilePreview = mobileList
+    ? parseInt(mobileList.getAttribute('data-preview') || '20', 10)
+    : 20;
+  var mobileExpanded = false;
   var sortKey = 'legal';
   var sortDir = 'asc';
   var colIndex = {
@@ -183,16 +192,39 @@
     });
   }
 
+  function activeFilterQuery() {
+    var qDesktop = filterInput ? String(filterInput.value || '').trim() : '';
+    var qMobile = filterInputMobile ? String(filterInputMobile.value || '').trim() : '';
+    return qDesktop || qMobile;
+  }
+
+  function syncFilterInputs(fromInput) {
+    var q = fromInput ? String(fromInput.value || '') : '';
+    if (filterInput && fromInput !== filterInput) filterInput.value = q;
+    if (filterInputMobile && fromInput !== filterInputMobile) filterInputMobile.value = q;
+  }
+
   function updateCounts() {
     var vis = visibleRows().length;
-    var q = filterInput ? String(filterInput.value || '').trim() : '';
-    if (filterCount) {
+    var q = activeFilterQuery();
+    var countText = q ? vis + ' shown' : '';
+    [filterCount, filterCountMobile].forEach(function (el) {
+      if (!el) return;
       if (q) {
-        filterCount.hidden = false;
-        filterCount.textContent = vis + ' shown';
+        el.hidden = false;
+        el.textContent = countText;
       } else {
-        filterCount.hidden = true;
-        filterCount.textContent = '';
+        el.hidden = true;
+        el.textContent = '';
+      }
+    });
+    if (showMoreBtn && mobileList && mobileCards.length > mobilePreview) {
+      if (q || mobileExpanded) {
+        showMoreBtn.hidden = true;
+      } else {
+        showMoreBtn.hidden = false;
+        showMoreBtn.textContent =
+          'Show all ' + (showMoreBtn.getAttribute('data-total') || mobileCards.length) + ' facilities';
       }
     }
   }
@@ -239,7 +271,7 @@
   }
 
   function applyFilter() {
-    var q = filterInput ? String(filterInput.value || '').trim().toLowerCase() : '';
+    var q = activeFilterQuery().toLowerCase();
     rows.forEach(function (tr) {
       if (!q) {
         tr.style.display = '';
@@ -248,13 +280,18 @@
       var blob = tr.getAttribute('data-search') || tr.textContent || '';
       tr.style.display = blob.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
     });
-    mobileCards.forEach(function (li) {
-      if (!q) {
-        li.style.display = '';
+    mobileCards.forEach(function (li, idx) {
+      var matches =
+        !q || (li.getAttribute('data-search') || li.textContent || '').toLowerCase().indexOf(q) >= 0;
+      if (!matches) {
+        li.style.display = 'none';
         return;
       }
-      var blob = li.getAttribute('data-search') || li.textContent || '';
-      li.style.display = blob.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
+      if (!mobileExpanded && !q && idx >= mobilePreview) {
+        li.style.display = 'none';
+        return;
+      }
+      li.style.display = '';
     });
     updateCounts();
   }
@@ -287,7 +324,23 @@
   });
 
   if (filterInput) {
-    filterInput.addEventListener('input', applyFilter);
+    filterInput.addEventListener('input', function () {
+      syncFilterInputs(filterInput);
+      applyFilter();
+    });
+  }
+  if (filterInputMobile) {
+    filterInputMobile.addEventListener('input', function () {
+      syncFilterInputs(filterInputMobile);
+      applyFilter();
+    });
+  }
+  if (showMoreBtn && mobileList) {
+    showMoreBtn.addEventListener('click', function () {
+      mobileExpanded = true;
+      mobileList.classList.remove('owner-mobile-card-list--collapsed');
+      applyFilter();
+    });
   }
 
   if (tableViewBtn && facilitiesSection) {
@@ -302,7 +355,46 @@
     });
   }
 
+  function initDistTabs() {
+    root.querySelectorAll('[data-owner-dist-tabs]').forEach(function (wrap) {
+      var tabs = wrap.querySelectorAll('[role="tab"]');
+      var panels = wrap.querySelectorAll('[role="tabpanel"]');
+      if (!tabs.length || tabs.length !== panels.length) return;
+
+      function activate(index) {
+        var heading = wrap.querySelector('[data-owner-dist-title]');
+        tabs.forEach(function (tab, i) {
+          var on = i === index;
+          tab.classList.toggle('is-active', on);
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          tab.tabIndex = on ? 0 : -1;
+          panels[i].hidden = !on;
+          panels[i].classList.toggle('is-active', on);
+          if (on && heading && tab.getAttribute('data-dist-title')) {
+            heading.textContent = tab.getAttribute('data-dist-title');
+          }
+        });
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener('click', function () {
+          activate(index);
+        });
+        tab.addEventListener('keydown', function (e) {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          e.preventDefault();
+          var next = e.key === 'ArrowRight' ? index + 1 : index - 1;
+          if (next < 0) next = tabs.length - 1;
+          if (next >= tabs.length) next = 0;
+          tabs[next].focus();
+          activate(next);
+        });
+      });
+    });
+  }
+
+  initDistTabs();
   applySort();
   updateSortHeaders();
-  updateCounts();
+  applyFilter();
 })();

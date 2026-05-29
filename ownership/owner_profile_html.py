@@ -19,6 +19,7 @@ from ownership.owner_fec_section import render_owner_fec_contributions_section
 from utils.seo_utils import owner_page_seo_from_profile
 from ownership.display_format import (
     cms_rating_stars_html,
+    cms_ratings_compact_html,
     cms_ratings_stack_html,
     format_cms_star_rating,
     format_org_display,
@@ -28,6 +29,8 @@ from ownership.display_format import (
 PREVIEW_CONTROL_PARTIES = 25
 PREVIEW_FACILITIES = 50
 FACILITIES_FILTER_MIN = 12
+FACILITIES_MOBILE_PREVIEW = 20
+FACILITIES_MOBILE_FILTER_MIN = 8
 
 _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     "sff": (
@@ -254,19 +257,54 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
     )
 
 
-def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
-    """Mobile / narrow: state and census under facility name (e.g. TN · 61 residents)."""
+def _facility_location_short(f: dict[str, Any]) -> str:
+    """Compact place label for table/mobile (e.g. Bronx, NY)."""
+    county = str(f.get("county") or "").strip()
     st = str(f.get("state") or "").strip().upper()[:2]
-    census = _fmt_census(f.get("census") if verified else None)
+    co = county
+    if co.lower().endswith(" county"):
+        co = co[: -len(" county")].strip()
+    if co and len(st) == 2:
+        return f"{co}, {st}"
+    if len(st) == 2:
+        return st
+    return co or "—"
+
+
+def _facility_location_tooltip(f: dict[str, Any]) -> str:
+    """Full location line for hover (city, county, state when known)."""
+    city = str(f.get("city") or "").strip()
+    county = str(f.get("county") or "").strip()
+    st = str(f.get("state") or "").strip().upper()[:2]
     parts: list[str] = []
+    if city:
+        parts.append(city)
+    if county:
+        parts.append(county if "county" in county.lower() else f"{county} County")
     if len(st) == 2:
         parts.append(st)
-    if census and census != "—":
-        parts.append(f"{census} residents")
-    if not parts:
+    return ", ".join(parts)
+
+
+def _facility_location_cell(f: dict[str, Any]) -> tuple[str, str]:
+    label = _facility_location_short(f)
+    tip = _facility_location_tooltip(f)
+    esc = html.escape(label)
+    if tip and tip != label:
+        return (
+            f'<span class="owner-facility-location" title="{html.escape(tip, quote=True)}">{esc}</span>',
+            _sort_attr(f"{f.get('county') or ''} {f.get('state') or ''}"),
+        )
+    return f'<span class="owner-facility-location">{esc}</span>', _sort_attr(label)
+
+
+def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
+    """Mobile / narrow: census under facility name when present."""
+    census = _fmt_census(f.get("census") if verified else None)
+    if not census or census == "—":
         return ""
     return (
-        f'<div class="owner-facility-meta-line">{html.escape(" · ".join(parts))}</div>'
+        f'<div class="owner-facility-meta-line">{html.escape(census)} residents</div>'
     )
 
 
@@ -275,8 +313,21 @@ def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
     return ""
 
 
-def _facility_mobile_own_line(f: dict[str, Any]) -> str:
-    """Compact ownership % for mobile facility cards."""
+def _format_own_pct_label(value: str) -> str:
+    """Prefix numeric CMS ownership stake with Own. for scanability."""
+    s = str(value or "").strip()
+    if not s or s == "—":
+        return s
+    low = s.lower()
+    if low.startswith("own"):
+        return s
+    if "%" in s or any(ch.isdigit() for ch in s):
+        return f"Own. {s}"
+    return s
+
+
+def _facility_mobile_own_chip(f: dict[str, Any]) -> str:
+    """Inline ownership % for compact mobile cards (tap for CMS role when available)."""
     role_raw = str(f.get("role") or "")
     role_text = format_role_text(role_raw) if role_raw else ""
     adate = _fmt_date_mdyy(f.get("association_date"))
@@ -284,39 +335,107 @@ def _facility_mobile_own_line(f: dict[str, Any]) -> str:
     pct = ""
     if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
         pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
-    pct_display = html.escape(pct) if pct else html.escape(_pct_fallback_label(role_raw) or "—")
-    label = pct_display if pct_display == "—" else f"Own. {pct_display}"
+    pct_label = _format_own_pct_label(pct) if pct else _pct_fallback_label(role_raw) or ""
+    pct_display = html.escape(pct_label)
+    if not pct_display:
+        return ""
+    label = pct_display
     if role_text or (adate and adate != "—"):
         modal_title = html.escape(pct or "Ownership", quote=True)
         return (
-            f'<button type="button" class="owner-m-card-own-pct owner-role-pct-btn" '
+            f'<button type="button" class="owner-m-card-chip owner-m-card-chip--own owner-role-pct-btn" '
             f'data-owner-info data-info-format="ownership" '
             f'data-info-title="{modal_title}" '
             f'data-role-text="{html.escape(role_text, quote=True)}" '
             f'data-role-since="{html.escape(adate if adate != "—" else "", quote=True)}" '
-            f'aria-label="Ownership details (tap for role and dates)">{label}</button>'
+            f'aria-label="Ownership {label} (tap for role)">{label}</button>'
         )
-    return f'<span class="owner-m-card-own-pct">{label}</span>'
+    return f'<span class="owner-m-card-chip owner-m-card-chip--own">{label}</span>'
+
+
+def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
+    """Title + optional legal subline (no location line — folded into stats)."""
+    legal_raw = format_org_display(str(f.get("facility_name") or "—"))
+    provider_raw = format_org_display(str(f.get("provider_name") or "").strip())
+    ccn = str(f.get("ccn") or "").strip().zfill(6)[-6:]
+    method = str(f.get("ccn_match_method") or "")
+    legal_esc = html.escape(legal_raw)
+    provider_esc = html.escape(provider_raw) if provider_raw else ""
+    same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
+    href = (
+        f"/provider/{html.escape(ccn)}"
+        if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
+        else ""
+    )
+    link_label = provider_esc or legal_esc
+    place = _facility_location_short(f)
+    display_label = link_label
+    if place and place != "—" and link_label and f"({place})" not in link_label:
+        display_label = f"{link_label} ({html.escape(place)})"
+    loc_tip = _facility_location_tooltip(f)
+    title_bits = []
+    if href and display_label:
+        title_bits.append(f"View staffing data for {display_label}")
+    if loc_tip:
+        title_bits.append(loc_tip)
+    title_attr = (
+        f' title="{html.escape(" — ".join(title_bits), quote=True)}"'
+        if title_bits
+        else ""
+    )
+    if href:
+        primary_html = (
+            f'<a href="{href}" class="owner-m-card__title"{title_attr}>{display_label}</a>'
+        )
+    else:
+        primary_html = f'<span class="owner-m-card__title">{display_label}</span>'
+    sub_html = ""
+    if provider_esc and not same:
+        sub_html = f'<span class="owner-m-card__sub">{legal_esc}</span>'
+    return primary_html + sub_html
+
+
+def _facility_mobile_stats_line(f: dict[str, Any], *, verified: bool) -> str:
+    """Single scannable metrics line: Own. 50% · 81 res · 3.16 HPRD · Ovr 4★ · Stf 1★."""
+    bits: list[str] = []
+    own = _facility_mobile_own_chip(f)
+    if own:
+        bits.append(own)
+    census = _fmt_census(f.get("census") if verified else None)
+    if census and census != "—":
+        bits.append(f'<span class="owner-m-card-chip">{html.escape(census)} res</span>')
+    hprd = _fmt_hprd(f.get("hprd") if verified else None)
+    if hprd and hprd != "—":
+        bits.append(f'<span class="owner-m-card-chip">{html.escape(hprd)} HPRD</span>')
+    ratings = cms_ratings_compact_html(
+        f.get("overall_rating"),
+        f.get("staffing_rating"),
+        verified=verified,
+    )
+    if ratings:
+        bits.append(ratings)
+    if not bits:
+        return ""
+    return '<div class="owner-m-card__stats">' + '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'.join(bits) + "</div>"
+
+
+def _facility_mobile_flags_inline(f: dict[str, Any], *, verified: bool) -> str:
+    flags = _facility_flags_cell(f, verified=verified, skip_star_flags=True)
+    if not flags:
+        return ""
+    return f'<div class="owner-m-card__flags-inline">{flags}</div>'
 
 
 def _facility_mobile_card(f: dict[str, Any]) -> str:
-    names_html, _ = _facility_names_cell(f)
-    names_html = names_html.replace('class="owner-facility-names"', 'class="owner-m-card__names"', 1)
-    meta = _facility_mobile_meta_line(f)
-    role_html = _facility_mobile_own_line(f)
     method = str(f.get("ccn_match_method") or "")
     verified = method == "legal_exact"
-    hprd = _fmt_hprd(f.get("hprd") if verified else None)
-    census = _fmt_census(f.get("census") if verified else None)
-    stars_html, _ = _cms_stars_cell(f, verified=verified)
-    flags = _facility_flags_cell(f, verified=verified, skip_star_flags=True)
-    hprd_html = ""
-    if hprd and hprd != "—":
-        hprd_html = (
-            f'<span class="owner-m-card__metric owner-m-card__metric--hprd">'
-            f"{html.escape(hprd)} HPRD</span>"
-        )
-    flags_html = f'<div class="owner-m-card__flags">{flags}</div>' if flags else ""
+    title_block = _facility_mobile_primary_block(f)
+    stats = _facility_mobile_stats_line(f, verified=verified)
+    flags = _facility_mobile_flags_inline(f, verified=verified)
+    metrics = ""
+    if stats or flags:
+        sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>' if stats and flags else ""
+        metrics = '<div class="owner-m-card__metrics">' + (stats or "") + sep + (flags or "") + "</div>"
     search = " ".join(
         [
             str(f.get("facility_name") or ""),
@@ -327,16 +446,9 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
         ]
     ).lower()
     return (
-        f'<li class="owner-m-card owner-m-card--facility" data-search="{html.escape(search)}">'
-        '<div class="owner-m-card__main">'
-        f"{names_html}{meta}"
-        "</div>"
-        '<div class="owner-m-card__aside">'
-        f'<div class="owner-m-card__role">{role_html}</div>'
-        f"{hprd_html}"
-        f'<div class="owner-m-card__ratings">{stars_html}</div>'
-        f"{flags_html}"
-        "</div></li>"
+        f'<li class="owner-m-card owner-m-card--facility owner-m-card--facility-compact" '
+        f'data-search="{html.escape(search)}">'
+        f'<div class="owner-m-card__body">{title_block}{metrics}</div></li>'
     )
 
 
@@ -344,9 +456,11 @@ def _enrollment_facility_mobile_card(f: dict[str, Any]) -> str:
     names_html, _ = _facility_names_cell(f)
     names_html = names_html.replace('class="owner-facility-names"', 'class="owner-m-card__names"', 1)
     enr = html.escape(f.get("enrollment_id") or "—")
-    st, co = _state_county_cells(f)
+    place = html.escape(_facility_location_short(f))
     city = html.escape(str(f.get("city") or "").strip() or "—")
-    meta = f'<span class="owner-m-card__meta">Enrollment {enr} · {st} · {co} · {city}</span>'
+    loc_bits = [b for b in (place, city) if b and b != "—"]
+    loc = " · ".join(loc_bits) if loc_bits else "—"
+    meta = f'<span class="owner-m-card__meta">Enrollment {enr} · {loc}</span>'
     return (
         '<li class="owner-m-card owner-m-card--facility">'
         '<div class="owner-m-card__main">'
@@ -355,38 +469,42 @@ def _enrollment_facility_mobile_card(f: dict[str, Any]) -> str:
     )
 
 
-def _ownership_tx_mobile_card(rec: dict[str, Any]) -> str:
-    from ownership.chow_lookup import format_chow_date_dashed
+def _ownership_timeline_item_html(rec: dict[str, Any]) -> str:
+    from ownership.chow_lookup import format_chow_date
 
-    eff = html.escape(format_chow_date_dashed(str(rec.get("effective_date") or "")) or "—")
+    eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")) or "—")
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
     fac_raw = format_org_display(
         str(rec.get("facility_display_name") or rec.get("buyer_dba_name") or "—")
     )
-    fac = html.escape(fac_raw)
+    fac_esc = html.escape(fac_raw)
     if ccn.isdigit():
-        fac_val = (
-            f'<a class="owner-m-card__facility" href="/provider/{html.escape(ccn)}">{fac}</a>'
+        fac_html = (
+            f'<a class="owner-timeline-facility" href="/provider/{html.escape(ccn)}">{fac_esc}</a>'
         )
     else:
-        fac_val = f'<span class="owner-m-card__facility">{fac}</span>'
-    buyer = html.escape(format_org_display(str(rec.get("buyer_org_name") or "—")))
+        fac_html = f'<span class="owner-timeline-facility">{fac_esc}</span>'
     seller = html.escape(format_org_display(str(rec.get("seller_org_name") or "—")))
-    role_raw = str(rec.get("chow_role") or "").strip()
-    role = html.escape(format_org_display(role_raw) if role_raw else "—")
-    rows = [
-        ("Effective", eff),
-        ("Facility", fac_val),
-        ("Buyer", buyer),
-        ("Seller", seller),
-        ("Role", role),
-    ]
-    dl = "".join(
-        f'<div class="owner-m-card__kv"><span class="owner-m-card__k">{html.escape(label)}</span>'
-        f'<span class="owner-m-card__v">{val}</span></div>'
-        for label, val in rows
+    buyer = html.escape(format_org_display(str(rec.get("buyer_org_name") or "—")))
+    side = _chow_transaction_side_label(str(rec.get("chow_role") or ""))
+    parties = f'<span class="owner-timeline-seller">{seller}</span> \u2192 <span class="owner-timeline-buyer">{buyer}</span>'
+    side_html = (
+        f'<span class="owner-timeline-side">{html.escape(side)}</span>'
+        if side
+        else ""
     )
-    return f'<li class="owner-m-card owner-m-card--tx">{dl}</li>'
+    return (
+        f'<li class="owner-timeline-item">'
+        f'<div class="owner-timeline-date">{eff}</div>'
+        f'<div class="owner-timeline-body">'
+        f'<div class="owner-timeline-facility-row">{fac_html}{side_html}</div>'
+        f'<div class="owner-timeline-parties">{parties}</div>'
+        "</div></li>"
+    )
+
+
+def _ownership_tx_mobile_card(rec: dict[str, Any]) -> str:
+    return _ownership_timeline_item_html(rec)
 
 
 def _associate_mobile_card(r: dict[str, Any], *, n_facilities: int) -> str:
@@ -654,6 +772,8 @@ def _owner_page_help_body(
     return (
         f"{kind_line}\n\n"
         f"{pac_line}\n\n"
+        "State index counts are state-specific; owner profile counts are nationwide unless "
+        "otherwise noted.\n\n"
         "Facility table: ownership %, CMS role, PBJ staffing (HPRD), star ratings, and flags "
         "where linked.\n\n"
         "Portfolio summary: PBJ-verified facilities only (enrollment legal name matches "
@@ -701,24 +821,26 @@ def _owner_profile_header_html(
     )
     header_actions = ""
     if pac_meta:
-        header_actions = f'<div class="owner-profile-header-actions">{pac_meta}</div>'
+        header_actions = (
+            f'<div class="owner-profile-header-aside">'
+            f'<div class="owner-profile-header-actions">{pac_meta}</div>'
+            "</div>"
+        )
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         <div class="owner-profile-header-top">
+          <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
+            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
+            <span class="owner-profile-brand-lockup">
+              <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
+              <span class="owner-profile-brand-suffix">Ownership</span>
+            </span>
+          </a>
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
             {meta_row}
           </div>
-          <div class="owner-profile-brand-row">
-            <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
-              <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
-              <span class="owner-profile-brand-lockup">
-                <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
-                <span class="owner-profile-brand-suffix">Ownership</span>
-              </span>
-            </a>
-            {header_actions}
-          </div>
+          {header_actions}
         </div>
       </header>"""
 
@@ -826,6 +948,190 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
     )
 
 
+def _chow_transaction_side_label(role_raw: str) -> str:
+    """Buyer/seller on CHOW filings; hide meaningless raw codes."""
+    r = str(role_raw or "").strip().lower()
+    if r == "buyer":
+        return "Buyer"
+    if r == "seller":
+        return "Seller"
+    if r in ("party", "1", ""):
+        return ""
+    if r.isdigit():
+        return ""
+    return format_org_display(str(role_raw))
+
+
+def _snapshot_metric_card(
+    label: str,
+    value: str,
+    help_title: str,
+    help_body: str,
+    *,
+    tone: str = "",
+    value_title: str = "",
+) -> str:
+    tone_cls = f" owner-snapshot-card--{tone}" if tone else ""
+    value_tip = html.escape(value_title, quote=True) if value_title else ""
+    value_attrs = (
+        f' title="{value_tip}" aria-label="{value_tip}"' if value_tip else ""
+    )
+    return (
+        f'<div class="owner-snapshot-card{tone_cls}">'
+        f'<div class="owner-snapshot-label">{html.escape(label)}</div>'
+        f'<div class="owner-snapshot-value-row">'
+        f'<div class="owner-snapshot-value"{value_attrs}>{value}</div>'
+        f"{_info_button(help_title, help_body)}"
+        "</div></div>"
+    )
+
+
+def _portfolio_distribution_list(
+    counts: dict[int, int],
+    *,
+    row_labels: list[str] | None = None,
+) -> str:
+    """Bar list only (no card wrapper) for 1–5 star buckets."""
+    total = sum(int(counts.get(i, 0) or 0) for i in range(1, 6))
+    if total < 1:
+        return ""
+    peak = max(int(counts.get(i, 0) or 0) for i in range(1, 6)) or 1
+    rows: list[str] = []
+    for star in range(5, 0, -1):
+        cnt = int(counts.get(star, 0) or 0)
+        pct = int(round(100.0 * cnt / total)) if total else 0
+        width = max(4, int(round(100.0 * cnt / peak))) if cnt else 0
+        label = (row_labels[star - 1] if row_labels and len(row_labels) >= star else f"{star}\u2605")
+        rows.append(
+            f'<li class="owner-dist-row">'
+            f'<span class="owner-dist-label">{html.escape(label)}</span>'
+            f'<span class="owner-dist-bar" role="presentation">'
+            f'<span class="owner-dist-bar-fill" style="width:{width}%"></span></span>'
+            f'<span class="owner-dist-count">{cnt} <span class="owner-dist-pct">({pct}%)</span></span>'
+            f"</li>"
+        )
+    if not rows:
+        return ""
+    return f'<ul class="owner-dist-list">{"".join(rows)}</ul>'
+
+
+def _portfolio_distribution_bars(
+    counts: dict[int, int],
+    *,
+    title: str,
+    row_labels: list[str] | None = None,
+) -> str:
+    """Single distribution card (no tabs)."""
+    list_html = _portfolio_distribution_list(counts, row_labels=row_labels)
+    if not list_html:
+        return ""
+    return (
+        f'<section class="owner-dist-card" aria-label="{html.escape(title)}">'
+        f'<div class="owner-dist-card-head">'
+        f'<h3 class="owner-dist-title">{html.escape(title)}</h3>'
+        "</div>"
+        f"{list_html}"
+        "</section>"
+    )
+
+
+def _portfolio_state_distribution(by_state: list[tuple[str, int]], n_total: int) -> str:
+    if not by_state or n_total < 1:
+        return ""
+    peak = max(c for _, c in by_state) or 1
+    rows: list[str] = []
+    for st, cnt in by_state[:12]:
+        pct = int(round(100.0 * cnt / n_total)) if n_total else 0
+        width = max(4, int(round(100.0 * cnt / peak))) if cnt else 0
+        rows.append(
+            f'<li class="owner-dist-row">'
+            f'<span class="owner-dist-label">{html.escape(st)}</span>'
+            f'<span class="owner-dist-bar" role="presentation">'
+            f'<span class="owner-dist-bar-fill owner-dist-bar-fill--state" style="width:{width}%"></span></span>'
+            f'<span class="owner-dist-count">{cnt} <span class="owner-dist-pct">({pct}%)</span></span>'
+            f"</li>"
+        )
+    return (
+        '<section class="owner-dist-card" aria-label="Facilities by state">'
+        '<div class="owner-dist-card-head">'
+        '<h3 class="owner-dist-title">Facilities by state</h3>'
+        "</div>"
+        f'<ul class="owner-dist-list">{"".join(rows)}</ul>'
+        "</section>"
+    )
+
+
+def _portfolio_distribution_tabs(
+    overall_list: str,
+    staffing_list: str,
+    *,
+    overall_title: str,
+    staffing_title: str,
+) -> str:
+    """Overall / staffing in one card; tabs sit in the card header beside the title."""
+    o_title = html.escape(overall_title)
+    s_title = html.escape(staffing_title)
+    return (
+        '<section class="owner-dist-card owner-dist-card--tabbed" data-owner-dist-tabs '
+        'aria-label="CMS rating distributions">'
+        '<div class="owner-dist-card-head">'
+        f'<h3 class="owner-dist-title" data-owner-dist-title>{o_title}</h3>'
+        '<div class="owner-dist-tablist" role="tablist" aria-label="Rating type">'
+        f'<button type="button" class="owner-dist-tab is-active" role="tab" id="ownerDistTabOverall" '
+        f'data-dist-title="{o_title}" aria-selected="true" aria-controls="ownerDistPanelOverall" '
+        'tabindex="0">Overall</button>'
+        f'<button type="button" class="owner-dist-tab" role="tab" id="ownerDistTabStaffing" '
+        f'data-dist-title="{s_title}" aria-selected="false" aria-controls="ownerDistPanelStaffing" '
+        'tabindex="-1">Staffing</button>'
+        "</div></div>"
+        f'<div class="owner-dist-tabpanel is-active" role="tabpanel" id="ownerDistPanelOverall" '
+        f'aria-labelledby="ownerDistTabOverall">{overall_list}</div>'
+        f'<div class="owner-dist-tabpanel" role="tabpanel" id="ownerDistPanelStaffing" '
+        f'aria-labelledby="ownerDistTabStaffing" hidden>{staffing_list}</div>'
+        "</section>"
+    )
+
+
+def _portfolio_distribution_html(ps: dict[str, Any]) -> str:
+    from ownership.owner_portfolio_metrics import PORTFOLIO_STAR_DIST_MIN
+
+    overall_title = "Overall CMS star rating"
+    staffing_title = "Staffing CMS star rating"
+    overall_list = ""
+    staffing_list = ""
+    n_ovr = int(ps.get("n_with_overall_for_dist") or 0)
+    if n_ovr >= PORTFOLIO_STAR_DIST_MIN:
+        overall_list = _portfolio_distribution_list(ps.get("overall_star_counts") or {})
+    n_stf = int(ps.get("n_with_staffing_for_dist") or 0)
+    if n_stf >= PORTFOLIO_STAR_DIST_MIN:
+        staffing_list = _portfolio_distribution_list(ps.get("staffing_star_counts") or {})
+    if overall_list and staffing_list:
+        return _portfolio_distribution_tabs(
+            overall_list,
+            staffing_list,
+            overall_title=overall_title,
+            staffing_title=staffing_title,
+        )
+    if overall_list:
+        return _portfolio_distribution_bars(
+            ps.get("overall_star_counts") or {},
+            title=overall_title,
+        )
+    if staffing_list:
+        return _portfolio_distribution_bars(
+            ps.get("staffing_star_counts") or {},
+            title=staffing_title,
+        )
+    return _portfolio_state_distribution(
+        list(ps.get("by_state") or []),
+        int(ps.get("n_facilities") or 0),
+    )
+
+
+def _portfolio_facilities_cta_html(profile: dict[str, Any]) -> str:
+    return ""
+
+
 def _owner_info_modal_html() -> str:
     return """
       <dialog class="owner-info-modal" id="ownerInfoModal" aria-labelledby="ownerInfoModalTitle">
@@ -843,29 +1149,13 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     if not ps or not ps.get("n_facilities"):
         return ""
 
-    n = ps.get("n_facilities") or 0
-    n_matched = ps.get("n_pbj_matched") or 0
+    n = int(ps.get("n_facilities") or 0)
+    n_matched = int(ps.get("n_pbj_matched") or 0)
+    n_suggested = int(ps.get("n_pbj_suggested") or 0)
     wmean = ps.get("wmean_hprd")
     umean = ps.get("umean_hprd")
     mean_ovr = ps.get("mean_overall_rating")
-    n_suggested = ps.get("n_pbj_suggested") or 0
-
-    hprd_val = "—"
-    if wmean is not None:
-        hprd_val = f"{wmean:.2f}"
-    elif umean is not None:
-        hprd_val = f"{umean:.2f}"
-
-    ovr_val = "—"
-    if mean_ovr is not None:
-        ovr_val = f"{mean_ovr:.1f}"
-
-    fac_help = (
-        f"{n} facilities in CMS SNF All Owners for this party. "
-        f"{n_matched} have a verified PBJ link (enrollment legal name = provider-info legal name)."
-    )
-    if n_suggested:
-        fac_help += f" {n_suggested} use a tentative name match."
+    mean_stf = ps.get("mean_staffing_rating")
 
     from ownership.owner_portfolio_metrics import (
         PORTFOLIO_HPRD_MAX,
@@ -873,6 +1163,13 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         PORTFOLIO_OVERALL_RATING_MAX,
         PORTFOLIO_OVERALL_RATING_MIN,
     )
+
+    fac_help = (
+        f"{n} facilities in CMS SNF All Owners for this party. "
+        f"{n_matched} have a verified PBJ link (enrollment legal name = provider-info legal name)."
+    )
+    if n_suggested:
+        fac_help += f" {n_suggested} use a tentative name match."
 
     ovr_help = (
         f"Mean CMS overall star rating ({PORTFOLIO_OVERALL_RATING_MIN:g}–"
@@ -884,41 +1181,73 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         f"Values below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded "
         "(CMS PBJ quarterly plausible range)."
     )
-    qc_bits: list[str] = []
-    if ps.get("n_hprd_outlier_excluded"):
-        qc_bits.append(f"{ps['n_hprd_outlier_excluded']} HPRD outlier(s) excluded")
-    if ps.get("n_missing_overall_rating"):
-        qc_bits.append(f"{ps['n_missing_overall_rating']} missing overall rating")
-    if ps.get("n_rating_outlier_excluded"):
-        qc_bits.append(f"{ps['n_rating_outlier_excluded']} rating outlier(s) excluded")
-    if qc_bits:
-        hprd_help += " " + "; ".join(qc_bits) + "."
+    stf_help = (
+        "Mean CMS staffing star rating (1–5), resident-weighted where census or beds are "
+        "published. PBJ-verified facilities only."
+    )
+
+    cards: list[str] = [
+        _snapshot_metric_card(
+            "Facilities",
+            str(n),
+            "Facilities",
+            fac_help,
+            tone="accent",
+            value_title="Distinct CMS-linked facilities nationwide",
+        ),
+    ]
+    if mean_ovr is not None:
+        cards.append(
+            _snapshot_metric_card(
+                "Avg overall rating",
+                html.escape(f"{mean_ovr:.1f}"),
+                "Avg overall rating",
+                ovr_help,
+                tone="warn",
+            )
+        )
+    if wmean is not None:
+        cards.append(
+            _snapshot_metric_card(
+                "Weighted total nurse HPRD",
+                html.escape(f"{wmean:.2f}"),
+                "Weighted total nurse HPRD",
+                hprd_help,
+            )
+        )
+    elif umean is not None:
+        cards.append(
+            _snapshot_metric_card(
+                "Avg total nurse HPRD",
+                html.escape(f"{umean:.2f}"),
+                "Avg total nurse HPRD",
+                hprd_help.replace("resident-weighted", "unweighted mean"),
+            )
+        )
+    if mean_stf is not None:
+        cards.append(
+            _snapshot_metric_card(
+                "Avg staffing rating",
+                html.escape(f"{mean_stf:.1f}"),
+                "Avg staffing rating",
+                stf_help,
+            )
+        )
+
+    grid_cols = "owner-portfolio-grid--4" if len(cards) >= 4 else "owner-portfolio-grid--3"
+    if len(cards) == 2:
+        grid_cols = "owner-portfolio-grid--2"
+
+    dist_html = _portfolio_distribution_html(ps)
+    cta_html = _portfolio_facilities_cta_html(profile)
 
     return f"""
-      <section class="owner-snapshot-section" aria-label="Portfolio summary">
-        <div class="owner-portfolio-grid owner-portfolio-grid--3" aria-label="Portfolio summary metrics">
-          <div class="owner-snapshot-card owner-snapshot-card--accent">
-            <div class="owner-snapshot-label">Facilities</div>
-            <div class="owner-snapshot-value-row">
-              <div class="owner-snapshot-value">{n}</div>
-              {_info_button("Facilities", fac_help)}
-            </div>
-          </div>
-          <div class="owner-snapshot-card owner-snapshot-card--warn">
-            <div class="owner-snapshot-label">Overall rating</div>
-            <div class="owner-snapshot-value-row">
-              <div class="owner-snapshot-value">{html.escape(str(ovr_val))}</div>
-              {_info_button("Overall rating", ovr_help)}
-            </div>
-          </div>
-          <div class="owner-snapshot-card">
-            <div class="owner-snapshot-label" title="Resident-weighted mean from PBJ (verified facilities)">Portfolio HPRD</div>
-            <div class="owner-snapshot-value-row">
-              <div class="owner-snapshot-value">{html.escape(str(hprd_val))}</div>
-              {_info_button("Staffing (HPRD)", hprd_help)}
-            </div>
-          </div>
+      <section class="owner-snapshot-section" aria-label="Portfolio metrics">
+        <div class="owner-portfolio-grid {grid_cols}" aria-label="Portfolio summary metrics">
+          {"".join(cards)}
         </div>
+        {dist_html}
+        {cta_html}
       </section>"""
 
 
@@ -1124,7 +1453,10 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
         pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
 
-    pct_display = html.escape(pct) if pct else html.escape(_pct_fallback_label(role_raw) or "—")
+    if pct:
+        pct_display = html.escape(_format_own_pct_label(pct))
+    else:
+        pct_display = html.escape(_pct_fallback_label(role_raw) or "—")
     has_detail = bool(role_text) or (adate and adate != "—")
     kind_hint = _role_kind_hint(role_text)
     since_html = _role_since_html(f.get("association_date"))
@@ -1152,14 +1484,15 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
 def _facilities_enrollment_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     rows = []
     for f in fac_list:
-        st, co = _state_county_cells(f)
+        loc_html, loc_sort = _facility_location_cell(f)
         city = html.escape(str(f.get("city") or "").strip() or "")
         city_cell = city or "—"
         names_html, _ = _facility_names_cell(f)
         rows.append(
             f"<tr><td>{names_html}</td>"
             f"<td>{html.escape(f.get('enrollment_id') or '—')}</td>"
-            f"<td>{st}</td><td>{co}</td><td>{city_cell}</td></tr>"
+            f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
+            f"<td>{city_cell}</td></tr>"
         )
     return rows
 
@@ -1167,7 +1500,7 @@ def _facilities_enrollment_rows(fac_list: list[dict[str, Any]]) -> list[str]:
 def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     rows = []
     for f in fac_list:
-        st, co = _state_county_cells(f)
+        loc_html, loc_sort = _facility_location_cell(f)
         method = str(f.get("ccn_match_method") or "")
         verified = method == "legal_exact"
         hprd = html.escape(_fmt_hprd(f.get("hprd") if verified else None))
@@ -1188,8 +1521,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
         rows.append(
             f'<tr data-search="{html.escape(search)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
-            f'<td class="owner-col-state" data-label="State" data-sort="{_sort_attr(f.get("state"))}">{st}</td>'  # hidden on mobile; state in facility name
-            f'<td class="owner-col-county" data-label="County" data-sort="{_sort_attr(f.get("county"))}">{co}</td>'
+            f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
             f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
             f'<td class="num owner-col-hprd" data-label="HPRD" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
             f'<td class="num owner-col-ratings" data-label="Ratings" data-sort="{html.escape(stars_sort)}">{stars_html}</td>'
@@ -1211,8 +1543,7 @@ def _owner_facilities_table_html(
         )
     thead = (
         '<th data-sort="legal" class="sortable owner-col-facility">Facility <span class="sort-icon"></span></th>'
-        '<th data-sort="state" class="sortable owner-col-state">State <span class="sort-icon"></span></th>'
-        '<th data-sort="county" class="sortable owner-col-county">County <span class="sort-icon"></span></th>'
+        '<th data-sort="county" class="sortable owner-col-location">Location <span class="sort-icon"></span></th>'
         '<th data-sort="role" class="sortable num owner-col-role" title="Percent ownership">'
         '% Own. <span class="sort-icon"></span></th>'
         '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Facility-reported PBJ total nurse HPRD">HPRD <span class="sort-icon"></span></th>'
@@ -1222,6 +1553,7 @@ def _owner_facilities_table_html(
         '<th class="owner-col-flags">Flags</th>'
     )
     filter_html = ""
+    mobile_toolbar = ""
     if n >= FACILITIES_FILTER_MIN:
         filter_html = (
             '<div class="owner-facilities-header-actions">'
@@ -1233,6 +1565,24 @@ def _owner_facilities_table_html(
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCount" hidden></span>'
             "</div>"
         )
+    if n >= FACILITIES_MOBILE_FILTER_MIN:
+        mobile_toolbar = (
+            '<div class="owner-facilities-mobile-toolbar owner-table-only-mobile">'
+            f'<input type="search" id="ownerFacilitiesFilterMobile" class="owner-table-filter-input" '
+            f'placeholder="Filter {n} facilities…" autocomplete="off" '
+            f'aria-label="Filter facilities">'
+            '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCountMobile" hidden></span>'
+            "</div>"
+        )
+    show_more_btn = ""
+    list_extra_class = ""
+    if n > FACILITIES_MOBILE_PREVIEW:
+        list_extra_class = " owner-mobile-card-list--collapsed"
+        show_more_btn = (
+            f'<button type="button" class="owner-facilities-show-more owner-table-only-mobile" '
+            f'id="ownerFacilitiesShowMore" data-total="{n}" data-preview="{FACILITIES_MOBILE_PREVIEW}">'
+            f"Show all {n} facilities</button>"
+        )
     title = _facilities_portfolio_title(profile)
     heading = (
         f'<div class="owner-facilities-header">'
@@ -1241,6 +1591,13 @@ def _owner_facilities_table_html(
     )
     owner_rows = _facilities_owner_rows(fac_list)
     mobile_cards = [_facility_mobile_card(f) for f in fac_list]
+    mobile_list = (
+        f'<ul class="owner-mobile-card-list owner-mobile-card-list--facilities{list_extra_class}" '
+        f'role="list" id="ownerFacilitiesMobileList" data-preview="{FACILITIES_MOBILE_PREVIEW}">'
+        + "".join(mobile_cards)
+        + "</ul>"
+        + show_more_btn
+    )
     desktop = (
         '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll">'
         '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
@@ -1250,10 +1607,11 @@ def _owner_facilities_table_html(
     )
     dual = _owner_table_dual(
         desktop_html=desktop,
-        mobile_html=_owner_mobile_card_list(mobile_cards, "owner-mobile-card-list--facilities"),
+        mobile_html=mobile_toolbar + mobile_list,
     )
     return (
-        '<section class="owner-facilities-section">'
+        '<section class="owner-facilities-section" id="ownerFacilitiesPortfolio" '
+        'aria-label="Facilities in this portfolio">'
         + heading
         + dual
         + _facilities_match_note(profile)
@@ -1407,8 +1765,7 @@ def _facilities_sections_html(
             )
         else:
             thead_en = (
-                "<th>Facility</th><th>Enrollment ID</th><th>State</th>"
-                "<th>County</th><th>City</th>"
+                "<th>Facility</th><th>Enrollment ID</th><th>Location</th><th>City</th>"
             )
             html_out = _table_with_preview(
                 "Linked facilities",
@@ -1446,7 +1803,7 @@ def _owner_dual_section_html(profile: dict[str, Any], kind: str) -> str:
             f'<strong>{ps["n_facilities"]}</strong> other enrollment(s).</p>'
         )
     thead = (
-        "<th>Facility</th><th>State</th><th>County</th><th>%</th>"
+        "<th>Facility</th><th>Location</th><th>%</th>"
         "<th>HPRD</th><th>Ratings</th><th>Census</th><th>Flags</th>"
     )
     block = _table_with_preview(
@@ -1462,7 +1819,7 @@ def _owner_dual_section_html(profile: dict[str, Any], kind: str) -> str:
 
 
 def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only: bool) -> str:
-    from ownership.chow_lookup import format_chow_date_dashed
+    from ownership.chow_lookup import format_chow_date
 
     chow_rows = _dedupe_chow_transactions(profile.get("chow_transactions") or [])
     if not chow_rows:
@@ -1471,7 +1828,7 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
     tx_rows = []
     tx_mobile: list[str] = []
     for rec in chow_rows[:25]:
-        eff = html.escape(format_chow_date_dashed(str(rec.get("effective_date") or "")) or "—")
+        eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")) or "—")
         ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
         fac_raw = format_org_display(
             str(rec.get("facility_display_name") or rec.get("buyer_dba_name") or "—")
@@ -1486,33 +1843,41 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
             fac_cell = f'<span class="owner-tx-facility">{fac_esc}</span>'
         buyer = html.escape(format_org_display(str(rec.get("buyer_org_name") or "—")))
         seller = html.escape(format_org_display(str(rec.get("seller_org_name") or "—")))
-        role_raw = str(rec.get("chow_role") or "").strip()
-        role = html.escape(format_org_display(role_raw) if role_raw else "—")
+        side = _chow_transaction_side_label(str(rec.get("chow_role") or ""))
+        side_cell = html.escape(side) if side else "—"
         tx_rows.append(
             f"<tr><td>{eff}</td><td>{fac_cell}</td><td>{buyer}</td>"
-            f"<td>{seller}</td><td>{role}</td></tr>"
+            f"<td>{seller}</td><td>{side_cell}</td></tr>"
         )
-        tx_mobile.append(_ownership_tx_mobile_card(rec))
+        tx_mobile.append(_ownership_timeline_item_html(rec))
 
     desktop = (
         '<div class="chow-table-scroll chow-table-scroll--touch owner-tx-scroll" '
         'style="max-height:360px;">'
         '<table class="chow-table chow-tx-table owner-tx-table">'
         "<thead><tr>"
-        "<th>Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Role</th>"
+        "<th>Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Side</th>"
         "</tr></thead><tbody>"
         + "".join(tx_rows)
         + "</tbody></table></div>"
     )
+    mobile_list = (
+        '<ol class="owner-timeline-list owner-mobile-card-list--tx">'
+        + "".join(tx_mobile)
+        + "</ol>"
+    )
     inner = _owner_table_dual(
         desktop_html=desktop,
-        mobile_html=_owner_mobile_card_list(tx_mobile, "owner-mobile-card-list--tx"),
+        mobile_html=mobile_list,
     )
     n = len(chow_rows)
-    count_line = f'<p class="owner-tx-count">{n} CMS record{"s" if n != 1 else ""}</p>'
+    count_line = (
+        f'<p class="owner-tx-count">{n} CMS ownership change record{"s" if n != 1 else ""} '
+        f"(showing {min(n, 25)})</p>"
+    )
     return (
-        '<section class="owner-tx-section" aria-label="Ownership changes">'
-        '<h2 class="section-header">Ownership changes</h2>'
+        '<section class="owner-tx-section" aria-label="Ownership history">'
+        '<h2 class="section-header">Ownership history</h2>'
         f"{count_line}"
         f"{inner}"
         "</section>"

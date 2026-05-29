@@ -1,0 +1,68 @@
+{
+  "schema_version": 2,
+  "bundle_schema_version": 1,
+  "description": "Staffing compliance thresholds and metric definitions for facility-quarter summaries. Extend state_thresholds for new states; wire MACPAC later without changing summary column names.",
+  "metric_definitions": {
+    "total_rn_hours": {
+      "pbj_columns": ["Hrs_RNDON", "Hrs_RNadmin", "Hrs_RN"],
+      "description": "Total reported RN hours (RN + RN administrator + DON), matching PBJ320 rn_total_8h."
+    },
+    "total_nurse_hprd": {
+      "pbj_columns": [
+        "Hrs_RNDON",
+        "Hrs_RNadmin",
+        "Hrs_RN",
+        "Hrs_LPNadmin",
+        "Hrs_LPN",
+        "Hrs_CNA",
+        "Hrs_NAtrn",
+        "Hrs_MedAide"
+      ],
+      "daily_formula": "sum(pbj_columns) / MDScensus",
+      "description": "PBJ320 Total_Nurse_HPRD (all reported nursing roles incl. admin/DON)."
+    }
+  },
+  "global_day_rules": [
+    {
+      "id": "rn_0_days",
+      "metric": "total_rn_hours",
+      "comparator": "==",
+      "threshold": 0,
+      "summary_count_col": "rn_0_days_count",
+      "summary_pct_col": "rn_0_days_pct"
+    },
+    {
+      "id": "rn_below_8hr_days",
+      "metric": "total_rn_hours",
+      "comparator": "<",
+      "threshold": 8,
+      "summary_count_col": "rn_below_8hr_days_count",
+      "summary_pct_col": "rn_below_8hr_days_pct"
+    }
+  ],
+  "state_thresholds": [
+    {
+      "state": "NY",
+      "metric": "total_nurse_hprd",
+      "threshold": 3.56,
+      "comparator": "<",
+      "label": "Days below NY 3.56 HPRD threshold",
+      "enabled": true,
+      "summary_count_col": "below_state_min_days_count",
+      "summary_pct_col": "below_state_min_days_pct",
+      "notes": "NY PHL aggregate nursing HPRD minimum; MACPAC compendium lists 3.56 HPRD for New York."
+    },
+    {
+      "state": "CT",
+      "metric": "total_nurse_hprd",
+      "threshold": 3.06,
+      "comparator": "<",
+      "label": "Days below CT 3.06 total nursing HPRD",
+      "enabled": true,
+      "summary_count_col": "below_state_min_days_count",
+      "summary_pct_col": "below_state_min_days_pct",
+      "notes": "MACPAC state compendium: 3.06 HPRD total estimated staffing. CT Public Act (eff. Oct 2021, Sec. 10) directed DPH to set nursing home minimums often summarized as ~3.0 direct-care hours per resident per day. PBJ320 applies the 3.06 benchmark to total reported nursing HPRD (all PBJ nursing roles incl. admin/DON), not Nurse_Care_HPRD alone."
+    }
+  ],
+  "thresholds": []
+}

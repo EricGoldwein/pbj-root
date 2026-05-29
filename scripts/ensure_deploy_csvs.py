@@ -214,6 +214,18 @@ def main() -> int:
         subprocess.call([sys.executable, backfill_script], cwd=APP_ROOT)
     _check_provider_combined()
     _ensure_state_quarterly_median_columns()
+    scb_script = os.path.join(APP_ROOT, 'scripts', 'ensure_staffing_compliance_bundle.py')
+    if os.path.isfile(scb_script):
+        import subprocess
+
+        rc_scb = subprocess.call([sys.executable, scb_script], cwd=APP_ROOT)
+        if rc_scb != 0:
+            _log(f'ensure_deploy_csvs: WARN ensure_staffing_compliance_bundle exited {rc_scb}')
+        idx_script = os.path.join(APP_ROOT, 'scripts', 'build_staffing_compliance_runtime_index.py')
+        if os.path.isfile(idx_script) and rc_scb == 0:
+            rc_idx = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
+            if rc_idx != 0:
+                _log(f'ensure_deploy_csvs: WARN build_staffing_compliance_runtime_index exited {rc_idx}')
     if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
         _log('ensure_deploy_csvs: building provider lookup indexes...')
         import subprocess

@@ -236,7 +236,7 @@ except ImportError:
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
-# CMS ownership hub at /owners/ — off until launch; /owners/<10-digit PAC> CT+NY profiles stay public.
+# Legacy CT-only hub search at /owners/ when True; public index lists NY+CT at /owners/, /owners/ny, /owners/ct.
 _OWNERS_CMS_HUB_PUBLIC = False
 # Local (non-Render): always rebuild provider HTML so case-mix / chart edits show on refresh.
 if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
@@ -1729,9 +1729,6 @@ def owner_fec_contributions_js():
 
 @app.route('/owners-hub.js')
 def owners_hub_js():
-    if not _OWNERS_CMS_HUB_PUBLIC:
-        from flask import abort
-        abort(404)
     return _static_cache_headers(
         send_from_directory(
             os.path.join(APP_ROOT, 'ownership'),
@@ -5564,103 +5561,197 @@ def fec_owner_proxy(path):
 app.register_blueprint(fec_owner_bp)
 
 
-def _owners_cms_landing_html():
-    """Hub for CMS ownership profiles (/owners/<10-digit PAC>). Connecticut is public."""
-    from ownership.display_format import format_org_display
-    from ownership.owner_profile import top_owner_organizations_for_state
+def _owners_hub_index_json_ld() -> str:
+    base = _public_site_origin()
+    page_url = f'{base}/owners'
+    return _explainer_page_json_ld_scripts(
+        page_title='Nursing Home Ownership Indexes | PBJ320',
+        page_url=page_url,
+        description=(
+            'Browse reported CMS nursing home ownership entities in New York and Connecticut '
+            'with PBJ320 staffing context.'
+        ),
+        breadcrumb_name='Ownership',
+    )
 
+
+def _owners_cms_index_html():
+    """Public ownership index — links to NY/CT state browse pages (not a national database)."""
     layout = get_pbj_site_layout(
-        'Connecticut Nursing Home Ownership Profiles | PBJ320',
-        'Search Connecticut CMS nursing home ownership profiles by organization name or 10-digit PAC. '
-        'Enrollment and owner/control data from CMS SNF All Owners on PBJ320.',
+        'Nursing Home Ownership Indexes | PBJ320',
+        'Browse reported CMS nursing home ownership entities in New York and Connecticut with PBJ320 '
+        'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
         _public_site_origin() + '/owners',
         extra_head=(
-            f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+            _owners_hub_index_json_ld()
+            + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
     )
-    top_rows = ''
-    for row in top_owner_organizations_for_state('CT', limit=8):
-        name = html.escape(format_org_display(str(row.get('name') or '—')))
-        pac = html.escape(str(row.get('associate_id') or ''))
-        url = html.escape(str(row.get('profile_url') or f'/owners/{pac}'))
-        cnt = int(row.get('facility_count') or 0)
-        top_rows += (
-            f'<li><a href="{url}">{name}</a>'
-            f'<span class="owners-hub-top-meta">{cnt} linked facilit{"y" if cnt == 1 else "ies"} · PAC {pac}</span></li>'
-        )
-    top_section = ''
-    if top_rows:
-        top_section = (
-            '<h2 class="owners-hub-h2">Browse Connecticut profiles</h2>'
-            f'<ul class="owners-hub-top-list">{top_rows}</ul>'
-        )
-    hub_js_v = _static_asset_version('owners-hub.js')
-    body = f'''
-    <div class="owners-hub">
-      <h1>Connecticut nursing home ownership</h1>
+    body = '''
+    <div class="owners-hub owners-hub-index">
+      <h1>Nursing home ownership indexes</h1>
       <p class="owners-hub-lead">
-        CMS <abbr title="Skilled Nursing Facility">SNF</abbr> All Owners enrollment and owner/control profiles for
-        Connecticut facilities. Search by organization name or 10-digit CMS associate ID (PAC).
-        Additional states are not published on this path yet.
+        PBJ320 links CMS SNF All Owners filings to Payroll-Based Journal (PBJ) staffing patterns at the
+        owner and facility level. These indexes help you find reported ownership-linked entities — not
+        ultimate beneficial ownership.
       </p>
-      <div class="owners-hub-search" role="search" aria-label="Search Connecticut ownership profiles">
-        <label class="owners-hub-search-label" for="ownersHubSearchInput">Search Connecticut ownership</label>
-        <input type="search" id="ownersHubSearchInput" class="owners-hub-search-input"
-          placeholder="Organization name or 10-digit PAC" autocomplete="off" spellcheck="false"
-          aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
-        <ul id="ownersHubSearchResults" class="owners-hub-search-results" role="listbox" hidden></ul>
-      </div>
-      {top_section}
+      <p class="owners-state-unlock-note">
+        <strong>Available now:</strong> state ownership indexes for
+        <a href="/owners/ny">New York</a> and <a href="/owners/ct">Connecticut</a>.
+      </p>
+      <ul class="owners-hub-state-cards">
+        <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+      </ul>
       <p class="owners-hub-aside">
-        <a href="/owner">Political contributions (FEC)</a> is a separate tool for campaign finance linked to operators.
-        You can also open a profile from a <a href="/state/connecticut">Connecticut facility page</a> or
-        <a href="/">facility search</a> when ownership is listed there.
+        Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
+        <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
+        <a href="/owner">Political contributions (FEC)</a> is a separate tool.
       </p>
     </div>
-    <script src="/owners-hub.js?v={hub_js_v}" defer></script>
     '''
+    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+
+
+def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_description: str, canonical_path: str) -> str:
+    from ownership.state_owner_index import STATE_INDEX_META
+
+    st = (state_code or '').strip().upper()[:2]
+    meta = STATE_INDEX_META.get(st) or {}
+    state_name = meta.get('name') or st
+    base = _public_site_origin()
+    page_url = f'{base}{canonical_path}'
+    web_page = {
+        '@context': 'https://schema.org',
+        '@type': 'CollectionPage',
+        '@id': page_url,
+        'name': (page_title or '')[:240],
+        'url': page_url,
+        'description': (meta_description or '')[:500],
+        'isPartOf': {'@type': 'WebSite', 'name': 'PBJ320', 'url': f'{base}/'},
+        'about': {
+            '@type': 'AdministrativeArea',
+            'name': state_name,
+        },
+    }
+    crumbs = [
+        ('Home', f'{base}/'),
+        ('Ownership', f'{base}/owners'),
+        (meta.get('h1') or state_name, page_url),
+    ]
+    return '\n'.join([_json_ld_script(web_page), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
+
+
+def _owners_state_index_html(state_code: str):
+    from ownership.state_owner_index_html import render_state_owner_index_body
+
+    body, layout_meta = render_state_owner_index_body(state_code, get_canonical_slug=get_canonical_slug)
+    canon = _public_site_origin() + layout_meta['canonical_path']
+    extra = (
+        _owners_state_index_json_ld(
+            state_code,
+            page_title=layout_meta['page_title'],
+            meta_description=layout_meta['meta_description'],
+            canonical_path=layout_meta['canonical_path'],
+        )
+        + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+    )
+    layout = get_pbj_site_layout(layout_meta['page_title'], layout_meta['meta_description'], canon, extra_head=extra)
+    hub_js_v = _static_asset_version('owners-hub.js')
+    script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
+    return (
+        layout['head']
+        + layout['nav']
+        + layout['content_open']
+        + body
+        + script
+        + layout['content_close']
+        + '</body></html>'
+    )
+
+
+def _owners_state_locked_html(state_name: str = ''):
+    from ownership.state_owner_index_html import render_state_owner_index_locked_body
+
+    body = render_state_owner_index_locked_body(state_name)
+    layout = get_pbj_site_layout(
+        'Ownership index not available | PBJ320',
+        'Ownership index pages are currently available for New York and Connecticut on PBJ320.',
+        _public_site_origin() + '/owners',
+        extra_head=f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">',
+        robots_meta='noindex, follow',
+    )
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """Hub autocomplete — disabled until _OWNERS_CMS_HUB_PUBLIC."""
-    if not _OWNERS_CMS_HUB_PUBLIC:
-        from flask import abort
-        abort(404)
+    """CMS ownership profile autocomplete (CT/NY); optional ?state=ny|ct."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
+    from ownership.state_owner_index import resolve_public_owner_index_slug
+
+    state_arg = (request.args.get('state') or '').strip().lower()
+    state_code = resolve_public_owner_index_slug(state_arg) if state_arg else None
+    if state_arg and not state_code:
+        return jsonify({'suggestions': []})
 
     q = (request.args.get('q') or '').strip()
     pac = normalize_associate_id(q)
     if len(q) < 2 and len(pac) != 10:
         return jsonify({'suggestions': []})
-    return jsonify({'suggestions': search_public_owner_profiles(q, limit=12)})
+    limit = 40 if state_code else 12
+    return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():
-    """CMS ownership hub (hidden until launch). FEC contributions search is at /owner/."""
+    """CMS ownership index (NY + CT). FEC contributions search is at /owner/."""
     if request.args.get('owner'):
         return redirect('/owner', code=302)
-    if not _OWNERS_CMS_HUB_PUBLIC:
+    resp = make_response(_owners_cms_index_html())
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
+    return resp
+
+
+@app.route('/owners/ny')
+@app.route('/owners/ct')
+def owners_state_index_route():
+    from ownership.state_owner_index import resolve_public_owner_index_slug
+
+    segment = (request.path or '').rstrip('/').split('/')[-1].lower()
+    state_code = resolve_public_owner_index_slug(segment)
+    if not state_code:
         from flask import abort
         abort(404)
-    resp = make_response(_owners_cms_landing_html())
+    resp = make_response(_owners_state_index_html(state_code))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
 @app.route('/owners/<path:subpath>')
 def owners_legacy_router(subpath):
-    """/owners/<pac> CMS profiles; other /owners/* paths redirect to /owner/ (FEC)."""
+    """/owners/<pac> CMS profiles; /owners/<state> indexes; other paths → FEC or locked-state message."""
     segment = (subpath or '').strip().split('/')[0]
     if segment.isdigit() and len(segment) == 10 and subpath.strip() == segment:
         return cms_owner_profile_page(segment)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
+    from ownership.state_owner_index import resolve_public_owner_index_slug
+
+    pub_code = resolve_public_owner_index_slug(segment)
+    if pub_code and subpath.strip().lower() in ('ny', 'ct'):
+        return owners_state_index_route()
+    _canon, st_code = resolve_state_slug(segment)
+    if st_code and st_code not in ('NY', 'CT'):
+        st_name = STATE_CODE_TO_NAME.get(st_code, st_code)
+        resp = make_response(_owners_state_locked_html(st_name))
+        resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+        resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        return resp
     return redirect(f'/owner/{subpath}', code=302)
 
 
@@ -5747,6 +5838,9 @@ def _build_sitemap_xml() -> str:
         ('/phoebe', '0.8', 'monthly'),
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
+        ('/owners', '0.7', 'weekly'),
+        ('/owners/ny', '0.7', 'weekly'),
+        ('/owners/ct', '0.7', 'weekly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -5839,6 +5933,9 @@ def _sitemap_static_url_lines(base: str, today: str, quarter_lastmod: str) -> li
         ('/phoebe', '0.8', 'monthly'),
         ('/what-is-hprd', '0.7', 'monthly'),
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
+        ('/owners', '0.7', 'weekly'),
+        ('/owners/ny', '0.7', 'weekly'),
+        ('/owners/ct', '0.7', 'weekly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -6887,7 +6984,13 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
                 valid = state_series.ne('') & value_series.gt(0)
                 if not bool(valid.any()):
                     continue
-                med_df = pd.DataFrame({'state': state_series[valid], 'value': value_series[valid]})
+                mask = valid.fillna(False).astype(bool)
+                med_df = pd.DataFrame(
+                    {
+                        'state': state_series.loc[mask].astype(str),
+                        'value': value_series.loc[mask],
+                    }
+                )
                 for st, vals in med_df.groupby('state')['value']:
                     by_state.setdefault(st, []).extend(vals.tolist())
             if by_state:
@@ -8100,6 +8203,65 @@ button.pbj-takeaway-share-btn:hover {{
 @media (min-width: 769px) {{
   .pbj-hprd-badge__val--compact {{ display: none; }}
   .pbj-hprd-badge__val--wide {{ display: inline; }}
+}}
+.pbj-takeaway-badges .pbj-compliance-badge {{
+  display: none !important;
+}}
+.pbj-compliance-warning--threshold {{
+  padding: 0.5rem 0.65rem !important;
+}}
+.pbj-compliance-warning__lines {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.65rem;
+  row-gap: 0.22rem;
+}}
+.pbj-compliance-warning__line1 {{
+  flex: 1 1 100%;
+  font-weight: 500;
+  line-height: 1.4;
+}}
+.pbj-compliance-warning__line2 {{
+  flex: 1 1 100%;
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  opacity: 0.92;
+}}
+.pbj-compliance-warning__flags {{
+  font-weight: 400;
+  opacity: 0.88;
+}}
+.pbj-compliance-warning__method {{
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  cursor: pointer;
+  opacity: 0.85;
+}}
+.pbj-compliance-warning__method:hover,
+.pbj-compliance-warning__method:focus-visible {{
+  opacity: 1;
+}}
+.pbj-compliance-warning__method:focus-visible {{
+  outline: 2px solid rgba(251, 191, 36, 0.55);
+  outline-offset: 2px;
+  border-radius: 2px;
+}}
+@media (min-width: 640px) {{
+  .pbj-compliance-warning__line1 {{
+    flex: 1 1 auto;
+    min-width: 0;
+  }}
+  .pbj-compliance-warning__line2 {{
+    flex: 0 1 auto;
+  }}
 }}
 .pbj-ai-provider-bar__share .pbj-takeaway-share-btn {{
   margin-left: 0;
@@ -11793,6 +11955,279 @@ def _provider_minimal_chart_data(
     }
 
 
+def get_provider_staffing_compliance_public(ccn: str, quarter: str) -> dict | None:
+    """Public-safe facility-quarter compliance counts (no flagged calendar dates)."""
+    try:
+        import staffing_compliance_bundle as scb
+    except ImportError:
+        return None
+    if not scb.bundle_available(APP_ROOT):
+        return None
+    return scb.lookup_public_summary(APP_ROOT, ccn, quarter)
+
+
+def _render_pbj_info_badge_modal(modal_title: str, body_html: str, uid: str) -> str:
+    """Small modal shell (same behavior as HPRD means modal)."""
+    mid = f'pbjInfoModal-{uid}'
+    cid = f'pbjInfoClose-{uid}'
+    bid = f'pbjInfoBtn-{uid}'
+    title_esc = html.escape(modal_title, quote=False)
+    return (
+        f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="{mid}Title">'
+        f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
+        f'<h3 id="{mid}Title">{title_esc}</h3>'
+        f'<div class="pbj-casemix-aux-body">{body_html}</div>'
+        f'</div></div>'
+        f'<script>(function(){{'
+        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
+        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}});'
+        f'if(c)c.addEventListener("click",x);m.addEventListener("click",function(e){{if(e.target===m)x();}});'
+        f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")x();}});'
+        f'}})();</script>'
+    )
+
+
+def _staffing_issue_severity(
+    count,
+    total_days,
+    *,
+    medium_pct: float,
+    medium_min: int,
+    high_pct: float,
+    high_min: int,
+    critical_pct: float,
+    critical_min: int,
+) -> str | None:
+    """None | medium | high | critical — whether to surface a PBJ daily staffing warning."""
+    try:
+        n = int(count)
+        t = int(total_days)
+    except (TypeError, ValueError):
+        return None
+    if n <= 0 or t <= 0:
+        return None
+    pct = 100.0 * n / t
+    if n >= critical_min or pct >= critical_pct or n >= t:
+        return 'critical'
+    if n >= high_min or pct >= high_pct:
+        return 'high'
+    if n >= medium_min or pct >= medium_pct:
+        return 'medium'
+    return None
+
+
+_SEVERITY_RANK = {'medium': 1, 'high': 2, 'critical': 3}
+
+
+def _provider_staffing_compliance_warning(
+    ccn: str,
+    quarter: str,
+    quarter_display: str,
+    state_code: str,
+) -> dict[str, str]:
+    """One-line warning under PBJ Takeaway + details modal (no badge row clutter)."""
+    summary = get_provider_staffing_compliance_public(ccn, quarter)
+    if not summary:
+        return {'warning_html': '', 'modal_html': ''}
+
+    try:
+        total = int(summary.get('total_days_reported') or 0)
+    except (TypeError, ValueError):
+        return {'warning_html': '', 'modal_html': ''}
+    if total <= 0:
+        return {'warning_html': '', 'modal_html': ''}
+
+    prov = normalize_ccn(ccn)
+    st = (state_code or summary.get('state') or '').strip().upper()[:2]
+    state_abbr = st if st else 'state'
+
+    issues: list[dict] = []
+    state_threshold_note_html = ''
+
+    below = summary.get('below_state_min_days_count')
+    if below is not None and not (isinstance(below, float) and below != below):
+        th = summary.get('state_min_threshold_used')
+        try:
+            th_f = float(th) if th is not None else None
+            th_raw = str(th or '').strip()
+            th_approx = th_raw.startswith('~') or '~' in th_raw
+            if th_f is not None:
+                th_s = (f'~{th_f:g}' if th_approx else f'{th_f:g}')
+            else:
+                th_s = th_raw or '—'
+        except (TypeError, ValueError):
+            th_s = '—'
+        n = int(below)
+        sev = _staffing_issue_severity(
+            n, total,
+            medium_pct=8.0, medium_min=5,
+            high_pct=20.0, high_min=12,
+            critical_pct=50.0, critical_min=30,
+        )
+        if sev:
+            try:
+                import staffing_compliance_bundle as scb
+                note = scb.state_threshold_modal_note(APP_ROOT, st)
+                if note:
+                    state_threshold_note_html = (
+                        f'<p class="pbj-hprd-means-body" style="font-size:0.8125rem;opacity:0.92;">'
+                        f'{html.escape(note, quote=False)}</p>'
+                    )
+            except Exception:
+                pass
+            issues.append({
+                'severity': sev,
+                'rank': 0,
+                'kind': 'state_threshold',
+                'n': n,
+                'total': total,
+                'state_abbr': state_abbr,
+                'threshold_display': th_s,
+                'sentence': (
+                    f'{n} of {total} reported PBJ days below {state_abbr} staffing threshold'
+                ),
+                'modal_line': (
+                    f'<li><strong>{n} of {total}</strong> days: total nursing HPRD below <strong>{th_s}</strong> '
+                    f'threshold (RN, LPN, CNA, aide, MedAide, and admin/DON hours ÷ census—not direct-care-only). '
+                    f'PBJ-reported screening only; not a legal finding of violation or noncompliance.</li>'
+                ),
+            })
+
+    rn8 = summary.get('rn_below_8hr_days_count')
+    if rn8 is not None:
+        n = int(rn8)
+        sev = _staffing_issue_severity(
+            n, total,
+            medium_pct=10.0, medium_min=8,
+            high_pct=22.0, high_min=15,
+            critical_pct=45.0, critical_min=35,
+        )
+        if sev:
+            issues.append({
+                'severity': sev,
+                'rank': 1,
+                'sentence': f'{n} of {total} reported days had total RN hours under 8.',
+                'modal_line': (
+                    f'<li><strong>{n} of {total}</strong> days: total RN hours under 8 '
+                    f'(RN + RN admin + DON).</li>'
+                ),
+            })
+
+    rn0 = summary.get('rn_0_days_count')
+    if rn0 is not None:
+        n = int(rn0)
+        sev = _staffing_issue_severity(
+            n, total,
+            medium_pct=5.0, medium_min=3,
+            high_pct=12.0, high_min=8,
+            critical_pct=25.0, critical_min=18,
+        )
+        if sev:
+            issues.append({
+                'severity': sev,
+                'rank': 2,
+                'sentence': f'{n} of {total} reported days had zero total RN hours.',
+                'modal_line': (
+                    f'<li><strong>{n} of {total}</strong> days: zero total RN hours '
+                    f'(RN + RN admin + DON).</li>'
+                ),
+            })
+
+    if not issues:
+        return {'warning_html': '', 'modal_html': ''}
+
+    issues.sort(
+        key=lambda x: (-_SEVERITY_RANK.get(str(x.get('severity')), 0), x.get('rank', 9))
+    )
+    top = issues[0]
+    overall = str(top['severity'])
+    for item in issues[1:]:
+        s = str(item.get('severity'))
+        if _SEVERITY_RANK.get(s, 0) > _SEVERITY_RANK.get(overall, 0):
+            overall = s
+
+    sentence = str(top['sentence'])
+    if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
+        sentence += f' ({len(issues)} staffing flags this quarter.)'
+
+    if overall == 'critical':
+        bar = (
+            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
+            'border-left:3px solid #f87171;background:rgba(248,113,113,0.12);color:#fecaca;'
+        )
+    elif overall == 'high':
+        bar = (
+            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
+            'border-left:3px solid #fb7185;background:rgba(251,113,133,0.1);color:#fda4af;'
+        )
+    else:
+        bar = (
+            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
+            'border-left:3px solid #fbbf24;background:rgba(251,191,36,0.1);color:#fde68a;'
+        )
+
+    q_label = html.escape(str(quarter_display or quarter or ''), quote=False)
+    meth = '<a href="/methodology#pbj-daily-staffing">Methodology</a>'
+    modal_body = (
+        f'<p class="pbj-hprd-means-body">{q_label} · CMS PBJ daily nurse staffing (days with census &gt; 0).</p>'
+        f'{state_threshold_note_html}'
+        f'<ul class="pbj-hprd-means-body" style="margin:0.5rem 0 0 1rem;padding:0;">'
+        + ''.join(str(i['modal_line']) for i in issues)
+        + '</ul>'
+        f'<p class="pbj-hprd-means-body" style="margin-top:0.75rem;font-size:0.8125rem;opacity:0.9;">'
+        f'Specific calendar dates are not shown on the free site. {meth}.</p>'
+    )
+    uid = f'{prov}-sc-warn'
+    mid = f'pbjInfoModal-{uid}'
+    modal_html = _render_pbj_info_badge_modal('PBJ daily staffing flags', modal_body, uid)
+
+    if str(top.get('kind')) == 'state_threshold':
+        st_abbr_esc = html.escape(str(top.get('state_abbr') or 'state'))
+        n_show = int(top.get('n') or 0)
+        total_show = int(top.get('total') or 0)
+        th_disp = html.escape(str(top.get('threshold_display') or '—'))
+        q_esc = html.escape(str(quarter_display or quarter or '').strip())
+        flags_note = ''
+        if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
+            flags_note = (
+                f' <span class="pbj-compliance-warning__flags">'
+                f'({len(issues)} staffing flags this quarter.)</span>'
+            )
+        line1 = (
+            f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
+            f'{flags_note}'
+        )
+        method_btn = (
+            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__method" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="View PBJ daily staffing threshold method">Method</button>'
+        )
+        warn_html = (
+            f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
+            f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
+            f'<div class="pbj-compliance-warning__lines">'
+            f'<div class="pbj-compliance-warning__line1">{line1}</div>'
+            f'<div class="pbj-compliance-warning__line2">'
+            f'<span class="pbj-compliance-warning__meta">{q_esc} · Minimum: {th_disp} total nursing HPRD · </span>'
+            f'{method_btn}</div></div></div>'
+        )
+    else:
+        details_btn = (
+            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__method" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="View PBJ daily staffing flags details">Details</button>'
+        )
+        warn_html = (
+            f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall}" '
+            f'role="status" style="{bar}">'
+            f'<span class="pbj-compliance-warning__line1">{html.escape(sentence, quote=False)}</span> '
+            f'{details_btn}</div>'
+        )
+    return {'warning_html': warn_html, 'modal_html': modal_html}
+
+
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
     """Generate HTML for facility (provider) page per pbj-page-guide: header block, key metrics, longitudinal chart, basic info, full table, summary."""
     from pbj_provider_perf import provider_section_record as _psec
@@ -11988,6 +12423,14 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     if case_mix_total is None:
         narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
+    compliance_warning_html = ''
+    compliance_warning_modal = ''
+    if raw_quarter:
+        _t_sc = time.perf_counter()
+        _sc_warn = _provider_staffing_compliance_warning(prov, raw_quarter, quarter_display, state_code)
+        compliance_warning_html = _sc_warn.get('warning_html') or ''
+        compliance_warning_modal = _sc_warn.get('modal_html') or ''
+        _psec('staffing_compliance', _t_sc)
     _t_risk = time.perf_counter()
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
@@ -12416,9 +12859,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.35rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
+{compliance_warning_html}
 {_facility_ai_helper}
 {_facility_actions}
 {facility_hprd_modal}
+{compliance_warning_modal}
 </div>'''
     page_title = provider_page_title(
         facility_name, city=city, state_name=state_name, state_code=state_code
@@ -15018,10 +15463,26 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     except Exception:
         _state_top_owners_line = ''
         _state_chow_line = ''
+    _state_ownership_index_cross_link = ''
+    try:
+        from ownership.beta_gate import ownership_beta_enabled_for_state
+        from ownership.state_owner_index import state_index_canonical_path
+
+        if ownership_beta_enabled_for_state(state_code):
+            _idx_href = html.escape(state_index_canonical_path(state_code))
+            _state_ownership_index_cross_link = (
+                f'<p class="pbj-cross-links">'
+                f'<span class="pbj-cross-links-label">Ownership:</span> '
+                f'<a href="{_idx_href}">{html.escape(state_name)} owners &amp; staffing patterns</a>'
+                f'</p>'
+            )
+    except Exception:
+        _state_ownership_index_cross_link = ''
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
     <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
+    {_state_ownership_index_cross_link}
     {state_takeaway_card}
     {chart_html}
     <details class="pbj-details pbj-state-staffing-table">
@@ -16496,6 +16957,25 @@ def _entity_page_impl(entity_id):
     html = generate_entity_page_html(entity_id, entity_name, facilities, chain_row=chain_row)
     _log_mem("route_entity_after")
     return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+@app.route('/api/provider/<ccn>/staffing-compliance-summary.json')
+def provider_staffing_compliance_summary_api(ccn):
+    """Public-safe compliance counts for a facility quarter (no flagged dates)."""
+    from flask import jsonify, request
+
+    prov = normalize_ccn(ccn)
+    if not prov:
+        return jsonify({'error': 'invalid ccn'}), 400
+    quarter = (request.args.get('quarter') or '').strip()
+    if not quarter:
+        quarter = get_canonical_latest_quarter() or ''
+    if not quarter:
+        return jsonify({'error': 'quarter required'}), 400
+    summary = get_provider_staffing_compliance_public(prov, quarter)
+    if summary is None:
+        return jsonify({'ccn': prov, 'quarter': quarter, 'available': False}), 404
+    return jsonify({'ccn': prov, 'quarter': quarter, 'available': True, 'summary': summary})
+
 
 @app.route('/provider/<ccn>')
 def provider_page(ccn):
@@ -18415,8 +18895,8 @@ def _path_should_send_noindex() -> bool:
         return True
     if _is_cms_owner_profile_path(path):
         return False
-    if path in ('/owners', '/owners/'):
-        return True
+    if path in ('/owners', '/owners/', '/owners/ny', '/owners/ct'):
+        return False
     noindex_prefixes = (
         '/api/',
         '/premium/',

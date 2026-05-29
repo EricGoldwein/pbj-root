@@ -1,0 +1,74 @@
+{
+  "bundle_schema_version": 1,
+  "summary_schema_version": 1,
+  "config_schema_version": 2,
+  "built_at": "2026-05-29T01:50:30Z",
+  "config_path": "staffing_compliance_thresholds.json",
+  "states_with_thresholds": [
+    "CT",
+    "NY"
+  ],
+  "global_day_rules": [
+    "rn_0_days",
+    "rn_below_8hr_days"
+  ],
+  "quarters_requested": [
+    "CY2025Q1",
+    "CY2025Q2",
+    "CY2025Q3",
+    "CY2025Q4"
+  ],
+  "quarters_in_bundle": [
+    "CY2025Q1",
+    "CY2025Q2",
+    "CY2025Q3",
+    "CY2025Q4"
+  ],
+  "row_count": 57937,
+  "facility_count": 14685,
+  "flagged_day_rows": 188639,
+  "summary_columns": [
+    "ccn",
+    "facility_name",
+    "state",
+    "quarter",
+    "total_days_reported",
+    "avg_daily_census",
+    "avg_rn_hours",
+    "avg_rn_hprd",
+    "avg_total_nurse_hprd",
+    "rn_0_days_count",
+    "rn_0_days_pct",
+    "rn_below_8hr_days_count",
+    "rn_below_8hr_days_pct",
+    "below_state_min_days_count",
+    "below_state_min_days_pct",
+    "state_min_threshold_used",
+    "state_min_metric_used",
+    "state_min_label",
+    "generated_at"
+  ],
+  "public_columns": [
+    "ccn",
+    "state",
+    "quarter",
+    "total_days_reported",
+    "rn_0_days_count",
+    "rn_0_days_pct",
+    "rn_below_8hr_days_count",
+    "rn_below_8hr_days_pct",
+    "below_state_min_days_count",
+    "below_state_min_days_pct",
+    "state_min_threshold_used",
+    "state_min_metric_used",
+    "state_min_label"
+  ],
+  "sources": {
+    "pbj_dir": "C:\\Users\\egold\\PycharmProjects\\PBJapp\\standardized_PBJ",
+    "state_filter": "",
+    "summary_csv": {
+      "path": "staffing_compliance_summary.csv",
+      "mtime": 1780019449.9430342
+    }
+  }
+}

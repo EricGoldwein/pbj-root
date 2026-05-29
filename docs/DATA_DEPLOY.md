@@ -55,3 +55,33 @@ python scripts/ensure_deploy_csvs.py
 ```
 
 Or keep your own `facility_quarterly_metrics.csv` from `git lfs pull` (old history).
+
+## Staffing compliance bundle (PBJ daily thresholds)
+
+Facility-quarter **counts** from PBJapp (`scripts/build_facility_quarter_staffing_compliance.py`), shipped to pbj-root for public provider pages. Flagged calendar dates stay in PBJapp only (Premium).
+
+| Committed in pbj-root | Built at deploy |
+|----------------------|-----------------|
+| `data/compliance/staffing_compliance_summary.csv.gz` | Decompress → `staffing_compliance_summary.csv` |
+| `data/compliance/staffing_compliance_manifest.json` | Validated (schema + quarters list) |
+| `data/compliance/staffing_compliance_thresholds.json` | Config copy (labels / enabled states) |
+| — | `data/compliance/staffing_compliance_index.sqlite` (ccn + quarter lookup) |
+
+**PBJapp → pbj-root sync** (after building bundle):
+
+```powershell
+cd C:\Users\egold\PycharmProjects\PBJapp
+python scripts/build_facility_quarter_staffing_compliance.py --latest-quarters 1
+python scripts/export_staffing_compliance_bundle_to_pbj_root.py
+cd ..\pbj-root
+python scripts/ensure_staffing_compliance_bundle.py
+python scripts/build_staffing_compliance_runtime_index.py
+```
+
+**Incremental quarters:** re-run the build script (parts under `PBJapp/data/compliance/parts/` are merged by quarter). Re-export gzip + manifest, commit, deploy.
+
+**Add a state:** edit `PBJapp/config/staffing_compliance_thresholds.json` (`state_thresholds`), rebuild, re-export. No app.py branch per state.
+
+**Skip on Render:** `PBJ_SKIP_STAFFING_COMPLIANCE_BUNDLE=1` (optional artifact; site works without it).
+
+**Runtime:** `staffing_compliance_bundle.lookup_public_summary(ccn, quarter)`; provider takeaway shows count-only bullets when data exists.

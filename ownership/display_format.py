@@ -231,6 +231,28 @@ def cms_ratings_stack_html(
     return f'<span class="owner-ratings-stack">{"".join(rows)}</span>'
 
 
+def cms_ratings_compact_html(
+    overall: object,
+    staffing: object = None,
+    *,
+    verified: bool = True,
+) -> str:
+    """One-line mobile summary: Ovr 3★ · Stf 2★ (numeric, no star rows)."""
+    if not verified:
+        return ""
+    ovr = format_cms_star_rating(overall)
+    stf = format_cms_star_rating(staffing)
+    bits: list[str] = []
+    if ovr != "—":
+        bits.append(f'Ovr {ovr}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>')
+    if stf != "—":
+        bits.append(f'Stf {stf}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>')
+    if not bits:
+        return ""
+    sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
+    return '<span class="owner-ratings-compact">' + sep.join(bits) + "</span>"
+
+
 def cms_rating_stars_html(val: object) -> str:
     """Five filled/empty star characters; 1-star uses warning color."""
     rating = format_cms_star_rating(val)

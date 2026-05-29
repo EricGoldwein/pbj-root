@@ -22,6 +22,8 @@ PORTFOLIO_HPRD_MIN = 1.5
 PORTFOLIO_HPRD_MAX = 12.0
 PORTFOLIO_OVERALL_RATING_MIN = 1.0
 PORTFOLIO_OVERALL_RATING_MAX = 5.0
+# Min verified facilities with star ratings before portfolio bar charts render.
+PORTFOLIO_STAR_DIST_MIN = 5
 
 PORTFOLIO_METHODOLOGY_SUMMARY = (
     "Portfolio means use only PBJ-verified facilities (CMS enrollment legal name matches "
@@ -272,6 +274,10 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
     hprd_weighted: list[tuple[float, float]] = []
     overall_unweighted: list[float] = []
     overall_weighted: list[tuple[float, float]] = []
+    staffing_unweighted: list[float] = []
+    staffing_weighted: list[tuple[float, float]] = []
+    overall_star_counts: dict[int, int] = {i: 0 for i in range(1, 6)}
+    staffing_star_counts: dict[int, int] = {i: 0 for i in range(1, 6)}
     beds_total = 0.0
     census_total = 0.0
     sff_count = 0
@@ -327,6 +333,18 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
             overall_unweighted.append(ovr)
             if weight is not None:
                 overall_weighted.append((ovr, weight))
+            star_bucket = int(round(ovr))
+            if 1 <= star_bucket <= 5:
+                overall_star_counts[star_bucket] = overall_star_counts.get(star_bucket, 0) + 1
+
+        stf = _parse_float(f.get("staffing_rating"))
+        if stf is not None and is_plausible_overall_rating(stf):
+            staffing_unweighted.append(stf)
+            if weight is not None:
+                staffing_weighted.append((stf, weight))
+            stf_bucket = int(round(stf))
+            if 1 <= stf_bucket <= 5:
+                staffing_star_counts[stf_bucket] = staffing_star_counts.get(stf_bucket, 0) + 1
 
     wmean_hprd = None
     umean_hprd = None
@@ -352,6 +370,19 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
     if overall_unweighted:
         umean_overall = round(sum(overall_unweighted) / len(overall_unweighted), 2)
 
+    mean_staffing = None
+    umean_staffing = None
+    if staffing_weighted:
+        tw = sum(w for _, w in staffing_weighted)
+        if tw > 0:
+            mean_staffing = round(sum(s * w for s, w in staffing_weighted) / tw, 2)
+    if staffing_unweighted:
+        umean_staffing = round(sum(staffing_unweighted) / len(staffing_unweighted), 2)
+
+    pct_low_staffing = None
+    if pbj_matched > 0 and low_staff > 0:
+        pct_low_staffing = int(round(100.0 * low_staff / pbj_matched))
+
     return {
         "n_facilities": n,
         "n_pbj_matched": pbj_matched,
@@ -372,6 +403,13 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
         "n_missing_resident_weight": n_missing_resident_weight,
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
+        "pct_low_staffing_rating": pct_low_staffing,
+        "mean_staffing_rating": mean_staffing,
+        "umean_staffing_rating": umean_staffing,
+        "overall_star_counts": overall_star_counts,
+        "staffing_star_counts": staffing_star_counts,
+        "n_with_overall_for_dist": sum(overall_star_counts.values()),
+        "n_with_staffing_for_dist": sum(staffing_star_counts.values()),
         "by_state": sorted(by_state.items(), key=lambda x: (-x[1], x[0])),
     }
 

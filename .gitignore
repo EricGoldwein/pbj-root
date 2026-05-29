@@ -26,6 +26,12 @@ facility_quarterly_metrics.csv
 data/provider_indexes/*.sqlite
 data/provider_indexes/*.pkl
 data/provider_indexes/meta.json
+# Staffing compliance: commit gzip + manifest; materialize CSV + SQLite at deploy
+data/compliance/staffing_compliance_summary.csv
+data/compliance/staffing_compliance_index.sqlite
+!data/compliance/staffing_compliance_summary.csv.gz
+!data/compliance/staffing_compliance_manifest.json
+!data/compliance/staffing_compliance_thresholds.json
 state_quarterly_metrics.csv
 national_quarterly_metrics.csv
 cms_region_quarterly_metrics.csv

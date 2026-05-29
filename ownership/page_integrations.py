@@ -11,6 +11,7 @@ from urllib.parse import quote
 from ownership.chow_display import (
     CHOW_TABLE_INIT_SCRIPT,
     render_chow_events_table,
+    render_chow_paginate_footer,
 )
 from ownership.chow_lookup import (
     _load_index,
@@ -176,9 +177,16 @@ def _party_org_name_cell(party: dict[str, Any], side: str, state_code: str, name
 
 def _facility_link_from_record(rec: dict[str, Any]) -> str:
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
-    fac = _format_org_display(
-        rec.get("facility_display_name") or rec.get("buyer_dba_name") or ccn or "—"
-    )
+    fd = str(rec.get("facility_display_name") or "").strip()
+    buyer_org = str(rec.get("buyer_org_name") or "").strip()
+    buyer_dba = str(rec.get("buyer_dba_name") or "").strip()
+    if fd and fd not in (buyer_org, buyer_dba):
+        fac_label = _format_org_display(fd)
+    elif ccn.isdigit():
+        fac_label = f"CCN {ccn}"
+    else:
+        fac_label = "—"
+    fac = fac_label
     if ccn.isdigit():
         return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
     return html.escape(fac)
@@ -328,23 +336,29 @@ def _state_ownership_summary_label(
 def _render_state_chow_recent_table(
     state_code: str,
     *,
-    limit: int = 10,
-    foot_html: str = "",
+    initial_visible: int = 10,
+    page_size: int = 10,
 ) -> str:
-    """One row per CMS transaction (not separate buyer/seller party rows)."""
+    """One row per CMS transaction; inline pagination (no /chow monitor link)."""
     st = state_code.upper()[:2]
-    recent = chow_records_for_state(st, limit=limit)
-    if not recent:
+    all_rows = chow_records_for_state(st, limit=0)
+    if not all_rows:
         return '<p class="pbj-meta-line">No transactions in this state index.</p>'
 
+    initial = max(1, int(initial_visible))
     table_inner = render_chow_events_table(
-        recent,
+        all_rows,
         org_link_fn=_org_link_from_chow_record,
         facility_link_fn=_facility_col_from_record,
-        max_rows=limit,
+        max_rows=len(all_rows),
+        initial_visible=initial,
         mobile_change_stack=True,
     )
-    foot = foot_html or ""
+    foot = render_chow_paginate_footer(
+        total=len(all_rows),
+        initial_visible=initial,
+        page_size=page_size,
+    )
     return table_inner + foot + CHOW_TABLE_INIT_SCRIPT
 
 
@@ -376,6 +390,14 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
 
     org_count = len(top)
     summary = _state_ownership_summary_label(st, state_name, variant="top_orgs", count=org_count)
+    from ownership.state_owner_index import state_index_canonical_path
+
+    index_href = html.escape(state_index_canonical_path(st))
+    index_link = (
+        f'<p class="chow-state-actions">'
+        f'<a href="{index_href}" class="chow-state-all-link">{label} nursing home ownership search</a>'
+        f"</p>"
+    )
     return (
         f'<details class="pbj-details pbj-page-bottom-details pbj-details-top-owners">'
         f'<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
@@ -385,7 +407,8 @@ def render_state_top_owners_block(state_code: str, state_name: str = "") -> str:
         f'<div class="chow-table-scroll chow-table-scroll--touch chow-state-owners-scroll">'
         f'<table class="chow-table chow-state-owners-table chow-table--compact-sm">'
         f"<thead><tr><th>Organization</th><th class=\"num\">Facilities</th></tr></thead>"
-        f"<tbody>{''.join(trs)}</tbody></table></div></div></details>"
+        f"<tbody>{''.join(trs)}</tbody></table></div>"
+        f"{index_link}</div></details>"
     )
 
 
@@ -401,7 +424,8 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
     stats = chow_state_stats(st)
     events = int(stats.get("events") or cnt)
     u_ccn = int(stats.get("unique_facilities") or 0)
-    recent_n = min(20, events)
+    chow_initial = 10
+    chow_page_size = 10
 
     date_rng = chow_index_date_range_label()
     date_bit = (
@@ -414,24 +438,11 @@ def render_state_chow_block(state_code: str, state_name: str = "") -> str:
         f'at {u_ccn:,} {label} facilities{date_bit}.</p>'
     )
 
-    foot_html = ""
-    if events > recent_n:
-        chow_href = html.escape(f"/chow?state={st}")
-        foot_html = (
-            f'<p class="chow-state-actions">'
-            f"Newest {recent_n} below. "
-            f'<a href="{chow_href}" class="chow-state-all-link">View all {events:,} in CHOW monitor</a>'
-            f"</p>"
-        )
-    elif events > 0:
-        chow_href = html.escape(f"/chow?state={st}")
-        foot_html = (
-            f'<p class="chow-state-actions">'
-            f'<a href="{chow_href}" class="chow-state-all-link">Open in CHOW monitor</a>'
-            f"</p>"
-        )
-
-    table_html = _render_state_chow_recent_table(st, limit=recent_n, foot_html=foot_html)
+    table_html = _render_state_chow_recent_table(
+        st,
+        initial_visible=chow_initial,
+        page_size=chow_page_size,
+    )
     summary_label = _state_ownership_summary_label(st, state_name, variant="recent", count=events)
 
     return (
@@ -459,6 +470,119 @@ def render_state_chow_line(state_code: str, state_name: str = "") -> str:
         f'<p class="pbj-meta-line" style="margin-top:0.5rem;">'
         f"<strong>Ownership changes:</strong> {cnt:,} reported CMS CHOW events for {label}."
         "</p>"
+    )
+
+
+def _party_stake_sort_value(party: dict[str, Any]) -> float:
+    """Highest reported ownership % for sort order (control roles without % sort last)."""
+    best = -1.0
+    for raw in party.get("pcts") or []:
+        s = str(raw or "").strip().replace("%", "").replace(",", "")
+        if not s or s in ("—", "-", "N/A", "n/a"):
+            continue
+        try:
+            v = float(s)
+            if v > best:
+                best = v
+        except ValueError:
+            continue
+    return best
+
+
+def _party_pct_display_short(party: dict[str, Any]) -> str:
+    for raw in party.get("pcts") or []:
+        lbl = _ownership_pct_own_label(raw)
+        if lbl:
+            return lbl.replace(" own", "").strip()
+    for raw in party.get("pcts") or []:
+        s = str(raw or "").strip()
+        if s and s.lower() not in ("nan", "none", "—", "-"):
+            return s if "%" in s else f"{s}%"
+    return "—"
+
+
+def _party_type_short(party_type: str) -> str:
+    low = str(party_type or "").strip().lower()
+    if "individ" in low:
+        return "Individ."
+    if "org" in low:
+        return "Org."
+    t = str(party_type or "").strip()
+    return t[:10] if t else "—"
+
+
+def sort_parties_by_stake(parties: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        parties,
+        key=lambda p: (
+            -_party_stake_sort_value(p),
+            str(p.get("name") or "").upper(),
+        ),
+    )
+
+
+def render_provider_owners_subtitle_control(
+    parties: list[dict[str, Any]],
+    *,
+    ccn: str = "",
+) -> str:
+    """Compact [Owners] control + modal list for provider subtitle (stake order)."""
+    ranked = sort_parties_by_stake([p for p in parties if p.get("name")])
+    if not ranked:
+        return ""
+    uid = re.sub(r"[^a-zA-Z0-9_-]", "", str(ccn or "fac"))[:12] or "fac"
+    modal_id = f"pbjProviderOwnersModal-{uid}"
+    btn_id = f"pbjProviderOwnersBtn-{uid}"
+    rows: list[str] = []
+    for p in ranked[:30]:
+        raw_name = str(p.get("name") or "—")
+        name = html.escape(format_org_display(raw_name) if raw_name != "—" else "—")
+        pct = html.escape(_party_pct_display_short(p))
+        typ = html.escape(_party_type_short(str(p.get("party_type") or "")))
+        url = str(p.get("profile_url") or "").strip()
+        if url and p.get("is_owner_control_pac"):
+            name_cell = f'<a href="{html.escape(url)}">{name}</a>'
+        else:
+            name_cell = f'<span class="pbj-provider-owners-name">{name}</span>'
+        rows.append(
+            f'<li class="pbj-provider-owners-row">'
+            f'<span class="pbj-provider-owners-namecell">{name_cell}</span>'
+            f'<span class="pbj-provider-owners-pct">{pct}</span>'
+            f'<span class="pbj-provider-owners-type">{typ}</span>'
+            f"</li>"
+        )
+    extra = ""
+    if len(ranked) > 30:
+        extra = (
+            f'<p class="pbj-provider-owners-more">Showing 30 of {len(ranked)} parties. '
+            f'See the Ownership section below for the full CMS table.</p>'
+        )
+    list_html = f'<ul class="pbj-provider-owners-list">{"".join(rows)}</ul>{extra}'
+    return (
+        f' &bull; <button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
+        f'aria-haspopup="dialog" aria-controls="{modal_id}" aria-expanded="false">Owners</button>'
+        f'<div class="pbj-casemix-modal pbj-provider-owners-modal" id="{modal_id}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal-card pbj-provider-owners-modal-card" role="dialog" '
+        f'aria-modal="true" aria-labelledby="{modal_id}Title">'
+        f'<button type="button" class="pbj-casemix-modal-close pbj-provider-owners-close" '
+        f'data-pbj-owners-close="{modal_id}" aria-label="Close">&times;</button>'
+        f'<h3 id="{modal_id}Title">CMS ownership parties</h3>'
+        f'<p class="pbj-provider-owners-lead">Reported roles and stakes from CMS SNF All Owners '
+        f'for this enrollment. Confirm each party on CMS before relying on a link.</p>'
+        f"{list_html}"
+        f"</div></div>"
+        f"<script>(function(){{"
+        f'var b=document.getElementById("{btn_id}");var m=document.getElementById("{modal_id}");'
+        f"if(!b||!m)return;"
+        f'function openM(){{m.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");}}'
+        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();openM();}});'
+        f'm.querySelectorAll("[data-pbj-owners-close]").forEach(function(x){{'
+        f'x.addEventListener("click",closeM);}});'
+        f'm.addEventListener("click",function(e){{if(e.target===m)closeM();}});'
+        f'document.addEventListener("keydown",function(e){{'
+        f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
+        f"}})();</script>"
     )
 
 
@@ -512,8 +636,7 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         )
     return (
         f"{extra}"
-        '<div class="chow-table-scroll chow-table-scroll--touch chow-provider-owners-scroll" '
-        'style="max-height:360px;">'
+        '<div class="chow-table-scroll chow-table-scroll--touch chow-provider-owners-scroll">'
         '<table class="chow-table chow-provider-owners-table chow-table--cards-sm">'
         "<thead><tr>"
         "<th>Name</th><th class=\"chow-party-col-desktop\">Type</th>"
@@ -534,13 +657,12 @@ def _render_provider_chow_block(ccn_norm: str) -> str:
     uid = re.sub(r"[^a-zA-Z0-9_-]", "", ccn_norm)[:12]
     panel_id = f"providerChowPanel-{uid}"
     btn_id = f"providerChowBtn-{uid}"
-    table = render_chow_events_table(
+    from ownership.chow_display import render_provider_chow_cards
+
+    table = render_provider_chow_cards(
         rows[:40],
         org_link_fn=_org_link_from_chow_record,
-        facility_link_fn=_facility_col_from_record,
         max_rows=40,
-        table_class="chow-table chow-tx-table chow-tx-table--provider",
-        mobile_provider_stack=True,
     )
     more = ""
     if n > 40:
@@ -563,6 +685,7 @@ def render_provider_ownership_chow_block(
     *,
     provider_info_row: dict[str, Any] | None = None,
     state_code: str = "",
+    cms: dict[str, Any] | None = None,
 ) -> str:
     """CMS all-owners + CHOW footer for provider pages (collapsed by default)."""
     from ownership.owner_profile import lookup_cms_ownership_for_provider
@@ -590,7 +713,8 @@ def render_provider_ownership_chow_block(
         or ""
     ).strip().upper()
     chow_all = chow_records_for_ccn(ccn_norm, limit=0) if ccn_norm else []
-    cms = lookup_cms_ownership_for_provider(pi, ccn=ccn_norm)
+    if cms is None:
+        cms = lookup_cms_ownership_for_provider(pi, ccn=ccn_norm)
 
     if not ownership_type and chow_flag != "Y" and not chow_all and not cms:
         return ""

@@ -72,6 +72,36 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertEqual(ps["n_missing_hprd"], 1)
         self.assertAlmostEqual(ps["wmean_hprd"], 3.0)
 
+    def test_star_distribution_counts(self) -> None:
+        low_stf = _fac(overall="3", matched=True)
+        low_stf["staffing_rating"] = "2"
+        ps = build_portfolio_summary(
+            [
+                _fac(overall="5", matched=True),
+                _fac(overall="3", matched=True),
+                low_stf,
+            ]
+        )
+        self.assertEqual(ps["n_with_overall_for_dist"], 3)
+        self.assertEqual(ps["overall_star_counts"].get(5), 1)
+        self.assertEqual(ps["overall_star_counts"].get(3), 2)
+        self.assertEqual(ps["n_with_staffing_for_dist"], 1)
+        self.assertEqual(ps["pct_low_staffing_rating"], 33)
+
+    def test_star_distribution_render_threshold(self) -> None:
+        from ownership.owner_portfolio_metrics import PORTFOLIO_STAR_DIST_MIN
+        from ownership.owner_profile_html import _portfolio_distribution_html
+
+        self.assertEqual(PORTFOLIO_STAR_DIST_MIN, 5)
+        ps_small = build_portfolio_summary(
+            [_fac(overall="5", matched=True), _fac(overall="3", matched=True)]
+        )
+        self.assertNotIn("owner-dist-card", _portfolio_distribution_html(ps_small))
+        ps_large = build_portfolio_summary(
+            [_fac(overall="5", matched=True) for _ in range(5)]
+        )
+        self.assertIn("owner-dist-card", _portfolio_distribution_html(ps_large))
+
     def test_unmatched_facility_excluded_from_means(self) -> None:
         ps = build_portfolio_summary(
             [

@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 from ownership.display_format import format_org_display
-from ownership.chow_lookup import format_chow_date
+from ownership.chow_lookup import format_chow_date, format_chow_date_dashed
 
 _CHOW_DETAIL_NOTE = (
     "CMS records this as a Change of Ownership. This comparison shows changes in "
@@ -142,12 +142,94 @@ def render_chow_detail_panel(rec: dict[str, Any], *, panel_id: str = "") -> str:
 
 def _default_facility_link(rec: dict[str, Any]) -> str:
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
-    fac = format_org_display(
-        rec.get("facility_display_name") or rec.get("buyer_dba_name") or ccn or "—"
-    )
+    fd = str(rec.get("facility_display_name") or "").strip()
+    buyer_org = str(rec.get("buyer_org_name") or "").strip()
+    buyer_dba = str(rec.get("buyer_dba_name") or "").strip()
+    if fd and fd not in (buyer_org, buyer_dba):
+        fac = format_org_display(fd)
+    elif ccn.isdigit():
+        fac = f"CCN {ccn}"
+    else:
+        fac = "—"
     if ccn.isdigit():
         return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
     return html.escape(fac)
+
+
+def _chow_details_button(panel_id: str) -> str:
+    pid = html.escape(panel_id, quote=True)
+    return (
+        f'<button type="button" class="chow-view-details chow-view-details--btn" '
+        f'data-chow-detail-store="{pid}" aria-expanded="false">Details</button>'
+    )
+
+
+def _party_initials(name: str) -> str:
+    tokens = [t for t in re.split(r"\W+", str(name or "").strip()) if t]
+    if not tokens:
+        return "?"
+    if len(tokens) == 1:
+        return tokens[0][:2].upper()
+    return (tokens[0][:1] + tokens[-1][:1]).upper()
+
+
+def _chow_party_card(
+    *,
+    role: str,
+    display_html: str,
+    raw_name: str,
+) -> str:
+    initials = html.escape(_party_initials(raw_name))
+    role_esc = html.escape(role)
+    return (
+        f'<div class="owners-chow-party">'
+        f'<span class="owners-chow-party-mark" aria-hidden="true">{initials}</span>'
+        f'<div class="owners-chow-party-text">'
+        f'<span class="owners-chow-party-role">{role_esc}</span>'
+        f'<span class="owners-chow-party-name">{display_html}</span>'
+        f"</div></div>"
+    )
+
+
+def render_chow_transfer_modal_body(
+    rec: dict[str, Any],
+    *,
+    org_link_fn,
+    facility_link_fn=None,
+) -> str:
+    """Seller → buyer summary for state ownership index modals."""
+    fac_fn = facility_link_fn or _default_facility_link
+    eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")) or "—")
+    facility = fac_fn(rec)
+    buyer_raw = str(rec.get("buyer_org_name") or rec.get("buyer_dba_name") or "").strip()
+    seller_raw = str(rec.get("seller_org_name") or "").strip()
+    buyer = org_link_fn(rec, "buyer")
+    seller = org_link_fn(rec, "seller")
+    summary = chow_change_summary(rec)
+    summary_html = (
+        f'<p class="owners-chow-modal-summary">{html.escape(summary)}</p>'
+        if summary
+        else ""
+    )
+    seller_card = _chow_party_card(role="Seller", display_html=seller, raw_name=seller_raw)
+    buyer_card = _chow_party_card(role="Buyer", display_html=buyer, raw_name=buyer_raw)
+    compare = render_chow_detail_panel(rec, panel_id="")
+    return (
+        f'<div class="owners-chow-modal-transfer">'
+        f'<p class="owners-chow-modal-date"><span class="owners-chow-modal-date-k">Effective</span> {eff}</p>'
+        f'<div class="owners-chow-modal-facility">{facility}</div>'
+        f"{summary_html}"
+        f'<div class="owners-chow-transfer-flow" role="group" aria-label="Ownership transfer">'
+        f"{seller_card}"
+        f'<span class="owners-chow-transfer-arrow" aria-hidden="true">→</span>'
+        f"{buyer_card}"
+        f"</div>"
+        f'<details class="owners-chow-modal-compare">'
+        f"<summary>Field-by-field comparison</summary>"
+        f"{compare}"
+        f"</details>"
+        f"</div>"
+    )
 
 
 def render_chow_table_rows(
@@ -158,17 +240,18 @@ def render_chow_table_rows(
     compact: bool = False,
     table_id: str = "",
     max_rows: int = 0,
+    initial_visible: int = 0,
     mobile_change_stack: bool = False,
     mobile_provider_stack: bool = False,
 ) -> str:
-    """HTML tbody rows: Effective, Facility, Buyer, Seller, Details (modal)."""
+    """HTML tbody rows: Activity, Effective, Details, Facility, Buyer, Seller (modal)."""
     fac_fn = facility_link_fn or _default_facility_link
     limit = max_rows if max_rows > 0 else len(rows)
     trs: list[str] = []
     stores: list[str] = []
     for i, rec in enumerate(rows[:limit]):
         rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
-        eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")))
+        eff = html.escape(format_chow_date_dashed(str(rec.get("effective_date") or "")))
         facility = fac_fn(rec)
         buyer = org_link_fn(rec, "buyer")
         seller = org_link_fn(rec, "seller")
@@ -176,70 +259,83 @@ def render_chow_table_rows(
         summary_esc = html.escape(summary) if summary else "—"
         panel_id = f"chow-detail-{rid}"
         panel = render_chow_detail_panel(rec, panel_id=panel_id)
-        details_btn = (
-            f'<button type="button" class="chow-view-details" '
-            f'data-chow-detail-store="{panel_id}" aria-expanded="false">Details</button>'
-        )
+        details_btn = _chow_details_button(panel_id)
+        row_hidden = initial_visible > 0 and i >= initial_visible
+        hidden_attr = " hidden" if row_hidden else ""
+        row_extra = " chow-tx-row--paginated-hidden" if row_hidden else ""
+        activity_cell = f'<td class="chow-tx-activity chow-tx-desktop-col">{summary_esc}</td>'
+        date_cell = f'<td class="num chow-tx-date chow-tx-desktop-col">{eff}</td>'
+        details_cell = f'<td class="chow-tx-details chow-tx-desktop-col">{details_btn}</td>'
+        facility_cell = f'<td class="chow-tx-facility chow-tx-desktop-col">{facility}</td>'
+        buyer_cell = f'<td class="chow-tx-org chow-tx-desktop-col">{buyer}</td>'
+        seller_cell = f'<td class="chow-tx-org chow-tx-desktop-col">{seller}</td>'
+
         if mobile_provider_stack:
             trs.append(
-                f'<tr class="chow-tx-row chow-tx-row--provider-mobile" data-chow-id="{rid}">'
+                f'<tr class="chow-tx-row chow-tx-row--provider-mobile{row_extra}" data-chow-id="{rid}"{hidden_attr}>'
                 f'<td class="chow-tx-provider-stack">'
                 f'<div class="chow-tx-provider-row">'
                 f'<div class="chow-tx-provider-details">{details_btn}</div>'
                 f'<div class="chow-tx-provider-main">'
                 f'<div class="chow-tx-provider-meta">'
-                f'<span class="chow-tx-provider-date">{eff}</span>'
-                f'<span class="chow-tx-provider-sep" aria-hidden="true"> · </span>'
                 f'<span class="chow-tx-provider-change">{summary_esc}</span>'
+                f'<span class="chow-tx-provider-sep" aria-hidden="true"> · </span>'
+                f'<span class="chow-tx-provider-date">{eff}</span>'
                 f"</div>"
                 f'<div class="chow-tx-provider-parties">{buyer} → {seller}</div>'
                 f"</div></div></td>"
-                f'<td class="num chow-tx-date chow-tx-desktop-col">{eff}</td>'
-                f'<td class="chow-tx-facility chow-tx-desktop-col">{facility}</td>'
-                f'<td class="chow-tx-org chow-tx-desktop-col">{buyer}</td>'
-                f'<td class="chow-tx-org chow-tx-desktop-col">{seller}</td>'
-                f'<td class="chow-tx-details chow-tx-desktop-col">'
-                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
-                f"</td></tr>"
+                f"{activity_cell}{date_cell}{details_cell}{facility_cell}{buyer_cell}{seller_cell}</tr>"
             )
         elif mobile_change_stack:
             trs.append(
-                f'<tr class="chow-tx-row chow-tx-row--stacked" data-chow-id="{rid}">'
+                f'<tr class="chow-tx-row chow-tx-row--stacked{row_extra}" data-chow-id="{rid}"{hidden_attr}>'
                 f'<td class="chow-tx-change-stack">'
-                f'<div class="chow-tx-stack-line chow-tx-stack-line--change">'
-                f'<span class="chow-tx-stack-k">Change</span>'
+                f'<div class="chow-tx-stack-line chow-tx-stack-line--activity">'
+                f'<span class="chow-tx-stack-k">Activity</span>'
                 f'<span class="chow-tx-stack-v">{summary_esc}</span></div>'
                 f'<div class="chow-tx-stack-line chow-tx-stack-line--date">'
-                f'<span class="chow-tx-stack-k">Date</span>'
-                f'<span class="chow-tx-stack-v">{eff}</span></div>'
+                f'<span class="chow-tx-stack-v chow-tx-stack-v--date">{eff}</span></div>'
                 f'<div class="chow-tx-stack-line chow-tx-stack-line--action">'
-                f'<span class="chow-tx-stack-k">Details</span>'
                 f'<span class="chow-tx-stack-v">{details_btn}</span></div>'
                 f'<div class="chow-tx-stack-extra">'
                 f'<div class="chow-tx-stack-facility">{facility}</div>'
                 f'<div class="chow-tx-stack-parties">{buyer} → {seller}</div>'
                 f"</div></td>"
-                f'<td class="num chow-tx-date chow-tx-desktop-col">{eff}</td>'
-                f'<td class="chow-tx-facility chow-tx-desktop-col">{facility}</td>'
-                f'<td class="chow-tx-org chow-tx-desktop-col">{buyer}</td>'
-                f'<td class="chow-tx-org chow-tx-desktop-col">{seller}</td>'
-                f'<td class="chow-tx-details chow-tx-desktop-col">'
-                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
-                f"</td></tr>"
+                f"{activity_cell}{date_cell}{details_cell}{facility_cell}{buyer_cell}{seller_cell}</tr>"
             )
         else:
             trs.append(
-                f'<tr class="chow-tx-row" data-chow-id="{rid}">'
+                f'<tr class="chow-tx-row{row_extra}" data-chow-id="{rid}"{hidden_attr}>'
+                f'<td class="chow-tx-activity">{summary_esc}</td>'
                 f'<td class="num chow-tx-date">{eff}</td>'
+                f'<td class="chow-tx-details">{details_btn}</td>'
                 f'<td class="chow-tx-facility">{facility}</td>'
                 f'<td class="chow-tx-org">{buyer}</td>'
                 f'<td class="chow-tx-org">{seller}</td>'
-                f'<td class="chow-tx-details">'
-                f'<span class="chow-tx-summary">{summary_esc}</span> {details_btn}'
-                f"</td></tr>"
+                f"</tr>"
             )
         stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
     return "".join(trs), "".join(stores)
+
+
+def render_chow_paginate_footer(
+    *,
+    total: int,
+    initial_visible: int,
+    page_size: int = 10,
+) -> str:
+    """Inline show-more control (replaces dead /chow monitor links)."""
+    if total <= initial_visible:
+        return ""
+    shown = min(initial_visible, total)
+    return (
+        f'<p class="chow-state-actions chow-state-paginate" data-page-size="{int(page_size)}" '
+        f'data-total="{int(total)}" data-shown="{shown}">'
+        f'<span class="chow-paginate-status">Showing {shown:,} of {total:,}</span>'
+        f'<span class="chow-paginate-sep" aria-hidden="true"> · </span>'
+        f'<button type="button" class="chow-paginate-more">Show next {int(page_size)}</button>'
+        f"</p>"
+    )
 
 
 def render_chow_events_table(
@@ -248,6 +344,7 @@ def render_chow_events_table(
     org_link_fn,
     facility_link_fn=None,
     max_rows: int = 0,
+    initial_visible: int = 0,
     table_class: str = "chow-table chow-tx-table",
     mobile_change_stack: bool = False,
     mobile_provider_stack: bool = False,
@@ -257,6 +354,7 @@ def render_chow_events_table(
         org_link_fn=org_link_fn,
         facility_link_fn=facility_link_fn,
         max_rows=max_rows,
+        initial_visible=initial_visible,
         mobile_change_stack=mobile_change_stack,
         mobile_provider_stack=mobile_provider_stack,
     )
@@ -270,16 +368,28 @@ def render_chow_events_table(
     if mobile_provider_stack:
         thead = (
             '<th class="chow-tx-provider-stack-head">Ownership change</th>'
+            '<th class="chow-tx-desktop-col">Activity</th>'
             '<th class="num chow-tx-desktop-col">Effective</th>'
+            '<th class="chow-tx-desktop-col">Details</th>'
             '<th class="chow-tx-desktop-col">Facility</th>'
             '<th class="chow-tx-desktop-col">Buyer</th>'
             '<th class="chow-tx-desktop-col">Seller</th>'
-            '<th class="chow-tx-desktop-col">Details</th>'
         )
     elif mobile_change_stack:
-        thead = '<th>Change</th><th class="num chow-tx-desktop-col">Effective</th><th class="chow-tx-desktop-col">Facility</th><th class="chow-tx-desktop-col">Buyer</th><th class="chow-tx-desktop-col">Seller</th><th class="chow-tx-desktop-col">Details</th>'
+        thead = (
+            '<th class="chow-tx-change-stack-head">Activity</th>'
+            '<th class="chow-tx-desktop-col">Activity</th>'
+            '<th class="num chow-tx-desktop-col">Effective</th>'
+            '<th class="chow-tx-desktop-col">Details</th>'
+            '<th class="chow-tx-desktop-col">Facility</th>'
+            '<th class="chow-tx-desktop-col">Buyer</th>'
+            '<th class="chow-tx-desktop-col">Seller</th>'
+        )
     else:
-        thead = '<th class="num">Effective</th><th>Facility</th><th>Buyer</th><th>Seller</th><th>Details</th>'
+        thead = (
+            '<th>Activity</th><th class="num">Effective</th><th>Details</th>'
+            '<th>Facility</th><th>Buyer</th><th>Seller</th>'
+        )
     return (
         f'<div class="chow-tx-table-wrap">'
         f'<div class="chow-table-scroll chow-tx-scroll chow-table-scroll--touch mobile-table-scroll">'
@@ -290,6 +400,74 @@ def render_chow_events_table(
         + "</tbody></table></div>"
         f'<div class="chow-detail-stores" hidden aria-hidden="true">{stores}</div>'
         "</div>"
+    )
+
+
+def _chow_effective_attrs(rec: dict[str, Any]) -> tuple[str, str]:
+    """data-effective-date + visible date markup (ISO preserved for future logic)."""
+    raw = str(rec.get("effective_date") or "").strip()
+    if not raw:
+        return "", '<span class="provider-chow-card__date">—</span>'
+    iso = raw[:10] if len(raw) >= 10 else raw
+    iso_esc = html.escape(iso, quote=True)
+    label = html.escape(format_chow_date(iso) or format_chow_date_dashed(iso) or iso)
+    return (
+        f' data-effective-date="{iso_esc}"',
+        f'<time class="provider-chow-card__date" datetime="{iso_esc}">{label}</time>',
+    )
+
+
+def render_provider_chow_cards(
+    rows: list[dict[str, Any]],
+    *,
+    org_link_fn,
+    max_rows: int = 40,
+) -> str:
+    """Card list for provider ownership (replaces wide table + Details column)."""
+    limit = max_rows if max_rows > 0 else len(rows)
+    if not rows[:limit]:
+        return ""
+    items: list[str] = []
+    stores: list[str] = []
+    for i, rec in enumerate(rows[:limit]):
+        rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
+        eff_attr, eff_html = _chow_effective_attrs(rec)
+        summary = chow_change_summary(rec)
+        summary_html = (
+            f'<span class="provider-chow-card__activity">{html.escape(summary)}</span>'
+            if summary
+            else ""
+        )
+        buyer = org_link_fn(rec, "buyer")
+        seller = org_link_fn(rec, "seller")
+        panel_id = f"chow-detail-{rid}"
+        panel = render_chow_transfer_modal_body(rec, org_link_fn=org_link_fn)
+        details_btn = _chow_details_button(panel_id).replace(
+            ">Details</button>",
+            '><span class="provider-chow-card__btn-line">Transfer</span>'
+            '<span class="provider-chow-card__btn-line">details</span></button>',
+        )
+        items.append(
+            f'<li class="provider-chow-card"{eff_attr} data-chow-id="{rid}">'
+            f'<div class="provider-chow-card__head">{eff_html}{summary_html}</div>'
+            f'<div class="provider-chow-card__flow" role="group" aria-label="Ownership transfer">'
+            f'<div class="provider-chow-card__party provider-chow-card__party--seller">'
+            f'<span class="provider-chow-card__party-k">Seller</span>'
+            f'<span class="provider-chow-card__party-v">{seller}</span></div>'
+            f'<span class="provider-chow-card__arrow" aria-hidden="true">→</span>'
+            f'<div class="provider-chow-card__party provider-chow-card__party--buyer">'
+            f'<span class="provider-chow-card__party-k">Buyer</span>'
+            f'<span class="provider-chow-card__party-v">{buyer}</span></div>'
+            f"</div>"
+            f'<div class="provider-chow-card__action">{details_btn}</div>'
+            f"</li>"
+        )
+        stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
+    return (
+        '<ul class="provider-chow-cards" role="list">'
+        + "".join(items)
+        + "</ul>"
+        f'<div class="chow-detail-stores" hidden aria-hidden="true">{"".join(stores)}</div>'
     )
 
 
@@ -355,7 +533,54 @@ CHOW_TABLE_INIT_SCRIPT = """
       });
     });
   }
-  document.querySelectorAll('.provider-chow-block, .pbj-ownership-chow-content, .chow-state-block').forEach(bind);
+  function bindPaginate(root){
+    if(!root) return;
+    root.querySelectorAll('.chow-state-paginate').forEach(function(bar){
+      if(bar._chowPaginateBound) return;
+      bar._chowPaginateBound = true;
+      var wrap = bar.closest('.chow-state-block, .pbj-details-content, .owners-state-panel');
+      if(!wrap) wrap = bar.parentElement;
+      var btn = bar.querySelector('.chow-paginate-more');
+      var status = bar.querySelector('.chow-paginate-status');
+      var sep = bar.querySelector('.chow-paginate-sep');
+      if(!btn || !wrap) return;
+      var pageSize = parseInt(bar.getAttribute('data-page-size'), 10) || 10;
+      var total = parseInt(bar.getAttribute('data-total'), 10) || 0;
+      function hiddenRows(){
+        return wrap.querySelectorAll('.chow-tx-row--paginated-hidden[hidden], .owners-chow-item--more[hidden]');
+      }
+      function visibleCount(){
+        return wrap.querySelectorAll('.chow-tx-row:not([hidden]), .owners-state-chow-item:not([hidden])').length;
+      }
+      function update(){
+        var shown = visibleCount();
+        var left = hiddenRows().length;
+        if(status) status.textContent = 'Showing ' + shown.toLocaleString() + ' of ' + total.toLocaleString();
+        if(left <= 0){
+          btn.hidden = true;
+          if(sep) sep.hidden = true;
+        } else {
+          btn.hidden = false;
+          if(sep) sep.hidden = false;
+          var next = Math.min(pageSize, left);
+          btn.textContent = 'Show next ' + next.toLocaleString();
+        }
+      }
+      btn.addEventListener('click', function(){
+        var rows = hiddenRows();
+        for(var i = 0; i < pageSize && i < rows.length; i++){
+          rows[i].removeAttribute('hidden');
+        }
+        update();
+      });
+      update();
+    });
+  }
+  document.querySelectorAll('.provider-chow-block, .provider-chow-cards, .pbj-ownership-chow-content, .chow-state-block, .owners-state-panel').forEach(function(el){
+    bind(el);
+    bindPaginate(el);
+  });
   bind(document);
+  bindPaginate(document);
 })();</script>
 """

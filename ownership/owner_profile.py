@@ -1430,7 +1430,7 @@ def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
     """
     from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
 
-    catalog: dict[str, str] = {}
+    catalog: dict[str, dict[str, Any]] = {}
     legal_ccn = _legal_business_name_to_ccn()
     name_ccn = _facility_name_to_ccn()
 
@@ -1440,9 +1440,10 @@ def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
         name = _clean(display)
         if not name:
             return
-        prev = catalog.get(pac)
-        if not prev or len(name) > len(prev):
-            catalog[pac] = name
+        entry = catalog.setdefault(pac, {"name": name, "states": set()})
+        if len(name) > len(str(entry.get("name") or "")):
+            entry["name"] = name
+        entry["states"].add(fac_st)
 
     def _ingest_row(row: dict[str, Any]) -> None:
         fac = _clean(row.get("ORGANIZATION NAME"))
@@ -1478,10 +1479,13 @@ def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
             except Exception:
                 pass
 
-    rows = [
-        {"associate_id": pac, "name": name}
-        for pac, name in sorted(catalog.items(), key=lambda x: x[1].lower())
-    ]
+    rows: list[dict[str, str]] = []
+    for pac, entry in sorted(catalog.items(), key=lambda x: str(x[1].get("name") or "").lower()):
+        name = _clean(str(entry.get("name") or ""))
+        states = sorted(str(s) for s in (entry.get("states") or set()) if s)
+        if not name or not states:
+            continue
+        rows.append({"associate_id": pac, "name": name, "states": ",".join(states)})
     return rows
 
 
@@ -1495,30 +1499,52 @@ def write_public_owner_search_catalog_file() -> int:
 
 
 @lru_cache(maxsize=1)
-def _public_owner_search_catalog() -> tuple[tuple[str, str, str], ...]:
+def _public_owner_search_catalog() -> tuple[tuple[str, str, str, frozenset[str]], ...]:
     if _CT_OWNER_SEARCH_GZ.is_file():
         try:
             with gzip.open(_CT_OWNER_SEARCH_GZ, "rt", encoding="utf-8") as f:
                 raw = json.load(f)
             if isinstance(raw, list):
-                entries: list[tuple[str, str, str]] = []
+                entries: list[tuple[str, str, str, frozenset[str]]] = []
                 for item in raw:
                     if not isinstance(item, dict):
                         continue
                     pac = normalize_associate_id(str(item.get("associate_id") or ""))
                     name = _clean(str(item.get("name") or ""))
-                    if len(pac) == 10 and name:
-                        entries.append((pac, name, _norm_org_key(name)))
+                    if len(pac) != 10 or not name:
+                        continue
+                    states_raw = item.get("states") or item.get("state") or ""
+                    if isinstance(states_raw, list):
+                        states = frozenset(
+                            str(s).strip().upper()[:2] for s in states_raw if str(s).strip()
+                        )
+                    else:
+                        states = frozenset(
+                            s.strip().upper()[:2]
+                            for s in str(states_raw).split(",")
+                            if s.strip()
+                        )
+                    if not states:
+                        states = frozenset({"CT", "NY"})
+                    entries.append((pac, name, _norm_org_key(name), states))
                 if entries:
                     return tuple(entries)
         except Exception:
             pass
     built = _build_public_owner_search_catalog_entries()
-    return tuple(
-        (normalize_associate_id(r["associate_id"]), r["name"], _norm_org_key(r["name"]))
-        for r in built
-        if normalize_associate_id(r.get("associate_id")) and r.get("name")
-    )
+    out: list[tuple[str, str, str, frozenset[str]]] = []
+    for r in built:
+        pac = normalize_associate_id(r.get("associate_id"))
+        name = _clean(str(r.get("name") or ""))
+        if len(pac) != 10 or not name:
+            continue
+        states = frozenset(
+            s.strip().upper()[:2] for s in str(r.get("states") or "").split(",") if s.strip()
+        )
+        if not states:
+            continue
+        out.append((pac, name, _norm_org_key(name), states))
+    return tuple(out)
 
 
 def public_owner_associate_ids_for_sitemap() -> list[str]:
@@ -1528,8 +1554,13 @@ def public_owner_associate_ids_for_sitemap() -> list[str]:
     return _indexable_pacs()
 
 
-def search_public_owner_profiles(query: str, *, limit: int = 12) -> list[dict[str, str]]:
-    """Name or 10-digit PAC search for publicly launched ownership states (Connecticut)."""
+def search_public_owner_profiles(
+    query: str,
+    *,
+    limit: int = 12,
+    state_code: str | None = None,
+) -> list[dict[str, str]]:
+    """Name or 10-digit PAC search for publicly launched ownership states (CT + NY)."""
     q = (query or "").strip()
     if not q:
         return []
@@ -1537,10 +1568,15 @@ def search_public_owner_profiles(query: str, *, limit: int = 12) -> list[dict[st
     if not catalog:
         return []
 
+    st_filter = (state_code or "").strip().upper()[:2] or None
+
+    def _in_state(states: frozenset[str]) -> bool:
+        return not st_filter or st_filter in states
+
     pac_q = normalize_associate_id(q)
     if len(pac_q) == 10 and pac_q.isdigit():
-        for pac, name, _ in catalog:
-            if pac == pac_q:
+        for pac, name, _, states in catalog:
+            if pac == pac_q and _in_state(states):
                 return [
                     {
                         "associate_id": pac,
@@ -1555,7 +1591,9 @@ def search_public_owner_profiles(query: str, *, limit: int = 12) -> list[dict[st
         return []
 
     scored: list[tuple[int, int, str, str]] = []
-    for pac, name, key in catalog:
+    for pac, name, key, states in catalog:
+        if not _in_state(states):
+            continue
         if qnorm not in key and qnorm not in _norm_org_key(name):
             continue
         rank = 0 if key.startswith(qnorm) else (1 if qnorm in key[: max(len(qnorm) + 4, 8)] else 2)

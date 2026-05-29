@@ -8227,6 +8227,22 @@ button.pbj-takeaway-share-btn:hover {{
   font-size: 0.8125rem;
   line-height: 1.35;
   opacity: 0.92;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.35rem;
+  row-gap: 0.15rem;
+}}
+.pbj-compliance-warning__sep {{
+  color: rgba(226, 232, 240, 0.45);
+  user-select: none;
+}}
+@media (max-width: 899px) {{
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
+    margin-top: 0.35rem;
+    padding-top: 0.35rem;
+    border-top: 1px solid rgba(226, 232, 240, 0.12);
+  }}
 }}
 .pbj-compliance-warning__flags {{
   font-weight: 400;
@@ -8433,7 +8449,7 @@ body.pbj-ai-beta-modal-open {{ overflow: hidden; }}
 }}
 .pbj-sources-label {{ color: rgba(148, 163, 184, 0.72); font-weight: 500; }}
 .pbj-sources-sep {{ margin: 0 0.2rem; color: rgba(226, 232, 240, 0.62); font-weight: 700; user-select: none; }}
-.pbj-sources-item {{ display: inline; }}
+.pbj-sources-item {{ display: inline-flex; align-items: baseline; }}
 .pbj-sources-quarter {{ color: rgba(148, 163, 184, 0.72); font-weight: 400; }}
 .pbj-page-footer-sources a,
 .pbj-sources-about-btn {{
@@ -8488,8 +8504,10 @@ abbr.pbj-na {{
 }}
 .pbj-care-footer-sep {{ opacity: 0.45; user-select: none; }}
 .pbj-footer-csv-bundle {{
-  font: inherit; font-size: inherit; font-weight: 500; padding: 0; margin: 0; border: none; background: none;
+  font: inherit; font-size: inherit; font-weight: 500; line-height: inherit;
+  padding: 0; margin: 0; border: none; background: none;
   color: #a5b4fc; cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+  display: inline; vertical-align: baseline;
 }}
 .pbj-footer-csv-bundle:hover {{ color: #c7d2fe; }}
 .pbj-cross-links-footer {{ margin: 0.5rem 0 0; }}
@@ -12168,12 +12186,12 @@ def _provider_staffing_compliance_warning(
     if overall == 'critical':
         bar = (
             'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
-            'border-left:3px solid #f87171;background:rgba(248,113,113,0.12);color:#fecaca;'
+            'border-left:3px solid #d9777a;background:rgba(185,90,95,0.14);color:#f3d4d6;'
         )
     elif overall == 'high':
         bar = (
             'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
-            'border-left:3px solid #fb7185;background:rgba(251,113,133,0.1);color:#fda4af;'
+            'border-left:3px solid #e08a8f;background:rgba(190,105,110,0.12);color:#f5d8dc;'
         )
     else:
         bar = (
@@ -12229,7 +12247,8 @@ def _provider_staffing_compliance_warning(
             f'<div class="pbj-compliance-warning__lines">'
             f'<div class="pbj-compliance-warning__line1">{line1}</div>'
             f'<div class="pbj-compliance-warning__line2">'
-            f'<span class="pbj-compliance-warning__meta">{min_meta} · </span>'
+            f'<span class="pbj-compliance-warning__meta">{min_meta}</span>'
+            f'<span class="pbj-compliance-warning__sep" aria-hidden="true">·</span>'
             f'{method_btn}</div></div></div>'
         )
     else:
@@ -12727,16 +12746,37 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         staffing_rating_raw=_staffing_raw,
     )
     _t_own = time.perf_counter()
+    _provider_owners_subtitle_btn = ''
+    _provider_owners_subtitle_modal = ''
     try:
-        from ownership.page_integrations import render_provider_ownership_chow_block
+        from ownership.page_integrations import (
+            render_provider_ownership_chow_block,
+            render_provider_owners_subtitle_control,
+        )
         from ownership.chow_lookup import chow_summary_line_for_ccn
+        from ownership.beta_gate import (
+            ownership_beta_enabled_for_state,
+            ownership_public_enabled_for_state,
+        )
+
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
             prov,
             provider_info_row=provider_info_row or pi_header,
             state_code=state_code or '',
         )
-        from ownership.beta_gate import ownership_public_enabled_for_state
+        if ownership_beta_enabled_for_state(state_code):
+            from ownership.owner_profile import lookup_cms_ownership_for_provider
 
+            _cms_for_subtitle = lookup_cms_ownership_for_provider(
+                provider_info_row or pi_header, ccn=prov
+            )
+            if _cms_for_subtitle:
+                _provider_owners_subtitle_btn, _provider_owners_subtitle_modal = (
+                    render_provider_owners_subtitle_control(
+                        _cms_for_subtitle.get('control_parties') or [],
+                        ccn=prov,
+                    )
+                )
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
             if ownership_public_enabled_for_state(state_code)
@@ -12750,6 +12790,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         )
         traceback.print_exc()
         _provider_ownership_chow_block = ''
+        _provider_owners_subtitle_btn = ''
+        _provider_owners_subtitle_modal = ''
         _ownership_chow_ai = ''
     _psec('ownership', _t_own)
     _t_html = time.perf_counter()
@@ -12855,7 +12897,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         trend_rows=_trend_rows,
         share_html=_facility_share,
     )
-    _facility_csv_footer = render_facility_csv_page_footer(
+    _facility_csv_export, _facility_csv_hidden = render_facility_csv_page_footer(
         helper_uid=f'fac-{prov}',
         snapshot_csv=_snapshot_csv,
         snapshot_csv_filename=_snapshot_fn,
@@ -12961,6 +13003,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         _loc_parts.append(ownership_short)
     _loc_sub = ' &bull; '.join(_loc_parts) if _loc_parts else _residents_sub
     subtitle_one_line = _loc_sub + (f' &bull; {entity_link}' if (entity_id and entity_name) else '')
+    if _provider_owners_subtitle_btn:
+        subtitle_one_line += _provider_owners_subtitle_btn
     # Mobile: row 1 = location • residents; row 2 = ownership • entity when chain present; else all on one row
     _row1_parts = []
     if _city_state.strip():
@@ -12972,16 +13016,26 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if ownership_short and ownership_short.strip():
             _row2_parts.append(ownership_short)
         _row2_parts.append(entity_link)
+        _row2 = ' &bull; '.join(_row2_parts)
+        if _provider_owners_subtitle_btn:
+            _row2 += _provider_owners_subtitle_btn
         subtitle_mobile = (
             f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
-            f'<span class="pbj-subtitle-mobile-row2">{" &bull; ".join(_row2_parts)}</span>'
+            f'<span class="pbj-subtitle-mobile-row2">{_row2}</span>'
         )
     else:
         if ownership_short and ownership_short.strip():
             _row1_parts.append(ownership_short)
         _row1_parts.append(_residents_sub)
         _row1 = ' &bull; '.join(_row1_parts) if _row1_parts else _residents_sub
-        subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
+        _row2 = _provider_owners_subtitle_btn or ''
+        if _row2:
+            subtitle_mobile = (
+                f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
+                f'<span class="pbj-subtitle-mobile-row2">{_row2}</span>'
+            )
+        else:
+            subtitle_mobile = f'<span class="pbj-subtitle-mobile-row1">{_row1}</span>'
     try:
         from pbj_page_sources import render_facility_sources_footer
         _facility_sources_footer = render_facility_sources_footer(
@@ -12989,10 +13043,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             include_chow=bool((_provider_ownership_chow_block or '').strip()),
             include_macpac=bool((_macpac_factset_line or '').strip()),
             care_compare_url=care_compare_facility_url,
-            csv_export_html=_facility_csv_footer,
+            csv_export_html=_facility_csv_export,
         )
     except Exception:
         _facility_sources_footer = ''
+        _facility_csv_hidden = ''
     _facility_cross_links = cross_links_for_facility(
         state_code=state_code or '',
         state_slug=canonical_slug,
@@ -13001,6 +13056,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     inner = f"""
 <h1>{facility_name}</h1>
 <p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
+{_provider_owners_subtitle_modal}
 {provider_intro_html}
 
 {pbj_takeaway_card}
@@ -13016,6 +13072,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 <div class="pbj-page-footer">
 <p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
 {_facility_sources_footer}
+{_facility_csv_hidden}
 <div class="pbj-cross-links-footer">{_facility_cross_links}</div>
 </div>"""
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + inner + layout['content_close']

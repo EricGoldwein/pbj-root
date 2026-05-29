@@ -1934,6 +1934,20 @@ button.owner-flag:hover {
   max-width: none;
 }
 
+.pbj-ownership-about-text--short {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .pbj-ownership-about-text--full {
+    display: none;
+  }
+
+  .pbj-ownership-about-text--short {
+    display: inline;
+  }
+}
+
 @media (max-width: 640px) {
   .pbj-ownership-lead {
     font-size: 0.84rem;

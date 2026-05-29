@@ -2446,8 +2446,8 @@ def render_facility_csv_page_footer(
     care_compare_url: str = '',
     state_code: str = '',
     state_label: str = '',
-) -> str:
-    """Care Compare + one subtle PBJ spreadsheet download; hidden CSV payloads for the AI bar data-* ids."""
+) -> tuple[str, str]:
+    """Export button for Sources row + hidden CSV payloads (keep payloads outside <p>)."""
     cc = (care_compare_url or '').strip()
     uid = re.sub(r'[^a-zA-Z0-9_-]', '', str(helper_uid or 'default'))[:48] or 'default'
     snap_id = f'pbj-ai-csv-snapshot-{uid}'
@@ -2474,7 +2474,7 @@ def render_facility_csv_page_footer(
             'aria-label="Export PBJ320 CSV data">'
             'Export PBJ320 CSV</button></span>'
         )
-    return export_btn + ''.join(hidden)
+    return export_btn, ''.join(hidden)
 
 
 def render_ai_facility_helper(

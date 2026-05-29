@@ -148,8 +148,13 @@ def _provider_ownership_about_html() -> str:
     return (
         '<div class="pbj-ownership-about-callout" role="note">'
         '<p class="pbj-ownership-about-text">'
+        '<span class="pbj-ownership-about-text--full">'
         "CMS owner data roles and percentages are reported filings, "
         "not proof of who operates the facility or care quality."
+        "</span>"
+        '<span class="pbj-ownership-about-text--short">'
+        "CMS owner filings; not proof of who operates the facility."
+        "</span>"
         "</p></div>"
     )
 
@@ -526,11 +531,11 @@ def render_provider_owners_subtitle_control(
     parties: list[dict[str, Any]],
     *,
     ccn: str = "",
-) -> str:
-    """Compact [Owners] control + modal list for provider subtitle (stake order)."""
+) -> tuple[str, str]:
+    """Compact [Owners] subtitle button + modal (returned separately to avoid duplicate DOM)."""
     ranked = sort_parties_by_stake([p for p in parties if p.get("name")])
     if not ranked:
-        return ""
+        return "", ""
     uid = re.sub(r"[^a-zA-Z0-9_-]", "", str(ccn or "fac"))[:12] or "fac"
     modal_id = f"pbjProviderOwnersModal-{uid}"
     btn_id = f"pbjProviderOwnersBtn-{uid}"
@@ -570,9 +575,11 @@ def render_provider_owners_subtitle_control(
         + "</tbody></table></div>"
         + extra
     )
-    return (
+    btn_html = (
         f' &bull; <button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
         f'aria-haspopup="dialog" aria-controls="{modal_id}" aria-expanded="false">Owners</button>'
+    )
+    modal_html = (
         f'<div class="pbj-casemix-modal pbj-provider-owners-modal" id="{modal_id}" aria-hidden="true">'
         f'<div class="pbj-casemix-modal-card pbj-provider-owners-modal-card" role="dialog" '
         f'aria-modal="true" aria-labelledby="{modal_id}Title">'
@@ -596,6 +603,7 @@ def render_provider_owners_subtitle_control(
         f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
         f"}})();</script>"
     )
+    return btn_html, modal_html
 
 
 def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int = 15) -> str:

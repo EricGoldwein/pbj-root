@@ -8183,7 +8183,7 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-hprd-badge__val--wide {{ display: none; }}
 .pbj-hprd-badge__hint {{
   display: inline-flex; align-items: center; justify-content: center; align-self: center;
-  margin-left: 0.28rem; margin-top: 0;
+  margin-left: 0.28rem; margin-top: 0; position: relative; top: -0.1em;
   color: rgba(148, 163, 184, 0.88); transition: color 0.15s;
 }}
 .pbj-hprd-badge__hint-mark {{
@@ -8290,6 +8290,9 @@ button.pbj-takeaway-share-btn:hover {{
   color: rgba(226, 232, 240, 0.42);
   user-select: none;
   font-weight: 700;
+}}
+.pbj-compliance-warning__copy--desktop .pbj-compliance-warning__mid {{
+  margin: 0 0.38em;
 }}
 .pbj-compliance-warning__meta-short {{
   display: none;
@@ -10955,7 +10958,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     <h3 id="pbjCaseMixModalTitle">Reported vs. CMS case-mix</h3>
     <p><strong>Reported HPRD</strong> comes from PBJ staffing. <strong>CMS case-mix HPRD</strong> is modeled from the facility&rsquo;s resident mix (PDPM) for the same quarter and role.</p>
     <p>The <strong>bar scale is percent of CMS case-mix</strong>: 100% equals the case-mix HPRD for that role. Reported staffing is the filled portion. Case-mix is an acuity benchmark from PDPM, not a state or federal staffing minimum.</p>
-    <p style="margin-top:0.45rem;font-size:0.78rem;line-height:1.4;color:#94a3b8;">PBJ user guide (PDF): <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#a5b4fc;">CMS</a>.</p>
+    <p style="margin-top:0.45rem;font-size:0.78rem;line-height:1.4;color:#94a3b8;"><a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#a5b4fc;">CMS Users&rsquo; Guide</a></p>
   </div>
 </div>
 <div class="pbj-casemix-modal pbj-casemix-modal--aux" id="pbjCaseMixAuxModal" aria-hidden="true">
@@ -11234,7 +11237,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var cmsBench = hprd(caseMix) + ' CMS case-mix';
       var cmsLink = '<button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">' + cmsBench + '</button>';
       if (compact) {
-        line.innerHTML = '<span class="tag">Case-mix ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' / ' + hprd(caseMix) + ' HPRD)</span>';
+        line.innerHTML = '<span class="tag">Case-mix ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
       } else {
         line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + cmsBench + ')</span>';
       }
@@ -11282,7 +11285,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var pctCls = pct2 < 90 ? 'pct-em pct--low' : 'pct-em';
       if (compact) {
         var roleShort = (label === 'Aide') ? 'Nurse Aide' : roleLbl;
-        lab.innerHTML = roleShort + ' <span class="' + pctCls + '">' + pct2 + '%</span> <span class="secondary">(' + hprd(actual) + ' / ' + hprd(caseMix) + ')</span>';
+        lab.innerHTML = roleShort + ' <span class="' + pctCls + '">' + pct2 + '%</span> <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
       } else {
         lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>';
       }

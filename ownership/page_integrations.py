@@ -576,8 +576,11 @@ def render_provider_owners_subtitle_control(
         + extra
     )
     btn_html = (
-        f' &bull; <button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
+        f'<span class="pbj-provider-owners-btn-wrap">'
+        f'<span class="pbj-provider-owners-btn-sep" aria-hidden="true"> · </span>'
+        f'<button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
         f'aria-haspopup="dialog" aria-controls="{modal_id}" aria-expanded="false">Owners</button>'
+        f"</span>"
     )
     modal_html = (
         f'<div class="pbj-casemix-modal pbj-provider-owners-modal" id="{modal_id}" aria-hidden="true">'
@@ -593,12 +596,18 @@ def render_provider_owners_subtitle_control(
         f"<script>(function(){{"
         f'var b=document.getElementById("{btn_id}");var m=document.getElementById("{modal_id}");'
         f"if(!b||!m)return;"
-        f'function openM(){{m.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");}}'
-        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();openM();}});'
+        f"var card=m.querySelector('.pbj-casemix-modal-card');var ignoreBackdropUntil=0;"
+        f'function openM(){{if(m.parentNode!==document.body)document.body.appendChild(m);'
+        f'm.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");'
+        f'document.documentElement.style.overflow="hidden";ignoreBackdropUntil=Date.now()+400;}}'
+        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");'
+        f'document.documentElement.style.overflow="";}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();openM();}});'
+        f'if(card)card.addEventListener("click",function(e){{e.stopPropagation();}});'
         f'm.querySelectorAll("[data-pbj-owners-close]").forEach(function(x){{'
-        f'x.addEventListener("click",closeM);}});'
-        f'm.addEventListener("click",function(e){{if(e.target===m)closeM();}});'
+        f'x.addEventListener("click",function(e){{e.preventDefault();closeM();}});}});'
+        f'm.addEventListener("click",function(e){{if(e.target!==m)return;'
+        f'if(Date.now()<ignoreBackdropUntil)return;closeM();}});'
         f'document.addEventListener("keydown",function(e){{'
         f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
         f"}})();</script>"

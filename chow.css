@@ -1350,6 +1350,16 @@ body.chow-modal-open {
   max-height: min(52vh, 360px);
 }
 
+.pbj-provider-owners-btn-wrap {
+  display: inline;
+  white-space: nowrap;
+}
+
+.pbj-provider-owners-btn-sep {
+  color: rgba(148, 163, 184, 0.85);
+  user-select: none;
+}
+
 .pbj-provider-owners-btn {
   display: inline-block;
   margin: 0 0 0 0.12rem;
@@ -1427,6 +1437,10 @@ body.chow-modal-open {
   font-variant-numeric: tabular-nums;
 }
 
+.pbj-provider-owners-modal {
+  z-index: 10030;
+}
+
 .pbj-provider-owners-more {
   margin: 0.55rem 0 0;
   font-size: 0.75rem;
@@ -1459,6 +1473,18 @@ body.chow-modal-open {
 
   .chow-provider-owners-scroll {
     max-height: none;
+  }
+
+  .pbj-provider-owners-btn-sep {
+    display: none;
+  }
+
+  .pbj-provider-owners-btn-wrap {
+    margin-left: 0.32em;
+  }
+
+  .pbj-provider-owners-btn {
+    margin-left: 0;
   }
 
   .pbj-ownership-chow-content .chow-table-scroll--touch,

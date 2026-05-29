@@ -359,6 +359,71 @@
     document.head.appendChild(style);
   }
 
+  /** Provider subtitle Owners modal — delegated (mobile-safe; no inline script). */
+  function bindProviderOwnersModals() {
+    var openModal = null;
+    var openBtn = null;
+    var ignoreBackdropUntil = 0;
+
+    document.querySelectorAll('.pbj-provider-owners-modal[data-pbj-owners-modal]').forEach(function (modal) {
+      if (modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+      }
+    });
+
+    function closeOwnersModal() {
+      if (!openModal) return;
+      openModal.setAttribute('aria-hidden', 'true');
+      if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
+      document.documentElement.style.overflow = '';
+      openModal = null;
+      openBtn = null;
+    }
+
+    function openOwnersModal(modal, btn) {
+      if (!modal || !btn) return;
+      closeOwnersModal();
+      openModal = modal;
+      openBtn = btn;
+      modal.setAttribute('aria-hidden', 'false');
+      btn.setAttribute('aria-expanded', 'true');
+      document.documentElement.style.overflow = 'hidden';
+      ignoreBackdropUntil = Date.now() + 500;
+    }
+
+    document.addEventListener(
+      'click',
+      function (e) {
+        var btn =
+          e.target && e.target.closest ? e.target.closest('.pbj-provider-owners-btn') : null;
+        if (btn) {
+          var modalId = btn.getAttribute('aria-controls') || '';
+          var modal = modalId ? document.getElementById(modalId) : null;
+          if (modal) {
+            e.preventDefault();
+            e.stopPropagation();
+            openOwnersModal(modal, btn);
+          }
+          return;
+        }
+        if (!openModal) return;
+        if (e.target && e.target.closest && e.target.closest('[data-pbj-owners-close]')) {
+          e.preventDefault();
+          closeOwnersModal();
+          return;
+        }
+        if (e.target === openModal && Date.now() >= ignoreBackdropUntil) {
+          closeOwnersModal();
+        }
+      },
+      true
+    );
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && openModal) closeOwnersModal();
+    });
+  }
+
   function run() {
     preloadNavFavicon();
     purgeLegacyFooterMarkup(document);
@@ -371,6 +436,7 @@
     injectContactCtaStyles();
     bindContactFallbacks();
     bindSourcesDialogs();
+    bindProviderOwnersModals();
   }
 
   if (typeof window !== 'undefined') {

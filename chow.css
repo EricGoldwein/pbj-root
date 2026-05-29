@@ -1485,6 +1485,17 @@ body.chow-modal-open {
 
   .pbj-provider-owners-btn {
     margin-left: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 2.35rem;
+    padding: 0.28rem 0.62rem;
+    vertical-align: middle;
+    position: relative;
+    z-index: 3;
+  }
+
+  .pbj-provider-owners-modal[aria-hidden="false"] {
+    display: flex !important;
   }
 
   .pbj-ownership-chow-content .chow-table-scroll--touch,

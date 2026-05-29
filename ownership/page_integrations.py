@@ -583,7 +583,8 @@ def render_provider_owners_subtitle_control(
         f"</span>"
     )
     modal_html = (
-        f'<div class="pbj-casemix-modal pbj-provider-owners-modal" id="{modal_id}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal pbj-provider-owners-modal" id="{modal_id}" '
+        f'data-pbj-owners-modal aria-hidden="true">'
         f'<div class="pbj-casemix-modal-card pbj-provider-owners-modal-card" role="dialog" '
         f'aria-modal="true" aria-labelledby="{modal_id}Title">'
         f'<button type="button" class="pbj-casemix-modal-close pbj-provider-owners-close" '
@@ -593,24 +594,6 @@ def render_provider_owners_subtitle_control(
         f"for this facility&rsquo;s enrollment.</p>"
         f"{list_html}"
         f"</div></div>"
-        f"<script>(function(){{"
-        f'var b=document.getElementById("{btn_id}");var m=document.getElementById("{modal_id}");'
-        f"if(!b||!m)return;"
-        f"var card=m.querySelector('.pbj-casemix-modal-card');var ignoreBackdropUntil=0;"
-        f'function openM(){{if(m.parentNode!==document.body)document.body.appendChild(m);'
-        f'm.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");'
-        f'document.documentElement.style.overflow="hidden";ignoreBackdropUntil=Date.now()+400;}}'
-        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");'
-        f'document.documentElement.style.overflow="";}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();openM();}});'
-        f'if(card)card.addEventListener("click",function(e){{e.stopPropagation();}});'
-        f'm.querySelectorAll("[data-pbj-owners-close]").forEach(function(x){{'
-        f'x.addEventListener("click",function(e){{e.preventDefault();closeM();}});}});'
-        f'm.addEventListener("click",function(e){{if(e.target!==m)return;'
-        f'if(Date.now()<ignoreBackdropUntil)return;closeM();}});'
-        f'document.addEventListener("keydown",function(e){{'
-        f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
-        f"}})();</script>"
     )
     return btn_html, modal_html
 

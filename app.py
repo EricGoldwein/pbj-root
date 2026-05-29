@@ -8230,7 +8230,7 @@ button.pbj-takeaway-share-btn:hover {{
   font-size: inherit;
   line-height: inherit;
 }}
-.pbj-compliance-warning__copy--mobile {{
+.pbj-compliance-warning__mobile-stack {{
   display: none;
 }}
 .pbj-compliance-warning__copy--desktop {{
@@ -8304,10 +8304,23 @@ button.pbj-takeaway-share-btn:hover {{
   .pbj-compliance-warning__copy--desktop {{
     display: none;
   }}
-  .pbj-compliance-warning__copy--mobile {{
-    display: inline;
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.22rem;
+  }}
+  .pbj-compliance-warning__mobile-stack {{
+    display: block;
+    width: 100%;
+  }}
+  .pbj-compliance-warning__mobile-line1 {{
+    margin: 0;
     font-weight: 500;
-    line-height: 1.35;
+    line-height: 1.38;
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__min {{
+    display: inline-block;
+    margin: 0;
   }}
   .pbj-compliance-warning__meta-long {{
     display: none;
@@ -12310,6 +12323,11 @@ def _provider_staffing_compliance_warning(
             f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
             f'{q_part}{flags_note}'
         )
+        st_min_label = f'{html.escape(st_u)} Min.' if st_u else 'Min.'
+        mobile_line1 = (
+            f'{n_show} of {total_show} PBJ days &lt; {th_disp} HPRD '
+            f'({st_min_label}){q_part}{flags_note}'
+        )
         warn_html = (
             f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
             f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
@@ -12319,14 +12337,10 @@ def _provider_staffing_compliance_warning(
             f'{lead_desktop}</span>'
             f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
             f'</span>'
-            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--mobile">'
-            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">'
-            f'{n_show} of {total_show} PBJ days &lt;</span>'
-            f'</span>'
-            f'{min_btn}'
-            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--mobile">'
-            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--tail">'
-            f'{q_part}{flags_note}</span></span></div></div>'
+            f'<div class="pbj-compliance-warning__mobile-stack">'
+            f'<p class="pbj-compliance-warning__mobile-line1">{mobile_line1}</p>'
+            f'</div>'
+            f'{min_btn}</div></div>'
         )
     else:
         details_btn = (

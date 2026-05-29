@@ -46,22 +46,22 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertNotIn("owners indexed", body)
         self.assertIn("owners-state-index-stats", body)
         self.assertNotIn("PAC IDs", layout["subtitle"])
-        self.assertIn("affiliated facilities", layout["subtitle"])
+        self.assertIn("ownership groups", layout["subtitle"])
+        self.assertIn("staffing patterns", layout["subtitle"])
         self.assertGreater(body.find("owners-state-index-stats"), body.find("owners-state-crumb"))
         self.assertLess(body.find("owners-state-index-stats"), body.find("owners-state-h1"))
         self.assertNotIn("owners-state-below-search", body)
         self.assertNotIn("owners-state-search-foot", body)
         self.assertIn("owners-state-desktop-sources", body)
+        self.assertGreater(body.find("owners-state-method"), body.find("owners-state-panels"))
         self.assertGreater(body.find("owners-state-desktop-sources"), body.find("</details>"))
-        self.assertGreater(body.find("owners-state-panels"), body.find("owners-state-desktop-sources"))
         self.assertIn("owners-state-panel-tabs", body)
         self.assertIn("data-owners-state-tab=\"portfolios\"", body)
         self.assertIn("owners-state-sources-trigger", body)
         self.assertIn("ownersStateSourcesModal", body)
         self.assertIn("owners-state-search-sources", body)
         self.assertIn(">Sources:</span>", body)
-        self.assertIn("owners-state-sources-site", body)
-        self.assertIn('href="/data-sources"', body)
+        self.assertNotIn("owners-state-sources-site", body)
         self.assertNotIn("owners-state-method-links", body)
         self.assertIn("owners-state-src-link", body)
         self.assertNotIn("owners-state-meta-badge", body)
@@ -88,6 +88,26 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn('class="owners-state-try-chip"', body)
         self.assertIn('href="/owners/', body)
         self.assertRegex(body, r'aria-label="View .+ ownership profile"')
+
+    def test_try_chips_skew_top_five_within_top_ten(self):
+        from ownership import state_owner_index_html as html_mod
+
+        pool = [
+            {
+                "display_name": f"Owner {i}",
+                "associate_id": f"{i:010d}",
+                "href": f"/owners/{i:010d}",
+                "query": f"Owner {i}",
+            }
+            for i in range(10)
+        ]
+        for _ in range(40):
+            picked = html_mod._pick_try_chips(pool, 3)
+            self.assertEqual(len(picked), 3)
+            names = {c["display_name"] for c in picked}
+            self.assertEqual(len(names), 3)
+            self.assertTrue(any(c["display_name"].startswith("Owner ") and int(c["display_name"][6:]) < 5 for c in picked))
+            self.assertTrue(all(int(c["display_name"][6:]) < 10 for c in picked))
 
     def test_json_ld_breadcrumb_uses_state_name(self):
         web_page, crumbs = build_state_owner_index_json_ld(

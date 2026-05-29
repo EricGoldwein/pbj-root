@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import html
 import json
+import random
 from typing import Any, Callable
 
 from ownership.chow_display import CHOW_TABLE_INIT_SCRIPT, render_chow_transfer_modal_body
@@ -19,7 +20,8 @@ from ownership.state_owner_index import (
 )
 
 _TOP_ORGS_LIMIT = 5
-_TRY_POOL_LIMIT = 25
+_TRY_POOL_LIMIT = 10
+_TRY_TOP_TIER = 5
 _TRY_SHOW_COUNT = 3
 _CHOW_FEED_INITIAL = 3
 
@@ -157,18 +159,6 @@ def _render_index_stats_strip(ctx: dict[str, Any]) -> str:
     return f'<div class="owners-state-index-stats">{stats}</div>'
 
 
-def _render_site_guide_links() -> str:
-    """In-app guides (shown in mobile sources dialog only)."""
-    sep = ' <span class="owners-state-meta-dot" aria-hidden="true">·</span> '
-    return (
-        '<p class="owners-state-sources-site">'
-        '<a href="/data-sources">Data sources</a>'
-        f'{sep}<a href="/phoebe">PBJ explained</a>'
-        f'{sep}<a href="/owner">FEC contributions</a>'
-        "</p>"
-    )
-
-
 def _render_external_data_sources(*, labeled: bool = True) -> str:
     """CMS + FEC outbound links."""
     dot = ' <span class="owners-state-meta-dot" aria-hidden="true">·</span> '
@@ -192,13 +182,9 @@ def _render_external_data_sources(*, labeled: bool = True) -> str:
     )
 
 
-def _render_sources_modal_body() -> str:
-    return _render_external_data_sources(labeled=False) + _render_site_guide_links()
-
-
 def _render_sources_modal() -> str:
-    """Mobile sources dialog; desktop uses the strip below About."""
-    body = _render_sources_modal_body()
+    """Mobile sources dialog; desktop uses plain text below About."""
+    body = _render_external_data_sources(labeled=False)
     if not body:
         return ""
     return (
@@ -246,31 +232,34 @@ def _try_chip_entry(row: dict[str, Any]) -> dict[str, str] | None:
     }
 
 
-def _daily_try_order(length: int, state_slug: str, *, day: int | None = None) -> list[int]:
-    """Deterministic daily shuffle (matches owners-hub.js)."""
-    import time
-
-    seed = int(time.time() // 86400000) if day is None else int(day)
-    slug = (state_slug or "owners").lower()
-    for ch in slug:
-        seed = ((seed << 5) - seed + ord(ch)) & 0xFFFFFFFF
-    order = list(range(length))
-    for j in range(length - 1, 0, -1):
-        seed = (seed * 1103515245 + 12345) & 0xFFFFFFFF
-        k = seed % (j + 1)
-        order[j], order[k] = order[k], order[j]
-    return order
+def _chip_key(chip: dict[str, str]) -> str:
+    return str(chip.get("associate_id") or chip.get("display_name") or "")
 
 
-def _pick_try_chips(entries: list[dict[str, str]], state_slug: str, count: int) -> list[dict[str, str]]:
-    if not entries:
+def _pick_try_chips(entries: list[dict[str, str]], count: int) -> list[dict[str, str]]:
+    """Random picks from top 10 portfolios; at least one from top 5 when showing 2+."""
+    pool = entries[:_TRY_POOL_LIMIT]
+    if not pool:
         return []
-    order = _daily_try_order(len(entries), state_slug)
+    want = min(max(1, int(count)), len(pool))
+    if want == 1:
+        return [random.choice(pool)]
+
+    top_tier = pool[: min(_TRY_TOP_TIER, len(pool))]
     picked: list[dict[str, str]] = []
-    for idx in order:
-        if len(picked) >= count:
-            break
-        picked.append(entries[idx])
+    used: set[str] = set()
+
+    if want >= 2 and top_tier:
+        anchor = random.choice(top_tier)
+        picked.append(anchor)
+        used.add(_chip_key(anchor))
+
+    rest = [e for e in pool if _chip_key(e) not in used]
+    need = want - len(picked)
+    if need > 0 and rest:
+        picked.extend(random.sample(rest, min(need, len(rest))))
+
+    random.shuffle(picked)
     return picked
 
 
@@ -337,12 +326,13 @@ def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str)
     if not entries:
         return ""
     entries = entries[:_TRY_POOL_LIMIT]
-    shown = _pick_try_chips(entries, state_slug, _TRY_SHOW_COUNT)
+    shown = _pick_try_chips(entries, _TRY_SHOW_COUNT)
     pool_json = html.escape(json.dumps(entries), quote=True)
     chips_html = "".join(_render_try_chip_link(chip) for chip in shown)
     return (
         f'<div class="owners-state-try" data-try-pool="{pool_json}" '
         f'data-try-count="{_TRY_SHOW_COUNT}" data-try-count-mobile="2" '
+        f'data-try-top-tier="{_TRY_TOP_TIER}" '
         f'data-state-slug="{html.escape(state_slug)}">'
         '<span class="owners-state-try-k">Try</span>'
         f'<span class="owners-state-try-chips" data-try-chips aria-live="polite">{chips_html}</span>'
@@ -485,6 +475,7 @@ def render_state_owner_index_body(
         <header class="owners-state-hero">
           <div class="owners-state-hero-copy">
             {_render_state_h1(h1)}
+            <div class="owners-state-hero-rail" aria-hidden="true"></div>
             <p class="owners-state-subtitle">{html.escape(subtitle)}</p>
           </div>
         </header>
@@ -503,6 +494,28 @@ def render_state_owner_index_body(
           <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>
           {try_search_html}
         </div>
+      </div>
+
+      {_render_panel_tabs(st)}
+      <div class="owners-state-panels">
+        <section class="owners-state-panel is-active" id="ownersStatePanelPortfolios" role="tabpanel"
+          aria-labelledby="ownersStateTopHeading ownersStateTabPortfolios" data-owners-state-panel="portfolios">
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            {_render_largest_portfolios_title(st)}
+          </header>
+          <div class="owners-state-panel-body">
+            {top_html}
+          </div>
+        </section>
+        <section class="owners-state-panel owners-state-panel--chow" id="ownersStatePanelChow" role="tabpanel"
+          aria-labelledby="ownersStateChowHeading ownersStateTabChow" data-owners-state-panel="chow" hidden>
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            <h2 id="ownersStateChowHeading" class="owners-state-panel-title">Recent ownership changes</h2>
+          </header>
+          <div class="owners-state-panel-body">
+            {chow_body_html}
+          </div>
+        </section>
       </div>
 
       <details class="owners-state-method">
@@ -529,28 +542,6 @@ def render_state_owner_index_body(
         </div>
       </details>
       <div class="owners-state-desktop-sources">{method_sources_html}</div>
-
-      {_render_panel_tabs(st)}
-      <div class="owners-state-panels">
-        <section class="owners-state-panel is-active" id="ownersStatePanelPortfolios" role="tabpanel"
-          aria-labelledby="ownersStateTopHeading ownersStateTabPortfolios" data-owners-state-panel="portfolios">
-          <header class="owners-state-panel-head owners-state-panel-head--desktop">
-            {_render_largest_portfolios_title(st)}
-          </header>
-          <div class="owners-state-panel-body">
-            {top_html}
-          </div>
-        </section>
-        <section class="owners-state-panel owners-state-panel--chow" id="ownersStatePanelChow" role="tabpanel"
-          aria-labelledby="ownersStateChowHeading ownersStateTabChow" data-owners-state-panel="chow" hidden>
-          <header class="owners-state-panel-head owners-state-panel-head--desktop">
-            <h2 id="ownersStateChowHeading" class="owners-state-panel-title">Recent ownership changes</h2>
-          </header>
-          <div class="owners-state-panel-body">
-            {chow_body_html}
-          </div>
-        </section>
-      </div>
       {sources_modal_html}
     </div>
     """

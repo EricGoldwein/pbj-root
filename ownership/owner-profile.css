@@ -3479,6 +3479,10 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 .owners-state-hero-copy {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
   text-align: center;
 }
 
@@ -3486,10 +3490,26 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 .owners-state-hero h1 {
   font-size: clamp(1.38rem, 3.2vw, 1.72rem);
   font-weight: 700;
-  margin: 0 0 0.18rem;
+  margin: 0;
   line-height: 1.14;
   color: #f8fafc;
   letter-spacing: -0.02em;
+}
+
+.owners-state-hero-rail {
+  width: min(13.5rem, 78%);
+  height: 1px;
+  margin: 0.55rem 0 0.48rem;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(99, 102, 241, 0.22) 18%,
+    rgba(129, 140, 248, 0.58) 50%,
+    rgba(99, 102, 241, 0.22) 82%,
+    transparent 100%
+  );
 }
 
 .owners-state-h1-primary,
@@ -3503,11 +3523,12 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
 .owners-state-subtitle {
   font-size: 0.8125rem;
-  color: rgba(100, 116, 139, 0.95);
-  line-height: 1.45;
-  margin: 0.32rem auto 0;
+  color: #8b9aad;
+  line-height: 1.52;
+  margin: 0;
   max-width: 28rem;
   font-weight: 400;
+  letter-spacing: 0.015em;
 }
 
 .owners-state-search-card {
@@ -3635,17 +3656,17 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 .owners-state-desktop-sources {
   display: none;
   width: 100%;
-  max-width: none;
-  margin: 0.45rem 0 1.05rem;
-  padding: 0.55rem 0.85rem;
-  text-align: left;
-  border: 1px solid rgba(51, 65, 105, 0.45);
-  border-radius: 10px;
-  background: rgba(16, 26, 44, 0.55);
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: center;
 }
 
 .owners-state-desktop-sources .owners-state-search-sources {
   margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
 }
 
 .owners-state-sources-modal {
@@ -3696,36 +3717,11 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   padding: 0.1rem 0.25rem;
 }
 
-.owners-state-sources-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 0.55rem;
-}
-
-.owners-state-sources-modal-body .owners-state-search-sources,
-.owners-state-sources-modal-body .owners-state-sources-site {
+.owners-state-sources-modal-body .owners-state-search-sources {
   margin: 0;
   text-align: left;
   font-size: 0.78rem;
   line-height: 1.5;
-}
-
-.owners-state-sources-modal-body .owners-state-sources-site {
-  padding-top: 0.5rem;
-  border-top: 1px solid rgba(51, 65, 105, 0.45);
-  font-size: 0.76rem;
-}
-
-.owners-state-sources-modal-body .owners-state-sources-site a {
-  color: var(--owners-text-muted);
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.owners-state-sources-modal-body .owners-state-sources-site a:hover {
-  color: var(--owners-periwinkle);
-  text-decoration: underline;
-  text-underline-offset: 2px;
 }
 
 .owners-state-try-k {
@@ -3890,7 +3886,7 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   display: grid;
   gap: 1rem;
   margin-top: 0.35rem;
-  margin-bottom: 1.15rem;
+  margin-bottom: 0.85rem;
 }
 
 .owners-state-panels .owners-state-panel[hidden] {
@@ -4343,21 +4339,7 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
     flex-direction: column;
   }
 
-  .owners-state-intro {
-    order: 1;
-  }
-
-  .owners-state-method {
-    order: 30;
-    margin-top: 0.55rem;
-  }
-
-  .owners-state-desktop-sources {
-    order: 31;
-  }
-
   .owners-state-panel-tabs {
-    order: 8;
     display: flex;
     gap: 0.2rem;
     margin: 0.62rem 0 0.38rem;
@@ -4368,9 +4350,12 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   }
 
   .owners-state-panels {
-    order: 9;
     margin-top: 0;
     margin-bottom: 0.55rem;
+  }
+
+  .owners-state-method {
+    margin-top: 0.55rem;
   }
 
   .owners-state-panel-head--desktop {
@@ -4403,7 +4388,12 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
     gap: 0.14rem;
     font-size: 1.1rem;
     line-height: 1.2;
-    margin-bottom: 0.2rem;
+    margin-bottom: 0;
+  }
+
+  .owners-state-hero-rail {
+    width: min(11.5rem, 84%);
+    margin: 0.48rem 0 0.4rem;
   }
 
   .owners-state-h1-primary,
@@ -4446,11 +4436,10 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
   .owners-state-subtitle {
     max-width: none;
-    font-size: 0.76rem;
-    line-height: 1.42;
-    margin-top: 0.22rem;
-    margin-bottom: 0.08rem;
-    color: rgba(100, 116, 139, 0.98);
+    font-size: 0.78rem;
+    line-height: 1.45;
+    margin: 0;
+    color: #8b9aad;
   }
 
   .owners-state-search-card {
@@ -4637,7 +4626,7 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
 .owners-state-method {
   width: 100%;
-  margin-top: 0.2rem;
+  margin-top: 0;
   margin-bottom: 0;
   border: 1px solid var(--owners-border);
   border-radius: 12px;

@@ -243,16 +243,74 @@
       return btn;
     }
 
+    function tryChipWantCount(tryWrap) {
+      var wantDesktop = parseInt(tryWrap.getAttribute('data-try-count'), 10) || 3;
+      var wantMobile = parseInt(tryWrap.getAttribute('data-try-count-mobile'), 10) || 2;
+      return window.matchMedia('(max-width: 520px)').matches
+        ? Math.min(wantMobile, wantDesktop)
+        : wantDesktop;
+    }
+
+    function syncTryChipVisibility(chipHost, want) {
+      var chips = chipHost.querySelectorAll('.owners-state-try-chip');
+      chips.forEach(function (chip, idx) {
+        if (idx < want) {
+          chip.hidden = false;
+          chip.removeAttribute('hidden');
+        } else {
+          chip.hidden = true;
+        }
+      });
+    }
+
+    function tryChipKey(chip) {
+      return String((chip && chip.associate_id) || (chip && chip.display_name) || '');
+    }
+
+    function pickTryChips(pool, want, topTier) {
+      if (!pool || !pool.length) return [];
+      var tierN = Math.max(1, parseInt(topTier, 10) || 5);
+      want = Math.min(Math.max(1, want), pool.length);
+      if (want === 1) {
+        return [pool[Math.floor(Math.random() * pool.length)]];
+      }
+      var tier = pool.slice(0, Math.min(tierN, pool.length));
+      var picked = [];
+      var used = {};
+      if (want >= 2 && tier.length) {
+        var anchor = tier[Math.floor(Math.random() * tier.length)];
+        picked.push(anchor);
+        used[tryChipKey(anchor)] = true;
+      }
+      var rest = pool.filter(function (chip) {
+        return !used[tryChipKey(chip)];
+      });
+      while (picked.length < want && rest.length) {
+        var ri = Math.floor(Math.random() * rest.length);
+        var choice = rest.splice(ri, 1)[0];
+        picked.push(choice);
+        used[tryChipKey(choice)] = true;
+      }
+      for (var i = picked.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var tmp = picked[i];
+        picked[i] = picked[j];
+        picked[j] = tmp;
+      }
+      return picked;
+    }
+
     function initTryChips() {
       var tryWrap = root && root.querySelector('.owners-state-try');
       var chipHost = tryWrap && tryWrap.querySelector('[data-try-chips]');
       if (!tryWrap || !chipHost) return;
+      var want = tryChipWantCount(tryWrap);
+      var existing = chipHost.querySelectorAll('.owners-state-try-chip');
+      if (existing.length) {
+        syncTryChipVisibility(chipHost, want);
+        return;
+      }
       var raw = tryWrap.getAttribute('data-try-pool') || '[]';
-      var wantDesktop = parseInt(tryWrap.getAttribute('data-try-count'), 10) || 3;
-      var wantMobile = parseInt(tryWrap.getAttribute('data-try-count-mobile'), 10) || 2;
-      var want = window.matchMedia('(max-width: 520px)').matches
-        ? Math.min(wantMobile, wantDesktop)
-        : wantDesktop;
       var pool;
       try {
         pool = JSON.parse(raw);
@@ -265,26 +323,25 @@
           return { display_name: label, query: label };
         });
       }
-      var day = Math.floor(Date.now() / 86400000);
-      var seed = day;
-      var slug = (tryWrap.getAttribute('data-state-slug') || stateSlug || stateCode || 'owners').toLowerCase();
-      for (var i = 0; i < slug.length; i++) {
-        seed = ((seed << 5) - seed + slug.charCodeAt(i)) >>> 0;
-      }
-      var order = pool.map(function (_v, idx) {
-        return idx;
-      });
-      for (var j = order.length - 1; j > 0; j--) {
-        seed = (seed * 1103515245 + 12345) >>> 0;
-        var k = seed % (j + 1);
-        var tmp = order[j];
-        order[j] = order[k];
-        order[k] = tmp;
-      }
+      var topTier = tryWrap.getAttribute('data-try-top-tier') || '5';
+      var chosen = pickTryChips(pool, want, topTier);
       chipHost.innerHTML = '';
-      order.slice(0, Math.min(want, pool.length)).forEach(function (idx) {
-        chipHost.appendChild(renderTryChip(pool[idx]));
+      chosen.forEach(function (chip) {
+        chipHost.appendChild(renderTryChip(chip));
       });
+    }
+
+    function bindTryChipLayout() {
+      if (!root || !root.querySelector('.owners-state-try')) return;
+      var mq = window.matchMedia('(max-width: 520px)');
+      function onChange() {
+        initTryChips();
+      }
+      if (mq.addEventListener) {
+        mq.addEventListener('change', onChange);
+      } else if (mq.addListener) {
+        mq.addListener(onChange);
+      }
     }
 
     function initSourcesModal() {
@@ -404,6 +461,7 @@
 
     if (root) {
       initTryChips();
+      bindTryChipLayout();
       initSourcesModal();
       initAboutAccordion();
       initStatePanelTabs();

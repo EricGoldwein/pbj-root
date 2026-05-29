@@ -45,8 +45,8 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "new-york",
         "h1": "New York Nursing Home Ownership Search",
         "subtitle": (
-            "Find New York nursing home owners, affiliated facilities, "
-            "and staffing context from public CMS data."
+            "Explore New York nursing home ownership groups, facility portfolios, "
+            "and staffing patterns using public CMS data."
         ),
         "title": "New York Nursing Home Ownership Search | PBJ320",
         "meta_description": (

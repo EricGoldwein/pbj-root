@@ -8223,12 +8223,41 @@ button.pbj-takeaway-share-btn:hover {{
   row-gap: 0.22rem;
 }}
 .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: baseline;
   column-gap: 0.28rem;
-  row-gap: 0;
+  row-gap: 0.2rem;
   font-size: inherit;
   line-height: inherit;
+}}
+.pbj-compliance-warning__copy--mobile {{
+  display: none;
+}}
+.pbj-compliance-warning__copy--desktop {{
+  display: inline;
+}}
+.pbj-compliance-warning__min {{
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 500;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+  cursor: pointer;
+  white-space: nowrap;
+}}
+.pbj-compliance-warning__min:hover,
+.pbj-compliance-warning__min:focus-visible {{
+  opacity: 1;
+}}
+.pbj-compliance-warning__min:focus-visible {{
+  outline: 2px solid rgba(251, 191, 36, 0.55);
+  outline-offset: 2px;
+  border-radius: 2px;
 }}
 .pbj-compliance-warning__line1 {{
   flex: 1 1 100%;
@@ -8268,6 +8297,14 @@ button.pbj-takeaway-share-btn:hover {{
 @media (max-width: 640px) {{
   .pbj-compliance-warning--threshold {{
     font-size: 0.75rem;
+  }}
+  .pbj-compliance-warning__copy--desktop {{
+    display: none;
+  }}
+  .pbj-compliance-warning__copy--mobile {{
+    display: inline;
+    font-weight: 500;
+    line-height: 1.35;
   }}
   .pbj-compliance-warning__meta-long {{
     display: none;
@@ -11197,7 +11234,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var cmsBench = hprd(caseMix) + ' CMS case-mix';
       var cmsLink = '<button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">' + cmsBench + '</button>';
       if (compact) {
-        line.innerHTML = '<span class="tag">Case-Mix Ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + cmsLink + ')</span>';
+        line.innerHTML = '<span class="tag">Case-mix ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' / ' + hprd(caseMix) + ' HPRD)</span>';
       } else {
         line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + cmsBench + ')</span>';
       }
@@ -11243,10 +11280,9 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     if (hasCaseMix) {
       var pct2 = Math.round(100 * Number(actual) / Number(caseMix));
       var pctCls = pct2 < 90 ? 'pct-em pct--low' : 'pct-em';
-      var hprdPair = ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
       if (compact) {
         var roleShort = (label === 'Aide') ? 'Nurse Aide' : roleLbl;
-        lab.innerHTML = roleShort + ' CM ratio: <span class="' + pctCls + '">' + pct2 + '%</span>' + hprdPair;
+        lab.innerHTML = roleShort + ' <span class="' + pctCls + '">' + pct2 + '%</span> <span class="secondary">(' + hprd(actual) + ' / ' + hprd(caseMix) + ')</span>';
       } else {
         lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>';
       }
@@ -12260,27 +12296,34 @@ def _provider_staffing_compliance_warning(
                 f'({len(issues)} staffing flags this quarter.)</span>'
             )
         q_part = f' in {q_label}' if q_label else ''
-        lead = (
+        min_btn_label = min_meta_short if st_u else f'Min. ({th_disp} HPRD)'
+        min_btn = (
+            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__min" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="View {html.escape(min_btn_label, quote=True)} staffing threshold method">'
+            f'{min_btn_label}</button>'
+        )
+        lead_desktop = (
             f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
             f'{q_part}{flags_note}'
-        )
-        method_btn = (
-            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__method" '
-            f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View PBJ daily staffing threshold method">Method</button>'
         )
         warn_html = (
             f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
             f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
             f'<div class="pbj-compliance-warning__lines">'
-            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">{lead}</span>'
+            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--desktop">'
+            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">'
+            f'{lead_desktop}</span>'
             f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
-            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--meta">'
-            f'<span class="pbj-compliance-warning__meta-long">{min_meta_long}</span>'
-            f'<span class="pbj-compliance-warning__meta-short">{min_meta_short}</span>'
             f'</span>'
-            f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
-            f'{method_btn}</div></div>'
+            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--mobile">'
+            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">'
+            f'{n_show} of {total_show} PBJ days &lt;</span>'
+            f'</span>'
+            f'{min_btn}'
+            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--mobile">'
+            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--tail">'
+            f'{q_part}{flags_note}</span></span></div></div>'
         )
     else:
         details_btn = (

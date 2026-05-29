@@ -184,9 +184,6 @@ def normalize_name_for_search(name):
                     # Handle middle names/initials
                     variations.append(f"{nickname} {parts[1]} {last}")
         
-        # Add last name only
-        variations.append(last)
-        
         # Add "First Last" (without middle)
         if len(parts) > 2:
             variations.append(f"{first} {last}")

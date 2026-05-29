@@ -456,50 +456,56 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
     return primary_html + sub_html
 
 
-def _facility_mobile_stats_line(f: dict[str, Any], *, verified: bool) -> str:
-    """Single scannable metrics line: Own. 50% · 81 res · 3.16 HPRD · Ovr 4★ · Stf 1★."""
-    bits: list[str] = []
+def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
+    """Mobile facility card metrics: row 1 census/HPRD; row 2 stars + regulatory flags."""
+    sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
+    row1: list[str] = []
     place = _facility_location_chip(f)
     if place:
-        bits.append(place)
+        row1.append(place)
     own = _facility_mobile_own_chip(f)
     if own:
-        bits.append(own)
+        row1.append(own)
     census = _fmt_census(f.get("census") if verified else None)
     if census and census != "—":
-        bits.append(f'<span class="owner-m-card-chip">{html.escape(census)} res</span>')
+        row1.append(f'<span class="owner-m-card-chip">{html.escape(census)} res</span>')
     hprd = _fmt_hprd(f.get("hprd") if verified else None)
     if hprd and hprd != "—":
-        bits.append(f'<span class="owner-m-card-chip">{html.escape(hprd)} HPRD</span>')
+        row1.append(f'<span class="owner-m-card-chip">{html.escape(hprd)} HPRD</span>')
+
+    row2: list[str] = []
     ratings = cms_ratings_compact_html(
         f.get("overall_rating"),
         f.get("staffing_rating"),
         verified=verified,
     )
     if ratings:
-        bits.append(ratings)
-    if not bits:
-        return ""
-    return '<div class="owner-m-card__stats">' + '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'.join(bits) + "</div>"
-
-
-def _facility_mobile_flags_inline(f: dict[str, Any], *, verified: bool) -> str:
+        row2.append(ratings)
     flags = _facility_flags_cell(f, verified=verified, skip_star_flags=True)
-    if not flags:
+    if flags:
+        row2.append(flags)
+
+    if not row1 and not row2:
         return ""
-    return f'<div class="owner-m-card__flags-inline">{flags}</div>'
+    rows: list[str] = []
+    if row1:
+        rows.append(
+            '<div class="owner-m-card__stats-row">' + sep.join(row1) + "</div>"
+        )
+    if row2:
+        rows.append(
+            '<div class="owner-m-card__stats-row owner-m-card__stats-row--secondary">'
+            + sep.join(row2)
+            + "</div>"
+        )
+    return '<div class="owner-m-card__metrics">' + "".join(rows) + "</div>"
 
 
 def _facility_mobile_card(f: dict[str, Any]) -> str:
     method = str(f.get("ccn_match_method") or "")
     verified = method == "legal_exact"
     title_block = _facility_mobile_primary_block(f)
-    stats = _facility_mobile_stats_line(f, verified=verified)
-    flags = _facility_mobile_flags_inline(f, verified=verified)
-    metrics = ""
-    if stats or flags:
-        sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>' if stats and flags else ""
-        metrics = '<div class="owner-m-card__metrics">' + (stats or "") + sep + (flags or "") + "</div>"
+    metrics = _facility_mobile_metrics_block(f, verified=verified)
     search = " ".join(
         [
             str(f.get("facility_name") or ""),

@@ -1351,19 +1351,34 @@ body.chow-modal-open {
 }
 
 .pbj-provider-owners-btn {
-  margin: 0;
-  padding: 0;
-  border: none;
-  background: none;
-  color: #93c5fd;
+  display: inline-block;
+  margin: 0 0 0 0.12rem;
+  padding: 0.2rem 0.52rem;
+  border-radius: 4px;
   font: inherit;
-  text-decoration: underline;
+  font-size: 0.84em;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: #c7d2fe;
+  background: rgba(67, 56, 202, 0.38);
+  border: 1px solid rgba(129, 140, 248, 0.48);
+  text-decoration: none;
   cursor: pointer;
+  vertical-align: baseline;
+  white-space: nowrap;
 }
 
 .pbj-provider-owners-btn:hover,
 .pbj-provider-owners-btn:focus-visible {
-  color: #bfdbfe;
+  color: #e0e7ff;
+  background: rgba(79, 70, 229, 0.48);
+  border-color: rgba(165, 180, 252, 0.65);
+}
+
+.pbj-provider-owners-btn:focus-visible {
+  outline: 2px solid rgba(129, 140, 248, 0.55);
+  outline-offset: 2px;
 }
 
 .pbj-provider-owners-lead {

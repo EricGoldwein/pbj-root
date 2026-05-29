@@ -7880,6 +7880,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .section-header {{ margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.35em; font-weight: 700; color: #818cf8; border-bottom: 1px solid rgba(30, 41, 59, 0.6); padding-bottom: 4px; letter-spacing: 0.02em; }}
 .section-header:first-of-type {{ margin-top: 0; }}
 .pbj-subtitle {{ font-size: 0.9em; color: #a8b4c4; margin-top: 4px; }}
+.pbj-subtitle .pbj-provider-owners-btn {{
+  text-decoration: none;
+}}
 .pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: #a8b4c4; margin-top: 6px; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
@@ -8210,6 +8213,12 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-compliance-warning--threshold {{
   padding: 0.5rem 0.65rem !important;
 }}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+}}
 .pbj-compliance-warning__lines {{
   display: flex;
   flex-wrap: wrap;
@@ -8222,6 +8231,10 @@ button.pbj-takeaway-share-btn:hover {{
   font-weight: 500;
   line-height: 1.4;
 }}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__line1 {{
+  flex: 0 0 auto;
+  width: 100%;
+}}
 .pbj-compliance-warning__line2 {{
   flex: 1 1 100%;
   font-size: 0.8125rem;
@@ -8233,16 +8246,16 @@ button.pbj-takeaway-share-btn:hover {{
   column-gap: 0.35rem;
   row-gap: 0.15rem;
 }}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
+  flex: 0 0 auto;
+  width: 100%;
+  margin-top: 0.42rem;
+  padding-top: 0.42rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.24);
+}}
 .pbj-compliance-warning__sep {{
   color: rgba(226, 232, 240, 0.45);
   user-select: none;
-}}
-@media (max-width: 899px) {{
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
-    margin-top: 0.35rem;
-    padding-top: 0.35rem;
-    border-top: 1px solid rgba(226, 232, 240, 0.12);
-  }}
 }}
 .pbj-compliance-warning__flags {{
   font-weight: 400;
@@ -8283,16 +8296,6 @@ button.pbj-takeaway-share-btn:hover {{
   .pbj-compliance-warning--threshold {{
     width: fit-content;
     max-width: min(100%, 40rem);
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
-    flex-wrap: nowrap;
-    align-items: baseline;
-    column-gap: 0.3rem;
-    row-gap: 0;
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line1,
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
-    flex: 0 1 auto;
   }}
   .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
     white-space: nowrap;
@@ -12200,7 +12203,7 @@ def _provider_staffing_compliance_warning(
         )
 
     q_label = html.escape(str(quarter_display or quarter or ''), quote=False)
-    meth = '<a href="/methodology#pbj-daily-staffing">Methodology</a>'
+    meth = '<a href="/data-sources#pbj-daily-staffing">Methodology</a>'
     modal_body = (
         f'<p class="pbj-hprd-means-body">{q_label} · CMS PBJ daily nurse staffing (days with census &gt; 0).</p>'
         f'{state_threshold_note_html}'

@@ -378,7 +378,8 @@
 
     panel.innerHTML =
       '<div class="owner-fec-results">' +
-      '<h3 class="owner-fec-results-title">Political contributions — ' + escapeHtml(ownerLabel) + '</h3>' +
+      '<h3 class="owner-fec-results-title">Political contributions <span class="owner-fec-results-name">(' +
+      escapeHtml(ownerLabel) + ')</span></h3>' +
       fecSearchVariationsHtml(searchVariations) +
       '<div class="owner-fec-total-bar">' +
       '<div><div class="owner-fec-total-amt">Total contributed: $' +
@@ -390,7 +391,10 @@
       '<h4 class="owner-fec-list-heading">All contributions (' + donationCount + ')</h4>' +
       '<div id="ownerFecList" class="owner-fec-list"></div>' +
       '<div id="ownerFecPagination" class="owner-fec-pagination"></div>' +
-      '<p class="owner-fec-source">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">Federal Election Commission</a></p>' +
+      '<p class="owner-fec-source">' +
+      '<span class="owner-fec-source-long">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">Federal Election Commission</a></span>' +
+      '<span class="owner-fec-source-short">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">FEC</a></span>' +
+      '</p>' +
       '</div>';
 
     renderPage(1);

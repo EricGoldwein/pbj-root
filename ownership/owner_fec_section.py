@@ -52,7 +52,8 @@ def render_owner_fec_contributions_section(profile: dict[str, Any]) -> str:
         <div class="owner-fec-hub">
           <div class="owner-fec-hub-top">
             <h2 class="section-header owner-fec-heading" id="ownerFecHeading">
-              <span class="owner-fec-heading-text">FEC political contributions</span>
+              <span class="owner-fec-heading-text owner-fec-heading-text--long">FEC political contributions</span>
+              <span class="owner-fec-heading-text owner-fec-heading-text--short">FEC contributions</span>
               <span class="owner-fec-heading-actions">
                 <span class="owner-fec-beta">Beta</span>
                 <button type="button" class="owner-fec-help-btn" data-owner-info

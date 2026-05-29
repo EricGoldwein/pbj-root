@@ -8212,6 +8212,8 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-compliance-warning--threshold {{
   padding: 0.5rem 0.65rem !important;
+  font-size: 0.8125rem;
+  line-height: 1.4;
 }}
 .pbj-compliance-warning__lines {{
   display: flex;
@@ -8220,10 +8222,28 @@ button.pbj-takeaway-share-btn:hover {{
   column-gap: 0.65rem;
   row-gap: 0.22rem;
 }}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
+  flex-wrap: nowrap;
+  align-items: baseline;
+  column-gap: 0.28rem;
+  row-gap: 0;
+  font-size: inherit;
+  line-height: inherit;
+}}
 .pbj-compliance-warning__line1 {{
   flex: 1 1 100%;
   font-weight: 500;
   line-height: 1.4;
+}}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__part {{
+  flex: 0 1 auto;
+  min-width: 0;
+  font-weight: 500;
+}}
+.pbj-compliance-warning--threshold .pbj-compliance-warning__part--meta {{
+  font-weight: 400;
+  opacity: 0.92;
+  white-space: nowrap;
 }}
 .pbj-compliance-warning__line2 {{
   flex: 1 1 100%;
@@ -8237,10 +8257,24 @@ button.pbj-takeaway-share-btn:hover {{
   row-gap: 0.15rem;
 }}
 .pbj-compliance-warning__mid {{
-  display: none;
+  flex: 0 0 auto;
   color: rgba(226, 232, 240, 0.42);
   user-select: none;
   font-weight: 700;
+}}
+.pbj-compliance-warning__meta-short {{
+  display: none;
+}}
+@media (max-width: 640px) {{
+  .pbj-compliance-warning--threshold {{
+    font-size: 0.75rem;
+  }}
+  .pbj-compliance-warning__meta-long {{
+    display: none;
+  }}
+  .pbj-compliance-warning__meta-short {{
+    display: inline;
+  }}
 }}
 .pbj-compliance-warning__sep {{
   color: rgba(226, 232, 240, 0.45);
@@ -8284,26 +8318,8 @@ button.pbj-takeaway-share-btn:hover {{
 @media (min-width: 900px) {{
   .pbj-compliance-warning--threshold {{
     width: fit-content;
-    max-width: min(100%, 40rem);
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
-    flex-wrap: nowrap;
-    align-items: baseline;
-    column-gap: 0.28rem;
-    row-gap: 0;
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line1,
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
-    flex: 0 1 auto;
-    width: auto;
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__mid {{
-    display: inline;
-    flex: 0 0 auto;
-    margin: 0 0.12rem;
-  }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
-    white-space: nowrap;
+    max-width: min(100%, 52rem);
+    font-size: 0.875rem;
   }}
 }}
 .pbj-ai-provider-bar__share .pbj-takeaway-share-btn {{
@@ -12229,20 +12245,24 @@ def _provider_staffing_compliance_warning(
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
         if st_u == 'NY':
-            min_meta = f'NY Minimum ~{th_disp} HPRD'
+            min_meta_long = f'NY Minimum ~{th_disp} HPRD'
+            min_meta_short = f'NY Min. ~{th_disp} HPRD'
         elif st_u:
-            min_meta = f'{html.escape(st_u)} minimum ~{th_disp} total nursing HPRD'
+            min_meta_long = f'{html.escape(st_u)} minimum ~{th_disp} total nursing HPRD'
+            min_meta_short = min_meta_long
         else:
-            min_meta = f'Minimum ~{th_disp} total nursing HPRD'
+            min_meta_long = f'Minimum ~{th_disp} total nursing HPRD'
+            min_meta_short = min_meta_long
         flags_note = ''
         if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
             flags_note = (
                 f' <span class="pbj-compliance-warning__flags">'
                 f'({len(issues)} staffing flags this quarter.)</span>'
             )
-        line1 = (
+        q_part = f' in {q_label}' if q_label else ''
+        lead = (
             f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
-            f'{flags_note}'
+            f'{q_part}{flags_note}'
         )
         method_btn = (
             f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__method" '
@@ -12253,12 +12273,14 @@ def _provider_staffing_compliance_warning(
             f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
             f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
             f'<div class="pbj-compliance-warning__lines">'
-            f'<div class="pbj-compliance-warning__line1">{line1}</div>'
+            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">{lead}</span>'
             f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
-            f'<div class="pbj-compliance-warning__line2">'
-            f'<span class="pbj-compliance-warning__meta">{min_meta}</span>'
-            f'<span class="pbj-compliance-warning__sep" aria-hidden="true">·</span>'
-            f'{method_btn}</div></div></div>'
+            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--meta">'
+            f'<span class="pbj-compliance-warning__meta-long">{min_meta_long}</span>'
+            f'<span class="pbj-compliance-warning__meta-short">{min_meta_short}</span>'
+            f'</span>'
+            f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
+            f'{method_btn}</div></div>'
         )
     else:
         details_btn = (

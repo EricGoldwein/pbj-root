@@ -2335,10 +2335,10 @@ button.owner-flag:hover {
     grid-row: 1;
     align-self: start;
     justify-self: end;
-    max-width: 46%;
+    max-width: min(10.5rem, 40vw);
     width: auto;
     min-width: 0;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .owner-profile-header-actions {
@@ -2419,6 +2419,9 @@ button.owner-flag:hover {
     font-size: 0.6rem;
     white-space: nowrap;
     letter-spacing: -0.01em;
+    max-width: 9.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .owner-pac-block__value-line {
@@ -4697,6 +4700,19 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   min-width: 0;
 }
 
+.owner-fec-heading-text--short {
+  display: none;
+}
+
+.owner-fec-results-name {
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+.owner-fec-source-short {
+  display: none;
+}
+
 .owner-fec-heading-actions {
   display: inline-flex;
   align-items: center;
@@ -5220,13 +5236,26 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
     gap: 0.35rem 0.45rem;
   }
 
-  .owner-fec-heading-text {
+  .owner-fec-heading-text--long {
+    display: none;
+  }
+
+  .owner-fec-heading-text--short {
+    display: inline;
     flex: 1 1 auto;
     min-width: 0;
     font-size: 0.9rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .owner-fec-source-long {
+    display: none;
+  }
+
+  .owner-fec-source-short {
+    display: inline;
   }
 
   .owner-fec-heading-actions {

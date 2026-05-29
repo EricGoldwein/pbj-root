@@ -1100,7 +1100,7 @@ def _portfolio_distribution_bars(
 
 
 def _portfolio_state_distribution(by_state: list[tuple[str, int]], n_total: int) -> str:
-    if not by_state or n_total < 1:
+    if not by_state or n_total < 2 or len(by_state) < 2:
         return ""
     peak = max(c for _, c in by_state) or 1
     rows: list[str] = []

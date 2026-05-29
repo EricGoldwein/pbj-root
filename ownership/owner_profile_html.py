@@ -257,10 +257,21 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
     )
 
 
+def _format_place_label(value: str) -> str:
+    """Title-case city/county labels (CMS often ships ALL CAPS)."""
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    return format_org_display(raw)
+
+
 def _facility_location_short(f: dict[str, Any]) -> str:
-    """Compact place label for table/mobile (e.g. Bronx, NY)."""
-    county = str(f.get("county") or "").strip()
+    """Compact place label for table/mobile (prefer city over county)."""
+    city = _format_place_label(str(f.get("city") or ""))
     st = str(f.get("state") or "").strip().upper()[:2]
+    if city and len(st) == 2:
+        return f"{city}, {st}"
+    county = _format_place_label(str(f.get("county") or ""))
     co = county
     if co.lower().endswith(" county"):
         co = co[: -len(" county")].strip()
@@ -271,31 +282,90 @@ def _facility_location_short(f: dict[str, Any]) -> str:
     return co or "—"
 
 
-def _facility_location_tooltip(f: dict[str, Any]) -> str:
-    """Full location line for hover (city, county, state when known)."""
-    city = str(f.get("city") or "").strip()
-    county = str(f.get("county") or "").strip()
+def _facility_postal_address_parts(f: dict[str, Any]) -> dict[str, str]:
+    """Structured mailing address from provider_info when CCN matched."""
+    street = _format_place_label(str(f.get("provider_address") or ""))
+    city = _format_place_label(str(f.get("city") or ""))
+    county = _format_place_label(str(f.get("county") or ""))
     st = str(f.get("state") or "").strip().upper()[:2]
-    parts: list[str] = []
+    zip_raw = str(f.get("zip_code") or "").strip()
+    if zip_raw and "." in zip_raw:
+        zip_raw = zip_raw.split(".")[0]
+    zip_code = zip_raw[:10] if zip_raw else ""
+
+    city_line_parts: list[str] = []
     if city:
-        parts.append(city)
-    if county:
-        parts.append(county if "county" in county.lower() else f"{county} County")
+        city_line_parts.append(city)
+    elif county:
+        co = county if "county" in county.lower() else f"{county} County"
+        city_line_parts.append(co)
     if len(st) == 2:
-        parts.append(st)
-    return ", ".join(parts)
+        city_line_parts.append(st)
+    city_line = ", ".join(city_line_parts)
+    if zip_code:
+        city_line = f"{city_line} {zip_code}".strip() if city_line else zip_code
+
+    full_lines: list[str] = []
+    if street:
+        full_lines.append(street)
+    if city_line:
+        full_lines.append(city_line)
+    if not full_lines:
+        fallback = _facility_location_short(f)
+        if fallback and fallback != "—":
+            full_lines.append(fallback)
+
+    return {
+        "street": street,
+        "city_line": city_line,
+        "full_text": "\n".join(full_lines),
+        "has_postal": bool(street or (city_line and len(st) == 2)),
+    }
 
 
 def _facility_location_cell(f: dict[str, Any]) -> tuple[str, str]:
     label = _facility_location_short(f)
-    tip = _facility_location_tooltip(f)
     esc = html.escape(label)
-    if tip and tip != label:
-        return (
-            f'<span class="owner-facility-location" title="{html.escape(tip, quote=True)}">{esc}</span>',
-            _sort_attr(f"{f.get('county') or ''} {f.get('state') or ''}"),
+    addr = _facility_postal_address_parts(f)
+    sort_key = f"{f.get('city') or ''} {f.get('county') or ''} {f.get('state') or ''}"
+    if addr.get("has_postal"):
+        fac_name = format_org_display(
+            str(f.get("provider_name") or f.get("facility_name") or "Facility")
         )
-    return f'<span class="owner-facility-location">{esc}</span>', _sort_attr(label)
+        return (
+            f'<button type="button" class="owner-facility-location-btn" data-owner-info '
+            f'data-info-format="address" '
+            f'data-info-title="{html.escape(fac_name, quote=True)}" '
+            f'data-address-street="{html.escape(addr["street"], quote=True)}" '
+            f'data-address-cityline="{html.escape(addr["city_line"], quote=True)}" '
+            f'data-address-full="{html.escape(addr["full_text"], quote=True)}" '
+            f'aria-label="Full address for {html.escape(label, quote=True)}">{esc}</button>',
+            _sort_attr(sort_key),
+        )
+    return f'<span class="owner-facility-location">{esc}</span>', _sort_attr(sort_key)
+
+
+def _facility_location_chip(f: dict[str, Any]) -> str:
+    """Tappable location chip for mobile facility cards."""
+    label = _facility_location_short(f)
+    if not label or label == "—":
+        return ""
+    addr = _facility_postal_address_parts(f)
+    esc = html.escape(label)
+    if not addr.get("has_postal"):
+        return f'<span class="owner-m-card-chip owner-m-card-chip--place">{esc}</span>'
+    fac_name = format_org_display(
+        str(f.get("provider_name") or f.get("facility_name") or "Facility")
+    )
+    return (
+        f'<button type="button" class="owner-m-card-chip owner-m-card-chip--place owner-facility-location-btn" '
+        f'data-owner-info data-info-format="address" '
+        f'data-info-title="{html.escape(fac_name, quote=True)}" '
+        f'data-address-street="{html.escape(addr["street"], quote=True)}" '
+        f'data-address-cityline="{html.escape(addr["city_line"], quote=True)}" '
+        f'data-address-full="{html.escape(addr["full_text"], quote=True)}" '
+        f'aria-label="Full address: {html.escape(label, quote=True)}">{esc}</button>'
+    )
 
 
 def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
@@ -368,21 +438,12 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
         else ""
     )
     link_label = provider_esc or legal_esc
-    place = _facility_location_short(f)
     display_label = link_label
-    if place and place != "—" and link_label and f"({place})" not in link_label:
-        display_label = f"{link_label} ({html.escape(place)})"
-    loc_tip = _facility_location_tooltip(f)
-    title_bits = []
+    title_attr = ""
     if href and display_label:
-        title_bits.append(f"View staffing data for {display_label}")
-    if loc_tip:
-        title_bits.append(loc_tip)
-    title_attr = (
-        f' title="{html.escape(" — ".join(title_bits), quote=True)}"'
-        if title_bits
-        else ""
-    )
+        title_attr = (
+            f' title="{html.escape(f"View staffing data for {display_label}", quote=True)}"'
+        )
     if href:
         primary_html = (
             f'<a href="{href}" class="owner-m-card__title"{title_attr}>{display_label}</a>'
@@ -398,6 +459,9 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
 def _facility_mobile_stats_line(f: dict[str, Any], *, verified: bool) -> str:
     """Single scannable metrics line: Own. 50% · 81 res · 3.16 HPRD · Ovr 4★ · Stf 1★."""
     bits: list[str] = []
+    place = _facility_location_chip(f)
+    if place:
+        bits.append(place)
     own = _facility_mobile_own_chip(f)
     if own:
         bits.append(own)

@@ -932,6 +932,37 @@ button.owner-role-pct-btn:focus-visible {
   vertical-align: bottom;
 }
 
+button.owner-facility-location-btn {
+  display: inline-block;
+  max-width: 6.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  margin: 0;
+  padding: 0.12rem 0.38rem;
+  border-radius: 4px;
+  border: 1px solid rgba(129, 140, 248, 0.38);
+  background: rgba(30, 41, 59, 0.65);
+  color: #c7d2fe;
+  font: inherit;
+  font-size: inherit;
+  line-height: 1.25;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+button.owner-facility-location-btn:hover,
+button.owner-facility-location-btn:focus-visible {
+  background: rgba(67, 56, 202, 0.35);
+  border-color: rgba(165, 180, 252, 0.55);
+  color: #e0e7ff;
+}
+
+button.owner-m-card-chip--place.owner-facility-location-btn {
+  max-width: none;
+}
+
 .owner-facilities-table .owner-col-state,
 .owner-facilities-table th.owner-col-state,
 .owner-facilities-table td.owner-col-state {
@@ -1651,6 +1682,22 @@ a.owner-associate-name:hover {
   font-size: 0.76rem;
   color: #64748b;
   line-height: 1.4;
+}
+
+.owner-info-modal-body--address .owner-info-address {
+  margin: 0 0 0.65rem;
+  font-style: normal;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #e2e8f0;
+}
+
+.owner-info-modal-body--address .owner-info-address p {
+  margin: 0 0 0.2rem;
+}
+
+.owner-info-modal--address .owner-info-modal-card {
+  max-width: min(22rem, 92vw);
 }
 
 .owner-info-modal-body--flag p {

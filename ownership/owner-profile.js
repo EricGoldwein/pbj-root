@@ -47,6 +47,34 @@
     infoBody.className = 'owner-info-modal-body';
     var fmt = btn.getAttribute('data-info-format') || '';
 
+    if (fmt === 'address') {
+      infoBody.classList.add('owner-info-modal-body--address');
+      var street = (btn.getAttribute('data-address-street') || '').trim();
+      var cityLine = (btn.getAttribute('data-address-cityline') || '').trim();
+      var full = (btn.getAttribute('data-address-full') || '').trim();
+      var lines = full ? full.split('\n') : [];
+      if (!lines.length) {
+        if (street) lines.push(street);
+        if (cityLine) lines.push(cityLine);
+      }
+      if (lines.length) {
+        var addr = document.createElement('address');
+        addr.className = 'owner-info-address';
+        lines.forEach(function (line) {
+          if (!line.trim()) return;
+          var p = document.createElement('p');
+          p.textContent = line.trim();
+          addr.appendChild(p);
+        });
+        infoBody.appendChild(addr);
+      }
+      var note = document.createElement('p');
+      note.className = 'owner-info-note';
+      note.textContent = 'Mailing address from CMS Provider Info.';
+      infoBody.appendChild(note);
+      return;
+    }
+
     if (fmt === 'ownership') {
       infoBody.classList.add('owner-info-modal-body--ownership');
       var kind = btn.getAttribute('data-role-kind') || '';
@@ -93,10 +121,15 @@
     var data = readInfoPayload(btn);
     if (infoTitle) infoTitle.textContent = data.title || 'Details';
     if (infoDlg.classList) {
-      infoDlg.classList.remove('owner-info-modal--ownership', 'owner-info-modal--flag');
+      infoDlg.classList.remove(
+        'owner-info-modal--ownership',
+        'owner-info-modal--flag',
+        'owner-info-modal--address'
+      );
       var fmt = btn.getAttribute('data-info-format') || '';
       if (fmt === 'ownership') infoDlg.classList.add('owner-info-modal--ownership');
       if (fmt === 'flag') infoDlg.classList.add('owner-info-modal--flag');
+      if (fmt === 'address') infoDlg.classList.add('owner-info-modal--address');
     }
     fillInfoBody(btn, data);
     if (typeof infoDlg.showModal === 'function') {

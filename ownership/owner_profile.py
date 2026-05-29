@@ -1080,7 +1080,9 @@ def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
     if isinstance(ow, dict) and ow.get("facilities"):
         ow["facilities"] = enrich_facilities(ow["facilities"])
         ow["portfolio_summary"] = build_portfolio_summary(ow["facilities"])
-    return profile
+    from ownership.owner_facility_map import attach_facility_map_context
+
+    return attach_facility_map_context(profile)
 
 
 def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:

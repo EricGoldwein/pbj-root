@@ -165,6 +165,16 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
             (c for c in header if c.lower() in ("provider_name", "provider name")),
             None,
         ),
+        "provider_address": next(
+            (c for c in header if c.lower() in ("provider_address", "provider address")),
+            None,
+        ),
+        "zip_code": next(
+            (c for c in header if c.lower() in ("zip_code", "zip", "zipcode")),
+            None,
+        ),
+        "latitude": next((c for c in header if c.lower() == "latitude"), None),
+        "longitude": next((c for c in header if c.lower() == "longitude"), None),
     }
     usecols_tuple: tuple[str, ...] = tuple(c for c in col_map.values() if c)
     if not col_map["ccn"]:
@@ -213,6 +223,18 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
                 "provider_name": str(row.get(col_map["provider_name"]) or "").strip()
                 if col_map["provider_name"]
                 else "",
+                "provider_address": str(row.get(col_map["provider_address"]) or "").strip()
+                if col_map.get("provider_address")
+                else "",
+                "zip_code": str(row.get(col_map["zip_code"]) or "").strip()
+                if col_map.get("zip_code")
+                else "",
+                "latitude": str(row.get(col_map["latitude"]) or "").strip()
+                if col_map.get("latitude")
+                else "",
+                "longitude": str(row.get(col_map["longitude"]) or "").strip()
+                if col_map.get("longitude")
+                else "",
             }
     return out
 
@@ -226,6 +248,10 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     pi = lookup.get(ccn) or {}
     if pi.get("provider_name"):
         out["provider_name"] = pi["provider_name"]
+    if ccn and pi:
+        for k in ("provider_address", "zip_code", "latitude", "longitude"):
+            if pi.get(k) and not out.get(k):
+                out[k] = pi[k]
     if method == "legal_exact" and ccn and pi:
         if not out.get("state") and pi.get("state"):
             out["state"] = pi["state"]

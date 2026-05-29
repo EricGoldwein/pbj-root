@@ -8213,12 +8213,6 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-compliance-warning--threshold {{
   padding: 0.5rem 0.65rem !important;
 }}
-.pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0;
-}}
 .pbj-compliance-warning__lines {{
   display: flex;
   flex-wrap: wrap;
@@ -8231,10 +8225,6 @@ button.pbj-takeaway-share-btn:hover {{
   font-weight: 500;
   line-height: 1.4;
 }}
-.pbj-compliance-warning--threshold .pbj-compliance-warning__line1 {{
-  flex: 0 0 auto;
-  width: 100%;
-}}
 .pbj-compliance-warning__line2 {{
   flex: 1 1 100%;
   font-size: 0.8125rem;
@@ -8246,12 +8236,11 @@ button.pbj-takeaway-share-btn:hover {{
   column-gap: 0.35rem;
   row-gap: 0.15rem;
 }}
-.pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
-  flex: 0 0 auto;
-  width: 100%;
-  margin-top: 0.42rem;
-  padding-top: 0.42rem;
-  border-top: 1px solid rgba(226, 232, 240, 0.24);
+.pbj-compliance-warning__mid {{
+  display: none;
+  color: rgba(226, 232, 240, 0.42);
+  user-select: none;
+  font-weight: 700;
 }}
 .pbj-compliance-warning__sep {{
   color: rgba(226, 232, 240, 0.45);
@@ -8296,6 +8285,22 @@ button.pbj-takeaway-share-btn:hover {{
   .pbj-compliance-warning--threshold {{
     width: fit-content;
     max-width: min(100%, 40rem);
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
+    flex-wrap: nowrap;
+    align-items: baseline;
+    column-gap: 0.28rem;
+    row-gap: 0;
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line1,
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
+    flex: 0 1 auto;
+    width: auto;
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__mid {{
+    display: inline;
+    flex: 0 0 auto;
+    margin: 0 0.12rem;
   }}
   .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
     white-space: nowrap;
@@ -12249,6 +12254,7 @@ def _provider_staffing_compliance_warning(
             f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
             f'<div class="pbj-compliance-warning__lines">'
             f'<div class="pbj-compliance-warning__line1">{line1}</div>'
+            f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
             f'<div class="pbj-compliance-warning__line2">'
             f'<span class="pbj-compliance-warning__meta">{min_meta}</span>'
             f'<span class="pbj-compliance-warning__sep" aria-hidden="true">·</span>'

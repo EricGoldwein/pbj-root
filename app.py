@@ -8263,6 +8263,25 @@ button.pbj-takeaway-share-btn:hover {{
     flex: 0 1 auto;
   }}
 }}
+@media (min-width: 900px) {{
+  .pbj-compliance-warning--threshold {{
+    width: fit-content;
+    max-width: min(100%, 40rem);
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
+    flex-wrap: nowrap;
+    align-items: baseline;
+    column-gap: 0.3rem;
+    row-gap: 0;
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line1,
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
+    flex: 0 1 auto;
+  }}
+  .pbj-compliance-warning--threshold .pbj-compliance-warning__line2 {{
+    white-space: nowrap;
+  }}
+}}
 .pbj-ai-provider-bar__share .pbj-takeaway-share-btn {{
   margin-left: 0;
 }}
@@ -8583,6 +8602,7 @@ button.pbj-casemix-inline-help {{
 }}
 button.pbj-casemix-inline-help:hover {{ color: #c7d2fe; }}
 button.pbj-casemix-inline-help:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px; border-radius: 2px; }}
+.pbj-casemix-caveat-text--mobile {{ display: none; }}
 .pbj-casemix-help-trigger--footer {{ display: none; margin: 0.35rem 0 0; }}
 .pbj-casemix-pct-bar {{ margin: 0; }}
 .pbj-casemix-pct-caption {{ display: none; }}
@@ -8712,12 +8732,13 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     text-overflow: ellipsis;
   }}
   button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--header {{
-    display: inline-flex;
-    flex-shrink: 0;
-    padding: 0.22rem 0.5rem;
-    font-size: 0.62rem;
-    border-radius: 999px;
-    white-space: nowrap;
+    display: none !important;
+  }}
+  .pbj-casemix-caveat-text--desktop {{
+    display: none;
+  }}
+  .pbj-casemix-caveat-text--mobile {{
+    display: inline;
   }}
   .pbj-casemix-help-label {{ font-size: inherit; }}
   .pbj-casemix-info-icon {{ display: none !important; }}
@@ -10847,7 +10868,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       <div id="pbjCaseMixBreakdownBars" class="pbj-casemix-bars"></div>
     </div>
   </details>
-  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient. <button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">What is case-mix?</button></p>
+  <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat"><span class="pbj-casemix-caveat-text--desktop">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span><span class="pbj-casemix-caveat-text--mobile"><button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">CMS case-mix is an acuity metric</button> based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span></p>
 </div>
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
@@ -11317,10 +11338,11 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
   function closeCaseMixModal() { if (modal) modal.setAttribute('aria-hidden', 'true'); }
   function openCaseMixHelpModal() { closeCaseMixAuxModal(); if (modal) modal.setAttribute('aria-hidden', 'false'); }
   if (modalBtn && modal) modalBtn.addEventListener('click', openCaseMixHelpModal);
-  if (heroWrap) {
-    heroWrap.addEventListener('click', function(e) {
-      var t = e.target;
-      if (t && t.getAttribute && t.getAttribute('data-pbj-casemix-help') === '1') {
+  var caseMixCard = document.querySelector('.pbj-casemix-card');
+  if (caseMixCard) {
+    caseMixCard.addEventListener('click', function(e) {
+      var btn = e.target && e.target.closest ? e.target.closest('[data-pbj-casemix-help]') : null;
+      if (btn) {
         e.preventDefault();
         openCaseMixHelpModal();
       }

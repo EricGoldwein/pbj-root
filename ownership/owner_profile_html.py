@@ -1154,7 +1154,9 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     n_suggested = int(ps.get("n_pbj_suggested") or 0)
     wmean = ps.get("wmean_hprd")
     umean = ps.get("umean_hprd")
-    mean_ovr = ps.get("mean_overall_rating")
+    mean_ovr = ps.get("umean_overall_rating")
+    if mean_ovr is None:
+        mean_ovr = ps.get("mean_overall_rating")
     mean_stf = ps.get("umean_staffing_rating")
     if mean_stf is None:
         mean_stf = ps.get("mean_staffing_rating")
@@ -1174,18 +1176,19 @@ def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
         fac_help += f" {n_suggested} use a tentative name match."
 
     ovr_help = (
-        f"Mean CMS overall star rating ({PORTFOLIO_OVERALL_RATING_MIN:g}–"
-        f"{PORTFOLIO_OVERALL_RATING_MAX:g}), resident-weighted by census (or beds). "
-        "Only PBJ-verified facilities; missing or out-of-range values excluded."
+        f"Simple average of CMS overall star ratings ({PORTFOLIO_OVERALL_RATING_MIN:g}–"
+        f"{PORTFOLIO_OVERALL_RATING_MAX:g}) across PBJ-verified facilities. "
+        "Not census-weighted. Missing or out-of-range values excluded."
     )
     hprd_help = (
-        f"Mean total nurse HPRD from PBJ, resident-weighted. Only PBJ-verified facilities. "
-        f"Values below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded "
-        "(CMS PBJ quarterly plausible range)."
+        "Resident-weighted portfolio average: each facility's latest PBJ total nurse HPRD "
+        "is weighted by census (or certified beds when census is missing), then combined. "
+        f"PBJ-verified facilities only. HPRD below {PORTFOLIO_HPRD_MIN:g} or above "
+        f"{PORTFOLIO_HPRD_MAX:g} excluded as implausible for quarterly PBJ."
     )
     stf_help = (
-        "Average CMS staffing star rating (1–5) across PBJ-verified facilities. "
-        "Not census-weighted (only total nurse HPRD uses resident weighting)."
+        "Simple average of CMS staffing star ratings (1–5) across PBJ-verified facilities. "
+        "Missing or out-of-range values excluded."
     )
 
     cards: list[str] = [

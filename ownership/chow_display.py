@@ -162,30 +162,17 @@ def _chow_details_button(panel_id: str) -> str:
     )
 
 
-def _party_initials(name: str) -> str:
-    tokens = [t for t in re.split(r"\W+", str(name or "").strip()) if t]
-    if not tokens:
-        return "?"
-    if len(tokens) == 1:
-        return tokens[0][:2].upper()
-    return (tokens[0][:1] + tokens[-1][:1]).upper()
-
-
 def _chow_party_card(
     *,
     role: str,
     display_html: str,
-    raw_name: str,
 ) -> str:
-    initials = html.escape(_party_initials(raw_name))
     role_esc = html.escape(role)
     return (
         f'<div class="owners-chow-party">'
-        f'<span class="owners-chow-party-mark" aria-hidden="true">{initials}</span>'
-        f'<div class="owners-chow-party-text">'
         f'<span class="owners-chow-party-role">{role_esc}</span>'
         f'<span class="owners-chow-party-name">{display_html}</span>'
-        f"</div></div>"
+        f"</div>"
     )
 
 
@@ -199,8 +186,6 @@ def render_chow_transfer_modal_body(
     fac_fn = facility_link_fn or _default_facility_link
     eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")) or "—")
     facility = fac_fn(rec)
-    buyer_raw = str(rec.get("buyer_org_name") or rec.get("buyer_dba_name") or "").strip()
-    seller_raw = str(rec.get("seller_org_name") or "").strip()
     buyer = org_link_fn(rec, "buyer")
     seller = org_link_fn(rec, "seller")
     summary = chow_change_summary(rec)
@@ -209,13 +194,15 @@ def render_chow_transfer_modal_body(
         if summary
         else ""
     )
-    seller_card = _chow_party_card(role="Seller", display_html=seller, raw_name=seller_raw)
-    buyer_card = _chow_party_card(role="Buyer", display_html=buyer, raw_name=buyer_raw)
+    seller_card = _chow_party_card(role="Seller", display_html=seller)
+    buyer_card = _chow_party_card(role="Buyer", display_html=buyer)
     compare = render_chow_detail_panel(rec, panel_id="")
     return (
         f'<div class="owners-chow-modal-transfer">'
+        f'<div class="owners-chow-modal-head-row">'
         f'<p class="owners-chow-modal-date"><span class="owners-chow-modal-date-k">Effective</span> {eff}</p>'
         f'<div class="owners-chow-modal-facility">{facility}</div>'
+        f"</div>"
         f"{summary_html}"
         f'<div class="owners-chow-transfer-flow" role="group" aria-label="Ownership transfer">'
         f"{seller_card}"

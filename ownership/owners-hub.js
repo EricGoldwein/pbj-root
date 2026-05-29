@@ -302,7 +302,11 @@
         });
       });
       dlg.addEventListener('click', function (e) {
-        if (e.target === dlg) dlg.close();
+        var card = dlg.querySelector('.owners-state-sources-modal-card');
+        if (card && !card.contains(e.target)) dlg.close();
+      });
+      dlg.addEventListener('cancel', function () {
+        dlg.close();
       });
     }
 
@@ -318,10 +322,91 @@
       });
     }
 
+    function initStatePanelTabs() {
+      var tablist = root && root.querySelector('.owners-state-panel-tabs');
+      if (!tablist) return;
+      var tabs = tablist.querySelectorAll('[data-owners-state-tab]');
+      var panels = root.querySelectorAll('[data-owners-state-panel]');
+      if (!tabs.length || !panels.length) return;
+
+      function isMobileTabs() {
+        return window.matchMedia('(max-width: 520px)').matches;
+      }
+
+      function syncDesktopPanels() {
+        panels.forEach(function (panel) {
+          if (isMobileTabs()) return;
+          panel.hidden = false;
+          panel.classList.add('is-active');
+        });
+      }
+
+      function activateTab(name) {
+        tabs.forEach(function (tab) {
+          var on = tab.getAttribute('data-owners-state-tab') === name;
+          tab.classList.toggle('is-active', on);
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          tab.tabIndex = on ? 0 : -1;
+        });
+        panels.forEach(function (panel) {
+          var on = panel.getAttribute('data-owners-state-panel') === name;
+          panel.classList.toggle('is-active', on);
+          if (isMobileTabs()) {
+            panel.hidden = !on;
+          } else {
+            panel.hidden = false;
+          }
+        });
+      }
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          if (!isMobileTabs()) return;
+          activateTab(tab.getAttribute('data-owners-state-tab') || 'portfolios');
+        });
+        tab.addEventListener('keydown', function (e) {
+          if (!isMobileTabs()) return;
+          var idx = Array.prototype.indexOf.call(tabs, tab);
+          var next = -1;
+          if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+            next = (idx + 1) % tabs.length;
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+            next = (idx - 1 + tabs.length) % tabs.length;
+          } else if (e.key === 'Home') {
+            next = 0;
+          } else if (e.key === 'End') {
+            next = tabs.length - 1;
+          }
+          if (next >= 0) {
+            e.preventDefault();
+            tabs[next].focus();
+            activateTab(tabs[next].getAttribute('data-owners-state-tab') || 'portfolios');
+          }
+        });
+      });
+
+      function onLayoutChange() {
+        if (isMobileTabs()) {
+          var active =
+            tablist.querySelector('.owners-state-panel-tab.is-active') ||
+            tabs[0];
+          activateTab(
+            (active && active.getAttribute('data-owners-state-tab')) || 'portfolios'
+          );
+        } else {
+          syncDesktopPanels();
+        }
+      }
+
+      onLayoutChange();
+      window.addEventListener('resize', onLayoutChange);
+    }
+
     if (root) {
       initTryChips();
       initSourcesModal();
       initAboutAccordion();
+      initStatePanelTabs();
     }
 
 

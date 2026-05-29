@@ -157,39 +157,26 @@ def _render_index_stats_strip(ctx: dict[str, Any]) -> str:
     return f'<div class="owners-state-index-stats">{stats}</div>'
 
 
-def _render_sources_modal() -> str:
-    """Mobile sources dialog (desktop sources live in About section)."""
-    sources = _render_search_card_sources()
-    if not sources:
-        return ""
+def _render_site_guide_links() -> str:
+    """In-app guides (shown in mobile sources dialog only)."""
+    sep = ' <span class="owners-state-meta-dot" aria-hidden="true">·</span> '
     return (
-        '<dialog class="owners-state-sources-modal" id="ownersStateSourcesModal" '
-        'aria-labelledby="ownersStateSourcesModalTitle">'
-        '<div class="owners-state-sources-modal-card">'
-        '<header class="owners-state-sources-modal-head">'
-        '<h2 id="ownersStateSourcesModalTitle">Sources</h2>'
-        '<button type="button" class="owners-state-sources-modal-close" '
-        'data-owners-sources-close aria-label="Close">×</button>'
-        "</header>"
-        f'<div class="owners-state-sources-modal-body">{sources}</div>'
-        "</div></dialog>"
+        '<p class="owners-state-sources-site">'
+        '<a href="/data-sources">Data sources</a>'
+        f'{sep}<a href="/phoebe">PBJ explained</a>'
+        f'{sep}<a href="/owner">FEC contributions</a>'
+        "</p>"
     )
 
 
-def _render_try_sources_trigger() -> str:
-    return (
-        '<button type="button" class="owners-state-sources-trigger" '
-        'data-owners-sources-open aria-haspopup="dialog">Sources</button>'
-    )
-
-
-def _render_search_card_sources() -> str:
-    """CMS + FEC source links (plain text, no badge chrome)."""
+def _render_external_data_sources(*, labeled: bool = True) -> str:
+    """CMS + FEC outbound links."""
     dot = ' <span class="owners-state-meta-dot" aria-hidden="true">·</span> '
     ext = ' rel="noopener noreferrer" target="_blank"'
+    label = '<span class="owners-state-sources-k">Sources:</span> ' if labeled else ""
     return (
         '<p class="owners-state-search-sources">'
-        '<span class="owners-state-sources-k">Sources:</span> '
+        f"{label}"
         f'<a class="owners-state-src-link" href="{html.escape(_CMS_OWNERSHIP_URL, quote=True)}"{ext}>'
         "CMS Ownership</a>"
         f"{dot}"
@@ -203,6 +190,41 @@ def _render_search_card_sources() -> str:
         "FEC</a>"
         "</p>"
     )
+
+
+def _render_sources_modal_body() -> str:
+    return _render_external_data_sources(labeled=False) + _render_site_guide_links()
+
+
+def _render_sources_modal() -> str:
+    """Mobile sources dialog; desktop uses the strip below About."""
+    body = _render_sources_modal_body()
+    if not body:
+        return ""
+    return (
+        '<dialog class="owners-state-sources-modal" id="ownersStateSourcesModal" '
+        'aria-labelledby="ownersStateSourcesModalTitle">'
+        '<div class="owners-state-sources-modal-card">'
+        '<header class="owners-state-sources-modal-head">'
+        '<h2 id="ownersStateSourcesModalTitle">Sources</h2>'
+        '<button type="button" class="owners-state-sources-modal-close" '
+        'data-owners-sources-close aria-label="Close">×</button>'
+        "</header>"
+        f'<div class="owners-state-sources-modal-body">{body}</div>'
+        "</div></dialog>"
+    )
+
+
+def _render_try_sources_trigger() -> str:
+    return (
+        '<button type="button" class="owners-state-sources-trigger" '
+        'data-owners-sources-open aria-haspopup="dialog">Sources</button>'
+    )
+
+
+def _render_search_card_sources() -> str:
+    """CMS + FEC source links for the desktop strip below About."""
+    return _render_external_data_sources(labeled=True)
 
 
 def _try_chip_entry(row: dict[str, Any]) -> dict[str, str] | None:
@@ -259,6 +281,26 @@ def _render_try_chip_link(chip: dict[str, str]) -> str:
     return f'<a class="owners-state-try-chip" href="{href}" aria-label="{label}">{name}</a>'
 
 
+def _render_panel_tabs(state_code: str) -> str:
+    """Mobile tab switcher (portfolios vs recent CHOW); hidden on wide desktop."""
+    st = (state_code or "").strip().upper()[:2]
+    short, _long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest portfolios", "Largest portfolios"))
+    portfolios_label = html.escape(short)
+    return (
+        '<div class="owners-state-panel-tabs" role="tablist" '
+        'aria-label="Ownership index sections">'
+        '<button type="button" class="owners-state-panel-tab is-active" role="tab" '
+        'id="ownersStateTabPortfolios" aria-selected="true" aria-controls="ownersStatePanelPortfolios" '
+        'data-owners-state-tab="portfolios" tabindex="0">'
+        f"{portfolios_label}</button>"
+        '<button type="button" class="owners-state-panel-tab" role="tab" '
+        'id="ownersStateTabChow" aria-selected="false" aria-controls="ownersStatePanelChow" '
+        'data-owners-state-tab="chow" tabindex="-1">'
+        "Recent ownership changes</button>"
+        "</div>"
+    )
+
+
 def _render_largest_portfolios_title(state_code: str) -> str:
     """Short state abbrev in panel header; full state name when layout has room."""
     st = (state_code or "").strip().upper()[:2]
@@ -272,13 +314,14 @@ def _render_largest_portfolios_title(state_code: str) -> str:
 
 
 def _render_state_h1(h1: str) -> str:
-    """H1 with optional two-line mobile stack when title ends with ' Search'."""
-    if h1.endswith(" Search"):
-        primary = html.escape(h1[: -len(" Search")])
+    """Two-line mobile stack: '{state} Nursing Home' / 'Ownership Search' (one line on desktop)."""
+    suffix = " Ownership Search"
+    if h1.endswith(suffix):
+        primary = html.escape(h1[: -len(suffix)])
         return (
             '<h1 class="owners-state-h1">'
             f'<span class="owners-state-h1-primary">{primary}</span>'
-            '<span class="owners-state-h1-secondary">Search</span>'
+            '<span class="owners-state-h1-secondary">Ownership Search</span>'
             "</h1>"
         )
     return f'<h1 class="owners-state-h1">{html.escape(h1)}</h1>'
@@ -462,25 +505,6 @@ def render_state_owner_index_body(
         </div>
       </div>
 
-      <div class="owners-state-panels">
-        <section class="owners-state-panel" aria-labelledby="ownersStateTopHeading">
-          <header class="owners-state-panel-head">
-            {_render_largest_portfolios_title(st)}
-          </header>
-          <div class="owners-state-panel-body">
-            {top_html}
-          </div>
-        </section>
-        <section class="owners-state-panel owners-state-panel--chow" aria-labelledby="ownersStateChowHeading">
-          <header class="owners-state-panel-head">
-            <h2 id="ownersStateChowHeading" class="owners-state-panel-title">Recent ownership changes</h2>
-          </header>
-          <div class="owners-state-panel-body">
-            {chow_body_html}
-          </div>
-        </section>
-      </div>
-
       <details class="owners-state-method">
         <summary class="owners-state-method-trigger" aria-expanded="false">
           <span class="owners-state-method-label">About this {html.escape(state_name)} ownership index</span>
@@ -502,12 +526,31 @@ def render_state_owner_index_body(
             Recent ownership changes are based on CMS change-of-ownership records. Staffing trends use the same
             public PBJ data used across PBJ320.
           </p>
-          <p class="owners-state-method-links">
-            <a href="/data-sources">Data sources</a><span class="owners-state-method-links-sep" aria-hidden="true"> · </span><a href="/phoebe">PBJ explained</a><span class="owners-state-method-links-sep" aria-hidden="true"> · </span><a href="/owner">FEC contributions</a>
-          </p>
         </div>
       </details>
       <div class="owners-state-desktop-sources">{method_sources_html}</div>
+
+      {_render_panel_tabs(st)}
+      <div class="owners-state-panels">
+        <section class="owners-state-panel is-active" id="ownersStatePanelPortfolios" role="tabpanel"
+          aria-labelledby="ownersStateTopHeading ownersStateTabPortfolios" data-owners-state-panel="portfolios">
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            {_render_largest_portfolios_title(st)}
+          </header>
+          <div class="owners-state-panel-body">
+            {top_html}
+          </div>
+        </section>
+        <section class="owners-state-panel owners-state-panel--chow" id="ownersStatePanelChow" role="tabpanel"
+          aria-labelledby="ownersStateChowHeading ownersStateTabChow" data-owners-state-panel="chow" hidden>
+          <header class="owners-state-panel-head owners-state-panel-head--desktop">
+            <h2 id="ownersStateChowHeading" class="owners-state-panel-title">Recent ownership changes</h2>
+          </header>
+          <div class="owners-state-panel-body">
+            {chow_body_html}
+          </div>
+        </section>
+      </div>
       {sources_modal_html}
     </div>
     """

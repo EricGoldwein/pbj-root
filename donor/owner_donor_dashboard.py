@@ -23,6 +23,7 @@ from fec_api_client import (
     FEC_API_KEY,
     FEC_API_BASE_URL,
 )
+from fec_name_variations import normalize_name_for_search
 import requests
 
 
@@ -126,70 +127,6 @@ def ensure_data_loaded() -> None:
 def _load_data_before_request():
     if request.path.startswith("/api/") or request.path in ("/", "/test", "/test/"):
         ensure_data_loaded()
-
-# Name variation mapping (common nicknames)
-NAME_VARIATIONS = {
-    'WILLIAM': ['BILL', 'WILL', 'WILLY'],
-    'ROBERT': ['BOB', 'ROB', 'BOBBY'],
-    'RICHARD': ['DICK', 'RICK', 'RICH'],
-    'JAMES': ['JIM', 'JIMMY', 'JAMIE'],
-    'JOHN': ['JACK', 'JOHNNY'],
-    'CHARLES': ['CHARLIE', 'CHUCK'],
-    'MICHAEL': ['MIKE', 'MIKEY'],
-    'JOSEPH': ['JOE', 'JOEY'],
-    'THOMAS': ['TOM', 'TOMMY'],
-    'CHRISTOPHER': ['CHRIS'],
-    'DANIEL': ['DAN', 'DANNY'],
-    'MATTHEW': ['MATT'],
-    'ANTHONY': ['TONY'],
-    'EDWARD': ['ED', 'EDDIE', 'TED'],
-    'JOSEPH': ['JOE'],
-    'PATRICK': ['PAT'],
-    'KENNETH': ['KEN'],
-    'STEPHEN': ['STEVE'],
-    'ANDREW': ['ANDY'],
-    'JOSHUA': ['JOSH'],
-    'BENJAMIN': ['BEN'],
-    'NICHOLAS': ['NICK'],
-    'JONATHAN': ['JON'],
-    'SAMUEL': ['SAM'],
-    'ALEXANDER': ['ALEX'],
-    'CHRISTIAN': ['CHRIS'],
-    'RYAN': ['RYAN'],
-    'NATHAN': ['NATE'],
-    'TYLER': ['TY'],
-    'JACOB': ['JAKE'],
-}
-
-
-def normalize_name_for_search(name):
-    """Normalize name and generate variations for flexible matching"""
-    if pd.isna(name) or not name:
-        return []
-    
-    name_upper = str(name).upper().strip()
-    variations = [name_upper]
-    
-    # Split into parts
-    parts = name_upper.split()
-    if len(parts) >= 2:
-        first = parts[0]
-        last = parts[-1]
-        
-        # Add nickname variations
-        if first in NAME_VARIATIONS:
-            for nickname in NAME_VARIATIONS[first]:
-                variations.append(f"{nickname} {last}")
-                if len(parts) > 2:
-                    # Handle middle names/initials
-                    variations.append(f"{nickname} {parts[1]} {last}")
-        
-        # Add "First Last" (without middle)
-        if len(parts) > 2:
-            variations.append(f"{first} {last}")
-    
-    return list(set(variations))
-
 
 def _fec_search_variations_display(variations: list[str]) -> list[str]:
     """Title-case labels for UI only (same queries as normalize_name_for_search)."""

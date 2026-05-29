@@ -12629,10 +12629,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     # Omit separate risk badge when the only risk is 1-star overall (we show that via red Overall badge)
     _skip_risk_badge = _risk_reason_lower in ('1-star overall', '1 star overall', '1-star', '1 star')
     risk_badge_conditional = risk_badge if (risk_badge and not _skip_risk_badge) else ''
-    is_1_star_overall = _overall_n == 1
-    is_1_star_staffing = _staff_n == 1
-    overall_badge_style = badge_span_red if is_1_star_overall else badge_span
-    staffing_badge_style = badge_span_red if is_1_star_staffing else badge_span
+    # 1-star badges keep neutral pill styling; stars alone use pbj-rating-stars--low (red).
+    overall_badge_style = badge_span
+    staffing_badge_style = badge_span
     overall_badge_html = (
         f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
         f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'

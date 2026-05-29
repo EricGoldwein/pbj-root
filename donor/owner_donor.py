@@ -26,6 +26,7 @@ try:
         normalize_fec_donation,
         donations_to_dataframe
     )
+    from fec_name_variations import normalize_name_for_search
 except ImportError:
     print("ERROR: fec_api_client.py not found. Please ensure it's in the same directory.")
     raise
@@ -353,26 +354,20 @@ for idx, owner in owners_df.iterrows():
     print(f"    Querying FEC API...", end=" ")
     
     try:
-        # Try multiple name variations for better matching
-        name_variations = [owner_name]
-        
-        # For individuals, also try last name only and different formats
-        if owner_type == "INDIVIDUAL":
-            name_parts = owner_name.split()
-            if len(name_parts) >= 2:
-                # Try last name only
-                name_variations.append(name_parts[-1])
-                # Try "First Last" format (if we have middle initial)
-                if len(name_parts) == 3:
-                    name_variations.append(f"{name_parts[0]} {name_parts[2]}")
-        
-        # Try original name as well
-        if owner_name_original and owner_name_original != owner_name:
-            name_variations.append(owner_name_original)
-        
-        # Remove duplicates while preserving order
-        seen = set()
-        name_variations = [x for x in name_variations if not (x in seen or seen.add(x))]
+        # Same variation rules as live /owner/api/query-fec (no surname-only queries)
+        seed = owner_name_original or owner_name
+        name_variations = normalize_name_for_search(seed) if owner_type == "INDIVIDUAL" else [owner_name]
+        if owner_name and owner_name.upper() not in {v.upper() for v in name_variations}:
+            name_variations.insert(0, owner_name.upper())
+        if (
+            owner_name_original
+            and owner_name_original.upper() not in {v.upper() for v in name_variations}
+        ):
+            name_variations.append(owner_name_original.upper())
+        seen: set[str] = set()
+        name_variations = [
+            x for x in name_variations if not (x.upper() in seen or seen.add(x.upper()))
+        ]
         
         all_donations_for_owner = []
         for name_var in name_variations:

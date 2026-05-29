@@ -1998,6 +1998,7 @@ button.owner-flag:hover {
 @media (max-width: 640px) {
   .pbj-ownership-lead {
     font-size: 0.84rem;
+    margin-bottom: 0.4rem;
   }
 
   .pbj-ownership-chip {
@@ -2006,6 +2007,16 @@ button.owner-flag:hover {
 
   .pbj-ownership-middot {
     display: inline;
+  }
+
+  .pbj-ownership-chow-content .chow-provider-owners-scroll {
+    max-height: min(48vh, 320px);
+    margin-top: 0.25rem;
+  }
+
+  .pbj-ownership-about-callout {
+    margin-bottom: 0.5rem;
+    padding: 0.45rem 0.58rem;
   }
 }
 

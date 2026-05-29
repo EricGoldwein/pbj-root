@@ -393,7 +393,7 @@
       '<div id="ownerFecPagination" class="owner-fec-pagination"></div>' +
       '<p class="owner-fec-source">' +
       '<span class="owner-fec-source-long">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">Federal Election Commission</a></span>' +
-      '<span class="owner-fec-source-short">Data from the <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">FEC</a></span>' +
+      '<span class="owner-fec-source-short">Source: <a href="https://www.fec.gov/data/receipts/" target="_blank" rel="noopener">FEC</a></span>' +
       '</p>' +
       '</div>';
 

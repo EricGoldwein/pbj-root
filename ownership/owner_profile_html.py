@@ -319,7 +319,7 @@ def _facility_postal_address_parts(f: dict[str, Any]) -> dict[str, str]:
         "street": street,
         "city_line": city_line,
         "full_text": "\n".join(full_lines),
-        "has_postal": bool(street or (city_line and len(st) == 2)),
+        "has_postal": bool(street),
     }
 
 

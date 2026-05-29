@@ -113,15 +113,8 @@ def provider_info_crosswalk_paths() -> list[Path]:
     return ordered
 
 
-@lru_cache(maxsize=1)
-def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
-    """Latest provider-info row per CCN (state, county, city, beds, HPRD, ratings)."""
-    path = next((p for p in _provider_info_csv_paths() if p.is_file()), None)
-    if not path:
-        return {}
-
-    header = pd.read_csv(path, nrows=0).columns.tolist()
-    col_map = {
+def _provider_info_col_map(header: list[str]) -> dict[str, str | None]:
+    return {
         "ccn": next((c for c in header if c.lower() in ("ccn", "provnum")), None),
         "state": next((c for c in header if c.lower() == "state"), None),
         "county": next((c for c in header if c.lower() == "county"), None),
@@ -176,6 +169,58 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
         "latitude": next((c for c in header if c.lower() == "latitude"), None),
         "longitude": next((c for c in header if c.lower() == "longitude"), None),
     }
+
+
+def _provider_info_row_dict(row: pd.Series, col_map: dict[str, str | None]) -> dict[str, str]:
+    def _cell(key: str) -> str:
+        col = col_map.get(key)
+        if not col:
+            return ""
+        val = row.get(col)
+        if val is None or (isinstance(val, float) and pd.isna(val)):
+            return ""
+        s = str(val).strip()
+        if s.lower() in ("nan", "none"):
+            return ""
+        return s
+
+    state = _cell("state").upper()[:2]
+    return {
+        "state": state,
+        "county": _cell("county"),
+        "city": _cell("city"),
+        "beds": _cell("beds"),
+        "census": _cell("census"),
+        "hprd": _cell("hprd"),
+        "overall_rating": _cell("overall"),
+        "staffing_rating": _cell("staffing"),
+        "health_inspection_rating": _cell("health_inspection"),
+        "qm_rating": _cell("qm"),
+        "sff": _cell("sff"),
+        "sff_status": _cell("sff"),
+        "abuse_icon": _cell("abuse"),
+        "provider_name": _cell("provider_name"),
+        "provider_address": _cell("provider_address"),
+        "zip_code": _cell("zip_code"),
+        "latitude": _cell("latitude"),
+        "longitude": _cell("longitude"),
+    }
+
+
+def _merge_provider_lookup_row(
+    base: dict[str, str], incoming: dict[str, str]
+) -> dict[str, str]:
+    """Merge two provider-info rows; non-empty incoming values win."""
+    merged = dict(base)
+    for key, val in incoming.items():
+        if val:
+            merged[key] = val
+    return merged
+
+
+def _provider_info_rows_from_path(path: Path) -> dict[str, dict[str, str]]:
+    header = pd.read_csv(path, nrows=0).columns.tolist()
+    col_map = _provider_info_col_map(header)
     usecols_tuple: tuple[str, ...] = tuple(c for c in col_map.values() if c)
     if not col_map["ccn"]:
         return {}
@@ -204,39 +249,35 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
             ccn = raw_ccn.zfill(6)[-6:] if raw_ccn.isdigit() else ""
             if not ccn:
                 continue
-            out[ccn] = {
-                "state": str(row.get(col_map["state"]) or "").strip().upper()[:2] if col_map["state"] else "",
-                "county": str(row.get(col_map["county"]) or "").strip() if col_map["county"] else "",
-                "city": str(row.get(col_map["city"]) or "").strip() if col_map["city"] else "",
-                "beds": str(row.get(col_map["beds"]) or "").strip() if col_map["beds"] else "",
-                "census": str(row.get(col_map["census"]) or "").strip() if col_map["census"] else "",
-                "hprd": str(row.get(col_map["hprd"]) or "").strip() if col_map["hprd"] else "",
-                "overall_rating": str(row.get(col_map["overall"]) or "").strip() if col_map["overall"] else "",
-                "staffing_rating": str(row.get(col_map["staffing"]) or "").strip() if col_map["staffing"] else "",
-                "health_inspection_rating": str(row.get(col_map["health_inspection"]) or "").strip()
-                if col_map["health_inspection"]
-                else "",
-                "qm_rating": str(row.get(col_map["qm"]) or "").strip() if col_map["qm"] else "",
-                "sff": str(row.get(col_map["sff"]) or "").strip() if col_map["sff"] else "",
-                "sff_status": str(row.get(col_map["sff"]) or "").strip() if col_map["sff"] else "",
-                "abuse_icon": str(row.get(col_map["abuse"]) or "").strip() if col_map["abuse"] else "",
-                "provider_name": str(row.get(col_map["provider_name"]) or "").strip()
-                if col_map["provider_name"]
-                else "",
-                "provider_address": str(row.get(col_map["provider_address"]) or "").strip()
-                if col_map.get("provider_address")
-                else "",
-                "zip_code": str(row.get(col_map["zip_code"]) or "").strip()
-                if col_map.get("zip_code")
-                else "",
-                "latitude": str(row.get(col_map["latitude"]) or "").strip()
-                if col_map.get("latitude")
-                else "",
-                "longitude": str(row.get(col_map["longitude"]) or "").strip()
-                if col_map.get("longitude")
-                else "",
-            }
+            parsed = _provider_info_row_dict(row, col_map)
+            if ccn in out:
+                out[ccn] = _merge_provider_lookup_row(out[ccn], parsed)
+            else:
+                out[ccn] = parsed
     return out
+
+
+@lru_cache(maxsize=1)
+def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
+    """
+    Provider-info row per CCN merged across snapshots.
+
+    Monthly ProviderInfoNorm exports are read last (fresh names/ratings) but may omit
+    mailing address; older combined snapshots backfill street/zip when newer rows are blank.
+    Verified from: ProviderInfoNorm_2026_05.csv vs provider_info_combined_latest.csv (CCN 365394).
+    """
+    paths = [p for p in _provider_info_csv_paths() if p.is_file()]
+    if not paths:
+        return {}
+
+    merged: dict[str, dict[str, str]] = {}
+    for path in reversed(paths):
+        for ccn, row in _provider_info_rows_from_path(path).items():
+            if ccn in merged:
+                merged[ccn] = _merge_provider_lookup_row(merged[ccn], row)
+            else:
+                merged[ccn] = row
+    return merged
 
 
 def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
@@ -249,7 +290,7 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     if pi.get("provider_name"):
         out["provider_name"] = pi["provider_name"]
     if ccn and pi:
-        for k in ("provider_address", "zip_code", "latitude", "longitude"):
+        for k in ("provider_address", "zip_code", "city", "latitude", "longitude"):
             if pi.get(k) and not out.get(k):
                 out[k] = pi[k]
     if method == "legal_exact" and ccn and pi:

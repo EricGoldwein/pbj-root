@@ -474,8 +474,8 @@ def ownership_pct_display_label(raw: str) -> str:
         v = float(s.replace(",", ""))
         if v == 0:
             return ""
-        if v == int(v):
-            return f"{int(v)}% ownership interest"
-        return f"{v:g}% ownership interest"
+        if abs(v - round(v)) < 1e-9:
+            return f"{int(round(v))}% ownership interest"
+        return f"{v:.1f}% ownership interest"
     except ValueError:
         return f"{s}% ownership interest" if "%" not in s else f"{s} ownership interest"

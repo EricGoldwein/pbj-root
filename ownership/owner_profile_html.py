@@ -371,29 +371,6 @@ def _facility_location_chip(f: dict[str, Any]) -> str:
     )
 
 
-def _facility_location_inline(f: dict[str, Any]) -> str:
-    """Inline [City, ST] suffix on the facility title line (mobile portfolio)."""
-    label = _facility_location_short(f)
-    if not label or label == "—":
-        return ""
-    bracket = f"[{html.escape(label)}]"
-    addr = _facility_postal_address_parts(f)
-    if not addr.get("has_postal"):
-        return f' <span class="owner-m-card__place-inline">{bracket}</span>'
-    fac_name = format_org_display(
-        str(f.get("provider_name") or f.get("facility_name") or "Facility")
-    )
-    return (
-        f' <button type="button" class="owner-m-card__place-inline owner-facility-location-btn" '
-        f'data-owner-info data-info-format="address" '
-        f'data-info-title="{html.escape(fac_name, quote=True)}" '
-        f'data-address-street="{html.escape(addr["street"], quote=True)}" '
-        f'data-address-cityline="{html.escape(addr["city_line"], quote=True)}" '
-        f'data-address-full="{html.escape(addr["full_text"], quote=True)}" '
-        f'aria-label="Full address: {html.escape(label, quote=True)}">{bracket}</button>'
-    )
-
-
 def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
     """Mobile / narrow: census under facility name when present."""
     census = _fmt_census(f.get("census") if verified else None)
@@ -409,6 +386,23 @@ def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
     return ""
 
 
+def _format_ownership_pct_value(raw: str) -> str:
+    """CMS ownership % for display (one decimal when fractional)."""
+    s = str(raw or "").strip()
+    if not s or s.lower() in ("nan", "none", "—", "-", "n/a"):
+        return ""
+    core = s.replace("%", "").replace(",", "").strip()
+    if not core:
+        return ""
+    try:
+        v = float(core)
+        if abs(v - round(v)) < 1e-9:
+            return f"{int(round(v))}%"
+        return f"{v:.1f}%"
+    except ValueError:
+        return s if "%" in s else f"{s}%"
+
+
 def _format_own_pct_label(value: str) -> str:
     """Compact CMS ownership stake for mobile cards."""
     s = str(value or "").strip()
@@ -416,42 +410,85 @@ def _format_own_pct_label(value: str) -> str:
         return s
     low = s.lower()
     if "ownership interest" in low:
+        m = re.search(r"([\d.,]+)\s*%", s)
+        if m:
+            pct = _format_ownership_pct_value(m.group(1))
+            return f"{pct} ownership interest" if pct else s
         return s
     if "%" in s or any(ch.isdigit() for ch in s):
-        core = s if "%" in s else f"{s}%"
-        return f"{core} ownership interest"
+        pct = _format_ownership_pct_value(s)
+        return f"{pct} ownership interest" if pct else s
     return s
+
+
+def _facility_ownership_modal_attr_str(f: dict[str, Any], *, pct_label: str = "") -> str:
+    """data-* attributes for ownership / role info modal."""
+    from ownership.role_classification import (
+        ASSOC_DATE_COL,
+        PCT_COL,
+        ROLE_CODE_COL,
+        ROLE_TEXT_COL,
+        classify_owner_record,
+    )
+
+    role_raw = str(f.get("role") or "")
+    role_text = format_role_text(role_raw) if role_raw else ""
+    adate = _fmt_date_mdyy(f.get("association_date"))
+    info = classify_owner_record(
+        {
+            ROLE_CODE_COL: f.get("role_code") or "",
+            ROLE_TEXT_COL: role_raw,
+            PCT_COL: f.get("pct") or "",
+            ASSOC_DATE_COL: f.get("association_date") or "",
+        }
+    )
+    category = str(
+        info.get("primary_role_label") or info.get("role_category_label") or ""
+    ).strip()
+    pct_reported = _format_ownership_pct_value(str(f.get("pct") or ""))
+    kind_hint = _role_kind_hint(role_text)
+    fac = format_org_display(str(f.get("facility_name") or ""))
+    title = fac or category or "Ownership"
+    bits = ["data-owner-info", 'data-info-format="ownership"']
+    bits.append(f'data-info-title="{html.escape(title, quote=True)}"')
+    for key, val in (
+        ("data-role-category", category),
+        ("data-role-code", str(info.get("role_code") or "")),
+        ("data-role-text", role_text),
+        ("data-role-since", adate if adate != "—" else ""),
+        ("data-pct-reported", pct_reported),
+        ("data-role-kind", kind_hint),
+        ("data-facility-name", fac),
+    ):
+        if val:
+            bits.append(f'{key}="{html.escape(str(val), quote=True)}"')
+    return " ".join(bits)
 
 
 def _facility_mobile_own_chip(f: dict[str, Any]) -> str:
     """Inline ownership % for compact mobile cards (tap for CMS role when available)."""
     role_raw = str(f.get("role") or "")
-    role_text = format_role_text(role_raw) if role_raw else ""
-    adate = _fmt_date_mdyy(f.get("association_date"))
     pct_raw = str(f.get("pct") or "").strip()
-    pct = ""
-    if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
-        pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
+    pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
     pct_label = _format_own_pct_label(pct) if pct else _pct_fallback_label(role_raw) or ""
     pct_display = html.escape(pct_label)
     if not pct_display:
         return ""
     label = pct_display
-    if role_text or (adate and adate != "—"):
-        modal_title = html.escape(pct or "Ownership", quote=True)
+    adate = _fmt_date_mdyy(f.get("association_date"))
+    role_text = format_role_text(role_raw) if role_raw else ""
+    if role_text or (adate and adate != "—") or pct:
+        attrs = _facility_ownership_modal_attr_str(f, pct_label=pct_label)
         return (
             f'<button type="button" class="owner-m-card-chip owner-m-card-chip--own owner-role-pct-btn" '
-            f'data-owner-info data-info-format="ownership" '
-            f'data-info-title="{modal_title}" '
-            f'data-role-text="{html.escape(role_text, quote=True)}" '
-            f'data-role-since="{html.escape(adate if adate != "—" else "", quote=True)}" '
-            f'aria-label="Ownership {label} (tap for role)">{label}</button>'
+            f"{attrs} "
+            f'aria-label="Ownership {label} (tap for details)">{label}</button>'
         )
     return f'<span class="owner-m-card-chip owner-m-card-chip--own">{label}</span>'
 
 
 def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
-    """Row 1: legal business name [City, ST]; optional subrow when DBA differs."""
+    """Row 1: provider/DBA (linked); row 2: CMS legal name + tappable city chip when different."""
     legal_raw = format_org_display(str(f.get("facility_name") or "—"))
     provider_raw = format_org_display(str(f.get("provider_name") or "").strip())
     ccn = str(f.get("ccn") or "").strip().zfill(6)[-6:]
@@ -464,30 +501,31 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
         if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
         else ""
     )
-    link_label = legal_raw
+    primary_esc = provider_esc if provider_esc else legal_esc
+    link_label = provider_raw or legal_raw
     title_attr = ""
     if href and link_label:
         title_attr = (
             f' title="{html.escape(f"View staffing data for {link_label}", quote=True)}"'
         )
-    location_inline = _facility_location_inline(f)
     if href:
-        title_inner = (
-            f'<a href="{href}" class="owner-m-card__title"{title_attr}>{legal_esc}</a>'
-            f"{location_inline}"
-        )
+        row1 = f'<a href="{href}" class="owner-m-card__title"{title_attr}>{primary_esc}</a>'
     else:
-        title_inner = f'<span class="owner-m-card__title">{legal_esc}</span>{location_inline}'
-    title_line = f'<div class="owner-m-card__title-line">{title_inner}</div>'
+        row1 = f'<span class="owner-m-card__title">{primary_esc}</span>'
+    html_out = f'<div class="owner-m-card__title-line">{row1}</div>'
+    place = _facility_location_chip(f)
     if provider_esc and not same:
-        if href:
-            prov_inner = (
-                f'<a href="{href}" class="owner-m-card__sub"{title_attr}>{provider_esc}</a>'
-            )
-        else:
-            prov_inner = f'<span class="owner-m-card__sub">{provider_esc}</span>'
-        return title_line + f'<div class="owner-m-card__subrow">{prov_inner}</div>'
-    return title_line
+        sub_left = f'<span class="owner-m-card__sub">{legal_esc}</span>'
+        aside = (
+            f'<span class="owner-m-card__sub-aside">{place}</span>' if place else ""
+        )
+        html_out += f'<div class="owner-m-card__subrow">{sub_left}{aside}</div>'
+    elif place:
+        html_out += (
+            f'<div class="owner-m-card__subrow owner-m-card__subrow--place-only">'
+            f'<span class="owner-m-card__sub-aside">{place}</span></div>'
+        )
+    return html_out
 
 
 def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
@@ -1594,27 +1632,23 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     role_text = format_role_text(role_raw) if role_raw else ""
     adate = _fmt_date_mdyy(f.get("association_date"))
     pct_raw = str(f.get("pct") or "").strip()
-    pct = ""
-    if pct_raw and pct_raw.lower() not in ("nan", "none", "—", "-", ""):
-        pct = pct_raw if "%" in pct_raw else f"{pct_raw}%"
+    pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
 
     if pct:
-        pct_display = html.escape(_format_own_pct_label(pct))
+        pct_label_raw = _format_own_pct_label(pct)
+        pct_display = html.escape(pct_label_raw)
     else:
-        pct_display = html.escape(_pct_fallback_label(role_raw) or "—")
-    has_detail = bool(role_text) or (adate and adate != "—")
-    kind_hint = _role_kind_hint(role_text)
+        pct_label_raw = _pct_fallback_label(role_raw) or "—"
+        pct_display = html.escape(pct_label_raw)
+    has_detail = bool(role_text) or (adate and adate != "—") or pct
     since_html = _role_since_html(f.get("association_date"))
 
     if has_detail:
-        modal_title = html.escape(pct or "Ownership", quote=True)
+        attrs = _facility_ownership_modal_attr_str(
+            f, pct_label=pct_label_raw if pct else ""
+        )
         pct_part = (
-            f'<button type="button" class="owner-role-pct-btn" data-owner-info '
-            f'data-info-format="ownership" '
-            f'data-info-title="{modal_title}" '
-            f'data-role-kind="{html.escape(kind_hint, quote=True)}" '
-            f'data-role-text="{html.escape(role_text, quote=True)}" '
-            f'data-role-since="{html.escape(adate if adate != "—" else "", quote=True)}" '
+            f'<button type="button" class="owner-role-pct-btn" {attrs} '
             f'aria-label="Ownership details: {pct_display}">'
             f"{pct_display}</button>"
         )

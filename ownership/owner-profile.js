@@ -70,24 +70,28 @@
       }
       var note = document.createElement('p');
       note.className = 'owner-info-note';
-      note.textContent = 'Mailing address from CMS Provider Info.';
+      note.textContent = 'Source: CMS Provider Info';
       infoBody.appendChild(note);
       return;
     }
 
     if (fmt === 'ownership') {
       infoBody.classList.add('owner-info-modal-body--ownership');
-      var kind = btn.getAttribute('data-role-kind') || '';
-      var roleText = btn.getAttribute('data-role-text') || '';
-      var since = btn.getAttribute('data-role-since') || '';
-      if (kind) {
+      var category = (btn.getAttribute('data-role-category') || '').trim();
+      var pctReported = (btn.getAttribute('data-pct-reported') || '').trim();
+      var roleText = (btn.getAttribute('data-role-text') || '').trim();
+      var kind = (btn.getAttribute('data-role-kind') || '').trim();
+      var since = (btn.getAttribute('data-role-since') || '').trim();
+      var leadText = kind || category;
+      if (leadText) {
         var lead = document.createElement('p');
         lead.className = 'owner-info-lead';
-        lead.textContent = kind;
+        lead.textContent = leadText;
         infoBody.appendChild(lead);
       }
       var dl = document.createElement('dl');
       dl.className = 'owner-info-dl';
+      appendDlRow(dl, 'Reported stake', pctReported);
       appendDlRow(dl, 'CMS role', roleText);
       appendDlRow(dl, 'Since', since);
       if (dl.children.length) infoBody.appendChild(dl);

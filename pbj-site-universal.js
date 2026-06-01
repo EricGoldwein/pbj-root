@@ -29,14 +29,13 @@
   var FOOTER_ICON_LINK_STYLE = 'display:inline-flex;align-items:center;justify-content:center';
 
   var FOOTER_NAV_LINKS =
-    '<p class="footer-trust-links footer-nav-links" style="margin:0 0 0.35rem 0;font-size:0.75rem;text-align:center;color:rgba(148,163,184,0.95)">' +
+    '<p class="footer-trust-links footer-nav-links">' +
     '<a href="/about" style="' + FOOTER_LINK_STYLE + '">About</a> · ' +
     '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
-    '<a href="/contact" style="' + FOOTER_LINK_STYLE + '">Contact</a> · ' +
     '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a> · ' +
     '<a href="/corrections" style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
-    '<a href="/#updates" style="' + FOOTER_LINK_STYLE + '">Updates</a>' +
+    '<a href="/#updates" style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
     '</p>';
 
   var FOOTER_CORE = [
@@ -52,10 +51,11 @@
     var y = new Date().getFullYear();
     var legalStyle = 'color:rgba(203,213,225,0.78);text-decoration:none;';
     return (
-      '<p class="footer-signoff">\u00a9 ' + y + ', ' +
+      '<p class="footer-signoff"><span class="footer-signoff-line">\u00a9 ' + y + ', ' +
       '<a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a> · ' +
       '<a href="/terms" class="footer-signoff-link" style="' + legalStyle + '">Terms</a> · ' +
-      '<a href="/privacy" class="footer-signoff-link" style="' + legalStyle + '">Privacy</a></p>'
+      '<a href="/privacy" class="footer-signoff-link" style="' + legalStyle + '">Privacy</a> · ' +
+      '<a href="/contact" class="footer-signoff-link" style="' + legalStyle + '">Contact</a></span></p>'
     );
   }
 
@@ -227,10 +227,12 @@
       '.footer .pbj-footer-svg{display:block;width:24px;height:24px;flex-shrink:0;}',
       '.footer a.pbj-footer-icon-link,.footer a.pbj-contact-cta.pbj-footer-icon-link{opacity:.7;transition:opacity .3s ease;}',
       '.footer a.pbj-footer-icon-link:hover,.footer a.pbj-footer-icon-link:focus-visible,.footer a.pbj-contact-cta.pbj-footer-icon-link:hover,.footer a.pbj-contact-cta.pbj-footer-icon-link:focus-visible{opacity:1;}',
-      '.footer .footer-trust-links a{text-decoration:none;transition:color .15s ease;}',
+      '.footer .footer-nav-links{margin:0 0 0.35rem 0;font-size:clamp(0.64rem,2.6vw,0.75rem);line-height:1.35;text-align:center;color:rgba(148,163,184,0.95);display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:0.12rem 0.28rem;max-width:100%;padding:0 8px;box-sizing:border-box;}',
+      '.footer .footer-trust-links a{text-decoration:none;transition:color .15s ease;white-space:nowrap;}',
       '.footer .footer-trust-links a:hover,.footer .footer-trust-links a:focus-visible{color:#cbd5e1 !important;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-trust-links a:focus-visible{outline:2px solid #818cf8;outline-offset:3px;border-radius:2px;}',
-      '.footer .footer-signoff{margin:12px auto 0;padding:0 10px;max-width:36rem;width:100%;box-sizing:border-box;font-size:0.68rem;line-height:1.45;text-align:center;letter-spacing:0.04em;color:rgba(203,213,225,0.82);}',
+      '.footer .footer-signoff{margin:12px auto 0;padding:0 8px;max-width:100%;width:100%;box-sizing:border-box;font-size:clamp(0.58rem,2.4vw,0.68rem);line-height:1.35;text-align:center;letter-spacing:0.02em;color:rgba(203,213,225,0.82);}',
+      '.footer .footer-signoff-line{display:inline-block;max-width:100%;white-space:nowrap;}',
       '.footer .footer-signoff .footer-signoff-brand{color:rgba(226,232,240,0.92);font-weight:600;text-decoration:none;}',
       '.footer .footer-signoff .footer-signoff-brand:hover,.footer .footer-signoff .footer-signoff-brand:focus-visible{color:#cbd5e1;text-decoration:underline;text-underline-offset:2px;}',
       '.footer .footer-signoff .footer-signoff-brand:focus-visible{outline:2px solid #818cf8;outline-offset:2px;border-radius:2px;}',

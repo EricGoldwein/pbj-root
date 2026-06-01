@@ -493,9 +493,6 @@ def summarize_control_parties(control_parties: list[dict[str, Any]]) -> dict[str
 
 
 def sort_control_parties_for_display(parties: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    def key(p: dict[str, Any]) -> tuple:
-        is_org = 0 if (p.get("party_type") or "").lower().startswith("org") else 1
-        pct = _parse_pct_max(p.get("pcts") or []) or -1
-        return (is_org, -pct, p.get("name") or "")
+    from ownership.role_classification import sort_control_parties
 
-    return sorted(parties, key=key)
+    return sort_control_parties(parties)

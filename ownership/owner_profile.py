@@ -461,6 +461,7 @@ _CSV_USECOLS: tuple[str, ...] = (
     "MIDDLE NAME - OWNER",
     "LAST NAME - OWNER",
     "TYPE - OWNER",
+    "ROLE CODE - OWNER",
     "ROLE TEXT - OWNER",
     "ASSOCIATION DATE - OWNER",
     "STATE - OWNER",
@@ -613,36 +614,55 @@ def associate_id_kind_label(associate_id: str) -> str:
 
 
 def _build_control_parties(enrollment_rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
-    parties: dict[str, dict[str, Any]] = {}
-    for row in enrollment_rows:
-        owner_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
-        if not owner_pac:
-            continue
-        if owner_pac not in parties:
-            parties[owner_pac] = {
-                "owner_associate_id": owner_pac,
-                "name": _owner_display_name(row),
-                "party_type": _owner_party_type(row),
-                "roles": [],
-                "pcts": [],
-                "association_dates": [],
-                "profile_url": associate_profile_url(owner_pac),
-                "is_owner_control_pac": _owner_pac_in_lookup(owner_pac),
-            }
-        role_raw = _clean(row.get("ROLE TEXT - OWNER"))
-        role = format_role_text(role_raw) if role_raw else ""
-        pct = _pct_from_row(row)
-        adate = _clean(row.get("ASSOCIATION DATE - OWNER"))
-        if role and role not in parties[owner_pac]["roles"]:
-            parties[owner_pac]["roles"].append(role)
-        if pct and pct not in parties[owner_pac]["pcts"]:
-            parties[owner_pac]["pcts"].append(pct)
-        if adate and adate not in parties[owner_pac]["association_dates"]:
-            parties[owner_pac]["association_dates"].append(adate)
+    from ownership.role_classification import (
+        ASSOC_DATE_COL,
+        build_consolidated_party_from_rows,
+        consolidate_owner_rows,
+        enrich_control_party,
+        sort_control_parties,
+    )
 
-    out = list(parties.values())
-    out.sort(key=lambda x: (-len(x.get("roles") or []), x.get("name") or ""))
-    return out
+    owner_rows = [
+        r
+        for r in enrollment_rows
+        if normalize_associate_id(r.get(OWNER_PAC_COL))
+    ]
+
+    def _party_from_group(_key: str, group: list[dict[str, Any]]) -> dict[str, Any]:
+        first = group[0]
+        owner_pac = normalize_associate_id(first.get(OWNER_PAC_COL))
+        base = build_consolidated_party_from_rows(_key, group)
+        roles_fmt: list[str] = []
+        for r in group:
+            role_raw = _clean(r.get("ROLE TEXT - OWNER"))
+            role = format_role_text(role_raw) if role_raw else ""
+            if role and role not in roles_fmt:
+                roles_fmt.append(role)
+        pcts: list[str] = []
+        for r in group:
+            pct = _pct_from_row(r)
+            if pct and pct not in pcts:
+                pcts.append(pct)
+        dates: list[str] = []
+        for r in group:
+            adate = _clean(r.get(ASSOC_DATE_COL))
+            if adate and adate not in dates:
+                dates.append(adate)
+        party = {
+            **base,
+            "owner_associate_id": owner_pac,
+            "name": _owner_display_name(first),
+            "party_type": _owner_party_type(first),
+            "roles": roles_fmt or base.get("roles") or [],
+            "pcts": pcts or base.get("pcts") or [],
+            "association_dates": dates or base.get("association_dates") or [],
+            "profile_url": associate_profile_url(owner_pac),
+            "is_owner_control_pac": _owner_pac_in_lookup(owner_pac),
+        }
+        return enrich_control_party(party)
+
+    parties = consolidate_owner_rows(owner_rows, build_party=_party_from_group)
+    return sort_control_parties(parties)
 
 
 @lru_cache(maxsize=1)
@@ -745,15 +765,13 @@ def _ownership_lookup_from_enrollment_pac(
     *,
     matched_via: str,
 ) -> dict[str, Any] | None:
-    from ownership.owner_portfolio_metrics import sort_control_parties_for_display
-
     if len(pac) != 10:
         return None
     en_rows, _ = _fetch_rows_for_pac(pac)
     if not en_rows:
         return None
     enrollment_name = _clean(en_rows[0].get("ORGANIZATION NAME")) or matched_via
-    parties = sort_control_parties_for_display(_build_control_parties(en_rows))
+    parties = _build_control_parties(en_rows)
     path = snf_owners_csv_path()
     return {
         "enrollment_pac": pac,
@@ -1136,7 +1154,12 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
     prov_lookup = _ccn_provider_lookup()
     legal_ccn = _legal_business_name_to_ccn()
     name_ccn = _facility_name_to_ccn()
-    owner_ccns: dict[str, set[str]] = {}
+    from ownership.role_classification import (
+        accumulate_facility_link,
+        facility_link_counts_from_buckets,
+    )
+
+    owner_link_buckets: dict[str, dict[str, set[str]]] = {}
     owner_meta: dict[str, dict[str, Any]] = {}
 
     def _ingest(row: dict[str, Any]) -> None:
@@ -1157,7 +1180,7 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
         ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
         if len(ow_pac) != 10:
             return
-        owner_ccns.setdefault(ow_pac, set()).add(ccn_norm)
+        accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
         if ow_pac not in owner_meta:
             owner_meta[ow_pac] = {
                 "associate_id": ow_pac,
@@ -1191,14 +1214,15 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
             pass
 
     out: list[dict[str, Any]] = []
-    for pac, ccns in owner_ccns.items():
+    for pac, buckets in owner_link_buckets.items():
         meta = owner_meta.get(pac) or {}
+        counts = facility_link_counts_from_buckets(buckets)
         out.append(
             {
                 "associate_id": pac,
                 "name": meta.get("name") or pac,
-                "facility_count": len(ccns),
                 "profile_url": meta.get("profile_url") or associate_profile_url(pac),
+                **counts,
             }
         )
     out.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))
@@ -1277,12 +1301,15 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
             continue
         seen.add(key)
         ccn, match_method = _resolve_ccn_with_method(fac_name)
+        from ownership.role_classification import normalize_role_code
+
         facilities.append(
             {
                 "facility_name": fac_name,
                 "state": _facility_state_for_row(row, ccn or ""),
                 "city": _clean(row.get("CITY - OWNER")),
                 "role": format_role_text(_clean(row.get("ROLE TEXT - OWNER"))),
+                "role_code": normalize_role_code(row.get("ROLE CODE - OWNER")),
                 "association_date": _clean(row.get("ASSOCIATION DATE - OWNER")),
                 "pct": _pct_from_row(row),
                 "enrollment_id": _clean(row.get("ENROLLMENT ID")),
@@ -1291,7 +1318,19 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
                 "ccn_match_method": match_method,
             }
         )
-    facilities.sort(key=lambda x: (x.get("state") or "", x.get("facility_name") or ""))
+    from ownership.role_classification import party_sort_key
+
+    def _fac_sort_key(f: dict[str, str]) -> tuple[Any, ...]:
+        role_party = {
+            "roles": [f.get("role") or ""],
+            "role_codes": [f.get("role_code") or ""],
+            "pcts": [f.get("pct") or ""],
+            "association_dates": [f.get("association_date") or ""],
+            "name": "",
+        }
+        return (f.get("state") or "",) + party_sort_key(role_party) + (f.get("facility_name") or "",)
+
+    facilities.sort(key=_fac_sort_key)
     states = sorted({f["state"] for f in facilities if f.get("state")})
 
     from ownership.chow_lookup import chow_records_for_associate_id

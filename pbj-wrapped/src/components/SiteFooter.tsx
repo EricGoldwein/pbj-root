@@ -54,28 +54,18 @@ export const SiteFooter: React.FC = () => {
         {FOOTER_BLURB}
       </p>
 
-      <p
-        className="footer-trust-links footer-nav-links"
-        style={{
-          margin: '0 0 0.35rem 0',
-          fontSize: '0.75rem',
-          textAlign: 'center',
-          color: 'rgba(148, 163, 184, 0.95)',
-        }}
-      >
+      <p className="footer-trust-links footer-nav-links">
         <a href="/about" style={linkStyle}>About</a>
         {' · '}
         <a href="/premium" style={linkStyle}>Premium</a>
         {' · '}
         <a href="/press" style={linkStyle}>Press</a>
         {' · '}
-        <a href="/contact" style={linkStyle}>Contact</a>
-        {' · '}
         <a href="/data-sources" style={linkStyle}>Sources</a>
         {' · '}
         <a href="/corrections" style={linkStyle}>Corrections</a>
         {' · '}
-        <a href="/#updates" style={linkStyle}>Updates</a>
+        <a href="/#updates" style={linkStyle}>Subscribe</a>
       </p>
 
       <div
@@ -139,23 +129,29 @@ export const SiteFooter: React.FC = () => {
       </div>
 
       <p className="footer-signoff">
-        © {year},{' '}
-        <a
-          href="https://www.320insight.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="footer-signoff-brand"
-        >
-          320 Consulting
-        </a>
-        {' · '}
-        <a href="/terms" className="footer-signoff-link" style={signoffLinkStyle}>
-          Terms
-        </a>
-        {' · '}
-        <a href="/privacy" className="footer-signoff-link" style={signoffLinkStyle}>
-          Privacy
-        </a>
+        <span className="footer-signoff-line">
+          © {year},{' '}
+          <a
+            href="https://www.320insight.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="footer-signoff-brand"
+          >
+            320 Consulting
+          </a>
+          {' · '}
+          <a href="/terms" className="footer-signoff-link" style={signoffLinkStyle}>
+            Terms
+          </a>
+          {' · '}
+          <a href="/privacy" className="footer-signoff-link" style={signoffLinkStyle}>
+            Privacy
+          </a>
+          {' · '}
+          <a href="/contact" className="footer-signoff-link" style={signoffLinkStyle}>
+            Contact
+          </a>
+        </span>
       </p>
     </footer>
   );

@@ -2703,22 +2703,44 @@ button.owner-flag:hover {
   min-width: 0;
 }
 
+.owner-m-card--facility-compact .owner-m-card__title-line {
+  font-size: 0.84rem;
+  line-height: 1.28;
+  max-width: 100%;
+}
+
 .owner-m-card--facility-compact .owner-m-card__title,
 .owner-m-card--facility-compact .owner-m-card__title a {
-  font-size: 0.84rem;
-  line-height: 1.22;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-size: inherit;
+  line-height: inherit;
+  display: inline;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.owner-m-card--facility-compact .owner-m-card__place-inline {
+  display: inline;
+  margin-left: 0.2rem;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #94a3b8;
+  white-space: nowrap;
+  vertical-align: baseline;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.owner-m-card--facility-compact button.owner-m-card__place-inline {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .owner-m-card--facility-compact .owner-m-card__subrow {
-  display: flex;
-  flex-wrap: nowrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.35rem;
+  display: block;
   margin-top: 0.06rem;
   max-width: 100%;
 }
@@ -2732,25 +2754,6 @@ button.owner-flag:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.owner-m-card--facility-compact .owner-m-card__sub-aside {
-  flex: 0 1 auto;
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: flex-end;
-  gap: 0.1rem 0.22rem;
-  max-width: 58%;
-  min-width: 0;
-  text-align: right;
-  font-size: 0.66rem;
-  line-height: 1.2;
-}
-
-.owner-m-card--facility-compact .owner-m-card__sub-aside .owner-m-card-chip--place,
-.owner-m-card--facility-compact .owner-m-card__sub-aside button.owner-m-card-chip--own {
-  white-space: nowrap;
 }
 
 .owner-m-card--facility-compact .owner-m-card__metrics {
@@ -2794,7 +2797,8 @@ button.owner-flag:hover {
   font-variant-numeric: tabular-nums;
 }
 
-.owner-m-card--facility-compact button.owner-m-card-chip--own {
+.owner-m-card--facility-compact button.owner-m-card-chip--own,
+.owner-m-card--facility-compact .owner-m-card__stats-row .owner-m-card-chip--own {
   display: inline;
   padding: 0;
   margin: 0;

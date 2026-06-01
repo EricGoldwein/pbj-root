@@ -241,10 +241,12 @@ def _control_party_mobile_card(p: dict[str, Any]) -> str:
     pac_html = f'<span class="owner-m-card__meta">PAC {pac_inner}</span>'
     aside_bits = [f'<span class="owner-m-card__pill">{ptype}</span>']
     if pcts:
-        pct_label = pcts if str(pcts).strip().lower().startswith("own") else f"Own. {pcts}"
         aside_bits.append(
-            f'<span class="owner-m-card__metric">{html.escape(pct_label)}</span>'
+            f'<span class="owner-m-card__metric">{html.escape(pcts)}</span>'
         )
+    primary = str(p.get("primary_role_label") or "").strip()
+    if primary and not roles:
+        aside_bits.append(f'<span class="owner-m-card__muted">{html.escape(primary)}</span>')
     if roles:
         aside_bits.append(f'<span class="owner-m-card__muted">{roles}</span>')
     return (
@@ -369,6 +371,29 @@ def _facility_location_chip(f: dict[str, Any]) -> str:
     )
 
 
+def _facility_location_inline(f: dict[str, Any]) -> str:
+    """Inline [City, ST] suffix on the facility title line (mobile portfolio)."""
+    label = _facility_location_short(f)
+    if not label or label == "—":
+        return ""
+    bracket = f"[{html.escape(label)}]"
+    addr = _facility_postal_address_parts(f)
+    if not addr.get("has_postal"):
+        return f' <span class="owner-m-card__place-inline">{bracket}</span>'
+    fac_name = format_org_display(
+        str(f.get("provider_name") or f.get("facility_name") or "Facility")
+    )
+    return (
+        f' <button type="button" class="owner-m-card__place-inline owner-facility-location-btn" '
+        f'data-owner-info data-info-format="address" '
+        f'data-info-title="{html.escape(fac_name, quote=True)}" '
+        f'data-address-street="{html.escape(addr["street"], quote=True)}" '
+        f'data-address-cityline="{html.escape(addr["city_line"], quote=True)}" '
+        f'data-address-full="{html.escape(addr["full_text"], quote=True)}" '
+        f'aria-label="Full address: {html.escape(label, quote=True)}">{bracket}</button>'
+    )
+
+
 def _facility_location_residents_line(f: dict[str, Any], *, verified: bool) -> str:
     """Mobile / narrow: census under facility name when present."""
     census = _fmt_census(f.get("census") if verified else None)
@@ -385,15 +410,16 @@ def _facility_mobile_meta_line(f: dict[str, Any]) -> str:
 
 
 def _format_own_pct_label(value: str) -> str:
-    """Prefix numeric CMS ownership stake with Own. for scanability."""
+    """Compact CMS ownership stake for mobile cards."""
     s = str(value or "").strip()
     if not s or s == "—":
         return s
     low = s.lower()
-    if low.startswith("own"):
+    if "ownership interest" in low:
         return s
     if "%" in s or any(ch.isdigit() for ch in s):
-        return f"Own. {s}"
+        core = s if "%" in s else f"{s}%"
+        return f"{core} ownership interest"
     return s
 
 
@@ -425,7 +451,7 @@ def _facility_mobile_own_chip(f: dict[str, Any]) -> str:
 
 
 def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
-    """Title + optional subrow: legal name with location and ownership to the right."""
+    """Row 1: legal business name [City, ST]; optional subrow when DBA differs."""
     legal_raw = format_org_display(str(f.get("facility_name") or "—"))
     provider_raw = format_org_display(str(f.get("provider_name") or "").strip())
     ccn = str(f.get("ccn") or "").strip().zfill(6)[-6:]
@@ -438,47 +464,39 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
         if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
         else ""
     )
-    link_label = provider_esc or legal_esc
-    display_label = link_label
+    link_label = legal_raw
     title_attr = ""
-    if href and display_label:
+    if href and link_label:
         title_attr = (
-            f' title="{html.escape(f"View staffing data for {display_label}", quote=True)}"'
+            f' title="{html.escape(f"View staffing data for {link_label}", quote=True)}"'
         )
+    location_inline = _facility_location_inline(f)
     if href:
-        primary_html = (
-            f'<a href="{href}" class="owner-m-card__title"{title_attr}>{display_label}</a>'
+        title_inner = (
+            f'<a href="{href}" class="owner-m-card__title"{title_attr}>{legal_esc}</a>'
+            f"{location_inline}"
         )
     else:
-        primary_html = f'<span class="owner-m-card__title">{display_label}</span>'
-    subrow_html = ""
-    place = _facility_location_chip(f)
-    own = _facility_mobile_own_chip(f)
-    aside_bits = [b for b in (place, own) if b]
-    if (provider_esc and not same) or aside_bits:
-        sub_left = (
-            f'<span class="owner-m-card__sub">{legal_esc}</span>'
-            if provider_esc and not same
-            else ""
-        )
-        aside_html = ""
-        if aside_bits:
-            sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
-            aside_html = (
-                '<span class="owner-m-card__sub-aside">'
-                + sep.join(aside_bits)
-                + "</span>"
+        title_inner = f'<span class="owner-m-card__title">{legal_esc}</span>{location_inline}'
+    title_line = f'<div class="owner-m-card__title-line">{title_inner}</div>'
+    if provider_esc and not same:
+        if href:
+            prov_inner = (
+                f'<a href="{href}" class="owner-m-card__sub"{title_attr}>{provider_esc}</a>'
             )
-        subrow_html = (
-            f'<div class="owner-m-card__subrow">{sub_left}{aside_html}</div>'
-        )
-    return primary_html + subrow_html
+        else:
+            prov_inner = f'<span class="owner-m-card__sub">{provider_esc}</span>'
+        return title_line + f'<div class="owner-m-card__subrow">{prov_inner}</div>'
+    return title_line
 
 
 def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
-    """Mobile facility card metrics: census/HPRD; stars + regulatory flags."""
+    """Mobile facility card metrics: ownership · census/HPRD; then stars + flags."""
     sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
     row1: list[str] = []
+    own = _facility_mobile_own_chip(f)
+    if own:
+        row1.append(own)
     census = _fmt_census(f.get("census") if verified else None)
     if census and census != "—":
         row1.append(f'<span class="owner-m-card-chip">{html.escape(census)} res</span>')
@@ -1028,7 +1046,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
 
     n_show = len(trs)
     associates_help = _info_button(
-        "Frequent associates",
+        "Associated Owners",
         (
             "Parties that appear repeatedly with this owner on CMS records.\n\n"
             "Ownership: co-owners on the same nursing home enrollments in "
@@ -1057,7 +1075,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
     return (
         '<div class="owner-associates-block">'
         f'<div class="owner-associates-head">'
-        f'<span class="owner-associates-head-label">Frequent associates · {n_show}</span>'
+        f'<span class="owner-associates-head-label">Associated Owners · {n_show}</span>'
         f"{associates_help}"
         f"</div>"
         '<details class="owner-collapsible owner-associates-collapsible">'
@@ -1549,8 +1567,8 @@ def _role_kind_hint(role_text: str) -> str:
         bits.append("Direct")
     if "indirect" in low:
         bits.append("Indirect")
-    if not bits and "operational" in low and "control" in low:
-        bits.append("Operational control")
+    if not bits and "operational" in low and ("managerial" in low or "control" in low):
+        bits.append("Operational/managerial control")
     if not bits and "managing employee" in low:
         bits.append("Managing employee")
     return " · ".join(bits)
@@ -1560,9 +1578,9 @@ def _pct_fallback_label(role_raw: str) -> str:
     """CMS often leaves PERCENTAGE OWNERSHIP blank for control roles; show a short label."""
     r = str(role_raw or "").upper()
     if "OPERATIONAL" in r and ("MANAGERIAL" in r or "MANAGER" in r):
-        return "Op. ctrl"
+        return "Operational/managerial control"
     if "ADP OF THE SNF" in r or r.strip() == "ADP":
-        return "ADP"
+        return "ADP of the SNF"
     if "MANAGING EMPLOYEE" in r:
         return "Mgr."
     if "5% OR GREATER" in r or "DIRECT OWNERSHIP" in r:
@@ -2023,7 +2041,7 @@ def _cli_main() -> None:
     parser.add_argument(
         "--related-only",
         action="store_true",
-        help="Print only the Frequent associates section HTML",
+        help="Print only the Associated Owners section HTML",
     )
     args = parser.parse_args()
     profile = load_owner_profile(str(args.pac).strip())

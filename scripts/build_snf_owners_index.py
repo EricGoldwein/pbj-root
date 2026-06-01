@@ -162,6 +162,12 @@ def build_state_top_owners() -> None:
     ccn_state = _ccn_to_state_from_search_index()
     legal_ccn = _legal_business_name_to_ccn()
     name_ccn = _facility_name_to_ccn()
+    from ownership.role_classification import (  # noqa: E402
+        accumulate_facility_link,
+        facility_link_counts_from_buckets,
+    )
+
+    owner_link_buckets: dict[str, dict[str, set[str]]] = {}
     by_state: dict[str, dict[str, set[str]]] = {}
     meta: dict[str, dict[str, Any]] = {}
 
@@ -188,6 +194,7 @@ def build_state_top_owners() -> None:
             ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
             if len(ow_pac) != 10:
                 continue
+            accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
             by_state.setdefault(fac_st, {}).setdefault(ow_pac, set()).add(ccn_norm)
             if ow_pac not in meta:
                 meta[ow_pac] = {
@@ -203,12 +210,14 @@ def build_state_top_owners() -> None:
         rows: list[dict[str, Any]] = []
         for pac, ccns in owners.items():
             m = meta.get(pac) or {}
+            buckets = owner_link_buckets.get(pac) or {"any": ccns}
+            counts = facility_link_counts_from_buckets(buckets)
             rows.append(
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "facility_count": len(ccns),
                     "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    **counts,
                 }
             )
         rows.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))
@@ -245,6 +254,12 @@ def build_state_owner_index_lists() -> None:
     ccn_state = _ccn_to_state_from_search_index()
     legal_ccn = _legal_business_name_to_ccn()
     name_ccn = _facility_name_to_ccn()
+    from ownership.role_classification import (  # noqa: E402
+        accumulate_facility_link,
+        facility_link_counts_from_buckets,
+    )
+
+    owner_link_buckets: dict[str, dict[str, set[str]]] = {}
     by_state: dict[str, dict[str, set[str]]] = {st: {} for st in OWNERSHIP_PUBLIC_STATES}
     meta: dict[str, dict[str, Any]] = {}
 
@@ -271,6 +286,7 @@ def build_state_owner_index_lists() -> None:
             ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
             if len(ow_pac) != 10:
                 continue
+            accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
             by_state[fac_st].setdefault(ow_pac, set()).add(ccn_norm)
             if ow_pac not in meta:
                 meta[ow_pac] = {
@@ -287,12 +303,14 @@ def build_state_owner_index_lists() -> None:
         rows: list[dict[str, Any]] = []
         for pac, ccns in owners.items():
             m = meta.get(pac) or {}
+            buckets = owner_link_buckets.get(pac) or {"any": ccns}
+            counts = facility_link_counts_from_buckets(buckets)
             rows.append(
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "facility_count": len(ccns),
                     "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    **counts,
                 }
             )
         rows.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))

@@ -137,44 +137,19 @@ def format_role_text(role: str) -> str:
     return _format_role_segment(s)
 
 
-def format_role_short(role: str) -> str:
+def format_role_short(role: str, *, role_code: str = "") -> str:
     """Compact table label for CMS ownership roles (desktop and mobile)."""
-    if not role:
+    if not role and not role_code:
         return "—"
-    raw = str(role).strip()
-    low = raw.lower()
-    if "indirect ownership" in low and "5%" in low:
-        return "≥5% indirect"
-    if "direct ownership" in low and "5%" in low:
-        return "≥5% direct"
-    if "ownership interest" in low and "5%" in low:
-        return "≥5% owner"
-    if "operational" in low and "managerial" in low:
-        return "Op/mgr control"
-    if "managing employee" in low:
-        return "Managing emp."
-    if "corporate officer" in low or "corp officer" in low:
-        return "Corp officer"
-    if "general partner" in low:
-        return "Gen. partner"
-    if "limited partner" in low:
-        return "LP"
-    if "real property" in low:
-        return "Real property"
-    if "mortgage" in low and "interest" in low:
-        return "Mortgage int."
-    if low.startswith("officer"):
-        return "Officer"
-    if low.startswith("adp"):
-        return "ADP"
-    if "board member" in low or "board of directors" in low:
-        return "Board"
-    if "member" in low and len(low) < 24:
-        return "Member"
-    s = format_role_text(role)
-    if len(s) <= 24:
-        return s
-    return s[:22].rstrip() + "…"
+    from ownership.role_classification import (
+        ROLE_CODE_COL,
+        ROLE_TEXT_COL,
+        classify_owner_record,
+        format_role_short_for_classification,
+    )
+
+    info = classify_owner_record({ROLE_CODE_COL: role_code, ROLE_TEXT_COL: role})
+    return format_role_short_for_classification(info)
 
 
 def format_cms_star_rating(val: object) -> str:

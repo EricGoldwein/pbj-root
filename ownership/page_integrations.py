@@ -27,32 +27,16 @@ from ownership.chow_lookup import (
 from ownership.beta_gate import ownership_beta_enabled_for_state
 from ownership.owner_profile import _ccn_to_state_from_search_index
 from ownership.display_format import format_org_display, format_role_short, format_role_text
+from ownership.role_classification import (
+    enrich_control_party,
+    ownership_pct_display_label,
+    sort_control_parties,
+)
 
 
 def _ownership_pct_own_label(raw: str) -> str:
-    """Human-readable stake, e.g. 50 → '50% own' (omit empty/dash/zero)."""
-    s = str(raw or "").strip()
-    if not s or s in ("—", "-", "N/A", "n/a"):
-        return ""
-    if s.endswith("%"):
-        core = s[:-1].strip().replace(",", "")
-        if not core:
-            return ""
-        try:
-            if float(core) == 0:
-                return ""
-        except ValueError:
-            pass
-        return f"{s} own"
-    try:
-        v = float(s.replace(",", ""))
-        if v == 0:
-            return ""
-        if v == int(v):
-            return f"{int(v)}% own"
-        return f"{v:g}% own"
-    except ValueError:
-        return f"{s}% own" if "%" not in s else f"{s} own"
+    """Human-readable stake, e.g. 50 → '50% ownership interest' (omit empty/dash/zero)."""
+    return ownership_pct_display_label(raw)
 
 
 def _is_threshold_ownership_role(role: str) -> bool:
@@ -70,22 +54,29 @@ def _is_threshold_ownership_role(role: str) -> bool:
 
 def _party_role_and_ownership_cell(party: dict[str, Any]) -> str:
     """Stake first, then compact governance roles; drop ≥5% threshold labels when % is known."""
+    p = enrich_control_party(dict(party))
     pct_bits = [
         lbl
-        for lbl in (_ownership_pct_own_label(x) for x in (party.get("pcts") or [])[:2])
+        for lbl in (_ownership_pct_own_label(x) for x in (p.get("pcts") or [])[:2])
         if lbl
     ]
     has_stake = bool(pct_bits)
     role_bits: list[str] = []
-    for raw in party.get("roles") or []:
+    roles = list(p.get("roles") or [])
+    codes = list(p.get("role_codes") or [])
+    primary = str(p.get("primary_role_label") or "").strip()
+    if primary and primary != "—":
+        role_bits.append(primary)
+    for i, raw in enumerate(roles):
         if has_stake and _is_threshold_ownership_role(raw):
             continue
-        short = format_role_short(raw)
+        code = codes[i] if i < len(codes) else ""
+        short = format_role_short(raw, role_code=code)
         if not short or short == "—":
             continue
         if short not in role_bits:
             role_bits.append(short)
-        if len(role_bits) >= 2:
+        if len(role_bits) >= 3:
             break
     parts: list[str] = []
     if pct_bits:
@@ -493,7 +484,7 @@ def _party_pct_display_short(party: dict[str, Any]) -> str:
     for raw in party.get("pcts") or []:
         lbl = _ownership_pct_own_label(raw)
         if lbl:
-            return lbl.replace(" own", "").strip()
+            return lbl.replace(" ownership interest", "").strip()
     for raw in party.get("pcts") or []:
         s = str(raw or "").strip()
         if s and s.lower() not in ("nan", "none", "—", "-"):
@@ -518,13 +509,7 @@ def _party_since_display(party: dict[str, Any]) -> str:
 
 
 def sort_parties_by_stake(parties: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return sorted(
-        parties,
-        key=lambda p: (
-            -_party_stake_sort_value(p),
-            str(p.get("name") or "").upper(),
-        ),
-    )
+    return sort_control_parties(parties)
 
 
 def render_provider_owners_subtitle_control(
@@ -577,7 +562,6 @@ def render_provider_owners_subtitle_control(
     )
     btn_html = (
         f'<span class="pbj-provider-owners-btn-wrap">'
-        f'<span class="pbj-provider-owners-btn-sep" aria-hidden="true"> · </span>'
         f'<button type="button" class="pbj-provider-owners-btn" id="{btn_id}" '
         f'aria-haspopup="dialog" aria-controls="{modal_id}" aria-expanded="false">Owners</button>'
         f"</span>"
@@ -601,8 +585,9 @@ def render_provider_owners_subtitle_control(
 def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int = 15) -> str:
     if not parties:
         return '<p class="pbj-meta-line">No owner or control parties listed for this enrollment.</p>'
+    ranked = sort_control_parties(parties)
     trs: list[str] = []
-    for p in parties[:preview]:
+    for p in ranked[:preview]:
         raw_name = p.get("name") or "—"
         pname = html.escape(
             format_org_display(str(raw_name)) if raw_name != "—" else "—"
@@ -641,10 +626,10 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
             f"</tr>"
         )
     extra = ""
-    if len(parties) > preview:
+    if len(ranked) > preview:
         extra = (
             f'<p class="pbj-meta-line" style="margin:0.5rem 0 0;">'
-            f"Showing {preview} of {len(parties)} parties.</p>"
+            f"Showing {preview} of {len(ranked)} parties.</p>"
         )
     return (
         f"{extra}"

@@ -31,6 +31,7 @@ import time
 import threading
 import gzip
 from functools import lru_cache
+from typing import Any
 import re as _re
 
 from pbj_review_framework import public_framework_json_for_js
@@ -750,13 +751,18 @@ TAKEAWAY_BADGE_STAR_WARN_STYLE = (
 )
 
 
-def _takeaway_risk_info_button_html() -> str:
-    tip = html.escape(FACILITY_RISK_BADGE_TOOLTIP)
+def _takeaway_cms_star_flag_badge(kind: str, rating_raw: Any, *, title: str) -> str:
+    """Compact 1★ Staffing / Overall flag (replaces separate text + star badges)."""
+    n = _rating_star_count(rating_raw)
+    icons = _star_icons_from_rating(rating_raw)
+    if not n or icons == '—':
+        return ''
+    stars = _badge_star_span_html(icons, n)
+    label = 'Staffing' if kind == 'staffing' else 'Overall'
+    esc_title = html.escape(title, quote=True)
     return (
-        '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
-        '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">i</button>'
-        f'<span class="pbj-high-risk-tooltip" role="tooltip">{tip}</span>'
-        '</span>'
+        f'<span class="pbj-takeaway-flag-badge pbj-takeaway-star-flag" style="{TAKEAWAY_BADGE_STAR_WARN_STYLE}" '
+        f'title="{esc_title}">{label}: {stars}</span>'
     )
 
 
@@ -766,10 +772,15 @@ def _takeaway_priority_flag_badges_html(
     ccn: str = '',
     is_sff: bool = False,
     is_sff_candidate: bool = False,
-) -> str:
-    """CMS warning flags for takeaway (SFF → abuse → 1★ overall → 1★ staffing)."""
+) -> tuple[str, set[str]]:
+    """
+    CMS warning flags for takeaway (SFF → abuse → 1★ overall → 1★ staffing).
+    Returns (html, covered) where covered may include staffing_star / overall_star
+    when those are shown here (skip duplicate star badges later).
+    """
+    pi = provider_info_row or {}
     sff_status = 'SFF Candidate' if is_sff_candidate else ('SFF' if is_sff else '')
-    reasons = _pbj320_high_risk_reasons(provider_info_row or {}, ccn=ccn, sff_status=sff_status)
+    reasons = _pbj320_high_risk_reasons(pi, ccn=ccn, sff_status=sff_status)
     ordered: list[str] = []
     seen: set[str] = set()
     for label in TAKEAWAY_PRIORITY_FLAG_ORDER:
@@ -780,14 +791,35 @@ def _takeaway_priority_flag_badges_html(
         ordered.append(label)
         seen.add(label)
     if not ordered:
-        return ''
-    info = _takeaway_risk_info_button_html()
+        return '', set()
+
+    covered: set[str] = set()
     sff_candidate_spans = (
         '<span class="pbj-badge-mobile-hide">SFF Candidate</span>'
         '<span class="pbj-badge-mobile-only">SFF Cand.</span>'
     )
     parts: list[str] = []
     for label in ordered:
+        if label == '1-star staffing':
+            badge = _takeaway_cms_star_flag_badge(
+                'staffing',
+                pi.get('staffing_rating'),
+                title='CMS staffing star rating (1-5), where more stars indicate stronger staffing performance.',
+            )
+            if badge:
+                parts.append(badge)
+                covered.add('staffing_star')
+            continue
+        if label == '1-star overall':
+            badge = _takeaway_cms_star_flag_badge(
+                'overall',
+                pi.get('overall_rating'),
+                title='CMS overall star rating (1-5), based on health inspections, staffing, and quality measures.',
+            )
+            if badge:
+                parts.append(badge)
+                covered.add('overall_star')
+            continue
         style = (
             TAKEAWAY_BADGE_ABUSE_STYLE
             if label == 'Abuse'
@@ -798,10 +830,10 @@ def _takeaway_priority_flag_badges_html(
         else:
             inner = html.escape(label)
         parts.append(
-            f'<span class="pbj-takeaway-flag-badge pbj-risk-badge-with-info" style="{style}">'
-            f'{inner}{info}</span>'
+            f'<span class="pbj-takeaway-flag-badge" style="{style}">{inner}</span>'
         )
-    return ''.join(parts)
+    html_block = '<span class="pbj-takeaway-priority-flags">' + ''.join(parts) + '</span>'
+    return html_block, covered
 
 
 def get_facility_risk_from_search_index(ccn):
@@ -8043,6 +8075,12 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-subtitle .pbj-provider-owners-btn {{
   text-decoration: none;
 }}
+.pbj-provider-owners-btn-wrap {{
+  margin-left: 0.4rem;
+}}
+.pbj-provider-owners-btn-sep {{
+  display: none;
+}}
 .pbj-subtitle-mobile {{ display: none; }}
 .pbj-meta-line {{ font-size: 0.9em; color: #a8b4c4; margin-top: 6px; }}
 .pbj-orientation {{ margin-bottom: 18px; font-size: 0.95rem; color: #e2e8f0; max-width: 700px; }}
@@ -8170,6 +8208,24 @@ button.pbj-hprd-means-trigger:focus-visible {{
 .pbj-takeaway-top {{ margin-bottom: 0.55rem; }}
 .pbj-takeaway-top-main {{ display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; min-width: 0; }}
 .pbj-takeaway-flag-badge {{ flex-shrink: 0; }}
+.pbj-takeaway-priority-flags {{
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
+}}
+.pbj-takeaway-priority-flags .pbj-takeaway-flag-badge {{
+  display: inline-flex; align-items: center; gap: 0.2rem;
+}}
+.pbj-takeaway-priority-flags .pbj-high-risk-help-wrap {{
+  position: relative; display: inline-flex; flex-shrink: 0;
+}}
+.pbj-takeaway-priority-flags .pbj-high-risk-tooltip {{
+  position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  margin-bottom: 0; opacity: 0; visibility: hidden; pointer-events: none;
+}}
+.pbj-takeaway-priority-flags .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip,
+.pbj-takeaway-priority-flags .pbj-risk-badge-info-wrap.is-open .pbj-high-risk-tooltip {{
+  opacity: 1; visibility: visible;
+}}
+.pbj-takeaway-star-flag .pbj-rating-stars {{ margin-left: 0.12rem; }}
 .pbj-takeaway-header {{ font-size: 16px; font-weight: bold; color: #e2e8f0; min-width: 0; line-height: 1.25; flex: 1; }}
 .pbj-takeaway-title-name {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 .pbj-takeaway-actions {{ margin-top: 0.55rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }}
@@ -12728,7 +12784,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _psec('sff_risk_search', _t_risk)
     is_sff = sff_entry is not None
     is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
-    priority_flags_html = _takeaway_priority_flag_badges_html(
+    priority_flags_html, priority_covered = _takeaway_priority_flag_badges_html(
         provider_info_row or {},
         ccn=prov,
         is_sff=is_sff,
@@ -12768,18 +12824,18 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease;'
     overall_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _overall_n == 1 else badge_span
     staffing_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _staff_n == 1 else badge_span
-    overall_badge_html = (
-        f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
-        f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'
-        if overall_star_icons != '—' else ''
-    )
-    staffing_badge_html = (
-        f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">'
-        f'<span class="pbj-badge-mobile-hide">Staffing:</span>'
-        f'<span class="pbj-badge-mobile-only">Staff:</span> '
-        f'{_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
-        if staffing_star_icons != '—' else ''
-    )
+    overall_badge_html = ''
+    if 'overall_star' not in priority_covered and overall_star_icons != '—':
+        overall_badge_html = (
+            f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
+            f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'
+        )
+    staffing_badge_html = ''
+    if 'staffing_star' not in priority_covered and staffing_star_icons != '—':
+        staffing_badge_html = (
+            f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">'
+            f'Staffing: {_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
+        )
     casemix_badge_html = ''
     if case_mix_total is not None and casemix_str and casemix_str != '—':
         casemix_badge_title = html.escape(

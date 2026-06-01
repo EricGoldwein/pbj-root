@@ -1588,17 +1588,19 @@ def search_public_owner_profiles(
                 ]
         return []
 
+    from ownership.name_search import name_search_rank, normalize_search_tokens
+
     qnorm = _norm_org_key(q)
-    if len(qnorm) < 2:
+    if len(qnorm) < 2 and len(normalize_search_tokens(q)) < 1:
         return []
 
     scored: list[tuple[int, int, str, str]] = []
     for pac, name, key, states in catalog:
         if not _in_state(states):
             continue
-        if qnorm not in key and qnorm not in _norm_org_key(name):
+        rank = name_search_rank(q, name)
+        if rank is None:
             continue
-        rank = 0 if key.startswith(qnorm) else (1 if qnorm in key[: max(len(qnorm) + 4, 8)] else 2)
         scored.append((rank, len(name), pac, name))
     scored.sort(key=lambda x: (x[0], x[1], x[3].lower()))
     out: list[dict[str, str]] = []

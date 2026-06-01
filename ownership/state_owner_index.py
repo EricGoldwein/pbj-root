@@ -203,6 +203,7 @@ def search_state_owner_index(
     limit: int = 40,
 ) -> list[dict[str, Any]]:
     """Name/PAC search within one state's CMS-linked owner index (facility counts are in-state)."""
+    from ownership.name_search import name_search_rank, normalize_search_tokens
     from ownership.owner_profile import _norm_org_key, normalize_associate_id
 
     st = (state_code or "").strip().upper()[:2]
@@ -225,22 +226,19 @@ def search_state_owner_index(
         return []
 
     qnorm = _norm_org_key(q)
-    if len(qnorm) < 2:
+    if len(qnorm) < 2 and len(normalize_search_tokens(q)) < 1:
         return []
 
     scored: list[tuple[int, int, str, dict[str, Any]]] = []
     for row in rows:
         name = str(row.get("name") or "")
-        key = _norm_org_key(name)
         pac = str(row.get("associate_id") or "")
-        if qnorm not in key and qnorm not in pac:
-            continue
-        if key.startswith(qnorm):
+        if pac == qnorm:
             rank = 0
-        elif qnorm in key[: max(len(qnorm) + 4, 8)]:
-            rank = 1
         else:
-            rank = 2
+            rank = name_search_rank(q, name)
+            if rank is None:
+                continue
         scored.append((rank, -int(row.get("facility_count") or 0), name.lower(), row))
     scored.sort(key=lambda x: (x[0], x[1], x[2]))
     return [row for *_rest, row in scored[:cap]]

@@ -14,7 +14,8 @@ from typing import Any
 
 import re
 
-from ownership.beta_gate import profile_has_public_state
+from ownership.beta_gate import profile_has_public_state, ownership_public_enabled_for_state
+from ownership.state_owner_index import PUBLIC_OWNER_INDEX_SLUGS, STATE_INDEX_META
 from ownership.owner_fec_section import render_owner_fec_contributions_section
 from utils.seo_utils import owner_page_seo_from_profile
 from ownership.display_format import (
@@ -424,7 +425,7 @@ def _facility_mobile_own_chip(f: dict[str, Any]) -> str:
 
 
 def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
-    """Title + optional legal subline (no location line — folded into stats)."""
+    """Title + optional subrow: legal name with location and ownership to the right."""
     legal_raw = format_org_display(str(f.get("facility_name") or "—"))
     provider_raw = format_org_display(str(f.get("provider_name") or "").strip())
     ccn = str(f.get("ccn") or "").strip().zfill(6)[-6:]
@@ -450,22 +451,34 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
         )
     else:
         primary_html = f'<span class="owner-m-card__title">{display_label}</span>'
-    sub_html = ""
-    if provider_esc and not same:
-        sub_html = f'<span class="owner-m-card__sub">{legal_esc}</span>'
-    return primary_html + sub_html
+    subrow_html = ""
+    place = _facility_location_chip(f)
+    own = _facility_mobile_own_chip(f)
+    aside_bits = [b for b in (place, own) if b]
+    if (provider_esc and not same) or aside_bits:
+        sub_left = (
+            f'<span class="owner-m-card__sub">{legal_esc}</span>'
+            if provider_esc and not same
+            else ""
+        )
+        aside_html = ""
+        if aside_bits:
+            sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
+            aside_html = (
+                '<span class="owner-m-card__sub-aside">'
+                + sep.join(aside_bits)
+                + "</span>"
+            )
+        subrow_html = (
+            f'<div class="owner-m-card__subrow">{sub_left}{aside_html}</div>'
+        )
+    return primary_html + subrow_html
 
 
 def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
-    """Mobile facility card metrics: row 1 census/HPRD; row 2 stars + regulatory flags."""
+    """Mobile facility card metrics: census/HPRD; stars + regulatory flags."""
     sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'
     row1: list[str] = []
-    place = _facility_location_chip(f)
-    if place:
-        row1.append(place)
-    own = _facility_mobile_own_chip(f)
-    if own:
-        row1.append(own)
     census = _fmt_census(f.get("census") if verified else None)
     if census and census != "—":
         row1.append(f'<span class="owner-m-card-chip">{html.escape(census)} res</span>')
@@ -559,7 +572,7 @@ def _ownership_timeline_item_html(rec: dict[str, Any]) -> str:
     side = _chow_transaction_side_label(str(rec.get("chow_role") or ""))
     parties = f'<span class="owner-timeline-seller">{seller}</span> \u2192 <span class="owner-timeline-buyer">{buyer}</span>'
     side_html = (
-        f'<span class="owner-timeline-side">{html.escape(side)}</span>'
+        f' <span class="owner-timeline-side">({html.escape(side)})</span>'
         if side
         else ""
     )
@@ -568,7 +581,7 @@ def _ownership_timeline_item_html(rec: dict[str, Any]) -> str:
         f'<div class="owner-timeline-date">{eff}</div>'
         f'<div class="owner-timeline-body">'
         f'<div class="owner-timeline-facility-row">{fac_html}{side_html}</div>'
-        f'<div class="owner-timeline-parties">{parties}</div>'
+        f'<div class="owner-timeline-parties" aria-label="Seller to buyer">{parties}</div>'
         "</div></li>"
     )
 
@@ -755,7 +768,7 @@ def _pac_meta_html(
         if len(enrollment_ids) > 4:
             ids += f" (+{len(enrollment_ids) - 4})"
         rows.append(
-            f'<span class="owner-meta-item owner-meta-row">'
+            f'<span class="owner-meta-item owner-meta-row owner-meta-row--enrollment">'
             f'<span class="owner-meta-k">Enrollment ID</span>'
             f'<span class="owner-meta-v">{ids}</span>'
             "</span>"
@@ -854,6 +867,42 @@ def _owner_page_help_body(
     )
 
 
+def _primary_owner_state_code(profile: dict[str, Any]) -> str:
+    """State code for back link to /owners/{slug} (largest portfolio slice)."""
+    by_state: list[tuple[str, int]] = list(
+        (profile.get("portfolio_summary") or {}).get("by_state") or []
+    )
+    if by_state:
+        return str(max(by_state, key=lambda row: int(row[1] or 0))[0] or "").strip().upper()[:2]
+    for st in profile.get("states") or []:
+        code = str(st or "").strip().upper()[:2]
+        if code:
+            return code
+    return ""
+
+
+def _owner_index_back_link_html(profile: dict[str, Any]) -> str:
+    """Compact link to state ownership index (e.g. /owners/ny)."""
+    st = _primary_owner_state_code(profile)
+    if not st or not ownership_public_enabled_for_state(st):
+        return ""
+    slug = next(
+        (s for s, code in PUBLIC_OWNER_INDEX_SLUGS.items() if code == st),
+        "",
+    )
+    meta = STATE_INDEX_META.get(st) or {}
+    if not slug:
+        return ""
+    short = st
+    label = str(meta.get("name") or short).strip()
+    text = f"← {short} owners" if label else f"← {short} ownership"
+    title = f"Back to {label} ownership search" if label else "Back to state ownership search"
+    return (
+        f'<a class="owner-profile-back" href="/owners/{html.escape(slug)}" '
+        f'title="{html.escape(title, quote=True)}">{html.escape(text)}</a>'
+    )
+
+
 def _owner_profile_header_html(
     profile: dict[str, Any],
     *,
@@ -889,6 +938,7 @@ def _owner_profile_header_html(
         if meta_parts
         else ""
     )
+    back_link = _owner_index_back_link_html(profile)
     header_actions = ""
     if pac_meta:
         header_actions = (
@@ -896,8 +946,10 @@ def _owner_profile_header_html(
             f'<div class="owner-profile-header-actions">{pac_meta}</div>'
             "</div>"
         )
+    back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
+        {back_html}
         <div class="owner-profile-header-top">
           <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
             <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">

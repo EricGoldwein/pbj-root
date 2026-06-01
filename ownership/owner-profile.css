@@ -113,6 +113,26 @@
   color: #94a3b8;
 }
 
+.owner-profile-back-wrap {
+  margin: 0 0 0.35rem;
+}
+
+.owner-profile-back {
+  display: inline-block;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: #94a3b8;
+  text-decoration: none;
+  line-height: 1.35;
+}
+
+.owner-profile-back:hover,
+.owner-profile-back:focus-visible {
+  color: #c7d2fe;
+  text-decoration: underline;
+  outline: none;
+}
+
 .owner-profile-header-actions {
   display: flex;
   align-items: center;
@@ -233,6 +253,21 @@
   display: inline-flex;
   align-items: baseline;
   gap: 0.35rem;
+}
+
+.owner-meta-row--enrollment {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+  line-height: 1.25;
+}
+
+@media (min-width: 700px) {
+  .owner-profile-pac-meta .owner-meta-row--enrollment {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 0.35rem;
+  }
 }
 
 .owner-meta-v {
@@ -2374,16 +2409,22 @@ button.owner-flag:hover {
   }
 
   .owner-profile-header-actions .owner-meta-row {
-    justify-content: flex-start;
-    gap: 0.25rem;
-    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 0.12rem;
+    flex-wrap: nowrap;
+    width: 100%;
+  }
+
+  .owner-profile-header-actions .owner-meta-row--enrollment {
+    align-items: flex-end;
   }
 
   .owner-profile-header-actions .owner-meta-k {
     color: #94a3b8;
     font-size: 0.58rem;
     letter-spacing: 0.02em;
-    white-space: normal;
+    white-space: nowrap;
   }
 
   .owner-profile-header-actions .owner-meta-v {
@@ -2392,8 +2433,9 @@ button.owner-flag:hover {
     white-space: nowrap;
     word-break: normal;
     overflow-wrap: normal;
-    max-width: none;
+    max-width: 100%;
     line-height: 1.15;
+    text-align: right;
   }
 
   .owner-pac-block__value-line {
@@ -2671,15 +2713,44 @@ button.owner-flag:hover {
   overflow: hidden;
 }
 
-.owner-m-card--facility-compact .owner-m-card__sub {
-  display: block;
+.owner-m-card--facility-compact .owner-m-card__subrow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
   margin-top: 0.06rem;
+  max-width: 100%;
+}
+
+.owner-m-card--facility-compact .owner-m-card__sub {
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.66rem;
   color: #94a3b8;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.owner-m-card--facility-compact .owner-m-card__sub-aside {
+  flex: 0 1 auto;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.1rem 0.22rem;
+  max-width: 58%;
+  min-width: 0;
+  text-align: right;
+  font-size: 0.66rem;
+  line-height: 1.2;
+}
+
+.owner-m-card--facility-compact .owner-m-card__sub-aside .owner-m-card-chip--place,
+.owner-m-card--facility-compact .owner-m-card__sub-aside button.owner-m-card-chip--own {
+  white-space: nowrap;
 }
 
 .owner-m-card--facility-compact .owner-m-card__metrics {
@@ -4292,11 +4363,13 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 }
 
 .owners-chow-party-role {
+  display: block;
   font-size: 0.64rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #64748b;
+  margin: 0 0 0.14rem;
 }
 
 .owners-chow-party-name {
@@ -4629,6 +4702,53 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
   .owners-chow-party-name {
     font-size: 0.76rem;
+  }
+
+  .owners-chow-transfer-flow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.28rem;
+  }
+
+  .owners-chow-transfer-arrow {
+    align-self: center;
+    padding: 0.1rem 0;
+    transform: rotate(90deg);
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .owner-timeline-item {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.2rem;
+  }
+
+  .owner-timeline-date {
+    font-size: 0.7rem;
+  }
+
+  .owner-timeline-facility-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.12rem;
+  }
+
+  .owner-timeline-side {
+    margin-left: 0;
+    font-size: 0.68rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #94a3b8;
+  }
+
+  .owner-timeline-parties {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.15rem 0.3rem;
+    margin-top: 0.18rem;
+    font-size: 0.74rem;
+    line-height: 1.35;
   }
 
 }

@@ -715,14 +715,94 @@ def _sort_risk_reason_display(label: str) -> str:
             return 0
         if 'abuse' in pl:
             return 1
-        if 'staffing' in pl and 'overall' not in pl:
+        if 'overall' in pl or '1-star overall' in pl or '1 star overall' in pl:
             return 2
-        if 'overall' in pl or '1 star' in pl or '1-star' in pl:
+        if 'staffing' in pl:
             return 3
         return 4
 
     parts = [p.strip() for p in text.split(',') if p.strip()]
     return ', '.join(sorted(parts, key=_prio))
+
+
+TAKEAWAY_PRIORITY_FLAG_ORDER = (
+    'SFF Candidate',
+    'SFF',
+    'Abuse',
+    '1-star overall',
+    '1-star staffing',
+)
+
+TAKEAWAY_BADGE_WARN_STYLE = (
+    'display:inline-flex;align-items:center;gap:0.2rem;padding:2px 10px;border-radius:6px;'
+    'font-weight:600;font-size:0.85rem;white-space:nowrap;'
+    'color:#fecaca;background:rgba(185,28,28,0.22);border:1px solid rgba(248,113,113,0.38);'
+)
+TAKEAWAY_BADGE_ABUSE_STYLE = (
+    'display:inline-flex;align-items:center;gap:0.2rem;padding:2px 10px;border-radius:6px;'
+    'font-weight:600;font-size:0.85rem;white-space:nowrap;'
+    'color:#fda4af;background:rgba(190,18,60,0.26);border:1px solid rgba(251,113,133,0.42);'
+)
+TAKEAWAY_BADGE_STAR_WARN_STYLE = (
+    'display:inline-block;padding:3px 10px;border-radius:6px;font-weight:600;'
+    'font-size:0.82rem;white-space:nowrap;color:#fafafa;'
+    'background:rgba(185,28,28,0.2);border:1px solid rgba(248,113,113,0.36);transition:all 0.2s ease;'
+)
+
+
+def _takeaway_risk_info_button_html() -> str:
+    tip = html.escape(FACILITY_RISK_BADGE_TOOLTIP)
+    return (
+        '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+        '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">i</button>'
+        f'<span class="pbj-high-risk-tooltip" role="tooltip">{tip}</span>'
+        '</span>'
+    )
+
+
+def _takeaway_priority_flag_badges_html(
+    provider_info_row: dict | None,
+    *,
+    ccn: str = '',
+    is_sff: bool = False,
+    is_sff_candidate: bool = False,
+) -> str:
+    """CMS warning flags for takeaway (SFF → abuse → 1★ overall → 1★ staffing)."""
+    sff_status = 'SFF Candidate' if is_sff_candidate else ('SFF' if is_sff else '')
+    reasons = _pbj320_high_risk_reasons(provider_info_row or {}, ccn=ccn, sff_status=sff_status)
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for label in TAKEAWAY_PRIORITY_FLAG_ORDER:
+        if label not in reasons or label in seen:
+            continue
+        if label == 'SFF' and 'SFF Candidate' in seen:
+            continue
+        ordered.append(label)
+        seen.add(label)
+    if not ordered:
+        return ''
+    info = _takeaway_risk_info_button_html()
+    sff_candidate_spans = (
+        '<span class="pbj-badge-mobile-hide">SFF Candidate</span>'
+        '<span class="pbj-badge-mobile-only">SFF Cand.</span>'
+    )
+    parts: list[str] = []
+    for label in ordered:
+        style = (
+            TAKEAWAY_BADGE_ABUSE_STYLE
+            if label == 'Abuse'
+            else TAKEAWAY_BADGE_WARN_STYLE
+        )
+        if label == 'SFF Candidate':
+            inner = sff_candidate_spans
+        else:
+            inner = html.escape(label)
+        parts.append(
+            f'<span class="pbj-takeaway-flag-badge pbj-risk-badge-with-info" style="{style}">'
+            f'{inner}{info}</span>'
+        )
+    return ''.join(parts)
+
 
 def get_facility_risk_from_search_index(ccn):
     """Return (risk_flag, reason_str) for a facility CCN (search index, then provider/SFF fallback)."""
@@ -792,7 +872,7 @@ def _csrf_protect_selectively():
         return
     if request.path.startswith('/owners') or request.path.startswith('/owner'):
         return
-    if request.path in ('/subscribe', '/contact') or request.path.startswith('/contact?'):
+    if request.path in ('/subscribe', '/contact', '/corrections') or request.path.startswith('/contact?'):
         csrf_protect.protect()
 
 
@@ -1399,6 +1479,8 @@ def bad_request(err):
         return redirect('/?subscribe_error=csrf')
     if request.path == '/contact':
         return redirect('/contact?error=invalid')
+    if request.path == '/corrections':
+        return redirect('/corrections?error=invalid')
     # Owners API: return JSON so frontend sees real error (e.g. query-fec "Owner name required")
     if request.path.startswith('/owners/api/'):
         return make_response((json.dumps({'error': getattr(err, 'description', None) or 'Bad request'}), 400, {'Content-Type': 'application/json'}))
@@ -1478,6 +1560,54 @@ def _send_contact_email(sender_email, sender_name, message_body, is_press=False)
         return True
     except Exception as e:
         print(f'Contact form email failed: {e}')
+        return False
+
+
+def _send_correction_email(sender_email, sender_name, page_url, facility_name, issue_body, source_body):
+    """Send correction form submission via the same SMTP settings as contact."""
+    to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
+    to_list = [a.strip() for a in to_list if a.strip()]
+    if not to_list:
+        to_list = ['egoldwein@gmail.com']
+    host = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_HOST', '').strip()
+    lines = [
+        f"Name: {sender_name}",
+        f"Email: {sender_email}",
+        f"Page URL: {page_url or '(not provided)'}",
+        f"Facility or owner: {facility_name or '(not provided)'}",
+        "",
+        "What looks incorrect or outdated?",
+        issue_body,
+        "",
+        "Source or explanation:",
+        source_body or '(not provided)',
+    ]
+    body = "\n".join(lines)
+    if not host:
+        print('[PBJ320 correction] SMTP not configured. Submission logged only:')
+        print(f'  From: {sender_name} <{sender_email}>')
+        print(body[:400] + ('...' if len(body) > 400 else ''))
+        return True
+    port = int(os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PORT', '587'))
+    user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
+    password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
+    from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
+    subject = 'PBJ320 Correction'
+    msg = (
+        f"Subject: {subject}\r\nFrom: {from_addr}\r\nTo: {', '.join(to_list)}\r\n"
+        f"Reply-To: {sender_email}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}"
+    )
+    try:
+        import smtplib
+        with smtplib.SMTP(host, port, timeout=10) as s:
+            if port == 587:
+                s.starttls()
+            if user and password:
+                s.login(user, password)
+            s.sendmail(from_addr, to_list, msg.encode('utf-8'))
+        return True
+    except Exception as e:
+        print(f'Correction form email failed: {e}')
         return False
 
 
@@ -1614,6 +1744,36 @@ def contact():
             return _contact_redirect(next_url, 'contact_sent=1')
         return _contact_redirect(next_url, 'contact_error=1')
     return _serve_public_html('contact.html', inject_csrf=True)
+
+
+@app.route('/corrections', methods=['GET', 'POST'])
+def corrections():
+    """Correction submission form: GET shows form, POST sends email."""
+    if request.method == 'POST':
+        next_url = (request.form.get('next') or '').strip()
+        if not next_url.startswith('/') or next_url.startswith('//'):
+            next_url = '/corrections'
+        if HAS_CSRF and validate_csrf is not None:
+            try:
+                validate_csrf(request.form.get('csrf_token'))
+            except Exception:
+                return _contact_redirect(next_url, 'correction_error=1')
+        email = (request.form.get('email') or '').strip().lower()
+        name = (request.form.get('name') or '').strip()[:200]
+        page_url = (request.form.get('page_url') or '').strip()[:500]
+        facility_name = (request.form.get('facility_name') or '').strip()[:300]
+        issue = (request.form.get('issue') or '').strip()
+        source = (request.form.get('source') or '').strip()[:10000]
+        if not name:
+            return redirect('/corrections?error=invalid')
+        if not email or not _EMAIL_RE.match(email) or len(email) > 255:
+            return redirect('/corrections?error=invalid')
+        if not issue or len(issue) > 10000:
+            return redirect('/corrections?error=invalid')
+        if _send_correction_email(email, name, page_url, facility_name, issue, source):
+            return _contact_redirect(next_url, 'correction_sent=1')
+        return _contact_redirect(next_url, 'correction_error=1')
+    return _serve_public_html('corrections.html', inject_csrf=True)
 
 
 @app.route('/about')
@@ -8007,8 +8167,9 @@ button.pbj-hprd-means-trigger:focus-visible {{
   outline: 2px solid rgba(129, 140, 248, 0.75); outline-offset: 2px;
 }}
 .pbj-hprd-means-val {{ font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }}
-.pbj-takeaway-top {{ display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }}
-.pbj-takeaway-top-main {{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }}
+.pbj-takeaway-top {{ margin-bottom: 0.55rem; }}
+.pbj-takeaway-top-main {{ display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; min-width: 0; }}
+.pbj-takeaway-flag-badge {{ flex-shrink: 0; }}
 .pbj-takeaway-header {{ font-size: 16px; font-weight: bold; color: #e2e8f0; min-width: 0; line-height: 1.25; flex: 1; }}
 .pbj-takeaway-title-name {{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }}
 .pbj-takeaway-actions {{ margin-top: 0.55rem; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }}
@@ -8949,7 +9110,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
 .custom-report-cta .custom-report-cta-sms a {{ color: #818cf8; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-sms a:hover {{ color: #a5b4fc; text-decoration: underline; text-underline-offset: 3px; }}
-.navbar {{ background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; position: sticky; top: 0; z-index: 1000; box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08); border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
+.navbar {{ background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }}
 .nav-brand {{ display: flex; align-items: center; color: #e2e8f0; font-size: 1.2rem; font-weight: 700; }}
 .nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; }}
@@ -12567,49 +12728,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _psec('sff_risk_search', _t_risk)
     is_sff = sff_entry is not None
     is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
-    if risk_flag and risk_reason:
-        risk_badge_label = _sort_risk_reason_display(risk_reason)
-    elif risk_flag:
-        risk_badge_label = 'Meets high-risk criteria'
-    elif is_sff:
-        risk_badge_label = 'SFF Candidate' if is_sff_candidate else 'SFF'
-    else:
-        risk_badge_label = ''
-    badge_style_abuse = 'display:inline-flex;align-items:center;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fb7185;background:rgba(251,113,133,0.1);border:1px solid rgba(251,113,133,0.2);'
-    badge_style_sff = 'display:inline-flex;align-items:center;padding:2px 10px;border-radius:6px;font-weight:600;font-size:0.85rem;margin-right:6px;transition:all 0.2s ease;color:#fbbf24;background:rgba(251,191,36,0.12);border:1px solid rgba(251,191,36,0.28);'
-    _risk_reason_lower = (risk_reason or '').strip().lower()
-    badge_style = badge_style_abuse if (risk_badge_label and 'abuse' in _risk_reason_lower) else badge_style_sff
-    sff_candidate_spans = '<span class="pbj-badge-mobile-hide">SFF Candidate</span><span class="pbj-badge-mobile-only">SFF Cand.</span>'
-    use_sff_candidate_badge = (risk_badge_label == 'SFF Candidate')
-    _risk_tip = html.escape(FACILITY_RISK_BADGE_TOOLTIP)
-    _risk_info_inner = (
-        '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
-        '<button type="button" class="pbj-risk-badge-info" aria-label="High-risk criteria">i</button>'
-        f'<span class="pbj-high-risk-tooltip" role="tooltip">{_risk_tip}</span>'
-        '</span>'
+    priority_flags_html = _takeaway_priority_flag_badges_html(
+        provider_info_row or {},
+        ccn=prov,
+        is_sff=is_sff,
+        is_sff_candidate=is_sff_candidate,
     )
-
-    def _risk_badge_with_info(inner_html: str) -> str:
-        if not inner_html:
-            return ''
-        return (
-            f'<span class="pbj-risk-badge-with-info" style="{badge_style}">'
-            f'{inner_html}{_risk_info_inner}</span>'
-        )
-
-    if use_sff_candidate_badge:
-        risk_badge = _risk_badge_with_info(sff_candidate_spans)
-    elif is_sff_candidate and risk_badge_label:
-        parts: list[str] = []
-        for part in risk_badge_label.split(','):
-            p = part.strip()
-            if p.upper() in ('SFF', 'SFF CANDIDATE'):
-                parts.append(sff_candidate_spans)
-            elif p:
-                parts.append(html.escape(p))
-        risk_badge = _risk_badge_with_info(', '.join(parts)) if parts else ''
-    else:
-        risk_badge = _risk_badge_with_info(risk_badge_label) if risk_badge_label else ''
     contract_pct = format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage")
     direct_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')
     residents_str = f"{census_int:,} residents" if census_int else "Census not reported"
@@ -12642,13 +12766,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     overall_star_icons = _star_icons_from_rating(_overall_raw)
     staffing_star_icons = _star_icons_from_rating(_staffing_raw)
     badge_span = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease;'
-    badge_span_red = 'display: inline-block; padding: 3px 10px; border-radius: 6px; font-weight: 600; font-size: 0.82rem; white-space: nowrap; color: #fb7185; background: rgba(251,113,133,0.1); border: 1px solid rgba(251,113,133,0.22); transition: all 0.2s ease;'
-    # Omit separate risk badge when the only risk is 1-star overall (we show that via red Overall badge)
-    _skip_risk_badge = _risk_reason_lower in ('1-star overall', '1 star overall', '1-star', '1 star')
-    risk_badge_conditional = risk_badge if (risk_badge and not _skip_risk_badge) else ''
-    # 1-star badges keep neutral pill styling; stars alone use pbj-rating-stars--low (red).
-    overall_badge_style = badge_span
-    staffing_badge_style = badge_span
+    overall_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _overall_n == 1 else badge_span
+    staffing_badge_style = TAKEAWAY_BADGE_STAR_WARN_STYLE if _staff_n == 1 else badge_span
     overall_badge_html = (
         f'<span style="{overall_badge_style}" title="{overall_badge_title}">Overall: '
         f'{_badge_star_span_html(overall_star_icons, _overall_n)}</span>'
@@ -13001,13 +13120,12 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pbj_takeaway_card = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
 </div>
 </div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{risk_badge_conditional}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
+<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{priority_flags_html}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.35rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
 {compliance_warning_html}
@@ -13875,7 +13993,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -14034,7 +14151,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
-<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -15606,7 +15722,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem; position: relative;">
 {state_outline_inset}
 <div class="pbj-takeaway-top">
-<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" loading="lazy" decoding="async" style="border-radius: 50%; object-fit: cover; border: 2px solid rgba(129,140,248,0.4); flex-shrink: 0;">
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
 <span class="pbj-takeaway-brand-pill">320 Consulting</span>
@@ -18908,7 +19023,7 @@ def static_files(filename):
         'insights', 'insights.html', 'about', 'newsletter', 'newsletter.html', 'pbj-sample',
         'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
         'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'owners', 'owners.html', 'downloads',
-        'premium', 'contact',
+        'premium', 'contact', 'corrections',
         'data-sources', 'privacy', 'terms',
         'chow', 'chow.html',
     ]:

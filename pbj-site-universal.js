@@ -34,7 +34,9 @@
     '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
     '<a href="/contact" style="' + FOOTER_LINK_STYLE + '">Contact</a> · ' +
-    '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a>' +
+    '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a> · ' +
+    '<a href="/corrections" style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
+    '<a href="/#updates" style="' + FOOTER_LINK_STYLE + '">Updates</a>' +
     '</p>';
 
   var FOOTER_CORE = [

@@ -26,6 +26,7 @@ DEFAULT_URLS = [
     'https://www.pbj320.com/sitemap.xml',
     'https://www.pbj320.com/about',
     'https://www.pbj320.com/contact',
+    'https://www.pbj320.com/corrections',
     'https://www.pbj320.com/press',
 ]
 

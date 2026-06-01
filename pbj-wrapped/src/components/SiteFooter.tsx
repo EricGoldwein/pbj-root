@@ -72,6 +72,10 @@ export const SiteFooter: React.FC = () => {
         <a href="/contact" style={linkStyle}>Contact</a>
         {' · '}
         <a href="/data-sources" style={linkStyle}>Sources</a>
+        {' · '}
+        <a href="/corrections" style={linkStyle}>Corrections</a>
+        {' · '}
+        <a href="/#updates" style={linkStyle}>Updates</a>
       </p>
 
       <div

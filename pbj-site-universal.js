@@ -35,7 +35,7 @@
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
     '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a> · ' +
     '<a href="/corrections" style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
-    '<a href="/#updates" style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
+    '<a href="/updates" style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
     '</p>';
 
   var FOOTER_CORE = [
@@ -428,6 +428,44 @@
     });
   }
 
+  function scrollToHomeUpdates() {
+    var el = document.getElementById('updates');
+    if (!el) return false;
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    try {
+      history.replaceState(null, '', '/#updates');
+    } catch (e) {
+      window.location.hash = 'updates';
+    }
+    return true;
+  }
+
+  function bindSubscribeFooterLinks() {
+    document.addEventListener('click', function (e) {
+      var a =
+        e.target && e.target.closest
+          ? e.target.closest('a[href="/#updates"], a[href="/updates"], a[href$="#updates"]')
+          : null;
+      if (!a) return;
+      var path = window.location.pathname || '/';
+      if (path !== '/' && path !== '/index.html') return;
+      if (scrollToHomeUpdates()) {
+        e.preventDefault();
+      }
+    });
+    if (window.location.hash === '#updates') {
+      var runScroll = function () {
+        scrollToHomeUpdates();
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', runScroll);
+      } else {
+        runScroll();
+      }
+      window.addEventListener('load', runScroll);
+    }
+  }
+
   function run() {
     preloadNavFavicon();
     purgeLegacyFooterMarkup(document);
@@ -441,6 +479,7 @@
     bindContactFallbacks();
     bindSourcesDialogs();
     bindProviderOwnersModals();
+    bindSubscribeFooterLinks();
   }
 
   if (typeof window !== 'undefined') {

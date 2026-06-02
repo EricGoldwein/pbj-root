@@ -65,7 +65,7 @@ export const SiteFooter: React.FC = () => {
         {' · '}
         <a href="/corrections" style={linkStyle}>Corrections</a>
         {' · '}
-        <a href="/#updates" style={linkStyle}>Subscribe</a>
+        <a href="/updates" style={linkStyle}>Subscribe</a>
       </p>
 
       <div

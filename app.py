@@ -751,6 +751,30 @@ TAKEAWAY_BADGE_STAR_WARN_STYLE = (
 )
 
 
+def _takeaway_star_kind_label_html(kind: str) -> str:
+    """Staffing vs. Overall label; mobile uses Staff for staffing."""
+    if kind == 'staffing':
+        return (
+            '<span class="pbj-badge-mobile-hide">Staffing:</span>'
+            '<span class="pbj-badge-mobile-only">Staff:</span>'
+        )
+    return 'Overall:'
+
+
+def _takeaway_abuse_flag_badge_html() -> str:
+    """Abuse priority flag with hover/focus info control."""
+    tip = 'Cited for Abuse by CMS'
+    esc_tip = html.escape(tip, quote=True)
+    return (
+        f'<span class="pbj-takeaway-flag-badge pbj-risk-badge-with-info" style="{TAKEAWAY_BADGE_ABUSE_STYLE}">'
+        f'Abuse'
+        f'<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+        f'<button type="button" class="pbj-risk-badge-info" aria-label="{esc_tip}">i</button>'
+        f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(tip)}</span>'
+        f'</span></span>'
+    )
+
+
 def _takeaway_cms_star_flag_badge(kind: str, rating_raw: Any, *, title: str) -> str:
     """Compact 1★ Staffing / Overall flag (replaces separate text + star badges)."""
     n = _rating_star_count(rating_raw)
@@ -758,11 +782,10 @@ def _takeaway_cms_star_flag_badge(kind: str, rating_raw: Any, *, title: str) -> 
     if not n or icons == '—':
         return ''
     stars = _badge_star_span_html(icons, n)
-    label = 'Staffing' if kind == 'staffing' else 'Overall'
     esc_title = html.escape(title, quote=True)
     return (
         f'<span class="pbj-takeaway-flag-badge pbj-takeaway-star-flag" style="{TAKEAWAY_BADGE_STAR_WARN_STYLE}" '
-        f'title="{esc_title}">{label}: {stars}</span>'
+        f'title="{esc_title}">{_takeaway_star_kind_label_html(kind)} {stars}</span>'
     )
 
 
@@ -820,11 +843,10 @@ def _takeaway_priority_flag_badges_html(
                 parts.append(badge)
                 covered.add('overall_star')
             continue
-        style = (
-            TAKEAWAY_BADGE_ABUSE_STYLE
-            if label == 'Abuse'
-            else TAKEAWAY_BADGE_WARN_STYLE
-        )
+        if label == 'Abuse':
+            parts.append(_takeaway_abuse_flag_badge_html())
+            continue
+        style = TAKEAWAY_BADGE_WARN_STYLE
         if label == 'SFF Candidate':
             inner = sff_candidate_spans
         else:
@@ -1488,8 +1510,16 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     html_content = inject_public_site_verification_meta(html_content)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
-    resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
+    # Forms embed a session-bound CSRF token; do not cache HTML in shared caches.
+    resp.headers['Cache-Control'] = 'private, no-store, must-revalidate' if inject_csrf else _HTML_CACHE_CONTROL
     return resp
+
+
+@app.route('/updates')
+@app.route('/updates/')
+def updates_anchor():
+    """Footer Subscribe link target; homepage signup section lives at /#updates."""
+    return redirect('/#updates', code=302)
 
 
 @app.route('/')
@@ -1508,7 +1538,7 @@ def index():
 def bad_request(err):
     """Redirect /subscribe and /contact CSRF or bad request to friendly page instead of 400."""
     if request.path == '/subscribe':
-        return redirect('/?subscribe_error=csrf')
+        return redirect('/?subscribe_error=csrf#updates')
     if request.path == '/contact':
         return redirect('/contact?error=invalid')
     if request.path == '/corrections':
@@ -1650,15 +1680,15 @@ def subscribe():
         try:
             validate_csrf(request.form.get('csrf_token'))
         except Exception:
-            return redirect('/?subscribe_error=csrf')
+            return redirect('/?subscribe_error=csrf#updates')
     raw = request.form.get('email')
     if not raw or not isinstance(raw, str):
-        return redirect('/?subscribe_error=invalid')
+        return redirect('/?subscribe_error=invalid#updates')
     email = raw.strip().lower()
     if not email or len(email) > 255:
-        return redirect('/?subscribe_error=invalid')
+        return redirect('/?subscribe_error=invalid#updates')
     if not _EMAIL_RE.match(email):
-        return redirect('/?subscribe_error=invalid')
+        return redirect('/?subscribe_error=invalid#updates')
     _init_subscribers_db()
     conn = _subscribers_conn()
     try:
@@ -1675,16 +1705,20 @@ def subscribe():
                     time.sleep(0.25)
                     continue
                 raise
-        _send_subscribe_notification(email, 'homepage')
-        return redirect('/?subscribed=1')
+        threading.Thread(
+            target=_send_subscribe_notification,
+            args=(email, 'homepage'),
+            daemon=True,
+        ).start()
+        return redirect('/?subscribed=1#updates')
     except sqlite3.IntegrityError:
-        return redirect('/?subscribed=already')
+        return redirect('/?subscribed=already#updates')
     except Exception as e:
         if app.debug:
             raise
         import logging
         logging.getLogger(__name__).warning('Subscribe failed: %s', e, exc_info=True)
-        return redirect('/?subscribe_error=error')
+        return redirect('/?subscribe_error=error#updates')
     finally:
         try:
             conn.close()
@@ -6539,19 +6573,19 @@ def format_percentile_phrase(percentile, state_name):
         return f'{n}' + ({1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th'))
 
     if p >= 95:
-        return f'in the top 5% of nursing homes in {state_display}'
+        return f'in the top 5% of {state_display} nursing homes'
     if p >= 90:
-        return f'in the top 10% of nursing homes in {state_display}'
+        return f'in the top 10% of {state_display} nursing homes'
     if p >= 71:
         top_rank = 100 - p
-        return f'in the top {top_rank}% of nursing homes in {state_display}'
+        return f'in the top {top_rank}% of {state_display} nursing homes'
     if 30 <= p <= 70:
-        return f'in the {_ordinal(p)} percentile of nursing homes in {state_display}'
+        return f'in the {_ordinal(p)} percentile of {state_display} nursing homes'
     if p >= 11:
-        return f'in the bottom {p}% of nursing homes in {state_display}'
+        return f'in the bottom {p}% of {state_display} nursing homes'
     if p > 5:
-        return f'in the bottom 10% of nursing homes in {state_display}'
-    return f'in the bottom 5% of nursing homes in {state_display}'
+        return f'in the bottom 10% of {state_display} nursing homes'
+    return f'in the bottom 5% of {state_display} nursing homes'
 
 
 _LOAD_PROVIDER_INFO_CACHE = None
@@ -8222,7 +8256,12 @@ button.pbj-hprd-means-trigger:focus-visible {{
   margin-bottom: 0; opacity: 0; visibility: hidden; pointer-events: none;
 }}
 .pbj-takeaway-priority-flags .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip,
+.pbj-takeaway-priority-flags .pbj-risk-badge-with-info:focus-within .pbj-high-risk-tooltip,
 .pbj-takeaway-priority-flags .pbj-risk-badge-info-wrap.is-open .pbj-high-risk-tooltip {{
+  opacity: 1; visibility: visible;
+}}
+.pbj-takeaway-badges .pbj-risk-badge-with-info:focus-within .pbj-high-risk-tooltip,
+.pbj-takeaway-badges .pbj-risk-badge-info-wrap.is-open .pbj-high-risk-tooltip {{
   opacity: 1; visibility: visible;
 }}
 .pbj-takeaway-star-flag .pbj-rating-stars {{ margin-left: 0.12rem; }}
@@ -8447,12 +8486,16 @@ button.pbj-takeaway-share-btn:hover {{
   font-size: inherit;
   line-height: inherit;
 }}
-.pbj-compliance-warning__mobile-stack {{
+.pbj-compliance-warning__mobile-line1 {{
   display: none;
+  margin: 0;
+  font-weight: 500;
+  line-height: 1.38;
 }}
 .pbj-compliance-warning__copy--desktop {{
   display: inline;
 }}
+.pbj-compliance-warning__thresh,
 .pbj-compliance-warning__min {{
   margin: 0;
   padding: 0;
@@ -8467,10 +8510,13 @@ button.pbj-takeaway-share-btn:hover {{
   cursor: pointer;
   white-space: nowrap;
 }}
+.pbj-compliance-warning__thresh:hover,
+.pbj-compliance-warning__thresh:focus-visible,
 .pbj-compliance-warning__min:hover,
 .pbj-compliance-warning__min:focus-visible {{
   opacity: 1;
 }}
+.pbj-compliance-warning__thresh:focus-visible,
 .pbj-compliance-warning__min:focus-visible {{
   outline: 2px solid rgba(251, 191, 36, 0.55);
   outline-offset: 2px;
@@ -8522,22 +8568,30 @@ button.pbj-takeaway-share-btn:hover {{
     display: none;
   }}
   .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.22rem;
-  }}
-  .pbj-compliance-warning__mobile-stack {{
     display: block;
-    width: 100%;
   }}
   .pbj-compliance-warning__mobile-line1 {{
-    margin: 0;
-    font-weight: 500;
-    line-height: 1.38;
+    display: block;
+    width: 100%;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }}
-  .pbj-compliance-warning--threshold .pbj-compliance-warning__min {{
-    display: inline-block;
+  .pbj-compliance-warning__thresh {{
+    display: inline;
+    padding: 0;
     margin: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    font-size: inherit;
+    font-weight: 600;
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.12em;
+    cursor: pointer;
+    white-space: nowrap;
   }}
   .pbj-compliance-warning__meta-long {{
     display: none;
@@ -11185,8 +11239,8 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
   <div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="pbjCaseMixModalTitle">
     <button type="button" class="pbj-casemix-modal-close" id="pbjCaseMixModalClose" aria-label="Close">×</button>
-    <h3 id="pbjCaseMixModalTitle">Reported vs. CMS case-mix</h3>
-    <p><strong>Reported HPRD</strong> comes from PBJ staffing. <strong>CMS case-mix HPRD</strong> is modeled from the facility&rsquo;s resident mix (PDPM) for the same quarter and role.</p>
+    <h3 id="pbjCaseMixModalTitle">What is CMS case-mix?</h3>
+    <p><strong>CMS case-mix HPRD</strong> is modeled from the facility&rsquo;s resident mix (PDPM) for the same quarter and role.</p>
     <p>The <strong>bar scale is percent of CMS case-mix</strong>: 100% equals the case-mix HPRD for that role. Reported staffing is the filled portion. Case-mix is an acuity benchmark from PDPM, not a state or federal staffing minimum.</p>
     <p style="margin-top:0.45rem;font-size:0.78rem;line-height:1.4;color:#94a3b8;"><a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener" style="color:#a5b4fc;">CMS Users&rsquo; Guide</a></p>
   </div>
@@ -12304,9 +12358,12 @@ def _render_pbj_info_badge_modal(modal_title: str, body_html: str, uid: str) -> 
         f'<div class="pbj-casemix-aux-body">{body_html}</div>'
         f'</div></div>'
         f'<script>(function(){{'
-        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
-        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}});'
+        f'var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
+        f'if(!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
+        f'function open(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}}'
+        f'var b=document.getElementById("{bid}");if(b)b.addEventListener("click",open);'
+        f'document.querySelectorAll(\'[aria-controls="{mid}"]\').forEach(function(el){{'
+        f'if(el!==b)el.addEventListener("click",open);}});'
         f'if(c)c.addEventListener("click",x);m.addEventListener("click",function(e){{if(e.target===m)x();}});'
         f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")x();}});'
         f'}})();</script>'
@@ -12513,12 +12570,13 @@ def _provider_staffing_compliance_warning(
         th_raw = str(top.get('threshold_display') or '—').strip()
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
-        if st_u == 'NY':
-            min_meta_long = f'NY Minimum ~{th_disp} HPRD'
-            min_meta_short = f'NY Min. ~{th_disp} HPRD'
-        elif st_u:
-            min_meta_long = f'{html.escape(st_u)} minimum ~{th_disp} total nursing HPRD'
-            min_meta_short = min_meta_long
+        st_min_label = f'{html.escape(st_u)} Min.' if st_u else 'Min.'
+        if st_u:
+            st_name = STATE_CODE_TO_NAME.get(st_u, st_u)
+            min_meta_long = (
+                f'{html.escape(st_name)} minimum ~{th_disp} total nursing HPRD'
+            )
+            min_meta_short = f'{st_min_label} ~{th_disp} HPRD'
         else:
             min_meta_long = f'Minimum ~{th_disp} total nursing HPRD'
             min_meta_short = min_meta_long
@@ -12540,10 +12598,15 @@ def _provider_staffing_compliance_warning(
             f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
             f'{q_part}{flags_note}'
         )
-        st_min_label = f'{html.escape(st_u)} Min.' if st_u else 'Min.'
+        thresh_modal_label = f'{th_disp} HPRD ({st_min_label})'
+        thresh_btn = (
+            f'<button type="button" id="pbjInfoBtn-{uid}-m" class="pbj-compliance-warning__thresh" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="View {html.escape(thresh_modal_label, quote=True)} staffing threshold method">'
+            f'{thresh_modal_label}</button>'
+        )
         mobile_line1 = (
-            f'{n_show} of {total_show} PBJ days &lt; {th_disp} HPRD '
-            f'({st_min_label}){q_part}{flags_note}'
+            f'{n_show} days &lt; {thresh_btn}{q_part}{flags_note}'
         )
         warn_html = (
             f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
@@ -12553,11 +12616,9 @@ def _provider_staffing_compliance_warning(
             f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">'
             f'{lead_desktop}</span>'
             f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
-            f'</span>'
-            f'<div class="pbj-compliance-warning__mobile-stack">'
+            f'{min_btn}</span>'
             f'<p class="pbj-compliance-warning__mobile-line1">{mobile_line1}</p>'
-            f'</div>'
-            f'{min_btn}</div></div>'
+            f'</div></div>'
         )
     else:
         details_btn = (
@@ -12834,7 +12895,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     if 'staffing_star' not in priority_covered and staffing_star_icons != '—':
         staffing_badge_html = (
             f'<span style="{staffing_badge_style}" title="{staffing_badge_title}">'
-            f'Staffing: {_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
+            f'{_takeaway_star_kind_label_html("staffing")} '
+            f'{_badge_star_span_html(staffing_star_icons, _staff_n)}</span>'
         )
     casemix_badge_html = ''
     if case_mix_total is not None and casemix_str and casemix_str != '—':
@@ -12849,12 +12911,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     percentile_line = ''
     state_pct_phrase = format_percentile_phrase(state_percentile_total, state_name)
     if state_pct_phrase:
-        state_ratio_str = f' ({state_hprd_placeholder} HPRD)' if state_hprd_placeholder and state_hprd_placeholder != '—' else ''
         # When case-mix is missing, the narrative is a full sentence; add percentile as a second sentence. Otherwise join with "and".
         if case_mix_total is None:
-            narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + state_ratio_str + '.'
+            narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + '.'
         else:
-            narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + state_ratio_str + '.'
+            narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + '.'
     yoy_line = ''
     if facility_df is not None and not facility_df.empty and raw_quarter and reported_total is not None:
         try:

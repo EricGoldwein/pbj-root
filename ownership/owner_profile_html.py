@@ -409,15 +409,15 @@ def _format_own_pct_label(value: str) -> str:
     if not s or s == "—":
         return s
     low = s.lower()
-    if "ownership interest" in low:
+    if "ownership interest" in low or " ownership" in low:
         m = re.search(r"([\d.,]+)\s*%", s)
         if m:
             pct = _format_ownership_pct_value(m.group(1))
-            return f"{pct} ownership interest" if pct else s
+            return f"{pct} ownership" if pct else s
         return s
     if "%" in s or any(ch.isdigit() for ch in s):
         pct = _format_ownership_pct_value(s)
-        return f"{pct} ownership interest" if pct else s
+        return f"{pct} ownership" if pct else s
     return s
 
 

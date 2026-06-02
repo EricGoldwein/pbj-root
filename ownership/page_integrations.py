@@ -144,7 +144,7 @@ def _provider_ownership_about_html() -> str:
         "not proof of who operates the facility or care quality."
         "</span>"
         '<span class="pbj-ownership-about-text--short">'
-        "CMS owner filings; not proof of who operates the facility."
+        "CMS owner filings; not proof of who operates."
         "</span>"
         "</p></div>"
     )
@@ -502,6 +502,109 @@ def _party_type_short(party_type: str) -> str:
     return t[:10] if t else "—"
 
 
+def _party_type_mobile(party_type: str) -> str:
+    low = str(party_type or "").strip().lower()
+    if "individ" in low:
+        return "Ind."
+    if "org" in low:
+        return "Org."
+    if "government" in low:
+        return "Gov."
+    t = str(party_type or "").strip()
+    return t[:8] if t else "—"
+
+
+def _party_pct_mobile(party: dict[str, Any]) -> str:
+    """Stake for provider mobile cards — percent only when known."""
+    for raw in party.get("pcts") or []:
+        lbl = _ownership_pct_own_label(raw)
+        if not lbl:
+            continue
+        for suffix in (" ownership interest", " ownership"):
+            if lbl.endswith(suffix):
+                return lbl[: -len(suffix)].strip()
+        return lbl
+    return ""
+
+
+def _party_role_mobile(party: dict[str, Any], *, has_stake: bool) -> str:
+    """Compact role label for provider mobile owner cards."""
+    p = enrich_control_party(dict(party))
+    primary = str(p.get("primary_role_label") or "").strip()
+    if primary and primary != "—":
+        low = primary.lower()
+        if "operational" in low or "managerial" in low:
+            return "Ops control"
+        if "managing employee" in low:
+            return "Mgr."
+        if "adp" in low:
+            return "ADP"
+        if len(primary) <= 18:
+            return primary
+        return primary[:16].rstrip() + "…"
+    roles = list(p.get("roles") or [])
+    codes = list(p.get("role_codes") or [])
+    for i, raw in enumerate(roles):
+        if has_stake and _is_threshold_ownership_role(raw):
+            continue
+        code = codes[i] if i < len(codes) else ""
+        short = format_role_short(raw, role_code=code)
+        if not short or short == "—":
+            continue
+        low = short.lower()
+        if "operational" in low:
+            return "Ops control"
+        if "ownership interest" in low:
+            return "Owner"
+        if len(short) <= 18:
+            return short
+        return short[:16].rstrip() + "…"
+    return ""
+
+
+def _party_meta_lines_html(party: dict[str, Any]) -> tuple[str, str]:
+    """Desktop and mobile meta lines for provider ownership cards."""
+    ptype = html.escape(str(party.get("party_type") or "—"))
+    ptype_m = html.escape(_party_type_mobile(str(party.get("party_type") or "")))
+    since = html.escape(_party_since_display(party))
+    role_full = html.escape(_party_role_and_ownership_cell(party))
+    pct_m = _party_pct_mobile(party)
+    has_stake = bool(pct_m)
+    role_m = html.escape(_party_role_mobile(party, has_stake=has_stake))
+    sep = '<span class="chow-party-meta-sep" aria-hidden="true"> · </span>'
+
+    desk_bits: list[str] = []
+    if ptype and ptype != "—":
+        desk_bits.append(ptype)
+    if role_full and role_full != "—":
+        desk_bits.append(role_full)
+    if since != "—":
+        desk_bits.append(f"Since {since}")
+    desktop = (
+        f'<span class="chow-party-meta-line chow-party-meta-line--desktop">'
+        f"{sep.join(desk_bits) if desk_bits else '—'}"
+        f"</span>"
+    )
+
+    mob_bits: list[str] = []
+    if pct_m:
+        mob_bits.append(html.escape(pct_m))
+    elif role_m:
+        mob_bits.append(role_m)
+    if ptype_m and ptype_m != "—":
+        mob_bits.append(ptype_m)
+    if role_m and pct_m:
+        mob_bits.append(role_m)
+    if since != "—":
+        mob_bits.append(f"Since {since}")
+    mobile = (
+        f'<span class="chow-party-meta-line chow-party-meta-line--mobile">'
+        f"{sep.join(mob_bits) if mob_bits else '—'}"
+        f"</span>"
+    )
+    return desktop, mobile
+
+
 def _party_since_display(party: dict[str, Any]) -> str:
     dates = (party.get("association_dates") or [])[:1]
     since_raw = format_chow_date(dates[0]) if dates else ""
@@ -592,7 +695,6 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
         pname = html.escape(
             format_org_display(str(raw_name)) if raw_name != "—" else "—"
         )
-        ptype = html.escape(p.get("party_type") or "—")
         role_cell = _party_role_and_ownership_cell(p)
         dates = (p.get("association_dates") or [])[:1]
         since_raw = format_chow_date(dates[0]) if dates else ""
@@ -603,19 +705,9 @@ def _render_control_parties_table(parties: list[dict[str, Any]], *, preview: int
             if owner_url and p.get("is_owner_control_pac")
             else pname
         )
-        meta_sep = '<span class="chow-party-meta-sep" aria-hidden="true"> · </span>'
-        meta_bits: list[str] = []
-        if ptype and ptype != "—":
-            meta_bits.append(ptype)
-        if role_cell and role_cell != "—":
-            meta_bits.append(role_cell)
-        if since != "—":
-            meta_bits.append(f"Since {since}")
-        meta_html = (
-            f'<span class="chow-party-meta-line">{meta_sep.join(meta_bits)}</span>'
-            if meta_bits
-            else '<span class="chow-party-meta-line">—</span>'
-        )
+        meta_desktop, meta_mobile = _party_meta_lines_html(p)
+        meta_html = meta_desktop + meta_mobile
+        ptype = html.escape(p.get("party_type") or "—")
         trs.append(
             f'<tr class="chow-provider-owner-row">'
             f'<td class="chow-org-name" data-label="Name">{name_cell}</td>'
@@ -729,11 +821,8 @@ def render_provider_ownership_chow_block(
         lines.append(_render_control_parties_table(cms.get("control_parties") or []))
     chow_html = _render_provider_chow_block(ccn_norm) if chow_all else ""
 
-    open_attr = ""
-    if cms and (cms.get("control_parties") or ownership_type):
-        open_attr = " open"
     return (
-        f'<details class="pbj-details pbj-details-ownership pbj-page-bottom-details"{open_attr}>'
+        '<details class="pbj-details pbj-details-ownership pbj-page-bottom-details">'
         '<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> '
         "Ownership</summary>"
         '<div class="pbj-details-content pbj-ownership-chow-content">'

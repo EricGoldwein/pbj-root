@@ -8535,8 +8535,8 @@ button.pbj-takeaway-share-btn:hover {{
 .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
   flex-wrap: wrap;
   align-items: baseline;
-  column-gap: 0.28rem;
-  row-gap: 0.2rem;
+  column-gap: 0;
+  row-gap: 0;
   font-size: inherit;
   line-height: inherit;
 }}
@@ -8548,8 +8548,8 @@ button.pbj-takeaway-share-btn:hover {{
 }}
 .pbj-compliance-warning__copy--desktop {{
   display: inline;
+  font-weight: 500;
 }}
-.pbj-compliance-warning__thresh,
 .pbj-compliance-warning__min {{
   margin: 0;
   padding: 0;
@@ -8557,20 +8557,18 @@ button.pbj-takeaway-share-btn:hover {{
   background: none;
   font: inherit;
   font-size: inherit;
-  font-weight: 500;
+  font-weight: 600;
   color: inherit;
   text-decoration: underline;
-  text-underline-offset: 0.14em;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
   cursor: pointer;
   white-space: nowrap;
 }}
-.pbj-compliance-warning__thresh:hover,
-.pbj-compliance-warning__thresh:focus-visible,
 .pbj-compliance-warning__min:hover,
 .pbj-compliance-warning__min:focus-visible {{
   opacity: 1;
 }}
-.pbj-compliance-warning__thresh:focus-visible,
 .pbj-compliance-warning__min:focus-visible {{
   outline: 2px solid rgba(251, 191, 36, 0.55);
   outline-offset: 2px;
@@ -8623,29 +8621,14 @@ button.pbj-takeaway-share-btn:hover {{
   }}
   .pbj-compliance-warning--threshold .pbj-compliance-warning__lines {{
     display: block;
-  }}
-  .pbj-compliance-warning__mobile-line1 {{
-    display: block;
-    width: 100%;
-    font-size: 0.75rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }}
-  .pbj-compliance-warning__thresh {{
+  .pbj-compliance-warning__mobile-line1 {{
     display: inline;
-    padding: 0;
-    margin: 0;
-    border: none;
-    background: none;
-    font: inherit;
     font-size: inherit;
-    font-weight: 600;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 0.12em;
-    cursor: pointer;
-    white-space: nowrap;
+    min-width: 0;
   }}
   .pbj-compliance-warning__meta-long {{
     display: none;
@@ -12625,15 +12608,11 @@ def _provider_staffing_compliance_warning(
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
         st_min_label = f'{html.escape(st_u)} Min.' if st_u else 'Min.'
-        if st_u:
-            st_name = STATE_CODE_TO_NAME.get(st_u, st_u)
-            min_meta_long = (
-                f'{html.escape(st_name)} minimum ~{th_disp} total nursing HPRD'
-            )
-            min_meta_short = f'{st_min_label} ~{th_disp} HPRD'
-        else:
-            min_meta_long = f'Minimum ~{th_disp} total nursing HPRD'
-            min_meta_short = min_meta_long
+        min_phrase = (
+            f'{st_abbr_esc} staffing minimum (~{th_disp} HPRD)'
+            if st_u
+            else f'staffing minimum (~{th_disp} HPRD)'
+        )
         flags_note = ''
         if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
             flags_note = (
@@ -12641,37 +12620,32 @@ def _provider_staffing_compliance_warning(
                 f'({len(issues)} staffing flags this quarter.)</span>'
             )
         q_part = f' in {q_label}' if q_label else ''
-        min_btn_label = min_meta_short if st_u else f'Min. ({th_disp} HPRD)'
-        min_btn = (
+        min_btn_desktop = (
             f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__min" '
             f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View {html.escape(min_btn_label, quote=True)} staffing threshold method">'
-            f'{min_btn_label}</button>'
+            f'aria-label="View {html.escape(min_phrase, quote=True)} staffing threshold method">'
+            f'{min_phrase}</button>'
+        )
+        min_btn_mobile = (
+            f'<button type="button" id="pbjInfoBtn-{uid}-m" class="pbj-compliance-warning__min" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="View {html.escape(st_min_label, quote=True)} staffing threshold method">'
+            f'{st_min_label}</button>'
         )
         lead_desktop = (
-            f'{n_show} of {total_show} reported PBJ days below {st_abbr_esc} staffing threshold'
+            f'{n_show} of {total_show} reported PBJ days below {min_btn_desktop}'
             f'{q_part}{flags_note}'
         )
-        thresh_modal_label = f'{th_disp} HPRD ({st_min_label})'
-        thresh_btn = (
-            f'<button type="button" id="pbjInfoBtn-{uid}-m" class="pbj-compliance-warning__thresh" '
-            f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View {html.escape(thresh_modal_label, quote=True)} staffing threshold method">'
-            f'{thresh_modal_label}</button>'
-        )
         mobile_line1 = (
-            f'{n_show} days &lt; {thresh_btn}{q_part}{flags_note}'
+            f'{n_show} days &lt; {th_disp} HPRD ({min_btn_mobile}){q_part}{flags_note}'
         )
         warn_html = (
             f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
             f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
             f'<div class="pbj-compliance-warning__lines">'
             f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--desktop">'
-            f'<span class="pbj-compliance-warning__part pbj-compliance-warning__part--lead">'
             f'{lead_desktop}</span>'
-            f'<span class="pbj-compliance-warning__mid" aria-hidden="true">·</span>'
-            f'{min_btn}</span>'
-            f'<p class="pbj-compliance-warning__mobile-line1">{mobile_line1}</p>'
+            f'<span class="pbj-compliance-warning__mobile-line1">{mobile_line1}</span>'
             f'</div></div>'
         )
     else:

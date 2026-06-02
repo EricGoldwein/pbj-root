@@ -34,8 +34,8 @@
     '<a href="/premium" style="' + FOOTER_LINK_STYLE + '">Premium</a> · ' +
     '<a href="/press" style="' + FOOTER_LINK_STYLE + '">Press</a> · ' +
     '<a href="/data-sources" style="' + FOOTER_LINK_STYLE + '">Sources</a> · ' +
-    '<a href="/corrections" style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
-    '<a href="/updates" style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
+    '<a href="#" data-pbj-corrections-open style="' + FOOTER_LINK_STYLE + '">Corrections</a> · ' +
+    '<a href="#" data-pbj-subscribe-open style="' + FOOTER_LINK_STYLE + '">Subscribe</a>' +
     '</p>';
 
   var FOOTER_CORE = [
@@ -283,35 +283,62 @@
     }
   }
 
-  /** FEC political contributions tool — single nav item at /owner (not CMS /owners profiles). */
-  function ownershipNavHref(a) {
-    var h = (a.getAttribute('href') || '').replace(/\/$/, '') || '/';
-    return h === '/owner' || h === '/owners';
+  var SITE_NAV_ITEMS = [
+    ['/about', 'About'],
+    ['/report', 'Report'],
+    ['/insights', 'Insights'],
+    ['/phoebe', 'PBJ Explained'],
+    ['/premium', 'Premium']
+  ];
+
+  function navPathActive(path, href) {
+    var linkPath = href.replace(/\/$/, '') || '/';
+    if (path === linkPath) return true;
+    if (linkPath === '/insights' && path.indexOf('/insights') === 0) return true;
+    if (linkPath === '/report' && path.indexOf('/report') === 0) return true;
+    if (linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) return true;
+    if (linkPath === '/about' && path.indexOf('/about') === 0) return true;
+    if (linkPath === '/premium' && path.indexOf('/premium') === 0) return true;
+    return false;
   }
 
-  /** Hide FEC /owner nav link (page stays live); ensure Premium is last. */
-  function ensureSiteNavLinks() {
+  /** Same top nav on every static page (no FEC / Contact shortcuts). */
+  function normalizeSiteNavbar() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
-    var navAnchors = menu.querySelectorAll('a[href]');
-    for (var i = 0; i < navAnchors.length; i++) {
-      if (ownershipNavHref(navAnchors[i])) navAnchors[i].remove();
-    }
-    var premium = menu.querySelector('a[href="/premium"]');
-    if (!premium) {
-      premium = document.createElement('a');
-      premium.href = '/premium';
-      premium.className = menu.classList.contains('nav-links') ? '' : 'nav-link';
-      premium.textContent = 'Premium';
-      menu.appendChild(premium);
-    } else {
-      premium.classList.remove('nav-link--premium-mobile');
-      if (!menu.classList.contains('nav-links')) {
-        premium.className = 'nav-link' + (premium.classList.contains('active') ? ' active' : '');
+    var path = (typeof location !== 'undefined' && location.pathname)
+      ? location.pathname.replace(/\/$/, '') || '/'
+      : '/';
+    var useNavLink = menu.classList.contains('nav-menu');
+    var html = '';
+    for (var i = 0; i < SITE_NAV_ITEMS.length; i++) {
+      var href = SITE_NAV_ITEMS[i][0];
+      var label = SITE_NAV_ITEMS[i][1];
+      var active = navPathActive(path, href);
+      if (useNavLink) {
+        html += '<a href="' + href + '" class="nav-link' + (active ? ' active' : '') + '">' + label + '</a>';
+      } else {
+        html += '<a href="' + href + '"' + (active ? ' class="active" aria-current="page"' : '') + '>' + label + '</a>';
       }
     }
-    if (premium !== menu.lastElementChild) {
-      menu.appendChild(premium);
+    menu.innerHTML = html;
+  }
+
+  function bindMobileNavToggle() {
+    var toggle = document.getElementById('navToggle');
+    var menu = document.getElementById('navMenu');
+    if (!toggle || !menu || toggle.getAttribute('data-pbj-nav-bound')) return;
+    toggle.setAttribute('data-pbj-nav-bound', '1');
+    toggle.addEventListener('click', function () {
+      var open = menu.classList.toggle('active');
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    var navLinks = menu.querySelectorAll('a[href]');
+    for (var j = 0; j < navLinks.length; j++) {
+      navLinks[j].addEventListener('click', function () {
+        menu.classList.remove('active');
+        toggle.setAttribute('aria-expanded', 'false');
+      });
     }
   }
 
@@ -358,9 +385,448 @@
       '  .navbar .nav-link:hover{background:transparent !important;color:#93c5fd !important;}',
       '  .navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;background:transparent !important;border-left:none !important;}',
       '  .navbar .nav-link.active:hover{color:#60a5fa !important;}',
-      '}'
+      '}',
+      '.pbj-subscribe-overlay{position:fixed;inset:0;background:rgba(2,6,23,0.72);z-index:10020;display:none;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box;}',
+      '.pbj-subscribe-overlay[aria-hidden="false"]{display:flex;}',
+      '.pbj-subscribe-popup{position:relative;background:#0f172a;border:1px solid rgba(51,65,85,0.65);border-radius:12px;width:100%;max-width:min(22rem,100%);max-height:calc(100vh - 2rem);overflow:auto;box-shadow:0 16px 48px rgba(0,0,0,0.45);padding:1.15rem 1.2rem 1.25rem;box-sizing:border-box;-webkit-overflow-scrolling:touch;}',
+      '.pbj-subscribe-popup__close{position:absolute;top:0.55rem;right:0.55rem;width:44px;height:44px;padding:0;border:none;background:transparent;cursor:pointer;font-size:1.75rem;line-height:1;color:rgba(148,163,184,0.9);border-radius:8px;}',
+      '.pbj-subscribe-popup__close:hover{color:#e2e8f0;background:rgba(99,102,241,0.15);}',
+      '.pbj-subscribe-popup__close:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}',
+      '.pbj-subscribe-popup__title{margin:0 2rem 0.85rem 0;font-size:0.72rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(226,232,240,0.55);line-height:1.35;}',
+      '.pbj-subscribe-popup__form{display:flex;flex-direction:column;gap:8px;align-items:stretch;}',
+      '.pbj-subscribe-popup__label{font-size:0.8rem;font-weight:500;color:#cbd5e1;text-align:left;}',
+      '.pbj-subscribe-popup__input{width:100%;padding:10px 14px;font-size:16px;min-height:44px;box-sizing:border-box;border:1px solid rgba(148,163,184,0.55);border-radius:8px;background:rgba(15,23,42,0.85);color:#f8fafc;}',
+      '.pbj-subscribe-popup__input:focus{outline:none;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,0.25);}',
+      '.pbj-subscribe-popup__submit{padding:12px 16px;font-size:0.875rem;font-weight:600;min-height:44px;border-radius:8px;border:1px solid rgba(100,116,139,0.55);background:rgba(30,41,59,0.65);color:rgba(226,232,240,0.92);cursor:pointer;}',
+      '.pbj-subscribe-popup__submit:hover{border-color:rgba(148,163,184,0.65);background:rgba(51,65,85,0.75);color:#f8fafc;}',
+      '.pbj-subscribe-popup__submit:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}',
+      '.pbj-subscribe-popup__submit:disabled{opacity:0.65;cursor:wait;}',
+      '.pbj-subscribe-popup__msg{margin:0.65rem 0 0;font-size:0.8rem;line-height:1.4;text-align:left;}',
+      '.pbj-subscribe-popup__msg--ok{color:rgba(134,239,172,0.95);}',
+      '.pbj-subscribe-popup__msg--err{color:rgba(248,113,113,0.95);}',
+      '.pbj-correction-popup__intro{margin:0 0 0.85rem;font-size:0.85rem;line-height:1.45;color:rgba(203,213,225,0.88);}',
+      '.pbj-correction-popup__textarea{width:100%;min-height:7rem;padding:10px 14px;font-size:16px;box-sizing:border-box;border:1px solid rgba(148,163,184,0.55);border-radius:8px;background:rgba(15,23,42,0.85);color:#f8fafc;resize:vertical;font-family:inherit;}',
+      '.pbj-correction-popup__textarea:focus{outline:none;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,0.25);}'
     ].join('');
     document.head.appendChild(style);
+  }
+
+  function ensureSubscribeModal() {
+    if (document.getElementById('pbj-subscribe-overlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'pbj-subscribe-overlay';
+    overlay.className = 'pbj-subscribe-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML =
+      '<div class="pbj-subscribe-popup" role="dialog" aria-modal="true" aria-labelledby="pbj-subscribe-popup-title">' +
+      '<button type="button" class="pbj-subscribe-popup__close" aria-label="Close">&times;</button>' +
+      '<h2 id="pbj-subscribe-popup-title" class="pbj-subscribe-popup__title">Get staffing data updates</h2>' +
+      '<form id="pbj-subscribe-popup-form" class="pbj-subscribe-popup__form" action="/subscribe" method="POST" novalidate>' +
+      '<input type="hidden" name="csrf_token" id="pbj-subscribe-csrf" value="">' +
+      '<input type="hidden" name="source" value="footer_modal">' +
+      '<label class="pbj-subscribe-popup__label" for="pbj-subscribe-email">Email address</label>' +
+      '<input type="email" class="pbj-subscribe-popup__input" id="pbj-subscribe-email" name="email" placeholder="Enter your email" required autocomplete="email">' +
+      '<button type="submit" class="pbj-subscribe-popup__submit">Subscribe</button>' +
+      '</form>' +
+      '<p class="pbj-subscribe-popup__msg pbj-subscribe-popup__msg--ok" id="pbj-subscribe-success" hidden></p>' +
+      '<p class="pbj-subscribe-popup__msg pbj-subscribe-popup__msg--err" id="pbj-subscribe-error" hidden></p>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+
+  function subscribeModalEls() {
+    return {
+      overlay: document.getElementById('pbj-subscribe-overlay'),
+      dialog: document.querySelector('#pbj-subscribe-overlay .pbj-subscribe-popup'),
+      form: document.getElementById('pbj-subscribe-popup-form'),
+      csrf: document.getElementById('pbj-subscribe-csrf'),
+      email: document.getElementById('pbj-subscribe-email'),
+      submit: document.querySelector('#pbj-subscribe-popup-form .pbj-subscribe-popup__submit'),
+      success: document.getElementById('pbj-subscribe-success'),
+      error: document.getElementById('pbj-subscribe-error')
+    };
+  }
+
+  function subscribeStatusMessage(status) {
+    if (status === 'already') {
+      return 'That email is already on the staffing updates list.';
+    }
+    if (status === 'subscribed') {
+      return "You're subscribed. We'll email you when we publish staffing updates.";
+    }
+    if (status === 'csrf') {
+      return 'Your session expired. Close this dialog, refresh the page, and try again.';
+    }
+    if (status === 'invalid') {
+      return 'Please enter a valid email address.';
+    }
+    return 'Something went wrong. Try again later.';
+  }
+
+  function resetSubscribeModalForm() {
+    var el = subscribeModalEls();
+    if (!el.form) return;
+    if (el.success) {
+      el.success.hidden = true;
+      el.success.textContent = '';
+    }
+    if (el.error) {
+      el.error.hidden = true;
+      el.error.textContent = '';
+    }
+    if (el.form) el.form.style.display = '';
+    if (el.submit) {
+      el.submit.disabled = false;
+      el.submit.textContent = 'Subscribe';
+    }
+  }
+
+  function showSubscribeModalStatus(status) {
+    var el = subscribeModalEls();
+    var msg = subscribeStatusMessage(status);
+    if (status === 'subscribed' || status === 'already') {
+      if (el.form) el.form.style.display = 'none';
+      if (el.error) el.error.hidden = true;
+      if (el.success) {
+        el.success.textContent = msg;
+        el.success.hidden = false;
+      }
+      return;
+    }
+    if (el.error) {
+      el.error.textContent = msg;
+      el.error.hidden = false;
+    }
+    if (el.submit) {
+      el.submit.disabled = false;
+      el.submit.textContent = 'Subscribe';
+    }
+  }
+
+  function loadSubscribeCsrf() {
+    var el = subscribeModalEls();
+    if (!el.csrf) return Promise.resolve();
+    var homeCsrf = document.querySelector('#hero-subscribe-form input[name="csrf_token"]');
+    if (homeCsrf && homeCsrf.value) {
+      el.csrf.value = homeCsrf.value;
+      return Promise.resolve();
+    }
+    return fetch('/api/subscribe/csrf', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data && data.csrf_token) el.csrf.value = data.csrf_token;
+      })
+      .catch(function () {});
+  }
+
+  function closeSubscribeModal() {
+    var el = subscribeModalEls();
+    if (!el.overlay) return;
+    el.overlay.setAttribute('aria-hidden', 'true');
+    document.documentElement.style.overflow = '';
+  }
+
+  function openSubscribeModal() {
+    ensureSubscribeModal();
+    var el = subscribeModalEls();
+    if (!el.overlay || !el.dialog) return;
+    resetSubscribeModalForm();
+    loadSubscribeCsrf().then(function () {
+      el.overlay.setAttribute('aria-hidden', 'false');
+      document.documentElement.style.overflow = 'hidden';
+      if (el.email) {
+        try {
+          el.email.focus();
+        } catch (err) {}
+      }
+    });
+  }
+
+  function submitSubscribeModal(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var el = subscribeModalEls();
+    if (!el.form || !el.email) return;
+    var email = (el.email.value || '').trim();
+    if (!email) {
+      showSubscribeModalStatus('invalid');
+      return;
+    }
+    if (el.submit) {
+      el.submit.disabled = true;
+      el.submit.textContent = 'Subscribing…';
+    }
+    if (el.error) el.error.hidden = true;
+    var body = new URLSearchParams(new FormData(el.form));
+    fetch('/subscribe', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (res) {
+        var status = (res.data && res.data.status) || (res.ok ? 'subscribed' : 'error');
+        showSubscribeModalStatus(status);
+      })
+      .catch(function () {
+        showSubscribeModalStatus('error');
+      });
+  }
+
+  function bindSubscribeModal() {
+    ensureSubscribeModal();
+    var el = subscribeModalEls();
+    if (!el.overlay) return;
+
+    var closeBtn = el.overlay.querySelector('.pbj-subscribe-popup__close');
+    if (closeBtn && !closeBtn.getAttribute('data-pbj-bound')) {
+      closeBtn.setAttribute('data-pbj-bound', '1');
+      closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeSubscribeModal();
+      });
+    }
+    if (el.overlay && !el.overlay.getAttribute('data-pbj-bound')) {
+      el.overlay.setAttribute('data-pbj-bound', '1');
+      el.overlay.addEventListener('click', function (e) {
+        if (e.target === el.overlay) closeSubscribeModal();
+      });
+    }
+    if (el.form && !el.form.getAttribute('data-pbj-bound')) {
+      el.form.setAttribute('data-pbj-bound', '1');
+      el.form.addEventListener('submit', submitSubscribeModal);
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      if (el.overlay && el.overlay.getAttribute('aria-hidden') === 'false') {
+        closeSubscribeModal();
+      }
+      var corr = document.getElementById('pbj-correction-overlay');
+      if (corr && corr.getAttribute('aria-hidden') === 'false') {
+        closeCorrectionModal();
+      }
+    });
+  }
+
+  function isSubscribeFooterLink(node) {
+    if (!node || !node.closest) return null;
+    return node.closest(
+      '[data-pbj-subscribe-open], a[href="/updates"], a[href="/#updates"], a[href$="#updates"]'
+    );
+  }
+
+  function ensureCorrectionModal() {
+    if (document.getElementById('pbj-correction-overlay')) return;
+    var overlay = document.createElement('div');
+    overlay.id = 'pbj-correction-overlay';
+    overlay.className = 'pbj-subscribe-overlay';
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.innerHTML =
+      '<div class="pbj-subscribe-popup" role="dialog" aria-modal="true" aria-labelledby="pbj-correction-popup-title">' +
+      '<button type="button" class="pbj-subscribe-popup__close" aria-label="Close">&times;</button>' +
+      '<h2 id="pbj-correction-popup-title" class="pbj-subscribe-popup__title">Corrections</h2>' +
+      '<p class="pbj-correction-popup__intro">See something wrong? Tell us what to fix.</p>' +
+      '<form id="pbj-correction-popup-form" class="pbj-subscribe-popup__form" action="/corrections" method="POST" novalidate>' +
+      '<input type="hidden" name="csrf_token" id="pbj-correction-csrf" value="">' +
+      '<input type="hidden" name="next" value="">' +
+      '<input type="hidden" name="page_url" id="pbj-correction-page-url" value="">' +
+      '<label class="pbj-subscribe-popup__label" for="pbj-correction-name">Name</label>' +
+      '<input type="text" class="pbj-subscribe-popup__input" id="pbj-correction-name" name="name" required autocomplete="name" maxlength="200">' +
+      '<label class="pbj-subscribe-popup__label" for="pbj-correction-email">Email</label>' +
+      '<input type="email" class="pbj-subscribe-popup__input" id="pbj-correction-email" name="email" required autocomplete="email">' +
+      '<label class="pbj-subscribe-popup__label" for="pbj-correction-issue">What\'s wrong?</label>' +
+      '<textarea class="pbj-correction-popup__textarea" id="pbj-correction-issue" name="issue" required maxlength="10000" placeholder="Describe the error. Include a source or link if you have one."></textarea>' +
+      '<button type="submit" class="pbj-subscribe-popup__submit">Submit</button>' +
+      '</form>' +
+      '<p class="pbj-subscribe-popup__msg pbj-subscribe-popup__msg--ok" id="pbj-correction-success" hidden></p>' +
+      '<p class="pbj-subscribe-popup__msg pbj-subscribe-popup__msg--err" id="pbj-correction-error" hidden></p>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+
+  function correctionModalEls() {
+    return {
+      overlay: document.getElementById('pbj-correction-overlay'),
+      form: document.getElementById('pbj-correction-popup-form'),
+      csrf: document.getElementById('pbj-correction-csrf'),
+      pageUrl: document.getElementById('pbj-correction-page-url'),
+      name: document.getElementById('pbj-correction-name'),
+      email: document.getElementById('pbj-correction-email'),
+      issue: document.getElementById('pbj-correction-issue'),
+      submit: document.querySelector('#pbj-correction-popup-form .pbj-subscribe-popup__submit'),
+      success: document.getElementById('pbj-correction-success'),
+      error: document.getElementById('pbj-correction-error')
+    };
+  }
+
+  function resetCorrectionModal() {
+    var el = correctionModalEls();
+    if (!el.form) return;
+    if (el.success) {
+      el.success.hidden = true;
+      el.success.textContent = '';
+    }
+    if (el.error) {
+      el.error.hidden = true;
+      el.error.textContent = '';
+    }
+    el.form.style.display = '';
+    if (el.submit) {
+      el.submit.disabled = false;
+      el.submit.textContent = 'Submit';
+    }
+    if (el.pageUrl) {
+      el.pageUrl.value = (typeof location !== 'undefined' && location.href)
+        ? location.href.split('#')[0]
+        : '';
+    }
+  }
+
+  function showCorrectionStatus(status) {
+    var el = correctionModalEls();
+    if (status === 'sent') {
+      if (el.form) el.form.style.display = 'none';
+      if (el.error) el.error.hidden = true;
+      if (el.success) {
+        el.success.textContent = 'Thanks — we received your correction.';
+        el.success.hidden = false;
+      }
+      return;
+    }
+    var msg = 'Something went wrong. Try again or email us.';
+    if (status === 'invalid') msg = 'Please fill in name, email, and what\'s wrong.';
+    if (status === 'csrf') msg = 'Session expired. Refresh the page and try again.';
+    if (el.error) {
+      el.error.textContent = msg;
+      el.error.hidden = false;
+    }
+    if (el.submit) {
+      el.submit.disabled = false;
+      el.submit.textContent = 'Submit';
+    }
+  }
+
+  function loadCorrectionCsrf() {
+    var el = correctionModalEls();
+    if (!el.csrf) return Promise.resolve();
+    var tokenInput = document.querySelector('input[name="csrf_token"]');
+    if (tokenInput && tokenInput.value) {
+      el.csrf.value = tokenInput.value;
+      return Promise.resolve();
+    }
+    return fetch('/api/subscribe/csrf', { credentials: 'same-origin', headers: { Accept: 'application/json' } })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (data && data.csrf_token) el.csrf.value = data.csrf_token;
+      })
+      .catch(function () {});
+  }
+
+  function closeCorrectionModal() {
+    var el = correctionModalEls();
+    if (!el.overlay) return;
+    el.overlay.setAttribute('aria-hidden', 'true');
+    document.documentElement.style.overflow = '';
+  }
+
+  function openCorrectionModal() {
+    ensureCorrectionModal();
+    var el = correctionModalEls();
+    if (!el.overlay) return;
+    resetCorrectionModal();
+    loadCorrectionCsrf().then(function () {
+      el.overlay.setAttribute('aria-hidden', 'false');
+      document.documentElement.style.overflow = 'hidden';
+      if (el.name) {
+        try {
+          el.name.focus();
+        } catch (err) {}
+      }
+    });
+  }
+
+  function submitCorrectionModal(ev) {
+    if (ev && ev.preventDefault) ev.preventDefault();
+    var el = correctionModalEls();
+    if (!el.form) return;
+    if (el.submit) {
+      el.submit.disabled = true;
+      el.submit.textContent = 'Sending…';
+    }
+    if (el.error) el.error.hidden = true;
+    var body = new URLSearchParams(new FormData(el.form));
+    fetch('/corrections', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: body.toString()
+    })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (res) {
+        var status = (res.data && res.data.status) || (res.ok ? 'sent' : 'error');
+        showCorrectionStatus(status);
+      })
+      .catch(function () {
+        showCorrectionStatus('error');
+      });
+  }
+
+  function bindCorrectionModal() {
+    ensureCorrectionModal();
+    var el = correctionModalEls();
+    if (!el.overlay) return;
+    var closeBtn = el.overlay.querySelector('.pbj-subscribe-popup__close');
+    if (closeBtn && !closeBtn.getAttribute('data-pbj-bound')) {
+      closeBtn.setAttribute('data-pbj-bound', '1');
+      closeBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+        closeCorrectionModal();
+      });
+    }
+    if (!el.overlay.getAttribute('data-pbj-bound')) {
+      el.overlay.setAttribute('data-pbj-bound', '1');
+      el.overlay.addEventListener('click', function (e) {
+        if (e.target === el.overlay) closeCorrectionModal();
+      });
+    }
+    if (el.form && !el.form.getAttribute('data-pbj-bound')) {
+      el.form.setAttribute('data-pbj-bound', '1');
+      el.form.addEventListener('submit', submitCorrectionModal);
+    }
+  }
+
+  function isCorrectionsFooterLink(node) {
+    if (!node || !node.closest) return null;
+    return node.closest('[data-pbj-corrections-open], a[href="/corrections"]');
+  }
+
+  function bindCorrectionsFooterLinks() {
+    document.addEventListener('click', function (e) {
+      var a = isCorrectionsFooterLink(e.target);
+      if (!a) return;
+      e.preventDefault();
+      openCorrectionModal();
+    });
   }
 
   /** Provider subtitle Owners modal — delegated (mobile-safe; no inline script). */
@@ -442,27 +908,41 @@
 
   function bindSubscribeFooterLinks() {
     document.addEventListener('click', function (e) {
-      var a =
-        e.target && e.target.closest
-          ? e.target.closest('a[href="/#updates"], a[href="/updates"], a[href$="#updates"]')
-          : null;
+      var a = isSubscribeFooterLink(e.target);
       if (!a) return;
-      var path = window.location.pathname || '/';
-      if (path !== '/' && path !== '/index.html') return;
-      if (scrollToHomeUpdates()) {
-        e.preventDefault();
-      }
+      e.preventDefault();
+      openSubscribeModal();
     });
+    var params = new URLSearchParams(window.location.search || '');
+    if (params.get('open_subscribe') === '1') {
+      var openFromQuery = function () {
+        openSubscribeModal();
+        try {
+          var u = new URL(window.location.href);
+          u.searchParams.delete('open_subscribe');
+          history.replaceState(null, '', u.pathname + u.search + u.hash);
+        } catch (err) {}
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', openFromQuery);
+      } else {
+        openFromQuery();
+      }
+    }
     if (window.location.hash === '#updates') {
       var runScroll = function () {
-        scrollToHomeUpdates();
+        var path = window.location.pathname || '/';
+        if (path === '/' || path === '/index.html') {
+          scrollToHomeUpdates();
+        } else {
+          openSubscribeModal();
+        }
       };
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', runScroll);
       } else {
         runScroll();
       }
-      window.addEventListener('load', runScroll);
     }
   }
 
@@ -473,18 +953,24 @@
     injectFooterStyles();
     if (footer) injectFooter(footer);
     injectSiteShellStyles();
-    ensureSiteNavLinks();
+    normalizeSiteNavbar();
+    bindMobileNavToggle();
     markActiveNavLink();
     injectContactCtaStyles();
     bindContactFallbacks();
     bindSourcesDialogs();
     bindProviderOwnersModals();
+    bindSubscribeModal();
     bindSubscribeFooterLinks();
+    bindCorrectionModal();
+    bindCorrectionsFooterLinks();
   }
 
   if (typeof window !== 'undefined') {
     window.PBJ320_CONTACT = CONTACT;
     window.PBJ320_openContactModal = openContactModal;
+    window.PBJ320_openSubscribeModal = openSubscribeModal;
+    window.PBJ320_openCorrectionModal = openCorrectionModal;
     window.PBJ320_copyEmail = copyEmailAndNotify;
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', run);

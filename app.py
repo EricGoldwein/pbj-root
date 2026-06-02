@@ -1518,8 +1518,37 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
 @app.route('/updates')
 @app.route('/updates/')
 def updates_anchor():
-    """Footer Subscribe link target; homepage signup section lives at /#updates."""
-    return redirect('/#updates', code=302)
+    """Open subscribe modal (footer link); homepage band remains at /#updates."""
+    return redirect('/?open_subscribe=1', code=302)
+
+
+def _subscribe_wants_json() -> bool:
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    return request.accept_mimetypes.best_match(['application/json', 'text/html']) == 'application/json'
+
+
+def _subscribe_finish(status: str):
+    """Redirect for normal form posts; JSON for footer modal (fetch)."""
+    if _subscribe_wants_json():
+        ok = status in ('subscribed', 'already')
+        code = 200 if ok else 400
+        return jsonify({'ok': ok, 'status': status}), code
+    redirects = {
+        'csrf': '/?subscribe_error=csrf#updates',
+        'invalid': '/?subscribe_error=invalid#updates',
+        'error': '/?subscribe_error=error#updates',
+        'subscribed': '/?subscribed=1#updates',
+        'already': '/?subscribed=already#updates',
+    }
+    return redirect(redirects.get(status, redirects['error']))
+
+
+@app.route('/api/subscribe/csrf', methods=['GET'])
+def subscribe_csrf_token():
+    """CSRF token for site-wide subscribe modal (injected footer on non-home pages)."""
+    token = generate_csrf() if (HAS_CSRF and generate_csrf) else ''
+    return jsonify({'csrf_token': token})
 
 
 @app.route('/')
@@ -1625,7 +1654,7 @@ def _send_contact_email(sender_email, sender_name, message_body, is_press=False)
         return False
 
 
-def _send_correction_email(sender_email, sender_name, page_url, facility_name, issue_body, source_body):
+def _send_correction_email(sender_email, sender_name, page_url, issue_body):
     """Send correction form submission via the same SMTP settings as contact."""
     to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
     to_list = [a.strip() for a in to_list if a.strip()]
@@ -1636,13 +1665,9 @@ def _send_correction_email(sender_email, sender_name, page_url, facility_name, i
         f"Name: {sender_name}",
         f"Email: {sender_email}",
         f"Page URL: {page_url or '(not provided)'}",
-        f"Facility or owner: {facility_name or '(not provided)'}",
         "",
-        "What looks incorrect or outdated?",
+        "What's wrong:",
         issue_body,
-        "",
-        "Source or explanation:",
-        source_body or '(not provided)',
     ]
     body = "\n".join(lines)
     if not host:
@@ -1673,6 +1698,14 @@ def _send_correction_email(sender_email, sender_name, page_url, facility_name, i
         return False
 
 
+_SUBSCRIBE_SOURCES = frozenset({'homepage', 'footer', 'footer_modal'})
+
+
+def _subscribe_source_label() -> str:
+    raw = (request.form.get('source') or 'homepage').strip().lower()[:64]
+    return raw if raw in _SUBSCRIBE_SOURCES else 'homepage'
+
+
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
     """Accept email for PBJ320 updates. Stored in DB only; no public list. CSRF required."""
@@ -1680,15 +1713,16 @@ def subscribe():
         try:
             validate_csrf(request.form.get('csrf_token'))
         except Exception:
-            return redirect('/?subscribe_error=csrf#updates')
+            return _subscribe_finish('csrf')
     raw = request.form.get('email')
     if not raw or not isinstance(raw, str):
-        return redirect('/?subscribe_error=invalid#updates')
+        return _subscribe_finish('invalid')
     email = raw.strip().lower()
     if not email or len(email) > 255:
-        return redirect('/?subscribe_error=invalid#updates')
+        return _subscribe_finish('invalid')
     if not _EMAIL_RE.match(email):
-        return redirect('/?subscribe_error=invalid#updates')
+        return _subscribe_finish('invalid')
+    source = _subscribe_source_label()
     _init_subscribers_db()
     conn = _subscribers_conn()
     try:
@@ -1696,7 +1730,7 @@ def subscribe():
             try:
                 conn.execute(
                     'INSERT INTO subscribers (email, source) VALUES (?, ?)',
-                    (email, 'homepage')
+                    (email, source)
                 )
                 conn.commit()
                 break
@@ -1707,18 +1741,18 @@ def subscribe():
                 raise
         threading.Thread(
             target=_send_subscribe_notification,
-            args=(email, 'homepage'),
+            args=(email, source),
             daemon=True,
         ).start()
-        return redirect('/?subscribed=1#updates')
+        return _subscribe_finish('subscribed')
     except sqlite3.IntegrityError:
-        return redirect('/?subscribed=already#updates')
+        return _subscribe_finish('already')
     except Exception as e:
         if app.debug:
             raise
         import logging
         logging.getLogger(__name__).warning('Subscribe failed: %s', e, exc_info=True)
-        return redirect('/?subscribe_error=error#updates')
+        return _subscribe_finish('error')
     finally:
         try:
             conn.close()
@@ -1812,6 +1846,23 @@ def contact():
     return _serve_public_html('contact.html', inject_csrf=True)
 
 
+def _correction_wants_json() -> bool:
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return True
+    return request.accept_mimetypes.best_match(['application/json', 'text/html']) == 'application/json'
+
+
+def _correction_finish(status: str, next_url: str):
+    if _correction_wants_json():
+        ok = status == 'sent'
+        return jsonify({'ok': ok, 'status': status}), 200 if ok else 400
+    if status == 'sent':
+        return _contact_redirect(next_url, 'correction_sent=1')
+    if status == 'csrf':
+        return _contact_redirect(next_url, 'correction_error=csrf')
+    return _contact_redirect(next_url, 'correction_error=1')
+
+
 @app.route('/corrections', methods=['GET', 'POST'])
 def corrections():
     """Correction submission form: GET shows form, POST sends email."""
@@ -1823,22 +1874,25 @@ def corrections():
             try:
                 validate_csrf(request.form.get('csrf_token'))
             except Exception:
-                return _contact_redirect(next_url, 'correction_error=1')
+                return _correction_finish('csrf', next_url)
         email = (request.form.get('email') or '').strip().lower()
         name = (request.form.get('name') or '').strip()[:200]
         page_url = (request.form.get('page_url') or '').strip()[:500]
-        facility_name = (request.form.get('facility_name') or '').strip()[:300]
-        issue = (request.form.get('issue') or '').strip()
+        issue = (request.form.get('issue') or request.form.get('details') or '').strip()
         source = (request.form.get('source') or '').strip()[:10000]
-        if not name:
-            return redirect('/corrections?error=invalid')
-        if not email or not _EMAIL_RE.match(email) or len(email) > 255:
+        if source and source not in issue:
+            issue = f"{issue}\n\nSource: {source}" if issue else source
+        if not name or not email or not _EMAIL_RE.match(email) or len(email) > 255:
+            if _correction_wants_json():
+                return _correction_finish('invalid', next_url)
             return redirect('/corrections?error=invalid')
         if not issue or len(issue) > 10000:
+            if _correction_wants_json():
+                return _correction_finish('invalid', next_url)
             return redirect('/corrections?error=invalid')
-        if _send_correction_email(email, name, page_url, facility_name, issue, source):
-            return _contact_redirect(next_url, 'correction_sent=1')
-        return _contact_redirect(next_url, 'correction_error=1')
+        if _send_correction_email(email, name, page_url, issue):
+            return _correction_finish('sent', next_url)
+        return _correction_finish('error', next_url)
     return _serve_public_html('corrections.html', inject_csrf=True)
 
 

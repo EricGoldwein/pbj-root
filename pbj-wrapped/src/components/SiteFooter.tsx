@@ -63,9 +63,31 @@ export const SiteFooter: React.FC = () => {
         {' · '}
         <a href="/data-sources" style={linkStyle}>Sources</a>
         {' · '}
-        <a href="/corrections" style={linkStyle}>Corrections</a>
+        <a
+          href="#"
+          style={linkStyle}
+          onClick={(e) => {
+            e.preventDefault();
+            const open = (window as Window & { PBJ320_openCorrectionModal?: () => void })
+              .PBJ320_openCorrectionModal;
+            if (typeof open === 'function') open();
+          }}
+        >
+          Corrections
+        </a>
         {' · '}
-        <a href="/updates" style={linkStyle}>Subscribe</a>
+        <a
+          href="#"
+          style={linkStyle}
+          onClick={(e) => {
+            e.preventDefault();
+            const open = (window as Window & { PBJ320_openSubscribeModal?: () => void })
+              .PBJ320_openSubscribeModal;
+            if (typeof open === 'function') open();
+          }}
+        >
+          Subscribe
+        </a>
       </p>
 
       <div

@@ -131,9 +131,11 @@ def is_ny_staffing_report_preview_path(path: str) -> bool:
 _NY_PREVIEW_ROBOTS_META = '<meta name="robots" content="noindex, nofollow">'
 _NY_PREVIEW_BANNER_STYLES = """
 <style id="ny-staffing-preview-banner-styles">
+:root { --ny-preview-banner-offset: 2.85rem; }
 .ny-staffing-preview-banner {
-  position: relative;
-  z-index: 10000;
+  position: sticky;
+  top: 0;
+  z-index: 10001;
   width: 100%;
   margin: 0;
   padding: 0.65rem 1rem;
@@ -144,25 +146,32 @@ _NY_PREVIEW_BANNER_STYLES = """
   font-size: 0.9rem;
   line-height: 1.45;
   text-align: center;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
 }
-.ny-staffing-preview-banner strong { font-weight: 600; color: #1e1b4b; }
+body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .navbar {
+  top: var(--ny-preview-banner-offset);
+  z-index: 10000;
+}
 @media (prefers-color-scheme: dark) {
   .ny-staffing-preview-banner {
     border-bottom-color: rgba(129, 140, 248, 0.45);
     background: #1e1b4b;
     color: #e0e7ff;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
-  .ny-staffing-preview-banner strong { color: #f8fafc; }
 }
 @media (max-width: 640px) {
+  :root { --ny-preview-banner-offset: 3.1rem; }
   .ny-staffing-preview-banner { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
 }
 </style>
 """
+_NY_PREVIEW_BANNER_TEXT = (
+    'Pre-publication preview: Shared ahead of Monday\u2019s public release. '
+    'Data and wording may still be updated.'
+)
 _NY_PREVIEW_BANNER_HTML = (
-    f'<div class="ny-staffing-preview-banner" role="status">'
-    f'<strong>Pre-publication preview:</strong> Shared ahead of Monday\u2019s public release. '
-    f'Data and wording may still be updated.</div>'
+    f'<div class="ny-staffing-preview-banner" role="status">{_NY_PREVIEW_BANNER_TEXT}</div>'
 )
 _VIEWPORT_META_RE = re.compile(
     r'(<meta\s+name=["\']viewport["\'][^>]*>)',

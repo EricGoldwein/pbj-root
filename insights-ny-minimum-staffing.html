@@ -4320,6 +4320,15 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     grid: 'rgba(0,0,0,0.06)',
   };
 
+  function isMobileReport() {
+    return !!(global.matchMedia && global.matchMedia('(max-width: 640px)').matches);
+  }
+
+  function ownershipChartRef() {
+    var store = global.PBJ320Threshold && global.PBJ320Threshold.chartStore;
+    return (store && store.ownershipChart) || ownershipChartInstance;
+  }
+
   function fmtInt(n) {
     return Number(n).toLocaleString('en-US');
   }

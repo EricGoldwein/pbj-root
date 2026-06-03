@@ -91,8 +91,111 @@ def inject_public_site_verification_meta(html: str) -> str:
     return _HEAD_OPEN_RE.sub(r'\1\n' + BING_WEBMASTER_VERIFICATION_META, html, count=1)
 
 
+# NY staffing compliance report — public vs pre-publication preview (unlisted, noindex).
+NY_STAFFING_REPORT_HTML = 'insights-ny-minimum-staffing.html'
+NY_STAFFING_REPORT_PREVIEW_SLUG = 'ny-staffing-compliance-2025'
+NY_STAFFING_REPORT_PUBLIC_PATH = '/insights/ny-minimum-staffing'
+# Default token reduces casual discovery; override in production via NY_STAFFING_REPORT_PREVIEW_TOKEN.
+NY_STAFFING_REPORT_PREVIEW_TOKEN_DEFAULT = 'p4v8nq'
+
+
+def ny_staffing_report_preview_token() -> str:
+    raw = (os.environ.get('NY_STAFFING_REPORT_PREVIEW_TOKEN') or NY_STAFFING_REPORT_PREVIEW_TOKEN_DEFAULT).strip()
+    return raw.lower()
+
+
+def ny_staffing_report_preview_path(*, include_token: bool = True) -> str:
+    base = f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}'
+    if include_token:
+        tok = ny_staffing_report_preview_token()
+        if tok:
+            return f'{base}/{tok}'
+    return base
+
+
+def ny_staffing_report_preview_redirect_to_public() -> bool:
+    return os.environ.get('NY_STAFFING_REPORT_PREVIEW_REDIRECT', '').strip().lower() in (
+        '1',
+        'true',
+        'yes',
+        'on',
+    )
+
+
+def is_ny_staffing_report_preview_path(path: str) -> bool:
+    p = (path or '').split('?', 1)[0].rstrip('/') or '/'
+    prefix = f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}'
+    return p == prefix or p.startswith(prefix + '/')
+
+
+_NY_PREVIEW_ROBOTS_META = '<meta name="robots" content="noindex, nofollow">'
+_NY_PREVIEW_BANNER_STYLES = """
+<style id="ny-staffing-preview-banner-styles">
+.ny-staffing-preview-banner {
+  position: relative;
+  z-index: 10000;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid #c7d2fe;
+  background: #eef2ff;
+  color: #312e81;
+  font-family: "Source Serif 4", Georgia, serif;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
+}
+.ny-staffing-preview-banner strong { font-weight: 600; color: #1e1b4b; }
+@media (prefers-color-scheme: dark) {
+  .ny-staffing-preview-banner {
+    border-bottom-color: rgba(129, 140, 248, 0.45);
+    background: #1e1b4b;
+    color: #e0e7ff;
+  }
+  .ny-staffing-preview-banner strong { color: #f8fafc; }
+}
+@media (max-width: 640px) {
+  .ny-staffing-preview-banner { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
+}
+</style>
+"""
+_NY_PREVIEW_BANNER_HTML = (
+    f'<div class="ny-staffing-preview-banner" role="status">'
+    f'<strong>Pre-publication preview:</strong> Shared ahead of Monday\u2019s public release. '
+    f'Data and wording may still be updated.</div>'
+)
+_VIEWPORT_META_RE = re.compile(
+    r'(<meta\s+name=["\']viewport["\'][^>]*>)',
+    re.IGNORECASE,
+)
+_BODY_OPEN_RE = re.compile(r'(<body(?:\s[^>]*)?>)', re.IGNORECASE)
+
+
+def inject_ny_staffing_report_preview(html: str, preview_path: str) -> str:
+    """Mark NY report HTML as an unlisted preview (noindex banner, preview canonical/og:url)."""
+    if _NY_PREVIEW_ROBOTS_META not in html:
+        if _VIEWPORT_META_RE.search(html):
+            html = _VIEWPORT_META_RE.sub(r'\1\n' + _NY_PREVIEW_ROBOTS_META, html, count=1)
+        else:
+            html = _HEAD_OPEN_RE.sub(r'\1\n' + _NY_PREVIEW_ROBOTS_META, html, count=1)
+    if 'ny-staffing-preview-banner-styles' not in html:
+        html = html.replace('</head>', _NY_PREVIEW_BANNER_STYLES + '</head>', 1)
+    if 'class="ny-staffing-preview-banner"' not in html:
+        html = _BODY_OPEN_RE.sub(r'\1\n' + _NY_PREVIEW_BANNER_HTML, html, count=1)
+    origin = PUBLIC_SITE_ORIGIN.rstrip('/')
+    path = (preview_path or ny_staffing_report_preview_path()).rstrip('/') or ny_staffing_report_preview_path()
+    canonical = f'{origin}{path}'
+    for old in (
+        'https://www.pbj320.com/insights/ny-minimum-staffing',
+        'https://www.pbj320.com/insights/ny-minimum-staffing/',
+    ):
+        html = html.replace(old, canonical)
+    return html
+
+
 # Path fragments that must never appear in sitemap.xml <loc> entries.
 SITEMAP_FORBIDDEN_FRAGMENTS: tuple[str, ...] = (
+    '/preview/',
     '/api/',
     '.json',
     '/premium/',
@@ -135,7 +238,7 @@ def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None =
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '44'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '46'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 
@@ -244,6 +347,7 @@ Disallow: /report_builder
 Disallow: /admin
 Disallow: /static/data/raw
 Disallow: /pbjpedia/
+Disallow: /preview/
 Disallow: /search_index.json
 Disallow: /quarters_list.json
 Disallow: /chow_index.json

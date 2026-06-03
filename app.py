@@ -57,8 +57,17 @@ from site_public_config import (
     SITEMAP_EXCLUDED_PATHS,
     SITEMAP_TRUST_PAGES,
     build_robots_txt,
+    inject_ny_staffing_report_preview,
+    inject_public_html_cms_urls,
     inject_public_site_verification_meta,
+    is_ny_staffing_report_preview_path,
     normalize_public_site_origin,
+    ny_staffing_report_preview_path,
+    ny_staffing_report_preview_redirect_to_public,
+    ny_staffing_report_preview_token,
+    NY_STAFFING_REPORT_HTML,
+    NY_STAFFING_REPORT_PUBLIC_PATH,
+    NY_STAFFING_REPORT_PREVIEW_SLUG,
     pbjpedia_is_public,
     sitemap_loc_is_allowed,
 )
@@ -1515,6 +1524,31 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     return resp
 
 
+def _serve_ny_staffing_report_preview(token: str):
+    """Unlisted pre-publication NY staffing report (noindex; token required)."""
+    from flask import abort, redirect
+
+    expected = ny_staffing_report_preview_token()
+    if not expected or (token or '').strip().lower() != expected:
+        abort(404)
+    if ny_staffing_report_preview_redirect_to_public():
+        return redirect(NY_STAFFING_REPORT_PUBLIC_PATH, code=301)
+    path = os.path.join(APP_ROOT, NY_STAFFING_REPORT_HTML)
+    if not os.path.isfile(path):
+        abort(404)
+    with open(path, 'r', encoding='utf-8') as f:
+        html_content = f.read()
+    html_content = _rewrite_universal_js_version(html_content)
+    html_content = inject_public_html_cms_urls(html_content)
+    html_content = inject_public_site_verification_meta(html_content)
+    html_content = inject_ny_staffing_report_preview(html_content, ny_staffing_report_preview_path())
+    resp = make_response(html_content)
+    resp.mimetype = 'text/html'
+    resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
+    resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    return resp
+
+
 @app.route('/updates')
 @app.route('/updates/')
 def updates_anchor():
@@ -2121,6 +2155,50 @@ def insights_theme_css():
 def insights_trends():
     """Interactive staffing trend dashboards (maps, charts)."""
     return _serve_public_html('insights.html')
+
+
+@app.route('/insights/ny-minimum-staffing')
+@app.route('/insights/ny-minimum-staffing/')
+def insights_ny_minimum_staffing():
+    """NY 2025 day-level PBJ analysis vs. 3.50 HPRD minimum (standalone research report)."""
+    return _serve_public_html('insights-ny-minimum-staffing.html')
+
+
+@app.route('/insights/ny-minimum-staffing/classic')
+@app.route('/insights/ny-minimum-staffing/classic/')
+def insights_ny_minimum_staffing_classic():
+    """Original brown/cream editorial palette (preserved for rollback comparison)."""
+    return _serve_public_html('insights-ny-minimum-staffing.classic.html')
+
+
+@app.route('/insights/ny-minimum-staffing/press')
+@app.route('/insights/ny-minimum-staffing/press/')
+def insights_ny_minimum_staffing_press():
+    """Media-facing press release (slate palette; links to full interactive report)."""
+    return _serve_public_html('insights-ny-minimum-staffing-press.html')
+
+
+@app.route('/insights/ny-minimum-staffing-2025')
+@app.route('/insights/ny-minimum-staffing-2025/')
+def insights_ny_minimum_staffing_2025_redirect():
+    from flask import redirect
+    return redirect('/insights/ny-minimum-staffing', code=301)
+
+
+@app.route(f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}')
+@app.route(f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}/')
+def ny_staffing_report_preview_gate():
+    """Preview requires the unlisted token path (reduces casual discovery)."""
+    from flask import abort
+
+    abort(404)
+
+
+@app.route(f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}/<token>')
+@app.route(f'/preview/{NY_STAFFING_REPORT_PREVIEW_SLUG}/<token>/')
+def ny_staffing_report_preview(token):
+    """Pre-publication NY staffing compliance report (noindex, shared ahead of launch)."""
+    return _serve_ny_staffing_report_preview(token)
 
 
 @app.route('/insights-visualizations')
@@ -4728,6 +4806,24 @@ def _insights_post_is_published(post: dict) -> bool:
     return bool(published)
 
 
+def _insight_post_sitemap_loc(post: dict) -> str | None:
+    """Sitemap path for a native insight post (explicit url or /insights/<slug>; never /preview/)."""
+    if not isinstance(post, dict):
+        return None
+    raw = (post.get('url') or '').strip()
+    if raw:
+        path = raw if raw.startswith('/') else f'/{raw}'
+    else:
+        slug = (post.get('slug') or '').strip()
+        if not slug:
+            return None
+        path = f'/insights/{slug}'
+    path = path.split('?', 1)[0].rstrip('/') or '/'
+    if is_ny_staffing_report_preview_path(path) or path.startswith('/preview/'):
+        return None
+    return path
+
+
 def _find_native_insight(slug: str) -> dict | None:
     if not slug:
         return None
@@ -5921,11 +6017,14 @@ def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_descri
     return '\n'.join([_json_ld_script(web_page), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
-def _owners_state_index_html(state_code: str):
+def _owners_state_index_html(state_code: str, *, robots_meta: str | None = None):
+    from ownership.state_owner_index import state_owner_index_is_draft
     from ownership.state_owner_index_html import render_state_owner_index_body
 
     body, layout_meta = render_state_owner_index_body(state_code, get_canonical_slug=get_canonical_slug)
     canon = _public_site_origin() + layout_meta['canonical_path']
+    if robots_meta is None and state_owner_index_is_draft(state_code):
+        robots_meta = 'noindex, nofollow'
     extra = (
         _owners_state_index_json_ld(
             state_code,
@@ -5936,7 +6035,13 @@ def _owners_state_index_html(state_code: str):
         + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
         + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
     )
-    layout = get_pbj_site_layout(layout_meta['page_title'], layout_meta['meta_description'], canon, extra_head=extra)
+    layout = get_pbj_site_layout(
+        layout_meta['page_title'],
+        layout_meta['meta_description'],
+        canon,
+        extra_head=extra,
+        robots_meta=robots_meta,
+    )
     hub_js_v = _static_asset_version('owners-hub.js')
     script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
     return (
@@ -5966,13 +6071,17 @@ def _owners_state_locked_html(state_name: str = ''):
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """CMS ownership profile autocomplete (CT/NY); optional ?state=ny|ct."""
+    """CMS ownership profile autocomplete (CT/NY; draft FL/NJ/ID); optional ?state=ny|ct|fl|nj|id."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import (
+        resolve_state_owner_index_slug,
+        search_state_owner_index,
+        state_owner_index_is_draft,
+    )
 
     state_arg = (request.args.get('state') or '').strip().lower()
-    state_code = resolve_public_owner_index_slug(state_arg) if state_arg else None
+    state_code = resolve_state_owner_index_slug(state_arg) if state_arg else None
     if state_arg and not state_code:
         return jsonify({'suggestions': []})
 
@@ -5981,6 +6090,18 @@ def owners_cms_search_api():
     if len(q) < 2 and len(pac) != 10:
         return jsonify({'suggestions': []})
     limit = 40 if state_code else 12
+    if state_code and state_owner_index_is_draft(state_code):
+        rows = search_state_owner_index(q, state_code, limit=limit)
+        suggestions = [
+            {
+                'associate_id': str(row.get('associate_id') or ''),
+                'name': str(row.get('name') or ''),
+                'profile_url': str(row.get('profile_url') or ''),
+                'facility_count': int(row.get('facility_count') or 0),
+            }
+            for row in rows
+        ]
+        return jsonify({'suggestions': suggestions})
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
@@ -5998,17 +6119,24 @@ def owners_cms_index():
 
 @app.route('/owners/ny')
 @app.route('/owners/ct')
+@app.route('/owners/fl')
+@app.route('/owners/nj')
+@app.route('/owners/id')
 def owners_state_index_route():
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import resolve_state_owner_index_slug, state_owner_index_is_draft
 
     segment = (request.path or '').rstrip('/').split('/')[-1].lower()
-    state_code = resolve_public_owner_index_slug(segment)
+    state_code = resolve_state_owner_index_slug(segment)
     if not state_code:
         from flask import abort
         abort(404)
     resp = make_response(_owners_state_index_html(state_code))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    resp.headers['Cache-Control'] = 'public, max-age=300'
+    if state_owner_index_is_draft(state_code):
+        resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    else:
+        resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
@@ -6020,10 +6148,10 @@ def owners_legacy_router(subpath):
         return cms_owner_profile_page(segment)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import resolve_state_owner_index_slug
 
-    pub_code = resolve_public_owner_index_slug(segment)
-    if pub_code and subpath.strip().lower() in ('ny', 'ct'):
+    index_code = resolve_state_owner_index_slug(segment)
+    if index_code:
         return owners_state_index_route()
     _canon, st_code = resolve_state_slug(segment)
     if st_code and st_code not in ('NY', 'CT'):
@@ -6135,10 +6263,14 @@ def _build_sitemap_xml() -> str:
     for post in _get_native_insights_posts():
         if not _insights_post_is_published(post):
             continue
-        slug = (post.get('slug') or '').strip()
-        if slug:
-            lm = _sitemap_lastmod_for_insight_post(post, today)
-            urls.append(f'  <url><loc>{base}/insights/{slug}</loc><lastmod>{lm}</lastmod><changefreq>monthly</changefreq><priority>0.8</priority></url>')
+        insight_loc = _insight_post_sitemap_loc(post)
+        if not insight_loc:
+            continue
+        lm = _sitemap_lastmod_for_insight_post(post, today)
+        urls.append(
+            f'  <url><loc>{base}{insight_loc}</loc><lastmod>{lm}</lastmod>'
+            f'<changefreq>monthly</changefreq><priority>0.8</priority></url>'
+        )
     # Canonical state/provider/entity pages (pbj320.com/state/pa, /provider/xxx, /entity/123)
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
@@ -6233,13 +6365,14 @@ def _sitemap_static_url_lines(base: str, today: str, quarter_lastmod: str) -> li
     for post in _get_native_insights_posts():
         if not _insights_post_is_published(post):
             continue
-        slug = (post.get('slug') or '').strip()
-        if slug:
-            lm = _sitemap_lastmod_for_insight_post(post, today)
-            urls.append(
-                f'  <url><loc>{base}/insights/{slug}</loc><lastmod>{lm}</lastmod>'
-                f'<changefreq>monthly</changefreq><priority>0.8</priority></url>'
-            )
+        insight_loc = _insight_post_sitemap_loc(post)
+        if not insight_loc:
+            continue
+        lm = _sitemap_lastmod_for_insight_post(post, today)
+        urls.append(
+            f'  <url><loc>{base}{insight_loc}</loc><lastmod>{lm}</lastmod>'
+            f'<changefreq>monthly</changefreq><priority>0.8</priority></url>'
+        )
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
         urls.append(
@@ -19307,6 +19440,10 @@ def _path_should_send_noindex() -> bool:
         return False
     if path in ('/owners', '/owners/', '/owners/ny', '/owners/ct'):
         return False
+    from ownership.state_owner_index import DRAFT_OWNER_INDEX_SLUGS
+
+    if path.rstrip('/') in {f'/owners/{slug}' for slug in DRAFT_OWNER_INDEX_SLUGS}:
+        return True
     noindex_prefixes = (
         '/api/',
         '/premium/',

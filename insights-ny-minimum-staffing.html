@@ -362,6 +362,15 @@ body.pbj-insights-report-page .nav-toggle span {
   white-space: nowrap;
 }
 .kpi-label-short { display: none; }
+.kpi-num-unit {
+  display: none;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.42em;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--on-dark-kpi-label);
+  vertical-align: baseline;
+}
 .definitions-implications {
   margin: 0 0 1rem;
   font-size: 1rem;
@@ -625,6 +634,19 @@ body.pbj-insights-report-page .nav-toggle span {
   border-color: var(--pbj-brand);
   color: var(--pbj-brand-ink);
   font-weight: 600;
+}
+.report-mobile-jump-current {
+  display: none;
+  margin: 0 0 7px;
+  font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .report-mobile-jump-progress {
   height: 3px;
@@ -1972,81 +1994,115 @@ blockquote {
     min-width: 0;
   }
   .hero-inner .kpi-num {
-    font-size: clamp(1.05rem, 4.2vw, 1.7rem);
+    font-size: clamp(1.1rem, 4.8vw, 1.75rem);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
+    line-height: 1.1;
   }
   .hero-inner .kpi:first-child .kpi-num {
-    font-size: clamp(0.92rem, 3.6vw, 1.45rem);
+    font-size: clamp(1rem, 4.2vw, 1.55rem);
   }
+  .kpi-num-unit { display: inline; }
   .kpi-label-long { display: none; }
   .kpi-label-short {
     display: block;
     white-space: normal;
-    font-size: 7px;
-    letter-spacing: 0.02em;
-    line-height: 1.25;
+    text-transform: none;
+    font-size: 8px;
+    letter-spacing: 0.03em;
+    line-height: 1.3;
     max-width: none;
-    padding: 0 2px;
-    margin-top: 6px;
+    padding: 0 1px;
+    margin-top: 7px;
   }
 
-  /* Desktop in-page nav off; use compact mobile jump + scroll progress */
+  /* Mobile: scroll progress only (chips overflow on narrow screens) */
   .report-nav { display: none; }
   .report-mobile-jump {
     display: block;
-    padding: 10px 20px 12px;
+    position: sticky;
+    top: 3.75rem;
+    z-index: 900;
+    padding: 8px 16px 10px;
     margin: 0;
     max-width: none;
-    background: var(--paper-warm);
+    background: rgba(248, 250, 252, 0.96);
     border-bottom: 1px solid var(--paper-rule);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
+  body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .report-mobile-jump {
+    top: calc(3.75rem + var(--ny-preview-banner-offset, 52px));
+  }
+  .report-mobile-jump-scroll { display: none; }
+  .report-mobile-jump-current { display: block; }
+  .report-mobile-jump-progress { height: 4px; }
 
-  /* Facility search toolbar — fewer rows */
+  /* Facility search toolbar — 3 rows: search | county+ownership | NYC+min%+reset */
   .facilities-explorer-header { margin: 20px 0 10px; }
   .facilities-toolbar-card { padding: 10px 12px 8px; margin-bottom: 8px; }
   .facilities-toolbar {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 8px 10px;
   }
   .fac-filter--search { grid-column: 1 / -1; }
-  .fac-filter--pct { grid-column: 1; }
+  .fac-filter--county { grid-column: 1; }
+  .fac-filter--ownership { grid-column: 2; }
+  .fac-filter--nyc { grid-column: 1; }
+  .fac-filter--pct { grid-column: 2; }
   .fac-filter-reset {
-    grid-column: 2;
+    grid-column: 3;
     align-self: end;
-    width: 100%;
-    padding: 7px 8px;
+    justify-self: end;
+    width: auto;
+    min-width: 0;
+    padding: 6px 9px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
   }
   .fac-filter-label { font-size: 8px; }
   .fac-filter input,
   .fac-filter select { padding: 6px 7px; font-size: 16px; }
 
-  /* Facility table: county in name; % below second data column */
+  /* Facility table: county in name; Facility | % below | 2025 HPRD (no rank) */
   #facilities-table .fac-location-col,
   #facilities-table .fac-location-cell,
   #facilities-table .fac-own-col,
-  #facilities-table .fac-own-cell { display: none; }
+  #facilities-table .fac-own-cell,
+  #facilities-table .fac-rank-col,
+  #facilities-table .fac-rank { display: none; }
   #facilities-table thead tr,
   #facilities-table tbody tr {
     display: grid;
-    grid-template-columns: 1.75rem minmax(0, 1fr) 3.75rem 3.25rem;
+    grid-template-columns: minmax(0, 1fr) 4.25rem 3.75rem;
+    column-gap: 8px;
     align-items: center;
   }
   #facilities-table th,
-  #facilities-table td { display: block; border-bottom: none; }
+  #facilities-table td { display: block; border-bottom: none; min-width: 0; }
   #facilities-table thead tr { border-bottom: 2px solid var(--rule); padding-bottom: 4px; margin-bottom: 2px; }
   #facilities-table tbody tr {
     border-bottom: 1px solid var(--paper-rule);
     padding: 6px 0;
   }
-  #facilities-table th.fac-rank-col,
-  #facilities-table td.fac-rank { grid-column: 1; text-align: right; padding: 0 4px 0 0; }
   #facilities-table th.fac-name-col,
-  #facilities-table td.fac-name-cell { grid-column: 2; text-align: left; padding: 0 6px 0 0; }
+  #facilities-table td.fac-name-cell { grid-column: 1; text-align: left; padding: 0; overflow: hidden; }
   #facilities-table th.fac-pct-col,
-  #facilities-table td.fac-pct-cell { grid-column: 3; text-align: right; padding: 0; }
+  #facilities-table td.fac-pct-cell {
+    grid-column: 2;
+    text-align: right;
+    padding: 0;
+    min-width: 0;
+    white-space: nowrap;
+  }
   #facilities-table th.fac-hprd-col,
-  #facilities-table td.fac-hprd-cell { grid-column: 4; text-align: right; padding: 0 0 0 4px; }
+  #facilities-table td.fac-hprd-cell {
+    grid-column: 3;
+    text-align: right;
+    padding: 0;
+    white-space: nowrap;
+  }
+  #facilities-table .fac-pct-cell { min-width: 0; }
   .fac-name-cell .fac-own-sub {
     display: block;
     font-size: 0.72rem;
@@ -2152,16 +2208,16 @@ blockquote {
     <p class="hero-byline">Eric Goldwein, MPH · June 2026</p>
     <div class="kpi-strip" role="region" aria-label="Key statistics">
       <div class="kpi">
-        <span class="kpi-num" aria-label="101,779">101,779</span>
-        <span class="kpi-label"><span class="kpi-label-long">2025 days below 3.50 HPRD</span><span class="kpi-label-short">Days below 3.50</span></span>
+        <span class="kpi-num" aria-label="101,779 days"><span class="kpi-num-value">101,779</span><span class="kpi-num-unit"> Days</span></span>
+        <span class="kpi-label"><span class="kpi-label-long">2025 days below 3.50 HPRD</span><span class="kpi-label-short">Below 3.50 HPRD</span></span>
       </div>
       <div class="kpi">
-        <span class="kpi-num" aria-label="47.1 percent">47.1%</span>
-        <span class="kpi-label"><span class="kpi-label-long">Share of Days &lt; Min.</span><span class="kpi-label-short">Days &lt; min.</span></span>
+        <span class="kpi-num" aria-label="47.1 percent"><span class="kpi-num-value">47.1%</span></span>
+        <span class="kpi-label"><span class="kpi-label-long">Share of Days &lt; Min.</span><span class="kpi-label-short">NY Days &lt; Min.</span></span>
       </div>
       <div class="kpi">
-        <span class="kpi-num" id="kpi-weekend-pct" aria-label="76.9 percent">76.9%</span>
-        <span class="kpi-label"><span class="kpi-label-long">Share of Weekend days &lt; Min.</span><span class="kpi-label-short">Weekend &lt; min.</span></span>
+        <span class="kpi-num" id="kpi-weekend-pct" aria-label="76.9 percent"><span class="kpi-num-value">76.9%</span></span>
+        <span class="kpi-label"><span class="kpi-label-long">Share of Weekend days &lt; Min.</span><span class="kpi-label-short">Weekend Days &lt; Min.</span></span>
       </div>
     </div>
   </div>
@@ -2177,6 +2233,7 @@ blockquote {
     <a href="#statute-sensitivity" class="report-mobile-jump-link">NY law</a>
     <a href="#methodology" class="report-mobile-jump-link">Methods</a>
   </div>
+  <p class="report-mobile-jump-current" id="report-mobile-jump-current" aria-live="polite">Why this matters</p>
   <div class="report-mobile-jump-progress" aria-hidden="true"><span class="report-mobile-jump-progress-fill"></span></div>
 </nav>
 
@@ -2341,7 +2398,7 @@ blockquote {
               <option value="oth">Other</option>
             </select>
           </label>
-          <label class="fac-filter">
+          <label class="fac-filter fac-filter--nyc">
             <span class="fac-filter-label">NYC</span>
             <select id="fac-filter-nyc">
               <option value="">All NY</option>
@@ -4030,23 +4087,35 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     if (!strip) return;
     var nums = strip.querySelectorAll('.kpi-num');
     if (nums.length >= 2) {
-      nums[0].textContent = fmtInt(row.below);
-      nums[0].setAttribute('aria-label', String(row.below));
-      nums[1].textContent = fmtPct(row.pct_below) + '%';
+      var v0 = nums[0].querySelector('.kpi-num-value') || nums[0];
+      var v1 = nums[1].querySelector('.kpi-num-value') || nums[1];
+      v0.textContent = fmtInt(row.below);
+      nums[0].setAttribute('aria-label', fmtInt(row.below) + ' days');
+      v1.textContent = fmtPct(row.pct_below) + '%';
       nums[1].setAttribute('aria-label', fmtPct(row.pct_below) + ' percent');
     }
     var wkEl = document.getElementById('kpi-weekend-pct');
     if (wkEl && wkRow) {
-      wkEl.textContent = fmtPct(wkRow.pct_below) + '%';
+      var wkVal = wkEl.querySelector('.kpi-num-value') || wkEl;
+      wkVal.textContent = fmtPct(wkRow.pct_below) + '%';
       wkEl.setAttribute('aria-label', fmtPct(wkRow.pct_below) + ' percent');
     }
     var labels = strip.querySelectorAll('.kpi-label');
+    function setKpiLabels(labelEl, longText, shortText) {
+      if (!labelEl) return;
+      var longEl = labelEl.querySelector('.kpi-label-long');
+      var shortEl = labelEl.querySelector('.kpi-label-short');
+      if (longEl) longEl.textContent = longText;
+      if (shortEl) shortEl.textContent = shortText;
+    }
+    if (labels.length >= 1) {
+      setKpiLabels(labels[0], '2025 days below ' + fmtThresh(threshold) + ' HPRD', 'Below ' + fmtThresh(threshold) + ' HPRD');
+    }
     if (labels.length >= 2) {
-      labels[0].textContent = '2025 days below ' + fmtThresh(threshold) + ' HPRD';
-      labels[1].textContent = 'Share of Days < Min.';
+      setKpiLabels(labels[1], 'Share of Days < Min.', 'NY Days < Min.');
     }
     if (labels.length >= 3) {
-      labels[2].textContent = 'Share of Weekend days < Min.';
+      setKpiLabels(labels[2], 'Share of Weekend days < Min.', 'Weekend Days < Min.');
     }
   }
 
@@ -5166,20 +5235,34 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
   function initReportSectionNav() {
     var bar = document.querySelector('.report-mobile-jump');
     var fill = bar ? bar.querySelector('.report-mobile-jump-progress-fill') : null;
+    var currentEl = document.getElementById('report-mobile-jump-current');
+    var sectionTitles = {};
+    document.querySelectorAll('.report-nav a[href^="#"]').forEach(function (a) {
+      var id = (a.getAttribute('href') || '').replace(/^#/, '');
+      if (id) sectionTitles[id] = (a.textContent || '').trim();
+    });
     var tocLinks = document.querySelectorAll('.report-nav a[href^="#"], .report-mobile-jump-link[href^="#"]');
     var sections = [];
     var seen = {};
-    tocLinks.forEach(function (a) {
+    document.querySelectorAll('.report-nav a[href^="#"]').forEach(function (a) {
       var id = (a.getAttribute('href') || '').replace(/^#/, '');
       if (!id || seen[id]) return;
       var el = document.getElementById(id);
       if (!el) return;
-      seen[id] = { el: el, links: [] };
+      seen[id] = { el: el, links: [a], title: sectionTitles[id] || (a.textContent || '').trim() };
       sections.push(seen[id]);
     });
-    tocLinks.forEach(function (a) {
+    document.querySelectorAll('.report-mobile-jump-link[href^="#"]').forEach(function (a) {
       var id = (a.getAttribute('href') || '').replace(/^#/, '');
-      if (seen[id]) seen[id].links.push(a);
+      if (!id) return;
+      if (seen[id]) {
+        seen[id].links.push(a);
+      } else {
+        var el = document.getElementById(id);
+        if (!el) return;
+        seen[id] = { el: el, links: [a], title: sectionTitles[id] || (a.textContent || '').trim() };
+        sections.push(seen[id]);
+      }
     });
     if (!sections.length) return;
 
@@ -5205,6 +5288,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       tocLinks.forEach(function (l) { l.classList.remove('is-active'); });
       if (active) {
         active.links.forEach(function (l) { l.classList.add('is-active'); });
+        if (currentEl && mobile) {
+          currentEl.textContent = sectionTitles[active.el.id] || active.title;
+        }
       }
     }
 

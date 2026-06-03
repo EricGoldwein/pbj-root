@@ -6017,14 +6017,11 @@ def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_descri
     return '\n'.join([_json_ld_script(web_page), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
-def _owners_state_index_html(state_code: str, *, robots_meta: str | None = None):
-    from ownership.state_owner_index import state_owner_index_is_draft
+def _owners_state_index_html(state_code: str):
     from ownership.state_owner_index_html import render_state_owner_index_body
 
     body, layout_meta = render_state_owner_index_body(state_code, get_canonical_slug=get_canonical_slug)
     canon = _public_site_origin() + layout_meta['canonical_path']
-    if robots_meta is None and state_owner_index_is_draft(state_code):
-        robots_meta = 'noindex, nofollow'
     extra = (
         _owners_state_index_json_ld(
             state_code,
@@ -6040,7 +6037,6 @@ def _owners_state_index_html(state_code: str, *, robots_meta: str | None = None)
         layout_meta['meta_description'],
         canon,
         extra_head=extra,
-        robots_meta=robots_meta,
     )
     hub_js_v = _static_asset_version('owners-hub.js')
     script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
@@ -6071,17 +6067,13 @@ def _owners_state_locked_html(state_name: str = ''):
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """CMS ownership profile autocomplete (CT/NY; draft FL/NJ/ID); optional ?state=ny|ct|fl|nj|id."""
+    """CMS ownership profile autocomplete (CT/NY); optional ?state=ny|ct."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
-    from ownership.state_owner_index import (
-        resolve_state_owner_index_slug,
-        search_state_owner_index,
-        state_owner_index_is_draft,
-    )
+    from ownership.state_owner_index import resolve_public_owner_index_slug
 
     state_arg = (request.args.get('state') or '').strip().lower()
-    state_code = resolve_state_owner_index_slug(state_arg) if state_arg else None
+    state_code = resolve_public_owner_index_slug(state_arg) if state_arg else None
     if state_arg and not state_code:
         return jsonify({'suggestions': []})
 
@@ -6089,19 +6081,7 @@ def owners_cms_search_api():
     pac = normalize_associate_id(q)
     if len(q) < 2 and len(pac) != 10:
         return jsonify({'suggestions': []})
-    limit = 40 if state_code else 12
-    if state_code and state_owner_index_is_draft(state_code):
-        rows = search_state_owner_index(q, state_code, limit=limit)
-        suggestions = [
-            {
-                'associate_id': str(row.get('associate_id') or ''),
-                'name': str(row.get('name') or ''),
-                'profile_url': str(row.get('profile_url') or ''),
-                'facility_count': int(row.get('facility_count') or 0),
-            }
-            for row in rows
-        ]
-        return jsonify({'suggestions': suggestions})
+    limit = 12
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
@@ -6119,24 +6099,17 @@ def owners_cms_index():
 
 @app.route('/owners/ny')
 @app.route('/owners/ct')
-@app.route('/owners/fl')
-@app.route('/owners/nj')
-@app.route('/owners/id')
 def owners_state_index_route():
-    from ownership.state_owner_index import resolve_state_owner_index_slug, state_owner_index_is_draft
+    from ownership.state_owner_index import resolve_public_owner_index_slug
 
     segment = (request.path or '').rstrip('/').split('/')[-1].lower()
-    state_code = resolve_state_owner_index_slug(segment)
+    state_code = resolve_public_owner_index_slug(segment)
     if not state_code:
         from flask import abort
         abort(404)
     resp = make_response(_owners_state_index_html(state_code))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    if state_owner_index_is_draft(state_code):
-        resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
-    else:
-        resp.headers['Cache-Control'] = 'public, max-age=300'
+    resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
@@ -6148,10 +6121,10 @@ def owners_legacy_router(subpath):
         return cms_owner_profile_page(segment)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
-    from ownership.state_owner_index import resolve_state_owner_index_slug
+    from ownership.state_owner_index import resolve_public_owner_index_slug
 
-    index_code = resolve_state_owner_index_slug(segment)
-    if index_code:
+    pub_code = resolve_public_owner_index_slug(segment)
+    if pub_code and subpath.strip().lower() in ('ny', 'ct'):
         return owners_state_index_route()
     _canon, st_code = resolve_state_slug(segment)
     if st_code and st_code not in ('NY', 'CT'):
@@ -19440,10 +19413,6 @@ def _path_should_send_noindex() -> bool:
         return False
     if path in ('/owners', '/owners/', '/owners/ny', '/owners/ct'):
         return False
-    from ownership.state_owner_index import DRAFT_OWNER_INDEX_SLUGS
-
-    if path.rstrip('/') in {f'/owners/{slug}' for slug in DRAFT_OWNER_INDEX_SLUGS}:
-        return True
     noindex_prefixes = (
         '/api/',
         '/premium/',

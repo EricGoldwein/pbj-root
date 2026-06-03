@@ -4839,7 +4839,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
   }
 
   function refreshOwnershipChartLayout() {
-    var chart = chartStore.ownershipChart || ownershipChartInstance;
+    var chart = ownershipChartRef();
     var spec = ownershipChartSpec();
     if (!chart || !spec) return;
     var mobile = isMobileReport();

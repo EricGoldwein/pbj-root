@@ -1774,12 +1774,175 @@ blockquote {
 
 @media (max-width: 640px) {
   .hero-meta .hero-sub { margin-left: 0; text-align: left; width: 100%; }
-  .kpi-strip { grid-template-columns: 1fr; }
+  .hero { padding: 32px 16px 28px; }
+  .content { padding: 0 16px; }
+  section {
+    padding: 36px 0 28px;
+    scroll-margin-top: 3.5rem;
+  }
+  h2 { margin-bottom: 14px; }
+  h3 { margin: 20px 0 8px; }
+  .chart-wrap { margin: 18px 0 6px; padding: 14px 12px 10px; }
+  .findings-grid { margin: 16px 0 6px; }
+
+  /* Hero KPIs: keep three across on small screens */
+  .kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0 -16px;
+    width: calc(100% + 32px);
+    max-width: none;
+  }
+  .kpi { padding: 12px 6px; }
+  .kpi-num { font-size: clamp(1.35rem, 5.5vw, 1.85rem); }
+  .kpi-label {
+    white-space: normal;
+    font-size: 7px;
+    letter-spacing: 0.03em;
+    line-height: 1.2;
+    max-width: none;
+    padding: 0 2px;
+  }
+
+  /* On this page */
+  .report-nav {
+    padding: 10px 16px 12px;
+    margin: 0 -16px;
+    max-width: none;
+    border-bottom: 1px solid var(--paper-rule);
+  }
+  .report-nav-title { margin-bottom: 6px; }
+  .report-nav ul {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    gap: 6px;
+    padding-bottom: 2px;
+    margin: 0 -4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .report-nav li { flex-shrink: 0; }
+  .report-nav li + li::before { display: none; }
+  .report-nav a {
+    font-size: 10px;
+    padding: 6px 10px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: #fff;
+    white-space: nowrap;
+  }
+
+  /* Facility search toolbar — fewer rows */
+  .facilities-explorer-header { margin: 20px 0 10px; }
+  .facilities-toolbar-card { padding: 10px 12px 8px; margin-bottom: 8px; }
+  .facilities-toolbar {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .fac-filter--search { grid-column: 1 / -1; }
+  .fac-filter--pct { grid-column: 1; }
+  .fac-filter-reset {
+    grid-column: 2;
+    align-self: end;
+    width: 100%;
+    padding: 7px 8px;
+  }
+  .fac-filter-label { font-size: 8px; }
+  .fac-filter input,
+  .fac-filter select { padding: 6px 7px; font-size: 16px; }
+
+  /* Facility table: county in name; % below second data column */
+  #facilities-table .fac-location-col,
+  #facilities-table .fac-location-cell,
+  #facilities-table .fac-own-col,
+  #facilities-table .fac-own-cell { display: none; }
+  #facilities-table thead tr,
+  #facilities-table tbody tr {
+    display: grid;
+    grid-template-columns: 1.75rem minmax(0, 1fr) 3.75rem 3.25rem;
+    align-items: center;
+  }
+  #facilities-table th,
+  #facilities-table td { display: block; border-bottom: none; }
+  #facilities-table thead tr { border-bottom: 2px solid var(--rule); padding-bottom: 4px; margin-bottom: 2px; }
+  #facilities-table tbody tr {
+    border-bottom: 1px solid var(--paper-rule);
+    padding: 6px 0;
+  }
+  #facilities-table th.fac-rank-col,
+  #facilities-table td.fac-rank { grid-column: 1; text-align: right; padding: 0 4px 0 0; }
+  #facilities-table th.fac-name-col,
+  #facilities-table td.fac-name-cell { grid-column: 2; text-align: left; padding: 0 6px 0 0; }
+  #facilities-table th.fac-pct-col,
+  #facilities-table td.fac-pct-cell { grid-column: 3; text-align: right; padding: 0; }
+  #facilities-table th.fac-hprd-col,
+  #facilities-table td.fac-hprd-cell { grid-column: 4; text-align: right; padding: 0 0 0 4px; }
+  .fac-name-cell .fac-own-sub {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--ink-muted);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+  .fac-pct-cell .fac-pct-sub { display: none; }
+  .fac-pct-cell .fac-pct-value { font-size: 0.9rem; }
+
+  /* Ownership grouped chart + table */
+  #ownership .chart-title--ownership {
+    white-space: normal;
+    line-height: 1.45;
+    letter-spacing: 0.06em;
+  }
+  #ownership .chart-title-line { display: block; }
+  #ownership .chart-title-line--sub {
+    font-size: 10px;
+    margin-top: 4px;
+    color: var(--ink-soft);
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+  #ownership .chart-canvas-wrap--tall {
+    height: min(520px, 72vh);
+    min-height: 380px;
+  }
+  #ownership-slices-table thead { display: none; }
+  #ownership-slices-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--paper-rule);
+  }
+  #ownership-slices-table tbody tr:last-child { border-bottom: none; }
+  #ownership-slices-table tbody td {
+    display: block;
+    border: none;
+    padding: 0;
+    text-align: left;
+  }
+  #ownership-slices-table tbody td:first-child {
+    grid-column: 1;
+    font-size: 0.82rem;
+    line-height: 1.35;
+    word-break: break-word;
+    padding-left: 0;
+  }
+  #ownership-slices-table tbody td.pct-cell {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: center;
+    text-align: right;
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+  #ownership-slices-table tbody td:nth-child(2),
+  #ownership-slices-table tbody td:nth-child(3) { display: none; }
+  #ownership-slices-table tr.slice-row-child td:first-child::before { margin-left: 0; }
+
   .weekend-table-grid,
   .appendix-grid { grid-template-columns: 1fr; }
   .callout-stat { flex-direction: column; gap: 8px; }
-  .hero { padding-top: 40px; }
-  .content { padding: 0 16px; }
   .appendix { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   th, td { padding: 8px 8px; }
 }
@@ -2038,7 +2201,7 @@ blockquote {
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-slices">Ownership &amp; NYC slices</a></span></p>
     <p>The grouped chart compares below-minimum rates on <strong>all days</strong> with <strong>weekends (Sat–Sun)</strong> across statewide, ownership, and NYC groups. At 3.50 HPRD, NYC government-operated homes were below minimum on <strong>5.4%</strong> of facility-days (99 of 1,825). NYC for-profit homes: <strong>60.1%</strong> (28,335 of 47,172).</p>
     <div class="chart-wrap" role="figure" aria-labelledby="ownership-chart-title">
-      <div class="chart-title" id="ownership-chart-title">% below <span data-hprd-label>3.50</span> HPRD · <span class="chart-title-series chart-title-series--all">all days</span> vs. <span class="chart-title-series chart-title-series--wknd">weekends (Sat–Sun)</span> · 2025</div>
+      <div class="chart-title chart-title--ownership" id="ownership-chart-title"><span class="chart-title-line">% below <span data-hprd-label>3.50</span> HPRD · 2025</span><span class="chart-title-line chart-title-line--sub"><span class="chart-title-series chart-title-series--all">All days</span> vs. <span class="chart-title-series chart-title-series--wknd">weekends (Sat–Sun)</span></span></div>
       <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="ownershipChart" aria-label="Grouped horizontal bars: all days and weekends by geography and ownership"></canvas></div>
     </div>
 
@@ -2765,6 +2928,10 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     return titleCaseLoc(r.city || '');
   }
 
+  function isMobileReport() {
+    return !!(global.matchMedia && global.matchMedia('(max-width: 640px)').matches);
+  }
+
   function pctClass(pct) {
     var ui = global.PBJ_REPORT_UI || {};
     var mid = ui.colorPctMid != null ? ui.colorPctMid : 50;
@@ -3019,17 +3186,25 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
       var loc = formatFacilityLocation(r);
 
+      var mobile = isMobileReport();
+
+      var displayName = escapeHtml(formatProviderDisplayName(r.name));
+
+      if (mobile && loc) displayName += ' (' + escapeHtml(loc) + ')';
+
+      var nameInner =
+
+          '<a class="fac-name-link" href="' + providerHref(r.ccn) + '" target="_blank" rel="noopener">' + displayName + '</a>' +
+
+          (mobile ? '<span class="fac-own-sub">' + escapeHtml(own) + '</span>' : '');
+
       return (
 
         '<tr>' +
 
         '<td class="fac-rank">' + rank + '</td>' +
 
-        '<td class="fac-name-cell">' +
-
-          '<a class="fac-name-link" href="' + providerHref(r.ccn) + '" target="_blank" rel="noopener">' + escapeHtml(formatProviderDisplayName(r.name)) + '</a>' +
-
-        '</td>' +
+        '<td class="fac-name-cell">' + nameInner + '</td>' +
 
         '<td class="fac-location-cell">' + escapeHtml(loc) + '</td>' +
 
@@ -3442,6 +3617,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     applyFilters();
 
     renderTable();
+
+    if (global.matchMedia) {
+      try {
+        global.matchMedia('(max-width: 640px)').addEventListener('change', function () {
+          renderTable();
+        });
+      } catch (e) { /* ignore */ }
+    }
 
   }
 
@@ -4643,6 +4826,35 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     });
   }
 
+  function ownershipAxisLabels(spec) {
+    if (!isMobileReport()) return ownershipDisplayLabels(spec);
+    var tiers = spec.slice_tiers || [];
+    return (spec.labels || []).map(function (label, i) {
+      var short = label
+        .replace(/^NY statewide · /, 'NY ')
+        .replace(/^NYC \(5 boroughs\)$/, 'NYC (5 boro.)');
+      if (tiers[i] === 'metro-child') return '  ' + short;
+      return short;
+    });
+  }
+
+  function refreshOwnershipChartLayout() {
+    var chart = chartStore.ownershipChart || ownershipChartInstance;
+    var spec = ownershipChartSpec();
+    if (!chart || !spec) return;
+    var mobile = isMobileReport();
+    chart.data.labels = ownershipAxisLabels(spec);
+    chart.options.layout = chart.options.layout || {};
+    chart.options.layout.padding = {
+      left: mobile ? 2 : 4,
+      right: mobile ? 8 : 12,
+      top: 4,
+      bottom: 8,
+    };
+    chart.resize();
+    chart.update('none');
+  }
+
   function ownershipTickFont(tier) {
     if (tier === 'primary') return { size: 11, weight: '700' };
     if (tier === 'metro') return { size: 10, weight: '600' };
@@ -4657,7 +4869,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     var satDs = spec.datasets[1];
     var n = (spec.labels || []).length;
     var tiers = spec.slice_tiers || [];
-    var displayLabels = ownershipDisplayLabels(spec);
+    var mobile = isMobileReport();
+    var displayLabels = ownershipAxisLabels(spec);
     var allBg = Array(n).fill(COLORS.weekdayBg);
     var allBd = Array(n).fill(COLORS.weekday);
     var wkBg = Array(n).fill(COLORS.weekendBg);
@@ -4692,11 +4905,20 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       },
       options: defaultOptions({
         indexAxis: 'y',
+        maintainAspectRatio: false,
+        layout: {
+          padding: {
+            left: mobile ? 2 : 4,
+            right: mobile ? 8 : 12,
+            top: 4,
+            bottom: 8,
+          },
+        },
         plugins: {
           legend: {
             display: true,
             position: 'bottom',
-            labels: { boxWidth: 12, font: { size: 10 } },
+            labels: { boxWidth: 12, font: { size: mobile ? 9 : 10 } },
           },
           tooltip: {
             callbacks: {
@@ -4715,15 +4937,21 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
           x: {
             min: spec.xMin != null ? spec.xMin : 0,
             max: spec.xMax != null ? spec.xMax : 100,
-            ticks: { callback: function (v) { return v + '%'; } },
+            ticks: {
+              maxTicksLimit: mobile ? 5 : 11,
+              callback: function (v) { return v + '%'; },
+            },
             grid: { color: COLORS.grid },
           },
           y: {
             grid: { display: false },
             ticks: {
               autoSkip: false,
+              padding: mobile ? 4 : 8,
               font: function (ctx) {
-                return ownershipTickFont(tiers[ctx.index] || 'state');
+                var f = ownershipTickFont(tiers[ctx.index] || 'state');
+                var size = mobile ? Math.max(8, (f.size || 10) - 1.5) : f.size;
+                return { size: size, weight: f.weight };
               },
             },
           },
@@ -4735,6 +4963,11 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       global.PBJ320Threshold.registerChart(spec.id, ownershipChartInstance);
       global.PBJ320Threshold.applyThreshold(global.PBJ320Threshold.currentThreshold);
     }
+    var ownResizeTimer;
+    global.addEventListener('resize', function () {
+      clearTimeout(ownResizeTimer);
+      ownResizeTimer = setTimeout(refreshOwnershipChartLayout, 160);
+    });
   }
 
   function initInPageNav() {

@@ -77,6 +77,7 @@
 html { scroll-behavior: smooth; }
 
 body {
+  margin: 0;
   background: var(--paper);
   color: var(--ink);
   font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
@@ -166,7 +167,18 @@ body.pbj-insights-report-page .nav-toggle span {
   background: #fff;
 }
 @media (max-width: 768px) {
-  body.pbj-insights-report-page .nav-toggle { display: flex; }
+  body.pbj-insights-report-page .nav-container {
+    padding: 0 18px;
+    gap: 12px;
+  }
+  body.pbj-insights-report-page .nav-toggle {
+    display: flex;
+    margin-right: 2px;
+    padding: 10px 12px;
+  }
+  body.pbj-insights-report-page .nav-brand img {
+    margin-right: 6px !important;
+  }
   body.pbj-insights-report-page .nav-menu {
     display: none;
     flex-direction: column;
@@ -349,6 +361,7 @@ body.pbj-insights-report-page .nav-toggle span {
   max-width: 12.5rem;
   white-space: nowrap;
 }
+.kpi-label-short { display: none; }
 .definitions-implications {
   margin: 0 0 1rem;
   font-size: 1rem;
@@ -507,6 +520,125 @@ body.pbj-insights-report-page .nav-toggle span {
 .report-nav a:hover {
   border-bottom-color: var(--pbj-brand);
 }
+.report-nav a.is-active {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--pbj-brand);
+}
+
+/* Hero full width; sidebar TOC + main column on wide screens */
+.report-body-layout {
+  max-width: var(--max-w);
+  margin: 0 auto;
+}
+
+@media (min-width: 769px) {
+  .report-body-layout {
+    display: grid;
+    grid-template-columns: 10.75rem minmax(0, 1fr);
+    gap: 0 2.5rem;
+    max-width: 1180px;
+    align-items: start;
+  }
+  .report-nav {
+    grid-column: 1;
+    grid-row: 1;
+    position: sticky;
+    top: 4.5rem;
+    align-self: start;
+    max-width: none;
+    margin: 0;
+    padding: 28px 0 40px;
+    border-bottom: none;
+    background: transparent;
+  }
+  body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .report-nav {
+    top: calc(4.5rem + var(--ny-preview-banner-offset, 52px));
+  }
+  .report-nav ul {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    min-height: 0;
+  }
+  .report-nav li {
+    width: 100%;
+  }
+  .report-nav li + li::before {
+    display: none;
+  }
+  .report-nav a {
+    display: block;
+    width: 100%;
+    padding: 4px 0 4px 10px;
+    border-bottom: none;
+    border-left: 2px solid transparent;
+    line-height: 1.4;
+  }
+  .report-nav a:hover {
+    border-left-color: rgba(129, 140, 248, 0.45);
+    border-bottom-color: transparent;
+  }
+  .report-nav a.is-active {
+    border-left-color: var(--pbj-brand);
+    color: var(--ink);
+  }
+  .report-body-layout > .content {
+    grid-column: 2;
+    grid-row: 1;
+    max-width: var(--max-w);
+    margin: 0;
+    padding: 0 24px 0 0;
+  }
+}
+
+/* Mobile-only section jump (replaces report-nav below 640px) */
+.report-mobile-jump {
+  display: none;
+}
+.report-mobile-jump-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding: 2px 0 8px;
+}
+.report-mobile-jump-scroll::-webkit-scrollbar {
+  display: none;
+}
+.report-mobile-jump-link {
+  flex-shrink: 0;
+  font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--rule);
+  background: #fff;
+  color: var(--pbj-brand-ink);
+  text-decoration: none;
+  line-height: 1.2;
+}
+.report-mobile-jump-link.is-active {
+  background: var(--pbj-brand-light);
+  border-color: var(--pbj-brand);
+  color: var(--pbj-brand-ink);
+  font-weight: 600;
+}
+.report-mobile-jump-progress {
+  height: 3px;
+  background: var(--paper-rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.report-mobile-jump-progress-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--pbj-brand) 0%, var(--pbj-brand-dark) 100%);
+  transition: width 0.12s ease-out;
+}
 
 /* Methods summary (top of report) */
 .methods-summary {
@@ -586,9 +718,16 @@ body.pbj-insights-report-page .nav-toggle span {
 
 /* Full methodology (main content, before footer) */
 .methodology-full {
-  margin-top: 48px;
-  padding-top: 36px;
-  border-top: 2px solid var(--rule);
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+section[hidden],
+.report-section--deferred[hidden] {
+  display: none !important;
+  margin: 0;
+  padding: 0;
+  border: none;
 }
 .methodology-back {
   margin: -8px 0 20px;
@@ -1137,17 +1276,25 @@ tr.slice-row-state td:first-child {
   max-width: 22rem;
 }
 .fac-name-link {
-  color: var(--ink);
+  color: var(--pbj-brand-ink);
   font-weight: 600;
   text-decoration: none;
   font-size: inherit;
   line-height: 1.35;
+  border-radius: 3px;
+  padding: 1px 5px;
+  margin: -1px -5px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
-.fac-name-link:hover,
+.fac-name-link:hover {
+  color: var(--pbj-brand-dark);
+  background: var(--pbj-brand-light);
+}
 .fac-name-link:focus-visible {
-  color: var(--accent-blue);
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  color: var(--pbj-brand-dark);
+  background: var(--pbj-brand-light);
+  outline: 2px solid var(--pbj-brand);
+  outline-offset: 1px;
 }
 #facilities-table tbody td {
   vertical-align: middle;
@@ -1773,64 +1920,86 @@ blockquote {
 .statute-modal-source { font-size: 0.85rem; color: var(--ink-muted); margin-bottom: 0 !important; }
 
 @media (max-width: 640px) {
-  .hero-meta .hero-sub { margin-left: 0; text-align: left; width: 100%; }
-  .hero { padding: 32px 16px 28px; }
-  .content { padding: 0 16px; }
-  section {
-    padding: 36px 0 28px;
-    scroll-margin-top: 3.5rem;
+  body.pbj-insights-report-page .nav-container {
+    padding: 0 20px;
   }
-  h2 { margin-bottom: 14px; }
-  h3 { margin: 20px 0 8px; }
+  body.pbj-insights-report-page .nav-toggle {
+    padding: 10px 14px;
+    margin-right: 0;
+  }
+
+  .hero-meta .hero-sub { margin-left: 0; text-align: left; width: 100%; }
+  .hero { padding: 28px 20px 24px; }
+  .hero h1 { margin-bottom: 14px; }
+  .hero-byline { margin-bottom: 18px; }
+  .content { padding: 0 20px; }
+  section {
+    padding: 32px 0 26px;
+    scroll-margin-top: 4rem;
+  }
+  #definitions { padding-top: 24px; }
+  .section-label {
+    letter-spacing: 0.12em;
+    margin-bottom: 8px;
+  }
+  h2 { margin-bottom: 12px; font-size: 1.35rem; }
+  h3 { margin: 18px 0 8px; }
   .chart-wrap { margin: 18px 0 6px; padding: 14px 12px 10px; }
   .findings-grid { margin: 16px 0 6px; }
-
-  /* Hero KPIs: keep three across on small screens */
-  .kpi-strip {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin: 0 -16px;
-    width: calc(100% + 32px);
+  .report-scope-note,
+  .definitions-implications,
+  .definitions-disclaimer {
     max-width: none;
   }
-  .kpi { padding: 12px 6px; }
-  .kpi-num { font-size: clamp(1.35rem, 5.5vw, 1.85rem); }
-  .kpi-label {
+
+  /* Hero KPIs (101,779 · 47.1% · weekend %): one row, inset from screen edges */
+  .hero-inner .kpi-strip {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 6px 0 0;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+  }
+  .hero-inner .kpi {
+    padding: 11px 6px 9px;
+    border-radius: 6px;
+    border: 1px solid var(--kpi-divider);
+    min-width: 0;
+  }
+  .hero-inner .kpi-num {
+    font-size: clamp(1.05rem, 4.2vw, 1.7rem);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+  .hero-inner .kpi:first-child .kpi-num {
+    font-size: clamp(0.92rem, 3.6vw, 1.45rem);
+  }
+  .kpi-label-long { display: none; }
+  .kpi-label-short {
+    display: block;
     white-space: normal;
     font-size: 7px;
-    letter-spacing: 0.03em;
-    line-height: 1.2;
+    letter-spacing: 0.02em;
+    line-height: 1.25;
     max-width: none;
     padding: 0 2px;
+    margin-top: 6px;
   }
 
-  /* On this page */
-  .report-nav {
-    padding: 10px 16px 12px;
-    margin: 0 -16px;
+  /* Desktop in-page nav off; use compact mobile jump + scroll progress */
+  .report-nav { display: none; }
+  .report-mobile-jump {
+    display: block;
+    padding: 10px 20px 12px;
+    margin: 0;
     max-width: none;
+    background: var(--paper-warm);
     border-bottom: 1px solid var(--paper-rule);
-  }
-  .report-nav-title { margin-bottom: 6px; }
-  .report-nav ul {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    gap: 6px;
-    padding-bottom: 2px;
-    margin: 0 -4px;
-    padding-left: 4px;
-    padding-right: 4px;
-  }
-  .report-nav li { flex-shrink: 0; }
-  .report-nav li + li::before { display: none; }
-  .report-nav a {
-    font-size: 10px;
-    padding: 6px 10px;
-    border: 1px solid var(--rule);
-    border-radius: 999px;
-    background: #fff;
-    white-space: nowrap;
   }
 
   /* Facility search toolbar — fewer rows */
@@ -1984,20 +2153,34 @@ blockquote {
     <div class="kpi-strip" role="region" aria-label="Key statistics">
       <div class="kpi">
         <span class="kpi-num" aria-label="101,779">101,779</span>
-        <span class="kpi-label">2025 days below 3.50 HPRD</span>
+        <span class="kpi-label"><span class="kpi-label-long">2025 days below 3.50 HPRD</span><span class="kpi-label-short">Days below 3.50</span></span>
       </div>
       <div class="kpi">
         <span class="kpi-num" aria-label="47.1 percent">47.1%</span>
-        <span class="kpi-label">Share of Days &lt; Min.</span>
+        <span class="kpi-label"><span class="kpi-label-long">Share of Days &lt; Min.</span><span class="kpi-label-short">Days &lt; min.</span></span>
       </div>
       <div class="kpi">
         <span class="kpi-num" id="kpi-weekend-pct" aria-label="76.9 percent">76.9%</span>
-        <span class="kpi-label">Share of Weekend days &lt; Min.</span>
+        <span class="kpi-label"><span class="kpi-label-long">Share of Weekend days &lt; Min.</span><span class="kpi-label-short">Weekend &lt; min.</span></span>
       </div>
     </div>
   </div>
 </header>
 
+<nav class="report-mobile-jump" aria-label="Report sections">
+  <div class="report-mobile-jump-scroll">
+    <a href="#definitions" class="report-mobile-jump-link">Why</a>
+    <a href="#weekend" class="report-mobile-jump-link">Weekend</a>
+    <a href="#provider-compliance" class="report-mobile-jump-link">Homes</a>
+    <a href="#ownership" class="report-mobile-jump-link">Ownership</a>
+    <a href="#geography" class="report-mobile-jump-link">Geography</a>
+    <a href="#statute-sensitivity" class="report-mobile-jump-link">NY law</a>
+    <a href="#methodology" class="report-mobile-jump-link">Methods</a>
+  </div>
+  <div class="report-mobile-jump-progress" aria-hidden="true"><span class="report-mobile-jump-progress-fill"></span></div>
+</nav>
+
+<div class="report-body-layout">
 <nav class="report-nav" aria-label="On this page">
   <p class="report-nav-title">On this page</p>
   <ul>
@@ -2135,7 +2318,7 @@ blockquote {
     <div class="provider-compliance-table">
       <div class="facilities-explorer-header">
         <h3 id="facilities-heading">NY nursing homes · daily staffing compliance</h3>
-        <p class="facilities-explorer-lead">Search, filter, and sort all <strong>596</strong> homes against the report&rsquo;s <strong>3.50 HPRD</strong> minimum (same threshold as the chart above).</p>
+        <p class="facilities-explorer-lead">Search, filter, and sort all <strong>596</strong> homes against the report&rsquo;s <strong>3.50 HPRD</strong> minimum.</p>
       </div>
       <div class="facilities-explorer" id="facilities-explorer">
         <div class="facilities-toolbar-card">
@@ -2184,7 +2367,7 @@ blockquote {
                 <th scope="col" class="fac-location-col" data-sort="location">County</th>
                 <th scope="col" class="fac-own-col" data-sort="ownership">Ownership</th>
                 <th scope="col" class="fac-pct-col" data-sort="pct" aria-sort="descending">% below</th>
-                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd">Mean HPRD</th>
+                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd">2025 HPRD</th>
               </tr>
             </thead>
             <tbody id="facilities-tbody"></tbody>
@@ -2413,6 +2596,7 @@ blockquote {
 
 
 </main>
+</div>
 
 <aside class="report-endmatter" aria-label="Report resources and attribution">
   <div class="report-endmatter-inner">
@@ -4979,6 +5163,60 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     });
   }
 
+  function initReportSectionNav() {
+    var bar = document.querySelector('.report-mobile-jump');
+    var fill = bar ? bar.querySelector('.report-mobile-jump-progress-fill') : null;
+    var tocLinks = document.querySelectorAll('.report-nav a[href^="#"], .report-mobile-jump-link[href^="#"]');
+    var sections = [];
+    var seen = {};
+    tocLinks.forEach(function (a) {
+      var id = (a.getAttribute('href') || '').replace(/^#/, '');
+      if (!id || seen[id]) return;
+      var el = document.getElementById(id);
+      if (!el) return;
+      seen[id] = { el: el, links: [] };
+      sections.push(seen[id]);
+    });
+    tocLinks.forEach(function (a) {
+      var id = (a.getAttribute('href') || '').replace(/^#/, '');
+      if (seen[id]) seen[id].links.push(a);
+    });
+    if (!sections.length) return;
+
+    function update() {
+      var mobile = isMobileReport();
+      if (fill) {
+        if (!mobile) {
+          fill.style.width = '0%';
+        } else {
+          var docEl = document.documentElement;
+          var scrollMax = docEl.scrollHeight - docEl.clientHeight;
+          fill.style.width = scrollMax > 0
+            ? Math.min(100, Math.max(0, (100 * docEl.scrollTop) / scrollMax)) + '%'
+            : '0%';
+        }
+      }
+      var active = sections[0];
+      var marker = mobile ? 100 : 120;
+      for (var i = 0; i < sections.length; i++) {
+        var top = sections[i].el.getBoundingClientRect().top;
+        if (top <= marker) active = sections[i];
+      }
+      tocLinks.forEach(function (l) { l.classList.remove('is-active'); });
+      if (active) {
+        active.links.forEach(function (l) { l.classList.add('is-active'); });
+      }
+    }
+
+    var scrollTimer;
+    global.addEventListener('scroll', function () {
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(update, 40);
+    }, { passive: true });
+    global.addEventListener('resize', update);
+    update();
+  }
+
   function initInPageNav() {
     document.querySelectorAll('a[href^="#"]').forEach(function (link) {
       link.addEventListener('click', function (e) {
@@ -5075,6 +5313,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       el.classList.add('fade-in');
     });
     initInPageNav();
+    initReportSectionNav();
     initStatuteModals();
     initCharts();
     if (global.PBJ320CountyMap && global.PBJ320CountyMap.initCountyMap) {

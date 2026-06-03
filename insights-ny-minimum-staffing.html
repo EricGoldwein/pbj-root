@@ -2017,6 +2017,24 @@ blockquote {
     margin-top: 7px;
   }
 
+  .report-modal-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+    margin: 0.35rem 0 0.85rem;
+  }
+  .report-modal-actions .statute-modal-trigger {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 8px;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+  .modal-trigger-label-long { display: none; }
+  .modal-trigger-label-short { display: inline; }
+
   /* Mobile: scroll progress only (chips overflow on narrow screens) */
   .report-nav { display: none; }
   .report-mobile-jump {
@@ -2263,8 +2281,8 @@ blockquote {
     <p class="definitions-implications">These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
     <p class="definitions-disclaimer" role="note"><strong>Note:</strong> Descriptive PBJ analysis only—not an endorsement for or against the NY minimum.</p>
     <div class="report-modal-actions" role="group" aria-label="Reference">
-      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog">How to read the charts</button>
-      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog">NY DOH minimum staffing rule</button>
+      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="How to read the charts"><span class="modal-trigger-label-long">How to read the charts</span><span class="modal-trigger-label-short">Read charts</span></button>
+      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY DOH minimum staffing rule"><span class="modal-trigger-label-long">NY DOH minimum staffing rule</span><span class="modal-trigger-label-short">NY Min. Staffing Rule</span></button>
     </div>
 
     <dialog id="chart-definitions" class="pbj-statute-dialog pbj-definitions-dialog" aria-labelledby="chart-definitions-title">

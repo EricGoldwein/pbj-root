@@ -1426,6 +1426,7 @@ tr.slice-row-state td:first-child {
   margin: 0 0 10px;
   letter-spacing: 0.02em;
 }
+.fac-hprd-head-mobile { display: none; }
 .data-table-wrap--facilities {
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -1837,6 +1838,20 @@ blockquote {
   color: var(--accent-bad);
   font-weight: 600;
 }
+.chart-title--ownership .chart-title-line {
+  display: block;
+}
+.chart-title--ownership .chart-title-line--sub {
+  display: block;
+  margin-top: 4px;
+}
+.provider-histogram-lead {
+  margin: 28px 0 14px;
+  font-size: 0.94rem;
+  color: var(--ink-soft);
+  line-height: 1.55;
+  max-width: 42rem;
+}
 .explainer-dialog-body p {
   margin-bottom: 0.75em;
   font-size: 0.94rem;
@@ -2057,7 +2072,7 @@ blockquote {
   .report-mobile-jump-current { display: block; }
   .report-mobile-jump-progress { height: 4px; }
 
-  /* Facility search toolbar — 3 rows: search | county+ownership | NYC+min%+reset */
+  /* Facility search toolbar — search | county+ownership+reset */
   .facilities-explorer-header { margin: 20px 0 10px; }
   .facilities-toolbar-card { padding: 10px 12px 8px; margin-bottom: 8px; }
   .facilities-toolbar {
@@ -2067,8 +2082,8 @@ blockquote {
   .fac-filter--search { grid-column: 1 / -1; }
   .fac-filter--county { grid-column: 1; }
   .fac-filter--ownership { grid-column: 2; }
-  .fac-filter--nyc { grid-column: 1; }
-  .fac-filter--pct { grid-column: 2; }
+  .fac-filter--nyc,
+  .fac-filter--pct { display: none; }
   .fac-filter-reset {
     grid-column: 3;
     align-self: end;
@@ -2081,9 +2096,27 @@ blockquote {
   }
   .fac-filter-label { font-size: 8px; }
   .fac-filter input,
-  .fac-filter select { padding: 6px 7px; font-size: 16px; }
+  .fac-filter select {
+    padding: 6px 8px;
+    font-size: 16px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
 
-  /* Facility table: county in name; Facility | % below | 2025 HPRD (no rank) */
+  /* Facility table: Facility | % below | 2025/HPRD stacked header (no rank) */
+  .data-table-wrap--facilities {
+    padding: 0 8px;
+  }
+  .fac-hprd-head-desktop { display: none; }
+  .fac-hprd-head-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    line-height: 1.15;
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+  .fac-hprd-head-line { display: block; }
   #facilities-table .fac-location-col,
   #facilities-table .fac-location-cell,
   #facilities-table .fac-own-col,
@@ -2093,24 +2126,27 @@ blockquote {
   #facilities-table thead tr,
   #facilities-table tbody tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 4.25rem 3.75rem;
-    column-gap: 8px;
+    grid-template-columns: minmax(0, 1fr) 4.25rem 3.25rem;
+    column-gap: 10px;
     align-items: center;
+    padding-left: 4px;
+    padding-right: 4px;
   }
   #facilities-table th,
   #facilities-table td { display: block; border-bottom: none; min-width: 0; }
-  #facilities-table thead tr { border-bottom: 2px solid var(--rule); padding-bottom: 4px; margin-bottom: 2px; }
+  #facilities-table thead tr { border-bottom: 2px solid var(--rule); padding-bottom: 6px; margin-bottom: 2px; }
   #facilities-table tbody tr {
     border-bottom: 1px solid var(--paper-rule);
-    padding: 6px 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
   }
   #facilities-table th.fac-name-col,
-  #facilities-table td.fac-name-cell { grid-column: 1; text-align: left; padding: 0; overflow: hidden; }
+  #facilities-table td.fac-name-cell { grid-column: 1; text-align: left; padding: 0 0 0 4px; overflow: hidden; }
   #facilities-table th.fac-pct-col,
   #facilities-table td.fac-pct-cell {
     grid-column: 2;
     text-align: right;
-    padding: 0;
+    padding: 0 4px 0 0;
     min-width: 0;
     white-space: nowrap;
   }
@@ -2118,15 +2154,33 @@ blockquote {
   #facilities-table td.fac-hprd-cell {
     grid-column: 3;
     text-align: right;
-    padding: 0;
+    padding: 0 4px 0 0;
     white-space: nowrap;
   }
   #facilities-table .fac-pct-cell { min-width: 0; }
-  .fac-name-cell .fac-own-sub {
-    display: block;
+  .fac-name-cell .fac-own-sub { display: none; }
+  .fac-mobile-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 6px;
+    margin-top: 4px;
     font-size: 0.72rem;
+    line-height: 1.3;
     color: var(--ink-muted);
-    margin-top: 2px;
+    font-weight: 400;
+  }
+  .fac-mobile-county { color: var(--ink-muted); }
+  .fac-mobile-own {
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+  }
+  .fac-mobile-meta .fac-mobile-own::before {
+    content: '\00b7';
+    margin: 0 5px 0 0;
+    color: var(--ink-muted);
     font-weight: 400;
   }
   .fac-pct-cell .fac-pct-sub { display: none; }
@@ -2245,12 +2299,12 @@ blockquote {
 <nav class="report-mobile-jump" aria-label="Report sections">
   <div class="report-mobile-jump-scroll">
     <a href="#definitions" class="report-mobile-jump-link">Why</a>
-    <a href="#weekend" class="report-mobile-jump-link">Weekend</a>
+    <a href="#weekend" class="report-mobile-jump-link">Weekday vs. weekend</a>
     <a href="#provider-compliance" class="report-mobile-jump-link">Homes</a>
     <a href="#ownership" class="report-mobile-jump-link">Ownership</a>
     <a href="#geography" class="report-mobile-jump-link">Geography</a>
     <a href="#statute-sensitivity" class="report-mobile-jump-link">NY law</a>
-    <a href="#methodology" class="report-mobile-jump-link">Methods</a>
+    <a href="#methodology" class="report-mobile-jump-link">Methods &amp; sources</a>
   </div>
   <p class="report-mobile-jump-current" id="report-mobile-jump-current" aria-live="polite">Why this matters</p>
   <div class="report-mobile-jump-progress" aria-hidden="true"><span class="report-mobile-jump-progress-fill"></span></div>
@@ -2261,12 +2315,12 @@ blockquote {
   <p class="report-nav-title">On this page</p>
   <ul>
       <li><a href="#definitions">Why this matters</a></li>
-      <li><a href="#weekend">Weekend</a></li>
+      <li><a href="#weekend">Weekday vs. weekend</a></li>
       <li><a href="#provider-compliance">Provider compliance</a></li>
       <li><a href="#ownership">Ownership</a></li>
       <li><a href="#geography">Geography</a></li>
       <li><a href="#statute-sensitivity">NY staffing law</a></li>
-      <li><a href="#methodology">Methods</a></li>
+      <li><a href="#methodology">Methods &amp; sources</a></li>
   </ul>
 </nav>
 
@@ -2383,18 +2437,13 @@ blockquote {
   <section id="provider-compliance" aria-labelledby="provider-compliance-heading">
     <span class="section-label">03 · Provider compliance</span>
     <h2 id="provider-compliance-heading">Some homes are below minimum almost every day; others rarely</h2>
-    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-provider-days">Provider-day bands</a><a class="methods-jump-link" href="#method-facilities">Facility table</a></span></p>
-    <p id="provider-days-below-lead">At <strong>3.50</strong> HPRD, some homes were below minimum almost every day; others rarely. Each bar is the share of <strong>596</strong> nursing homes in that <strong>day-below band</strong> (100% of days, 90–99%, and so on).</p>
-    <div class="chart-wrap" role="figure" aria-labelledby="provider-days-below-chart-title" id="provider-days-below">
-      <div class="chart-title" id="provider-days-below-chart-title">Nursing homes by share of days below <span data-hprd-label>3.50</span> HPRD · NY · 2025</div>
-      <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="providerDaysBelowChart" aria-label="Horizontal bar chart: percent of nursing homes by share of facility-days below minimum"></canvas></div>
-      <p class="chart-note" id="provider-days-below-note">Each bar is a band (e.g. below minimum on 100% of reported days vs. 90–99% of days).</p>
-    </div>
+    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-facilities">Facility table</a><a class="methods-jump-link" href="#method-provider-days">Provider-day bands</a></span></p>
+    <p id="provider-days-below-lead">At <strong>3.50</strong> HPRD, some homes were below minimum almost every day; others rarely.</p>
 
     <div class="provider-compliance-table">
       <div class="facilities-explorer-header">
         <h3 id="facilities-heading">NY nursing homes · daily staffing compliance</h3>
-        <p class="facilities-explorer-lead">Search, filter, and sort all <strong>596</strong> homes against the report&rsquo;s <strong>3.50 HPRD</strong> minimum.</p>
+        <p class="facilities-explorer-lead">Search, filter, and sort all <strong>596</strong> homes against the state&rsquo;s <strong>3.50 HPRD</strong> minimum.</p>
       </div>
       <div class="facilities-explorer" id="facilities-explorer">
         <div class="facilities-toolbar-card">
@@ -2403,11 +2452,11 @@ blockquote {
             <span class="fac-filter-label">Search</span>
             <input type="search" id="fac-filter-search" placeholder="Name, city, county…" autocomplete="off">
           </label>
-          <label class="fac-filter">
+          <label class="fac-filter fac-filter--county">
             <span class="fac-filter-label">County</span>
-            <select id="fac-filter-county"><option value="">All counties</option></select>
+            <select id="fac-filter-county"><option value="">All</option></select>
           </label>
-          <label class="fac-filter">
+          <label class="fac-filter fac-filter--ownership">
             <span class="fac-filter-label">Ownership</span>
             <select id="fac-filter-ownership">
               <option value="">All</option>
@@ -2443,7 +2492,7 @@ blockquote {
                 <th scope="col" class="fac-location-col" data-sort="location">County</th>
                 <th scope="col" class="fac-own-col" data-sort="ownership">Ownership</th>
                 <th scope="col" class="fac-pct-col" data-sort="pct" aria-sort="descending">% below</th>
-                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd">2025 HPRD</th>
+                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd"><span class="fac-hprd-head-desktop">2025 HPRD</span><span class="fac-hprd-head-mobile" aria-hidden="true"><span class="fac-hprd-head-line">2025</span><span class="fac-hprd-head-line">HPRD</span></span></th>
               </tr>
             </thead>
             <tbody id="facilities-tbody"></tbody>
@@ -2451,6 +2500,13 @@ blockquote {
         </div>
         <div class="facilities-pagination" id="facilities-pagination"></div>
       </div>
+    </div>
+
+    <p id="provider-days-below-histogram-lead" class="provider-histogram-lead">Each bar is the share of <strong>596</strong> nursing homes in that <strong>day-below band</strong> (100% of days, 90–99%, and so on).</p>
+    <div class="chart-wrap" role="figure" aria-labelledby="provider-days-below-chart-title" id="provider-days-below">
+      <div class="chart-title" id="provider-days-below-chart-title">Nursing homes by share of days below <span data-hprd-label>3.50</span> HPRD · NY · 2025</div>
+      <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="providerDaysBelowChart" aria-label="Horizontal bar chart: percent of nursing homes by share of facility-days below minimum"></canvas></div>
+      <p class="chart-note" id="provider-days-below-note">Each bar is a band (e.g. below minimum on 100% of reported days vs. 90–99% of days).</p>
     </div>
   </section>
 
@@ -2601,12 +2657,12 @@ blockquote {
       </div>
 
       <div class="methodology-sub" id="method-facilities">
-        <h3>Facility-level table</h3>
+        <h3>Facility table</h3>
         <p>Each row is one nursing home (CCN) with 2025 facility-day count, mean HPRD, and a precomputed below-minimum curve for thresholds 2.50–5.50 HPRD. Sorting and filters run in your browser; changing the HPRD toggle swaps the curve for each home—no live download on each click.</p>
       </div>
 
       <div class="methodology-sub" id="method-provider-days">
-        <h3>Provider compliance</h3>
+        <h3>Provider-day bands</h3>
         <p>For each home, compute the share of its 2025 facility-days (census &gt; 0) with total nursing HPRD strictly below the active threshold. Sort homes into bands: <strong>100%</strong> of days below, <strong>90–99%</strong>, <strong>75–89%</strong>, and so on. Bars show the <strong>percent of nursing homes</strong> in each band (596 in this report). Same facility curves as the table; recomputed when the HPRD toggle changes.</p>
       </div>
 
@@ -3450,13 +3506,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
       var displayName = escapeHtml(formatProviderDisplayName(r.name));
 
-      if (mobile && loc) displayName += ' (' + escapeHtml(loc) + ')';
-
       var nameInner =
-
           '<a class="fac-name-link" href="' + providerHref(r.ccn) + '" target="_blank" rel="noopener">' + displayName + '</a>' +
-
-          (mobile ? '<span class="fac-own-sub">' + escapeHtml(own) + '</span>' : '');
+          (mobile && (loc || own)
+            ? '<span class="fac-mobile-meta">' +
+                (loc ? '<span class="fac-mobile-county">' + escapeHtml(loc) + '</span>' : '') +
+                (own ? '<span class="fac-mobile-own">' + escapeHtml(own) + '</span>' : '') +
+              '</span>'
+            : '');
 
       return (
 
@@ -3622,7 +3679,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
     var sorted = Object.keys(counties).sort();
 
-    sel.innerHTML = '<option value="">All counties</option>' +
+    sel.innerHTML = '<option value="">All</option>' +
 
       sorted.map(function (c) {
 
@@ -4839,12 +4896,16 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
         fmtInt(never) + ' homes never fell below at ' + Number(threshold).toFixed(2) + ' HPRD.';
     }
     var lead = document.getElementById('provider-days-below-lead');
+    var histLead = document.getElementById('provider-days-below-histogram-lead');
     if (lead && dist.facility_count) {
       var t = Number(threshold);
       var tLabel = isFinite(t) ? t.toFixed(2) : String(threshold);
       lead.innerHTML =
-        'At <strong>' + tLabel + '</strong> HPRD, some homes were below minimum almost every day; others rarely. Each bar is the share of <strong>' +
-        fmtInt(dist.facility_count) + '</strong> nursing homes in that <strong>day-below band</strong> (100% of days, 90\u201399%, and so on).';
+        'At <strong>' + tLabel + '</strong> HPRD, some homes were below minimum almost every day; others rarely.';
+    }
+    if (histLead && dist.facility_count) {
+      histLead.innerHTML =
+        'Each bar is the share of <strong>' + fmtInt(dist.facility_count) + '</strong> nursing homes in that <strong>day-below band</strong> (100% of days, 90\u201399%, and so on).';
     }
   }
 

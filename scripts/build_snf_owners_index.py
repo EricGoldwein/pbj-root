@@ -28,12 +28,25 @@ from ownership.owner_profile import (  # noqa: E402
 
 OWNERSHIP_DIR = REPO / "ownership"
 DB_PATH = OWNERSHIP_DIR / "snf_owners_lookup.sqlite"
+DB_BUILD_PATH = OWNERSHIP_DIR / "snf_owners_lookup.build.sqlite"
 ORG_INDEX_PATH = OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
 CCN_INDEX_PATH = OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
 STATE_TOP_OWNERS_PATH = OWNERSHIP_DIR / "state_top_owners.json.gz"
 STATE_OWNER_INDEX_PATH = OWNERSHIP_DIR / "state_owner_index.json.gz"
 TABLE = "snf_owners"
 CHUNK = 100_000
+
+
+def _write_gzip_json(path: Path, data: Any) -> None:
+    """Atomic gzip JSON write (avoids Windows lock/Errno 22 on in-place open)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    try:
+        with gzip.open(tmp, "wt", encoding="utf-8") as f:
+            json.dump(data, f, separators=(",", ":"))
+        tmp.replace(path)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _write_org_keys(org_map: dict[str, str], row: pd.Series) -> None:
@@ -66,15 +79,52 @@ def _write_ccn_key(
         ccn_map[ccn] = {"pac": pac, "method": method or ""}
 
 
-def build() -> None:
+def promote_build_db() -> bool:
+    """Replace live SQLite with the sidecar build. Returns False when live DB is locked (e.g. app.py)."""
+    if not DB_BUILD_PATH.is_file():
+        print(f"[build_snf_owners_index] No build DB at {DB_BUILD_PATH.name}")
+        return False
+    try:
+        if DB_PATH.is_file():
+            DB_PATH.unlink()
+        DB_BUILD_PATH.replace(DB_PATH)
+        print(f"[build_snf_owners_index] Promoted {DB_BUILD_PATH.name} -> {DB_PATH.name}")
+        return True
+    except PermissionError:
+        print(
+            f"[build_snf_owners_index] Live DB locked; kept {DB_BUILD_PATH.name}. "
+            f"Stop app.py, then run: python scripts/build_snf_owners_index.py --promote-db"
+        )
+        return False
+
+
+def build_derived_indexes(*, db_path: Path | None = None) -> None:
+    """Gzip state indexes + search catalog from an existing SQLite owners DB."""
+    db = db_path or DB_PATH
+    if not db.is_file():
+        print(f"[build_snf_owners_index] Skip derived indexes: missing {db.name}")
+        sys.exit(1)
+    print(f"[build_snf_owners_index] Derived indexes from {db.name}")
+    build_state_top_owners(db_path=db)
+    build_state_owner_index_lists(db_path=db)
+    from ownership.owner_profile import write_public_owner_search_catalog_file  # noqa: E402
+
+    n_ct = write_public_owner_search_catalog_file()
+    print(f"[build_snf_owners_index] ct_owner_search_catalog: {n_ct:,} rows")
+    from ownership.owner_indexability import refresh_owner_indexability_cache  # noqa: E402
+
+    refresh_owner_indexability_cache()
+
+
+def build_sqlite_from_csv(*, out_path: Path) -> None:
     csv_path = snf_owners_csv_path()
     if not csv_path or not csv_path.is_file():
         print(f"[build_snf_owners_index] No SNF owners CSV found under {OWNERSHIP_DIR}")
         sys.exit(1)
 
-    print(f"[build_snf_owners_index] Source: {csv_path.name}")
-    if DB_PATH.is_file():
-        DB_PATH.unlink()
+    print(f"[build_snf_owners_index] Source: {csv_path.name} -> {out_path.name}")
+    if out_path.is_file():
+        out_path.unlink()
     ORG_INDEX_PATH.unlink(missing_ok=True)
     CCN_INDEX_PATH.unlink(missing_ok=True)
 
@@ -84,7 +134,7 @@ def build() -> None:
         print("[build_snf_owners_index] Missing enrollment PAC column in CSV")
         sys.exit(1)
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(out_path)
     org_map: dict[str, str] = {}
     ccn_map: dict[str, dict[str, str]] = {}
     seen_enrollment_pacs: set[str] = set()
@@ -124,22 +174,19 @@ def build() -> None:
         json.dump(ccn_map, f, separators=(",", ":"))
 
     print(
-        f"[build_snf_owners_index] Done: {DB_PATH.name} ({DB_PATH.stat().st_size // 1024 // 1024} MB), "
+        f"[build_snf_owners_index] Done: {out_path.name} ({out_path.stat().st_size // 1024 // 1024} MB), "
         f"{len(org_map):,} org keys -> {ORG_INDEX_PATH.name}, "
         f"{len(ccn_map):,} CCN keys -> {CCN_INDEX_PATH.name}"
     )
-    build_state_top_owners()
-    build_state_owner_index_lists()
-    from ownership.owner_profile import write_public_owner_search_catalog_file  # noqa: E402
-
-    n_ct = write_public_owner_search_catalog_file()
-    print(f"[build_snf_owners_index] ct_owner_search_catalog: {n_ct:,} rows")
-    from ownership.owner_indexability import refresh_owner_indexability_cache  # noqa: E402
-
-    refresh_owner_indexability_cache()
 
 
-def build_state_top_owners() -> None:
+def build() -> None:
+    build_sqlite_from_csv(out_path=DB_BUILD_PATH)
+    build_derived_indexes(db_path=DB_BUILD_PATH)
+    promote_build_db()
+
+
+def build_state_top_owners(*, db_path: Path | None = None) -> None:
     """Precompute per-state top owner/control orgs (avoids full SQLite scan on each state page)."""
     from ownership.owner_profile import (  # noqa: E402
         OWNER_PAC_COL,
@@ -155,7 +202,8 @@ def build_state_top_owners() -> None:
         normalize_associate_id,
     )
 
-    if not DB_PATH.is_file():
+    db = db_path or DB_PATH
+    if not db.is_file():
         print("[build_snf_owners_index] Skip state_top_owners: no SQLite DB")
         return
 
@@ -171,7 +219,7 @@ def build_state_top_owners() -> None:
     by_state: dict[str, dict[str, set[str]]] = {}
     meta: dict[str, dict[str, Any]] = {}
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
         cols = [r[1] for r in conn.execute(f'PRAGMA table_info("{TABLE}")')]
@@ -223,16 +271,15 @@ def build_state_top_owners() -> None:
         rows.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))
         out[st] = rows[:8]
 
-    with gzip.open(STATE_TOP_OWNERS_PATH, "wt", encoding="utf-8") as f:
-        json.dump(out, f, separators=(",", ":"))
+    _write_gzip_json(STATE_TOP_OWNERS_PATH, out)
 
     ct = len(out.get("CT") or [])
     print(f"[build_snf_owners_index] state_top_owners: {len(out)} states, CT has {ct} rows -> {STATE_TOP_OWNERS_PATH.name}")
 
 
-def build_state_owner_index_lists() -> None:
-    """Full owner/control org lists for CT + NY index pages (/owners/ct, /owners/ny)."""
-    from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES  # noqa: E402
+def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
+    """Full owner/control org lists for state index pages (NY/CT public; FL draft)."""
+    from ownership.state_owner_index import STATE_OWNER_INDEX_STATES  # noqa: E402
     from ownership.owner_profile import (  # noqa: E402
         OWNER_PAC_COL,
         _ccn_to_state_from_search_index,
@@ -247,7 +294,8 @@ def build_state_owner_index_lists() -> None:
         normalize_associate_id,
     )
 
-    if not DB_PATH.is_file():
+    db = db_path or DB_PATH
+    if not db.is_file():
         print("[build_snf_owners_index] Skip state_owner_index: no SQLite DB")
         return
 
@@ -260,10 +308,10 @@ def build_state_owner_index_lists() -> None:
     )
 
     owner_link_buckets: dict[str, dict[str, set[str]]] = {}
-    by_state: dict[str, dict[str, set[str]]] = {st: {} for st in OWNERSHIP_PUBLIC_STATES}
+    by_state: dict[str, dict[str, set[str]]] = {st: {} for st in STATE_OWNER_INDEX_STATES}
     meta: dict[str, dict[str, Any]] = {}
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     try:
         cols = [r[1] for r in conn.execute(f'PRAGMA table_info("{TABLE}")')]
@@ -281,7 +329,7 @@ def build_state_owner_index_lists() -> None:
                 continue
             ccn_norm = _norm_ccn_key(ccn)
             fac_st = ccn_state.get(ccn_norm) or ""
-            if fac_st not in OWNERSHIP_PUBLIC_STATES:
+            if fac_st not in STATE_OWNER_INDEX_STATES:
                 continue
             ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
             if len(ow_pac) != 10:
@@ -298,7 +346,7 @@ def build_state_owner_index_lists() -> None:
         conn.close()
 
     out: dict[str, list[dict[str, Any]]] = {}
-    for st in sorted(OWNERSHIP_PUBLIC_STATES):
+    for st in sorted(STATE_OWNER_INDEX_STATES):
         owners = by_state.get(st) or {}
         rows: list[dict[str, Any]] = []
         for pac, ccns in owners.items():
@@ -316,15 +364,19 @@ def build_state_owner_index_lists() -> None:
         rows.sort(key=lambda x: (-int(x.get("facility_count") or 0), str(x.get("name") or "")))
         out[st] = rows
 
-    with gzip.open(STATE_OWNER_INDEX_PATH, "wt", encoding="utf-8") as f:
-        json.dump(out, f, separators=(",", ":"))
+    _write_gzip_json(STATE_OWNER_INDEX_PATH, out)
 
-    ny_n = len(out.get("NY") or [])
-    ct_n = len(out.get("CT") or [])
-    print(
-        f"[build_snf_owners_index] state_owner_index: NY {ny_n:,}, CT {ct_n:,} -> {STATE_OWNER_INDEX_PATH.name}"
+    counts = ", ".join(
+        f"{st} {len(out.get(st) or []):,}" for st in sorted(STATE_OWNER_INDEX_STATES)
     )
+    print(f"[build_snf_owners_index] state_owner_index: {counts} -> {STATE_OWNER_INDEX_PATH.name}")
 
 
 if __name__ == "__main__":
-    build()
+    if "--index-only" in sys.argv:
+        build_derived_indexes()
+    elif "--promote-db" in sys.argv:
+        if not promote_build_db():
+            sys.exit(1)
+    else:
+        build()

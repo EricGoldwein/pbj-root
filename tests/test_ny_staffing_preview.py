@@ -32,12 +32,15 @@ class NyStaffingPreviewTest(unittest.TestCase):
         out = inject_ny_staffing_report_preview(html, preview_path)
         self.assertIn('noindex, nofollow', out)
         self.assertIn('class="ny-staffing-preview-banner"', out)
+        self.assertIn('ny-staffing-preview-chrome', out)
         self.assertIn(
             'Pre-publication preview: Shared ahead of Monday\u2019s public release. '
             'Data and wording may still be updated.',
             out,
         )
         self.assertIn('position: sticky', out)
+        self.assertIn('0.9rem * 1.35', out)
+        self.assertNotIn(':root {\n  --ny-preview-banner-offset: calc(0.65rem * 2 + 1.35em', out)
 
     def test_custom_token_from_env(self):
         prev = os.environ.get('NY_STAFFING_REPORT_PREVIEW_TOKEN')

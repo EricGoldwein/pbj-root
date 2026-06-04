@@ -2286,8 +2286,12 @@ button.owner-flag:hover {
   .owner-facilities-table th.owner-col-role {
     width: 5.25rem;
     min-width: 5.25rem;
-    text-align: right;
+    text-align: center;
     white-space: nowrap;
+  }
+
+  .owner-facilities-table td.owner-role-cell {
+    text-align: center;
   }
 
   .owner-facilities-table .owner-col-flags {
@@ -2314,9 +2318,10 @@ button.owner-flag:hover {
   }
 
   .owner-role-pct-stack {
-    align-items: flex-end;
-    text-align: right;
+    align-items: center;
+    text-align: center;
     gap: 0.04rem;
+    width: 100%;
   }
 
   .owner-role-pct-btn,
@@ -2352,11 +2357,17 @@ button.owner-flag:hover {
     overflow-wrap: break-word;
   }
 
-  a.owner-facility-primary,
-  button.owner-role-pct-btn {
+  a.owner-facility-primary {
     min-height: 1.35rem;
     display: inline-flex;
     align-items: center;
+  }
+
+  button.owner-role-pct-btn {
+    display: inline;
+    min-height: 0;
+    vertical-align: baseline;
+    text-align: center;
   }
 }
 
@@ -3472,7 +3483,20 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   border: 0;
 }
 
-/* State ownership index (/owners/ny, /owners/ct) */
+/* State ownership index (/owners/ny, /owners/ct; draft /owners/fl|nj|id) */
+.owners-state-draft-banner {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde68a;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .owners-state-index {
   --owners-periwinkle: #a5b4fc;
   --owners-periwinkle-soft: rgba(129, 140, 248, 0.12);

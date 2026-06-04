@@ -585,8 +585,9 @@ body.pbj-insights-report-page .nav-toggle span {
     border-bottom: none;
     background: transparent;
   }
+  body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .report-nav,
   body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .report-nav {
-    top: calc(4.5rem + var(--ny-preview-banner-offset, 52px));
+    top: var(--ny-preview-banner-offset, calc(4.5rem + 0.65rem * 2 + 0.9rem * 1.35 + 1px));
   }
   .report-nav-title {
     font-size: 10.5px;
@@ -1302,21 +1303,9 @@ tr.slice-row-metro td {
   border-top: 1px solid var(--paper-rule);
 }
 tr.slice-row-child td:first-child {
-  padding-left: 1.35rem;
+  padding-left: 1rem;
   color: var(--ink-soft);
   font-size: 0.9rem;
-}
-tr.slice-row-child td:first-child::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 8px;
-  margin-left: -14px;
-  border-radius: 1px;
-  background: var(--accent-blue-light);
-  border: 1px solid var(--accent-blue);
-  vertical-align: middle;
 }
 tr.slice-row-state td:first-child {
   color: var(--ink-soft);
@@ -1561,12 +1550,48 @@ tr.slice-row-state td:first-child {
   }
 }
 
-/* Weekend cards */
+/* Weekend / weekday breakdown (combined) */
 .weekend-table-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
   margin: 22px 0;
+}
+.jump-label-short { display: none; }
+.wt-card--combined .wt-breakdown-head,
+.wt-card--combined .wt-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) repeat(3, minmax(0, 1fr));
+  gap: 6px 10px;
+  align-items: center;
+}
+.wt-card--combined .wt-breakdown-head {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--paper-rule);
+}
+.wt-card--combined .wt-breakdown-head span:not(.wt-breakdown-head-label) {
+  text-align: right;
+}
+.wt-card--combined .wt-row-label {
+  font-size: 0.86rem;
+  line-height: 1.3;
+  min-width: 0;
+}
+.wt-card--combined .wt-stat {
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.wt-card--combined .wt-count {
+  font-size: 0.64rem;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 .wt-card {
   background: #fff;
@@ -1949,7 +1974,10 @@ a.statute-ref-link::after {
   font-size: 0.94rem;
   color: var(--ink-soft);
   line-height: 1.55;
-  max-width: 42rem;
+  max-width: none;
+}
+.statute-sensitivity .statute-compliance-ref {
+  margin-top: 1rem;
 }
 .explainer-dialog-body p {
   margin-bottom: 0.75em;
@@ -2214,12 +2242,36 @@ a.statute-ref-link::after {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
+  body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .report-mobile-jump,
   body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .report-mobile-jump {
-    top: calc(3.75rem + var(--ny-preview-banner-offset, 52px));
+    top: var(--ny-preview-banner-offset, calc(3.75rem + 0.65rem * 2 + 0.85rem * 1.35 * 2 + 1px));
+  }
+  body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .ny-staffing-preview-chrome .navbar {
+    position: relative !important;
+    top: auto !important;
+    margin-top: 0 !important;
   }
   .report-mobile-jump-scroll { display: none; }
-  .report-mobile-jump-current { display: block; }
-  .report-mobile-jump-progress { height: 4px; }
+  .report-mobile-jump-current { display: none !important; }
+  .report-mobile-jump {
+    padding: 0;
+    border-bottom: none;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .report-mobile-jump-progress {
+    height: 3px;
+    border-radius: 0;
+    background: rgba(99, 102, 241, 0.22);
+  }
+  .report-mobile-jump-progress-fill {
+    background: #4f46e5;
+    box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.35);
+    min-width: 4px;
+  }
+  .jump-label-long { display: none; }
+  .jump-label-short { display: inline; }
 
   /* Facility search toolbar — search | county+ownership+reset */
   .facilities-explorer-header { margin: 20px 0 10px; }
@@ -2357,7 +2409,8 @@ a.statute-ref-link::after {
   #ownership-slices-table tbody tr:last-child { border-bottom: none; }
   #ownership-slices-table tbody td {
     display: block;
-    border: none;
+    border: none !important;
+    background: transparent !important;
     padding: 0;
     text-align: left;
   }
@@ -2379,26 +2432,36 @@ a.statute-ref-link::after {
   }
   #ownership-slices-table tbody td:nth-child(2),
   #ownership-slices-table tbody td:nth-child(3) { display: none; }
-  #ownership-slices-table tr.slice-row-primary td {
-    background: transparent;
-    border-top: 1px solid var(--paper-rule);
-    border-bottom: 1px solid var(--paper-rule);
-  }
   #ownership-slices-table tr.slice-row-primary td:first-child {
+    font-size: 0.94rem;
+    font-weight: 700;
     color: var(--ink);
+  }
+  #ownership-slices-table tr.slice-row-metro td:first-child {
+    font-size: 0.9rem;
     font-weight: 600;
-    align-self: center;
+    color: var(--ink);
+    padding-top: 6px;
   }
+  #ownership-slices-table tr.slice-row-metro td {
+    border: none !important;
+  }
+  #ownership-slices-table tr.slice-row-state td:first-child,
   #ownership-slices-table tr.slice-row-child td:first-child {
-    padding-left: 12px;
-  }
-  #ownership-slices-table tr.slice-row-child td:first-child::before {
-    display: none;
-    content: none;
+    padding-left: 0;
+    font-size: 0.82rem;
+    color: var(--ink-soft);
   }
 
   .weekend-table-grid,
   .appendix-grid { grid-template-columns: 1fr; }
+  .wt-card--combined .wt-breakdown-head,
+  .wt-card--combined .wt-row {
+    grid-template-columns: minmax(0, 1fr) repeat(3, minmax(3.1rem, 0.88fr));
+    gap: 4px 6px;
+  }
+  .wt-card--combined .wt-row-label { font-size: 0.8rem; }
+  .wt-card--combined .wt-count { font-size: 0.56rem; }
   .callout-stat { flex-direction: column; gap: 8px; }
   .appendix { margin: 0 -16px; padding-left: 16px; padding-right: 16px; }
   th, td { padding: 8px 8px; }
@@ -2463,7 +2526,7 @@ a.statute-ref-link::after {
     <a href="#ownership" class="report-mobile-jump-link">Ownership</a>
     <a href="#geography" class="report-mobile-jump-link">Geography</a>
     <a href="#statute-sensitivity" class="report-mobile-jump-link">Compliance by position</a>
-    <a href="#methodology" class="report-mobile-jump-link">Methods &amp; sources</a>
+    <a href="#methodology" class="report-mobile-jump-link"><span class="jump-label-long">Methods &amp; sources</span><span class="jump-label-short">Methodology</span></a>
   </div>
   <p class="report-mobile-jump-current is-empty" id="report-mobile-jump-current" aria-live="polite"></p>
   <div class="report-mobile-jump-progress" aria-hidden="true"><span class="report-mobile-jump-progress-fill"></span></div>
@@ -2490,11 +2553,12 @@ a.statute-ref-link::after {
     <span class="section-label">01 · Why this matters</span>
     <h2 id="definitions-heading">Nearly half of NY facility-days fell below 3.50 HPRD</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-metric">HPRD metric</a><a class="methods-jump-link" href="#method-threshold">Threshold</a></span></p>
-    <p class="report-scope-note">New York state law requires nursing homes to provide at least <strong>3.50 hours of care per resident per day</strong>. Though staffing is often summarized as a quarterly average, this analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to compare daily staffing levels against that standard. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
+    <p class="report-scope-note">New York state law requires nursing homes to provide at least <strong>3.50 hours of care per resident per day</strong>. Though staffing is often summarized as a quarterly average, this analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to <strong>compare daily staffing levels against that standard</strong>.</p>
+    <p class="report-scope-note">In 2025, New York nursing homes fell below the <strong>3.50 HPRD</strong> minimum on more than <strong>100,000 facility-days — 47% of all daily records analyzed</strong>. Weekend shortfalls were more common, with <strong>77% of Saturday and Sunday records falling below the threshold</strong>. Results also varied substantially by region and ownership type. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
     <p class="definitions-disclaimer" role="note"><strong>Note:</strong> Descriptive PBJ analysis only—not an endorsement for or against the NY minimum.</p>
     <div class="report-modal-actions" role="group" aria-label="Reference">
       <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule"><span class="modal-trigger-label-long">NY Minimum Staffing Rule</span><span class="modal-trigger-label-short">NY Minimum Staffing Rule</span></button>
-      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="Methods summary"><span class="modal-trigger-label-long">Methods</span><span class="modal-trigger-label-short">Methods</span></button>
+      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="Methods summary"><span class="modal-trigger-label-long">Methods</span><span class="modal-trigger-label-short">Methodology</span></button>
     </div>
 
     <dialog id="chart-definitions" class="pbj-statute-dialog pbj-definitions-dialog" aria-labelledby="chart-definitions-title">
@@ -2551,44 +2615,39 @@ a.statute-ref-link::after {
       <p class="chart-note">Midweek low: Wednesday 29.7%. Weekend high: Sunday 79.2%. Within-week spread about 49.5 pp.</p>
     </div>
     <h3>Weekend vs. weekday breakdown</h3>
-    <p>Saturday–Sunday and Monday–Friday shares at the HPRD threshold shown above (default <strong>3.50</strong>).</p>
+    <p>All days, weekdays (Mon–Fri), and weekends (Sat–Sun) at the HPRD threshold above (default <strong>3.50</strong>).</p>
     <div class="weekend-table-grid">
-      <div class="wt-card">
-        <div class="wt-card-label wt-card-label-sat"><span class="wt-card-label-long">Weekends (Sat–Sun) · below <span data-hprd-label>3.50</span> HPRD</span><span class="wt-card-label-short">Weekends (Sat–Sun) · % facility-days &lt; <span data-hprd-label>3.50</span> HPRD</span></div>
-        <div class="wt-row wt-row-primary" data-weekend-row data-weekend-curve="weekend">
-          <span>NY statewide</span>
-          <span class="wt-stat"><span class="wt-pct pct-high">76.9%</span><span class="wt-count">47,347 / 61,586</span></span>
+      <div class="wt-card wt-card--combined">
+        <div class="wt-card-label">% facility-days below <span data-hprd-label>3.50</span> HPRD · 2025</div>
+        <div class="wt-breakdown-head" aria-hidden="true">
+          <span class="wt-breakdown-head-label"></span>
+          <span>All days</span>
+          <span>Weekdays</span>
+          <span>Weekends</span>
         </div>
-        <div class="wt-row" data-weekend-row data-weekend-curve="weekend_ny_for_profit">
-          <span>NY statewide · for-profit</span>
-          <span class="wt-stat"><span class="wt-pct pct-high">85.6%</span><span class="wt-count">36,536 / 42,666</span></span>
+        <div class="wt-row wt-row-primary" data-wt-row data-all-curve="all_ny" data-weekend-curve="weekend">
+          <span class="wt-row-label">NY statewide</span>
+          <span class="wt-stat wt-stat--all"><span class="wt-pct pct-mid">47.1%</span><span class="wt-count">101,779/216,134</span></span>
+          <span class="wt-stat wt-stat--wkday"><span class="wt-pct">35.2%</span><span class="wt-count">54,432/154,548</span></span>
+          <span class="wt-stat wt-stat--wkend"><span class="wt-pct pct-high">76.9%</span><span class="wt-count">47,347/61,586</span></span>
         </div>
-        <div class="wt-row" data-weekend-row data-weekend-curve="weekend_nyc">
-          <span>NYC (5 boroughs)</span>
-          <span class="wt-stat"><span class="wt-pct pct-high">81.7%</span><span class="wt-count">14,061 / 17,082</span></span>
+        <div class="wt-row" data-wt-row data-all-curve="ny_for_profit" data-weekend-curve="weekend_ny_for_profit">
+          <span class="wt-row-label">NY statewide · for-profit</span>
+          <span class="wt-stat wt-stat--all"><span class="wt-pct pct-high">55.1%</span><span class="wt-count">82,571/149,737</span></span>
+          <span class="wt-stat wt-stat--wkday"><span class="wt-pct pct-mid">43.0%</span><span class="wt-count">46,035/107,071</span></span>
+          <span class="wt-stat wt-stat--wkend"><span class="wt-pct pct-high">85.6%</span><span class="wt-count">36,536/42,666</span></span>
         </div>
-        <div class="wt-row" data-weekend-row data-weekend-curve="weekend_nyc_for_profit">
-          <span>NYC · for-profit</span>
-          <span class="wt-stat"><span class="wt-pct pct-high">84.5%</span><span class="wt-count">11,354 / 13,442</span></span>
+        <div class="wt-row" data-wt-row data-all-curve="nyc" data-weekend-curve="weekend_nyc">
+          <span class="wt-row-label">NYC (5 boroughs)</span>
+          <span class="wt-stat wt-stat--all"><span class="wt-pct pct-high">56.0%</span><span class="wt-count">33,809/60,389</span></span>
+          <span class="wt-stat wt-stat--wkday"><span class="wt-pct pct-mid">45.6%</span><span class="wt-count">19,748/43,307</span></span>
+          <span class="wt-stat wt-stat--wkend"><span class="wt-pct pct-high">81.7%</span><span class="wt-count">14,061/17,082</span></span>
         </div>
-      </div>
-      <div class="wt-card">
-        <div class="wt-card-label wt-card-label-wkday"><span class="wt-card-label-long">Weekdays (Mon–Fri) · below <span data-hprd-label>3.50</span> HPRD</span><span class="wt-card-label-short">Weekdays (Mon–Fri) · % facility-days &lt; <span data-hprd-label>3.50</span> HPRD</span></div>
-        <div class="wt-row wt-row-primary" data-wkday-row data-all-curve="all_ny" data-weekend-curve="weekend">
-          <span>NY statewide</span>
-          <span class="wt-stat"><span class="wt-pct">35.2%</span><span class="wt-count">54,432 / 154,548</span></span>
-        </div>
-        <div class="wt-row" data-wkday-row data-all-curve="ny_for_profit" data-weekend-curve="weekend_ny_for_profit">
-          <span>NY statewide · for-profit</span>
-          <span class="wt-stat"><span class="wt-pct pct-mid">43.0%</span><span class="wt-count">46,035 / 107,071</span></span>
-        </div>
-        <div class="wt-row" data-wkday-row data-all-curve="nyc" data-weekend-curve="weekend_nyc">
-          <span>NYC (5 boroughs)</span>
-          <span class="wt-stat"><span class="wt-pct pct-mid">45.6%</span><span class="wt-count">19,748 / 43,307</span></span>
-        </div>
-        <div class="wt-row" data-wkday-row data-all-curve="nyc_for_profit" data-weekend-curve="weekend_nyc_for_profit">
-          <span>NYC · for-profit</span>
-          <span class="wt-stat"><span class="wt-pct pct-mid">50.3%</span><span class="wt-count">16,981 / 33,730</span></span>
+        <div class="wt-row" data-wt-row data-all-curve="nyc_for_profit" data-weekend-curve="weekend_nyc_for_profit">
+          <span class="wt-row-label">NYC · for-profit</span>
+          <span class="wt-stat wt-stat--all"><span class="wt-pct pct-high">60.1%</span><span class="wt-count">28,335/47,172</span></span>
+          <span class="wt-stat wt-stat--wkday"><span class="wt-pct pct-mid">50.3%</span><span class="wt-count">16,981/33,730</span></span>
+          <span class="wt-stat wt-stat--wkend"><span class="wt-pct pct-high">84.5%</span><span class="wt-count">11,354/13,442</span></span>
         </div>
       </div>
     </div>
@@ -2662,7 +2721,7 @@ a.statute-ref-link::after {
       </div>
     </div>
 
-    <p id="provider-days-below-histogram-lead" class="provider-histogram-lead">Each bar is the share of <strong>596</strong> nursing homes in that <strong>day-below band</strong> (100% of days, 90–99%, and so on).</p>
+    <p id="provider-days-below-histogram-lead" class="provider-histogram-lead">Each bar is the share of <strong>596</strong> nursing homes in that day-below band (100% of days, 90–99%, and so on).</p>
     <div class="chart-wrap" role="figure" aria-labelledby="provider-days-below-chart-title" id="provider-days-below">
       <div class="chart-title" id="provider-days-below-chart-title">Nursing homes by share of days below <span data-hprd-label>3.50</span> HPRD · NY · 2025</div>
       <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="providerDaysBelowChart" aria-label="Horizontal bar chart: percent of nursing homes by share of facility-days below minimum"></canvas></div>
@@ -2728,10 +2787,6 @@ a.statute-ref-link::after {
     <h2 id="statute-sensitivity-heading">Compliance by position</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-role-floors">Compliance by position (AND rule)</a></span></p>
     <p>New York&rsquo;s minimum staffing rule has three parts: <strong>3.50</strong> total HPRD, including at least <strong>2.20</strong> CNA HPRD and at least <strong>1.10</strong> licensed nurse HPRD. A facility must meet all three thresholds to be fully compliant. This analysis maps federal PBJ staffing data to those thresholds for informational purposes only; it is not a formal NY DOH enforcement determination. Under the state rule, civil penalties of up to <strong>$2,000 per day</strong> may apply for each day in a quarter that a facility is out of compliance.</p>
-    <div class="statute-compliance-ref">
-      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule">NY Minimum Staffing Rule</button>
-      <span class="statute-compliance-ref-note">Official NY Department of Health rule text, quarterly compliance process, and penalty guidance.</span>
-    </div>
     <div class="appendix-grid statute-sensitivity-grid" role="group" aria-label="NY compliance by position statistics">
         <div class="appendix-card">
           <div class="appendix-card-stat">
@@ -2747,6 +2802,10 @@ a.statute-ref-link::after {
           </div>
           <div class="appendix-card-label">Below 2.20 CNA HPRD — most common single miss</div>
         </div>
+    </div>
+    <div class="statute-compliance-ref">
+      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule">NY Minimum Staffing Rule</button>
+      <span class="statute-compliance-ref-note">Official NY Department of Health rule text, quarterly compliance process, and penalty guidance.</span>
     </div>
   </section>
 
@@ -2786,7 +2845,7 @@ a.statute-ref-link::after {
 
       <div class="methodology-sub" id="method-statewide-ratio">
         <h3>Statewide average HPRD (3.58)</h3>
-        <p>The lead paragraph cites <strong>3.58 total HPRD</strong> as New York&rsquo;s <strong>2025 statewide nursing-home average</strong> from PBJ320 state quarterly staffing (mean of NY quarters in calendar 2025, same role sum as above). That figure is an <strong>aggregate state average</strong>, not the facility-day-weighted mean of the 596 homes in the searchable table below.</p>
+        <p>New York&rsquo;s statewide nursing home ratio for 2025 is <strong>3.58 HPRD</strong> (an aggregate ratio).</p>
       </div>
 
       <div class="methodology-sub" id="method-metric">
@@ -3723,7 +3782,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
           : 'Showing ' + (n ? start + 1 : 0) + '–' + end + ' of ' + n + ' (filtered from ' + total + ')') +
 
-        ' · ' + state.pageSize + ' per page · sorted by % below · threshold ' + thresh + ' HPRD';
+        ' · sorted by % below · threshold ' + thresh + ' HPRD';
 
     }
 
@@ -4212,6 +4271,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
   var chartStore = {};
   var calendarMode = 'month';
   var currentThreshold = 3.5;
+  var applyingThreshold = false;
 
   function reportUi() {
     return global.PBJ_REPORT_UI || {};
@@ -4419,10 +4479,23 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     return 0;
   }
 
-  function updateWeekdayCards(threshold) {
+  function fillWtStatCell(statEl, pct, below, fd) {
+    if (!statEl) return;
+    var pctEl = statEl.querySelector('.wt-pct');
+    var countEl = statEl.querySelector('.wt-count');
+    if (pctEl) {
+      pctEl.textContent = fmtPct(pct) + '%';
+      pctEl.className = 'wt-pct ' + pctClass(pct);
+    }
+    if (countEl) {
+      countEl.textContent = fmtInt(below) + '/' + fmtInt(fd);
+    }
+  }
+
+  function updateWtBreakdownRows(threshold) {
     var I = modeData();
     if (!I || !I.curves) return;
-    document.querySelectorAll('[data-wkday-row]').forEach(function (row) {
+    document.querySelectorAll('[data-wt-row]').forEach(function (row) {
       var allKey = row.getAttribute('data-all-curve');
       var wkKey = row.getAttribute('data-weekend-curve');
       if (!allKey || !wkKey) return;
@@ -4433,15 +4506,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       var wkdayFd = Math.max(0, allFd - wkFd);
       var wkdayBelow = Math.max(0, (allRow.below || 0) - (wkRow.below || 0));
       var wkdayPct = wkdayFd > 0 ? (100 * wkdayBelow / wkdayFd) : 0;
-      var pctEl = row.querySelector('.wt-pct');
-      var countEl = row.querySelector('.wt-count');
-      if (pctEl) {
-        pctEl.textContent = fmtPct(wkdayPct) + '%';
-        pctEl.className = 'wt-pct ' + pctClass(wkdayPct);
-      }
-      if (countEl) {
-        countEl.textContent = fmtInt(wkdayBelow) + ' / ' + fmtInt(wkdayFd);
-      }
+      fillWtStatCell(row.querySelector('.wt-stat--all'), allRow.pct_below, allRow.below, allFd);
+      fillWtStatCell(row.querySelector('.wt-stat--wkday'), wkdayPct, wkdayBelow, wkdayFd);
+      fillWtStatCell(row.querySelector('.wt-stat--wkend'), wkRow.pct_below, wkRow.below, wkFd);
     });
   }
 
@@ -4474,15 +4541,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
         ? ((C && C.weekend) || '#dc2626')
         : ((C && C.weekday) || '#2563eb');
     });
-    chart.options.plugins.tooltip.callbacks.label = function (item) {
-      return [fmtPct(item.raw) + '% below min', tooltips[item.dataIndex]];
-    };
+    chart.$pbjDowTooltips = tooltips;
     var yMax = dynamicAxisMax(pcts, {
       padding: 6,
       minSpan: 12,
       ceiling: 100,
     });
     var yMin = Math.max(0, Math.min((spec && spec.yMin) || 0, Math.min.apply(null, pcts) - 4));
+    if (yMin >= yMax) yMin = Math.max(0, yMax - 12);
     chart.options.scales.y.max = yMax;
     chart.options.scales.y.min = yMin;
     chart.update('none');
@@ -4503,9 +4569,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     var countyFills = getBlueBarColors(pcts);
     chart.data.datasets[0].backgroundColor = countyFills;
     chart.data.datasets[0].borderColor = getBlueBarBorders(countyFills);
-    chart.options.plugins.tooltip.callbacks.label = function (item) {
-      return [fmtPct(item.raw) + '% below min', tooltips[item.dataIndex]];
-    };
+    chart.$pbjCountyTooltips = tooltips;
     var countySpec = null;
     var charts = global.PBJ_REPORT_CHARTS || [];
     for (var ci = 0; ci < charts.length; ci++) {
@@ -4544,13 +4608,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     chart.options.scales.y.min = bounds.yMin;
     chart.options.scales.y.max = bounds.yMax;
     chart.options.scales.x.ticks.maxTicksLimit = d.xMaxTicks || 12;
-    if (d.tooltips && d.tooltips.length) {
-      chart.options.plugins.tooltip.callbacks.label = function (item) {
-        var lines = [fmtPct(item.raw) + '% below min'];
-        if (d.tooltips[item.dataIndex]) lines.push(d.tooltips[item.dataIndex]);
-        return lines;
-      };
-    }
+    chart.$pbjCalTooltips = d.tooltips || [];
     chart.update('none');
   }
 
@@ -4573,9 +4631,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     chart.data.labels = monthData && monthData.labels ? monthData.labels : months;
     chart.data.datasets[0].data = pcts;
     chart.data.datasets[0].pointRadius = 4;
-    chart.options.plugins.tooltip.callbacks.label = function (item) {
-      return [fmtPct(item.raw) + '% below min', tooltips[item.dataIndex]];
-    };
+    chart.$pbjCalTooltips = tooltips;
     var calBounds = calendarYBounds(pcts, { padding: 4, minSpan: 8, ceiling: 100 });
     chart.options.scales.y.max = calBounds.yMax;
     chart.options.scales.y.min = calBounds.yMin;
@@ -4601,15 +4657,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     chart.data.labels = weekData && weekData.labels ? weekData.labels : weeks;
     chart.data.datasets[0].data = pcts;
     chart.data.datasets[0].pointRadius = weeks.length > 20 ? 2 : 4;
-    chart.options.plugins.tooltip.callbacks.label = function (item) {
-      var lines = [fmtPct(item.raw) + '% below min'];
-      if (weekData && weekData.tooltips && weekData.tooltips[item.dataIndex]) {
-        lines.push(weekData.tooltips[item.dataIndex]);
-      } else if (tooltips[item.dataIndex]) {
-        lines.push(tooltips[item.dataIndex]);
-      }
-      return lines;
-    };
+    chart.$pbjCalTooltips = tooltips;
     var calBounds = calendarYBounds(pcts, { padding: 4, minSpan: 8, ceiling: 100 });
     chart.options.scales.y.max = calBounds.yMax;
     chart.options.scales.y.min = calBounds.yMin;
@@ -4695,25 +4743,6 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     });
   }
 
-  function updateSaturdayCards(threshold) {
-    var I = modeData();
-    if (!I || !I.curves) return;
-    document.querySelectorAll('[data-weekend-row]').forEach(function (row) {
-      var curveKey = row.getAttribute('data-weekend-curve');
-      if (!curveKey) return;
-      var cardFd = weekendFacilityDays(I, curveKey);
-      var curveRow = lookupCurve(I.curves[curveKey], threshold);
-      var pctEl = row.querySelector('.wt-pct');
-      var countEl = row.querySelector('.wt-count');
-      if (pctEl) {
-        pctEl.textContent = fmtPct(curveRow.pct_below) + '%';
-        pctEl.className = 'wt-pct ' + pctClass(curveRow.pct_below);
-      }
-      if (countEl) {
-        countEl.textContent = fmtInt(curveRow.below) + ' / ' + fmtInt(cardFd);
-      }
-    });
-  }
 
   function updateThresholdLabels(threshold) {
     var t = fmtThresh(threshold);
@@ -4733,6 +4762,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
   }
 
   function applyThreshold(threshold, opts) {
+    if (applyingThreshold) return;
+    applyingThreshold = true;
+    try {
     var scope = (opts && opts.scope) || sliderScope();
     currentThreshold = roundThresh(threshold);
     global.PBJ320Threshold.currentThreshold = currentThreshold;
@@ -4755,8 +4787,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     updateCalendarChart(currentThreshold);
     updateOwnershipChart(currentThreshold);
     updateOwnershipTable(currentThreshold);
-    updateSaturdayCards(currentThreshold);
-    updateWeekdayCards(currentThreshold);
+    updateWtBreakdownRows(currentThreshold);
     updateProviderDaysBelowChart(currentThreshold);
     updateThresholdLabels(currentThreshold);
     updateDowChartTitle(currentThreshold);
@@ -4771,6 +4802,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     var slider = document.getElementById('hprd-slider');
     if (slider && Number(slider.value) !== currentThreshold) {
       slider.value = String(currentThreshold);
+    }
+    } finally {
+      applyingThreshold = false;
     }
   }
 
@@ -4954,9 +4988,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
             callbacks: {
               label: function (item) {
                 var lines = [item.raw + '% below min'];
-                if (spec.tooltips && spec.tooltips[item.dataIndex]) {
-                  lines.push(spec.tooltips[item.dataIndex]);
-                }
+                var tips = item.chart.$pbjDowTooltips;
+                if (tips && tips[item.dataIndex]) lines.push(tips[item.dataIndex]);
                 return lines;
               },
             },
@@ -4973,6 +5006,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
         },
       }),
     });
+    chart.$pbjDowTooltips = spec.tooltips || [];
     if (global.PBJ320Threshold) global.PBJ320Threshold.registerChart(spec.id, chart);
   }
 
@@ -5151,9 +5185,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
             callbacks: {
               label: function (item) {
                 var lines = [item.raw + '% below min'];
-                if (spec.tooltips && spec.tooltips[item.dataIndex]) {
-                  lines.push(spec.tooltips[item.dataIndex]);
-                }
+                var tips = item.chart.$pbjCountyTooltips;
+                if (tips && tips[item.dataIndex]) lines.push(tips[item.dataIndex]);
                 return lines;
               },
             },
@@ -5170,6 +5203,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
         },
       }),
     });
+    chart.$pbjCountyTooltips = spec.tooltips || [];
     if (global.PBJ320Threshold) global.PBJ320Threshold.registerChart(spec.id, chart);
   }
 
@@ -5261,9 +5295,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
             callbacks: {
               label: function (item) {
                 var lines = [item.raw + '% below min'];
-                if (d.tooltips && d.tooltips[item.dataIndex]) {
-                  lines.push(d.tooltips[item.dataIndex]);
-                }
+                var tips = item.chart.$pbjCalTooltips;
+                if (tips && tips[item.dataIndex]) lines.push(tips[item.dataIndex]);
                 return lines;
               },
             },
@@ -5313,6 +5346,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       },
       options: lineOptionsWithBounds(initial),
     });
+    calendarChartInstance.$pbjCalTooltips = (initial && initial.tooltips) || [];
 
     if (global.PBJ320Threshold) {
       global.PBJ320Threshold.registerChart(spec.id, calendarChartInstance);
@@ -5382,20 +5416,26 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     return null;
   }
 
+  var ownershipLayoutBound = false;
+
+  function setOwnershipLayoutPadding(chart, mobile) {
+    if (!chart || !chart.options) return;
+    var layout = chart.options.layout;
+    if (!layout || !layout.padding) return;
+    var pad = layout.padding;
+    pad.left = mobile ? 2 : 4;
+    pad.right = mobile ? 8 : 12;
+    pad.top = 4;
+    pad.bottom = 8;
+  }
+
   function refreshOwnershipChartLayout() {
     var chart = ownershipChartRef();
     var spec = ownershipChartSpec();
     if (!chart || !spec) return;
     var mobile = isMobileReport();
     chart.data.labels = ownershipAxisLabels(spec);
-    chart.options.layout = chart.options.layout || {};
-    chart.options.layout.padding = {
-      left: mobile ? 2 : 4,
-      right: mobile ? 8 : 12,
-      top: 4,
-      bottom: 8,
-    };
-    chart.resize();
+    setOwnershipLayoutPadding(chart, mobile);
     chart.update('none');
   }
 
@@ -5409,6 +5449,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
   function initOwnershipGrouped(spec) {
     var ctx = document.getElementById(spec.id);
     if (!ctx || !global.Chart || !spec.datasets || spec.datasets.length < 2) return;
+    if (ownershipChartInstance) return;
     var allDs = spec.datasets[0];
     var satDs = spec.datasets[1];
     var n = (spec.labels || []).length;
@@ -5492,12 +5533,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
             ticks: {
               autoSkip: false,
               padding: mobile ? 4 : 8,
-              font: function (ctx) {
-                var f = ownershipTickFont(tiers[ctx.index] || 'state');
-                var size = mobile ? Math.max(8, (f.size || 10) - 1.5) : f.size;
-                var weight = f.weight;
-                if (mobile && tiers[ctx.index] === 'primary') weight = '600';
-                return { size: size, weight: weight };
+              font: {
+                size: mobile ? 9 : 10,
+                weight: '500',
               },
             },
           },
@@ -5509,11 +5547,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       global.PBJ320Threshold.registerChart(spec.id, ownershipChartInstance);
       global.PBJ320Threshold.applyThreshold(global.PBJ320Threshold.currentThreshold);
     }
-    var ownResizeTimer;
-    global.addEventListener('resize', function () {
-      clearTimeout(ownResizeTimer);
-      ownResizeTimer = setTimeout(refreshOwnershipChartLayout, 160);
-    });
+    if (!ownershipLayoutBound) {
+      ownershipLayoutBound = true;
+      var ownResizeTimer;
+      global.addEventListener('resize', function () {
+        clearTimeout(ownResizeTimer);
+        ownResizeTimer = setTimeout(refreshOwnershipChartLayout, 160);
+      });
+    }
   }
 
   function initReportSectionNav() {

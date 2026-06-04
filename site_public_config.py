@@ -131,41 +131,84 @@ def is_ny_staffing_report_preview_path(path: str) -> bool:
 _NY_PREVIEW_ROBOTS_META = '<meta name="robots" content="noindex, nofollow">'
 _NY_PREVIEW_BANNER_STYLES = """
 <style id="ny-staffing-preview-banner-styles">
-:root { --ny-preview-banner-offset: 2.85rem; }
-.ny-staffing-preview-banner {
+body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) {
+  margin: 0;
+  --ny-preview-banner-offset: calc(0.65rem * 2 + 0.9rem * 1.35 + 1px);
+}
+.ny-staffing-preview-chrome {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
   position: sticky;
   top: 0;
   z-index: 10001;
+  isolation: isolate;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+}
+.ny-staffing-preview-banner {
+  position: relative;
+  top: auto;
+  flex: 0 0 auto;
   width: 100%;
   margin: 0;
   padding: 0.65rem 1rem;
-  border-bottom: 1px solid #c7d2fe;
+  border-bottom: none;
   background: #eef2ff;
   color: #312e81;
   font-family: "Source Serif 4", Georgia, serif;
   font-size: 0.9rem;
-  line-height: 1.45;
+  line-height: 1.35;
   text-align: center;
-  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 0 #c7d2fe;
+  box-sizing: border-box;
 }
-body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .navbar {
-  top: var(--ny-preview-banner-offset);
-  z-index: 10000;
+body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .ny-staffing-preview-chrome .navbar {
+  position: relative !important;
+  top: auto !important;
+  flex: 0 0 auto;
+  margin: 0 !important;
+  z-index: 0;
+  border-top: none !important;
 }
 @media (prefers-color-scheme: dark) {
   .ny-staffing-preview-banner {
     border-bottom-color: rgba(129, 140, 248, 0.45);
     background: #1e1b4b;
     color: #e0e7ff;
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   }
 }
 @media (max-width: 640px) {
-  :root { --ny-preview-banner-offset: 3.1rem; }
-  .ny-staffing-preview-banner { font-size: 0.85rem; padding: 0.6rem 0.75rem; }
+  .ny-staffing-preview-banner {
+    font-size: 0.85rem;
+    padding: 0.55rem 0.65rem;
+    line-height: 1.3;
+  }
 }
 </style>
+<script>
+(function () {
+  function syncPreviewChromeHeight() {
+    var el = document.querySelector('.ny-staffing-preview-chrome');
+    if (!el) return;
+    document.documentElement.style.setProperty('--ny-preview-banner-offset', el.offsetHeight + 'px');
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncPreviewChromeHeight);
+  } else {
+    syncPreviewChromeHeight();
+  }
+  window.addEventListener('resize', syncPreviewChromeHeight, { passive: true });
+  window.addEventListener('scroll', function () {
+    requestAnimationFrame(syncPreviewChromeHeight);
+  }, { passive: true });
+})();
+</script>
 """
+_NY_PREVIEW_CHROME_OPEN = '<div class="ny-staffing-preview-chrome">'
+_NAVBAR_OPEN_RE = re.compile(r'(<nav\s+class=["\']navbar["\'])', re.IGNORECASE)
+_NAVBAR_CLOSE_RE = re.compile(r'(</nav>)', re.IGNORECASE)
 _NY_PREVIEW_BANNER_TEXT = (
     'Pre-publication preview: Shared ahead of Monday\u2019s public release. '
     'Data and wording may still be updated.'
@@ -190,7 +233,20 @@ def inject_ny_staffing_report_preview(html: str, preview_path: str) -> str:
     if 'ny-staffing-preview-banner-styles' not in html:
         html = html.replace('</head>', _NY_PREVIEW_BANNER_STYLES + '</head>', 1)
     if 'class="ny-staffing-preview-banner"' not in html:
-        html = _BODY_OPEN_RE.sub(r'\1\n' + _NY_PREVIEW_BANNER_HTML, html, count=1)
+        if _NAVBAR_OPEN_RE.search(html):
+            html = _NAVBAR_OPEN_RE.sub(
+                _NY_PREVIEW_CHROME_OPEN + _NY_PREVIEW_BANNER_HTML + r'\1',
+                html,
+                count=1,
+            )
+            if 'ny-staffing-preview-chrome' in html:
+                html = _NAVBAR_CLOSE_RE.sub(r'\1</div>', html, count=1)
+        else:
+            html = _BODY_OPEN_RE.sub(
+                r'\1\n' + _NY_PREVIEW_CHROME_OPEN + _NY_PREVIEW_BANNER_HTML,
+                html,
+                count=1,
+            )
     origin = PUBLIC_SITE_ORIGIN.rstrip('/')
     path = (preview_path or ny_staffing_report_preview_path()).rstrip('/') or ny_staffing_report_preview_path()
     canonical = f'{origin}{path}'

@@ -1905,7 +1905,7 @@ button.statute-ref-link {
   border-color: var(--pbj-brand);
   color: var(--pbj-brand-dark);
 }
-.statute-ref-link::after {
+a.statute-ref-link::after {
   content: '\2197';
   font-size: 11px;
   line-height: 1;
@@ -2006,38 +2006,47 @@ button.statute-ref-link {
   border: none;
   border-radius: 8px;
   padding: 0;
-  max-width: min(640px, 92vw);
-  width: min(640px, 92vw);
-  max-height: min(90vh, 640px);
+  max-width: min(640px, calc(100vw - 24px));
+  width: min(640px, calc(100vw - 24px));
+  max-height: min(88dvh, 88vh, 720px);
   margin: auto;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  overflow: hidden;
   box-shadow: 0 12px 40px rgba(15, 23, 42, 0.28);
 }
 .pbj-statute-dialog:not([open]) {
   display: none;
 }
 .pbj-statute-dialog::backdrop { background: rgba(15, 23, 42, 0.5); }
-.pbj-statute-dialog-inner { padding: 0; }
+.pbj-statute-dialog-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: min(88dvh, 88vh, 720px);
+  overflow: hidden;
+  padding: 0;
+}
 .pbj-statute-dialog-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 14px 18px;
   border-bottom: 1px solid var(--paper-rule);
   background: var(--paper-warm);
 }
 .pbj-statute-dialog-header h3 {
   font-family: 'Source Serif 4', Georgia, serif;
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
   line-height: 1.35;
+  padding-right: 8px;
 }
 .pbj-statute-dialog-close {
+  flex-shrink: 0;
   background: transparent;
   border: none;
   font-size: 1.5rem;
@@ -2047,13 +2056,25 @@ button.statute-ref-link {
   padding: 0 4px;
 }
 .pbj-statute-dialog-body {
-  padding: 16px 18px 18px;
-  font-size: 0.95rem;
-  line-height: 1.65;
-  max-height: min(70vh, 520px);
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 14px 18px 16px;
+  font-size: 0.94rem;
+  line-height: 1.58;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
-.pbj-statute-dialog-body p { margin: 0 0 0.85rem; }
+.pbj-statute-dialog-body p { margin: 0 0 0.75rem; }
+.pbj-definitions-dialog .explainer-dialog-body p {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin-bottom: 0.6rem;
+}
+.pbj-definitions-dialog .methods-dialog-footer {
+  margin-top: 10px !important;
+  padding-top: 10px;
+}
 .statute-modal-penalties {
   background: var(--accent-warn-light);
   border-left: 3px solid var(--accent-warn);
@@ -2329,6 +2350,7 @@ button.statute-ref-link {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 4px 12px;
+    align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid var(--paper-rule);
   }
@@ -2348,15 +2370,32 @@ button.statute-ref-link {
   }
   #ownership-slices-table tbody td.pct-cell {
     grid-column: 2;
-    grid-row: 1 / span 2;
+    grid-row: 1;
     align-self: center;
     text-align: right;
     font-size: 1rem;
+    line-height: 1.2;
     white-space: nowrap;
   }
   #ownership-slices-table tbody td:nth-child(2),
   #ownership-slices-table tbody td:nth-child(3) { display: none; }
-  #ownership-slices-table tr.slice-row-child td:first-child::before { margin-left: 0; }
+  #ownership-slices-table tr.slice-row-primary td {
+    background: transparent;
+    border-top: 1px solid var(--paper-rule);
+    border-bottom: 1px solid var(--paper-rule);
+  }
+  #ownership-slices-table tr.slice-row-primary td:first-child {
+    color: var(--ink);
+    font-weight: 600;
+    align-self: center;
+  }
+  #ownership-slices-table tr.slice-row-child td:first-child {
+    padding-left: 12px;
+  }
+  #ownership-slices-table tr.slice-row-child td:first-child::before {
+    display: none;
+    content: none;
+  }
 
   .weekend-table-grid,
   .appendix-grid { grid-template-columns: 1fr; }
@@ -2454,7 +2493,7 @@ button.statute-ref-link {
     <p class="report-scope-note">New York state law requires nursing homes to provide at least <strong>3.50 hours of care per resident per day</strong>. Though staffing is often summarized as a quarterly average, this analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to compare daily staffing levels against that standard. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
     <p class="definitions-disclaimer" role="note"><strong>Note:</strong> Descriptive PBJ analysis only—not an endorsement for or against the NY minimum.</p>
     <div class="report-modal-actions" role="group" aria-label="Reference">
-      <button type="button" class="statute-modal-trigger statute-ref-link" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule"><span class="modal-trigger-label-long">NY Minimum Staffing Rule</span><span class="modal-trigger-label-short">NY Minimum Staffing Rule</span></button>
+      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule"><span class="modal-trigger-label-long">NY Minimum Staffing Rule</span><span class="modal-trigger-label-short">NY Minimum Staffing Rule</span></button>
       <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="Methods summary"><span class="modal-trigger-label-long">Methods</span><span class="modal-trigger-label-short">Methods</span></button>
     </div>
 
@@ -2465,11 +2504,11 @@ button.statute-ref-link {
           <button type="button" class="pbj-statute-dialog-close" data-statute-modal-close aria-label="Close">×</button>
         </header>
         <div class="pbj-statute-dialog-body explainer-dialog-body">
-      <p><strong>Data:</strong> CMS PBJ daily nurse staffing, calendar year 2025 (CY2025Q1–Q4), New York nursing homes only. Unit of analysis: <strong>facility-day</strong> (one home, one calendar day, census &gt; 0).</p>
-      <p><strong>HPRD:</strong> Total nursing hours (RN, LPN, CNA, med aide, trainee, RN/LPN admin &amp; DON) ÷ census. <strong>Below minimum</strong> = strictly under the active threshold (default <strong>3.50</strong> HPRD; MACPAC cites <strong>3.56</strong> for NY total nursing, including <strong>0.06 HPRD</strong> of a registered professional nurse to serve as the DON on a full-time basis).</p>
-      <p><strong>NY compliance by position (informative):</strong> State rule also requires <strong>2.20</strong> CNA HPRD and <strong>1.10</strong> licensed nurse HPRD on the same day (all three = fully compliant). Mapped from PBJ; not NY DOH enforcement.</p>
-      <p><strong>Interactive charts:</strong> The HPRD toggle recalculates day-of-week, provider, ownership, and county views from precomputed curves. Role-floor counts and holiday callouts are fixed at build time.</p>
-      <p><strong>Limitations:</strong> Self-reported PBJ data; daily totals only (not shift-level); descriptive—not legal advice or a violation finding.</p>
+      <p><strong>Data:</strong> CMS PBJ daily staffing, CY2025 (NY only). Unit: <strong>facility-day</strong> (one home, one calendar day, census &gt; 0).</p>
+      <p><strong>HPRD:</strong> Total nursing hours (all PBJ nursing roles) ÷ census. <strong>Below minimum</strong> = strictly under the threshold (default <strong>3.50</strong>; MACPAC <strong>3.56</strong> for NY total nursing, incl. <strong>0.06</strong> full-time DON RN).</p>
+      <p><strong>NY role floors (informative):</strong> Also <strong>2.20</strong> CNA and <strong>1.10</strong> licensed nurse HPRD the same day; PBJ mapping only—not DOH enforcement.</p>
+      <p><strong>Charts:</strong> HPRD slider recalculates day-of-week, provider, ownership, and county curves; role floors and holidays are build-time.</p>
+      <p><strong>Limits:</strong> Self-reported PBJ; daily totals only; descriptive—not legal advice or a violation finding.</p>
       <p class="methods-dialog-footer"><a class="methods-jump-link" href="#methodology">Full methodology &amp; sources</a></p>
         </div>
       </div>
@@ -2478,7 +2517,7 @@ button.statute-ref-link {
     <dialog id="ny-doh-statute" class="pbj-statute-dialog" aria-labelledby="ny-doh-statute-title">
       <div class="pbj-statute-dialog-inner">
         <header class="pbj-statute-dialog-header">
-          <h3 id="ny-doh-statute-title">Nursing Home Minimum Staffing</h3>
+          <h3 id="ny-doh-statute-title">New York Nursing Home Minimum Staffing</h3>
           <button type="button" class="pbj-statute-dialog-close" data-statute-modal-close aria-label="Close">×</button>
         </header>
         <div class="pbj-statute-dialog-body">
@@ -2690,7 +2729,7 @@ button.statute-ref-link {
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-role-floors">Compliance by position (AND rule)</a></span></p>
     <p>New York&rsquo;s minimum staffing rule has three parts: <strong>3.50</strong> total HPRD, including at least <strong>2.20</strong> CNA HPRD and at least <strong>1.10</strong> licensed nurse HPRD. A facility must meet all three thresholds to be fully compliant. This analysis maps federal PBJ staffing data to those thresholds for informational purposes only; it is not a formal NY DOH enforcement determination. Under the state rule, civil penalties of up to <strong>$2,000 per day</strong> may apply for each day in a quarter that a facility is out of compliance.</p>
     <div class="statute-compliance-ref">
-      <button type="button" class="statute-modal-trigger statute-ref-link" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule">NY Minimum Staffing Rule</button>
+      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule">NY Minimum Staffing Rule</button>
       <span class="statute-compliance-ref-note">Official NY Department of Health rule text, quarterly compliance process, and penalty guidance.</span>
     </div>
     <div class="appendix-grid statute-sensitivity-grid" role="group" aria-label="NY compliance by position statistics">
@@ -5456,7 +5495,9 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
               font: function (ctx) {
                 var f = ownershipTickFont(tiers[ctx.index] || 'state');
                 var size = mobile ? Math.max(8, (f.size || 10) - 1.5) : f.size;
-                return { size: size, weight: f.weight };
+                var weight = f.weight;
+                if (mobile && tiers[ctx.index] === 'primary') weight = '600';
+                return { size: size, weight: weight };
               },
             },
           },
@@ -5579,6 +5620,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       var dlg = id ? document.getElementById(id) : null;
       if (!dlg) return;
       btn.addEventListener('click', function () {
+        var body = dlg.querySelector('.pbj-statute-dialog-body');
+        if (body) body.scrollTop = 0;
         if (typeof dlg.showModal === 'function') dlg.showModal();
         else dlg.setAttribute('open', '');
       });

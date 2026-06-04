@@ -491,13 +491,13 @@ body.pbj-insights-report-page .nav-toggle span {
 .report-nav li + li::before {
   content: '';
   width: 1px;
-  height: 12px;
-  margin: 0 10px;
+  height: 14px;
+  margin: 0 14px;
   background: rgba(15, 23, 42, 0.14);
   flex-shrink: 0;
 }
 .report-nav a {
-  font-size: 10px;
+  font-size: 11px;
   line-height: 1.35;
   display: inline-block;
   color: var(--pbj-brand-ink);
@@ -1196,6 +1196,25 @@ tr.slice-row-state td:first-child {
   line-height: 1.5;
   max-width: 42rem;
 }
+.facilities-provider-spread {
+  margin-top: 44px;
+  padding-top: 32px;
+  border-top: 1px solid var(--rule);
+}
+.facilities-provider-spread h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 10px;
+  line-height: 1.25;
+}
+.facilities-provider-spread > p {
+  margin: 0 0 18px;
+  font-size: 0.92rem;
+  color: var(--ink-muted);
+  line-height: 1.5;
+  max-width: 42rem;
+}
 .facilities-explorer {
   margin: 0 0 8px;
 }
@@ -1294,22 +1313,9 @@ tr.slice-row-state td:first-child {
 }
 #facilities-table th.fac-name-col,
 #facilities-table th.fac-location-col,
-#facilities-table th.fac-own-col,
 #facilities-table td.fac-name-cell,
-#facilities-table td.fac-location-cell,
-#facilities-table td.fac-own-cell {
+#facilities-table td.fac-location-cell {
   text-align: left;
-}
-#facilities-table th.fac-pct-col,
-#facilities-table th.fac-hprd-col,
-#facilities-table td.fac-pct-cell,
-#facilities-table td.fac-hprd-cell {
-  text-align: right;
-}
-.provider-compliance-table {
-  margin-top: 40px;
-  padding-top: 28px;
-  border-top: 1px solid var(--rule);
 }
 #facilities-table th[data-sort] {
   cursor: pointer;
@@ -1833,14 +1839,7 @@ body.pbj-insights-press-page .navbar .nav-brand .pbj-brand-320 {
   color: #818cf8;
 }
 body.pbj-insights-press-page .press-hero {
-  padding: 32px 0 20px;
-}
-body.pbj-insights-press-page #release {
-  padding-top: 16px;
-  padding-bottom: 36px;
-}
-body.pbj-insights-press-page #release + section {
-  padding-top: 40px;
+  padding: 40px 0 44px;
 }
 body.pbj-insights-press-page .press-hero-kicker {
   display: flex;
@@ -1852,17 +1851,13 @@ body.pbj-insights-press-page .press-hero-kicker {
 body.pbj-insights-press-page .press-hero .eyebrow {
   margin-bottom: 0;
 }
-body.pbj-insights-press-page .press-hero .eyebrow-suffix {
-  color: #cbd5e1;
-  font-weight: 500;
-}
 body.pbj-insights-press-page .press-type-label {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #cbd5e1;
+  color: var(--on-dark-muted);
   margin: 0;
 }
 body.pbj-insights-press-page .press-hero h1 {
@@ -1897,13 +1892,12 @@ body.pbj-insights-press-page .press-dateline {
   margin: 0;
 }
 body.pbj-insights-press-page .press-contact-top {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.72rem;
-  letter-spacing: 0.04em;
-  line-height: 1.5;
-  margin: 0 0 18px;
-  padding: 0;
-  border: none;
+  font-family: 'Source Serif 4', Georgia, serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  margin: 0 0 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--paper-rule);
 }
 body.pbj-insights-press-page .press-contact-top a {
   color: var(--pbj-brand-ink);
@@ -1926,14 +1920,8 @@ body.pbj-insights-press-page .press-why {
 body.pbj-insights-press-page .press-why a {
   color: var(--pbj-brand-ink);
 }
-body.pbj-insights-press-page .press-section-title {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.35rem;
-  font-weight: 700;
-  letter-spacing: normal;
-  text-transform: none;
-  color: var(--ink);
-  margin: 28px 0 12px;
+body.pbj-insights-press-page #release .section-label {
+  margin-top: 28px;
 }
 body.pbj-insights-press-page .note-row.press-disclaimer {
   font-size: 0.9rem;
@@ -2051,28 +2039,18 @@ body.pbj-insights-press-page #about-heading {
   font-weight: 700;
   color: var(--ink);
 }
-body.pbj-insights-press-page .press-site-header {
-  position: sticky;
-  top: 0;
-  z-index: 1000;
-}
-body.pbj-insights-press-page .press-site-header .navbar {
-  position: static;
-  top: auto;
-}
-body.pbj-insights-press-page .press-preview-banner {
-  margin: 0;
-  padding: 9px 20px;
+.embargo-banner {
+  background: var(--accent-blue-light);
+  border-bottom: 2px dashed var(--accent-blue);
+  padding: 10px 24px;
   text-align: center;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.68rem;
-  line-height: 1.45;
-  letter-spacing: 0.02em;
-  text-transform: none;
-  color: #1e3a8a;
-  background: #eff6ff;
-  border-bottom: 1px solid #bfdbfe;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent-blue);
 }
+.embargo-banner.is-hidden { display: none; }
 .visually-hidden {
   position: absolute;
   width: 1px;
@@ -2103,13 +2081,13 @@ body.pbj-insights-press-page .press-preview-banner {
 </head>
 <body class="pbj-insights-report-page pbj-insights-press-page">
 <a class="skip-link" href="#main">Skip to main content</a>
-<header class="press-site-header" aria-label="Site header">
-<p class="press-preview-banner" role="note">Preview version: Shared ahead of Monday&rsquo;s public release. Data and wording may change before publication.</p>
+<!-- Remove class is-hidden from .embargo-banner when embargo applies -->
+<p class="embargo-banner is-hidden" role="note">EMBARGOED UNTIL [DATE/TIME]</p>
 <nav class="navbar" aria-label="Main">
   <div class="nav-container">
     <div class="nav-brand">
       <a href="/">
-        <img src="/pbj_favicon.png" alt="" width="32" height="32" decoding="async" fetchpriority="high" style="height:32px;width:32px;margin-right:8px;">
+        <img src="/pbj_favicon.png" alt="" width="32" height="32" decoding="async" fetchpriority="high">
         <span><span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span></span>
       </a>
     </div>
@@ -2125,7 +2103,6 @@ body.pbj-insights-press-page .press-preview-banner {
     </div>
   </div>
 </nav>
-</header>
 <header class="hero press-hero" role="banner">
   <div class="hero-inner press-hero-inner">
     <div class="press-hero-kicker">
@@ -2140,13 +2117,14 @@ body.pbj-insights-press-page .press-preview-banner {
 <main id="main" class="content press-release-body">
 
   <section id="release" aria-labelledby="release-heading">
+    <span class="section-label">For immediate release</span>
     <h2 id="release-heading" class="visually-hidden">Press release body</h2>
 
-    <p class="press-contact-top"><a href="https://www.linkedin.com/in/eric-goldwein/" rel="noopener noreferrer">Eric Goldwein, MPH</a> &middot; <a href="https://wa.me/19298084996" rel="noopener noreferrer">WhatsApp / text</a></p>
+    <p class="press-contact-top">Media contact: <a href="https://www.linkedin.com/in/eric-goldwein/" rel="noopener noreferrer">Eric Goldwein, MPH</a> &middot; <a href="mailto:eric@320insight.com">eric@320insight.com</a> &middot; <a href="https://wa.me/19298084996" rel="noopener noreferrer">(929) 804-4996</a> <span class="press-contact-note">WhatsApp / text</span></p>
 
     <p class="lead"><strong>BROOKLYN, N.Y.</strong> &mdash; PBJ320 analyzed 216,134 daily staffing records from 596 New York nursing homes in 2025 and found that 101,779 facility-days &mdash; <strong>47.1%</strong> &mdash; fell below New York&rsquo;s <strong>3.50 hours per resident day</strong> staffing minimum. On weekends, <strong>76.9%</strong> of facility-days were below that threshold.</p>
 
-    <h2 id="why-heading" class="press-section-title">Why this matters</h2>
+    <span class="section-label">Why this matters</span>
     <p class="press-why">Nursing home staffing is often reported as quarterly or annual averages. This analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data &mdash; one record per nursing home per calendar day &mdash; to describe <strong>day-to-day</strong> variation against New York&rsquo;s <strong>3.50 hours per resident day</strong> minimum.</p>
     <p class="press-why">The headline metric is the <strong>share of facility-days below the minimum</strong>, not a single statewide average. A home can run near or above 3.50 on paper for the year while still logging many days under the line &mdash; especially on weekends. These patterns matter for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public read New York staffing data.</p>
     <p class="press-why">Each <strong>facility-day</strong> is one home on one calendar day with census greater than zero. <strong>Hours per resident day (HPRD)</strong> is nurse staffing hours divided by MDS census; <strong>below minimum</strong> means strictly under 3.50. Charts, county and ownership slices, the 596-home table, NY role-floor mapping, and full <a href="/insights/ny-minimum-staffing#methodology">methodology</a> are in the <a href="/insights/ny-minimum-staffing">interactive report</a>.</p>

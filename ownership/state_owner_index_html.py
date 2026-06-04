@@ -1,4 +1,4 @@
-"""HTML for state ownership index pages (/owners/ny, /owners/ct; draft fl/nj/id)."""
+"""HTML for /owners/ny and /owners/ct state ownership index pages."""
 from __future__ import annotations
 
 import html
@@ -16,7 +16,6 @@ from ownership.state_owner_index import (
     format_index_owner_name,
     list_state_owner_index_rows,
     state_index_layout_meta,
-    state_owner_index_is_draft,
     state_owner_page_context,
 )
 
@@ -40,19 +39,7 @@ _FEC_URL = "https://fec.gov/"
 _LARGEST_PORTFOLIOS_TITLE: dict[str, tuple[str, str]] = {
     "NY": ("Largest NY portfolios", "Largest New York portfolios"),
     "CT": ("Largest CT portfolios", "Largest Connecticut portfolios"),
-    "FL": ("Largest FL portfolios", "Largest Florida portfolios"),
-    "NJ": ("Largest NJ portfolios", "Largest New Jersey portfolios"),
-    "ID": ("Largest ID portfolios", "Largest Idaho portfolios"),
 }
-
-
-def _render_draft_preview_banner(state_name: str) -> str:
-    label = html.escape((state_name or "This state").strip())
-    return (
-        '<p class="owners-state-draft-banner" role="status">'
-        f"<strong>Preview only.</strong> This {label} ownership index is not published on PBJ320 yet."
-        "</p>"
-    )
 
 
 def _render_state_outline_inset(state_code: str, state_name: str) -> str:
@@ -473,13 +460,9 @@ def render_state_owner_index_body(
     index_stats_html = _render_index_stats_strip(page_ctx)
     sources_modal_html = _render_sources_modal()
     method_sources_html = _render_search_card_sources()
-    draft_banner_html = (
-        _render_draft_preview_banner(state_name) if state_owner_index_is_draft(st) else ""
-    )
 
     body = f"""
     <div class="owners-hub owners-state-index" data-state-code="{html.escape(st)}" data-state-slug="{html.escape(state_slug)}" data-state-name="{html.escape(state_name)}">
-      {draft_banner_html}
       {_render_state_outline_inset(st, state_name)}
       <nav class="owners-state-crumb" aria-label="Breadcrumb">
         <a href="/">Home</a><span aria-hidden="true"> / </span>

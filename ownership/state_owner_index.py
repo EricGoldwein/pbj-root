@@ -1,8 +1,7 @@
 """
-State-level CMS ownership index pages (/owners/ny, /owners/ct; draft FL/NJ/ID).
+State-level CMS ownership index pages (/owners/ny, /owners/ct).
 
-Published: NY + CT (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
-Draft indexes: FL, NJ, ID — routable locally, noindex, excluded from hub/sitemap until launch.
+Verified from: ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, state_owner_index.json.gz (build).
 """
 from __future__ import annotations
 
@@ -33,29 +32,11 @@ _LATEST_QUARTER_JSON = _REPO_ROOT / "latest_quarter_data.json"
 _STATE_METRICS_CSV = _REPO_ROOT / "state_quarterly_metrics.csv"
 _PROVIDER_INFO_CSV = _REPO_ROOT / "provider_info_combined_latest.csv"
 
-# Canonical URL slugs (lowercase) for published state index pages (hub + sitemap).
+# Canonical URL slugs (lowercase) for public state index pages.
 PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
     "ny": "NY",
     "ct": "CT",
 }
-
-# Draft state indexes: same UI as NY/CT, not linked from /owners hub or sitemap.
-STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"FL", "NJ", "ID"})
-DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {
-    "fl": "FL",
-    "nj": "NJ",
-    "id": "ID",
-}
-
-# All routable /owners/<slug> state index pages (public + draft).
-STATE_OWNER_INDEX_SLUGS: dict[str, str] = {
-    **PUBLIC_OWNER_INDEX_SLUGS,
-    **DRAFT_OWNER_INDEX_SLUGS,
-}
-
-STATE_OWNER_INDEX_STATES: frozenset[str] = (
-    OWNERSHIP_PUBLIC_STATES | STATE_OWNER_INDEX_DRAFT_STATES
-)
 
 _STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership Search"
 
@@ -101,45 +82,6 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "Connecticut nursing home ownership search",
-    },
-    "FL": {
-        "name": "Florida",
-        "slug": "fl",
-        "state_page_slug": "florida",
-        "h1": state_index_h1("Florida"),
-        "subtitle": state_index_subtitle("Florida"),
-        "title": "Florida Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search Florida nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "Florida nursing home ownership search",
-    },
-    "NJ": {
-        "name": "New Jersey",
-        "slug": "nj",
-        "state_page_slug": "new-jersey",
-        "h1": state_index_h1("New Jersey"),
-        "subtitle": state_index_subtitle("New Jersey"),
-        "title": "New Jersey Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search New Jersey nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "New Jersey nursing home ownership search",
-    },
-    "ID": {
-        "name": "Idaho",
-        "slug": "id",
-        "state_page_slug": "idaho",
-        "h1": state_index_h1("Idaho"),
-        "subtitle": state_index_subtitle("Idaho"),
-        "title": "Idaho Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search Idaho nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "Idaho nursing home ownership search",
     },
 }
 
@@ -198,26 +140,9 @@ def public_owner_index_sitemap_paths() -> list[tuple[str, str, str, str]]:
 
 
 def resolve_public_owner_index_slug(slug: str | None) -> str | None:
-    """Map /owners/<slug> to NY or CT when slug is a published index route."""
+    """Map /owners/<slug> to NY or CT when slug is a public index route."""
     s = (slug or "").strip().lower()
     return PUBLIC_OWNER_INDEX_SLUGS.get(s)
-
-
-def resolve_state_owner_index_slug(slug: str | None) -> str | None:
-    """Map /owners/<slug> to a state code for any published or draft index route."""
-    s = (slug or "").strip().lower()
-    return STATE_OWNER_INDEX_SLUGS.get(s)
-
-
-def state_owner_index_is_draft(state_code: str | None) -> bool:
-    st = (state_code or "").strip().upper()[:2]
-    return st in STATE_OWNER_INDEX_DRAFT_STATES
-
-
-def state_owner_index_enabled_for_state(state_code: str | None) -> bool:
-    """Whether /owners/<slug> index data and search should load for this state."""
-    st = (state_code or "").strip().upper()[:2]
-    return st in STATE_OWNER_INDEX_STATES
 
 
 def state_index_canonical_path(state_code: str) -> str:
@@ -253,7 +178,7 @@ def list_state_owner_index_rows(
 ) -> tuple[list[dict[str, Any]], int]:
     """Rows for state index table; returns (slice, total_count)."""
     st = (state_code or "").strip().upper()[:2]
-    if not state_owner_index_enabled_for_state(st):
+    if st not in OWNERSHIP_PUBLIC_STATES:
         return [], 0
 
     artifact = _load_state_owner_index_artifact()
@@ -282,7 +207,7 @@ def search_state_owner_index(
     from ownership.owner_profile import _norm_org_key, normalize_associate_id
 
     st = (state_code or "").strip().upper()[:2]
-    if not state_owner_index_enabled_for_state(st):
+    if not ownership_public_enabled_for_state(st):
         return []
     q = (query or "").strip()
     if not q:

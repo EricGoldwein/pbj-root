@@ -285,50 +285,6 @@ def _facility_location_short(f: dict[str, Any]) -> str:
     return co or "—"
 
 
-def _facility_filter_search_blob(f: dict[str, Any]) -> str:
-    """Filter tokens: names, city/county, state abbrev + full name (location column may be hidden)."""
-    parts: list[str] = []
-    for key in ("facility_name", "provider_name", "city", "county", "role"):
-        v = str(f.get(key) or "").strip()
-        if v:
-            parts.append(v)
-    st = str(f.get("state") or "").strip().upper()[:2]
-    if st:
-        parts.append(st)
-        meta = STATE_INDEX_META.get(st) or {}
-        name = str(meta.get("name") or "").strip()
-        if name:
-            parts.append(name)
-        for slug_key in ("state_page_slug", "slug"):
-            slug = str(meta.get(slug_key) or "").strip()
-            if slug:
-                parts.append(slug)
-                parts.append(slug.replace("-", " "))
-        idx_slug = next(
-            (s for s, code in PUBLIC_OWNER_INDEX_SLUGS.items() if code == st),
-            "",
-        )
-        if idx_slug:
-            parts.append(idx_slug)
-    loc = _facility_location_short(f)
-    if loc and loc != "—":
-        parts.append(loc)
-    return " ".join(parts).lower()
-
-
-def _facility_filter_state_attr(f: dict[str, Any]) -> str:
-    """Two-letter state for data-state (filter by NY, CT, etc.)."""
-    st = str(f.get("state") or "").strip().upper()[:2]
-    if len(st) == 2:
-        return st
-    loc = _facility_location_short(f)
-    if "," in loc:
-        tail = loc.rsplit(",", 1)[-1].strip().upper()
-        if len(tail) == 2:
-            return tail
-    return ""
-
-
 def _facility_postal_address_parts(f: dict[str, Any]) -> dict[str, str]:
     """Structured mailing address from provider_info when CCN matched."""
     street = _format_place_label(str(f.get("provider_address") or ""))
@@ -448,20 +404,20 @@ def _format_ownership_pct_value(raw: str) -> str:
 
 
 def _format_own_pct_label(value: str) -> str:
-    """Compact stake label for portfolio table/cards, e.g. 97% own."""
+    """Compact CMS ownership stake for mobile cards."""
     s = str(value or "").strip()
     if not s or s == "—":
         return s
     low = s.lower()
-    if "ownership interest" in low or " ownership" in low or low.endswith(" own"):
+    if "ownership interest" in low or " ownership" in low:
         m = re.search(r"([\d.,]+)\s*%", s)
         if m:
             pct = _format_ownership_pct_value(m.group(1))
-            return f"{pct} own" if pct else s
+            return f"{pct} ownership" if pct else s
         return s
     if "%" in s or any(ch.isdigit() for ch in s):
         pct = _format_ownership_pct_value(s)
-        return f"{pct} own" if pct else s
+        return f"{pct} ownership" if pct else s
     return s
 
 
@@ -619,12 +575,18 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
     verified = method == "legal_exact"
     title_block = _facility_mobile_primary_block(f)
     metrics = _facility_mobile_metrics_block(f, verified=verified)
-    search = _facility_filter_search_blob(f)
-    st_attr = _facility_filter_state_attr(f)
-    st_data = f' data-state="{html.escape(st_attr)}"' if st_attr else ""
+    search = " ".join(
+        [
+            str(f.get("facility_name") or ""),
+            str(f.get("provider_name") or ""),
+            str(f.get("state") or ""),
+            str(f.get("county") or ""),
+            str(f.get("role") or ""),
+        ]
+    ).lower()
     return (
         f'<li class="owner-m-card owner-m-card--facility owner-m-card--facility-compact" '
-        f'data-search="{html.escape(search)}"{st_data}>'
+        f'data-search="{html.escape(search)}">'
         f'<div class="owner-m-card__body">{title_block}{metrics}</div></li>'
     )
 
@@ -997,20 +959,6 @@ def _owner_index_back_link_html(profile: dict[str, Any]) -> str:
     )
 
 
-def _owner_profile_brand_href_and_label(profile: dict[str, Any]) -> tuple[str, str]:
-    """PBJ320 Ownership brand → /owners/{ny|ct} for the owner's primary state."""
-    st = _primary_owner_state_code(profile)
-    slug = next(
-        (s for s, code in PUBLIC_OWNER_INDEX_SLUGS.items() if code == st),
-        "",
-    )
-    meta = STATE_INDEX_META.get(st) or {}
-    name = str(meta.get("name") or st or "PBJ320").strip()
-    if slug and st and ownership_public_enabled_for_state(st):
-        return f"/owners/{slug}", f"{name} ownership"
-    return "/", "PBJ320 ownership"
-
-
 def _owner_profile_header_html(
     profile: dict[str, Any],
     *,
@@ -1055,12 +1003,11 @@ def _owner_profile_header_html(
             "</div>"
         )
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
-    brand_href, brand_aria = _owner_profile_brand_href_and_label(profile)
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         {back_html}
         <div class="owner-profile-header-top">
-          <a class="owner-profile-brand" href="{html.escape(brand_href)}" aria-label="{html.escape(brand_aria)}">
+          <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
             <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
             <span class="owner-profile-brand-lockup">
               <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
@@ -1675,7 +1622,7 @@ def _pct_fallback_label(role_raw: str) -> str:
     if "MANAGING EMPLOYEE" in r:
         return "Mgr."
     if "5% OR GREATER" in r or "DIRECT OWNERSHIP" in r:
-        return "≥5% own"
+        return "≥5%"
     return ""
 
 
@@ -1741,11 +1688,17 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
         flags = _facility_flags_cell(f, verified=verified)
         names_html, names_sort = _facility_names_cell(f)
         role_html, role_sort = _role_ownership_cell(f)
-        search = _facility_filter_search_blob(f)
-        st_attr = _facility_filter_state_attr(f)
-        st_data = f' data-state="{html.escape(st_attr)}"' if st_attr else ""
+        search = " ".join(
+            [
+                str(f.get("facility_name") or ""),
+                str(f.get("provider_name") or ""),
+                str(f.get("state") or ""),
+                str(f.get("county") or ""),
+                str(f.get("role") or ""),
+            ]
+        ).lower()
         rows.append(
-            f'<tr data-search="{html.escape(search)}"{st_data}>'
+            f'<tr data-search="{html.escape(search)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
             f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
             f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'

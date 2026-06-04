@@ -307,16 +307,6 @@
     });
   }
 
-  function facilityMatchesFilter(el, q) {
-    if (!q) return true;
-    var blob = (el.getAttribute('data-search') || el.textContent || '').toLowerCase();
-    if (blob.indexOf(q) >= 0) return true;
-    var st = (el.getAttribute('data-state') || '').toLowerCase();
-    if (st && st === q) return true;
-    if (st && q.length >= 3 && st.indexOf(q) === 0) return true;
-    return false;
-  }
-
   function applyFilter() {
     var q = activeFilterQuery().toLowerCase();
     rows.forEach(function (tr) {
@@ -324,10 +314,12 @@
         tr.style.display = '';
         return;
       }
-      tr.style.display = facilityMatchesFilter(tr, q) ? '' : 'none';
+      var blob = tr.getAttribute('data-search') || tr.textContent || '';
+      tr.style.display = blob.toLowerCase().indexOf(q) >= 0 ? '' : 'none';
     });
     mobileCards.forEach(function (li, idx) {
-      var matches = !q || facilityMatchesFilter(li, q);
+      var matches =
+        !q || (li.getAttribute('data-search') || li.textContent || '').toLowerCase().indexOf(q) >= 0;
       if (!matches) {
         li.style.display = 'none';
         return;

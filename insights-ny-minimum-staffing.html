@@ -583,6 +583,7 @@ body.pbj-insights-report-page .nav-toggle span {
     border-bottom: none;
     border-left: 2px solid transparent;
     line-height: 1.4;
+    font-size: 11px;
   }
   .report-nav a:hover {
     border-left-color: rgba(129, 140, 248, 0.45);
@@ -787,30 +788,29 @@ section[hidden],
   margin-bottom: 0;
 }
 .methodology-limits,
-.methodology-sources {
+.methodology-sources,
+.methodology-steps {
   margin: 0;
   padding-left: 1.35em;
   font-size: 0.92rem;
   line-height: 1.55;
   color: var(--ink-soft);
+  font-family: 'Source Serif 4', Georgia, 'Times New Roman', serif;
 }
 .methodology-limits li,
-.methodology-sources li {
-  margin-bottom: 8px;
-}
-.methodology-sources a {
-  color: var(--pbj-brand-ink);
-}
-.methodology-steps {
-  margin: 0 0 16px;
-  padding-left: 1.25rem;
-  line-height: 1.55;
-}
+.methodology-sources li,
 .methodology-steps li {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .methodology-steps li:last-child {
   margin-bottom: 0;
+}
+.methodology-steps {
+  margin-bottom: 16px;
+}
+.methodology-sources a,
+.methodology-steps a {
+  color: var(--pbj-brand-ink);
 }
 .method-dl {
   margin: 0 0 12px;
@@ -1477,9 +1477,9 @@ tr.slice-row-state td:first-child {
   text-align: right;
 }
 .provider-compliance-table {
-  margin-top: 40px;
-  padding-top: 28px;
-  border-top: 1px solid var(--rule);
+  margin-top: 24px;
+  padding-top: 0;
+  border-top: none;
 }
 #facilities-table th[data-sort] {
   cursor: pointer;
@@ -1827,8 +1827,54 @@ blockquote {
   align-items: center;
   margin: 0.35rem 0 1rem;
 }
-.report-modal-actions .statute-modal-trigger {
+.report-modal-actions .statute-modal-trigger,
+.report-modal-actions .statute-ref-link {
   flex: 0 1 auto;
+}
+.statute-ref-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--pbj-brand-ink);
+  font-weight: 500;
+  background: var(--pbj-brand-light);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  border-radius: 4px;
+  padding: 8px 12px;
+  line-height: 1.3;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.statute-ref-link:hover {
+  background: #dbeafe;
+  border-color: var(--pbj-brand);
+  color: var(--pbj-brand-dark);
+}
+.statute-ref-link::after {
+  content: '\2197';
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0.88;
+}
+.statute-compliance-ref {
+  margin: 1.15rem 0 1.4rem;
+  padding: 12px 14px 11px;
+  background: var(--paper-warm);
+  border: 1px solid var(--paper-rule);
+  border-left: 3px solid var(--pbj-brand);
+  border-radius: 4px;
+  max-width: 42rem;
+}
+.statute-compliance-ref-note {
+  display: block;
+  margin-top: 7px;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  line-height: 1.45;
 }
 .chart-title .chart-title-series--all {
   color: var(--accent-blue);
@@ -1847,6 +1893,8 @@ blockquote {
 }
 .provider-histogram-lead {
   margin: 28px 0 14px;
+  padding-top: 28px;
+  border-top: 1px solid var(--rule);
   font-size: 0.94rem;
   color: var(--ink-soft);
   line-height: 1.55;
@@ -1858,6 +1906,11 @@ blockquote {
   line-height: 1.6;
 }
 .explainer-dialog-body p:last-child { margin-bottom: 0; }
+.methods-dialog-footer {
+  margin-top: 14px !important;
+  padding-top: 12px;
+  border-top: 1px solid var(--paper-rule);
+}
 .explainer-dialog-body .metric-inline {
   display: inline-flex;
   margin-left: 0.15rem;
@@ -2037,7 +2090,8 @@ blockquote {
     gap: 6px;
     margin: 0.35rem 0 0.85rem;
   }
-  .report-modal-actions .statute-modal-trigger {
+  .report-modal-actions .statute-modal-trigger,
+  .report-modal-actions .statute-ref-link {
     flex: 1 1 0;
     min-width: 0;
     padding: 6px 8px;
@@ -2303,7 +2357,7 @@ blockquote {
     <a href="#provider-compliance" class="report-mobile-jump-link">Homes</a>
     <a href="#ownership" class="report-mobile-jump-link">Ownership</a>
     <a href="#geography" class="report-mobile-jump-link">Geography</a>
-    <a href="#statute-sensitivity" class="report-mobile-jump-link">NY law</a>
+    <a href="#statute-sensitivity" class="report-mobile-jump-link">Compliance by position</a>
     <a href="#methodology" class="report-mobile-jump-link">Methods &amp; sources</a>
   </div>
   <p class="report-mobile-jump-current" id="report-mobile-jump-current" aria-live="polite">Why this matters</p>
@@ -2319,7 +2373,7 @@ blockquote {
       <li><a href="#provider-compliance">Provider compliance</a></li>
       <li><a href="#ownership">Ownership</a></li>
       <li><a href="#geography">Geography</a></li>
-      <li><a href="#statute-sensitivity">NY staffing law</a></li>
+      <li><a href="#statute-sensitivity">Compliance by position</a></li>
       <li><a href="#methodology">Methods &amp; sources</a></li>
   </ul>
 </nav>
@@ -2331,41 +2385,26 @@ blockquote {
     <span class="section-label">01 · Why this matters</span>
     <h2 id="definitions-heading">Nearly half of NY facility-days fell below 3.50 HPRD</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-metric">HPRD metric</a><a class="methods-jump-link" href="#method-threshold">Threshold</a></span></p>
-    <p class="report-scope-note">Nursing home staffing is often reported as quarterly or annual averages. This analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to describe <strong>day-to-day</strong> variation against New York&rsquo;s <strong>3.50 hours per resident day</strong> minimum.</p>
-    <p class="definitions-implications">These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
+    <p class="report-scope-note">New York state law requires nursing homes to provide at least <strong>3.50 hours of care per resident per day</strong>. Though staffing is often summarized as a quarterly average, this analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to compare daily staffing levels against that standard. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
     <p class="definitions-disclaimer" role="note"><strong>Note:</strong> Descriptive PBJ analysis only—not an endorsement for or against the NY minimum.</p>
     <div class="report-modal-actions" role="group" aria-label="Reference">
-      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="How to read the charts"><span class="modal-trigger-label-long">How to read the charts</span><span class="modal-trigger-label-short">Read charts</span></button>
-      <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY DOH minimum staffing rule"><span class="modal-trigger-label-long">NY DOH minimum staffing rule</span><span class="modal-trigger-label-short">NY Min. Staffing Rule</span></button>
+      <a href="https://www.health.ny.gov/facilities/nursing/minimum_staffing/" class="statute-ref-link" target="_blank" rel="noopener"><span class="modal-trigger-label-long">NY DOH minimum staffing rule</span><span class="modal-trigger-label-short">NY Min. Staffing Rule</span></a>
+      <button type="button" class="statute-modal-trigger definitions-modal-trigger" data-statute-modal-open="chart-definitions" aria-haspopup="dialog" aria-label="Methods summary"><span class="modal-trigger-label-long">Methods</span><span class="modal-trigger-label-short">Methods</span></button>
     </div>
 
     <dialog id="chart-definitions" class="pbj-statute-dialog pbj-definitions-dialog" aria-labelledby="chart-definitions-title">
       <div class="pbj-statute-dialog-inner">
         <header class="pbj-statute-dialog-header">
-          <h3 id="chart-definitions-title">How to read the charts</h3>
+          <h3 id="chart-definitions-title">Methods</h3>
           <button type="button" class="pbj-statute-dialog-close" data-statute-modal-close aria-label="Close">×</button>
         </header>
         <div class="pbj-statute-dialog-body explainer-dialog-body">
-      <p><strong>Facility-day</strong> — one home on one calendar day (census &gt; 0). <strong>HPRD</strong> — nursing hours ÷ census. <strong>Below minimum</strong> — strictly under the threshold (default <strong>3.50</strong>).</p>
-      <p><strong>Total nursing</strong> — RN, LPN, CNA, med aide, trainee, and RN/LPN admin/DON (÷ census). Benchmark <strong>3.50</strong> HPRD (MACPAC cites <strong>3.56</strong>).</p>
-      <p><strong>NY role floors</strong> (informative): <strong>3.5</strong> total, <strong>2.2</strong> CNA-side, <strong>1.1</strong> licensed — see <a href="#statute-sensitivity">role-floor counts</a> or DOH dialog below.</p>
-        </div>
-      </div>
-    </dialog>
-
-
-    <dialog id="ny-doh-statute" class="pbj-statute-dialog" aria-labelledby="ny-doh-statute-title">
-      <div class="pbj-statute-dialog-inner">
-        <header class="pbj-statute-dialog-header">
-          <h3 id="ny-doh-statute-title">Nursing Home Minimum Staffing (NY DOH)</h3>
-          <button type="button" class="pbj-statute-dialog-close" data-statute-modal-close aria-label="Close">×</button>
-        </header>
-        <div class="pbj-statute-dialog-body">
-      <p>Nursing homes are required by <strong>New York State Public Health Law and Regulations</strong> to meet minimum staffing standards. These standards require every nursing home to maintain <strong>daily staffing hours equal to 3.5 hours of care per resident per day</strong> by a certified nurse aide, licensed practical nurse, or registered nurse.</p>
-      <p>Of the 3.5 hours required, <strong>at least 2.2 hours</strong> of care per resident per day must be provided by a <strong>CNA</strong>, and <strong>at least 1.1 hours</strong> of care per resident per day must be provided by a <strong>licensed nurse</strong>.</p>
-      <p>Compliance is determined on a <strong>quarterly basis</strong> using the most recent data from the federal CMS <strong>Payroll Based Journal (PBJ)</strong>. This PBJ320 report uses <strong>daily</strong> facility-days for descriptive patterns—not DOH&rsquo;s quarterly enforcement determination.</p>
-      <p class="statute-modal-penalties"><strong>Penalties:</strong> DOH may impose a civil penalty of <strong>up to $2,000 per day</strong> for each day in a quarter that a facility fails to meet minimum nursing staff requirements, subject to mitigating factors (extraordinary circumstances, acute labor shortage in a region, or verifiable union dispute). Assessed penalties and notices of noncompliance are posted on the department website.</p>
-          <p class="statute-modal-source">Source: <a href="https://www.health.ny.gov/facilities/nursing/minimum_staffing/" target="_blank" rel="noopener">NY Department of Health — Nursing Home Minimum Staffing</a></p>
+      <p><strong>Data:</strong> CMS PBJ daily nurse staffing, calendar year 2025 (CY2025Q1–Q4), New York nursing homes only. Unit of analysis: <strong>facility-day</strong> (one home, one calendar day, census &gt; 0).</p>
+      <p><strong>HPRD:</strong> Total nursing hours (RN, LPN, CNA, med aide, trainee, RN/LPN admin &amp; DON) ÷ census. <strong>Below minimum</strong> = strictly under the active threshold (default <strong>3.50</strong> HPRD; MACPAC cites <strong>3.56</strong> for NY).</p>
+      <p><strong>NY compliance by position (informative):</strong> State rule also requires <strong>2.20</strong> CNA HPRD and <strong>1.10</strong> licensed nurse HPRD on the same day (all three = fully compliant). Mapped from PBJ; not NY DOH enforcement.</p>
+      <p><strong>Interactive charts:</strong> The HPRD toggle recalculates day-of-week, provider, ownership, and county views from precomputed curves. Role-floor counts and holiday callouts are fixed at build time.</p>
+      <p><strong>Limitations:</strong> Self-reported PBJ data; daily totals only (not shift-level); descriptive—not legal advice or a violation finding.</p>
+      <p class="methods-dialog-footer"><a class="methods-jump-link" href="#methodology">Full methodology &amp; sources</a></p>
         </div>
       </div>
     </dialog>
@@ -2488,11 +2527,11 @@ blockquote {
             <thead>
               <tr>
                 <th scope="col" class="fac-rank-col">#</th>
-                <th scope="col" class="fac-name-col" data-sort="name">Facility</th>
-                <th scope="col" class="fac-location-col" data-sort="location">County</th>
-                <th scope="col" class="fac-own-col" data-sort="ownership">Ownership</th>
-                <th scope="col" class="fac-pct-col" data-sort="pct" aria-sort="descending">% below</th>
-                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd"><span class="fac-hprd-head-desktop">2025 HPRD</span><span class="fac-hprd-head-mobile" aria-hidden="true"><span class="fac-hprd-head-line">2025</span><span class="fac-hprd-head-line">HPRD</span></span></th>
+                <th scope="col" class="fac-name-col" data-sort="name" data-label="Facility">Facility</th>
+                <th scope="col" class="fac-location-col" data-sort="location" data-label="County">County</th>
+                <th scope="col" class="fac-own-col" data-sort="ownership" data-label="Ownership">Ownership</th>
+                <th scope="col" class="fac-pct-col" data-sort="pct" data-label="% below" aria-sort="descending">% below</th>
+                <th scope="col" class="fac-hprd-col" data-sort="mean_hprd" data-label="2025 HPRD"><span class="fac-hprd-head-desktop">2025 HPRD</span><span class="fac-hprd-head-mobile" aria-hidden="true"><span class="fac-hprd-head-line">2025</span><span class="fac-hprd-head-line">HPRD</span></span></th>
               </tr>
             </thead>
             <tbody id="facilities-tbody"></tbody>
@@ -2564,24 +2603,28 @@ blockquote {
   </section>
 
   <section id="statute-sensitivity" class="statute-sensitivity" aria-labelledby="statute-sensitivity-heading">
-    <span class="section-label">06 · NY statute role floors</span>
-    <h2 id="statute-sensitivity-heading">NY law asks for total hours and a role mix—not just one headline number</h2>
-    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-role-floors">NY role floors (AND rule)</a></span></p>
-    <p>NY requires <strong>all three</strong> on the same day: <strong>3.5</strong> total HPRD, <strong>2.2</strong> CNA-side, and <strong>1.1</strong> LPN/RN-side. Miss any one → not fully compliant. Informative PBJ mapping only—not DOH enforcement. Civil penalties up to <strong>$2,000 per day</strong> per noncompliant day in a quarter may apply (<button type="button" class="statute-modal-trigger statute-modal-trigger--inline" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog">NY DOH minimum staffing rule</button>).</p>
-    <div class="appendix-grid statute-sensitivity-grid" role="group" aria-label="NY combined role-floor statistics">
+    <span class="section-label">06 · Compliance by position</span>
+    <h2 id="statute-sensitivity-heading">Compliance by position</h2>
+    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-role-floors">Compliance by position (AND rule)</a></span></p>
+    <p>New York&rsquo;s minimum staffing rule has three parts: <strong>3.50</strong> total HPRD, including at least <strong>2.20</strong> CNA HPRD and at least <strong>1.10</strong> licensed nurse HPRD. A facility must meet all three thresholds to be fully compliant. This analysis maps federal PBJ staffing data to those thresholds for informational purposes only; it is not a formal NY DOH enforcement determination. Under the state rule, civil penalties of up to <strong>$2,000 per day</strong> may apply for each day in a quarter that a facility is out of compliance.</p>
+    <div class="statute-compliance-ref">
+      <a href="https://www.health.ny.gov/facilities/nursing/minimum_staffing/" class="statute-ref-link" target="_blank" rel="noopener">NY DOH minimum staffing rule</a>
+      <span class="statute-compliance-ref-note">Official NY Department of Health rule text, quarterly compliance process, and penalty guidance.</span>
+    </div>
+    <div class="appendix-grid statute-sensitivity-grid" role="group" aria-label="NY compliance by position statistics">
         <div class="appendix-card">
           <div class="appendix-card-stat">
             <span class="appendix-card-num" aria-label="39.7 percent">39.7%</span>
             <span class="appendix-card-unit">Days</span>
           </div>
-          <div class="appendix-card-label">Met all three NY floors (3.5 + 2.2 CNA + 1.1 LPN/RN)</div>
+          <div class="appendix-card-label">Met all three NY floors (3.50 total + 2.20 CNA + 1.10 licensed)</div>
         </div>
         <div class="appendix-card appendix-card--cna-miss">
           <div class="appendix-card-stat">
             <span class="appendix-card-num" aria-label="54.9 percent">54.9%</span>
             <span class="appendix-card-unit">Days</span>
           </div>
-          <div class="appendix-card-label">Below 2.2 CNA-side — most common single miss</div>
+          <div class="appendix-card-label">Below 2.20 CNA HPRD — most common single miss</div>
         </div>
     </div>
   </section>
@@ -2628,7 +2671,7 @@ blockquote {
       <div class="methodology-sub" id="method-metric">
         <h3>Staffing metric (HPRD)</h3>
         <p><strong>Total nursing HPRD:</strong> (RN + LPN + CNA + Med Aide + NA trainee + RN DON + RN admin + LPN admin) ÷ MDS census, aligned with PBJ320 facility dashboard logic.</p>
-        <p><strong>NY statutory role floors (informative):</strong> <strong>CNA-side HPRD</strong> = CNA + Med Aide + NA trainee hours ÷ census (floor <strong>2.2</strong>). <strong>LPN/RN-side HPRD</strong> = RN + LPN + RN DON + RN admin + LPN admin ÷ census (floor <strong>1.1</strong>). Primary charts use <strong>total nursing HPRD</strong> (all roles, default benchmark 3.50). See <a href="#statute-sensitivity">role-floor sensitivity</a> for counts below 2.2 / 1.1.</p>
+        <p><strong>NY statutory role floors (informative):</strong> <strong>CNA-side HPRD</strong> = CNA + Med Aide + NA trainee hours ÷ census (floor <strong>2.20</strong>). <strong>LPN/RN-side HPRD</strong> = RN + LPN + RN DON + RN admin + LPN admin ÷ census (floor <strong>1.10</strong>). Primary charts use <strong>total nursing HPRD</strong> (all roles, default benchmark 3.50). See <a href="#statute-sensitivity">compliance by position</a> for counts below 2.20 / 1.10.</p>
       </div>
 
       <div class="methodology-sub" id="method-threshold">
@@ -2667,7 +2710,7 @@ blockquote {
       </div>
 
       <div class="methodology-sub" id="method-role-floors">
-        <h3>NY statutory role floors (informative)</h3>
+        <h3>Compliance by position (informative)</h3>
         <p>For each facility-day with census &gt; 0, three HPRD measures are computed from PBJ role hours:</p>
         <dl class="method-dl">
           <dt>Total nursing HPRD</dt>
@@ -2678,7 +2721,7 @@ blockquote {
           <dd>RN + LPN + RN DON + RN admin + LPN admin ÷ census. Floor <strong>1.10</strong> (NY statute).</dd>
         </dl>
         <p><strong>Met all three</strong> — the day meets total, CNA-side, and LPN/RN-side floors together (AND). <strong>Below 2.20 CNA-side</strong> — CNA-side HPRD is strictly under 2.20 (a facility-day can miss CNA-side but not total HPRD, or the reverse).</p>
-        <p>Facility-day counts and shares appear in <a href="#statute-sensitivity">role-floor sensitivity</a> (denominator 216,134, same as statewide charts). Descriptive PBJ mapping only—not NY DOH quarterly enforcement.</p>
+        <p>Facility-day counts and shares appear in <a href="#statute-sensitivity">compliance by position</a> (denominator 216,134, same as statewide charts). Descriptive PBJ mapping only—not NY DOH quarterly enforcement.</p>
       </div>
 
       <div class="methodology-sub" id="method-calendar">
@@ -3639,21 +3682,55 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
       var key = th.getAttribute('data-sort');
 
-      var label = th.getAttribute('data-label') || th.textContent.replace(/[▲▼]\s*$/, '').trim();
+      var label = th.getAttribute('data-label');
 
-      th.setAttribute('data-label', label);
+      if (!label) {
+
+        var probe = th.querySelector('.fac-hprd-head-desktop');
+
+        label = (probe ? probe.textContent : th.textContent).replace(/\s*[▲▼]\s*$/, '').trim();
+
+        th.setAttribute('data-label', label);
+
+      }
+
+      var arrow = key === state.sortKey ? (state.sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
       if (key === state.sortKey) {
 
         th.setAttribute('aria-sort', state.sortDir === 'asc' ? 'ascending' : 'descending');
 
-        th.textContent = label + (state.sortDir === 'asc' ? ' ▲' : ' ▼');
-
       } else {
 
         th.removeAttribute('aria-sort');
 
-        th.textContent = label;
+      }
+
+      var desktopHead = th.querySelector('.fac-hprd-head-desktop');
+
+      var mobileHead = th.querySelector('.fac-hprd-head-mobile');
+
+      if (desktopHead) {
+
+        desktopHead.textContent = label + arrow;
+
+        if (mobileHead) {
+
+          var lines = mobileHead.querySelectorAll('.fac-hprd-head-line');
+
+          if (lines.length >= 2) {
+
+            lines[0].textContent = '2025';
+
+            lines[1].textContent = 'HPRD' + arrow;
+
+          }
+
+        }
+
+      } else {
+
+        th.textContent = label + arrow;
 
       }
 
@@ -5178,6 +5255,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       if (tiers[i] === 'metro-child') return '  ' + short;
       return short;
     });
+  }
+
+  function ownershipChartSpec() {
+    var specs = global.PBJ_REPORT_CHARTS || [];
+    for (var i = 0; i < specs.length; i++) {
+      if (specs[i].id === 'ownershipChart') return specs[i];
+    }
+    return null;
   }
 
   function refreshOwnershipChartLayout() {

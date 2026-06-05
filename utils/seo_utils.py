@@ -87,6 +87,32 @@ def _latest_pbj_quarter_labels():
         return fallback_display, fallback_compact
 
 
+def _seo_with_quarter(meta: dict[str, Any], quarter_display: str) -> dict[str, Any]:
+    out = dict(meta)
+    out['quarter_display'] = quarter_display
+    return out
+
+
+def _sff_usa_seo(base_url: str, quarter_display: str, *, canonical_path: str = '/sff/usa') -> dict[str, Any]:
+    canonical = base_url + canonical_path
+    return _seo_with_quarter({
+        'title': 'Special Focus Facilities Program — United States | PBJ320',
+        'description': (
+            f'United States Special Focus Facilities (SFFs) and SFF Candidates. '
+            f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+        ),
+        'og_title': 'Special Focus Facilities Program — United States',
+        'og_description': (
+            f'United States Special Focus Facilities (SFFs) and SFF Candidates. '
+            f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+        ),
+        'canonical_url': canonical,
+        'og_url': canonical,
+        'include_image': True,
+        'og_image': base_url + '/og-image-1200x630.png',
+    }, quarter_display)
+
+
 def get_seo_metadata(path):
     """
     Get SEO metadata based on the request path.
@@ -97,7 +123,7 @@ def get_seo_metadata(path):
     quarter_display, _ = _latest_pbj_quarter_labels()
 
     # Default values for wrapped pages
-    default_metadata = {
+    default_metadata = _seo_with_quarter({
         'title': f'PBJ Wrapped {quarter_display} — Nursing Home Staffing Data by State and Region | PBJ320',
         'description': f'Explore {quarter_display} nursing home staffing data across all 50 states, CMS regions, and the United States. Interactive staffing insights from CMS Payroll-Based Journal (PBJ) data. Comprehensive analysis of 15,000+ nursing homes and long-term care facilities.',
         'og_title': f'PBJ Wrapped {quarter_display} — Nursing Home Staffing Data',
@@ -106,68 +132,68 @@ def get_seo_metadata(path):
         'og_url': base_url + '/wrapped',
         'include_image': True,
         'og_image': base_url + '/images/phoebe-wrapped-wide.png',
-    }
+    }, quarter_display)
     
     # Normalize path (ensure leading slash, handle trailing slash)
     if not path:
         path = '/'
     if not path.startswith('/'):
         path = '/' + path
+    path_lower = path.lower().rstrip('/') or '/'
     
-    # Handle SFF pages
-    if path.startswith('/sff'):
-        # Normalize /sff and /sff/ to /sff/usa
-        if path == '/sff' or path == '/sff/':
-            path = '/sff/usa'
-        
-        if path == '/sff/usa' or path == '/sff/usa/':
-            return {
-                'title': 'Special Focus Facilities Program — United States | PBJ320',
-                'description': f'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
-                'og_title': 'Special Focus Facilities Program — United States',
-                'og_description': f'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
-                'canonical_url': base_url + '/sff/usa',
-                'og_url': base_url + '/sff/usa',
-                'include_image': True,
-                'og_image': base_url + '/og-image-1200x630.png',
-            }
-        elif '/sff/region' in path.lower():
-            # Extract region number
-            import re
-            region_match = re.search(r'region-?(\d+)', path.lower())
-            region_num = region_match.group(1) if region_match else ''
-            return {
+    # Handle SFF pages (case-insensitive; never fall through to PBJ Wrapped defaults)
+    if path_lower.startswith('/sff'):
+        canonical_path = path.rstrip('/') or '/sff'
+        if path_lower in ('/sff', '/sff/usa'):
+            return _sff_usa_seo(base_url, quarter_display)
+
+        region_match = re.search(r'^/sff/region-?(\d+)$', path_lower)
+        if region_match:
+            region_num = region_match.group(1)
+            return _seo_with_quarter({
                 'title': f'SFF Program: CMS Region {region_num} | PBJ320',
-                'description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
+                'description': (
+                    f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. '
+                    f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+                ),
                 'og_title': f'SFF Program: CMS Region {region_num}',
-                'og_description': f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
-                'canonical_url': base_url + path.rstrip('/'),
-                'og_url': base_url + path.rstrip('/'),
+                'og_description': (
+                    f'CMS Region {region_num} Special Focus Facilities (SFFs) and SFF Candidates. '
+                    f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+                ),
+                'canonical_url': base_url + canonical_path,
+                'og_url': base_url + canonical_path,
                 'include_image': True,
                 'og_image': base_url + '/og-image-1200x630.png',
-            }
-        else:
-            # Extract state code
-            parts = [p for p in path.split('/') if p]
-            if len(parts) >= 2 and parts[0] == 'sff':
-                state_code = parts[1].lower()
-                if state_code and state_code not in ('sff', 'usa'):
-                    state_name = get_state_name(state_code)
-                    return {
-                        'title': f'{state_name} Special Focus Facilities | PBJ320',
-                        'description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
-                        'og_title': f'{state_name} Special Focus Facilities',
-                        'og_description': f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ {quarter_display}.',
-                        'canonical_url': base_url + path.rstrip('/'),
-                        'og_url': base_url + path.rstrip('/'),
-                        'include_image': True,
-                        'og_image': f'{base_url}/og-image-1200x630.png',
-                    }
+            }, quarter_display)
+
+        parts = path_lower.strip('/').split('/')
+        if len(parts) >= 2 and parts[0] == 'sff':
+            state_code = parts[1]
+            if state_code in STATE_ABBR_TO_NAME and state_code != 'usa':
+                state_name = get_state_name(state_code)
+                return _seo_with_quarter({
+                    'title': f'{state_name} Special Focus Facilities | PBJ320',
+                    'description': (
+                        f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. '
+                        f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+                    ),
+                    'og_title': f'{state_name} Special Focus Facilities',
+                    'og_description': (
+                        f'{state_name} Special Focus Facilities (SFFs) and SFF Candidates. '
+                        f'Complete list with staffing data from CMS PBJ {quarter_display}.'
+                    ),
+                    'canonical_url': base_url + canonical_path,
+                    'og_url': base_url + canonical_path,
+                    'include_image': True,
+                    'og_image': base_url + '/og-image-1200x630.png',
+                }, quarter_display)
+
+        return _sff_usa_seo(base_url, quarter_display)
     
     # Handle wrapped pages
     if path.startswith('/wrapped'):
         # Check if it's a region page (e.g., /wrapped/region1, /wrapped/region-1)
-        import re
         region_match = re.search(r'/wrapped/region[-_]?(\d+)', path.lower())
         if region_match:
             region_num = region_match.group(1)

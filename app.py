@@ -403,6 +403,17 @@ def get_built_assets():
         print(f"Warning: Could not extract assets from built index.html: {e}")
         return {'scripts': '', 'stylesheets': ''}
 
+
+def render_wrapped_index(seo):
+    """Serve wrapped/SFF SPA shell with server-rendered SEO and site universal JS."""
+    return render_template(
+        'wrapped_index.html',
+        seo=seo,
+        assets=get_built_assets(),
+        pbj_site_universal_js_version=PBJ_SITE_UNIVERSAL_JS_VERSION,
+    )
+
+
 def get_dynamic_dates():
     """Get dynamic date information. Used by /api/dynamic-dates (SFF page source text, quarter discovery).
     data_range and quarter_count come from national_quarterly_metrics.csv when available;
@@ -19111,9 +19122,8 @@ def sff_data_files(path):
 def sff_index():
     """Serve the wrapped React app index page for SFF routes with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
-    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo, assets=assets)
+        return render_wrapped_index(seo)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -19148,9 +19158,8 @@ def sff_static(path):
             return send_file(public_path, mimetype='application/json')
     # For SPA routing, serve index.html
     seo = get_seo_metadata(request.path)
-    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo, assets=assets)
+        return render_wrapped_index(seo)
     except Exception as e:
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
     wrapped_index = os.path.join(wrapped_dist, 'index.html')
@@ -19164,9 +19173,8 @@ def sff_static(path):
 def wrapped_index():
     """Serve the wrapped React app index page with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
-    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo, assets=assets)
+        return render_wrapped_index(seo)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -19201,9 +19209,8 @@ def wrapped_static(path):
             return send_file(public_path, mimetype='application/json')
     # For SPA routing, serve index.html for any route with server-rendered SEO metadata
     seo = get_seo_metadata(request.path)
-    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo, assets=assets)
+        return render_wrapped_index(seo)
     except Exception as e:
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
     wrapped_index = os.path.join(wrapped_dist, 'index.html')
@@ -19217,9 +19224,8 @@ def wrapped_static(path):
 def pbj_wrapped_index():
     """Serve the pbj-wrapped React app index page (legacy) with server-rendered SEO metadata"""
     seo = get_seo_metadata(request.path)
-    assets = get_built_assets()
     try:
-        return render_template('wrapped_index.html', seo=seo, assets=assets)
+        return render_wrapped_index(seo)
     except Exception as e:
         # Fallback to static file if template rendering fails
         print(f"Warning: Template rendering failed: {e}, falling back to static file")
@@ -19252,9 +19258,8 @@ def pbj_wrapped_static(path):
         # For SPA routing, serve index.html for any route with server-rendered SEO metadata
         # This allows React Router to handle client-side routing
         seo = get_seo_metadata(request.path)
-        assets = get_built_assets()
         try:
-            return render_template('wrapped_index.html', seo=seo, assets=assets)
+            return render_wrapped_index(seo)
         except Exception as e:
             # Fallback to static file if template rendering fails
             print(f"Warning: Template rendering failed: {e}, falling back to static file")

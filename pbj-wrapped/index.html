@@ -38,8 +38,11 @@
       (function() {
         var baseUrl = 'https://pbj320.com';
         var path = window.location.pathname;
-        var isSFFPage = path && path.startsWith('/sff');
+        var pathLower = (path || '').toLowerCase().replace(/\/$/, '') || '/';
+        var isSFFPage = pathLower.startsWith('/sff');
+        var qLabel = 'latest quarter';
         var ogImage = baseUrl + '/images/phoebe-wrapped-wide.png';
+        var sffOgImage = baseUrl + '/og-image-1200x630.png';
         
         // State code to name mapping
         var stateNames = {
@@ -88,35 +91,34 @@
         var fullUrl = baseUrl + path;
         var title, description, ogTitle, ogDescription;
         
-        // Handle SFF pages
-        if (path && path.startsWith('/sff')) {
-          if (path === '/sff' || path === '/sff/') {
-            // Base SFF path - redirects to /sff/usa, use USA metadata
+        // Handle SFF pages (case-insensitive; match server-side seo_utils)
+        if (isSFFPage) {
+          if (pathLower === '/sff' || pathLower === '/sff/usa') {
             title = 'Special Focus Facilities Program — United States | PBJ320';
-            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ' + qLabel + '.';
             ogTitle = 'Special Focus Facilities Program — United States';
             ogDescription = description;
-          } else if (path === '/sff/usa' || path === '/sff/usa/') {
-            title = 'Special Focus Facilities Program — United States | PBJ320';
-            description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
-            ogTitle = 'Special Focus Facilities Program — United States';
-            ogDescription = description;
-          } else if (path.match(/^\/sff\/region/i)) {
-            var regionMatch = path.match(/region-?(\d+)/i);
+          } else if (pathLower.match(/^\/sff\/region-?\d+$/)) {
+            var regionMatch = pathLower.match(/region-?(\d+)/);
             var regionNum = regionMatch ? regionMatch[1] : '';
             title = 'SFF Program: CMS Region ' + regionNum + ' | PBJ320';
-            description = 'CMS Region ' + regionNum + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+            description = 'CMS Region ' + regionNum + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ' + qLabel + '.';
             ogTitle = 'SFF Program: CMS Region ' + regionNum;
             ogDescription = description;
-          } else if (path.length > 4) {
-            var parts = path.split('/').filter(function(p) { return p; });
+          } else {
+            var parts = pathLower.split('/').filter(function(p) { return p; });
             if (parts.length >= 2 && parts[0] === 'sff') {
-              var stateCode = parts[1].toLowerCase();
-              if (stateCode && stateCode !== 'sff' && stateCode !== 'usa') {
+              var stateCode = parts[1];
+              if (stateCode && stateCode !== 'sff' && stateCode !== 'usa' && stateNames[stateCode]) {
                 var stateName = getStateName(stateCode);
                 title = stateName + ' Special Focus Facilities | PBJ320';
-                description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ Q2 2025.';
+                description = stateName + ' Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ' + qLabel + '.';
                 ogTitle = stateName + ' Special Focus Facilities';
+                ogDescription = description;
+              } else {
+                title = 'Special Focus Facilities Program — United States | PBJ320';
+                description = 'United States Special Focus Facilities (SFFs) and SFF Candidates. Complete list with staffing data from CMS PBJ ' + qLabel + '.';
+                ogTitle = 'Special Focus Facilities Program — United States';
                 ogDescription = description;
               }
             }
@@ -137,19 +139,14 @@
         updateMetaTag('property', 'og:url', fullUrl);
         updateLinkTag('canonical', fullUrl);
         
-        // Only set og:image for non-SFF pages
-        if (!isSFFPage) {
+        if (isSFFPage) {
+          updateMetaTag('property', 'og:image', sffOgImage);
+          updateMetaTag('property', 'og:image:secure_url', sffOgImage);
+          updateMetaTag('name', 'twitter:image', sffOgImage);
+        } else {
           updateMetaTag('property', 'og:image', ogImage);
           updateMetaTag('property', 'og:image:secure_url', ogImage);
           updateMetaTag('name', 'twitter:image', ogImage);
-        } else {
-          // Remove og:image for SFF pages
-          var ogImageMeta = document.querySelector('meta[property="og:image"]');
-          if (ogImageMeta) ogImageMeta.remove();
-          var ogImageSecureMeta = document.querySelector('meta[property="og:image:secure_url"]');
-          if (ogImageSecureMeta) ogImageSecureMeta.remove();
-          var twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
-          if (twitterImageMeta) twitterImageMeta.remove();
         }
       })();
     </script>

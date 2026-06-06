@@ -14152,7 +14152,7 @@ def _star_display(val):
 
 def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None):
     """Generate HTML for entity (chain) page. facilities: list of dicts with ccn, name, city, state, optional metrics.
-    If chain_row is provided (from load_chain_performance), show chain-level metrics, ownership pie, high-risk, and CMS star breakdown.
+    If chain_row is provided (from load_chain_performance), enrich the PBJ Takeaway narrative from CMS chain data.
     Ownership page uses a PBJ Takeaway: Tier 1 (scope), Tier 2 (risk, conditional), Tier 3 (operational), plus 3 narrative paragraphs."""
     entity_name = capitalize_entity_name(entity_name) if entity_name else entity_name
     _entity_takeaway_title_span = takeaway_title_name_html(entity_name or 'Chain', 'entity')
@@ -14177,6 +14177,16 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         if str(f.get('ccn') or '').strip()
     }
     provider_info = load_provider_info(ccn_set=entity_ccns) or {}
+    _entity_ps: dict = {}
+    try:
+        from ownership.owner_portfolio_metrics import build_entity_portfolio_summary
+
+        _entity_ps = build_entity_portfolio_summary(facilities, provider_info)
+    except Exception:
+        _entity_ps = {}
+    entity_portfolio_html = ''
+    _entity_page_modal_html = ''
+    _entity_chain_hprd_for_portfolio = None
 
     def _facility_census_numeric(fac_dict):
         """Avg. daily census: prefer provider file (Care Compare / latest combined row), else PBJ quarter."""
@@ -14234,11 +14244,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     avg_total = sum(total_hprd_vals) / len(total_hprd_vals) if total_hprd_vals else None
     avg_rn = sum(rn_hprd_vals) / len(rn_hprd_vals) if rn_hprd_vals else None
     avg_contract = sum(contract_vals) / len(contract_vals) if contract_vals else None
-    chain_metrics_html = ''
-    ownership_pie_html = ''
-    high_risk_html = ''
-    cms_stars_html = ''
     delta_fmt = '<span class="entity-delta" style="font-size:0.8em;color:rgba(226,232,240,0.6);">—</span>'
+    high_risk_html = ''
     # Always show a PBJ Takeaway when we have facilities (short version first; overwrite with full when chain_row)
     pbj_takeaway_ownership = ''
     if n > 0:
@@ -14286,14 +14293,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         abuse_count = _num('Number of facilities with an abuse icon')
         abuse_pct = _num('Percentage of facilities with an abuse icon')
         for_profit = _num('Percent of facilities classified as for-profit')
-        non_profit = _num('Percent of facilities classified as non-profit')
-        govt = _num('Percent of facilities classified as government-owned')
-        hi_rating = _num('Average health inspection rating')
         staff_rating = _num('Average staffing rating')
-        quality_rating = _num('Average quality rating')
         chain_hprd_total = _num('Average total nurse hours per resident day')
         chain_hprd_rn = _num('Average total Registered Nurse hours per resident day')
-        turnover_pct = _num('Average total nursing staff turnover percentage')
         payment_denials = _num('Total number of payment denials')
         total_fines_count = _num('Total number of fines')
         # Prefer provider roster count for entity page/titles/table consistency.
@@ -14304,6 +14306,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         n_st = num_states if num_states else (int(states_chain) if states_chain is not None else 0)
         # Use chain CSV HPRD if present, else PBJ aggregate
         hprd_for_narrative = chain_hprd_total if chain_hprd_total is not None else avg_total
+        _entity_chain_hprd_for_portfolio = chain_hprd_total
         rn_for_narrative = chain_hprd_rn if chain_hprd_rn is not None else avg_rn
         national_hprd = get_national_hprd_for_quarter(raw_quarter) if raw_quarter else None
         # High-risk % from CMS-assigned indicators (provider info + SFF list; matches tooltip criteria).
@@ -14376,8 +14379,28 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             p1_simple += "CMS overall rating is not available for this chain."
 
         # Paragraph 2 — Staffing pattern vs national
+        _entity_hprd_link = ''
         if hprd_for_narrative is not None:
-            p2 = f"Across the portfolio, facilities report an average of <strong>{hprd_for_narrative:.2f}</strong> total nurse HPRD"
+            try:
+                from ownership.portfolio_display import entity_takeaway_hprd_link_html
+
+                _narr_src = (
+                    "the CMS chain performance file"
+                    if chain_hprd_total is not None
+                    else "a simple average across the PBJ320 roster"
+                )
+                _entity_hprd_link = entity_takeaway_hprd_link_html(
+                    float(hprd_for_narrative),
+                    narrative_source=_narr_src,
+                    weighted_hprd=_entity_ps.get('wmean_hprd'),
+                    unweighted_hprd=_entity_ps.get('umean_hprd'),
+                )
+            except Exception:
+                _entity_hprd_link = f"<strong>{hprd_for_narrative:.2f}</strong>"
+            p2 = (
+                f"Across the portfolio, facilities report an average of "
+                f"{_entity_hprd_link or f'<strong>{hprd_for_narrative:.2f}</strong>'} total nurse HPRD"
+            )
             if rn_for_narrative is not None:
                 p2 += f", including <strong>{rn_for_narrative:.2f}</strong> RN hours"
             if national_hprd is not None:
@@ -14394,10 +14417,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
         # Paragraph 3 — High-risk % (search_index logic) + fines; no turnover (factual: PBJ320 criteria, not editorial)
         high_risk_span = (
-            '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">PBJ320 high-risk</span>'
+            '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">high-risk</span>'
             '<span class="pbj-high-risk-tooltip" role="tooltip">' + html.escape(HIGH_RISK_CRITERIA_TOOLTIP) + '</span></span>'
         )
-        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are {high_risk_span}. "
+        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are flagged as {high_risk_span}. "
         if fines_dollars is not None and fines_dollars > 0:
             fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
             if total_fines_count is not None and total_fines_count > 0:
@@ -14425,29 +14448,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {_entity_share_actions}
 </div>'''
 
-        chain_metrics_html = '<div class="section-header">Key metrics</div>'
-        chain_metrics_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        providers_label = 'Providers'
-        if n_fac_cms is not None and n_fac_provider and n_fac_cms != n_fac_provider:
-            providers_label += (
-                ' <span class="pbj-high-risk-help-wrap" style="position:relative;display:inline-flex;align-items:center;vertical-align:middle;">'
-                '<span class="pbj-high-risk-help" style="font-size:0.75rem;cursor:help;">ⓘ</span>'
-                f'<span class="pbj-high-risk-tooltip" role="tooltip">Provider roster shows {n_fac_provider:,} facilities; CMS chain performance file lists {n_fac_cms:,}.</span>'
-                '</span>'
-            )
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">{providers_label}</div><div class="value">{n_fac:,}</div></div>'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">States</div><div class="value">{n_st}</div></div>'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg. Rating</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
-        if fines_dollars is not None:
-            if fines_dollars >= 1e6:
-                fines_str = f'${fines_dollars/1e6:.1f} million'
-            else:
-                fines_str = f'${fines_dollars:,.0f}'
-        else:
-            fines_str = '—'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Total Fines</div><div class="value">{fines_str}</div></div>'
-        chain_metrics_html += '</div>'
-        # Count facilities with 1-star overall rating from provider info (for high-risk section)
         one_star_count = None
         try:
             if provider_info and facilities:
@@ -14468,36 +14468,42 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
                 one_star_count = count_1 if (provider_info and facilities) else None
         except Exception:
             pass
-        high_risk_html = f'<div class="section-header"><span class="pbj-high-risk-help-wrap entity-section-tooltip-wrap"><span class="pbj-high-risk-help">High-Risk Facilities</span><span class="pbj-high-risk-tooltip entity-section-tooltip" role="tooltip">{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}</span></span><span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
-        high_risk_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Special Focus Facilities (SFFs)</div><div class="value">{int(sff) if sff is not None else "—"}</div></div>'
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">SFF Candidates</div><div class="value">{int(sff_cand) if sff_cand is not None else "—"}</div></div>'
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">1-Star Overall</div><div class="value">{int(one_star_count) if one_star_count is not None else "—"}</div></div>'
+        high_risk_html = (
+            f'<div class="section-header"><span class="pbj-high-risk-help-wrap entity-section-tooltip-wrap">'
+            f'<span class="pbj-high-risk-help">High-Risk Facilities</span>'
+            f'<span class="pbj-high-risk-tooltip entity-section-tooltip" role="tooltip">'
+            f'{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}</span></span>'
+            f'<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
+        )
+        high_risk_html += (
+            '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:'
+            'repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
+        )
+        high_risk_html += (
+            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
+            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
+            f'Special Focus Facilities (SFFs)</div><div class="value">'
+            f'{int(sff) if sff is not None else "—"}</div></div>'
+        )
+        high_risk_html += (
+            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
+            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
+            f'SFF Candidates</div><div class="value">'
+            f'{int(sff_cand) if sff_cand is not None else "—"}</div></div>'
+        )
+        high_risk_html += (
+            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
+            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
+            f'1-Star Overall</div><div class="value">'
+            f'{int(one_star_count) if one_star_count is not None else "—"}</div></div>'
+        )
         abuse_display = f'{int(abuse_count)}' if abuse_count is not None else '—'
-        high_risk_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Cited for Abuse</div><div class="value">{abuse_display}</div></div>'
+        high_risk_html += (
+            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
+            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
+            f'Cited for Abuse</div><div class="value">{abuse_display}</div></div>'
+        )
         high_risk_html += '</div>'
-        cms_stars_html = f'<div class="section-header">Avg. CMS 5-Star Rating<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
-        cms_stars_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Overall</div><div class="value">{(f"{overall_rating:.1f}" if overall_rating is not None else "—")}</div></div>'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Staffing</div><div class="value">{(f"{staff_rating:.1f}" if staff_rating is not None else "—")}</div></div>'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Health Inspection</div><div class="value">{(f"{hi_rating:.1f}" if hi_rating is not None else "—")}</div></div>'
-        cms_stars_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Quality Measures</div><div class="value">{(f"{quality_rating:.1f}" if quality_rating is not None else "—")}</div></div>'
-        cms_stars_html += '</div>'
-        fp = for_profit or 0
-        np_ = non_profit or 0
-        gov = govt or 0
-    if not chain_metrics_html and (quarter_display or avg_total is not None or total_residents or avg_contract is not None):
-        chain_metrics_html = '<div class="section-header">Key metrics' + (f' ({quarter_display})' if quarter_display else '') + '</div>'
-        chain_metrics_html += '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1rem;margin:1rem 0;">'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Facilities</div><div class="value">{n:,}</div></div>'
-        chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">States</div><div class="value">{num_states}</div></div>'
-        if total_residents:
-            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Residents (approx.)</div><div class="value">{total_residents:,}</div></div>'
-        if avg_total is not None:
-            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg Total HPRD</div><div class="value">{format_metric_value(avg_total, "Total_Nurse_HPRD")}</div></div>'
-        if avg_contract is not None:
-            chain_metrics_html += f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">Avg Contract %</div><div class="value">{format_metric_value(avg_contract, "Contract_Percentage")}%</div></div>'
-        chain_metrics_html += '</div>'
 
     from ownership.display_format import cms_ratings_stack_html
 
@@ -14546,7 +14552,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             facility_cell = (
                 f'<span class="pbj-high-risk-help-wrap entity-facility-risk-wrap">'
                 f'<a href="/provider/{ccn}">{name}</a>'
-                f'<span class="entity-facility-risk-icon" aria-hidden="true" style="color:#fca5a5;font-size:0.85em;margin-left:3px;">\u26a0</span>'
+                f'<span class="entity-facility-risk-icon" aria-hidden="true">\u26a0</span>'
                 f'<span class="pbj-high-risk-tooltip entity-facility-risk-tooltip" role="tooltip">'
                 f'{html.escape(risk_reason)}</span></span>'
             )
@@ -14562,10 +14568,31 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         else:
             cells.append('—')
         cells.append(ratings_cell)
-        data_attrs = f' data-facility="{name}" data-city="{city or ""}" data-state="{state}" data-ccn="{ccn}" data-census="{census_sort}" data-total-hprd="{tn_num if tn_num is not None else ""}" data-rn-hprd="{rn_num if rn_num is not None else ""}" data-overall-rating="{overall_num if overall_num is not None else ""}" data-staffing-rating="{staff_num if staff_num is not None else ""}"'
+        _search_blob = ' '.join(
+            x for x in (name, city, state, ccn, state_name) if x
+        ).lower()
+        data_attrs = (
+            f' data-facility="{html.escape(name, quote=True)}" data-city="{html.escape(city or "", quote=True)}"'
+            f' data-state="{state}" data-ccn="{ccn}" data-census="{census_sort}"'
+            f' data-total-hprd="{tn_num if tn_num is not None else ""}"'
+            f' data-rn-hprd="{rn_num if rn_num is not None else ""}"'
+            f' data-overall-rating="{overall_num if overall_num is not None else ""}"'
+            f' data-staffing-rating="{staff_num if staff_num is not None else ""}"'
+            f' data-search="{html.escape(_search_blob, quote=True)}"'
+        )
         rows.append('<tr class="' + row_class + '"' + data_attrs + '><td>' + '</td><td>'.join(cells) + '</td></tr>')
     thead = '<tr><th scope="col" data-sort="state">State</th><th scope="col" data-sort="facility">Provider</th><th scope="col" data-sort="city">City</th><th scope="col" class="entity-col-census" data-sort="census">Census</th><th scope="col" data-sort="total-hprd">Total HPRD</th><th scope="col" data-sort="rn-hprd">RN HPRD</th><th scope="col" data-sort="overall-rating">CMS ratings</th></tr>'
     tbody = '\n'.join(rows)
+    entity_filter_html = ''
+    if n >= 5:
+        entity_filter_html = (
+            f'<div class="entity-facilities-toolbar">'
+            f'<input type="search" id="entityFacilitiesFilter" class="owner-table-filter-input" '
+            f'placeholder="Filter by state, city…" autocomplete="off" '
+            f'aria-label="Filter by state, city, facility name, or CCN">'
+            f'<span class="owner-table-filter-count" id="entityFacilitiesFilterCount" hidden></span>'
+            f'</div>'
+        )
     show_more_btn = ''
     if n > PAGE_SIZE:
         show_more_btn = f'<p class="entity-table-more" style="margin-top:0.75rem; display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;"><span id="entity-showing" style="color:#94a3b8; font-size:0.875rem;">1–{PAGE_SIZE} of {n}</span> <button type="button" id="entity-view-more" style="padding:0.4rem 0.8rem; font-size:0.875rem; background:rgba(148,163,184,0.2); color:#e2e8f0; border:1px solid rgba(148,163,184,0.4); border-radius:6px; cursor:pointer;">Load more</button></p>'
@@ -14573,23 +14600,62 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <script>
 (function(){
   var PAGE = 20;
-  var rows = document.querySelectorAll(".entity-facility-row");
+  var rows = Array.prototype.slice.call(document.querySelectorAll(".entity-facility-row"));
   var tbody = rows[0] && rows[0].parentNode;
   if (!tbody || !rows.length) return;
   var total = rows.length;
+  var showing = Math.min(PAGE, total);
+  var filterInput = document.getElementById("entityFacilitiesFilter");
+  var filterCount = document.getElementById("entityFacilitiesFilterCount");
+  function rowMatches(tr, q) {
+    if (!q) return true;
+    var blob = tr.getAttribute("data-search") || tr.textContent || "";
+    return blob.toLowerCase().indexOf(q) >= 0;
+  }
+  function visibleRows() {
+    var q = filterInput ? String(filterInput.value || "").trim().toLowerCase() : "";
+    return rows.filter(function(tr) { return rowMatches(tr, q); });
+  }
+  function applyVisibility() {
+    var q = filterInput ? String(filterInput.value || "").trim().toLowerCase() : "";
+    var vis = visibleRows();
+    var cap = q ? vis.length : Math.min(showing, vis.length);
+    var shown = 0;
+    rows.forEach(function(tr) {
+      var match = rowMatches(tr, q);
+      if (!match) { tr.style.display = "none"; return; }
+      if (shown < cap) { tr.style.display = ""; shown += 1; }
+      else { tr.style.display = "none"; }
+    });
+    if (filterCount) {
+      if (q) {
+        filterCount.hidden = false;
+        filterCount.textContent = vis.length + " shown";
+      } else {
+        filterCount.hidden = true;
+        filterCount.textContent = "";
+      }
+    }
+    var el = document.getElementById("entity-showing");
+    if (el) {
+      if (q) el.textContent = vis.length + " match" + (vis.length === 1 ? "" : "es");
+      else el.textContent = "1–" + Math.min(showing, total) + " of " + total;
+    }
+    var btn = document.getElementById("entity-view-more");
+    if (btn) btn.style.display = (q || showing >= total) ? "none" : "";
+  }
   for (var i = PAGE; i < rows.length; i++) rows[i].style.display = "none";
-  var showing = PAGE;
-  function updateLabel(){ var el = document.getElementById("entity-showing"); if(el) el.textContent = "1–" + Math.min(showing, total) + " of " + total; }
+  applyVisibility();
   var btn = document.getElementById("entity-view-more");
   if (btn) {
     btn.onclick = function(){
-      for (var i = showing; i < Math.min(showing + PAGE, total); i++) rows[i].style.display = "";
       showing = Math.min(showing + PAGE, total);
-      updateLabel();
-      if (showing >= total) btn.style.display = "none";
+      applyVisibility();
     };
   }
-  updateLabel();
+  if (filterInput) {
+    filterInput.addEventListener("input", function() { applyVisibility(); });
+  }
   var headers = tbody.parentNode.querySelectorAll("th[data-sort]");
   headers.forEach(function(th){
     th.style.cursor = "pointer";
@@ -14599,8 +14665,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
       var dir = th.getAttribute("data-dir") === "asc" ? "desc" : "asc";
       th.parentNode.querySelectorAll("th[data-sort]").forEach(function(h){ h.removeAttribute("data-dir"); });
       th.setAttribute("data-dir", dir);
-      var arr = [].slice.call(rows);
-      arr.sort(function(a, b){
+      rows.sort(function(a, b){
         var av = a.getAttribute("data-" + key) || "";
         var bv = b.getAttribute("data-" + key) || "";
         var an = parseFloat(av), bn = parseFloat(bv);
@@ -14609,13 +14674,29 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         var c = as.localeCompare(bs);
         return dir === "asc" ? c : -c;
       });
-      arr.forEach(function(r){ tbody.appendChild(r); });
-      var children = tbody.children;
-      for (var i = 0; i < children.length; i++) children[i].style.display = i < showing ? "" : "none";
+      rows.forEach(function(r){ tbody.appendChild(r); });
+      applyVisibility();
     });
   });
 })();
 </script>'''
+    try:
+        from ownership.portfolio_display import (
+            entity_portfolio_block_html,
+            portfolio_info_modal_html,
+        )
+
+        if _entity_ps.get('n_facilities') or high_risk_html:
+            _entity_page_modal_html = portfolio_info_modal_html()
+            entity_portfolio_html = entity_portfolio_block_html(
+                _entity_ps,
+                chain_hprd=_entity_chain_hprd_for_portfolio,
+                include_modal=not _entity_page_modal_html,
+            )
+    except Exception:
+        entity_portfolio_html = ''
+        _entity_page_modal_html = ''
+
     states_seen = {str(f.get('state') or '').strip().upper()[:2] for f in facilities if f.get('state')}
     states_seen.discard('')
     seo_desc = entity_page_meta_description(
@@ -14632,23 +14713,14 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     entity_extra_head = entity_json_ld + (
         f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
     )
+    if entity_portfolio_html or _entity_page_modal_html:
+        entity_extra_head += (
+            f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
+        )
     layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}", extra_head=entity_extra_head)
     entity_page_url = f"{base_url}/entity/{entity_id}"
     care_compare_entity_url = f'https://www.medicare.gov/care-compare/details/chains/{entity_id}'
     custom_report_cta_html = render_custom_report_cta('entity', entity_page_url, entity_name=entity_name)
-    # Expandable "All chain data" when we have chain_row (avoid wall of metrics)
-    all_chain_data_html = ''
-    if chain_row and (chain_metrics_html or high_risk_html or cms_stars_html):
-        _entity_esc = html.escape(entity_name or "Chain")
-        # Single header "Genesis Healthcare Key Metrics"; strip the duplicate "Key metrics" line from chain_metrics
-        _chain_metrics_body = chain_metrics_html.replace('<div class="section-header">Key metrics</div>', '', 1)
-        all_chain_data_html = f'''
-<div class="pbj-cms-data-block" style="margin: 1rem 0; border: 1px solid rgba(129,140,248,0.25); border-radius: 8px; background: rgba(15,23,42,0.4); padding: 0 1rem 1rem 1rem;">
-<div class="section-header" style="margin-top: 0; padding-top: 0.75rem;">{_entity_esc} Key Metrics</div>
-''' + _chain_metrics_body + high_risk_html + cms_stars_html + '''
-</div>'''
-    elif chain_metrics_html:
-        all_chain_data_html = chain_metrics_html
 
     try:
         from ownership.page_integrations import render_entity_ownership_tools_block
@@ -14683,14 +14755,18 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
     inner = f"""
 <h1>{html.escape(entity_name)}</h1>
+{_entity_page_modal_html}
 {entity_intro_html}
 {pbj_takeaway_ownership}
-{all_chain_data_html}
+{entity_portfolio_html}
+{high_risk_html}
 
-<div class="section-header">{html.escape(entity_name)} Facilities</div>
+<div class="section-header entity-facilities-section">{html.escape(entity_name)} Facilities</div>
 <p class="pbj-subtitle">Associated facilities in PBJ320 data. Latest-quarter staffing from CMS PBJ.</p>
-<style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} }}</style>
-<div class="pbj-table-wrap"><table class="entity-facilities-table">
+{entity_filter_html}
+<style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }} .entity-facility-risk-icon {{ color: #fca5a5; font-size: 0.72em; line-height: 1; position: relative; top: 2px; flex-shrink: 0; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} .entity-facilities-toolbar {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }} .entity-facilities-toolbar .owner-table-filter-input {{ flex: 1 1 12rem; max-width: 22rem; min-width: 0; }} .entity-hprd-help-link {{ display: inline; padding: 0; margin: 0; border: none; background: none; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: help; vertical-align: baseline; line-height: inherit; }}
+.entity-hprd-help-link:hover {{ color: #e2e8f0; }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} .entity-facilities-toolbar .owner-table-filter-input {{ max-width: none; width: 100%; flex-basis: 100%; }} }}</style>
+<div class="pbj-table-wrap"><table class="entity-facilities-table" id="entityFacilitiesTable">
 <thead>{thead}</thead>
 <tbody>
 {tbody}

@@ -26,6 +26,13 @@ from ownership.display_format import (
     format_org_display,
     format_role_text,
 )
+from ownership.portfolio_display import (
+    info_button_html as _info_button,
+    owner_portfolio_snapshot_html,
+    portfolio_distribution_html as _portfolio_distribution_html,
+    portfolio_info_modal_html as _owner_info_modal_html,
+    portfolio_state_distribution_html as _portfolio_state_distribution,
+)
 
 PREVIEW_CONTROL_PARTIES = 25
 PREVIEW_FACILITIES = 50
@@ -1023,18 +1030,6 @@ def _owner_profile_header_html(
       </header>"""
 
 
-def _info_button(title: str, body: str, *, label: str = "?", cls: str = "owner-info-btn") -> str:
-    extra = ""
-    if "owner-info-btn" not in cls.split():
-        extra = " owner-info-btn"
-    return (
-        f'<button type="button" class="{cls}{extra}" data-owner-info '
-        f'data-info-title="{html.escape(title, quote=True)}" '
-        f'data-info-body="{html.escape(body, quote=True)}">'
-        f"{html.escape(label)}</button>"
-    )
-
-
 def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -> str:
     snf = int(r.get("snf_shared") or 0)
     chow = int(r.get("chow_count") or 0)
@@ -1140,298 +1135,12 @@ def _chow_transaction_side_label(role_raw: str) -> str:
     return format_org_display(str(role_raw))
 
 
-def _snapshot_metric_card(
-    label: str,
-    value: str,
-    help_title: str,
-    help_body: str,
-    *,
-    tone: str = "",
-    value_title: str = "",
-) -> str:
-    tone_cls = f" owner-snapshot-card--{tone}" if tone else ""
-    value_tip = html.escape(value_title, quote=True) if value_title else ""
-    value_attrs = (
-        f' title="{value_tip}" aria-label="{value_tip}"' if value_tip else ""
-    )
-    return (
-        f'<div class="owner-snapshot-card{tone_cls}">'
-        f'<div class="owner-snapshot-label">{html.escape(label)}</div>'
-        f'<div class="owner-snapshot-value-row">'
-        f'<div class="owner-snapshot-value"{value_attrs}>{value}</div>'
-        f"{_info_button(help_title, help_body)}"
-        "</div></div>"
-    )
-
-
-def _portfolio_distribution_list(
-    counts: dict[int, int],
-    *,
-    row_labels: list[str] | None = None,
-) -> str:
-    """Bar list only (no card wrapper) for 1–5 star buckets."""
-    total = sum(int(counts.get(i, 0) or 0) for i in range(1, 6))
-    if total < 1:
-        return ""
-    peak = max(int(counts.get(i, 0) or 0) for i in range(1, 6)) or 1
-    rows: list[str] = []
-    for star in range(5, 0, -1):
-        cnt = int(counts.get(star, 0) or 0)
-        pct = int(round(100.0 * cnt / total)) if total else 0
-        width = max(4, int(round(100.0 * cnt / peak))) if cnt else 0
-        label = (row_labels[star - 1] if row_labels and len(row_labels) >= star else f"{star}\u2605")
-        rows.append(
-            f'<li class="owner-dist-row">'
-            f'<span class="owner-dist-label">{html.escape(label)}</span>'
-            f'<span class="owner-dist-bar" role="presentation">'
-            f'<span class="owner-dist-bar-fill" style="width:{width}%"></span></span>'
-            f'<span class="owner-dist-count">{cnt} <span class="owner-dist-pct">({pct}%)</span></span>'
-            f"</li>"
-        )
-    if not rows:
-        return ""
-    return f'<ul class="owner-dist-list">{"".join(rows)}</ul>'
-
-
-def _portfolio_distribution_bars(
-    counts: dict[int, int],
-    *,
-    title: str,
-    row_labels: list[str] | None = None,
-) -> str:
-    """Single distribution card (no tabs)."""
-    list_html = _portfolio_distribution_list(counts, row_labels=row_labels)
-    if not list_html:
-        return ""
-    return (
-        f'<section class="owner-dist-card" aria-label="{html.escape(title)}">'
-        f'<div class="owner-dist-card-head">'
-        f'<h3 class="owner-dist-title">{html.escape(title)}</h3>'
-        "</div>"
-        f"{list_html}"
-        "</section>"
-    )
-
-
-def _portfolio_state_distribution(by_state: list[tuple[str, int]], n_total: int) -> str:
-    if not by_state or n_total < 2 or len(by_state) < 2:
-        return ""
-    peak = max(c for _, c in by_state) or 1
-    rows: list[str] = []
-    for st, cnt in by_state[:12]:
-        pct = int(round(100.0 * cnt / n_total)) if n_total else 0
-        width = max(4, int(round(100.0 * cnt / peak))) if cnt else 0
-        rows.append(
-            f'<li class="owner-dist-row">'
-            f'<span class="owner-dist-label">{html.escape(st)}</span>'
-            f'<span class="owner-dist-bar" role="presentation">'
-            f'<span class="owner-dist-bar-fill owner-dist-bar-fill--state" style="width:{width}%"></span></span>'
-            f'<span class="owner-dist-count">{cnt} <span class="owner-dist-pct">({pct}%)</span></span>'
-            f"</li>"
-        )
-    return (
-        '<section class="owner-dist-card" aria-label="Facilities by state">'
-        '<div class="owner-dist-card-head">'
-        '<h3 class="owner-dist-title">Facilities by state</h3>'
-        "</div>"
-        f'<ul class="owner-dist-list">{"".join(rows)}</ul>'
-        "</section>"
-    )
-
-
-def _portfolio_distribution_tabs(
-    overall_list: str,
-    staffing_list: str,
-    *,
-    overall_title: str,
-    staffing_title: str,
-) -> str:
-    """Overall / staffing in one card; tabs sit in the card header beside the title."""
-    o_title = html.escape(overall_title)
-    s_title = html.escape(staffing_title)
-    return (
-        '<section class="owner-dist-card owner-dist-card--tabbed" data-owner-dist-tabs '
-        'aria-label="CMS rating distributions">'
-        '<div class="owner-dist-card-head">'
-        f'<h3 class="owner-dist-title" data-owner-dist-title>{o_title}</h3>'
-        '<div class="owner-dist-tablist" role="tablist" aria-label="Rating type">'
-        f'<button type="button" class="owner-dist-tab is-active" role="tab" id="ownerDistTabOverall" '
-        f'data-dist-title="{o_title}" aria-selected="true" aria-controls="ownerDistPanelOverall" '
-        'tabindex="0">Overall</button>'
-        f'<button type="button" class="owner-dist-tab" role="tab" id="ownerDistTabStaffing" '
-        f'data-dist-title="{s_title}" aria-selected="false" aria-controls="ownerDistPanelStaffing" '
-        'tabindex="-1">Staffing</button>'
-        "</div></div>"
-        f'<div class="owner-dist-tabpanel is-active" role="tabpanel" id="ownerDistPanelOverall" '
-        f'aria-labelledby="ownerDistTabOverall">{overall_list}</div>'
-        f'<div class="owner-dist-tabpanel" role="tabpanel" id="ownerDistPanelStaffing" '
-        f'aria-labelledby="ownerDistTabStaffing" hidden>{staffing_list}</div>'
-        "</section>"
-    )
-
-
-def _portfolio_distribution_html(ps: dict[str, Any]) -> str:
-    from ownership.owner_portfolio_metrics import PORTFOLIO_STAR_DIST_MIN
-
-    overall_title = "Overall CMS star rating"
-    staffing_title = "Staffing CMS star rating"
-    overall_list = ""
-    staffing_list = ""
-    n_ovr = int(ps.get("n_with_overall_for_dist") or 0)
-    if n_ovr >= PORTFOLIO_STAR_DIST_MIN:
-        overall_list = _portfolio_distribution_list(ps.get("overall_star_counts") or {})
-    n_stf = int(ps.get("n_with_staffing_for_dist") or 0)
-    if n_stf >= PORTFOLIO_STAR_DIST_MIN:
-        staffing_list = _portfolio_distribution_list(ps.get("staffing_star_counts") or {})
-    if overall_list and staffing_list:
-        return _portfolio_distribution_tabs(
-            overall_list,
-            staffing_list,
-            overall_title=overall_title,
-            staffing_title=staffing_title,
-        )
-    if overall_list:
-        return _portfolio_distribution_bars(
-            ps.get("overall_star_counts") or {},
-            title=overall_title,
-        )
-    if staffing_list:
-        return _portfolio_distribution_bars(
-            ps.get("staffing_star_counts") or {},
-            title=staffing_title,
-        )
-    return _portfolio_state_distribution(
-        list(ps.get("by_state") or []),
-        int(ps.get("n_facilities") or 0),
-    )
-
-
 def _portfolio_facilities_cta_html(profile: dict[str, Any]) -> str:
     return ""
 
 
-def _owner_info_modal_html() -> str:
-    return """
-      <dialog class="owner-info-modal" id="ownerInfoModal" aria-labelledby="ownerInfoModalTitle">
-        <div class="owner-info-modal-card">
-          <header class="owner-info-modal-header">
-            <h2 id="ownerInfoModalTitle">Details</h2>
-            <button type="button" class="owner-info-modal-close" data-owner-info-close aria-label="Close">×</button>
-          </header>
-          <div class="owner-info-modal-body" id="ownerInfoModalBody"></div>
-        </div>
-      </dialog>"""
-
 def _portfolio_snapshot_html(profile: dict[str, Any]) -> str:
-    ps = profile.get("portfolio_summary") or {}
-    if not ps or not ps.get("n_facilities"):
-        return ""
-
-    n = int(ps.get("n_facilities") or 0)
-    n_matched = int(ps.get("n_pbj_matched") or 0)
-    n_suggested = int(ps.get("n_pbj_suggested") or 0)
-    wmean = ps.get("wmean_hprd")
-    umean = ps.get("umean_hprd")
-    mean_ovr = ps.get("umean_overall_rating")
-    if mean_ovr is None:
-        mean_ovr = ps.get("mean_overall_rating")
-    mean_stf = ps.get("umean_staffing_rating")
-    if mean_stf is None:
-        mean_stf = ps.get("mean_staffing_rating")
-
-    from ownership.owner_portfolio_metrics import (
-        PORTFOLIO_HPRD_MAX,
-        PORTFOLIO_HPRD_MIN,
-        PORTFOLIO_OVERALL_RATING_MAX,
-        PORTFOLIO_OVERALL_RATING_MIN,
-    )
-
-    fac_help = (
-        f"{n} facilities in CMS owner data for this party. "
-        f"{n_matched} have a verified PBJ link (enrollment legal name = provider-info legal name)."
-    )
-    if n_suggested:
-        fac_help += f" {n_suggested} use a tentative name match."
-
-    ovr_help = (
-        f"Simple average of CMS overall star ratings ({PORTFOLIO_OVERALL_RATING_MIN:g}–"
-        f"{PORTFOLIO_OVERALL_RATING_MAX:g}) across PBJ-verified facilities. "
-        "Not census-weighted. Missing or out-of-range values excluded."
-    )
-    hprd_help = (
-        "Resident-weighted portfolio average: each facility's latest PBJ total nurse HPRD "
-        "is weighted by census (or certified beds when census is missing), then combined. "
-        f"PBJ-verified facilities only. HPRD below {PORTFOLIO_HPRD_MIN:g} or above "
-        f"{PORTFOLIO_HPRD_MAX:g} excluded as implausible for quarterly PBJ."
-    )
-    stf_help = (
-        "Simple average of CMS staffing star ratings (1–5) across PBJ-verified facilities. "
-        "Missing or out-of-range values excluded."
-    )
-
-    cards: list[str] = [
-        _snapshot_metric_card(
-            "Facilities",
-            str(n),
-            "Facilities",
-            fac_help,
-            tone="accent",
-            value_title="Distinct CMS-linked facilities nationwide",
-        ),
-    ]
-    if mean_ovr is not None:
-        cards.append(
-            _snapshot_metric_card(
-                "Avg overall rating",
-                html.escape(f"{mean_ovr:.1f}"),
-                "Avg overall rating",
-                ovr_help,
-                tone="warn",
-            )
-        )
-    if wmean is not None:
-        cards.append(
-            _snapshot_metric_card(
-                "Weighted total nurse HPRD",
-                html.escape(f"{wmean:.2f}"),
-                "Weighted total nurse HPRD",
-                hprd_help,
-            )
-        )
-    elif umean is not None:
-        cards.append(
-            _snapshot_metric_card(
-                "Avg total nurse HPRD",
-                html.escape(f"{umean:.2f}"),
-                "Avg total nurse HPRD",
-                hprd_help.replace("resident-weighted", "unweighted mean"),
-            )
-        )
-    if mean_stf is not None:
-        cards.append(
-            _snapshot_metric_card(
-                "Avg staffing rating",
-                html.escape(f"{mean_stf:.1f}"),
-                "Avg staffing rating",
-                stf_help,
-            )
-        )
-
-    grid_cols = "owner-portfolio-grid--4" if len(cards) >= 4 else "owner-portfolio-grid--3"
-    if len(cards) == 2:
-        grid_cols = "owner-portfolio-grid--2"
-
-    dist_html = _portfolio_distribution_html(ps)
-    cta_html = _portfolio_facilities_cta_html(profile)
-
-    return f"""
-      <section class="owner-snapshot-section" aria-label="Portfolio metrics">
-        <div class="owner-portfolio-grid {grid_cols}" aria-label="Portfolio summary metrics">
-          {"".join(cards)}
-        </div>
-        {dist_html}
-        {cta_html}
-      </section>"""
+    return owner_portfolio_snapshot_html(profile)
 
 
 def _facilities_match_note(profile: dict[str, Any]) -> str:

@@ -327,12 +327,82 @@ def enrich_facilities(facilities: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [enrich_facility_row(f) for f in facilities]
 
 
-def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
-    """Portfolio rollup for owner/control facility list (PBJapp-style headline metrics)."""
+def _cell_str(val: Any) -> str | None:
+    if val is None:
+        return None
+    if isinstance(val, float) and pd.isna(val):
+        return None
+    s = str(val).strip()
+    if not s or s.lower() in ("nan", "none", "—", "-"):
+        return None
+    return s
+
+
+def entity_facility_for_portfolio(
+    fac: dict[str, Any], provider_info: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """Map entity roster row + preloaded provider_info to portfolio rollup shape."""
+    ccn = str(fac.get("ccn") or "").strip().zfill(6)[-6:]
+    pi = provider_info.get(ccn) or {}
+    row: dict[str, Any] = {
+        "ccn": ccn,
+        "state": str(fac.get("state") or pi.get("state") or "").strip().upper()[:2],
+        "county": str(pi.get("county") or "").strip(),
+        "pbj_matched": bool(ccn),
+    }
+    census = _cell_str(pi.get("avg_residents_per_day")) or _cell_str(
+        fac.get("avg_daily_census")
+    )
+    if census:
+        row["census"] = census
+    beds = _cell_str(pi.get("certified_beds")) or _cell_str(pi.get("beds"))
+    if beds:
+        row["beds"] = beds
+    tn = fac.get("Total_Nurse_HPRD")
+    hprd = None
+    if tn is not None and not (isinstance(tn, float) and pd.isna(tn)):
+        hprd = _cell_str(tn)
+    if not hprd:
+        hprd = _cell_str(
+            pi.get("reported_total_nurse_hrs_per_resident_per_day")
+        ) or _cell_str(pi.get("Total_Nurse_HPRD"))
+    if hprd:
+        row["hprd"] = hprd
+    for dst, src in (
+        ("overall_rating", "overall_rating"),
+        ("staffing_rating", "staffing_rating"),
+        ("health_inspection_rating", "health_inspection_rating"),
+        ("qm_rating", "qm_rating"),
+    ):
+        v = _cell_str(pi.get(src))
+        if v:
+            row[dst] = v
+    sff = _cell_str(pi.get("sff_status")) or _cell_str(pi.get("sff"))
+    if sff:
+        row["sff"] = sff
+        row["sff_status"] = sff
+    row["has_abuse"] = _parse_abuse_flag(
+        pi.get("abuse_icon") or pi.get("has_abuse_icon")
+    )
+    return row
+
+
+def build_entity_portfolio_summary(
+    facilities: list[dict[str, Any]],
+    provider_info: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Portfolio rollup for /entity/<id> using roster CCNs + scoped provider_info (no CSV re-scan)."""
     if not facilities:
         return {}
+    rows = [entity_facility_for_portfolio(f, provider_info) for f in facilities]
+    return _rollup_portfolio_metrics(rows)
 
-    enriched = enrich_facilities(facilities)
+
+def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
+    """Shared portfolio means, star buckets, and state counts."""
+    if not enriched:
+        return {}
+
     n = len(enriched)
     states = sorted({str(f.get("state") or "").upper() for f in enriched if f.get("state")})
     counties = sorted({str(f.get("county") or "") for f in enriched if f.get("county")})
@@ -479,6 +549,13 @@ def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
         "n_with_staffing_for_dist": sum(staffing_star_counts.values()),
         "by_state": sorted(by_state.items(), key=lambda x: (-x[1], x[0])),
     }
+
+
+def build_portfolio_summary(facilities: list[dict[str, Any]]) -> dict[str, Any]:
+    """Portfolio rollup for owner/control facility list (PBJapp-style headline metrics)."""
+    if not facilities:
+        return {}
+    return _rollup_portfolio_metrics(enrich_facilities(facilities))
 
 
 def summarize_control_parties(control_parties: list[dict[str, Any]]) -> dict[str, Any]:

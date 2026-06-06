@@ -34,7 +34,7 @@ class NyStaffingPreviewTest(unittest.TestCase):
         self.assertIn('class="ny-staffing-preview-banner"', out)
         self.assertIn('ny-staffing-preview-chrome', out)
         self.assertIn(
-            'Pre-publication preview: Shared ahead of Monday\u2019s public release. '
+            'Pre-publication preview: Shared ahead of Tuesday\u2019s public release. '
             'Data and wording may still be updated.',
             out,
         )

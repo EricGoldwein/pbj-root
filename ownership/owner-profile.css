@@ -462,6 +462,26 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.entity-portfolio-root .owner-portfolio-grid,
+.entity-portfolio-root .owner-portfolio-grid--3,
+.entity-portfolio-root .entity-portfolio-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 639px) {
+  .entity-portfolio-root .owner-portfolio-grid,
+  .entity-portfolio-root .entity-portfolio-grid--3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .entity-portfolio-root .owner-portfolio-grid,
+  .entity-portfolio-root .entity-portfolio-grid--3 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 .owner-portfolio-grid--4 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

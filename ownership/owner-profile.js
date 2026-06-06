@@ -4,12 +4,55 @@
 (function () {
   'use strict';
 
-  var root = document.querySelector('.owner-profile-root');
-  if (!root) return;
+  function initDistTabs() {
+    document.querySelectorAll('[data-owner-dist-tabs]').forEach(function (wrap) {
+      var tabs = wrap.querySelectorAll('[role="tab"]');
+      var panels = wrap.querySelectorAll('[role="tabpanel"]');
+      if (!tabs.length || tabs.length !== panels.length) return;
+
+      function activate(index) {
+        var heading = wrap.querySelector('[data-owner-dist-title]');
+        tabs.forEach(function (tab, i) {
+          var on = i === index;
+          tab.classList.toggle('is-active', on);
+          tab.setAttribute('aria-selected', on ? 'true' : 'false');
+          tab.tabIndex = on ? 0 : -1;
+          panels[i].hidden = !on;
+          panels[i].classList.toggle('is-active', on);
+          if (on && heading && tab.getAttribute('data-dist-title')) {
+            heading.textContent = tab.getAttribute('data-dist-title');
+          }
+        });
+      }
+
+      tabs.forEach(function (tab, index) {
+        tab.addEventListener('click', function () {
+          activate(index);
+        });
+        tab.addEventListener('keydown', function (e) {
+          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+          e.preventDefault();
+          var next = e.key === 'ArrowRight' ? index + 1 : index - 1;
+          if (next < 0) next = tabs.length - 1;
+          if (next >= tabs.length) next = 0;
+          tabs[next].focus();
+          activate(next);
+        });
+      });
+    });
+  }
+
+  initDistTabs();
 
   var infoDlg = document.getElementById('ownerInfoModal');
   var infoBody = document.getElementById('ownerInfoModalBody');
   var infoTitle = document.getElementById('ownerInfoModalTitle');
+
+  function infoButtonScope(btn) {
+    return btn.closest(
+      '.owner-profile-root, .entity-portfolio-root, #pbj-takeaway, .entity-facilities-section'
+    );
+  }
 
   function readInfoPayload(btn) {
     var title = btn.getAttribute('data-info-title');
@@ -144,9 +187,9 @@
   }
 
   if (infoDlg && infoBody) {
-    root.addEventListener('click', function (e) {
+    document.addEventListener('click', function (e) {
       var btn = e.target.closest('[data-owner-info]');
-      if (!btn || !root.contains(btn)) return;
+      if (!btn || !infoButtonScope(btn)) return;
       e.preventDefault();
       e.stopPropagation();
       openInfo(btn);
@@ -181,6 +224,9 @@
       if (e.target === dlg) dlg.close();
     });
   }
+
+  var root = document.querySelector('.owner-profile-root');
+  if (!root) return;
 
   var table = document.getElementById('ownerFacilitiesTable');
   if (!table) return;
@@ -392,45 +438,6 @@
     });
   }
 
-  function initDistTabs() {
-    root.querySelectorAll('[data-owner-dist-tabs]').forEach(function (wrap) {
-      var tabs = wrap.querySelectorAll('[role="tab"]');
-      var panels = wrap.querySelectorAll('[role="tabpanel"]');
-      if (!tabs.length || tabs.length !== panels.length) return;
-
-      function activate(index) {
-        var heading = wrap.querySelector('[data-owner-dist-title]');
-        tabs.forEach(function (tab, i) {
-          var on = i === index;
-          tab.classList.toggle('is-active', on);
-          tab.setAttribute('aria-selected', on ? 'true' : 'false');
-          tab.tabIndex = on ? 0 : -1;
-          panels[i].hidden = !on;
-          panels[i].classList.toggle('is-active', on);
-          if (on && heading && tab.getAttribute('data-dist-title')) {
-            heading.textContent = tab.getAttribute('data-dist-title');
-          }
-        });
-      }
-
-      tabs.forEach(function (tab, index) {
-        tab.addEventListener('click', function () {
-          activate(index);
-        });
-        tab.addEventListener('keydown', function (e) {
-          if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-          e.preventDefault();
-          var next = e.key === 'ArrowRight' ? index + 1 : index - 1;
-          if (next < 0) next = tabs.length - 1;
-          if (next >= tabs.length) next = 0;
-          tabs[next].focus();
-          activate(next);
-        });
-      });
-    });
-  }
-
-  initDistTabs();
   applySort();
   updateSortHeaders();
   applyFilter();

@@ -381,7 +381,7 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## Contact and methodology
 
-- Data sources and limitations: {base}/data-sources
+- Data sources and methodology: {base}/data-sources
 - About: {base}/about
 - Contact: {base}/contact
 - Press: {base}/press

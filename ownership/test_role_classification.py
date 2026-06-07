@@ -9,6 +9,8 @@ _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+from datetime import datetime
+
 from ownership.role_classification import (  # noqa: E402
     CATEGORY_ADMIN,
     CATEGORY_OPERATIONAL,
@@ -109,6 +111,44 @@ class RoleClassificationTests(unittest.TestCase):
         info = classify_owner_record(_row(code="43", text="Operational/Managerial Control"))
         self.assertTrue(info["is_operational_control"])
         self.assertEqual(info["primary_role_label"], "Operational/managerial control")
+
+    def test_party_stake_column_label_pct_and_control(self) -> None:
+        from ownership.role_classification import party_stake_column_label
+
+        own = build_consolidated_party_from_rows(
+            "pac:1",
+            [_row(code="01", text="5% OR MORE OWNERSHIP INTEREST", pct="30", date="01/01/2020")],
+        )
+        own["name"] = "Joel Zupnick"
+        self.assertEqual(party_stake_column_label(own), "30%")
+        op = build_consolidated_party_from_rows(
+            "pac:2",
+            [_row(code="43", text="Operational/Managerial Control", date="01/01/2023")],
+        )
+        op["name"] = "Robert D Zitsman"
+        self.assertEqual(party_stake_column_label(op), "Ops control")
+
+    def test_party_stake_governance_modal_label(self) -> None:
+        from ownership.role_classification import party_stake_column_label
+
+        gov = build_consolidated_party_from_rows(
+            "pac:3",
+            [_row(code="40", text="CORPORATE OFFICER", date="01/01/2020")],
+        )
+        self.assertEqual(party_stake_column_label(gov), "Corp. officer")
+        self.assertEqual(party_stake_column_label(gov, modal=True), "Corp. officer")
+
+    def test_party_sort_key_pre_1970_association_date(self) -> None:
+        """Windows rejects datetime.timestamp() before Unix epoch; sort must not crash."""
+        party = enrich_control_party(
+            build_consolidated_party_from_rows(
+                "pac:1",
+                [_row(code="01", text="5% OR MORE OWNERSHIP INTEREST", pct="10", date="01/15/1965")],
+            )
+        )
+        key = party_sort_key(party)
+        self.assertIsInstance(key, tuple)
+        self.assertEqual(key[3], -datetime(1965, 1, 15).toordinal())
 
     def test_sort_control_parties_order(self) -> None:
         parties = sort_control_parties(

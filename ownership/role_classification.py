@@ -367,7 +367,8 @@ def party_sort_key(party: dict[str, Any]) -> tuple[Any, ...]:
     ad = p.get("association_date_earliest")
     if ad is None and p.get("association_dates"):
         ad = parse_association_date((p["association_dates"] or [""])[0])
-    date_ord = ad.timestamp() if isinstance(ad, datetime) else 0.0
+    # toordinal() is portable; datetime.timestamp() raises OSError on Windows for pre-1970 dates.
+    date_ord = float(ad.toordinal()) if isinstance(ad, datetime) else 0.0
     return (
         -cat_rank,
         -priority,
@@ -432,6 +433,61 @@ def facility_link_counts_from_buckets(
     return out
 
 
+def format_role_ultra_short_for_classification(info: dict[str, Any]) -> str:
+    """One-line stake/role label for tight table columns (portfolio % Own.)."""
+    label = str(info.get("primary_role_label") or "").strip()
+    if not label:
+        return ""
+    cat = info.get("role_category")
+    if cat == CATEGORY_OPERATIONAL:
+        return "Ops control"
+    if cat == CATEGORY_ADMIN:
+        return "ADP"
+    if cat == CATEGORY_GOVERNANCE:
+        return "Corp. officer"
+    if cat == CATEGORY_FINANCIAL:
+        return "Financial"
+    if cat == CATEGORY_OWNERSHIP:
+        pct = info.get("ownership_pct")
+        if pct is not None and pct >= 5:
+            return "≥5%"
+        return "Owner"
+    if "managing employee" in label.lower():
+        return "Mgr."
+    if len(label) <= 14:
+        return label
+    return label[:12].rstrip() + "…"
+
+
+def format_role_stake_modal_label(info: dict[str, Any]) -> str:
+    """Readable Stake column on provider owner modal (no blind truncation)."""
+    label = str(info.get("primary_role_label") or "").strip()
+    if not label:
+        return ""
+    cat = info.get("role_category")
+    if cat == CATEGORY_OPERATIONAL:
+        return "Ops control"
+    if cat == CATEGORY_ADMIN:
+        return "ADP"
+    if cat == CATEGORY_GOVERNANCE:
+        return "Corp. officer"
+    if cat == CATEGORY_FINANCIAL:
+        return "Financial interest"
+    if cat == CATEGORY_OWNERSHIP:
+        pct = info.get("ownership_pct")
+        if pct is not None and pct >= 5:
+            if "direct" in str(info.get("role_text_raw") or "").lower():
+                return "≥5% direct"
+            if "indirect" in str(info.get("role_text_raw") or "").lower():
+                return "≥5% indirect"
+            return "≥5% owner"
+        return "Owner"
+    if "managing employee" in label.lower():
+        return "Managing employee"
+    short = format_role_short_for_classification(info)
+    return short if len(short) <= 24 else short[:22].rstrip() + "…"
+
+
 def format_role_short_for_classification(info: dict[str, Any]) -> str:
     """Compact label from classify_owner_record output."""
     label = str(info.get("primary_role_label") or "").strip()
@@ -453,6 +509,79 @@ def format_role_short_for_classification(info: dict[str, Any]) -> str:
     if len(label) <= 28:
         return label
     return label[:26].rstrip() + "…"
+
+
+def _party_stake_role_label(p: dict[str, Any], *, modal: bool) -> str:
+    roles = list(p.get("roles") or [])
+    codes = list(p.get("role_codes") or [])
+    pick = format_role_stake_modal_label if modal else format_role_ultra_short_for_classification
+    for i, raw in enumerate(roles):
+        code = codes[i] if i < len(codes) else ""
+        info = classify_owner_record({ROLE_CODE_COL: code, ROLE_TEXT_COL: raw})
+        short = pick(info)
+        if short:
+            return short
+    short = pick(p)
+    return short or "—"
+
+
+def party_stake_column_title(party: dict[str, Any]) -> str:
+    """Full CMS role for Stake cell tooltip when display label is abbreviated."""
+    p = enrich_control_party(dict(party))
+    for raw in p.get("pcts") or []:
+        lbl = ownership_pct_display_label(raw)
+        if lbl:
+            return lbl
+    primary = str(p.get("primary_role_label") or "").strip()
+    if primary:
+        return primary
+    roles = list(p.get("roles") or [])
+    if roles:
+        from ownership.display_format import format_role_text
+
+        return format_role_text(roles[0])
+    return ""
+
+
+def party_stake_column_label(party: dict[str, Any], *, modal: bool = False) -> str:
+    """Stake column: CMS % when reported; else role shorthand (not em dash)."""
+    p = enrich_control_party(dict(party))
+    for raw in p.get("pcts") or []:
+        lbl = ownership_pct_display_label(raw)
+        if lbl:
+            return lbl.replace(" ownership interest", "").strip()
+        s = str(raw or "").strip()
+        if s and s.lower() not in ("nan", "none", "—", "-", "n/a"):
+            return s if "%" in s else f"{s}%"
+    return _party_stake_role_label(p, modal=modal)
+
+
+def facility_stake_column_label(
+    *,
+    role_raw: str = "",
+    role_code: str = "",
+    pct_raw: str = "",
+) -> tuple[str, str]:
+    """Portfolio % Own. cell: (short display, long title/aria)."""
+    pct = str(pct_raw or "").strip()
+    if pct:
+        try:
+            v = float(pct.replace("%", "").replace(",", ""))
+            if abs(v - round(v)) < 1e-9:
+                short = f"{int(round(v))}%"
+            else:
+                short = f"{v:.1f}%"
+        except ValueError:
+            short = pct if "%" in pct else f"{pct}%"
+        return short, short
+    info = classify_owner_record(
+        {ROLE_CODE_COL: role_code, ROLE_TEXT_COL: role_raw, PCT_COL: pct}
+    )
+    long_lbl = format_role_short_for_classification(info)
+    short_lbl = format_role_ultra_short_for_classification(info)
+    if short_lbl:
+        return short_lbl, long_lbl or short_lbl
+    return "—", "—"
 
 
 def ownership_pct_display_label(raw: str) -> str:

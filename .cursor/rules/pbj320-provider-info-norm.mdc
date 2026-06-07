@@ -1,0 +1,45 @@
+---
+description: ProviderInfoNorm snapshot parity — NH map, CMI/urban gates, contradictory-symptom protocol
+globs:
+  - provider_info/ProviderInfoNorm_*.csv
+  - provider_info/NH_ProviderInfo_*.csv
+  - scripts/backfill_provider_norm_urban.py
+  - scripts/validate_provider_norm_snapshot.py
+  - scripts/ensure_deploy_csvs.py
+  - app.py
+---
+
+# ProviderInfoNorm data contract
+
+## Single source of truth
+
+- **Build:** `PBJapp/normalize_provider_info.py` + `nh_provider_column_map.py` (`NH_TO_NORM`).
+- **Never** hand-edit or copy-paste Norm CSVs without running the normalizer or parity validation.
+- Skill: `.cursor/skills/pbj320-provider-info-pipeline/SKILL.md`.
+
+## Mandatory gates (newest snapshot)
+
+```powershell
+python scripts/backfill_provider_norm_urban.py
+python scripts/validate_provider_norm_snapshot.py
+```
+
+**Fail deploy** if validate exits 1. `ensure_deploy_csvs.py` runs both after materializing CSVs.
+
+## Contradictory symptoms → data first
+
+If facility UI shows CMI but state/national percentile says unavailable:
+
+1. Count `nursing_case_mix_index` non-null in **newest Norm**, **paired NH**, and **combined**.
+2. Do **not** ship runtime-only fallbacks without documenting upstream gap and running validate.
+3. Case-mix HPRD populated + CMI null in Norm = broken normalization, not missing CMS data.
+
+## Critical parity fields (≥90% of NH when NH has ≥100 values)
+
+- `nursing_case_mix_index`
+- `nursing_case_mix_index_ratio`
+- `urban`
+
+## Spot CCN
+
+`015009` (Burns): must have numeric `nursing_case_mix_index` when NH snapshot has CMI.

@@ -546,6 +546,7 @@ body.pbj-insights-report-page .nav-toggle span {
     --report-page-width: 1180px;
     --report-rail-width: 10.75rem;
     --report-rail-gap: 2.5rem;
+    --report-hero-to-body-gap: 1.5rem;
   }
   .hero-inner {
     display: grid;
@@ -568,8 +569,7 @@ body.pbj-insights-report-page .nav-toggle span {
     grid-template-columns: var(--report-rail-width) minmax(0, 1fr);
     gap: 0 var(--report-rail-gap);
     max-width: var(--report-page-width);
-    padding-left: 24px;
-    padding-right: 24px;
+    padding: var(--report-hero-to-body-gap) 24px 0;
     box-sizing: border-box;
     align-items: start;
   }
@@ -577,7 +577,7 @@ body.pbj-insights-report-page .nav-toggle span {
     grid-column: 1;
     grid-row: 1;
     position: sticky;
-    top: 4.5rem;
+    top: calc(4.5rem + var(--report-hero-to-body-gap, 1.5rem));
     align-self: start;
     max-width: none;
     margin: 0;
@@ -587,7 +587,7 @@ body.pbj-insights-report-page .nav-toggle span {
   }
   body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .report-nav,
   body.pbj-insights-report-page:has(.ny-staffing-preview-banner) .report-nav {
-    top: var(--ny-preview-banner-offset, calc(4.5rem + 0.65rem * 2 + 0.9rem * 1.35 + 1px));
+    top: calc(var(--ny-preview-banner-offset, calc(4.5rem + 0.65rem * 2 + 0.9rem * 1.35 + 1px)) + var(--report-hero-to-body-gap, 1.5rem));
   }
   .report-nav-title {
     font-size: 10.5px;
@@ -2655,9 +2655,10 @@ a.statute-ref-link::after {
 
   <section id="provider-compliance" aria-labelledby="provider-compliance-heading">
     <span class="section-label">03 · Provider compliance</span>
-    <h2 id="provider-compliance-heading">Some homes are below minimum almost every day; others rarely</h2>
+    <h2 id="provider-compliance-heading">Some homes are below minimum almost every day</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-facilities">Facility table</a><a class="methods-jump-link" href="#method-provider-days">Provider-day bands</a></span></p>
-    <p id="provider-days-below-lead">At <strong>3.50</strong> HPRD, some homes were below minimum almost every day; others rarely.</p>
+    <p id="provider-days-below-lead">Among <strong>596</strong> New York nursing homes in 2025, <strong>34</strong> were below <strong>3.50</strong> HPRD on every reported day and <strong>95</strong> on at least <strong>90%</strong> of days; the remainder fall across the day-below bands below.</p>
+    <p class="definitions-disclaimer provider-quarterly-note" role="note"><strong>Note:</strong> The table and band chart show <strong>daily</strong> compliance with the minimum, which differs from compliance on a quarterly average. In Q4 2025, <strong>49%</strong> of facilities (<strong>290 of 589</strong>) averaged below <strong>3.50</strong> HPRD on quarterly PBJ totals.</p>
 
     <div class="provider-compliance-table">
       <div class="facilities-explorer-header">
@@ -2841,11 +2842,6 @@ a.statute-ref-link::after {
         <p>This analysis uses <strong>CMS Payroll-Based Journal (PBJ) daily nurse staffing</strong> for calendar year 2025: four quarterly CSV releases (CY2025Q1–Q4). Each record is one nursing home on one work date with role-level hours and census.</p>
         <p>Facilities are limited to <strong>New York State</strong> CCNs present in PBJ during 2025. The unit of analysis is the <strong>facility-day</strong> (one home, one calendar day, census &gt; 0).</p>
         <p><strong>Daily, not shift-level:</strong> PBJ publishes one staffing total per role per calendar day, not separate day/evening/night shifts. Nursing homes often run leaner overnight and heavier on dayside; a facility-day can meet a daily HPRD benchmark while averaging lower coverage over part of the 24-hour period. This report cannot detect within-day or shift-level variation.</p>
-      </div>
-
-      <div class="methodology-sub" id="method-statewide-ratio">
-        <h3>Statewide average HPRD (3.58)</h3>
-        <p>New York&rsquo;s statewide nursing home ratio for 2025 is <strong>3.58 HPRD</strong> (an aggregate ratio).</p>
       </div>
 
       <div class="methodology-sub" id="method-metric">
@@ -5128,8 +5124,10 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     if (lead && dist.facility_count) {
       var t = Number(threshold);
       var tLabel = isFinite(t) ? t.toFixed(2) : String(threshold);
+      var everyDay = dist.counts[0] || 0;
+      var atLeast90 = (dist.counts[0] || 0) + (dist.counts[1] || 0);
       lead.innerHTML =
-        'At <strong>' + tLabel + '</strong> HPRD, some homes were below minimum almost every day; others rarely.';
+        'Among <strong>' + fmtInt(dist.facility_count) + '</strong> New York nursing homes in 2025, <strong>' + fmtInt(everyDay) + '</strong> were below <strong>' + tLabel + '</strong> HPRD on every reported day and <strong>' + fmtInt(atLeast90) + '</strong> on at least <strong>90%</strong> of days; the remainder fall across the day-below bands below.';
     }
     if (histLead && dist.facility_count) {
       histLead.innerHTML =

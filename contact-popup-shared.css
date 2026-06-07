@@ -22,3 +22,44 @@
   box-shadow: 0 0 0 1000px rgb(15, 23, 42) inset;
   transition: background-color 5000s ease-in-out 0s;
 }
+
+.contact-popup-premium-about {
+  margin: 0.85rem 0 0;
+  padding-top: 0.85rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+  text-align: center;
+}
+
+.contact-popup-premium-about[hidden] {
+  display: none;
+}
+
+.contact-popup-premium-about__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #c7d2fe;
+  text-decoration: none;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  box-sizing: border-box;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.contact-popup-premium-about__link:hover {
+  background: rgba(51, 65, 85, 0.65);
+  border-color: rgba(129, 140, 248, 0.45);
+  color: #e0e7ff;
+}
+
+.contact-popup-premium-about__link:focus-visible {
+  outline: 2px solid #818cf8;
+  outline-offset: 2px;
+}

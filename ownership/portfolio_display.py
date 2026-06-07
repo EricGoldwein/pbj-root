@@ -279,36 +279,28 @@ def entity_weighted_hprd_help_body(
     return "\n\n".join(lines)
 
 
-def entity_takeaway_hprd_link_html(
+def entity_takeaway_hprd_help_span_html(
     narrative_hprd: float,
     *,
-    narrative_source: str,
+    entity_name: str,
     weighted_hprd: float | None = None,
-    unweighted_hprd: float | None = None,
 ) -> str:
-    """Underlined HPRD value in takeaway — opens modal explaining vs weighted card below."""
-    body = (
-        f"This sentence uses {narrative_hprd:.2f} total nurse HPRD from {narrative_source}."
-    )
-    if weighted_hprd is not None:
-        body += (
-            f"\n\nThe weighted total nurse HPRD card below lists {weighted_hprd:.2f} HPRD. "
-            "That figure weights each roster facility by census (or certified beds), so larger "
-            "nursing homes count more than a simple average."
-        )
-    if (
-        unweighted_hprd is not None
-        and weighted_hprd is not None
-        and abs(unweighted_hprd - weighted_hprd) >= 0.01
-        and narrative_source != "the CMS chain performance file"
-    ):
-        body += f"\n\nUnweighted roster average: {unweighted_hprd:.2f} HPRD."
+    """Dotted-underline HPRD in entity takeaway — hover tooltip like high-risk help."""
     val = f"{narrative_hprd:.2f}"
+    entity_esc = html.escape(entity_name or "this chain")
+    if weighted_hprd is not None:
+        tip = (
+            f"{val} is the average total nurse HPRD among {entity_esc} nursing homes. "
+            f"The weighted average ({weighted_hprd:.2f} HPRD) weights each facility's census "
+            "so that larger nursing homes count more than the smaller ones."
+        )
+    else:
+        tip = f"{val} is the average total nurse HPRD among {entity_esc} nursing homes."
     return (
-        f'<button type="button" class="owner-info-btn entity-hprd-help-link" data-owner-info '
-        f'data-info-title="{html.escape("Portfolio HPRD averages", quote=True)}" '
-        f'data-info-body="{html.escape(body, quote=True)}">'
-        f"{html.escape(val)}</button>"
+        f'<span class="pbj-high-risk-help-wrap">'
+        f'<span class="pbj-high-risk-help">{html.escape(val)}</span>'
+        f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(tip)}</span>'
+        f"</span>"
     )
 
 

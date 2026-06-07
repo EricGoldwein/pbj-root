@@ -33,6 +33,7 @@ from ownership.portfolio_display import (
     portfolio_info_modal_html as _owner_info_modal_html,
     portfolio_state_distribution_html as _portfolio_state_distribution,
 )
+from ownership.sff_display import sff_flag_explainer_tuple
 
 PREVIEW_CONTROL_PARTIES = 25
 PREVIEW_FACILITIES = 50
@@ -41,16 +42,8 @@ FACILITIES_MOBILE_PREVIEW = 20
 FACILITIES_MOBILE_FILTER_MIN = 8
 
 _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
-    "sff": (
-        "Special Focus Facility (SFF)",
-        "Nursing homes with a history of serious quality problems. CMS assigns enhanced "
-        "oversight until the facility graduates or is terminated from the program.",
-    ),
-    "sffc": (
-        "SFF Candidate",
-        "Facilities CMS is monitoring for potential SFF designation based on sustained "
-        "poor survey and quality trends.",
-    ),
+    "sff": sff_flag_explainer_tuple("sff"),
+    "sffc": sff_flag_explainer_tuple("sffc"),
     "abuse": (
         "Abuse",
         "Flagged for abuse on CMS.",
@@ -1113,7 +1106,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         f"</div>"
         '<details class="owner-collapsible owner-associates-collapsible">'
         f'<summary class="owner-associates-summary">'
-        f'<span class="owner-associates-summary-label">Show associates</span>'
+        f'<span class="owner-associates-summary-label">Show associated owners</span>'
         f"</summary>"
         f"{dual}"
         "</details>"
@@ -1323,16 +1316,14 @@ def _role_kind_hint(role_text: str) -> str:
 
 def _pct_fallback_label(role_raw: str) -> str:
     """CMS often leaves PERCENTAGE OWNERSHIP blank for control roles; show a short label."""
-    r = str(role_raw or "").upper()
-    if "OPERATIONAL" in r and ("MANAGERIAL" in r or "MANAGER" in r):
-        return "Operational/managerial control"
-    if "ADP OF THE SNF" in r or r.strip() == "ADP":
-        return "ADP of the SNF"
-    if "MANAGING EMPLOYEE" in r:
-        return "Mgr."
-    if "5% OR GREATER" in r or "DIRECT OWNERSHIP" in r:
-        return "≥5%"
-    return ""
+    from ownership.role_classification import (
+        ROLE_TEXT_COL,
+        classify_owner_record,
+        format_role_short_for_classification,
+    )
+
+    info = classify_owner_record({ROLE_TEXT_COL: role_raw})
+    return format_role_short_for_classification(info) if info.get("primary_role_label") else ""
 
 
 def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
@@ -1343,22 +1334,34 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
     pct_raw = str(f.get("pct") or "").strip()
     pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
 
+    from ownership.role_classification import facility_stake_column_label
+
+    short_lbl, long_lbl = facility_stake_column_label(
+        role_raw=role_raw,
+        role_code=str(f.get("role_code") or ""),
+        pct_raw=pct_raw,
+    )
     if pct:
         pct_label_raw = _format_own_pct_label(pct)
-        pct_display = html.escape(pct_label_raw)
+        pct_display = html.escape(short_lbl)
+        pct_title = html.escape(pct_label_raw)
     else:
-        pct_label_raw = _pct_fallback_label(role_raw) or "—"
-        pct_display = html.escape(pct_label_raw)
+        pct_label_raw = long_lbl if long_lbl != "—" else ""
+        pct_display = html.escape(short_lbl)
+        pct_title = html.escape(long_lbl) if long_lbl != "—" else pct_display
     has_detail = bool(role_text) or (adate and adate != "—") or pct
     since_html = _role_since_html(f.get("association_date"))
 
     if has_detail:
         attrs = _facility_ownership_modal_attr_str(
-            f, pct_label=pct_label_raw if pct else ""
+            f, pct_label=pct_label_raw if pct else long_lbl
+        )
+        title_attr = (
+            f' title="{pct_title}"' if pct_title and pct_title != pct_display else ""
         )
         pct_part = (
-            f'<button type="button" class="owner-role-pct-btn" {attrs} '
-            f'aria-label="Ownership details: {pct_display}">'
+            f'<button type="button" class="owner-role-pct-btn" {attrs}{title_attr} '
+            f'aria-label="Ownership details: {pct_title}">'
             f"{pct_display}</button>"
         )
     else:

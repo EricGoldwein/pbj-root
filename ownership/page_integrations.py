@@ -30,6 +30,8 @@ from ownership.display_format import format_org_display, format_role_short, form
 from ownership.role_classification import (
     enrich_control_party,
     ownership_pct_display_label,
+    party_stake_column_label,
+    party_stake_column_title,
     sort_control_parties,
 )
 
@@ -481,15 +483,7 @@ def _party_stake_sort_value(party: dict[str, Any]) -> float:
 
 
 def _party_pct_display_short(party: dict[str, Any]) -> str:
-    for raw in party.get("pcts") or []:
-        lbl = _ownership_pct_own_label(raw)
-        if lbl:
-            return lbl.replace(" ownership interest", "").strip()
-    for raw in party.get("pcts") or []:
-        s = str(raw or "").strip()
-        if s and s.lower() not in ("nan", "none", "—", "-"):
-            return s if "%" in s else f"{s}%"
-    return "—"
+    return party_stake_column_label(party, modal=True)
 
 
 def _party_type_short(party_type: str) -> str:
@@ -631,7 +625,12 @@ def render_provider_owners_subtitle_control(
     for p in ranked[:30]:
         raw_name = str(p.get("name") or "—")
         name = html.escape(format_org_display(raw_name) if raw_name != "—" else "—")
-        pct = html.escape(_party_pct_display_short(p))
+        pct_label = _party_pct_display_short(p)
+        pct = html.escape(pct_label)
+        pct_title = html.escape(party_stake_column_title(p) or pct_label)
+        pct_tip = (
+            f' title="{pct_title}"' if pct_title and pct_title != pct else ""
+        )
         typ = html.escape(_party_type_short(str(p.get("party_type") or "")))
         since = html.escape(_party_since_display(p))
         url = str(p.get("profile_url") or "").strip()
@@ -642,7 +641,7 @@ def render_provider_owners_subtitle_control(
         rows.append(
             f"<tr>"
             f'<td class="pbj-provider-owners-modal-name">{name_cell}</td>'
-            f'<td class="pbj-provider-owners-modal-pct">{pct}</td>'
+            f'<td class="pbj-provider-owners-modal-pct"{pct_tip}>{pct}</td>'
             f'<td class="pbj-provider-owners-modal-type">{typ}</td>'
             f'<td class="pbj-provider-owners-modal-since">{since}</td>'
             f"</tr>"

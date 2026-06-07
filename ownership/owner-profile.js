@@ -50,7 +50,7 @@
 
   function infoButtonScope(btn) {
     return btn.closest(
-      '.owner-profile-root, .entity-portfolio-root, #pbj-takeaway, .entity-facilities-section'
+      '.owner-profile-root, .entity-portfolio-root, .entity-high-risk-metrics, #pbj-takeaway, .entity-facilities-section'
     );
   }
 
@@ -89,6 +89,12 @@
     infoBody.textContent = '';
     infoBody.className = 'owner-info-modal-body';
     var fmt = btn.getAttribute('data-info-format') || '';
+
+    if (fmt === 'html') {
+      var bodyHtml = data.body || btn.getAttribute('data-info-body') || '';
+      if (bodyHtml) infoBody.innerHTML = bodyHtml;
+      return;
+    }
 
     if (fmt === 'address') {
       infoBody.classList.add('owner-info-modal-body--address');
@@ -145,6 +151,37 @@
       return;
     }
 
+    if (fmt === 'sff') {
+      infoBody.classList.add('owner-info-modal-body--sff');
+      var bodySff = data.body || btn.getAttribute('data-info-body') || '';
+      if (bodySff.indexOf('\n\n') >= 0) {
+        bodySff.split(/\n\n+/).forEach(function (chunk) {
+          if (!chunk.trim()) return;
+          var para = document.createElement('p');
+          para.textContent = chunk.trim();
+          infoBody.appendChild(para);
+        });
+      } else if (bodySff) {
+        var lone = document.createElement('p');
+        lone.textContent = bodySff;
+        infoBody.appendChild(lone);
+      }
+      var linkUrl = (btn.getAttribute('data-info-link-url') || '').trim();
+      var linkLabel = (btn.getAttribute('data-info-link-label') || '').trim();
+      if (linkUrl && linkLabel) {
+        var cta = document.createElement('p');
+        cta.className = 'owner-info-cta';
+        var a = document.createElement('a');
+        a.href = linkUrl;
+        a.textContent = linkLabel;
+        a.className = 'owner-info-cta-link';
+        a.setAttribute('rel', 'noopener');
+        cta.appendChild(a);
+        infoBody.appendChild(cta);
+      }
+      return;
+    }
+
     var body = data.body || '';
     if (fmt === 'flag') {
       infoBody.classList.add('owner-info-modal-body--flag');
@@ -171,12 +208,14 @@
       infoDlg.classList.remove(
         'owner-info-modal--ownership',
         'owner-info-modal--flag',
-        'owner-info-modal--address'
+        'owner-info-modal--address',
+        'owner-info-modal--sff'
       );
       var fmt = btn.getAttribute('data-info-format') || '';
       if (fmt === 'ownership') infoDlg.classList.add('owner-info-modal--ownership');
       if (fmt === 'flag') infoDlg.classList.add('owner-info-modal--flag');
       if (fmt === 'address') infoDlg.classList.add('owner-info-modal--address');
+      if (fmt === 'sff') infoDlg.classList.add('owner-info-modal--sff');
     }
     fillInfoBody(btn, data);
     if (typeof infoDlg.showModal === 'function') {

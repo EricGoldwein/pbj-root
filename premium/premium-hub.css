@@ -2313,6 +2313,43 @@ a.pbj-audit-hero-actions__primary {
     min-height: 4.5rem;
 }
 
+.pbj-hub-premium-about {
+    margin: 0.85rem 0 0;
+    padding-top: 0.85rem;
+    border-top: 1px solid rgba(203, 213, 225, 0.65);
+    text-align: center;
+}
+
+.pbj-hub-premium-about__link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.55rem 0.85rem;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #4338ca;
+    text-decoration: none;
+    background: rgba(238, 242, 255, 0.85);
+    border: 1px solid rgba(165, 180, 252, 0.65);
+    box-sizing: border-box;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.pbj-hub-premium-about__link:hover {
+    background: #eef2ff;
+    border-color: #818cf8;
+    color: #3730a3;
+}
+
+.pbj-hub-premium-about__link:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+
 @media (max-width: 767px) {
     .pbj-audit-hero-sample-btn.d-md-inline-flex {
         display: none !important;

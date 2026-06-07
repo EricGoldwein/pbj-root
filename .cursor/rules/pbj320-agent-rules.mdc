@@ -34,6 +34,16 @@ Do not assume normalized names (`urban` vs `Urban`), `ccn` on row dicts vs cache
 
 **Provider indexes:** follow `.cursor/rules/pbj320-provider-artifact-schema.mdc` and skill `pbj320-provider-indexes`. Local CSV fallback masks sqlite column bugs — build indexes before signing off `/provider` work.
 
+**ProviderInfoNorm snapshots:** follow `.cursor/rules/pbj320-provider-info-norm.mdc` and skill `pbj320-provider-info-pipeline`. Run `python scripts/validate_provider_norm_snapshot.py` before signing off CMI/urban/state-percentile work.
+
+### Contradictory data symptoms (stop and verify)
+
+When the UI shows a metric in one place but "not available" in another (e.g. CMI on facility card but state percentile missing):
+
+1. **Do not** accept "data isn't there" without counting non-null rows per **file** (newest Norm, paired NH, combined).
+2. **Fix upstream data/pipeline first**; runtime fallbacks are safety nets, not the primary fix.
+3. Run `validate_provider_norm_snapshot.py` and record fill counts in the response.
+
 ## 3. Encoding guardrails
 
 - **Avoid** PowerShell bulk find/replace on `.html`, `.js`, `.py`, `.tsx` when stars, bullets, quotes, em dashes, or non-ASCII are involved. Prefer targeted `StrReplace` / editor edits.

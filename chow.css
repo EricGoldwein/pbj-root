@@ -1430,7 +1430,14 @@ body.chow-modal-open {
   text-decoration: underline;
 }
 
-.pbj-provider-owners-modal-pct,
+.pbj-provider-owners-modal-pct {
+  min-width: 5.5rem;
+  max-width: 8.5rem;
+  white-space: normal;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+}
+
 .pbj-provider-owners-modal-type,
 .pbj-provider-owners-modal-since {
   white-space: nowrap;

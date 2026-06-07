@@ -209,9 +209,15 @@ def main() -> int:
         return 1
     _log(f'ensure_deploy_csvs: OK {norm}')
     backfill_script = os.path.join(APP_ROOT, 'scripts', 'backfill_provider_norm_urban.py')
+    validate_norm_script = os.path.join(APP_ROOT, 'scripts', 'validate_provider_norm_snapshot.py')
+    import subprocess
     if os.path.isfile(backfill_script):
-        import subprocess
         subprocess.call([sys.executable, backfill_script], cwd=APP_ROOT)
+    if os.path.isfile(validate_norm_script):
+        rc_norm = subprocess.call([sys.executable, validate_norm_script], cwd=APP_ROOT)
+        if rc_norm != 0:
+            _log('ensure_deploy_csvs: ERROR ProviderInfoNorm failed parity validation')
+            return 1
     _check_provider_combined()
     _ensure_state_quarterly_median_columns()
     scb_script = os.path.join(APP_ROOT, 'scripts', 'ensure_staffing_compliance_bundle.py')

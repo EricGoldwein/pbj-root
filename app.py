@@ -4153,6 +4153,34 @@ def _badge_star_span_html(icons: str, star_count: int | None = None) -> str:
     return f'<span class="{cls}">{icons}</span>'
 
 
+PBJ_TAKEAWAY_AVATAR_HTML = (
+    '<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" '
+    'loading="lazy" decoding="async" class="pbj-takeaway-avatar">'
+)
+
+
+def _fractional_stars_html(rating, *, low_threshold: float = 1.5) -> str:
+    """Five-star row with partial fill for averages (e.g. 2.4). Hover shows numeric average."""
+    if rating is None:
+        return "—"
+    try:
+        r = float(rating)
+    except (TypeError, ValueError):
+        return "—"
+    if r < 0 or r > 5:
+        return html.escape(f"{r:.1f}")
+    pct = min(100.0, max(0.0, (r / 5.0) * 100.0))
+    low_cls = " pbj-rating-stars-fill--low" if r < low_threshold else ""
+    title = f"Average: {r:.1f} stars"
+    return (
+        f'<span class="pbj-rating-stars-fractional" title="{html.escape(title)}" '
+        f'aria-label="{html.escape(title)}">'
+        f'<span class="pbj-rating-stars-bg" aria-hidden="true">\u2605\u2605\u2605\u2605\u2605</span>'
+        f'<span class="pbj-rating-stars-fill{low_cls}" style="width:{pct:.1f}%" '
+        f'aria-hidden="true">\u2605\u2605\u2605\u2605\u2605</span></span>'
+    )
+
+
 def _ensure_pandas_loaded_for_insights() -> bool:
     global pd
     if pd is None:
@@ -6791,7 +6819,8 @@ def _provider_info_scan_usecols(header_cols) -> list[str]:
         'reported_lpn_hrs_per_resident_per_day',
         'overall_rating', 'staffing_rating', 'qm_rating',
         'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
-        'avg_residents_per_day', 'urban', 'Urban', 'URBAN',
+        'certified_beds', 'number_of_certified_beds', 'Number of Certified Beds',
+        'avg_residents_per_day', 'urban', 'Urban', 'URBAN', 'processing_date',
     ]
     return [c for c in candidates if c in header]
 
@@ -6842,6 +6871,7 @@ def _provider_metrics_from_csv_row(row: dict) -> dict:
         'qm_rating': row.get('qm_rating'),
         'nursing_case_mix_index': row.get('nursing_case_mix_index'),
         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
+        'certified_beds': row.get('certified_beds') or row.get('number_of_certified_beds'),
         'urban': _urban_from_provider_row(row),
     }
 
@@ -7046,6 +7076,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'case_mix_total_nurse_hrs_per_resident_per_day', 'case_mix_rn_hrs_per_resident_per_day',
                 'case_mix_na_hrs_per_resident_per_day', 'case_mix_lpn_hrs_per_resident_per_day',
                 'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
+                'certified_beds', 'number_of_certified_beds', 'Number of Certified Beds',
                 'overall_rating', 'staffing_rating', 'qm_rating', 'quality_measure_rating',
                 'health_inspection_rating', 'health_inspection',
                 'sff_status', 'Special Focus Status',
@@ -7139,6 +7170,9 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         'case_mix_lpn_hrs_per_resident_per_day': row.get('case_mix_lpn_hrs_per_resident_per_day'),
                         'nursing_case_mix_index': row.get('nursing_case_mix_index'),
                         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
+                        'certified_beds': _row_val(
+                            row, 'certified_beds', 'number_of_certified_beds', 'Number of Certified Beds'
+                        ),
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
                         'qm_rating': _row_val(row, 'qm_rating', 'quality_measure_rating', 'Quality Measure Rating'),
@@ -7459,6 +7493,150 @@ def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | Non
     return None
 
 
+def _provider_combined_csv_path() -> str | None:
+    """Path to provider_info_combined.csv when present (quarter history + CMI fields)."""
+    candidates = [
+        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
+        'provider_info_combined.csv',
+        'pbj-wrapped/public/data/provider_info_combined.csv',
+    ]
+    for p in candidates:
+        abs_p = p if os.path.isabs(p) else os.path.join(APP_ROOT, p.replace('/', os.sep))
+        if os.path.isfile(abs_p):
+            return abs_p
+    return None
+
+
+def _provider_metric_present(val) -> bool:
+    if val is None:
+        return False
+    if isinstance(val, float) and pd.isna(val):
+        return False
+    s = str(val).strip()
+    return bool(s) and s.lower() not in ('nan', 'none', '')
+
+
+def _scan_combined_provider_fields_for_ccn_quarter(
+    ccn: str,
+    raw_quarter: str,
+    *,
+    want_cmi: bool = True,
+    want_beds: bool = True,
+) -> dict:
+    """Targeted combined-CSV scan for quarter fields missing from snapshot provider files."""
+    if not HAS_PANDAS or (not want_cmi and not want_beds):
+        return {}
+    path = _provider_combined_csv_path()
+    if not path:
+        return {}
+    ccn = str(ccn or '').strip().zfill(6)
+    q = str(raw_quarter or '').strip()
+    if len(ccn) != 6 or not q:
+        return {}
+    try:
+        header_cols = set(pd.read_csv(path, nrows=0).columns)
+        usecols = _provider_info_scan_usecols(header_cols)
+        if not usecols:
+            return {}
+        def _combined_row_rank(row: dict) -> tuple:
+            score = 0
+            if want_cmi:
+                if _provider_metric_present(row.get('nursing_case_mix_index')):
+                    score += 2
+                if _provider_metric_present(row.get('nursing_case_mix_index_ratio')):
+                    score += 1
+            if want_beds and _provider_certified_beds(row) is not None:
+                score += 2
+            row_dt = pd.to_datetime(row.get('processing_date'), errors='coerce')
+            ts = row_dt.timestamp() if pd.notna(row_dt) else 0.0
+            return (score, ts)
+
+        best = None
+        best_rank = (-1, 0.0)
+        latest_quarter_dt = None
+        for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=150000):
+            if chunk.empty:
+                continue
+            ccn_col = 'ccn' if 'ccn' in chunk.columns else ('PROVNUM' if 'PROVNUM' in chunk.columns else None)
+            if not ccn_col:
+                continue
+            chunk[ccn_col] = chunk[ccn_col].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.zfill(6)
+            chunk = chunk[chunk[ccn_col] == ccn]
+            if chunk.empty:
+                continue
+            for row in chunk.to_dict('records'):
+                if _quarter_from_row(row) != q:
+                    continue
+                row_dt = pd.to_datetime(row.get('processing_date'), errors='coerce')
+                if pd.notna(row_dt) and (latest_quarter_dt is None or row_dt > latest_quarter_dt):
+                    latest_quarter_dt = row_dt
+                rank = _combined_row_rank(row)
+                if rank > best_rank:
+                    best = row
+                    best_rank = rank
+        if not best:
+            return {}
+        out = {}
+        best_dt = pd.to_datetime(best.get('processing_date'), errors='coerce')
+        if pd.notna(best_dt):
+            out['_combined_processing_date'] = best_dt.strftime('%Y-%m-%d')
+            if (
+                latest_quarter_dt is not None
+                and pd.notna(latest_quarter_dt)
+                and best_dt < latest_quarter_dt
+            ):
+                out['_combined_older_than_latest'] = True
+                out['_combined_latest_processing_date'] = latest_quarter_dt.strftime('%Y-%m-%d')
+        if want_cmi:
+            if _provider_metric_present(best.get('nursing_case_mix_index')):
+                out['nursing_case_mix_index'] = best.get('nursing_case_mix_index')
+            if _provider_metric_present(best.get('nursing_case_mix_index_ratio')):
+                out['nursing_case_mix_index_ratio'] = best.get('nursing_case_mix_index_ratio')
+        if want_beds:
+            beds = _provider_certified_beds(best)
+            if beds is not None:
+                out['certified_beds'] = beds
+        return out
+    except Exception as e:
+        print(f"Error scanning combined provider fields for {ccn} {q}: {e}")
+        return {}
+
+
+def _enrich_provider_quarter_row_from_combined(ccn: str, raw_quarter: str, row: dict | None) -> dict:
+    """Fill missing quarter fields from combined CSV without loading the national index."""
+    out = dict(row or {})
+    need_cmi = (
+        not _provider_metric_present(out.get('nursing_case_mix_index'))
+        and not _provider_metric_present(out.get('nursing_case_mix_index_ratio'))
+    )
+    need_beds = _provider_certified_beds(out) is None
+    if not need_cmi and not need_beds:
+        return out
+    extra = _scan_combined_provider_fields_for_ccn_quarter(
+        ccn, raw_quarter, want_cmi=need_cmi, want_beds=need_beds
+    )
+    filled_cmi = False
+    for key in ('nursing_case_mix_index', 'nursing_case_mix_index_ratio', 'certified_beds'):
+        if not _provider_metric_present(out.get(key)) and _provider_metric_present(extra.get(key)):
+            out[key] = extra.get(key)
+            if key in ('nursing_case_mix_index', 'nursing_case_mix_index_ratio'):
+                filled_cmi = True
+    if filled_cmi and extra.get('_combined_older_than_latest') and extra.get('_combined_processing_date'):
+        try:
+            from datetime import datetime
+
+            src_dt = datetime.strptime(str(extra['_combined_processing_date'])[:10], '%Y-%m-%d')
+            out['_cmi_source_note'] = (
+                f'Nursing case-mix index from an earlier CMS provider file for this quarter '
+                f'(file date {src_dt.strftime("%b %Y")}).'
+            )
+        except (TypeError, ValueError):
+            out['_cmi_source_note'] = (
+                'Nursing case-mix index from an earlier CMS provider file for this quarter.'
+            )
+    return out
+
+
 def get_provider_info_for_quarter(ccn, raw_quarter):
     """Return provider info row for the given CCN and quarter (CY_Qtr form e.g. 2025Q3), or None.
 
@@ -7471,8 +7649,9 @@ def get_provider_info_for_quarter(ccn, raw_quarter):
     if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
         hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
         if hit:
-            return hit
-    return _scan_provider_row_for_ccn_quarter(key[0], key[1])
+            return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
+    hit = _scan_provider_row_for_ccn_quarter(key[0], key[1])
+    return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
 
 
 def get_state_median_case_mix_hprd(state_code, raw_quarter):
@@ -8381,6 +8560,191 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-casemix-section-header {{ display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; flex-wrap: wrap; }}
 .pbj-casemix-section-title {{ margin: 0; flex: 1 1 auto; min-width: 0; font-size: 1.35em; font-weight: 700; color: #818cf8; letter-spacing: 0.02em; line-height: 1.25; }}
 .pbj-casemix-card-body {{ display: flex; flex-direction: column; gap: 0.65rem; width: 100%; min-width: 0; }}
+.pbj-casemix-card-body--v17 {{
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}}
+.pbj-casemix-card-body--v17 .pbj-casemix-lead {{ margin-bottom: 0.02rem; }}
+.pbj-casemix-card-body--v17 .pbj-casemix-total-section {{ min-width: 0; }}
+.pbj-casemix-card-body--v17 .pbj-casemix-hero-panel {{ margin: 0; padding: 0.36rem 0.48rem 0.34rem; }}
+.pbj-casemix-card-body--v17 .pbj-casemix-caveat-foot {{ margin-top: 0.06rem; max-width: 42rem; font-size: 0.62rem; line-height: 1.38; }}
+.pbj-casemix-card-body--v19 {{
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}}
+.pbj-casemix-split-v19 {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.65rem 0.85rem;
+  align-items: stretch;
+  width: 100%;
+}}
+.pbj-casemix-split-v19 .pbj-casemix-split-col {{ min-width: 0; }}
+.pbj-casemix-split-v19 .pbj-casemix-split-col--primary {{
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  height: 100%;
+}}
+.pbj-casemix-split-v19 .pbj-casemix-summary,
+.pbj-casemix-split-v19 .pbj-casemix-hero,
+.pbj-casemix-split-v19 .pbj-casemix-hero .pbj-casemix-bars {{
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}}
+.pbj-casemix-split-v19 .pbj-casemix-split-col--roles {{
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-hero-panel {{
+  margin: 0;
+  padding: 0.48rem 0.52rem 0.44rem;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-hero-panel .pbj-casemix-pct-track {{ height: 16px; border-radius: 5px; width: 100%; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-hero-main {{
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  min-height: 0;
+  margin-top: 0.1rem;
+  gap: 0.1rem;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-hero-copy {{ width: 100%; flex: 0 0 auto; max-width: 100%; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-split-col--roles .pbj-casemix-bars {{ justify-content: flex-start; gap: 0.1rem; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-breakdown-row {{
+  flex: 0 0 auto;
+  padding: 0.12rem 0;
+  gap: 0.05rem;
+  border-top: 0;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-breakdown-row + .pbj-casemix-breakdown-row {{
+  border-top: 1px solid rgba(51, 65, 85, 0.28);
+  padding-top: 0.14rem;
+  margin-top: 0.02rem;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-breakdown-main {{ max-width: 100%; width: 100%; flex: 1 1 100%; gap: 0.05rem; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-breakdown-aside {{ display: none; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-sub-line {{ margin: 0; line-height: 1.22; font-size: 0.6rem; gap: 0.15rem 0.3rem; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-sub-line--role {{
+  display: block;
+  line-height: 1.26;
+  font-size: 0.62rem;
+  white-space: normal;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-sub-line .secondary {{ font-size: 0.56rem; color: rgba(148, 163, 184, 0.95); font-weight: 500; }}
+.pbj-casemix-card-body--v19 .pbj-casemix-total-head {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.28rem 0.45rem;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-total-pctline {{
+  margin: 0;
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.34;
+  color: #f1f5f9;
+  font-variant-numeric: tabular-nums;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-total-pctline .meta {{
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: rgba(148, 163, 184, 0.96);
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-bars {{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-details--adaptive {{
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}}
+.pbj-casemix-card-body--v19 .pbj-casemix-caveat-foot {{
+  margin-top: 0.06rem;
+  max-width: none;
+  font-size: 0.62rem;
+  line-height: 1.38;
+}}
+@media (min-width: 769px) {{
+  .pbj-casemix-card-body--v19 .pbj-casemix-details--adaptive > summary {{ display: none !important; }}
+  .pbj-casemix-card-body--v19 .pbj-casemix-details--adaptive .pbj-casemix-details-body {{
+    display: block !important;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    margin: 0;
+    flex: 1 1 auto;
+    min-height: 0;
+  }}
+}}
+.pbj-casemix-acuity-lines {{ display: flex; flex-direction: column; gap: 0.18rem; min-width: 0; }}
+.pbj-casemix-acuity-line {{ margin: 0; font-size: 0.64rem; line-height: 1.35; color: rgba(203, 213, 225, 0.92); font-variant-numeric: tabular-nums; }}
+.pbj-casemix-acuity-line .k {{ font-weight: 600; color: rgba(148, 163, 184, 0.95); margin-right: 0.15rem; }}
+.pbj-casemix-acuity-section .pbj-casemix-acuity-medians {{ margin: 0.1rem 0 0; font-size: 0.58rem; line-height: 1.32; color: rgba(148, 163, 184, 0.88); font-variant-numeric: tabular-nums; }}
+.pbj-casemix-lead {{ margin: 0 0 0.15rem; min-width: 0; }}
+.pbj-casemix-lead-line {{ margin: 0 0 0.18rem; font-size: 0.78rem; line-height: 1.4; color: #e2e8f0; font-weight: 600; }}
+.pbj-casemix-lead-sub {{ margin: 0; font-size: 0.68rem; line-height: 1.35; color: rgba(148, 163, 184, 0.96); font-variant-numeric: tabular-nums; }}
+.pbj-casemix-stat-grid {{ display: flex; flex-direction: column; gap: 0; min-width: 0; }}
+.pbj-casemix-stat-row {{ display: flex; flex-direction: column; gap: 0.06rem; padding: 0.3rem 0; border-bottom: 1px solid rgba(51, 65, 85, 0.38); }}
+.pbj-casemix-stat-row:last-child {{ border-bottom: 0; padding-bottom: 0; }}
+.pbj-casemix-stat-main {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.4rem; font-size: 0.72rem; line-height: 1.32; color: #f1f5f9; font-variant-numeric: tabular-nums; }}
+.pbj-casemix-stat-label {{ font-weight: 600; color: rgba(203, 213, 225, 0.95); }}
+.pbj-casemix-stat-value {{ font-weight: 700; color: #f8fafc; }}
+.pbj-casemix-stat-sublabel {{ margin: 0; font-size: 0.58rem; line-height: 1.3; color: rgba(148, 163, 184, 0.92); }}
+.pbj-casemix-acuity-section {{ min-width: 0; padding-top: 0.08rem; }}
+.pbj-casemix-col-title--sub {{ font-size: 0.62rem; margin-bottom: 0.22rem; color: rgba(148, 163, 184, 0.88); }}
+.pbj-casemix-total-block {{ gap: 0.28rem; }}
+.pbj-casemix-total-head {{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.22rem 0.4rem; }}
+.pbj-casemix-total-pctline {{ margin: 0; font-size: 0.76rem; font-weight: 700; color: #f1f5f9; font-variant-numeric: tabular-nums; line-height: 1.3; }}
+.pbj-casemix-total-hprd {{ margin: 0; font-size: 0.6rem; line-height: 1.32; color: rgba(148, 163, 184, 0.95); font-variant-numeric: tabular-nums; }}
+.pbj-casemix-total-bar-wrap {{ margin: 0.12rem 0 0.06rem; }}
+.pbj-casemix-pos-label {{ margin: 0; font-size: 0.68rem; font-weight: 600; line-height: 1.32; color: #f1f5f9; font-variant-numeric: tabular-nums; }}
+.pbj-casemix-pos-hprd {{ margin: 0; font-size: 0.58rem; line-height: 1.3; color: rgba(148, 163, 184, 0.95); font-variant-numeric: tabular-nums; }}
+.pbj-casemix-pct-row {{ display: flex; align-items: center; gap: 0.35rem; min-width: 0; }}
+.pbj-casemix-pct-row .pbj-casemix-pct-bar {{ flex: 1 1 auto; min-width: 0; }}
+.pbj-casemix-split {{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.65rem 0.85rem; align-items: start; width: 100%; }}
+.pbj-casemix-split-col {{ min-width: 0; }}
+.pbj-casemix-col-title {{ margin: 0 0 0.35rem; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(148, 163, 184, 0.95); }}
+.pbj-casemix-roles-head {{ display: flex; align-items: center; justify-content: space-between; gap: 0.45rem; margin-bottom: 0.35rem; }}
+.pbj-casemix-roles-head .pbj-casemix-col-title {{ margin: 0; }}
+button.pbj-casemix-pos-help {{
+  width: 1.35rem; height: 1.35rem; border-radius: 999px; border: 1px solid rgba(129, 140, 248, 0.4);
+  background: rgba(30, 41, 59, 0.65); color: #c7d2fe; font-size: 0.72rem; font-weight: 700; line-height: 1;
+  cursor: pointer; font-family: Georgia, 'Times New Roman', serif; flex-shrink: 0;
+}}
+button.pbj-casemix-pos-help:hover {{ background: rgba(51, 65, 85, 0.75); }}
+button.pbj-casemix-pos-help:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px; }}
+.pbj-casemix-hero-cm-value {{ margin: 0 0 0.22rem; font-size: 0.82rem; line-height: 1.3; color: #f8fafc; font-variant-numeric: tabular-nums; }}
+.pbj-casemix-hero-cm-label {{ font-size: 0.58rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(148, 163, 184, 0.95); margin-right: 0.35rem; }}
+.pbj-casemix-hero-cm-num {{ font-weight: 700; font-size: 0.92rem; color: #e0e7ff; }}
+.pbj-casemix-hero-reported-line {{ margin: 0 0 0.28rem; font-size: 0.68rem; line-height: 1.32; color: rgba(203, 213, 225, 0.94); }}
+.pbj-casemix-cmi-source-note {{ margin: 0; font-size: 0.58rem; line-height: 1.32; color: rgba(148, 163, 184, 0.92); }}
+.pbj-casemix-cmi-source-note[hidden] {{ display: none !important; }}
+.pbj-chart-anomaly-foot:empty {{ display: none; }}
+button.pbj-casemix-role-help {{
+  margin-left: 0.25rem; width: 1rem; height: 1rem; border-radius: 999px; border: 1px solid rgba(100, 116, 139, 0.55);
+  background: transparent; color: rgba(165, 180, 252, 0.95); font-size: 0.62rem; font-weight: 700; line-height: 1;
+  cursor: pointer; font-family: Georgia, 'Times New Roman', serif; vertical-align: middle;
+}}
 .pbj-casemix-summary {{ width: 100%; max-width: 100%; min-width: 0; }}
 .pbj-casemix-card-eyebrow {{ flex-shrink: 0; font-size: 0.58rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #94a3b8; line-height: 1.15; }}
 .pbj-casemix-interpret {{ margin: 0.22rem 0 0; font-size: 0.6rem; line-height: 1.32; color: rgba(203, 213, 225, 0.88); font-weight: 400; }}
@@ -8410,8 +8774,57 @@ button.pbj-hprd-means-trigger:focus-visible {{
   outline: 2px solid rgba(129, 140, 248, 0.75); outline-offset: 2px;
 }}
 .pbj-hprd-means-val {{ font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }}
-.pbj-takeaway-top {{ margin-bottom: 0.55rem; }}
-.pbj-takeaway-top-main {{ display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; min-width: 0; }}
+.pbj-takeaway-top {{ display: flex; align-items: center; gap: 12px; margin-bottom: 0.55rem; }}
+.pbj-takeaway-avatar {{ border-radius: 50%; object-fit: cover; border: 2px solid rgba(129, 140, 248, 0.4); flex-shrink: 0; width: 48px; height: 48px; }}
+.pbj-takeaway-top-main {{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }}
+.pbj-rating-stars-fractional {{ position: relative; display: inline-block; line-height: 1; vertical-align: middle; }}
+.pbj-rating-stars-bg {{ color: rgba(148, 163, 184, 0.35); letter-spacing: 0.06em; }}
+.pbj-rating-stars-fill {{ position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap; color: #fbbf24; letter-spacing: 0.06em; }}
+.pbj-rating-stars-fill--low {{ color: #f87171; }}
+.pbj-chart-header-row {{ display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem 0.75rem; flex-wrap: wrap; margin-bottom: 0.25rem; }}
+.pbj-chart-header-row .pbj-chart-header {{ flex: 1 1 auto; min-width: 0; margin-bottom: 0 !important; }}
+.pbj-staffing-role-chart .pbj-chart-header-row {{
+  display: grid; grid-template-columns: 1fr minmax(0, auto) 1fr; align-items: start; gap: 0.5rem 0.75rem;
+}}
+.pbj-staffing-role-chart .pbj-chart-header-row .pbj-chart-header {{
+  grid-column: 2; justify-self: center; text-align: center; flex: unset; width: 100%; max-width: 100%;
+}}
+.pbj-staffing-role-chart .pbj-staffing-role-tabs {{ grid-column: 3; justify-self: end; }}
+.pbj-staffing-role-tabs {{ display: inline-flex; align-items: center; gap: 0.2rem; flex-shrink: 0; padding: 0.15rem; border-radius: 8px; background: rgba(15, 23, 42, 0.55); border: 1px solid rgba(71, 85, 105, 0.65); }}
+button.pbj-staffing-role-tab {{ appearance: none; border: none; background: transparent; color: rgba(148, 163, 184, 0.95); font: inherit; font-size: 0.72rem; font-weight: 600; line-height: 1.2; padding: 0.28rem 0.55rem; border-radius: 6px; cursor: pointer; white-space: nowrap; }}
+button.pbj-staffing-role-tab:hover {{ color: #e2e8f0; background: rgba(51, 65, 85, 0.45); }}
+button.pbj-staffing-role-tab.is-active {{ color: #e2e8f0; background: rgba(99, 102, 241, 0.22); box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.35); }}
+.pbj-staffing-role-tab-short {{ display: none; }}
+.pbj-staffing-role-chart .pbj-chart-wrapper {{
+  height: 260px;
+  min-height: 260px;
+  max-height: 260px;
+  flex: 0 0 260px;
+}}
+.pbj-chart-foot-row {{
+  display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start;
+  gap: 0.2rem 0.55rem; margin: 0.28rem 0 0; min-height: 0; flex: 0 0 auto;
+}}
+.pbj-staffing-role-chart .pbj-chart-wrapper > .pbj-staffing-aide-note {{
+  display: none !important;
+}}
+.pbj-staffing-aide-note {{
+  flex: 1 1 100%; min-width: 0; margin: 0; font-size: 0.62rem; line-height: 1.28;
+  color: rgba(148, 163, 184, 0.92); text-align: left;
+}}
+.pbj-staffing-aide-note[hidden] {{ display: none !important; }}
+.pbj-chart-foot-row .pbj-chart-anomaly-foot {{
+  flex: 1 1 100%; min-width: 0; margin: 0; text-align: left;
+  font-size: 0.65rem; line-height: 1.35; color: rgba(148, 163, 184, 0.92);
+}}
+.pbj-chart-foot-row .pbj-chart-anomaly-foot:empty {{ display: none; margin: 0; padding: 0; }}
+.pbj-aide-note-short {{ display: none; }}
+@media (max-width: 768px) {{
+  .pbj-chart-foot-row {{ flex-direction: column; align-items: stretch; gap: 0.25rem; }}
+  .pbj-chart-foot-row .pbj-chart-anomaly-foot {{ text-align: left; }}
+  .pbj-aide-note-full {{ display: none; }}
+  .pbj-aide-note-short {{ display: inline; }}
+}}
 .pbj-takeaway-flag-badge {{ flex-shrink: 0; }}
 .pbj-takeaway-priority-flags {{
   display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem;
@@ -8680,7 +9093,35 @@ button.pbj-takeaway-share-btn:hover {{
   text-decoration-thickness: 1px;
   text-underline-offset: 0.12em;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
+  display: inline;
+  vertical-align: baseline;
+}}
+button.pbj-inline-modal-link,
+.pbj-takeaway-narrative button.pbj-inline-modal-link {{
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: rgba(199, 210, 254, 0.95);
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  cursor: pointer;
+  white-space: normal;
+  vertical-align: baseline;
+}}
+button.pbj-inline-modal-link:hover,
+button.pbj-inline-modal-link:focus-visible {{
+  color: #e0e7ff;
+}}
+button.pbj-inline-modal-link:focus-visible {{
+  outline: 2px solid rgba(129, 140, 248, 0.65);
+  outline-offset: 2px;
+  border-radius: 2px;
 }}
 .pbj-compliance-warning__min:hover,
 .pbj-compliance-warning__min:focus-visible {{
@@ -8690,6 +9131,13 @@ button.pbj-takeaway-share-btn:hover {{
   outline: 2px solid rgba(251, 191, 36, 0.55);
   outline-offset: 2px;
   border-radius: 2px;
+}}
+.pbj-takeaway-narrative .pbj-compliance-warning__min {{
+  color: rgba(199, 210, 254, 0.95);
+  font-weight: 600;
+}}
+.pbj-takeaway-compliance-note {{
+  margin-top: 0.35rem !important;
 }}
 .pbj-compliance-warning__line1 {{
   flex: 1 1 100%;
@@ -9026,9 +9474,9 @@ abbr.pbj-na {{
 .pbj-ai-toast--visible {{ opacity: 1; transform: translateX(-50%) translateY(0); }}
 .pbj-takeaway-footer {{ margin-top: 0; padding-top: 0; border-top: none; }}
 .pbj-takeaway-brand-pill {{
-  display: inline-block; padding: 0.28rem 0.6rem; border-radius: 999px; font-size: 0.7rem; font-weight: 600;
-  letter-spacing: 0.02em; color: rgba(148, 163, 184, 0.9); background: rgba(15, 23, 42, 0.45);
-  border: 1px solid rgba(71, 85, 105, 0.75); flex-shrink: 0; white-space: nowrap;
+  display: inline-block; padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226, 232, 240, 0.92);
+  background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(129, 140, 248, 0.38); flex-shrink: 0; white-space: nowrap;
 }}
 @media (max-width: 768px) {{
   .pbj-takeaway-actions {{ flex-wrap: nowrap; align-items: stretch; }}
@@ -9040,8 +9488,33 @@ abbr.pbj-na {{
   }}
   .pbj-takeaway-share-label {{ display: none; }}
   .pbj-takeaway-share-icon {{ width: 1.125rem; height: 1.125rem; }}
+  .pbj-takeaway-top {{ gap: 10px; }}
+  .pbj-takeaway-avatar {{ width: 40px; height: 40px; }}
   .pbj-takeaway-top-main {{ gap: 0.35rem 0.5rem; }}
   .pbj-takeaway-brand-pill {{ font-size: 0.65rem; padding: 0.22rem 0.5rem; }}
+  .pbj-chart-header-row {{ flex-direction: column; align-items: stretch; }}
+  .pbj-staffing-role-chart .pbj-chart-header-row {{
+    display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+    flex-wrap: nowrap; gap: 0.35rem 0.45rem;
+  }}
+  .pbj-staffing-role-chart .pbj-chart-header-row .pbj-chart-header {{
+    grid-column: unset; justify-self: stretch; text-align: left; flex: 1 1 auto; min-width: 0;
+  }}
+  .pbj-staffing-role-chart .pbj-chart-header-oneline {{ display: none !important; }}
+  .pbj-staffing-role-chart .pbj-staffing-role-title-mobile,
+  .pbj-staffing-role-chart .pbj-chart-header-state-mobile {{ display: none !important; }}
+  .pbj-staffing-role-chart .pbj-chart-header-twoline {{
+    display: flex; align-items: center; margin: 0; text-align: left;
+  }}
+  .pbj-staffing-role-chart .pbj-chart-facility {{ display: none !important; }}
+  .pbj-staffing-role-chart .pbj-staffing-role-title-main {{
+    font-size: 0.92rem; line-height: 1.2; text-align: left; white-space: nowrap;
+  }}
+  .pbj-staffing-role-tabs {{ align-self: center; flex-shrink: 0; }}
+  .pbj-staffing-role-chart .pbj-staffing-role-tabs {{ grid-column: unset; align-self: center; padding: 0.1rem; }}
+  button.pbj-staffing-role-tab {{ font-size: 0.66rem; padding: 0.24rem 0.42rem; }}
+  .pbj-staffing-role-tab-long {{ display: none; }}
+  .pbj-staffing-role-tab-short {{ display: inline; }}
   .pbj-ai-page-helper__controls {{ flex-direction: column; align-items: stretch; gap: 0.35rem; }}
   .pbj-ai-lens-wrap, .pbj-ai-length-wrap {{ justify-content: space-between; }}
   .pbj-ai-lens-select, .pbj-ai-length-select {{ flex: 1; min-width: 0; }}
@@ -9109,13 +9582,30 @@ abbr.pbj-na {{
 .pbj-casemix-hero-line .pct-em {{ font-weight: 700; font-size: 0.88rem; color: #f8fafc; letter-spacing: 0.01em; }}
 .pbj-casemix-sub-line .pct-em {{ font-weight: 700; color: #f8fafc; font-size: 0.68rem; }}
 .pbj-casemix-breakdown-aside .h {{ color: rgba(226, 232, 240, 0.94); font-weight: 700; }}
-.pbj-casemix-hero-toprow {{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.35rem 0.65rem; margin-bottom: 0.28rem; }}
+.pbj-casemix-hero-toprow {{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.35rem 0.65rem; margin-bottom: 0.12rem; }}
 .pbj-casemix-hero-toprow .pbj-casemix-hero-line {{ margin: 0; flex: 1 1 auto; min-width: 0; }}
 .pbj-casemix-hero-toprow .pbj-casemix-cmi-strip {{ margin: 0; padding: 0; border: 0; flex: 0 0 auto; }}
 .pbj-casemix-hero-main {{ display: flex; align-items: center; gap: 0.45rem 0.55rem; flex-wrap: wrap; width: 100%; }}
 .pbj-casemix-hero-copy {{ flex: 1 1 100%; min-width: 10rem; max-width: 100%; }}
-.pbj-casemix-hero-cmi-col {{ flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.28rem 0.35rem; }}
-.pbj-casemix-hero-cmi-col.pbj-casemix-cmi-strip {{ margin: 0; padding: 0; border: 0; }}
+.pbj-casemix-cmi-strip--below-bar {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem 0.38rem;
+  margin-top: 0.22rem;
+  width: 100%;
+}}
+.pbj-casemix-cmi-lead {{
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.96);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}}
+.pbj-casemix-cmi-strip--below-bar .pbj-casemix-cmi-trigger {{
+  flex: 0 0 auto;
+}}
 button.pbj-casemix-inline-help {{
   display: inline; margin: 0; padding: 0; border: 0; background: none; font: inherit; font-size: inherit; line-height: inherit;
   color: #a5b4fc; text-decoration: underline; text-underline-offset: 2px; cursor: pointer;
@@ -9124,19 +9614,26 @@ button.pbj-casemix-inline-help:hover {{ color: #c7d2fe; }}
 button.pbj-casemix-inline-help:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px; border-radius: 2px; }}
 .pbj-casemix-caveat-text--mobile {{ display: none; }}
 .pbj-casemix-help-trigger--footer {{ display: none; margin: 0.35rem 0 0; }}
-.pbj-casemix-pct-bar {{ margin: 0; }}
+.pbj-casemix-pct-bar {{ margin: 0; width: 100%; }}
+.pbj-casemix-pct-track {{ width: 100%; box-sizing: border-box; }}
+.pbj-casemix-pct-fill {{ height: 100%; }}
 .pbj-casemix-pct-caption {{ display: none; }}
 .pbj-casemix-pct-track {{ position: relative; height: 9px; border-radius: 4px; background: rgba(30, 41, 59, 0.9); border: 1px solid rgba(51, 65, 85, 0.8); overflow: hidden; }}
 .pbj-casemix-pct-fill {{ position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; min-width: 2px; z-index: 1; transition: width 0.2s ease; }}
+.pbj-casemix-pct-fill--ref {{ border-radius: 3px; background: rgba(100, 116, 139, 0.72); }}
+.pbj-casemix-pct-fill--ref.pbj-casemix-sev-neutral {{ background: rgba(100, 116, 139, 0.72); }}
+.pbj-casemix-pct-bench {{ position: absolute; top: -1px; bottom: -1px; width: 2px; background: rgba(226, 232, 240, 0.88); border-radius: 1px; z-index: 3; transform: translateX(-50%); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9); }}
+.pbj-casemix-pct-bar--compact .pbj-casemix-pct-track {{ height: 5px; border-radius: 3px; }}
+.pbj-casemix-pct-bar--compact .pbj-casemix-pct-fill {{ border-radius: 2px; }}
+.pbj-casemix-pct-bar--compact .pbj-casemix-pct-bench {{ width: 1px; }}
+.pbj-casemix-pct-bar--primary .pbj-casemix-pct-track {{ height: 12px; border-radius: 5px; }}
+.pbj-casemix-pct-bar--primary .pbj-casemix-pct-fill {{ border-radius: 4px; }}
 .pbj-casemix-pct-fill--to-bench {{ background: rgba(100, 116, 139, 0.88); border-radius: 3px 0 0 3px; }}
 .pbj-casemix-pct-fill--over {{ background: linear-gradient(90deg, rgba(34, 197, 94, 0.72) 0%, rgba(45, 212, 191, 0.92) 100%); z-index: 2; border-radius: 0 3px 3px 0; box-shadow: inset 2px 0 0 rgba(255, 255, 255, 0.28); }}
 .pbj-casemix-pct-fill--under {{ background: rgba(248, 113, 113, 0.78); }}
 .pbj-casemix-pct-fill--under.pbj-casemix-sev-warn {{ background: rgba(251, 146, 60, 0.78) !important; }}
 .pbj-casemix-pct-fill--under.pbj-casemix-sev-critical {{ background: rgba(248, 113, 113, 0.82) !important; }}
-.pbj-casemix-pct-bench {{ position: absolute; top: -1px; bottom: -1px; width: 2px; background: rgba(226, 232, 240, 0.88); border-radius: 1px; z-index: 3; transform: translateX(-50%); box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9); }}
-.pbj-casemix-pct-track--over .pbj-casemix-pct-bench {{ background: rgba(255, 255, 255, 0.95); }}
-.pbj-casemix-pct-bar--compact .pbj-casemix-pct-track {{ height: 7px; }}
-.pbj-casemix-breakdown-row {{ display: flex; align-items: center; gap: 0.4rem 0.55rem; padding: 0.16rem 0; border-top: 1px solid rgba(51, 65, 85, 0.4); flex-wrap: wrap; }}
+.pbj-casemix-breakdown-row {{ display: flex; flex-direction: column; align-items: stretch; gap: 0.14rem; padding: 0.32rem 0; border-top: 1px solid rgba(51, 65, 85, 0.4); min-width: 0; }}
 .pbj-casemix-breakdown-row:first-child {{ border-top: 0; padding-top: 0.08rem; }}
 .pbj-casemix-breakdown-main {{ flex: 1 1 52%; min-width: 9rem; max-width: 58%; display: flex; flex-direction: column; gap: 0.1rem; }}
 .pbj-casemix-breakdown-main .pbj-casemix-sub-line {{ margin: 0; justify-content: flex-start; }}
@@ -9199,13 +9696,83 @@ button.pbj-casemix-cmi-trigger .v {{ font-weight: 700; color: #f8fafc; }}
 .pbj-casemix-bar-legend-gap {{ font-weight: 600; color: rgba(212, 212, 216, 0.95); }}
 .pbj-casemix-flag-line {{ margin: 0; font-size: 0.6rem; font-weight: 500; color: rgba(252, 165, 165, 0.92); line-height: 1.32; }}
 .pbj-casemix-caveat {{ margin: 0.18rem 0 0 0; font-size: 0.54rem; line-height: 1.28; color: rgba(113, 113, 122, 0.98); font-weight: 400; }}
-.pbj-casemix-caveat-foot {{ margin: 0; padding: 0; font-size: 0.54rem; line-height: 1.28; color: rgba(113, 113, 122, 0.98); font-weight: 400; }}
+.pbj-casemix-caveat-foot {{ margin: 0; padding: 0; font-size: 0.58rem; line-height: 1.35; color: rgba(148, 163, 184, 0.92); font-weight: 400; max-width: none; }}
 .pbj-casemix-interpret--breakdown {{ margin: 0.28rem 0 0.12rem; }}
 .pbj-casemix-details:not([open]) .pbj-casemix-interpret--breakdown {{ display: none !important; }}
 .pbj-casemix-metric-head-block {{ display: flex; flex-direction: column; gap: 0.02rem; min-width: 0; }}
-button.pbj-casemix-cmi-trigger.pbj-cmi-tier--low {{ border-color: rgba(100,116,139,0.7); background: rgba(30, 41, 59, 0.55); }}
-button.pbj-casemix-cmi-trigger.pbj-cmi-tier--mid {{ border-color: rgba(99,102,241,0.55); background: rgba(49,46,129,0.35); }}
-button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,191,0.5); background: rgba(15,118,110,0.25); }}
+button.pbj-casemix-cmi-trigger.pbj-cmi-tier--neutral,
+button.pbj-casemix-cmi-trigger.pbj-cmi-tier--low,
+button.pbj-casemix-cmi-trigger.pbj-cmi-tier--mid,
+button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
+  border-color: rgba(100, 116, 139, 0.52);
+  background: rgba(30, 41, 59, 0.72);
+  color: rgba(226, 232, 240, 0.96);
+}}
+.pbj-cmi-modal-hero {{
+  margin: 0 0 0.55rem;
+  padding: 0.48rem 0.55rem 0.44rem;
+  border-radius: 8px;
+  background: rgba(30, 41, 59, 0.55);
+  border: 1px solid rgba(71, 85, 105, 0.62);
+}}
+.pbj-cmi-modal-k {{
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.95);
+  margin-bottom: 0.1rem;
+}}
+.pbj-cmi-modal-val {{
+  display: block;
+  font-size: 1.32rem;
+  font-weight: 700;
+  color: #f8fafc;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}}
+.pbj-cmi-modal-pct {{
+  display: block;
+  margin-top: 0.14rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #c7d2fe;
+  font-variant-numeric: tabular-nums;
+}}
+.pbj-cmi-modal-def {{
+  margin: 0 0 0.32rem;
+  font-size: 0.8rem;
+  line-height: 1.42;
+  color: rgba(203, 213, 225, 0.92);
+}}
+.pbj-cmi-modal-related {{
+  margin: 0.45rem 0 0;
+  padding-top: 0.42rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+  font-size: 0.74rem;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.96);
+}}
+.pbj-cmi-modal-related .pbj-cmi-modal-related-k {{
+  font-weight: 600;
+  color: rgba(203, 213, 225, 0.9);
+  margin-right: 0.2rem;
+}}
+.pbj-cmi-modal-foot {{
+  margin-top: 0.5rem !important;
+  font-size: 0.72rem !important;
+  line-height: 1.38 !important;
+  color: rgba(148, 163, 184, 0.9) !important;
+}}
+.pbj-cmi-modal-foot a {{
+  color: #a5b4fc;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}}
+.pbj-cmi-modal-foot a:hover {{
+  color: #c7d2fe;
+}}
 .pbj-casemix-sub-line {{ display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.3rem 0.6rem; font-size: 0.64rem; line-height: 1.18; margin: 0 0 0.04rem 0; }}
 .pbj-casemix-sub-label {{ font-weight: 600; color: rgba(226,232,240,0.94); }}
 .pbj-casemix-sub-label.rn {{ font-weight: 700; }}
@@ -9216,10 +9783,10 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
 .pbj-casemix-bar-cell {{ display: flex; flex-direction: column; gap: 0.04rem; min-width: 0; }}
 .pbj-casemix-bar-wrap {{ position: relative; width: 100%; border-radius: 4px; background: rgba(30, 41, 59, 0.65); border: 1px solid rgba(100, 116, 139, 0.45); overflow: hidden; box-sizing: border-box; }}
 .pbj-casemix-bar-fill {{ position: absolute; left: 0; top: 0; bottom: 0; border-radius: 2px; z-index: 1; min-width: 0; transition: width 0.25s ease; background: rgba(180, 83, 9, 0.62); }}
-.pbj-casemix-sev-critical {{ background: rgba(185, 28, 28, 0.68) !important; opacity: 1; }}
-.pbj-casemix-sev-warn {{ background: rgba(194, 65, 12, 0.72) !important; opacity: 1; }}
-.pbj-casemix-sev-neutral {{ background: rgba(180, 83, 9, 0.58) !important; opacity: 1; }}
-.pbj-casemix-sev-meets {{ background: rgba(87, 83, 78, 0.88) !important; opacity: 1; }}
+.pbj-casemix-sev-below {{ background: rgba(185, 88, 88, 0.72) !important; }}
+.pbj-casemix-sev-near {{ background: rgba(217, 119, 6, 0.62) !important; }}
+.pbj-casemix-sev-neutral {{ background: rgba(100, 116, 139, 0.65) !important; }}
+.pbj-casemix-sev-meets {{ background: rgba(100, 116, 139, 0.82) !important; }}
 .pbj-casemix-bar-marker {{ position: absolute; top: 0; bottom: 0; width: 0; margin-left: 0; border-left: 3px dashed rgba(228, 228, 231, 0.82); background: transparent; border-radius: 0; z-index: 2; box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.85); transform: translateX(-50%); }}
 .pbj-casemix-bar-rail-h {{ height: 24px; }}
 .pbj-casemix-metric.total .pbj-casemix-bar-rail-h {{ height: 26px; }}
@@ -9229,8 +9796,8 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
 .pbj-casemix-metric.total .pbj-casemix-bar-cell {{ max-width: 100%; width: 100%; align-self: stretch; }}
 @media (min-width: 769px) {{
   .pbj-casemix-section-header {{ flex-wrap: nowrap; }}
-  .pbj-casemix-hero-toprow {{ flex-wrap: nowrap; align-items: baseline; }}
-  .pbj-casemix-hero-toprow .pbj-casemix-hero-line {{ white-space: nowrap; }}
+  .pbj-casemix-hero-toprow {{ flex-wrap: wrap; align-items: baseline; }}
+  .pbj-casemix-hero-toprow .pbj-casemix-hero-line {{ white-space: normal; }}
   .pbj-casemix-summary .pbj-casemix-metric.total .pbj-casemix-bar-rail-wrap,
   .pbj-casemix-summary .pbj-casemix-metric.total .pbj-casemix-bar-cell {{ max-width: 100%; }}
 }}
@@ -9252,14 +9819,13 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     text-overflow: ellipsis;
   }}
   button.pbj-casemix-help-trigger.pbj-casemix-help-trigger--header {{
-    display: none !important;
+    display: inline-flex !important;
+    align-self: flex-start;
+    margin-left: 0;
   }}
-  .pbj-casemix-caveat-text--desktop {{
-    display: none;
-  }}
-  .pbj-casemix-caveat-text--mobile {{
-    display: inline;
-  }}
+  .pbj-casemix-caveat-foot {{ max-width: 100%; font-size: 0.6rem; }}
+  .pbj-casemix-lead-line {{ font-size: 0.74rem; }}
+  .pbj-casemix-lead-sub {{ font-size: 0.64rem; }}
   .pbj-casemix-help-label {{ font-size: inherit; }}
   .pbj-casemix-info-icon {{ display: none !important; }}
   .pbj-casemix-summary {{ max-width: 100%; }}
@@ -9292,15 +9858,15 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{ border-color: rgba(45,212,1
     max-width: 100%;
     min-width: 0;
   }}
-  .pbj-casemix-breakdown-main {{ max-width: 100%; }}
-  .pbj-casemix-breakdown-row {{ align-items: flex-start; }}
-  .pbj-casemix-breakdown-aside {{ display: none; }}
-  .pbj-casemix-breakdown-main .pbj-casemix-sub-label {{
-    line-height: 1.38; white-space: normal; font-size: 0.62rem;
-  }}
-  .pbj-casemix-breakdown-main .pbj-casemix-sub-label .secondary {{
-    font-weight: 500; color: rgba(148, 163, 184, 0.96); font-variant-numeric: tabular-nums;
-  }}
+  .pbj-casemix-split {{ grid-template-columns: 1fr; gap: 0.75rem; }}
+  .pbj-casemix-split-v19 {{ grid-template-columns: 1fr; gap: 0.55rem; }}
+  .pbj-casemix-card-body--v19 .pbj-casemix-sub-line {{ font-size: 0.58rem; }}
+  .pbj-casemix-card-body--v19 .pbj-casemix-sub-line .secondary {{ font-size: 0.54rem; }}
+  .pbj-casemix-cmi-lead {{ font-size: 0.62rem; }}
+  .pbj-casemix-cmi-strip--below-bar {{ gap: 0.22rem 0.3rem; margin-top: 0.18rem; }}
+  .pbj-cmi-modal-pct {{ font-size: 0.66rem; }}
+  .pbj-casemix-breakdown-row {{ align-items: stretch; }}
+  .pbj-casemix-pos-label {{ font-size: 0.66rem; white-space: normal; word-break: break-word; }}
 }}
 .pbj-casemix-modal.pbj-casemix-modal--aux {{ z-index: 10025; }}
 .pbj-casemix-modal[aria-hidden="true"] {{ display: none !important; }}
@@ -9542,6 +10108,16 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .contact-popup-form .cb-wrap span {{ color: #cbd5e1; }}
 .contact-popup-form button[type="submit"] {{ background: rgba(99, 102, 241, 0.2); color: #a5b4fc; border: 1px solid rgba(129, 140, 248, 0.45); padding: 0.7rem 1.25rem; border-radius: 8px; font: inherit; font-size: 1rem; font-weight: 500; cursor: pointer; min-height: 44px; }}
 .contact-popup-form button[type="submit"]:hover {{ background: rgba(99, 102, 241, 0.3); color: #c7d2fe; }}
+.contact-popup-premium-about {{ margin: 0.85rem 0 0; padding-top: 0.85rem; border-top: 1px solid rgba(51, 65, 85, 0.55); text-align: center; }}
+.contact-popup-premium-about[hidden] {{ display: none; }}
+.contact-popup-premium-about__link {{
+  display: flex; align-items: center; justify-content: center; gap: 0.35rem; width: 100%; min-height: 44px;
+  padding: 0.55rem 0.85rem; border-radius: 8px; font-size: 0.875rem; font-weight: 600; color: #c7d2fe;
+  text-decoration: none; background: rgba(30, 41, 59, 0.55); border: 1px solid rgba(100, 116, 139, 0.45);
+  box-sizing: border-box; transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}}
+.contact-popup-premium-about__link:hover {{ background: rgba(51, 65, 85, 0.65); border-color: rgba(129, 140, 248, 0.45); color: #e0e7ff; }}
+.contact-popup-premium-about__link:focus-visible {{ outline: 2px solid #818cf8; outline-offset: 2px; }}
 .contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.95); color: #e2e8f0; padding: 0.875rem 1.5rem; border-radius: 12px; font-size: 0.9375rem; font-weight: 500; z-index: 10001; box-shadow: 0 8px 32px rgba(0,0,0,0.24); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(8px); }}
 .contact-toast.error {{ background: rgba(30, 41, 59, 0.95); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }}
 </style>
@@ -9603,6 +10179,9 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           </label>
           <button type="submit">Send</button>
         </div>
+        <p class="contact-popup-premium-about" id="pbj-contact-premium-about" hidden>
+          <a href="https://pbj320.com/premium" class="contact-popup-premium-about__link">About PBJ320 Premium</a>
+        </p>
       </form>
     </div>
   </div>
@@ -9625,6 +10204,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       if (nextEl) nextEl.value = window.location.pathname + (window.location.search || '');
       var subjectEl = document.getElementById('pbj-contact-subject-type');
       if (subjectEl) subjectEl.value = subjectType || '';
+      var premiumAbout = document.getElementById('pbj-contact-premium-about');
       if (titleEl) {
         if (subjectType === 'premium_dashboard_request') {
           titleEl.textContent = 'PBJ320 Premium Dashboard';
@@ -9632,6 +10212,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           titleEl.textContent = 'Request PBJ Analysis';
         }
       }
+      if (premiumAbout) premiumAbout.hidden = subjectType !== 'premium_dashboard_request';
       overlay.setAttribute('aria-hidden', 'false');
       document.body.style.overflow = 'hidden';
       if (messageEl && topic) messageEl.value = topic;
@@ -9640,6 +10221,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       document.addEventListener('keydown', trapKey);
     }
     function closeContact() {
+      var premiumAbout = document.getElementById('pbj-contact-premium-about');
+      if (premiumAbout) premiumAbout.hidden = true;
       overlay.setAttribute('aria-hidden', 'true');
       document.body.style.overflow = '';
       document.removeEventListener('keydown', trapKey);
@@ -10039,7 +10622,8 @@ def render_methodology_block():
 <p style="margin: 0 0 0.75rem 0; font-size: 0.85rem; color: rgba(226,232,240,0.8);">Note: Some states set minimums (e.g., NJ, CA, NY at 3.5 HPRD); a federal 3.48 minimum was recently overturned (2025). A 2001 federal study linked 4.1 HPRD to better outcomes in that study. Staffing needs vary by resident acuity (case-mix), day, and shift. Estimates on PBJ Takeaway assume roughly 60% of staff are CNAs.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Data transparency</p>
 <p style="margin: 0 0 0.75rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="#" class="pbj-contact-trigger" data-topic="Data issue or possible bug (please describe what looks wrong and where)." data-subject-type="data_issue" style="color: #818cf8;" role="button">let me know via the contact form</a> so I can set things right.</p>
-<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Rankings, within-state percentiles, CMS flags (including abuse icon), and PBJ exclusions: <a href="/data-sources#methodology">How metrics are calculated</a>.</p>
+<p style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Trend charts omit quarters with implausible submitted HPRD (total/direct below 0.25; RN, LPN, and aide use role floors and neighbor-quarter rules). <a href="/data-sources#trend-exclusions">Full criteria</a>.</p>
+<p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Rankings, within-state percentiles, CMS flags (including abuse icon): <a href="/data-sources#methodology">How metrics are calculated</a>.</p>
 </div>
 </details>'''
 
@@ -10793,68 +11377,119 @@ def get_facility_state_percentile(ccn, state_code, quarter, facility_hprd_total,
 _CMI_REF_STATS_CACHE = {}
 
 
-def get_provider_info_cmi_reference_stats(quarter_str):
-    """Median and quartiles for nursing CMI and CMI ratio from a CMS provider snapshot CSV.
-
-    Scans the same ProviderInfoNorm / combined files used elsewhere, filtered to the same
-    calendar quarter as ``quarter_str`` (``YYYYQn`` or ``Qn YYYY`` in the file). Values are **empirical peers in that
-    file**, not a separately published CMS national table.
-
-    Returns a JSON-serializable dict or None.
-    """
-    global _CMI_REF_STATS_CACHE
-    if not HAS_PANDAS or not quarter_str:
-        return None
-    target_cy = _normalize_quarter_to_cy_qtr(str(quarter_str).strip())
-    if not target_cy:
-        return None
-    paths = _provider_snapshot_candidate_paths() + [
+def _cmi_reference_source_paths():
+    """Provider snapshots (newest first), then combined latest / full history."""
+    seen = set()
+    out = []
+    for p in list(_provider_snapshot_candidate_paths()) + [
         os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
         'provider_info_combined_latest.csv',
         os.path.join(APP_ROOT, 'provider_info_combined.csv'),
         'provider_info_combined.csv',
-    ]
-    path = next((p for p in paths if os.path.exists(p)), None)
-    if not path:
+    ]:
+        abs_p = p if os.path.isabs(p) else os.path.join(APP_ROOT, p.replace('/', os.sep))
+        if os.path.isfile(abs_p) and abs_p not in seen:
+            seen.add(abs_p)
+            out.append(abs_p)
+    return out
+
+
+def _resolve_cmi_csv_schema(columns):
+    cols = set(columns)
+    qcol = 'CY_Qtr' if 'CY_Qtr' in cols else ('quarter' if 'quarter' in cols else None)
+    st_col = 'state' if 'state' in cols else ('State' if 'State' in cols else None)
+    cmi_col = (
+        'nursing_case_mix_index' if 'nursing_case_mix_index' in cols
+        else ('Nursing Case-Mix Index' if 'Nursing Case-Mix Index' in cols else None)
+    )
+    ratio_col = (
+        'nursing_case_mix_index_ratio' if 'nursing_case_mix_index_ratio' in cols
+        else ('Nursing Case-Mix Index Ratio' if 'Nursing Case-Mix Index Ratio' in cols else None)
+    )
+    return qcol, st_col, cmi_col, ratio_col
+
+
+def _provider_snapshot_implied_cy_qtr(path):
+    """Infer CY_Qtr for monthly NH snapshots that omit a quarter column (via paired ProviderInfoNorm_*)."""
+    provider_dir = os.path.join(APP_ROOT, 'provider_info')
+    try:
+        target_key = _provider_snapshot_recency_key(path)
+    except Exception:
         return None
     try:
-        mtime = int(os.path.getmtime(path))
-    except OSError:
-        mtime = 0
-    cache_key = (os.path.abspath(path), mtime, target_cy)
-    if cache_key in _CMI_REF_STATS_CACHE:
-        return _CMI_REF_STATS_CACHE[cache_key]
+        names = os.listdir(provider_dir)
+    except Exception:
+        return None
+    for name in names:
+        if not name.startswith('ProviderInfoNorm_') or not name.lower().endswith('.csv'):
+            continue
+        p2 = os.path.join(provider_dir, name)
+        if not os.path.isfile(p2):
+            continue
+        try:
+            if _provider_snapshot_recency_key(p2) != target_key:
+                continue
+            head = pd.read_csv(p2, nrows=0)
+            qcol = 'CY_Qtr' if 'CY_Qtr' in head.columns else ('quarter' if 'quarter' in head.columns else None)
+            if not qcol:
+                continue
+            df = pd.read_csv(p2, usecols=[qcol], nrows=1)
+            raw = str(df.iloc[0][qcol]).strip()
+            return _normalize_quarter_to_cy_qtr(raw) or _quarter_display_to_cy_qtr(raw)
+        except Exception:
+            continue
+    return None
+
+
+def _collect_cmi_series_from_provider_csv(path, target_cy, state_code=None):
+    """Return (cmi_series, ratio_series) for one quarter; empty series if file lacks usable CMI columns."""
     try:
         head = pd.read_csv(path, nrows=0)
     except Exception:
-        return None
-    qcol = 'CY_Qtr' if 'CY_Qtr' in head.columns else ('quarter' if 'quarter' in head.columns else None)
-    if not qcol or 'nursing_case_mix_index' not in head.columns or 'nursing_case_mix_index_ratio' not in head.columns:
-        return None
-    usecols = [qcol, 'nursing_case_mix_index', 'nursing_case_mix_index_ratio']
+        return None, None
+    qcol, st_col, cmi_col, ratio_col = _resolve_cmi_csv_schema(head.columns)
+    if not cmi_col or not ratio_col:
+        return None, None
+    st = (state_code or '').strip().upper()[:2] if state_code else ''
+    snapshot_only = qcol is None
+    if snapshot_only:
+        implied = _provider_snapshot_implied_cy_qtr(path)
+        if implied != target_cy:
+            return None, None
+        if st and not st_col:
+            return None, None
+    elif not qcol:
+        return None, None
+    elif st and not st_col:
+        return None, None
+    usecols = [cmi_col, ratio_col]
+    if qcol:
+        usecols.insert(0, qcol)
+    if st:
+        usecols.append(st_col)
     cmi_parts = []
     ratio_parts = []
     try:
         for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=120000):
-            qc = chunk[qcol].astype(str).str.strip()
-            qc = qc.replace({'nan': '', 'None': '', '<NA>': ''})
-            if qcol == 'CY_Qtr':
-                row_cy = qc
+            if snapshot_only:
+                row_cy = pd.Series([target_cy] * len(chunk), index=chunk.index)
             else:
-                m_cy = qc.str.match(r'^\d{4}Q[1-4]$', na=False)
-                row_cy = qc.where(m_cy, qc.map(_quarter_display_to_cy_qtr))
-            chunk = chunk[row_cy == target_cy]
+                qc = chunk[qcol].astype(str).str.strip()
+                qc = qc.replace({'nan': '', 'None': '', '<NA>': ''})
+                if qcol == 'CY_Qtr':
+                    row_cy = qc
+                else:
+                    m_cy = qc.str.match(r'^\d{4}Q[1-4]$', na=False)
+                    row_cy = qc.where(m_cy, qc.map(_quarter_display_to_cy_qtr))
+            mask = row_cy == target_cy
+            if st:
+                stv = chunk[st_col].astype(str).str.strip().str.upper().str[:2]
+                mask = mask & (stv == st)
+            chunk = chunk[mask]
             if chunk.empty:
                 continue
-            # pd.to_numeric is overloaded (scalar | Series); wrap so boolean indexing type-checks.
-            cmi = pd.Series(
-                pd.to_numeric(chunk['nursing_case_mix_index'], errors='coerce'),
-                copy=False,
-            )
-            ratio = pd.Series(
-                pd.to_numeric(chunk['nursing_case_mix_index_ratio'], errors='coerce'),
-                copy=False,
-            )
+            cmi = pd.Series(pd.to_numeric(chunk[cmi_col], errors='coerce'), copy=False)
+            ratio = pd.Series(pd.to_numeric(chunk[ratio_col], errors='coerce'), copy=False)
             cmi_ok = cmi[(cmi > 0) & (cmi < 5)]
             ratio_ok = ratio[(ratio > 0) & (ratio < 5)]
             if not cmi_ok.empty:
@@ -10862,47 +11497,110 @@ def get_provider_info_cmi_reference_stats(quarter_str):
             if not ratio_ok.empty:
                 ratio_parts.append(ratio_ok)
     except Exception as e:
-        print(f'CMI reference stats failed ({path}): {e}')
-        return None
+        print(f'CMI series scan failed ({path}): {e}')
+        return None, None
     if not cmi_parts:
-        return None
+        return pd.Series(dtype=float), pd.Series(dtype=float)
     cmi_s = pd.concat(cmi_parts, ignore_index=True)
     ratio_s = pd.concat(ratio_parts, ignore_index=True) if ratio_parts else pd.Series(dtype=float)
+    return cmi_s, ratio_s
 
-    def _qstats(s):
-        s = s.dropna()
-        n = int(len(s))
-        if n < 30:
-            return None, None, None, n
-        return (
-            round_half_up(float(s.quantile(0.25)), 2),
-            round_half_up(float(s.quantile(0.5)), 2),
-            round_half_up(float(s.quantile(0.75)), 2),
-            n,
-        )
 
-    c25, cmed, c75, cn = _qstats(cmi_s)
-    r25, rmed, r75, rn = _qstats(ratio_s) if not ratio_s.empty else (None, None, None, 0)
-    out = {
-        'quarter': target_cy,
-        'quarterDisplay': format_quarter(target_cy),
-        'cmiP25': c25,
-        'cmiMedian': cmed,
-        'cmiP75': c75,
-        'cmiN': cn,
-        'ratioP25': r25,
-        'ratioMedian': rmed,
-        'ratioP75': r75,
-        'ratioN': rn,
-    }
-    if len(_CMI_REF_STATS_CACHE) > 32:
-        _CMI_REF_STATS_CACHE.clear()
-    _CMI_REF_STATS_CACHE[cache_key] = out
+def _pick_cmi_reference_source_path(target_cy, state_code=None, *, min_cmi_n):
+    """First CSV with enough same-quarter CMI rows; falls back past empty Norm snapshots to combined."""
+    for path in _cmi_reference_source_paths():
+        cmi_s, _ratio_s = _collect_cmi_series_from_provider_csv(path, target_cy, state_code)
+        if cmi_s is None:
+            continue
+        if len(cmi_s.dropna()) >= min_cmi_n:
+            return path
+    return None
+
+
+def get_provider_info_cmi_reference_stats(quarter_str, facility_cmi=None, facility_ratio=None):
+    """Median and quartiles for nursing CMI and CMI ratio from a CMS provider snapshot CSV.
+
+    Scans the same ProviderInfoNorm / combined files used elsewhere, filtered to the same
+    calendar quarter as ``quarter_str`` (``YYYYQn`` or ``Qn YYYY`` in the file). Values are **empirical peers in that
+    file**, not a separately published CMS national table.
+
+    Optional facility_cmi / facility_ratio add facilityCmiPercentile and facilityRatioPercentile (1–100) vs USA peers.
+
+    Returns a JSON-serializable dict or None.
+    """
+    global _CMI_REF_STATS_CACHE, _CMI_NATIONAL_SORTED_CACHE
+    if not HAS_PANDAS or not quarter_str:
+        return None
+    target_cy = _normalize_quarter_to_cy_qtr(str(quarter_str).strip())
+    if not target_cy:
+        return None
+    path = _pick_cmi_reference_source_path(target_cy, min_cmi_n=30)
+    if not path:
+        return None
+    try:
+        mtime = int(os.path.getmtime(path))
+    except OSError:
+        mtime = 0
+    cache_key = (os.path.abspath(path), mtime, target_cy)
+    if cache_key not in _CMI_REF_STATS_CACHE:
+        cmi_s, ratio_s = _collect_cmi_series_from_provider_csv(path, target_cy)
+        if cmi_s is None or cmi_s.empty:
+            return None
+
+        def _qstats(s):
+            s = s.dropna()
+            n = int(len(s))
+            if n < 30:
+                return None, None, None, n
+            return (
+                round_half_up(float(s.quantile(0.25)), 2),
+                round_half_up(float(s.quantile(0.5)), 2),
+                round_half_up(float(s.quantile(0.75)), 2),
+                n,
+            )
+
+        c25, cmed, c75, cn = _qstats(cmi_s)
+        r25, rmed, r75, rn = _qstats(ratio_s) if not ratio_s.empty else (None, None, None, 0)
+        cmi_sorted = sorted(float(x) for x in cmi_s.dropna().tolist())
+        ratio_sorted = sorted(float(x) for x in ratio_s.dropna().tolist()) if not ratio_s.empty else []
+        _CMI_NATIONAL_SORTED_CACHE[cache_key] = (cmi_sorted, ratio_sorted)
+        out = {
+            'quarter': target_cy,
+            'quarterDisplay': format_quarter(target_cy),
+            'cmiP25': c25,
+            'cmiMedian': cmed,
+            'cmiP75': c75,
+            'cmiN': cn,
+            'ratioP25': r25,
+            'ratioMedian': rmed,
+            'ratioP75': r75,
+            'ratioN': rn,
+        }
+        if len(_CMI_REF_STATS_CACHE) > 32:
+            _CMI_REF_STATS_CACHE.clear()
+        _CMI_REF_STATS_CACHE[cache_key] = out
+    out = dict(_CMI_REF_STATS_CACHE[cache_key])
+    _apply_cmi_national_facility_percentiles(out, cache_key, facility_cmi, facility_ratio)
     return out
 
 
 _CMI_STATE_REF_STATS_CACHE = {}
 _CMI_STATE_SORTED_CACHE = {}
+_CMI_NATIONAL_SORTED_CACHE = {}
+
+
+def _apply_cmi_national_facility_percentiles(base: dict, cache_key: tuple, facility_cmi, facility_ratio) -> None:
+    """Mutate base dict with facilityCmiPercentile / facilityRatioPercentile vs USA peers in snapshot."""
+    base['facilityCmiPercentile'] = None
+    base['facilityRatioPercentile'] = None
+    pair = _CMI_NATIONAL_SORTED_CACHE.get(cache_key)
+    if not pair:
+        return
+    cmi_sorted, ratio_sorted = pair
+    if facility_cmi is not None and base.get('cmiN') and int(base['cmiN']) >= 30 and cmi_sorted:
+        base['facilityCmiPercentile'] = _percentile_rank_1_100(cmi_sorted, facility_cmi)
+    if facility_ratio is not None and base.get('ratioN') and int(base['ratioN']) >= 30 and ratio_sorted:
+        base['facilityRatioPercentile'] = _percentile_rank_1_100(ratio_sorted, facility_ratio)
 
 
 def _percentile_rank_1_100(sorted_vals, x):
@@ -10949,13 +11647,7 @@ def get_provider_info_cmi_state_reference_stats(state_code, quarter_str, facilit
     target_cy = _normalize_quarter_to_cy_qtr(str(quarter_str).strip())
     if not target_cy:
         return None
-    paths = _provider_snapshot_candidate_paths() + [
-        os.path.join(APP_ROOT, 'provider_info_combined_latest.csv'),
-        'provider_info_combined_latest.csv',
-        os.path.join(APP_ROOT, 'provider_info_combined.csv'),
-        'provider_info_combined.csv',
-    ]
-    path = next((p for p in paths if os.path.exists(p)), None)
+    path = _pick_cmi_reference_source_path(target_cy, st, min_cmi_n=15)
     if not path:
         return None
     try:
@@ -10967,51 +11659,9 @@ def get_provider_info_cmi_state_reference_stats(state_code, quarter_str, facilit
         out = dict(_CMI_STATE_REF_STATS_CACHE[cache_key])
         _apply_cmi_state_facility_percentiles(out, cache_key, facility_cmi, facility_ratio)
         return out
-    try:
-        head = pd.read_csv(path, nrows=0)
-    except Exception:
+    cmi_s, ratio_s = _collect_cmi_series_from_provider_csv(path, target_cy, st)
+    if cmi_s is None or cmi_s.empty:
         return None
-    qcol = 'CY_Qtr' if 'CY_Qtr' in head.columns else ('quarter' if 'quarter' in head.columns else None)
-    st_col = 'state' if 'state' in head.columns else ('State' if 'State' in head.columns else None)
-    if not qcol or not st_col or 'nursing_case_mix_index' not in head.columns or 'nursing_case_mix_index_ratio' not in head.columns:
-        return None
-    usecols = [qcol, 'nursing_case_mix_index', 'nursing_case_mix_index_ratio', st_col]
-    cmi_parts = []
-    ratio_parts = []
-    try:
-        for chunk in pd.read_csv(path, usecols=usecols, low_memory=False, chunksize=120000):
-            qc = chunk[qcol].astype(str).str.strip()
-            qc = qc.replace({'nan': '', 'None': '', '<NA>': ''})
-            if qcol == 'CY_Qtr':
-                row_cy = qc
-            else:
-                m_cy = qc.str.match(r'^\d{4}Q[1-4]$', na=False)
-                row_cy = qc.where(m_cy, qc.map(_quarter_display_to_cy_qtr))
-            stv = chunk[st_col].astype(str).str.strip().str.upper().str[:2]
-            chunk = chunk[(row_cy == target_cy) & (stv == st)]
-            if chunk.empty:
-                continue
-            cmi = pd.Series(
-                pd.to_numeric(chunk['nursing_case_mix_index'], errors='coerce'),
-                copy=False,
-            )
-            ratio = pd.Series(
-                pd.to_numeric(chunk['nursing_case_mix_index_ratio'], errors='coerce'),
-                copy=False,
-            )
-            cmi_ok = cmi[(cmi > 0) & (cmi < 5)]
-            ratio_ok = ratio[(ratio > 0) & (ratio < 5)]
-            if not cmi_ok.empty:
-                cmi_parts.append(cmi_ok)
-            if not ratio_ok.empty:
-                ratio_parts.append(ratio_ok)
-    except Exception as e:
-        print(f'CMI state reference stats failed ({path}): {e}')
-        return None
-    if not cmi_parts:
-        return None
-    cmi_s = pd.concat(cmi_parts, ignore_index=True)
-    ratio_s = pd.concat(ratio_parts, ignore_index=True) if ratio_parts else pd.Series(dtype=float)
     cmi_sorted = sorted(float(x) for x in cmi_s.dropna().tolist())
     ratio_sorted = sorted(float(x) for x in ratio_s.dropna().tolist()) if not ratio_s.empty else []
 
@@ -11266,7 +11916,22 @@ def _series_to_list_rounded(ser, decimals=2):
             out.append(r if r is not None else None)
     return out
 
-def _provider_charts_chartjs_data(facility_df, state_code, reported_total, reported_rn, reported_lpn, reported_na, case_mix_total, case_mix_rn, case_mix_lpn, case_mix_na, case_mix_index=None, case_mix_index_ratio=None):
+def _provider_charts_chartjs_data(
+    facility_df,
+    state_code,
+    reported_total,
+    reported_rn,
+    reported_lpn,
+    reported_na,
+    case_mix_total,
+    case_mix_rn,
+    case_mix_lpn,
+    case_mix_na,
+    case_mix_index=None,
+    case_mix_index_ratio=None,
+    certified_beds=None,
+    ccn=None,
+):
     """Build JSON-serializable chart data for Chart.js. Use null (None) for missing; never substitute 0. Order: Total, RN, LPN, Nurse aide."""
     t_chart = time.perf_counter()
     def _round_val(v):
@@ -11300,19 +11965,78 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
         if not quarters:
             return out
         macpac_info = get_macpac_chart_info(state_code)
+        raw_total = _series_to_list_with_none(df['Total_Nurse_HPRD'])
+        raw_direct = _series_to_list_with_none(
+            df['Nurse_Care_HPRD'] if 'Nurse_Care_HPRD' in df.columns else pd.Series(dtype=float)
+        )
+        from utils.staffing_chart_anomalies import apply_staffing_series_anomalies
+
+        staffing_adj = apply_staffing_series_anomalies(
+            quarters, raw_total, raw_direct, ccn=ccn
+        )
+        if staffing_adj['anomalies']:
+            ccn_disp = str(ccn or '').strip().zfill(6) or 'unknown'
+            print(
+                f"[PBJ_STAFFING_ANOMALY] ccn={ccn_disp} flagged={staffing_adj['anomaly_count']} "
+                f"quarters={[a.get('quarter') for a in staffing_adj['anomalies']]}"
+            )
+            try:
+                from flask import g, has_request_context
+
+                if has_request_context():
+                    g.pbj_staffing_anomalies = staffing_adj['anomalies']
+            except Exception:
+                pass
         out['totalHprd'] = {
             'quarters': quarters,
-            'total': _series_to_list_with_none(df['Total_Nurse_HPRD']),
-            'direct': _series_to_list_with_none(df['Nurse_Care_HPRD'] if 'Nurse_Care_HPRD' in df.columns else pd.Series(dtype=float)),
+            'total': staffing_adj['chart_total'],
+            'direct': staffing_adj['chart_direct'],
+            'rawTotal': staffing_adj['raw_total'],
+            'rawDirect': staffing_adj['raw_direct'],
+            'isStaffingAnomaly': staffing_adj['is_staffing_anomaly'],
+            'anomalyReason': staffing_adj['anomaly_reason'],
+            'anomalies': staffing_adj['anomalies'],
+            'anomalyCount': staffing_adj['anomaly_count'],
             'macpac': macpac_info['line_value'] if macpac_info else None,
             'macpacLabelShort': macpac_info['label_short'] if macpac_info else None,
             'macpacLabelLong': macpac_info['label_long'] if macpac_info else None,
-            'stateCode': (state_code.strip().upper()[:2] if state_code else None)
+            'stateCode': (state_code.strip().upper()[:2] if state_code else None),
         }
+        raw_rn = _series_to_list_with_none(df['RN_HPRD'])
+        raw_rn_direct = _series_to_list_with_none(
+            df['RN_Care_HPRD'] if 'RN_Care_HPRD' in df.columns else pd.Series(dtype=float)
+        )
+        raw_lpn = _series_to_list_with_none(df['LPN_HPRD'] if 'LPN_HPRD' in df.columns else pd.Series(dtype=float))
+        raw_lpn_direct = _series_to_list_with_none(
+            df['LPN_Care_HPRD'] if 'LPN_Care_HPRD' in df.columns else pd.Series(dtype=float)
+        )
+        raw_aide = _series_to_list_with_none(
+            df['Nurse_Assistant_HPRD'] if 'Nurse_Assistant_HPRD' in df.columns else pd.Series(dtype=float)
+        )
+        rn_adj = apply_staffing_series_anomalies(quarters, raw_rn, raw_rn_direct, ccn=ccn, profile='rn')
+        lpn_adj = apply_staffing_series_anomalies(quarters, raw_lpn, raw_lpn_direct, ccn=ccn, profile='lpn')
+        aide_adj = apply_staffing_series_anomalies(quarters, raw_aide, None, ccn=ccn, profile='aide')
+
+        def _role_chart_payload(adj: dict) -> dict:
+            return {
+                'total': adj['chart_total'],
+                'direct': adj['chart_direct'],
+                'rawTotal': adj['raw_total'],
+                'rawDirect': adj['raw_direct'],
+                'isStaffingAnomaly': adj['is_staffing_anomaly'],
+                'anomalies': adj['anomalies'],
+            }
+
         out['rnHprd'] = {
             'quarters': quarters,
-            'rn': _series_to_list_with_none(df['RN_HPRD']),
-            'rnDirect': _series_to_list_with_none(df['RN_Care_HPRD'] if 'RN_Care_HPRD' in df.columns else pd.Series(dtype=float))
+            'rn': rn_adj['chart_total'],
+            'rnDirect': rn_adj['chart_direct'],
+        }
+        out['staffingRole'] = {
+            'quarters': quarters,
+            'rn': _role_chart_payload(rn_adj),
+            'lpn': _role_chart_payload(lpn_adj),
+            'aide': _role_chart_payload(aide_adj),
         }
         out['contract'] = {
             'quarters': quarters,
@@ -11322,7 +12046,16 @@ def _provider_charts_chartjs_data(facility_df, state_code, reported_total, repor
             'stateMedian': _state_contract_medians_for_chart(state_code, quarters) if state_code else [],
         }
         col = 'avg_daily_census' if 'avg_daily_census' in df.columns else 'Avg_Daily_Census'
-        out['census'] = {'quarters': quarters, 'census': _series_to_list_rounded(df[col] if col in df.columns else pd.Series(dtype=float), 1)}
+        census_vals = _series_to_list_rounded(df[col] if col in df.columns else pd.Series(dtype=float), 1)
+        beds_vals = None
+        if certified_beds is not None:
+            try:
+                beds_n = int(float(str(certified_beds).replace(',', '')))
+                if beds_n > 0:
+                    beds_vals = [beds_n] * len(quarters)
+            except (TypeError, ValueError):
+                beds_vals = None
+        out['census'] = {'quarters': quarters, 'census': census_vals, 'beds': beds_vals}
     except Exception as e:
         print(f"Provider chart data build failed: {e}")
     finally:
@@ -11355,18 +12088,52 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     total_staffing_footer = '''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:#a1a1aa;">
 <span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON. State minimums via <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC (2022)</a> may reflect calculated HPRD equivalents.</span>
 <span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON. State minimums via <a href="''' + macpac_url + '''" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC</a> may reflect calculated HPRD equivalents.</span>
-</p>'''
+</p>
+<p class="pbj-chart-anomaly-foot" id="chartTotalHprdAnomalyFoot" style="margin:0.35rem 0 0 0;font-size:0.65rem;line-height:1.35;color:rgba(148,163,184,0.92);"></p>'''
     def chart_block(title, canvas_id, footer=''):
         out = '<div class="pbj-chart-container" style="margin-bottom:1.5rem;">' + chart_header(title) + '<div class="pbj-chart-wrapper"><canvas id="' + canvas_id + '"></canvas></div>'
         if footer:
             out += footer
         return out + '</div>'
+    def staffing_role_chart_header(main_title):
+        one_line = (
+            '<div class="pbj-chart-header-oneline pbj-staffing-role-title-oneline section-header" style="margin-bottom:0;">'
+            + main_title + ': ' + facility_esc + '</div>'
+        ) if facility_esc else (
+            '<div class="pbj-chart-header-oneline pbj-staffing-role-title-oneline section-header" style="margin-bottom:0;">'
+            + main_title + '</div>'
+        )
+        two_line = (
+            '<div class="pbj-chart-header-twoline"><div class="pbj-staffing-role-title-main section-header" style="margin-bottom:0;">'
+            + main_title + '</div>' + facility_sub + '</div>'
+        )
+        return '<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">' + one_line + two_line + '</div>'
+    def staffing_role_chart_block(title, canvas_id, tabs_id):
+        suffix_attr = (' data-title-suffix=": ' + facility_esc + '"') if facility_esc else ''
+        tabs = (
+            f'<div class="pbj-staffing-role-tabs" id="{tabs_id}" role="tablist" aria-label="Staffing role">'
+            f'<button type="button" class="pbj-staffing-role-tab is-active" data-role="rn" role="tab" '
+            f'aria-selected="true">RN</button>'
+            f'<button type="button" class="pbj-staffing-role-tab" data-role="lpn" role="tab" '
+            f'aria-selected="false">LPN</button>'
+            f'<button type="button" class="pbj-staffing-role-tab" data-role="aide" role="tab" '
+            f'aria-selected="false">Aide</button></div>'
+        )
+        role_anomaly_foot = f'<p class="pbj-chart-anomaly-foot" id="{canvas_id}AnomalyFoot"></p>'
+        foot_row = f'<div class="pbj-chart-foot-row">{role_anomaly_foot}</div>'
+        return (
+            f'<div class="pbj-chart-container pbj-staffing-role-chart" style="margin-bottom:1.5rem;"'
+            f' data-pbj-staffing-charts="2"{suffix_attr}>'
+            f'<div class="pbj-chart-header-row">{staffing_role_chart_header(title)}{tabs}</div>'
+            f'<div class="pbj-chart-wrapper"><canvas id="{canvas_id}"></canvas></div>'
+            f'{foot_row}</div>'
+        )
     return '''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 <!-- pbj-casemix-ui:14 -->
-<div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="14">
+<div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="14-split-7">
 <div class="pbj-casemix-card-head">
   <div class="pbj-casemix-section-header">
     <h2 class="pbj-casemix-section-title">''' + html.escape(str(casemix_title or 'CMS Case-Mix')) + '''</h2>
@@ -11375,19 +12142,25 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     </button>
   </div>
 </div>
-<div class="pbj-casemix-card-body">
-  <div class="pbj-casemix-summary">
-    <div class="pbj-casemix-hero">
-      <div id="pbjCaseMixHeroBars" class="pbj-casemix-bars"></div>
+<div class="pbj-casemix-card-body pbj-casemix-card-body--v19">
+  <div class="pbj-casemix-split-v19">
+    <div class="pbj-casemix-split-col pbj-casemix-split-col--primary">
+      <div class="pbj-casemix-summary">
+        <div class="pbj-casemix-hero">
+          <div id="pbjCaseMixHeroBars" class="pbj-casemix-bars"></div>
+        </div>
+      </div>
     </div>
-  </div>
-  <details class="pbj-casemix-details" id="pbjCaseMixSkillMix">
+    <div class="pbj-casemix-split-col pbj-casemix-split-col--roles">
+  <details class="pbj-casemix-details pbj-casemix-details--adaptive" id="pbjCaseMixSkillMix">
     <summary><span class="pbj-casemix-sum-wrap"><span class="pbj-casemix-sum-rowlabel">Case-Mix by Position</span></span><span class="pbj-casemix-sum-chev" aria-hidden="true">▼</span></summary>
     <div class="pbj-casemix-details-body">
       <p class="pbj-casemix-interpret pbj-casemix-interpret--breakdown" id="pbjCaseMixBreakdownFlag" hidden></p>
       <div id="pbjCaseMixBreakdownBars" class="pbj-casemix-bars"></div>
     </div>
   </details>
+    </div>
+  </div>
   <p class="pbj-casemix-caveat-foot" id="pbjCaseMixCaveat"><span class="pbj-casemix-caveat-text--desktop">CMS case-mix is an acuity metric based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span><span class="pbj-casemix-caveat-text--mobile"><button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">CMS case-mix is an acuity metric</button> based on PDPM. It is not a state or federal minimum; the ratio is a reference point, not a measure of whether staffing is sufficient.</span></p>
 </div>
 <div class="pbj-casemix-modal" id="pbjCaseMixModal" aria-hidden="true">
@@ -11407,7 +12180,8 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
   </div>
 </div>
 </div>
-''' + chart_block('RN Staffing', 'chartRN') + '''
+
+''' + staffing_role_chart_block('RN Staffing', 'chartRN', 'pbjStaffingRoleTabs') + '''
 ''' + chart_block('Census', 'chartCensus') + '''
 ''' + chart_block('Contract Staff %', 'chartContract') + '''
 <script>
@@ -11494,58 +12268,65 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     return escHtml(t) + '&#8217;s';
   }
   function caseMixModalFootnote() {
-    return '<p style="margin-top:0.5rem;font-size:0.78rem;line-height:1.4;color:#94a3b8;">Case-mix is context, not a staffing minimum. It does not determine whether staffing is sufficient.</p>';
+    return '<p class="pbj-cmi-modal-foot"><a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" target="_blank" rel="noopener">See CMS guide</a></p>';
+  }
+  function cmiStateName(rc) {
+    var stRef = rc && rc.cmiStateRef;
+    if (stRef && stRef.stateDisplayName) return String(stRef.stateDisplayName);
+    if (d.totalHprd && d.totalHprd.stateCode) return String(d.totalHprd.stateCode);
+    return 'this state';
+  }
+  function cmiAcuityTierFromPct(pct) {
+    if (pct == null || isNaN(pct)) return 'Medium';
+    if (pct >= 75) return 'High';
+    if (pct <= 25) return 'Low';
+    return 'Medium';
+  }
+  function cmiAcuityPctLine(rc, kind) {
+    var stRef = rc && rc.cmiStateRef;
+    var cref = rc && rc.cmiRef;
+    var stPct = kind === 'ratio'
+      ? (stRef ? stRef.facilityRatioPercentile : null)
+      : (stRef ? stRef.facilityCmiPercentile : null);
+    var usaPct = kind === 'ratio'
+      ? (cref ? cref.facilityRatioPercentile : null)
+      : (cref ? cref.facilityCmiPercentile : null);
+    var stCode = (stRef && stRef.state) ? String(stRef.state) : ((d.totalHprd && d.totalHprd.stateCode) ? String(d.totalHprd.stateCode) : '');
+    var parts = [];
+    if (stPct != null && !isNaN(stPct) && stCode) parts.push(Math.round(stPct) + '% ' + escHtml(stCode));
+    if (usaPct != null && !isNaN(usaPct)) parts.push(Math.round(usaPct) + '% USA');
+    if (!parts.length) return '';
+    return cmiAcuityTierFromPct(stPct) + ' acuity (' + parts.join(', ') + ')';
+  }
+  function cmiModalHero(label, valStr, acuityLine) {
+    return '<div class="pbj-cmi-modal-hero"><span class="pbj-cmi-modal-k">' + escHtml(label) + '</span>'
+      + '<span class="pbj-cmi-modal-val">' + escHtml(valStr) + '</span>'
+      + (acuityLine ? '<span class="pbj-cmi-modal-pct">' + acuityLine + '</span>' : '') + '</div>';
+  }
+  function cmiAcuityTierWord(rc) {
+    var stRef = rc && rc.cmiStateRef;
+    var pct = stRef ? stRef.facilityCmiPercentile : null;
+    return cmiAcuityTierFromPct(pct);
+  }
+  function cmiAcuityLeadText(rc) {
+    var tier = cmiAcuityTierWord(rc);
+    var stRef = rc && rc.cmiStateRef;
+    var st = (stRef && stRef.state) ? String(stRef.state) : ((d.totalHprd && d.totalHprd.stateCode) ? String(d.totalHprd.stateCode) : '');
+    return tier + ' acuity vs. ' + (st || 'state');
   }
   function cmiModalBodyHtml(val, rc) {
     if (val == null || isNaN(Number(val))) return '<p>Not available.</p>';
     var v = Number(val).toFixed(2);
-    var fn = rc && rc.facilityName ? String(rc.facilityName).trim() : '';
-    var stRef = rc && rc.cmiStateRef;
-    var stateNm = (stRef && stRef.stateDisplayName) ? String(stRef.stateDisplayName) : ((d.totalHprd && d.totalHprd.stateCode) ? String(d.totalHprd.stateCode) : 'this state');
-    var pct = stRef ? stRef.facilityCmiPercentile : null;
-    var p1 = '<p>Case-Mix Index is a CMS acuity metric based on PDPM resident data. Higher values mean residents are modeled as needing more nursing care.</p>';
-    var p2;
-    if (pct != null && !isNaN(pct) && stateNm) {
-      p2 = '<p>' + possessiveNameHtml(fn) + ' Case-Mix Index is <strong>' + v + '</strong>, placing it in the <strong>' + ordinalEn(pct) + '</strong> percentile among ' + escHtml(stateNm) + ' facilities this quarter.</p>';
-    } else {
-      p2 = '<p>' + possessiveNameHtml(fn) + ' Case-Mix Index is <strong>' + v + '</strong>. State percentile is not available for this quarter.</p>';
-    }
-    var p3 = '';
-    if (pct != null && !isNaN(pct)) {
-      if (pct >= 75) p3 = '<p>This suggests the facility&#8217;s residents are modeled as more nursing-intensive than most ' + escHtml(stateNm) + ' facilities.</p>';
-      else if (pct > 25 && pct < 75) p3 = '<p>This suggests the facility&#8217;s resident acuity is near the middle of ' + escHtml(stateNm) + ' facilities.</p>';
-      else if (pct <= 25) p3 = '<p>This suggests the facility&#8217;s residents are modeled as less nursing-intensive than most ' + escHtml(stateNm) + ' facilities.</p>';
-    }
-    return p1 + p2 + p3 + caseMixModalFootnote();
+    var hero = cmiModalHero('Case-Mix Index', v, cmiAcuityPctLine(rc, 'index'));
+    var def = '<p class="pbj-cmi-modal-def">PDPM-based resident acuity for this quarter. Higher values mean residents are modeled as needing more nursing care.</p>';
+    return hero + def + caseMixModalFootnote();
   }
   function ratioModalBodyHtml(val, rc) {
     if (val == null || isNaN(Number(val))) return '<p>Not available.</p>';
     var v = Number(val).toFixed(2);
-    var r = Number(val);
-    var fn = rc && rc.facilityName ? String(rc.facilityName).trim() : '';
-    var stRef = rc && rc.cmiStateRef;
-    var stateNm = (stRef && stRef.stateDisplayName) ? String(stRef.stateDisplayName) : ((d.totalHprd && d.totalHprd.stateCode) ? String(d.totalHprd.stateCode) : 'this state');
-    var pct = stRef ? stRef.facilityRatioPercentile : null;
-    var p1 = '<p>Case-Mix Index Ratio compares a facility&#8217;s nursing case-mix acuity to the national average. Values above 1.00 mean residents are modeled as needing more nursing care than the national average; values below 1.00 mean less than the national average.</p>';
-    var p2;
-    if (pct != null && !isNaN(pct) && stateNm) {
-      p2 = '<p>' + possessiveNameHtml(fn) + ' Case-Mix Index Ratio is <strong>' + v + '</strong>, placing it in the <strong>' + ordinalEn(pct) + '</strong> percentile among ' + escHtml(stateNm) + ' facilities this quarter.</p>';
-    } else {
-      p2 = '<p>' + possessiveNameHtml(fn) + ' Case-Mix Index Ratio is <strong>' + v + '</strong>. State percentile is not available for this quarter.</p>';
-    }
-    var p3 = '';
-    if (r >= 1.05) {
-      p3 = '<p>This means the facility&#8217;s residents are modeled as more nursing-intensive than the national average and higher than most ' + escHtml(stateNm) + ' facilities.</p>';
-    } else if (r > 0.95 && r < 1.05) {
-      if (pct != null && !isNaN(pct) && pct >= 75) {
-        p3 = '<p>This means the facility is roughly in line with the national average, but its residents are modeled as more nursing-intensive than most ' + escHtml(stateNm) + ' facilities.</p>';
-      } else {
-        p3 = '<p>This means the facility is roughly in line with the national average, while its state percentile shows how it compares with other ' + escHtml(stateNm) + ' facilities.</p>';
-      }
-    } else {
-      p3 = '<p>This means the facility&#8217;s residents are modeled as less nursing-intensive than the national average, though its state percentile may still be high or low depending on ' + escHtml(stateNm) + '&#8217;s facility mix.</p>';
-    }
-    return p1 + p2 + p3 + caseMixModalFootnote();
+    var hero = cmiModalHero('Case-Mix Index Ratio', v, cmiAcuityPctLine(rc, 'ratio'));
+    var def = '<p class="pbj-cmi-modal-def">Compares this facility&#8217;s nursing acuity to the national average (1.00 = national average).</p>';
+    return hero + def + caseMixModalFootnote();
   }
   function openCaseMixAuxModal(title, htmlBody) {
     var auxM = document.getElementById('pbjCaseMixAuxModal');
@@ -11573,11 +12354,14 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     var hasRat = rat != null && !isNaN(rat);
     if (!hasCmi && !hasRat) return;
     host.hidden = false;
-    var stRef = rc.cmiStateRef || null;
-    function addChip(label, valStr, tierClass, title, bodyFn) {
+    var lead = document.createElement('span');
+    lead.className = 'pbj-casemix-cmi-lead';
+    lead.textContent = cmiAcuityLeadText(rc);
+    host.appendChild(lead);
+    function addChip(label, valStr, title, bodyFn) {
       var btn = document.createElement('button');
       btn.type = 'button';
-      btn.className = 'pbj-casemix-cmi-trigger ' + (tierClass || 'pbj-cmi-tier--mid');
+      btn.className = 'pbj-casemix-cmi-trigger pbj-cmi-tier--neutral';
       btn.setAttribute('aria-haspopup', 'dialog');
       btn.setAttribute('aria-controls', 'pbjCaseMixAuxModal');
       var k = document.createElement('span'); k.className = 'k'; k.textContent = label;
@@ -11590,12 +12374,10 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       host.appendChild(btn);
     }
     if (hasCmi) {
-      var tc = stRef ? stateTierClass(cmi, stRef.cmiP25, stRef.cmiP75) : 'pbj-cmi-tier--mid';
-      addChip('CMI', Number(cmi).toFixed(2), tc, 'Case-Mix Index', function() { return cmiModalBodyHtml(cmi, rc); });
+      addChip('CMI', Number(cmi).toFixed(2), 'Case-Mix Index', function() { return cmiModalBodyHtml(cmi, rc); });
     }
     if (hasRat) {
-      var tr = stRef ? stateTierClass(rat, stRef.ratioP25, stRef.ratioP75) : 'pbj-cmi-tier--mid';
-      addChip('CMI ratio', Number(rat).toFixed(2), tr, 'Case-Mix Index Ratio', function() { return ratioModalBodyHtml(rat, rc); });
+      addChip('CMI ratio', Number(rat).toFixed(2), 'Case-Mix Index Ratio', function() { return ratioModalBodyHtml(rat, rc); });
     }
   }
   function severityClassFromRatio(ratio) {
@@ -11604,6 +12386,9 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     if (ratio >= 0.9) return 'pbj-casemix-sev-neutral';
     if (ratio >= 0.75) return 'pbj-casemix-sev-warn';
     return 'pbj-casemix-sev-critical';
+  }
+  function caseMixHprdPairHtml(actual, caseMix) {
+    return '<span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
   }
   function appendCaseMixPctBar(parent, actual, caseMix, compact) {
     if (caseMix == null || isNaN(caseMix) || Number(caseMix) <= 0 || actual == null || isNaN(actual)) return;
@@ -11619,12 +12404,12 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     else if (ratio < 0.9) sev = ' pbj-casemix-sev-warn';
     var isOver = rep >= cm - 0.0001;
     var wrap = document.createElement('div');
-    wrap.className = 'pbj-casemix-pct-bar' + (compact ? ' pbj-casemix-pct-bar--compact' : '');
+    wrap.className = 'pbj-casemix-pct-bar' + (compact ? ' pbj-casemix-pct-bar--compact' : ' pbj-casemix-pct-bar--primary');
     var track = document.createElement('div');
     track.className = 'pbj-casemix-pct-track' + (isOver ? ' pbj-casemix-pct-track--over' : ' pbj-casemix-pct-track--under');
     track.setAttribute('role', 'img');
     track.setAttribute('aria-label', 'Reported ' + hprd(rep) + ' HPRD (' + Math.round(pctOf) + '% of CMS case-mix ' + hprd(cm) + ' HPRD)');
-    track.title = 'Reported ' + hprd(rep) + ' HPRD · CMS case-mix ' + hprd(cm) + ' HPRD (' + Math.round(pctOf) + '%)';
+    track.title = 'Reported ' + hprd(rep) + ' HPRD Â· CMS case-mix ' + hprd(cm) + ' HPRD (' + Math.round(pctOf) + '%)';
     if (isOver) {
       var toBench = document.createElement('div');
       toBench.className = 'pbj-casemix-pct-fill pbj-casemix-pct-fill--to-bench';
@@ -11640,9 +12425,18 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
         track.appendChild(over);
       }
     } else {
+      if (benchW > 0.5) {
+        var benchZone = document.createElement('div');
+        benchZone.className = 'pbj-casemix-pct-fill pbj-casemix-pct-fill--ref';
+        benchZone.style.width = benchW.toFixed(2) + '%';
+        benchZone.style.zIndex = '0';
+        benchZone.title = 'CMS case-mix reference ' + hprd(cm) + ' HPRD';
+        track.appendChild(benchZone);
+      }
       var under = document.createElement('div');
       under.className = 'pbj-casemix-pct-fill pbj-casemix-pct-fill--under' + sev;
       under.style.width = repW.toFixed(2) + '%';
+      under.style.zIndex = '1';
       under.title = 'Reported ' + hprd(rep) + ' HPRD (' + Math.round(pctOf) + '% of case-mix)';
       track.appendChild(under);
     }
@@ -11671,25 +12465,13 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
       var ratio = Number(actual) / Number(caseMix);
       var pct = Math.round(100 * ratio);
       var pctHtml = ratio < 0.9 ? '<span class="pct-em pct--low">' + pct + '%</span>' : ('<span class="pct-em">' + pct + '%</span>');
-      var compact = typeof window !== 'undefined' && window.innerWidth <= 768;
-      var cmsBench = hprd(caseMix) + ' CMS case-mix';
-      var cmsLink = '<button type="button" class="pbj-casemix-inline-help" data-pbj-casemix-help="1">' + cmsBench + '</button>';
-      if (compact) {
-        line.innerHTML = '<span class="tag">Case-mix ratio</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
-      } else {
-        line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' <span class="secondary">(' + hprd(actual) + ' HPRD, ' + cmsBench + ')</span>';
-      }
+      line.innerHTML = '<span class="tag">Total case-mix ratio:</span> ' + pctHtml + ' ' + caseMixHprdPairHtml(actual, caseMix);
     } else {
       line.innerHTML = '<span class="tag">Total</span><span class="primary">' + hprd(actual) + ' HPRD reported</span>';
     }
     var toprow = document.createElement('div');
     toprow.className = 'pbj-casemix-hero-toprow';
-    var cmiHost = document.createElement('div');
-    cmiHost.id = 'pbjCaseMixCmiStrip';
-    cmiHost.className = 'pbj-casemix-cmi-strip pbj-casemix-hero-cmi-col pbj-casemix-cmi-strip--intoprow';
-    cmiHost.setAttribute('hidden', '');
     toprow.appendChild(line);
-    toprow.appendChild(cmiHost);
     panel.appendChild(toprow);
     var main = document.createElement('div');
     main.className = 'pbj-casemix-hero-main';
@@ -11697,6 +12479,11 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     copy.className = 'pbj-casemix-hero-copy';
     if (hasCaseMix) appendCaseMixPctBar(copy, actual, caseMix, false);
     main.appendChild(copy);
+    var cmiHost = document.createElement('div');
+    cmiHost.id = 'pbjCaseMixCmiStrip';
+    cmiHost.className = 'pbj-casemix-cmi-strip pbj-casemix-cmi-strip--below-bar';
+    cmiHost.setAttribute('hidden', '');
+    main.appendChild(cmiHost);
     panel.appendChild(main);
     return panel;
   }
@@ -11706,45 +12493,28 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     var roleClass = (label === 'RN') ? ' pbj-casemix-metric--rn' : (label === 'LPN' ? ' pbj-casemix-metric--lpn' : (label === 'Aide' ? ' pbj-casemix-metric--aide' : ''));
     wrap.className = 'pbj-casemix-breakdown-row' + roleClass;
     if (actual == null || isNaN(actual)) {
-      wrap.innerHTML = '<div class="pbj-casemix-sub-line"><span class="pbj-casemix-sub-label">' + (titles[label] || label) + '</span><span class="pbj-casemix-sub-vals">—</span></div>';
+      wrap.innerHTML = '<div class="pbj-casemix-sub-line"><span class="pbj-casemix-sub-label">' + (titles[label] || label) + '</span><span class="pbj-casemix-sub-vals">\u2014</span></div>';
       return wrap;
     }
     var hasCaseMix = caseMix != null && !isNaN(caseMix) && Number(caseMix) > 0;
     var main = document.createElement('div');
     main.className = 'pbj-casemix-breakdown-main';
     var row = document.createElement('div');
-    row.className = 'pbj-casemix-sub-line';
+    row.className = 'pbj-casemix-sub-line pbj-casemix-sub-line--role';
     var lab = document.createElement('span');
     lab.className = 'pbj-casemix-sub-label' + (label === 'RN' ? ' rn' : '');
     var roleLbl = (titles[label] || label);
-    var compact = typeof window !== 'undefined' && window.innerWidth <= 768;
     if (hasCaseMix) {
       var pct2 = Math.round(100 * Number(actual) / Number(caseMix));
       var pctCls = pct2 < 90 ? 'pct-em pct--low' : 'pct-em';
-      if (compact) {
-        var roleShort = (label === 'Aide') ? 'Nurse Aide' : roleLbl;
-        lab.innerHTML = roleShort + ' <span class="' + pctCls + '">' + pct2 + '%</span> <span class="secondary">(' + hprd(actual) + ' HPRD / ' + hprd(caseMix) + ' Case-Mix)</span>';
-      } else {
-        lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span>';
-      }
+      lab.innerHTML = roleLbl + ' case-mix ratio: <span class="' + pctCls + '">' + pct2 + '%</span> ' + caseMixHprdPairHtml(actual, caseMix);
     } else {
-      lab.textContent = roleLbl + ' staffing' + (compact ? ' (' + hprd(actual) + ' HPRD reported)' : '');
+      lab.textContent = roleLbl + ' staffing (' + hprd(actual) + ' HPRD reported)';
     }
     row.appendChild(lab);
     main.appendChild(row);
     if (hasCaseMix) appendCaseMixPctBar(main, actual, caseMix, true);
     wrap.appendChild(main);
-    if (hasCaseMix && !compact) {
-      var aside = document.createElement('span');
-      aside.className = 'pbj-casemix-breakdown-aside';
-      aside.innerHTML = '<span class="h">' + hprd(actual) + '</span> ' + roleLbl + ' HPRD, <span class="h">' + hprd(caseMix) + '</span> ' + roleLbl + ' case-mix HPRD';
-      wrap.appendChild(aside);
-    } else if (!hasCaseMix && !compact) {
-      var asideNa = document.createElement('span');
-      asideNa.className = 'pbj-casemix-breakdown-aside';
-      asideNa.textContent = hprd(actual) + ' HPRD reported';
-      wrap.appendChild(asideNa);
-    }
     if (label === 'RN' && hasCaseMix && Number(actual) / Number(caseMix) < 0.75) wrap.classList.add('pbj-casemix-metric--shortfall');
     return wrap;
   }
@@ -11849,6 +12619,13 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
   syncCaseMixBreakdownFlag();
   if (skillMixDetails) skillMixDetails.addEventListener('toggle', syncCaseMixBreakdownFlag);
   renderCaseMixCmiStrip(rc);
+  function syncCaseMixDetailsOpen() {
+    if (!skillMixDetails) return;
+    if (window.matchMedia('(min-width: 769px)').matches) skillMixDetails.setAttribute('open', '');
+    else skillMixDetails.removeAttribute('open');
+  }
+  syncCaseMixDetailsOpen();
+  window.addEventListener('resize', syncCaseMixDetailsOpen);
   var modal = document.getElementById('pbjCaseMixModal');
   var auxModal = document.getElementById('pbjCaseMixAuxModal');
   var modalBtn = document.getElementById('pbjCaseMixInfoBtn');
@@ -11880,24 +12657,224 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     if (auxModal && auxModal.getAttribute('aria-hidden') === 'false') { closeCaseMixAuxModal(); return; }
     if (modal && modal.getAttribute('aria-hidden') === 'false') closeCaseMixModal();
   });
+  function cyQtrLabel(q) {
+    if (!q) return '';
+    var m = String(q).match(/(\\d{4})Q([1-4])/i);
+    return m ? ('Q' + m[2] + ' ' + m[1]) : String(q);
+  }
+  function fmtAnomalyHprd(v) {
+    if (v == null || isNaN(Number(v))) return '';
+    return (Math.round(Number(v) * 100) / 100).toFixed(2) + ' HPRD';
+  }
+  function staffingAnomalyFootHprd(a) {
+    if (!a) return '';
+    var reason = String(a.anomaly_reason || '');
+    if (reason.indexOf('direct') !== -1 && a.raw_direct_hprd != null && !isNaN(Number(a.raw_direct_hprd))) {
+      return fmtAnomalyHprd(a.raw_direct_hprd);
+    }
+    return fmtAnomalyHprd(a.raw_total_hprd);
+  }
+  function renderStaffingAnomalyFoot(el, anomalies) {
+    if (!el) return;
+    var methodHref = '/data-sources#trend-exclusions';
+    var items = (anomalies || []).map(function(a) {
+      var lbl = cyQtrLabel(a.quarter);
+      var h = staffingAnomalyFootHprd(a);
+      return h ? (lbl + ' (' + h + ')') : lbl;
+    }).filter(Boolean);
+    if (!items.length) {
+      el.textContent = '';
+    } else if (items.length === 1) {
+      el.innerHTML = '*' + items[0] + ' excluded from trendline (suspected incomplete PBJ data). <a href="' + methodHref + '" class="pbj-inline-link">See methodology</a>.';
+    } else {
+      el.innerHTML = '*' + items.join('; ') + ' excluded from trendline (suspected incomplete PBJ data). <a href="' + methodHref + '" class="pbj-inline-link">See methodology</a>.';
+    }
+  }
   var th = d.totalHprd;
   if (th && th.quarters && th.quarters.length) {
-    var ds = [{ label: 'Total', data: th.total, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false },
-               { label: 'Direct', data: th.direct, borderColor: 'rgba(161,161,170,0.9)', borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false }];
+    var anomalyFlags = th.isStaffingAnomaly || th.quarters.map(function() { return false; });
+    var rawTotal = th.rawTotal || th.total;
+    var rawDirect = th.rawDirect || th.direct;
+    var ds = [
+      { label: 'Total', data: th.total, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false, _rawData: rawTotal, _anomalyFlags: anomalyFlags },
+      { label: 'Direct', data: th.direct, borderColor: 'rgba(161,161,170,0.9)', borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false, _rawData: rawDirect, _anomalyFlags: anomalyFlags }
+    ];
     if (th.macpac != null && typeof th.macpac === 'number') {
       var macpacArr = th.quarters.map(function(){ return th.macpac; });
       var stateMinLabel = (th.macpacLabelLong && th.macpacLabelShort) ? (window.innerWidth >= 640 ? th.macpacLabelLong : th.macpacLabelShort) : ((th.stateCode || 'State') + ' Min: ~' + (Math.round(Number(th.macpac) * 100) / 100).toFixed(2) + ' (MACPAC)');
       ds.push({ label: stateMinLabel, data: macpacArr, borderColor: 'rgba(248, 113, 113, 0.95)', borderWidth: 2, borderDash: [6, 4], tension: 0, fill: false, spanGaps: false, _macpacNote: true });
     }
     makeLineTime('chartTotalHprd', th.quarters, ds, 'Hours per resident day', th.quarters);
+    renderStaffingAnomalyFoot(document.getElementById('chartTotalHprdAnomalyFoot'), th.anomalies);
   }
-  var rn = d.rnHprd;
-  if (rn && rn.quarters && rn.quarters.length) makeLineTime('chartRN', rn.quarters, [
-    { label: 'Total RN', data: rn.rn, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false },
-    { label: 'RN (excl. Admin/DON)', data: rn.rnDirect, borderColor: 'rgba(161,161,170,0.9)', borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false }
-  ], 'Hours per resident day', rn.quarters);
+  function staffingRoleChartTitle(role) {
+    var compact = typeof window !== 'undefined' && window.innerWidth < 768;
+    if (role === 'lpn') return compact ? 'LPN staff' : 'LPN Staffing';
+    if (role === 'aide') return compact ? 'Aide staff' : 'Nurse Aide Staffing';
+    return compact ? 'RN staff' : 'RN Staffing';
+  }
+  function aideChartLegendLabel() {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'Aide (CNA, NAt, MedAide)';
+    }
+    return 'Aide (CNA, aide-in-training, MedAide)';
+  }
+  function updateStaffingRoleChartChrome(canvasId, tabsId, role) {
+    var tabs = document.getElementById(tabsId);
+    var container = tabs ? tabs.closest('.pbj-staffing-role-chart') : null;
+    if (!container) return;
+    var title = staffingRoleChartTitle(role);
+    var suffix = container.getAttribute('data-title-suffix') || '';
+    var statePrefix = container.getAttribute('data-state-prefix') || '';
+    var oneline = container.querySelector('.pbj-staffing-role-title-oneline');
+    var main = container.querySelector('.pbj-staffing-role-title-main');
+    var mobile = container.querySelector('.pbj-staffing-role-title-mobile');
+    if (oneline) oneline.textContent = title + suffix;
+    if (main) main.textContent = title;
+    if (mobile) mobile.textContent = statePrefix + title;
+  }
+  function initStaffingRoleChart(canvasId, tabsId, staffingRole) {
+    var sr = staffingRole;
+    if (!sr || !sr.quarters || !sr.quarters.length) return;
+    var ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    var quarters = sr.quarters;
+    var chart = null;
+    function rolePack(roleData, totalLabel, directLabel) {
+      if (!roleData) return null;
+      var flags = roleData.isStaffingAnomaly || quarters.map(function() { return false; });
+      var rawT = roleData.rawTotal || roleData.total;
+      var rawD = roleData.rawDirect || roleData.direct;
+      var ds = [{ label: totalLabel, data: roleData.total, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false, _rawData: rawT, _anomalyFlags: flags }];
+      if (roleData.direct && roleData.direct.length) {
+        ds.push({ label: directLabel, data: roleData.direct, borderColor: 'rgba(161,161,170,0.9)', borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false, _rawData: rawD, _anomalyFlags: flags });
+      }
+      return { datasets: ds, anomalies: roleData.anomalies || [] };
+    }
+    function roleDatasets(role) {
+      if (role === 'rn') return rolePack(sr.rn, 'Total RN', 'RN (excl. Admin/DON)');
+      if (role === 'lpn') return rolePack(sr.lpn, 'Total LPN', 'LPN (direct care)');
+      if (role === 'aide') return rolePack(sr.aide, aideChartLegendLabel(), '');
+      return null;
+    }
+    function drawRole(role) {
+      var packed = roleDatasets(role);
+      if (!packed || !packed.datasets.length) return;
+      var datasets = packed.datasets;
+      updateStaffingRoleChartChrome(canvasId, tabsId, role);
+      renderStaffingAnomalyFoot(document.getElementById(canvasId + 'AnomalyFoot'), packed.anomalies);
+      var spanYears = getSpanYears(quarters);
+      var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
+      var timeDatasets = datasets.map(function(ds) {
+        var out = { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, data: buildTimeSeriesData(quarters, ds.data) };
+        if (ds._rawData) out._rawData = ds._rawData;
+        if (ds._anomalyFlags) {
+          out._anomalyFlags = ds._anomalyFlags;
+          out.pointRadius = ds._anomalyFlags.map(function(flag) { return flag ? 5 : 0; });
+          out.pointHoverRadius = ds._anomalyFlags.map(function(flag) { return flag ? 6 : 0; });
+          out.pointBackgroundColor = ds._anomalyFlags.map(function(flag) { return flag ? 'rgba(251, 191, 36, 0.9)' : 'transparent'; });
+          out.pointBorderColor = ds._anomalyFlags.map(function(flag) { return flag ? 'rgba(251, 191, 36, 0.95)' : 'transparent'; });
+          out.pointStyle = ds._anomalyFlags.map(function(flag) { return flag ? 'rectRot' : 'circle'; });
+        }
+        return out;
+      });
+      var opts = {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } }, tooltip: { callbacks: {
+          title: function(context) {
+            if (context[0] && context[0].raw && context[0].raw.x != null) {
+              var d0 = new Date(context[0].raw.x);
+              return d0.getFullYear() + ' Q' + (Math.floor(d0.getMonth() / 3) + 1);
+            }
+            return '';
+          },
+          label: function(context) {
+            var v = context.parsed.y;
+            if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + (Math.round(v * 100) / 100).toFixed(2);
+            return context.dataset.label + ': ' + (v != null ? v : '');
+          },
+          afterBody: function(context) {
+            var lines = [];
+            if (!context || !context.length) return lines;
+            var idx = context[0].dataIndex;
+            var ds0 = context[0].dataset || {};
+            if (ds0._anomalyFlags && ds0._anomalyFlags[idx] && ds0._rawData && ds0._rawData[idx] != null) {
+              lines.push('Raw submitted: ' + (Math.round(Number(ds0._rawData[idx]) * 100) / 100).toFixed(2) + ' (excluded from trendline)');
+            }
+            return lines;
+          }
+        } } },
+        scales: {
+          y: { beginAtZero: false, ticks: { color: textColor }, grid: { color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: 'Hours per resident day', color: textColor } },
+          x: { type: 'time', time: { unit: 'quarter', displayFormats: { year: 'yyyy', quarter: 'yyyy Qq', month: 'MMM yyyy' }, tooltipFormat: 'yyyy Qq' }, ticks: { color: textColor, maxTicksLimit: maxTicks, autoSkip: true, font: { size: 11 }, callback: timeTickCallback(quarters) }, grid: { color: gridColor }, border: { color: axisColor, width: 1 } }
+        }
+      };
+      if (chart) { chart.data.datasets = timeDatasets; chart.update(); return; }
+      chart = new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: opts });
+    }
+    drawRole('rn');
+    var tabs = document.getElementById(tabsId);
+    if (tabs) {
+      tabs.querySelectorAll('.pbj-staffing-role-tab').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          var role = btn.getAttribute('data-role') || 'rn';
+          tabs.querySelectorAll('.pbj-staffing-role-tab').forEach(function(b) {
+            var on = b === btn;
+            b.classList.toggle('is-active', on);
+            b.setAttribute('aria-selected', on ? 'true' : 'false');
+          });
+          drawRole(role);
+        });
+      });
+    }
+  }
+  function makeCensusChart(id, censusPack) {
+    var ctx = document.getElementById(id);
+    if (!ctx || !censusPack || !censusPack.quarters || !censusPack.quarters.length) return;
+    var quarters = censusPack.quarters;
+    var datasets = [{ label: 'Avg daily census', data: censusPack.census, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false, yAxisID: 'y' }];
+    var hasBeds = censusPack.beds && censusPack.beds.some(function(v) { return v != null && !isNaN(v); });
+    if (hasBeds) {
+      datasets.push({ label: 'Certified beds', data: censusPack.beds, borderColor: 'rgba(148, 163, 184, 0.85)', borderDash: [5, 4], tension: 0, fill: false, spanGaps: false, yAxisID: 'y1' });
+    }
+    var spanYears = getSpanYears(quarters);
+    var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
+    var timeDatasets = datasets.map(function(ds) {
+      return { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, yAxisID: ds.yAxisID || 'y', data: buildTimeSeriesData(quarters, ds.data) };
+    });
+    var scales = {
+      y: { position: 'left', beginAtZero: false, ticks: { color: textColor, callback: function(v) { return (typeof v === 'number' && !isNaN(v)) ? Math.round(v).toLocaleString() : v; } }, grid: { color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: 'Census', color: textColor } },
+      x: { type: 'time', time: { unit: 'quarter', displayFormats: { year: 'yyyy', quarter: 'yyyy Qq', month: 'MMM yyyy' }, tooltipFormat: 'yyyy Qq' }, ticks: { color: textColor, maxTicksLimit: maxTicks, autoSkip: true, font: { size: 11 }, callback: timeTickCallback(quarters) }, grid: { color: gridColor }, border: { color: axisColor, width: 1 } }
+    };
+    if (hasBeds) {
+      scales.y1 = { position: 'right', beginAtZero: false, ticks: { color: textColor, callback: function(v) { return (typeof v === 'number' && !isNaN(v)) ? Math.round(v).toLocaleString() : v; } }, grid: { drawOnChartArea: false, color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: 'Beds', color: textColor } };
+    }
+    new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } }, tooltip: { callbacks: {
+        title: function(context) {
+          if (context[0] && context[0].raw && context[0].raw.x != null) {
+            var d0 = new Date(context[0].raw.x);
+            return d0.getFullYear() + ' Q' + (Math.floor(d0.getMonth() / 3) + 1);
+          }
+          return '';
+        },
+        label: function(context) {
+          var v = context.parsed.y;
+          if (typeof v === 'number' && !isNaN(v)) return context.dataset.label + ': ' + Math.round(v).toLocaleString();
+          return context.dataset.label + ': ' + (v != null ? v : '');
+        }
+      } } },
+      scales: scales
+    } });
+  }
+  if (d.staffingRole) initStaffingRoleChart('chartRN', 'pbjStaffingRoleTabs', d.staffingRole);
+  else if (d.rnHprd && d.rnHprd.quarters && d.rnHprd.quarters.length) makeLineTime('chartRN', d.rnHprd.quarters, [
+    { label: 'Total RN', data: d.rnHprd.rn, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false },
+    { label: 'RN (excl. Admin/DON)', data: d.rnHprd.rnDirect, borderColor: 'rgba(161,161,170,0.9)', borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false }
+  ], 'Hours per resident day', d.rnHprd.quarters);
   var ce = d.census;
-  if (ce && ce.quarters && ce.quarters.length) makeLineTime('chartCensus', ce.quarters, [{ label: 'Avg daily census', data: ce.census, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false }], 'Census', ce.quarters);
+  if (ce && ce.quarters && ce.quarters.length) makeCensusChart('chartCensus', ce);
   var co = d.contract;
   if (co && co.quarters && co.quarters.length) {
     var cds = [{ label: '% Contract Staff', data: co.facility, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false }];
@@ -12498,6 +13475,24 @@ def get_provider_staffing_compliance_public(ccn: str, quarter: str) -> dict | No
     return scb.lookup_public_summary(APP_ROOT, ccn, quarter)
 
 
+def _owner_info_inline_btn(
+    title: str,
+    body_html: str,
+    label: str,
+    *,
+    aria_label: str | None = None,
+) -> str:
+    """Inline narrative trigger for shared owner-info-modal (entity-style)."""
+    al = aria_label or f'View {title}'
+    return (
+        f'<button type="button" class="pbj-inline-modal-link" data-owner-info '
+        f'data-info-format="html" '
+        f'data-info-title="{html.escape(title, quote=True)}" '
+        f'data-info-body="{html.escape(body_html, quote=True)}" '
+        f'aria-label="{html.escape(al, quote=True)}">{label}</button>'
+    )
+
+
 def _render_pbj_info_badge_modal(modal_title: str, body_html: str, uid: str) -> str:
     """Small modal shell (same behavior as HPRD means modal)."""
     mid = f'pbjInfoModal-{uid}'
@@ -12565,21 +13560,20 @@ def _provider_staffing_compliance_warning(
     """One-line warning under PBJ Takeaway + details modal (no badge row clutter)."""
     summary = get_provider_staffing_compliance_public(ccn, quarter)
     if not summary:
-        return {'warning_html': '', 'modal_html': ''}
+        return {'narrative_suffix': '', 'modal_html': ''}
 
     try:
         total = int(summary.get('total_days_reported') or 0)
     except (TypeError, ValueError):
-        return {'warning_html': '', 'modal_html': ''}
+        return {'narrative_suffix': '', 'modal_html': ''}
     if total <= 0:
-        return {'warning_html': '', 'modal_html': ''}
+        return {'narrative_suffix': '', 'modal_html': ''}
 
     prov = normalize_ccn(ccn)
     st = (state_code or summary.get('state') or '').strip().upper()[:2]
     state_abbr = st if st else 'state'
 
     issues: list[dict] = []
-    state_threshold_note_html = ''
 
     below = summary.get('below_state_min_days_count')
     if below is not None and not (isinstance(below, float) and below != below):
@@ -12602,16 +13596,6 @@ def _provider_staffing_compliance_warning(
             critical_pct=50.0, critical_min=30,
         )
         if sev:
-            try:
-                import staffing_compliance_bundle as scb
-                note = scb.state_threshold_modal_note(APP_ROOT, st)
-                if note:
-                    state_threshold_note_html = (
-                        f'<p class="pbj-hprd-means-body" style="font-size:0.8125rem;opacity:0.92;">'
-                        f'{html.escape(note, quote=False)}</p>'
-                    )
-            except Exception:
-                pass
             issues.append({
                 'severity': sev,
                 'rank': 0,
@@ -12622,11 +13606,6 @@ def _provider_staffing_compliance_warning(
                 'threshold_display': th_s,
                 'sentence': (
                     f'{n} of {total} reported PBJ days below {state_abbr} staffing threshold'
-                ),
-                'modal_line': (
-                    f'<li><strong>{n} of {total}</strong> days: total nursing HPRD below <strong>{th_s}</strong> '
-                    f'threshold (RN, LPN, CNA, aide, MedAide, and admin/DON hours ÷ census—not direct-care-only). '
-                    f'PBJ-reported screening only; not a legal finding of violation or noncompliance.</li>'
                 ),
             })
 
@@ -12644,10 +13623,6 @@ def _provider_staffing_compliance_warning(
                 'severity': sev,
                 'rank': 1,
                 'sentence': f'{n} of {total} reported days had total RN hours under 8.',
-                'modal_line': (
-                    f'<li><strong>{n} of {total}</strong> days: total RN hours under 8 '
-                    f'(RN + RN admin + DON).</li>'
-                ),
             })
 
     rn0 = summary.get('rn_0_days_count')
@@ -12664,14 +13639,10 @@ def _provider_staffing_compliance_warning(
                 'severity': sev,
                 'rank': 2,
                 'sentence': f'{n} of {total} reported days had zero total RN hours.',
-                'modal_line': (
-                    f'<li><strong>{n} of {total}</strong> days: zero total RN hours '
-                    f'(RN + RN admin + DON).</li>'
-                ),
             })
 
     if not issues:
-        return {'warning_html': '', 'modal_html': ''}
+        return {'narrative_suffix': '', 'modal_html': ''}
 
     issues.sort(
         key=lambda x: (-_SEVERITY_RANK.get(str(x.get('severity')), 0), x.get('rank', 9))
@@ -12687,35 +13658,7 @@ def _provider_staffing_compliance_warning(
     if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
         sentence += f' ({len(issues)} staffing flags this quarter.)'
 
-    if overall == 'critical':
-        bar = (
-            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
-            'border-left:3px solid #d9777a;background:rgba(185,90,95,0.14);color:#f3d4d6;'
-        )
-    elif overall == 'high':
-        bar = (
-            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
-            'border-left:3px solid #e08a8f;background:rgba(190,105,110,0.12);color:#f5d8dc;'
-        )
-    else:
-        bar = (
-            'margin:0.55rem 0 0;padding:0.55rem 0.65rem;border-radius:8px;font-size:0.875rem;line-height:1.45;'
-            'border-left:3px solid #fbbf24;background:rgba(251,191,36,0.1);color:#fde68a;'
-        )
-
     q_label = html.escape(str(quarter_display or quarter or ''), quote=False)
-    meth = '<a href="/data-sources#pbj-daily-staffing">Methodology</a>'
-    modal_body = (
-        f'<p class="pbj-hprd-means-body">{q_label} · CMS PBJ daily nurse staffing (days with census &gt; 0).</p>'
-        f'{state_threshold_note_html}'
-        f'<ul class="pbj-hprd-means-body" style="margin:0.5rem 0 0 1rem;padding:0;">'
-        + ''.join(str(i['modal_line']) for i in issues)
-        + '</ul>'
-        f'<p class="pbj-hprd-means-body" style="margin-top:0.75rem;font-size:0.8125rem;opacity:0.9;">{meth}</p>'
-    )
-    uid = f'{prov}-sc-warn'
-    mid = f'pbjInfoModal-{uid}'
-    modal_html = _render_pbj_info_badge_modal('PBJ daily staffing flags', modal_body, uid)
 
     if str(top.get('kind')) == 'state_threshold':
         st_abbr_esc = html.escape(str(top.get('state_abbr') or 'state'))
@@ -12724,7 +13667,6 @@ def _provider_staffing_compliance_warning(
         th_raw = str(top.get('threshold_display') or '—').strip()
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
-        st_min_label = f'{html.escape(st_u)} Min.' if st_u else 'Min.'
         min_phrase = (
             f'{st_abbr_esc} staffing minimum (~{th_disp} HPRD)'
             if st_u
@@ -12737,47 +13679,45 @@ def _provider_staffing_compliance_warning(
                 f'({len(issues)} staffing flags this quarter.)</span>'
             )
         q_part = f' in {q_label}' if q_label else ''
-        min_btn_desktop = (
-            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__min" '
-            f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View {html.escape(min_phrase, quote=True)} staffing threshold method">'
-            f'{min_phrase}</button>'
+        modal_title = f'Days below {st_abbr_esc} staffing minimum'
+        th_body = html.escape(th_raw, quote=False)
+        modal_body = (
+            f'<p><strong>{n_show} of {total_show}</strong> reported days had total nursing HPRD '
+            f'below {th_body} (RN, LPN, CNA, aide, MedAide, and admin/DON hours &#247; census).</p>'
+            f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against MACPAC&#8217;s {th_body} HPRD '
+            f'{st_abbr_esc} benchmark&#8212;not a legal finding. '
+            f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
         )
-        min_btn_mobile = (
-            f'<button type="button" id="pbjInfoBtn-{uid}-m" class="pbj-compliance-warning__min" '
-            f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View {html.escape(st_min_label, quote=True)} staffing threshold method">'
-            f'{st_min_label}</button>'
+        min_btn = _owner_info_inline_btn(
+            modal_title,
+            modal_body,
+            min_phrase,
+            aria_label=f'View {min_phrase} details',
         )
-        lead_desktop = (
-            f'{n_show} of {total_show} reported PBJ days below {min_btn_desktop}'
-            f'{q_part}{flags_note}'
-        )
-        mobile_line1 = (
-            f'{n_show} days &lt; {th_disp} HPRD ({min_btn_mobile}){q_part}{flags_note}'
-        )
-        warn_html = (
-            f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall} '
-            f'pbj-compliance-warning--threshold" role="status" style="{bar}">'
-            f'<div class="pbj-compliance-warning__lines">'
-            f'<span class="pbj-compliance-warning__copy pbj-compliance-warning__copy--desktop">'
-            f'{lead_desktop}</span>'
-            f'<span class="pbj-compliance-warning__mobile-line1">{mobile_line1}</span>'
-            f'</div></div>'
+        suffix_html = (
+            f' <strong>Compliance note:</strong> {n_show} of {total_show} reported PBJ days below '
+            f'{min_btn}{q_part}.{flags_note}'
         )
     else:
-        details_btn = (
-            f'<button type="button" id="pbjInfoBtn-{uid}" class="pbj-compliance-warning__method" '
-            f'aria-haspopup="dialog" aria-controls="{mid}" '
-            f'aria-label="View PBJ daily staffing flags details">Details</button>'
+        modal_title = 'PBJ daily staffing'
+        modal_parts = [
+            f'<p>{html.escape(str(i.get("sentence") or ""), quote=False)}</p>' for i in issues
+        ]
+        modal_parts.append(
+            f'<p>{q_label} · CMS PBJ daily staffing (days with census &gt; 0). '
+            f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
         )
-        warn_html = (
-            f'<div class="pbj-compliance-warning pbj-compliance-warning--{overall}" '
-            f'role="status" style="{bar}">'
-            f'<span class="pbj-compliance-warning__line1">{html.escape(sentence, quote=False)}</span> '
-            f'{details_btn}</div>'
+        modal_body = ''.join(modal_parts)
+        details_btn = _owner_info_inline_btn(
+            modal_title,
+            modal_body,
+            'Details',
+            aria_label='View PBJ daily staffing details',
         )
-    return {'warning_html': warn_html, 'modal_html': modal_html}
+        suffix_html = (
+            f' <strong>Compliance note:</strong> {html.escape(sentence, quote=False)} {details_btn}'
+        )
+    return {'narrative_suffix': suffix_html, 'modal_html': ''}
 
 
 def generate_provider_page_html(ccn, facility_df, provider_info_row):
@@ -12870,6 +13810,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         pi_quarter = get_provider_info_for_quarter(prov, raw_quarter) if raw_quarter else None
         _psec('provider_info_quarter', _t_pi)
     pi_case_mix = pi_quarter if isinstance(pi_quarter, dict) else {}
+    if raw_quarter and not pi_case_mix:
+        pi_case_mix = _enrich_provider_quarter_row_from_combined(prov, raw_quarter, {})
     if isinstance(pi_case_mix, dict):
         pi_case_mix = {k: v for k, v in pi_case_mix.items() if k != '_processing_date'}
     pi_header = pi_quarter or pi or provider_info_row or {}
@@ -12925,6 +13867,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             return 'below'
         return 'around'
     _t_ch = time.perf_counter()
+    _certified_beds_chart = (
+        _provider_certified_beds(pi_case_mix)
+        or _provider_certified_beds(provider_info_row)
+        or _provider_certified_beds(pi_header)
+    )
     chart_data = _provider_charts_chartjs_data(
         facility_df,
         state_code,
@@ -12938,12 +13885,16 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         case_mix_na,
         case_mix_index,
         case_mix_index_ratio,
+        certified_beds=_certified_beds_chart,
+        ccn=prov,
     )
     _psec('charts', _t_ch)
     _rcm_cd = chart_data.get('reportedCaseMix')
     if isinstance(_rcm_cd, dict) and raw_quarter:
         _t_cmi = time.perf_counter()
-        _cref = get_provider_info_cmi_reference_stats(str(raw_quarter))
+        _cref = get_provider_info_cmi_reference_stats(
+            str(raw_quarter), case_mix_index, case_mix_index_ratio
+        )
         if _cref:
             _rcm_cd['cmiRef'] = _cref
         if state_code:
@@ -12955,6 +13906,9 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         _psec('cmi_refs', _t_cmi)
     if isinstance(_rcm_cd, dict):
         _rcm_cd['facilityName'] = (facility_name or '').strip()
+        _cmi_note = (pi_case_mix or {}).get('_cmi_source_note')
+        if _cmi_note:
+            _rcm_cd['cmiSourceNote'] = str(_cmi_note).strip()
     _t_pct = time.perf_counter()
     state_percentile_total, _ = get_facility_state_percentile(
         prov, state_code, raw_quarter, reported_total or 0, reported_rn
@@ -12975,14 +13929,14 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     if case_mix_total is None:
         narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
-    compliance_warning_html = ''
-    compliance_warning_modal = ''
+    compliance_narrative_suffix = ''
     if raw_quarter:
         _t_sc = time.perf_counter()
         _sc_warn = _provider_staffing_compliance_warning(prov, raw_quarter, quarter_display, state_code)
-        compliance_warning_html = _sc_warn.get('warning_html') or ''
-        compliance_warning_modal = _sc_warn.get('modal_html') or ''
+        compliance_narrative_suffix = _sc_warn.get('narrative_suffix') or ''
         _psec('staffing_compliance', _t_sc)
+    from ownership.portfolio_display import portfolio_info_modal_html
+    _provider_info_modal_html = portfolio_info_modal_html()
     _t_risk = time.perf_counter()
     risk_flag, risk_reason = get_facility_risk_from_search_index(prov)
     sff_facilities_list = load_sff_facilities()
@@ -13140,7 +14094,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     _takeaway_title_span = takeaway_title_name_html(facility_name, 'facility')
     _facility_page_url = f'{base_url}/provider/{prov}'
-    _facility_share = render_takeaway_share_button(_facility_page_url, facility_name, uid=f'fac-{prov}')
     _cmi_ratio_str = (
         format_metric_value(case_mix_index_ratio, 'nursing_case_mix_index_ratio')
         if case_mix_index_ratio is not None else None
@@ -13366,7 +14319,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         trends_csv=_trends_csv,
         trends_csv_filename=_trends_fn,
         trend_rows=_trend_rows,
-        share_html=_facility_share,
+        share_html='',
     )
     _facility_csv_export, _facility_csv_hidden = render_facility_csv_page_footer(
         helper_uid=f'fac-{prov}',
@@ -13382,19 +14335,19 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pbj_takeaway_card = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
+{PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">320 Consulting</span>
+<span class="pbj-takeaway-brand-pill">PBJ320</span>
 </div>
 </div>
 <div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{priority_flags_html}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
 {percentile_line}
-<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.35rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}</p>
-{compliance_warning_html}
+<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.35rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}{compliance_narrative_suffix}</p>
 {_facility_ai_helper}
 {_facility_actions}
 {facility_hprd_modal}
-{compliance_warning_modal}
+{_provider_info_modal_html}
 </div>'''
     page_title = provider_page_title(
         facility_name, city=city, state_name=state_name, state_code=state_code
@@ -13444,6 +14397,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     )
     _ownership_page_css = (
         f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+        f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
     )
     layout = get_pbj_site_layout(
         page_title,
@@ -14162,12 +15117,6 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None and not (isinstance(v, float) and __import__('math').isnan(v)) else d
         get_metric_label = lambda k: k.replace('_', ' ')
     base_url = _public_site_origin()
-    _entity_share_btn = render_takeaway_share_button(
-        f'{base_url}/entity/{entity_id}',
-        entity_name or 'Chain',
-        uid=f'ent-{entity_id}',
-    )
-    _entity_share_actions = ''
     _entity_page_url = f'{base_url}/entity/{entity_id}'
     n = len(facilities)
     subtitle = f"{n} nursing home{'s' if n != 1 else ''}"
@@ -14246,6 +15195,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     avg_contract = sum(contract_vals) / len(contract_vals) if contract_vals else None
     delta_fmt = '<span class="entity-delta" style="font-size:0.8em;color:rgba(226,232,240,0.6);">—</span>'
     high_risk_html = ''
+    _entity_chain_sff = 0
+    _entity_chain_sff_cand = 0
     # Always show a PBJ Takeaway when we have facilities (short version first; overwrite with full when chain_row)
     pbj_takeaway_ownership = ''
     if n > 0:
@@ -14258,18 +15209,17 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         _p_value = ""
         if avg_total is not None:
             _p_value = f" Average total nurse HPRD this quarter: <strong>{format_metric_value(avg_total, 'Total_Nurse_HPRD')}</strong>."
-        _entity_share_actions = render_takeaway_actions_row('', _entity_share_btn, '')
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
+{PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">320 Consulting</span>
+<span class="pbj-takeaway-brand-pill">PBJ320</span>
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{_scope}</p>
 <p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{_p_ops}{_p_value}</p>
-{_entity_share_actions}
 </div>'''
     if chain_row:
         def _f(v, default='—'):
@@ -14290,6 +15240,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         fines_dollars = _num('Total amount of fines in dollars')
         sff = _num('Number of Special Focus Facilities (SFF)')
         sff_cand = _num('Number of SFF candidates')
+        _entity_chain_sff = int(sff) if sff is not None and sff > 0 else 0
+        _entity_chain_sff_cand = int(sff_cand) if sff_cand is not None and sff_cand > 0 else 0
         abuse_count = _num('Number of facilities with an abuse icon')
         abuse_pct = _num('Percentage of facilities with an abuse icon')
         for_profit = _num('Percent of facilities classified as for-profit')
@@ -14332,13 +15284,28 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tier1_badges = f'<span style="{_badge}">{n_fac:,} Facilities</span><span style="{_badge}">{n_st} States</span>'
         if fp_pct is not None:
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
-        staff_val = (f"{staff_rating:.1f}" if staff_rating is not None else "—")
-        overall_val = (f"{overall_rating:.1f}" if overall_rating is not None else "—")
-        tier1_badges += f'<span class="pbj-overall-badge" style="{_badge}">Avg. Overall Rating: {overall_val}</span>'
-        if staff_val != '—':
+        overall_stars = _fractional_stars_html(overall_rating)
+        staffing_stars = _fractional_stars_html(staff_rating)
+        _ovr_title = (
+            f'Average overall rating: {overall_rating:.1f} stars'
+            if overall_rating is not None
+            else 'Average overall rating unavailable'
+        )
+        tier1_badges += (
+            f'<span class="pbj-overall-badge" style="{_badge}" title="{html.escape(_ovr_title)}">'
+            f'Avg. Overall: {overall_stars}</span>'
+        )
+        if staffing_stars != '—':
+            _stf_title = (
+                f'Average staffing rating: {staff_rating:.1f} stars'
+                if staff_rating is not None
+                else 'Average staffing rating unavailable'
+            )
             tier1_badges += (
-                f'<span class="pbj-badge-mobile-hide" style="{_badge}">Avg. Staffing Rating: {staff_val}</span>'
-                f'<span class="pbj-badge-mobile-only" style="{_badge}">Staffing Rating: {staff_val}</span>'
+                f'<span class="pbj-badge-mobile-hide" style="{_badge}" title="{html.escape(_stf_title)}">'
+                f'Avg. Staffing: {staffing_stars}</span>'
+                f'<span class="pbj-badge-mobile-only" style="{_badge}" title="{html.escape(_stf_title)}">'
+                f'Avg. Staffing: {staffing_stars}</span>'
             )
 
         risk_parts = []
@@ -14382,18 +15349,12 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         _entity_hprd_link = ''
         if hprd_for_narrative is not None:
             try:
-                from ownership.portfolio_display import entity_takeaway_hprd_link_html
+                from ownership.portfolio_display import entity_takeaway_hprd_help_span_html
 
-                _narr_src = (
-                    "the CMS chain performance file"
-                    if chain_hprd_total is not None
-                    else "a simple average across the PBJ320 roster"
-                )
-                _entity_hprd_link = entity_takeaway_hprd_link_html(
+                _entity_hprd_link = entity_takeaway_hprd_help_span_html(
                     float(hprd_for_narrative),
-                    narrative_source=_narr_src,
+                    entity_name=entity_name or 'This chain',
                     weighted_hprd=_entity_ps.get('wmean_hprd'),
-                    unweighted_hprd=_entity_ps.get('umean_hprd'),
                 )
             except Exception:
                 _entity_hprd_link = f"<strong>{hprd_for_narrative:.2f}</strong>"
@@ -14432,20 +15393,19 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
             if not p3.endswith("."):
                 p3 += "."
 
-        _entity_share_actions = render_takeaway_actions_row('', _entity_share_btn, '')
         pbj_takeaway_ownership = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
 <div class="pbj-takeaway-top">
+{PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">320 Consulting</span>
+<span class="pbj-takeaway-brand-pill">PBJ320</span>
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{tier1_badges}</p>
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p1_simple}</p>
 <p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p2}</p>
 <p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p3}</p>
-{_entity_share_actions}
 </div>'''
 
         one_star_count = None
@@ -14468,42 +15428,16 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
                 one_star_count = count_1 if (provider_info and facilities) else None
         except Exception:
             pass
-        high_risk_html = (
-            f'<div class="section-header"><span class="pbj-high-risk-help-wrap entity-section-tooltip-wrap">'
-            f'<span class="pbj-high-risk-help">High-Risk Facilities</span>'
-            f'<span class="pbj-high-risk-tooltip entity-section-tooltip" role="tooltip">'
-            f'{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}</span></span>'
-            f'<span class="pbj-section-header-entity-name"> – {html.escape(entity_name)}</span></div>'
+        from ownership.sff_display import entity_high_risk_metrics_section_html
+
+        high_risk_html = entity_high_risk_metrics_section_html(
+            entity_name,
+            sff_count=sff,
+            sff_cand_count=sff_cand,
+            one_star_count=one_star_count,
+            abuse_count=abuse_count,
+            high_risk_tooltip=HIGH_RISK_CRITERIA_TOOLTIP,
         )
-        high_risk_html += (
-            '<div class="entity-chain-metrics" style="display:grid;grid-template-columns:'
-            'repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0;">'
-        )
-        high_risk_html += (
-            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
-            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
-            f'Special Focus Facilities (SFFs)</div><div class="value">'
-            f'{int(sff) if sff is not None else "—"}</div></div>'
-        )
-        high_risk_html += (
-            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
-            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
-            f'SFF Candidates</div><div class="value">'
-            f'{int(sff_cand) if sff_cand is not None else "—"}</div></div>'
-        )
-        high_risk_html += (
-            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
-            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
-            f'1-Star Overall</div><div class="value">'
-            f'{int(one_star_count) if one_star_count is not None else "—"}</div></div>'
-        )
-        abuse_display = f'{int(abuse_count)}' if abuse_count is not None else '—'
-        high_risk_html += (
-            f'<div class="pbj-metric-card" style="background:rgba(15,23,42,0.6);border:1px solid '
-            f'rgba(129,140,248,0.2);border-radius:8px;padding:1rem;"><div class="label">'
-            f'Cited for Abuse</div><div class="value">{abuse_display}</div></div>'
-        )
-        high_risk_html += '</div>'
 
     from ownership.display_format import cms_ratings_stack_html
 
@@ -14748,9 +15682,20 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         (STATE_CODE_TO_NAME.get(code, code), get_canonical_slug(code))
         for code, _ in _entity_state_counts.most_common(2)
     ]
+    _entity_has_sff = _entity_chain_sff > 0 or _entity_chain_sff_cand > 0
+    if not _entity_has_sff:
+        for _ef in facilities:
+            _ccn_hr = str(_ef.get('ccn') or '').strip().zfill(6)
+            if not _ccn_hr:
+                continue
+            _hr = _pbj320_high_risk_reasons(provider_info.get(_ccn_hr) or {}, ccn=_ccn_hr)
+            if any('SFF' in str(r) for r in _hr):
+                _entity_has_sff = True
+                break
     _entity_cross_links = cross_links_for_entity(
         entity_id=entity_id,
         top_states=_entity_top_states,
+        has_sff=_entity_has_sff,
     )
 
     inner = f"""
@@ -14762,10 +15707,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {high_risk_html}
 
 <div class="section-header entity-facilities-section">{html.escape(entity_name)} Facilities</div>
-<p class="pbj-subtitle">Associated facilities in PBJ320 data. Latest-quarter staffing from CMS PBJ.</p>
 {entity_filter_html}
-<style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }} .entity-facility-risk-icon {{ color: #fca5a5; font-size: 0.72em; line-height: 1; position: relative; top: 2px; flex-shrink: 0; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} .entity-facilities-toolbar {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }} .entity-facilities-toolbar .owner-table-filter-input {{ flex: 1 1 12rem; max-width: 22rem; min-width: 0; }} .entity-hprd-help-link {{ display: inline; padding: 0; margin: 0; border: none; background: none; font: inherit; font-weight: 700; color: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: help; vertical-align: baseline; line-height: inherit; }}
-.entity-hprd-help-link:hover {{ color: #e2e8f0; }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} .entity-facilities-toolbar .owner-table-filter-input {{ max-width: none; width: 100%; flex-basis: 100%; }} }}</style>
+<style>.entity-facilities-table {{ font-size: 0.875rem; border-collapse: collapse; }} .entity-facilities-table th.entity-col-census, .entity-facilities-table td:nth-child(4) {{ text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }} .entity-facilities-table tr.high-risk {{ background: rgba(220,38,38,0.08); }} .entity-facilities-table tr.high-risk a {{ color: #fca5a5; text-decoration: none; }} .entity-facilities-table tr.high-risk a:hover {{ color: #fecaca; text-decoration: none; }} .entity-facility-risk-wrap {{ position: relative; display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }} .entity-facility-risk-icon {{ color: #fca5a5; font-size: 0.72em; line-height: 1; position: relative; top: 2px; flex-shrink: 0; }} .entity-facility-risk-wrap:hover .entity-facility-risk-tooltip {{ opacity: 1; }} .entity-facility-risk-tooltip {{ position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); margin-bottom: 6px; min-width: 120px; max-width: 200px; padding: 6px 10px; font-size: 0.75rem; line-height: 1.35; white-space: normal; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.2s; background: #1e293b; border: 1px solid rgba(59,130,246,0.4); border-radius: 6px; color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }} .entity-facilities-toolbar {{ display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; margin: 0.5rem 0 0.75rem; }} .entity-facilities-toolbar .owner-table-filter-input {{ flex: 1 1 12rem; max-width: 22rem; min-width: 0; }} @media (max-width: 768px) {{ .entity-facilities-table {{ font-size: 0.78rem; }} .entity-facilities-table th, .entity-facilities-table td {{ padding: 0.38rem 0.28rem; }} .entity-facilities-table th:nth-child(2), .entity-facilities-table td:nth-child(2) {{ max-width: 38vw; overflow: hidden; text-overflow: ellipsis; }} .pbj-table-wrap {{ -webkit-overflow-scrolling: touch; overflow-x: auto; }} .entity-facilities-toolbar .owner-table-filter-input {{ max-width: none; width: 100%; flex-basis: 100%; }} }}</style>
 <div class="pbj-table-wrap"><table class="entity-facilities-table" id="entityFacilitiesTable">
 <thead>{thead}</thead>
 <tbody>
@@ -14905,7 +15848,11 @@ def get_state_historical_data(state_code):
         direct_data = []
         rn_data = []
         rn_care_data = []
+        lpn_data = []
+        lpn_care_data = []
+        aide_data = []
         census_data = []
+        beds_data = []
         contract_data = []
         for _, row in state_rows.iterrows():
             q_str = str(row['CY_Qtr'])
@@ -14914,6 +15861,13 @@ def get_state_historical_data(state_code):
             direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 2) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
             rn_data.append(round_half_up(float(row['RN_HPRD']), 2) if pd.notna(row.get('RN_HPRD')) else None)
             rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 2) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
+            lpn_data.append(round_half_up(float(row['LPN_HPRD']), 2) if 'LPN_HPRD' in cols and pd.notna(row.get('LPN_HPRD')) else None)
+            lpn_care_data.append(round_half_up(float(row['LPN_Care_HPRD']), 2) if 'LPN_Care_HPRD' in cols and pd.notna(row.get('LPN_Care_HPRD')) else None)
+            aide_data.append(
+                round_half_up(float(row['Nurse_Assistant_HPRD']), 2)
+                if 'Nurse_Assistant_HPRD' in cols and pd.notna(row.get('Nurse_Assistant_HPRD'))
+                else None
+            )
             # State resident census: resident_census (fallback sum), total_resident_days/90, or facility_count * avg_daily_census
             resident_census = None
             if 'resident_census' in cols and pd.notna(row.get('resident_census')):
@@ -14930,6 +15884,10 @@ def get_state_historical_data(state_code):
                 census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
                 resident_census = round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None
             census_data.append(int(resident_census) if resident_census is not None and (pd.notna(resident_census) if hasattr(pd, 'notna') else resident_census == resident_census) and resident_census >= 0 else None)
+            if 'MDScensus' in cols and pd.notna(row.get('MDScensus')):
+                beds_data.append(int(round_half_up(float(row['MDScensus']), 0) or 0))
+            else:
+                beds_data.append(None)
             contract_data.append(round_half_up(float(row['Contract_Percentage']), 2) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else None)
         return {
             'raw_quarters': raw_quarters,
@@ -14937,7 +15895,11 @@ def get_state_historical_data(state_code):
             'direct': direct_data,
             'rn': rn_data,
             'rn_care': rn_care_data,
+            'lpn': lpn_data,
+            'lpn_care': lpn_care_data,
+            'aide': aide_data,
             'census': census_data,
+            'beds': beds_data if any(v is not None for v in beds_data) else None,
             'contract': contract_data,
         }
 
@@ -14965,7 +15927,10 @@ def get_state_historical_data(state_code):
         if sub.empty:
             return None
         agg_dict = {}
-        for col in ['Total_Nurse_HPRD', 'Nurse_Care_HPRD', 'RN_HPRD', 'RN_Care_HPRD', 'Contract_Percentage']:
+        for col in [
+            'Total_Nurse_HPRD', 'Nurse_Care_HPRD', 'RN_HPRD', 'RN_Care_HPRD',
+            'LPN_HPRD', 'LPN_Care_HPRD', 'Nurse_Assistant_HPRD', 'Contract_Percentage',
+        ]:
             if col in sub.columns:
                 agg_dict[col] = 'mean'
         if not agg_dict:
@@ -14977,6 +15942,10 @@ def get_state_historical_data(state_code):
             census_sums = sub.groupby('CY_Qtr')[census_col].sum()
             agg = agg.merge(census_sums.rename('resident_census'), left_on='CY_Qtr', right_index=True, how='left')
             agg['resident_census'] = agg['resident_census'].round(0)
+        if 'MDScensus' in sub.columns:
+            beds_sums = sub.groupby('CY_Qtr')['MDScensus'].sum()
+            agg = agg.merge(beds_sums.rename('MDScensus'), left_on='CY_Qtr', right_index=True, how='left')
+            agg['MDScensus'] = agg['MDScensus'].round(0)
         state_rows = agg.sort_values('CY_Qtr')
         return build_result(state_rows, state_rows.columns)
     except Exception as e:
@@ -15281,17 +16250,57 @@ def generate_state_chart_html(state_name, state_code):
         if footer:
             out += footer
         return out + '</div>'
+    def staffing_role_chart_header(main_title):
+        one_line = (
+            f'<div class="pbj-chart-header-oneline pbj-staffing-role-title-oneline section-header" style="margin-bottom:0;">'
+            f'{main_title}: {state_esc}</div>'
+        ) if state_esc else (
+            f'<div class="pbj-chart-header-oneline pbj-staffing-role-title-oneline section-header" style="margin-bottom:0;">'
+            f'{main_title}</div>'
+        )
+        two_line = (
+            f'<div class="pbj-chart-header-twoline"><div class="pbj-staffing-role-title-main section-header" '
+            f'style="margin-bottom:0;">{main_title}</div>{state_sub}</div>'
+        )
+        state_mobile_line = (
+            f'<div class="pbj-staffing-role-title-mobile pbj-chart-header-state-mobile section-header" '
+            f'style="margin-bottom:0;">{state_esc} {main_title}</div>'
+        ) if state_esc else ''
+        return (
+            f'<div class="pbj-chart-header" style="text-align:center;margin-bottom:0.25rem;">'
+            f'{one_line}{two_line}{state_mobile_line}</div>'
+        )
+    def staffing_role_chart_block(title, canvas_id, tabs_id):
+        suffix_attr = (f' data-title-suffix=": {state_esc}"') if state_esc else ''
+        prefix_attr = (f' data-state-prefix="{state_esc} "') if state_esc else ''
+        tabs = (
+            f'<div class="pbj-staffing-role-tabs" id="{tabs_id}" role="tablist" aria-label="Staffing role">'
+            f'<button type="button" class="pbj-staffing-role-tab is-active" data-role="rn" role="tab" '
+            f'aria-selected="true">RN</button>'
+            f'<button type="button" class="pbj-staffing-role-tab" data-role="lpn" role="tab" '
+            f'aria-selected="false">LPN</button>'
+            f'<button type="button" class="pbj-staffing-role-tab" data-role="aide" role="tab" '
+            f'aria-selected="false">Aide</button></div>'
+        )
+        role_anomaly_foot = f'<p class="pbj-chart-anomaly-foot" id="{canvas_id}AnomalyFoot"></p>'
+        return (
+            f'<div class="pbj-chart-container pbj-staffing-role-chart" style="margin-bottom:1.5rem;"'
+            f' data-pbj-staffing-charts="2"{suffix_attr}{prefix_attr}>'
+            f'<div class="pbj-chart-header-row">{staffing_role_chart_header(title)}{tabs}</div>'
+            f'<div class="pbj-chart-wrapper"><canvas id="{canvas_id}"></canvas></div>'
+            f'<div class="pbj-chart-foot-row">{role_anomaly_foot}</div></div>'
+        )
     return f'''
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 <div id="state-chart-meta" data-state-code="{state_code_esc}" style="display:none;"></div>
 <div class="state-page-charts">
 ''' + chart_block('Total Staffing', 'stateChartTotal', total_staffing_footer) + '''
-''' + chart_block('RN Staffing', 'stateChartRN') + '''
+''' + staffing_role_chart_block('RN Staffing', 'stateChartRN', 'stateStaffingRoleTabs') + '''
 ''' + chart_block('Resident Census', 'stateChartCensus') + '''
 ''' + chart_block('Contract Staff %', 'stateChartContract') + '''
 </div>
-<script src="/state-page-charts.js"></script>
+<script src="/state-page-charts.js?v=2"></script>
 '''
 
 
@@ -15968,11 +16977,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     state_hprd_trigger, state_hprd_modal = render_hprd_means_explainer(
         total_hprd_val, _state_hprd_body, uid='state'
     )
-    _state_share = render_takeaway_share_button(
-        _state_page_url,
-        f'{state_name} nursing home staffing',
-        uid=str(state_code or 'state'),
-    )
     # Badge order: HPRD (rank), RN HPRD, contract %, then state min
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
     _bs = 'padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease; white-space: nowrap;'
@@ -16055,14 +17059,15 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     _na_state = format_metric_value(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD', 'N/A')
     _state_contract = format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')
     _lpn_state = format_metric_value(get_val('LPN_HPRD'), 'LPN_HPRD', 'N/A')
-    _state_actions = render_takeaway_actions_row(state_hprd_trigger, _state_share, '')
+    _state_actions = render_takeaway_actions_row(state_hprd_trigger, '', '')
     state_takeaway_card = f'''
 <div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem; position: relative;">
 {state_outline_inset}
 <div class="pbj-takeaway-top">
+{PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
-<span class="pbj-takeaway-brand-pill">320 Consulting</span>
+<span class="pbj-takeaway-brand-pill">PBJ320</span>
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>
@@ -16293,7 +17298,7 @@ def generate_region_page_html(region_num, region_data, states_in_region, state_d
     <ul>
         <li><a href="/phoebe">PBJ explained</a></li>
         <li><a href="/what-is-hprd">What is HPRD?</a></li>
-        <li><a href="/data-sources">Data sources</a></li>
+        <li><a href="/data-sources">Data sources &amp; methodology</a></li>
     </ul>
     """
     
@@ -16324,7 +17329,7 @@ def get_pbjpedia_footer_html():
     return f'''<div class="mw-footer">
         <p class="pbjpedia-footer-meta" style="margin: 0.2em 0; line-height: 1.5; font-size: 0.9em; color: #54595d;">
             Content updated {updated}. PBJpedia summarizes public CMS sources; MACPAC figures are policy estimates, not statutory text.<br>
-            <a href="/about">About PBJ320</a> · <a href="/data-sources">Data sources</a> · <a href="/pbjpedia/overview">PBJpedia</a> · <a href="/premium">Premium</a> · <a href="#" class="pbj-contact-modal-trigger">Contact</a> · <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
+            <a href="/about">About PBJ320</a> · <a href="/data-sources">Data sources &amp; methodology</a> · <a href="/pbjpedia/overview">PBJpedia</a> · <a href="/premium">Premium</a> · <a href="#" class="pbj-contact-modal-trigger">Contact</a> · <a href="tel:+19298084996">(929) 804-4996</a> (text preferred)
         </p>
     </div>'''
 
@@ -17213,7 +18218,8 @@ def _provider_page_cache_enabled():
     return v not in ('1', 'true', 'yes', 'on')
 
 
-PBJ_CASEMIX_UI_REV = '13'
+PBJ_CASEMIX_UI_REV = '14-split-7'
+PBJ_STAFFING_CHARTS_REV = '2'
 
 
 def _provider_busy_minimal_html(retry_after: str = '30') -> str:
@@ -17252,6 +18258,7 @@ def _provider_page_html_headers(*, cache_hit=False):
         'Cache-Control': cache_ctl,
         'X-PBJ-Provider-Cache': 'HIT' if cache_hit else 'MISS',
         'X-PBJ-CaseMix-UI': PBJ_CASEMIX_UI_REV,
+        'X-PBJ-Staffing-Charts': PBJ_STAFFING_CHARTS_REV,
     }
     if cache_ctl.startswith('no-store'):
         h['Pragma'] = 'no-cache'
@@ -17287,8 +18294,37 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
     """Reject stale provider-page cache missing ownership block for public-launch states."""
     from ownership.beta_gate import ownership_public_enabled_for_state
 
+    body = html or ''
     st = str((row or {}).get('state') or '').strip().upper()[:2]
-    if ownership_public_enabled_for_state(st) and 'pbj-details-ownership' not in (html or ''):
+    if ownership_public_enabled_for_state(st) and 'pbj-details-ownership' not in body:
+        return False
+    if 'pbj-staffing-aide-note-k' in body:
+        return False
+    if '<div class="pbj-chart-wrapper"><p class="pbj-staffing-aide-note"' in body:
+        return False
+    if 'pbj-staffing-role-chart' in body and 'data-pbj-staffing-charts="2"' not in body:
+        return False
+    if 'pbj-staffing-aide-note' in body and 'chartRNAideNote' in body:
+        return False
+    if 'data-pbj-casemix-ui="14-split-7"' not in body and 'pbj-casemix-card' in body:
+        return False
+    if 'pbj-cmi-modal-related' in body:
+        return False
+    if 'Compliance note:' in body and 'data-owner-info' not in body:
+        return False
+    if 'PBJ daily staffing flags' in body:
+        return False
+    if 'cmiAcuityPctLine' not in body and 'pbj-casemix-card' in body:
+        return False
+    if 'pbj-casemix-card' in body and 'function caseMixHprdPairHtml' not in body:
+        return False
+    if 'pbj-casemix-card' in body and 'Case-Mix)</span>' not in body:
+        return False
+    if 'pbj-casemix-cmi-strip--intoprow' in body:
+        return False
+    if 'pbj-takeaway-compliance-note' in body:
+        return False
+    if "aside.className = 'pbj-casemix-breakdown-aside'" in body:
         return False
     return True
 

@@ -105,14 +105,18 @@ def cross_links_for_entity(
     *,
     entity_id: str | int,
     top_states: list[tuple[str, str]] | None = None,
+    has_sff: bool = False,
 ) -> str:
     """top_states: [(display name, canonical slug), ...] up to 2."""
+    _ = entity_id  # reserved for future entity-scoped hops
     links: list[tuple[str, str]] = [('Staffing rankings', '/report')]
     for name, slug in (top_states or [])[:2]:
         slug = (slug or '').strip().lower()
         name = (name or '').strip()
         if slug and name:
             links.append((name, f'/state/{slug}'))
+    if has_sff:
+        links.append(('Special Focus Facilities', '/sff'))
     return render_cross_links_html(links)
 
 

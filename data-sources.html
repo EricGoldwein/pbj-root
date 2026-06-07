@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Data sources | PBJ320</title>
+  <title>Data sources &amp; methodology | PBJ320</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Official CMS and public datasets used by PBJ320 for nursing home staffing, provider information, chain metrics, ownership, and state staffing policy context.">
   <link rel="canonical" href="https://www.pbj320.com/data-sources">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://www.pbj320.com/data-sources">
-  <meta property="og:title" content="Data sources | PBJ320">
+  <meta property="og:title" content="Data sources &amp; methodology | PBJ320">
   <meta property="og:description" content="CMS Payroll-Based Journal, Provider Information, chain performance, SNF owners, MACPAC state staffing, and FEC references used on PBJ320.">
   <meta property="og:site_name" content="PBJ320">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
@@ -43,7 +43,7 @@
 
   <main class="content">
     <div class="content-box">
-      <h1>Data sources</h1>
+      <h1>Data sources &amp; methodology</h1>
       <p class="meta">Last updated: May 2026</p>
 
       <p>PBJ320 is a public nursing home staffing and facility lookup built from federal and other public datasets. This page lists the main sources behind the free site. PBJ320 is operated by <strong>320 Consulting LLC</strong> and is not affiliated with CMS, Medicare, MACPAC, or the FEC. Background: <a href="/phoebe">PBJ explained</a> · <a href="/what-is-hprd">What is HPRD?</a></p>
@@ -77,8 +77,8 @@
         <li><a href="__MACPAC_STATE_STAFFING__" rel="noopener noreferrer" target="_blank">MACPAC — state policies related to nursing facility staffing</a> (March 2022 compendium)</li>
       </ul>
 
-      <h2>Political contributions (separate tool)</h2>
-      <p>The <a href="/owner">FEC contributions search</a> uses Federal Election Commission (FEC) public campaign finance data, not CMS PBJ files.</p>
+      <h2>Political contributions (FEC)</h2>
+      <p>Where shown on CMS owner profile pages, political contribution totals come from Federal Election Commission (FEC) public campaign finance data, not CMS PBJ files.</p>
       <ul>
         <li><a href="__FEC__" rel="noopener noreferrer" target="_blank">Federal Election Commission (FEC)</a></li>
       </ul>
@@ -94,7 +94,8 @@
         <li><strong>Case-mix:</strong> acuity metrics based on distribution of MDS 3.0 assessments by nursing case-mix Groups (CMGs) from the Patient-Driven Payment Model (PDPM). See the <a href="https://www.cms.gov/medicare/provider-enrollment-and-certification/certificationandcomplianc/downloads/usersguide.pdf" rel="noopener noreferrer" target="_blank">Five-Star / Care Compare Technical Users&rsquo; Guide (PDF)</a>.</li>
         <li id="percentiles"><strong>Within-state ranks</strong> (e.g. bottom 10%): Facility <strong>total nurse HPRD</strong> vs. other homes in the same state for the <strong>quarter on that page</strong>; not case-mix adjusted.</li>
         <li id="high-risk"><strong>CMS quality flags</strong> (SFF, SFF candidate, 1-star overall rating, abuse icon): PBJ320 shows these when they appear in CMS Provider Information—the same underlying fields Care Compare uses. PBJ320 reads and displays CMS’s flags; it does not run surveys or assign ratings. Confirm on <a href="__CARE_COMPARE__" rel="noopener noreferrer" target="_blank">Care Compare</a>.</li>
-        <li id="owners-fec"><strong><a href="/owner">FEC contributions tool</a> (beta):</strong> Name match to FEC filings; verify each Source link.</li>
+        <li id="owners-fec"><strong>FEC contributions data:</strong> Name-matched to FEC filings on owner profile pages when available; each amount links to the underlying FEC record.</li>
+        <li id="trend-exclusions"><strong>Trend line exclusions:</strong> Longitudinal charts omit quarters with implausible submitted HPRD. <strong>Total:</strong> total or direct-care below 0.25. <strong>RN:</strong> below 0.10, or below 0.25 and under 5% of both neighbors. <strong>LPN:</strong> below 0.05, or (when median LPN &ge; 0.20) below 0.12 and under 5% of both neighbors. <strong>Aide:</strong> below 0.15, or (when median aide &ge; 0.75) below 0.45 and under 5% of both neighbors.</li>
         <li id="pbj-daily-staffing"><strong>PBJ daily staffing flags</strong> (facility pages, when data is available): PBJ320 screens reported daily staffing against state-specific <strong>total nursing HPRD</strong> thresholds (all reported nursing roles, including admin/DON, ÷ census; days with census &gt; 0). New York screens use <strong>3.56</strong> total nursing HPRD. Connecticut screens use <strong>3.06</strong> total nursing HPRD, based on <a href="__MACPAC_STATE_STAFFING__" rel="noopener noreferrer" target="_blank">MACPAC</a>&rsquo;s total estimated staffing requirement. State law may separately reference direct-care minimums (e.g. Connecticut&rsquo;s three hours of direct care per resident per day). PBJ320 also counts days with <strong>zero total RN hours</strong> or <strong>total RN hours under 8</strong> (RN + RN administrator + DON; facility-wide hours that day, not RN-HPRD). PBJ320 reports PBJ-based days below threshold; it does not make legal findings of violation or noncompliance. Premium dashboards may list individual calendar dates; the free site shows quarter-level counts only.</li>
       </ul>
 

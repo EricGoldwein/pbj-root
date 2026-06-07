@@ -42,7 +42,7 @@ def _sources_dialog(dialog_id: str, sections: list[tuple[str, str]]) -> str:
         f'<h2 class="pbj-sources-dialog__title">Data on this page</h2>'
         f'<ul class="pbj-sources-dialog__list">{items}</ul>'
         f'<p class="pbj-sources-dialog__more">Full reference: '
-        f'<a href="{DATA_SOURCES_PAGE}">Data sources</a>.</p>'
+        f'<a href="{DATA_SOURCES_PAGE}">Data sources &amp; methodology</a>.</p>'
         f'<form method="dialog">'
         f'<button type="submit" class="pbj-sources-dialog__close">Close</button>'
         f'</form></div></dialog>'

@@ -36,6 +36,14 @@ Do not assume normalized names (`urban` vs `Urban`), `ccn` on row dicts vs cache
 
 **ProviderInfoNorm snapshots:** follow `.cursor/rules/pbj320-provider-info-norm.mdc` and skill `pbj320-provider-info-pipeline`. Run `python scripts/validate_provider_norm_snapshot.py` before signing off CMI/urban/state-percentile work.
 
+**Render deploy gates:** local dev often has **gitignored** files (e.g. `NH_ProviderInfo_May2026.csv`) that **Render never sees**. Running validate/backfill locally can pass while `ensure_deploy_csvs.py` fails on build. Before any push that adds or changes build-time gates (`ensure_deploy_csvs.py`, `render.yaml` `buildCommand`, Norm pipeline scripts), run:
+
+```powershell
+python scripts/simulate_render_deploy_gates.py
+```
+
+Record `Verified from: simulate_render_deploy_gates.py exit 0` in the sign-off. Do **not** treat local-only NH parity as deploy proof.
+
 ### Contradictory data symptoms (stop and verify)
 
 When the UI shows a metric in one place but "not available" in another (e.g. CMI on facility card but state percentile missing):

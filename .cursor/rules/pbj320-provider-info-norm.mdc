@@ -22,9 +22,20 @@ globs:
 ```powershell
 python scripts/backfill_provider_norm_urban.py
 python scripts/validate_provider_norm_snapshot.py
+python scripts/simulate_render_deploy_gates.py
 ```
 
-**Fail deploy** if validate exits 1. `ensure_deploy_csvs.py` runs both after materializing CSVs.
+**Fail deploy** if validate exits 1. `ensure_deploy_csvs.py` runs backfill + validate after materializing CSVs.
+
+### Render artifact set (not the same as local disk)
+
+| File | On Render? |
+|------|------------|
+| `provider_info/ProviderInfoNorm_*.csv` | Yes (committed) |
+| `provider_info/NH_ProviderInfo_*.csv` | **Only if whitelisted in `.gitignore`** (currently Jan/Feb 2026) |
+| Paired NH for newest Norm (e.g. May 2026) | **Usually no** — backfill must happen **before commit**; validate uses **self-check** when NH absent |
+
+**Never** wire a deploy gate that requires a gitignored NH file without a self-check fallback or whitelisting that NH for deploy.
 
 ## Contradictory symptoms → data first
 

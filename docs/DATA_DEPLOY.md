@@ -6,9 +6,12 @@ GitHub LFS bandwidth blocks Render from smudging large files at clone. **Full lo
 |----------------|---------------|------------|
 | `facility_quarterly_metrics.csv.gz` | ~65 MB | Decompress → `facility_quarterly_metrics.csv` (all quarters) |
 | `provider_info_combined_latest.csv` | ~10 MB | Used as-is |
-| `provider_info/ProviderInfoNorm_*.csv` | varies | Used as-is (newest wins in app) |
+| `provider_info/ProviderInfoNorm_*.csv` | varies | Used as-is (newest wins in app); backfill + validate in build |
+| `provider_info/NH_ProviderInfo_*.csv` | usually **not** on Render | Gitignored except Jan/Feb 2026 whitelist — **backfill Norm before commit** |
 
 Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` `buildCommand`, **not** in start). **Fails** if fewer than 12 distinct `CY_Qtr` values after decompress (full verify on build; use `--quick` only when CSV already present).
+
+**ProviderInfoNorm gates:** build runs `backfill_provider_norm_urban.py` then `validate_provider_norm_snapshot.py`. When paired NH is absent on Render, validate uses **self-check** fill counts on the committed Norm (CMI/urban must already be backfilled in git). Before push, run `python scripts/simulate_render_deploy_gates.py` — hides local-only `provider_info` files and re-runs those gates.
 
 **Start command:** `python scripts/render_start.py` → Gunicorn on `0.0.0.0:$PORT` immediately. With `PBJ_SKIP_START_CSV_ENSURE=1`, restart does not re-run CSV work. **Do not** set Dashboard start to `ensure_deploy_csvs && gunicorn` — health checks get `connection refused` until Gunicorn binds (~20–30s).
 

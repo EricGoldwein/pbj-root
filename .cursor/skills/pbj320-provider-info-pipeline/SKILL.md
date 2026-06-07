@@ -33,9 +33,16 @@ python normalize_provider_info.py --force --file May2026   # or omit --file for 
 cd c:\Users\egold\PycharmProjects\pbj-root
 python scripts/backfill_provider_norm_urban.py
 python scripts/validate_provider_norm_snapshot.py
+python scripts/simulate_render_deploy_gates.py
 ```
 
-**Do not commit or deploy** a new `ProviderInfoNorm_*` until `validate_provider_norm_snapshot.py` exits 0.
+**Do not commit or deploy** a new `ProviderInfoNorm_*` until all three exit 0.
+
+### Local vs Render (common agent mistake)
+
+- **Local:** `NH_ProviderInfo_May2026.csv` may exist on disk but is **gitignored** → NH parity validate passes locally.
+- **Render:** only **tracked** files exist → gates must pass with Norm **self-check** (or NH must be whitelisted in `.gitignore` and committed).
+- **`simulate_render_deploy_gates.py`** hides untracked `provider_info/*` and re-runs backfill + validate — run this before push, not only local validate.
 
 ## Mandatory parity checks (before any UI/runtime fix)
 
@@ -79,6 +86,7 @@ State percentile needs ≥15 in-state and ≥30 national non-null CMI values for
 |------|---------|--------|
 | Backfill | `python scripts/backfill_provider_norm_urban.py` | empty urban/CMI on newest Norm |
 | Validate | `python scripts/validate_provider_norm_snapshot.py` | under-filled Norm vs NH |
+| Deploy sim | `python scripts/simulate_render_deploy_gates.py` | push would fail Render build |
 | Deploy | `ensure_deploy_csvs.py` runs backfill + validate | Render build |
 
 ## Common failure modes
@@ -88,6 +96,7 @@ State percentile needs ≥15 in-state and ≥30 national non-null CMI values for
 3. **Two data paths** — facility CMI from `provider_info_combined`; percentiles from `ProviderInfoNorm_*` — fixes one path mask the other.
 4. **Newest-first without fallback** — code read May Norm, got 0 peers, stopped (fixed in `app.py` but data fix still required).
 5. **Agent skipped verification** — assumed “data not there” without counting NH vs Norm rows.
+6. **Local-only NH masked deploy** — validate passed with May NH on disk; Render had no NH → build failed. Always run `simulate_render_deploy_gates.py` before push when adding deploy gates.
 
 ## PBJapp normalizer hard-fail
 

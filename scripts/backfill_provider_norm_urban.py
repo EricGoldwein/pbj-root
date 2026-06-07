@@ -128,12 +128,27 @@ def main() -> int:
         print(f'backfill_provider_norm_urban: no backfill columns in {norm_path}')
         return 0
     sample = pd.read_csv(norm_path, usecols=need_cols, low_memory=False)
-    if not any(_norm_field_empty(sample[c]).any() for c in need_cols):
-        print(f'backfill_provider_norm_urban: OK {", ".join(need_cols)} already populated in {norm_path}')
+    _MIN_NORM_FILL_RATIO = 0.90
+    _MIN_NH_NONEMPTY = 100
+
+    def _needs_backfill(col: str) -> bool:
+        empty = int(_norm_field_empty(sample[col]).sum())
+        filled = len(sample) - empty
+        if filled >= max(_MIN_NH_NONEMPTY, int(len(sample) * _MIN_NORM_FILL_RATIO)):
+            return False
+        return empty > 0
+
+    cols_needing = [c for c in need_cols if _needs_backfill(c)]
+    if not cols_needing:
+        print(f'backfill_provider_norm_urban: OK {", ".join(need_cols)} sufficiently populated in {norm_path}')
         return 0
     nh_path = _nh_path_for_norm(norm_path)
     if not nh_path:
-        print(f'backfill_provider_norm_urban: no NH snapshot for {norm_path}', file=sys.stderr)
+        print(
+            f'backfill_provider_norm_urban: ERROR need NH snapshot to backfill '
+            f'{", ".join(cols_needing)} in {norm_path}',
+            file=sys.stderr,
+        )
         return 1
     filled = backfill_norm_from_nh(norm_path, nh_path)
     parts = ', '.join(f'{k}={v}' for k, v in filled.items() if v)

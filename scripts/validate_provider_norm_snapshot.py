@@ -28,6 +28,9 @@ _NH_PARITY_FIELDS = (
 
 _MIN_NH_NONEMPTY = 100
 _MIN_NORM_FILL_RATIO = 0.90
+# Deploy ships Norm only (NH_ProviderInfo_* is gitignored except Jan/Feb). Self-check when NH absent.
+_MIN_NORM_SELF_CMI = 10_000
+_MIN_NORM_SELF_URBAN = 10_000
 _SPOT_CCNS = ('015009',)  # Burns — AL facility with known CMI in NH May 2026
 
 
@@ -73,6 +76,27 @@ def _nonempty_count(series: pd.Series, *, numeric: bool) -> int:
     return int(series.notna().sum() - (s == '').sum() - (s.str.lower() == 'nan').sum())
 
 
+def _validate_norm_self_sufficient(norm: pd.DataFrame, norm_path: str) -> list[str]:
+    """Deploy gate when NH snapshot is not shipped (Norm must already be backfilled in git)."""
+    errors: list[str] = []
+    basename = os.path.basename(norm_path)
+    for norm_col, _nh_col in _NH_PARITY_FIELDS:
+        if norm_col not in norm.columns:
+            errors.append(f'{basename}: missing column {norm_col!r}')
+            continue
+        norm_n = _nonempty_count(norm[norm_col], numeric=(norm_col != 'urban'))
+        if norm_col == 'urban':
+            if norm_n < _MIN_NORM_SELF_URBAN:
+                errors.append(
+                    f'{basename}: urban under-filled ({norm_n:,}; need >={_MIN_NORM_SELF_URBAN:,} without NH)'
+                )
+        elif norm_n < _MIN_NORM_SELF_CMI:
+            errors.append(
+                f'{basename}: {norm_col} under-filled ({norm_n:,}; need >={_MIN_NORM_SELF_CMI:,} without NH)'
+            )
+    return errors
+
+
 def validate_norm_snapshot(norm_path: str, nh_path: str | None = None) -> list[str]:
     errors: list[str] = []
     nh_path = nh_path or _nh_path_for_norm(norm_path)
@@ -95,7 +119,7 @@ def validate_norm_snapshot(norm_path: str, nh_path: str | None = None) -> list[s
                     f'({norm_n:,} vs {nh_n:,} in NH; need >={_MIN_NORM_FILL_RATIO:.0%})'
                 )
     else:
-        errors.append(f'no paired NH snapshot for {norm_path}')
+        errors.extend(_validate_norm_self_sufficient(norm, norm_path))
     if 'ccn' in norm.columns:
         norm['ccn_key'] = (
             norm['ccn'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.zfill(6)
@@ -136,7 +160,12 @@ def main() -> int:
             for err in errs:
                 print(f'validate_provider_norm_snapshot: FAIL {err}', file=sys.stderr)
         else:
-            print(f'validate_provider_norm_snapshot: OK {os.path.relpath(norm_path, APP_ROOT)}')
+            nh_path = _nh_path_for_norm(norm_path)
+            mode = 'NH parity' if nh_path and os.path.isfile(nh_path) else 'self-check (NH not deployed)'
+            print(
+                f'validate_provider_norm_snapshot: OK {mode} '
+                f'{os.path.relpath(norm_path, APP_ROOT)}'
+            )
     return 1 if failed else 0
 
 

@@ -1,13 +1,14 @@
-# Render: must bind 0.0.0.0:10000 so port scan and /health work. Procfile must match.
+# Render: must bind 0.0.0.0:10000 so port scan and /healthz work. Procfile must match.
 services:
   - type: web
     name: pbj
     runtime: python
     # Skip LFS smudge on clone (saves LFS bandwidth). Real CSVs: scripts/ensure_deploy_csvs.py
     buildCommand: pip install -r requirements.txt && PBJ_SKIP_BUILD_PROVIDER_INDEXES=1 python scripts/ensure_deploy_csvs.py --quick && python scripts/build_state_page_aggregates.py && python scripts/build_facility_provider_indexes.py && python scripts/validate_provider_index_schema.py && python scripts/ensure_staffing_compliance_bundle.py && python scripts/build_staffing_compliance_runtime_index.py && python scripts/build_snf_owners_index.py && python scripts/build_snf_owners_ccn_index.py && python scripts/validate_ownership_linkage.py && python scripts/build_owners_database.py && python scripts/build_sitemap_xml.py && cd pbj-wrapped && npm install && npm run build
-    # CSV/index work runs in buildCommand only. Start must bind :10000 quickly for /health (see scripts/render_start.py).
+    # CSV/index work runs in buildCommand only. Start must bind :10000 quickly for /healthz (see scripts/render_start.py).
     startCommand: python scripts/render_start.py
-    healthCheckPath: /health
+    # /healthz and /health are aliases; prefer /healthz for platform probes (see DEPLOYMENT.md).
+    healthCheckPath: /healthz
     envVars:
       - key: GIT_LFS_SKIP_SMUDGE
         value: "1"
@@ -31,7 +32,7 @@ services:
         value: "20"
       - key: PBJ_SITEMAP_CACHE_TTL
         value: "3600"
-      # Leave PBJ_GUNICORN_MAX_REQUESTS unset (0) — worker recycle with 1 worker drops /health.
+      # Leave PBJ_GUNICORN_MAX_REQUESTS unset (0) — worker recycle with 1 worker drops /healthz probes briefly.
       # CT + NY facility pages only — not /pbj-ai-support, not other states
       - key: PBJ_AI_SUPPORT
         value: "dashboards"

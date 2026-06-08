@@ -150,12 +150,15 @@ def _log_mem(label):
         print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
 
 
+_HEALTH_PROBE_PATHS = frozenset({'/health', '/healthz'})
+
 _MEM_ROUTE_LOG_EXACT = frozenset({
     '/',
     '/sitemap.xml',
     '/search_index.json',
     '/warmup',
     '/health',
+    '/healthz',
 })
 _MEM_ROUTE_PREFIXES = (
     '/provider/',
@@ -932,7 +935,7 @@ def _mem_route_timer():
 @app.before_request
 def _ensure_pandas():
     """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
-    if request.path in ('/health', '/warmup', '/sitemap.xml'):
+    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/sitemap.xml'):
         return
     global pd
     if pd is None:
@@ -1174,7 +1177,7 @@ def _throttle_ai_crawlers_on_heavy_routes():
     Provider: cache MISS also returns 429 when PBJ_AI_PROVIDER_CACHE_ONLY=1 (no cold render).
     Entity: no HTML cache; same flag returns 429 before any heavy load.
     """
-    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
+    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/debug/mem', '/debug/provider-indexes'):
         return
     if request.path == '/warmup/facility-indexes':
         return
@@ -1246,7 +1249,7 @@ def _other_bot_rate_limit_exceeded() -> int | None:
 @app.before_request
 def _throttle_other_bots_on_heavy_routes():
     """Rate-limit generic bots (UA contains bot/crawler/spider) on expensive routes."""
-    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
+    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/debug/mem', '/debug/provider-indexes'):
         return
     if request.path == '/warmup/facility-indexes':
         return
@@ -1271,7 +1274,7 @@ def _throttle_other_bots_on_heavy_routes():
 @app.before_request
 def _reject_aggressive_bots_on_heavy_routes():
     """Cheap 429 for crawlers that hammer /provider and /entity (keeps workers for real users)."""
-    if request.path in ('/health', '/warmup', '/debug/mem', '/debug/provider-indexes'):
+    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/debug/mem', '/debug/provider-indexes'):
         return
     if request.path == '/warmup/facility-indexes':
         return
@@ -1284,8 +1287,9 @@ def _reject_aggressive_bots_on_heavy_routes():
         })
 
 @app.route('/health')
+@app.route('/healthz')
 def health():
-    """Lightweight health check for Render. Side-effect free (best practice for public sites)."""
+    """Lightweight liveness probe for Render. No DB, CSV, cache warmers, or pandas."""
     return 'ok', 200
 
 

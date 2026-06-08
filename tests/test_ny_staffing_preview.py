@@ -34,7 +34,7 @@ class NyStaffingPreviewTest(unittest.TestCase):
         self.assertIn('class="ny-staffing-preview-banner"', out)
         self.assertIn('ny-staffing-preview-chrome', out)
         self.assertIn(
-            'Pre-publication preview. Data and wording may still be updated.',
+            'Preview report. May be updated before publication.',
             out,
         )
         self.assertIn('position: sticky', out)

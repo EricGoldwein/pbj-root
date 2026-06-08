@@ -210,7 +210,7 @@ _NY_PREVIEW_CHROME_OPEN = '<div class="ny-staffing-preview-chrome">'
 _NAVBAR_OPEN_RE = re.compile(r'(<nav\s+class=["\']navbar["\'])', re.IGNORECASE)
 _NAVBAR_CLOSE_RE = re.compile(r'(</nav>)', re.IGNORECASE)
 _NY_PREVIEW_BANNER_TEXT = (
-    'Pre-publication preview. Data and wording may still be updated.'
+    'Preview report. May be updated before publication.'
 )
 _NY_PREVIEW_BANNER_HTML = (
     f'<div class="ny-staffing-preview-banner" role="status">{_NY_PREVIEW_BANNER_TEXT}</div>'

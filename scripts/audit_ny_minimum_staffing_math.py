@@ -12,8 +12,22 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 HTML = ROOT / "insights-ny-minimum-staffing.html"
+WW_CSV = (
+    ROOT
+    / "public"
+    / "downloads"
+    / "PBJ320_NY_2025_daily_staffing_verification_csvs"
+    / "weekend_weekday_summary.csv"
+)
+WEEKEND_CARD_CURVE_MAP: dict[str, str] = {
+    "All NY": "weekend",
+    "NY statewide for-profit": "weekend_ny_for_profit",
+    "NYC five boroughs": "weekend_nyc",
+    "NYC for-profit": "weekend_nyc_for_profit",
+}
 THRESHOLD = 3.5
 TOL_PCT = 0.15  # allow 0.1 display rounding vs curve
+TOL_COUNT_PCT = 0.05  # displayed % vs below/fd before rounding
 
 
 def extract_json_after(marker: str, text: str) -> object:
@@ -37,8 +51,16 @@ def lookup_curve(curve: list, threshold: float = THRESHOLD) -> dict:
     raise KeyError(f"threshold {threshold} not on curve")
 
 
-def pct_close(a: float, b: float) -> bool:
-    return abs(a - b) <= TOL_PCT
+def pct_close(a: float, b: float, tol: float = TOL_PCT) -> bool:
+    return abs(a - b) <= tol
+
+
+def round_display(pct: float) -> float:
+    return round(pct * 10) / 10
+
+
+def pct_from_counts(below: int, fd: int) -> float:
+    return 100.0 * below / fd if fd else 0.0
 
 
 def main() -> int:
@@ -49,6 +71,7 @@ def main() -> int:
     interactive = extract_json_after("window.PBJ_REPORT_INTERACTIVE = ", html)
     charts = extract_json_after("window.PBJ_REPORT_CHARTS = ", html)
     facilities = extract_json_after("window.PBJ_REPORT_FACILITIES = ", html)
+    ui = extract_json_after("window.PBJ_REPORT_UI = ", html)
 
     statute = None
     if "window.PBJ_REPORT_NY_STATUTE = " in html:
@@ -131,11 +154,70 @@ def main() -> int:
         if not pct_close(pt_wk["pct_below"], wk_pct):
             issues.append(f"ownership {sl['label']} wknd {wk_pct} vs curve {pt_wk['pct_below']:.2f}")
 
+    # Weekend table: displayed % must match below/fd (NYC weekend was 81.7% vs 82.3%)
+    weekend_cards = {c["curve"]: c["facility_days"] for c in mode.get("weekend_cards", [])}
+    wt_pattern = re.compile(
+        r'data-all-curve="([^"]+)" data-weekend-curve="([^"]+)".*?'
+        r'wt-stat--wkend"><span class="wt-pct[^"]*">([\d.]+)%</span><span class="wt-count">([\d,]+)/([\d,]+)</span>',
+        re.DOTALL,
+    )
+    for m in wt_pattern.finditer(html):
+        label_curve = m.group(2)
+        disp_pct = float(m.group(3))
+        below = int(m.group(4).replace(",", ""))
+        fd = int(m.group(5).replace(",", ""))
+        recomputed = pct_from_counts(below, fd)
+        if abs(round_display(recomputed) - disp_pct) > TOL_COUNT_PCT:
+            issues.append(
+                f"weekend table {label_curve}: HTML {disp_pct}% vs {below}/{fd}="
+                f"{recomputed:.4f}% (rounded {round_display(recomputed)}%)"
+            )
+        card_fd = weekend_cards.get(label_curve)
+        if card_fd:
+            pt = lookup_curve(curves[label_curve])
+            if abs(round_display(pct_from_counts(pt["below"], card_fd)) - round_display(pt["pct_below"])) > TOL_COUNT_PCT:
+                issues.append(
+                    f"curve {label_curve}: pct_below {pt['pct_below']} vs {pt['below']}/{card_fd}="
+                    f"{pct_from_counts(pt['below'], card_fd):.4f}%"
+                )
+    ok.append("weekend table pct vs below/fd")
+
+    # Map legend bins must be monotonic (was 59.5–59.4%)
+    sw = ui.get("mapLegendSwatches", [])
+    low = ui.get("colorPctLow")
+    mid = ui.get("colorPctMid")
+    for s in sw:
+        if low and mid and f"{mid + 0.1}" in s["label"] and str(mid) in s["label"]:
+            issues.append(f"map legend inverted range: {s['label']}")
+    if low and mid and low < mid:
+        ok.append(f"map legend thresholds {low}/{mid}")
+
+    # Ownership slice totals vs All NY / NYC (footnote required if gap)
+    own_gap_notes: list[str] = []
+    for label, keys, total_key in [
+        ("NY statewide", ["ny_for_profit", "ny_non_profit", "ny_government"], "all_ny"),
+        ("NYC", ["nyc_for_profit", "nyc_non_profit", "nyc_government"], "nyc"),
+    ]:
+        total_pt = lookup_curve(curves[total_key])
+        sum_below = sum(lookup_curve(curves[k])["below"] for k in keys)
+        gap = total_pt["below"] - sum_below
+        if gap:
+            own_gap_notes.append(f"{label} below gap {gap}")
+    if own_gap_notes:
+        issues.append("ownership slice gaps (Other/unknown): " + "; ".join(own_gap_notes))
+    else:
+        ok.append("ownership slices reconcile to All NY / NYC totals")
+    if "Ownership coverage:" in html and "442" in html:
+        issues.append("stale ownership coverage footnote (442 days) still in HTML")
+
     # Table rows in HTML (hard-coded)
     table_checks = [
         ("all_ny", 216134, 101779, 47.1),
-        ("nyc_for_profit", 47172, 28335, 60.1),
-        ("nyc_government", 1825, 99, 5.4),
+        ("ny_for_profit", 149366, 82377, 55.1),
+        ("ny_non_profit", 56275, 17230, 30.6),
+        ("nyc", 59582, 33682, 56.5),
+        ("nyc_for_profit", 46719, 28182, 60.3),
+        ("nyc_government", 2006, 105, 5.2),
     ]
     for curve_key, fd, below, pct in table_checks:
         pt = lookup_curve(curves[curve_key])
@@ -202,6 +284,54 @@ def main() -> int:
                     )
                 else:
                     ok.append(f"statewide 3.58 ~ NY 2025 quarterly mean {mean_hprd:.3f}")
+
+    if re.search(r'"facility_days":17082\b', html) or "17,082" in html:
+        issues.append("stale weekend_nyc denominator 17082 in served HTML")
+    if "82.3%" in html or re.search(r'\b82\.3%\b', html):
+        issues.append("stale 82.3% in served HTML")
+
+    if WW_CSV.is_file():
+        import pandas as pd
+
+        wknd_df = pd.read_csv(WW_CSV)
+        wknd_rows = wknd_df[wknd_df["day_type"] == "Weekends"]
+        csv_truth = {
+            WEEKEND_CARD_CURVE_MAP[str(r["slice"])]: int(r["facility_days"])
+            for _, r in wknd_rows.iterrows()
+            if str(r["slice"]) in WEEKEND_CARD_CURVE_MAP
+        }
+        for mode_key, mode_blob in interactive.get("modes", {}).items():
+            for card in mode_blob.get("weekend_cards") or []:
+                key = card["curve"]
+                if key not in csv_truth:
+                    continue
+                got = card.get("facility_days")
+                exp = csv_truth[key]
+                if got != exp:
+                    issues.append(
+                        f"{mode_key} weekend_cards[{key}]: embedded {got} != CSV {exp}"
+                    )
+                else:
+                    ok.append(f"{mode_key} weekend_cards[{key}] == CSV {exp}")
+    else:
+        issues.append(f"missing verification CSV for weekend_cards audit: {WW_CSV}")
+
+    for mode_key, mode_blob in interactive.get("modes", {}).items():
+        wk_cards = {c["curve"]: c for c in mode_blob.get("weekend_cards") or []}
+        wk_curve = mode_blob.get("curves", {}).get("weekend_nyc", [])
+        if not wk_curve or "weekend_nyc" not in wk_cards:
+            continue
+        card = wk_cards["weekend_nyc"]
+        pt = lookup_curve(wk_curve)
+        n = card.get("facility_days")
+        if n == 17082:
+            issues.append(f"{mode_key} weekend_nyc facility_days still 17082")
+        elif n and abs(round_display(pct_from_counts(pt["below"], n)) - round_display(pt["pct_below"])) > TOL_COUNT_PCT:
+            issues.append(
+                f"{mode_key} weekend_nyc: pct {pt['pct_below']} vs {pt['below']}/{n}"
+            )
+        else:
+            ok.append(f"{mode_key} weekend_nyc {pt['below']}/{n} @ {round_display(pt['pct_below'])}%")
 
     print("=== NY minimum staffing math audit ===\n")
     print(f"OK ({len(ok)}):")

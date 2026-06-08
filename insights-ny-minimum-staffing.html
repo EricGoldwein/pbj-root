@@ -681,6 +681,24 @@ body.pbj-insights-report-page .nav-toggle span {
   .statute-compliance-ref {
     max-width: none;
   }
+  /* Match main column — footer was centered at 900px while body sits in rail grid col 2 */
+  .report-endmatter {
+    padding-left: 0;
+    padding-right: 0;
+  }
+  .report-endmatter-inner {
+    display: grid;
+    grid-template-columns: var(--report-rail-width) minmax(0, 1fr);
+    gap: 0 var(--report-rail-gap);
+    max-width: var(--report-page-width);
+    margin: 0 auto;
+    padding: 0 24px;
+    box-sizing: border-box;
+  }
+  .report-endmatter-inner > * {
+    grid-column: 2;
+    max-width: var(--max-w);
+  }
 }
 
 /* Mobile-only section jump (replaces report-nav below 640px) */
@@ -1859,6 +1877,8 @@ body.pbj-insights-report-page .site-base .footer {
   margin: 0;
   font-family: 'IBM Plex Mono', monospace;
   font-size: 0.8rem;
+  /* Mono cap alignment sits slightly left of serif bio text above */
+  padding-inline-start: 3px;
 }
 .report-author-contact a {
   color: var(--on-dark-link);
@@ -2737,7 +2757,7 @@ a.statute-ref-link::after {
         <div class="wt-row" data-wt-row data-all-curve="nyc" data-weekend-curve="weekend_nyc">
           <span class="wt-row-label">NYC (5 boroughs)</span>
           <span class="wt-stat wt-stat--all"><span class="wt-pct pct-high">56.0%</span><span class="wt-count">33,809/60,389</span></span>
-          <span class="wt-stat wt-stat--wkday"><span class="wt-pct pct-mid">45.6%</span><span class="wt-count">19,748/43,307</span></span>
+          <span class="wt-stat wt-stat--wkday"><span class="wt-pct pct-mid">45.7%</span><span class="wt-count">19,748/43,181</span></span>
           <span class="wt-stat wt-stat--wkend"><span class="wt-pct pct-high">81.7%</span><span class="wt-count">14,061/17,208</span></span>
         </div>
         <div class="wt-row" data-wt-row data-all-curve="nyc_for_profit" data-weekend-curve="weekend_nyc_for_profit">
@@ -2918,7 +2938,7 @@ a.statute-ref-link::after {
 
 
   <section id="monthly" class="report-section--deferred" aria-labelledby="monthly-heading" hidden>
-    <span class="section-label">06 · By month</span>
+    <span class="section-label">07 · By month</span>
     <h2 id="monthly-heading">Little month-to-month change—the pattern is the day of the week</h2>
     <p class="section-methods">Methods: <a class="methods-jump-link" href="#method-calendar">Months, weeks &amp; holidays</a></p>
     <p>Monthly rates stayed in a narrow band—about <strong>44%</strong> (April) to <strong>50%</strong> (December)—far smaller than the weekday–weekend gap above. <strong>December</strong> is the high month: it includes Christmas (a federal holiday) and typical year-end weekend patterns. Statewide, facility-days on <strong>federal holidays</strong> were about <strong>52%</strong> below 3.50 HPRD vs. <strong>47%</strong> on other days. Use <strong>By week</strong> for detail.</p>
@@ -2938,7 +2958,7 @@ a.statute-ref-link::after {
   </section>
 
   <section id="methodology" class="methodology-full" aria-labelledby="methodology-heading">
-    <span class="section-label">07 · Methods &amp; sources</span>
+    <span class="section-label">08 · Methods &amp; sources</span>
     <h2 id="methodology-heading">Methodology, data sources, and limitations</h2>
 
     <div class="methodology-body">

@@ -2855,16 +2855,16 @@ a.statute-ref-link::after {
     <span class="section-label">04 · Ownership</span>
     <h2 id="ownership-heading">For-profit facilities had higher daily shortfall rates</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-slices">Ownership slices</a></span></p>
-    <p>Below-minimum rates differed sharply by ownership type. Statewide, for-profit nursing homes were below New York&rsquo;s <strong>3.50 HPRD</strong> minimum on <strong>55.1%</strong> of 2025 facility-days, compared with <strong>30.6%</strong> for non-profit homes and <strong>20.5%</strong> for government-operated homes.</p>
-    <p>The same pattern appears within New York City. NYC for-profit homes were below minimum on <strong>60.1%</strong> of facility-days, compared with <strong>48.1%</strong> for NYC non-profit homes and <strong>5.4%</strong> for NYC government-operated homes.</p>
-    <p class="definitions-disclaimer" role="note">NYC government-operated homes represent a much smaller facility-day denominator than NYC for-profit homes.</p>
+    <p>Below-minimum rates differed by ownership type. Statewide, for-profit nursing homes were below New York&rsquo;s <strong>3.50 HPRD</strong> minimum on <strong>55.1%</strong> of 2025 facility-days, compared with <strong>30.6%</strong> for non-profit homes and <strong>20.7%</strong> for government-operated homes.</p>
+    <p>The same pattern appears within New York City: NYC for-profit homes were below minimum on <strong>60.3%</strong> of facility-days, compared with <strong>49.7%</strong> for NYC non-profit homes and <strong>5.2%</strong> for NYC government-operated homes.</p>
+    <p>NYC government-operated homes represent a much smaller facility-day denominator than NYC for-profit homes.</p>
     <div class="chart-wrap" role="figure" aria-labelledby="ownership-chart-title">
       <div class="chart-title chart-title--ownership" id="ownership-chart-title">
         <span class="chart-title-line">For-profit facilities had higher daily shortfall rates</span>
         <span class="chart-title-line chart-title-line--sub"><span class="own-sub-long">Share of 2025 facility-days below New York&rsquo;s <span data-hprd-label>3.50</span> HPRD minimum</span><span class="own-sub-short">2025 days &lt; <span data-hprd-label>3.50</span> HPRD · NY</span></span>
       </div>
       <div class="chart-canvas-wrap chart-canvas-wrap--ownership"><canvas id="ownershipChart" aria-label="Horizontal bars: share of facility-days below minimum by ownership type, statewide and New York City"></canvas></div>
-      <p class="chart-note chart-source-note" id="ownership-chart-note">NYC accounts for 168 of 596 New York nursing homes (28%) and 33.22% of the state&rsquo;s recorded days below the 3.50 HPRD threshold.<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
+      <p class="chart-note chart-source-note" id="ownership-chart-note"><span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
     <div class="data-table-wrap">
       <table id="ownership-slices-table">
@@ -2921,16 +2921,17 @@ a.statute-ref-link::after {
             <span class="appendix-card-num" aria-label="39.7 percent">39.7%</span>
             <span class="appendix-card-unit">Days</span>
           </div>
-          <div class="appendix-card-label">Met all three NY floors (3.50 total + 2.20 CNA + 1.10 licensed)</div>
+          <div class="appendix-card-label">Met all three NY floors (3.50 total + 2.20 CNA-side + 1.10 licensed nurse HPRD)</div>
         </div>
         <div class="appendix-card appendix-card--cna-miss">
           <div class="appendix-card-stat">
             <span class="appendix-card-num" aria-label="54.9 percent">54.9%</span>
             <span class="appendix-card-unit">Days</span>
           </div>
-          <div class="appendix-card-label">Below 2.20 CNA HPRD — most common single miss</div>
+          <div class="appendix-card-label">Below 2.20 CNA-side HPRD — most common single miss</div>
         </div>
     </div>
+    <p class="definitions-disclaimer" role="note">CNA-side includes CNA, medication aide, and nurse aide trainee hours.</p>
     <div class="statute-compliance-ref">
       <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule">NY Minimum Staffing Rule</button>
       <span class="statute-compliance-ref-note">Official NY Department of Health rule text, quarterly compliance process, and penalty guidance.</span>
@@ -3066,7 +3067,6 @@ a.statute-ref-link::after {
           <li><strong>NY role floors</strong> — Compute CNA-side and LPN/RN-side HPRD; count days meeting all three statutory floors (AND) for informative sensitivity tables.</li>
           <li><strong>Publish</strong> — Precompute threshold curves and facility-level summaries, then embed them in a static report page (as here) or serve the same structured data from an API.</li>
         </ol>
-        <p class="methodology-meta">Report prepared by PBJ320 · underlying tables generated 2026-06-03 · <a href="/downloads/PBJ320_NY_2025_daily_staffing_verification_file.xlsx" download="PBJ320_NY_2025_daily_staffing_verification_file.xlsx">verification workbook</a> available for download (<a href="/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip" download="PBJ320_NY_2025_daily_staffing_verification_csvs.zip">CSV package</a>).</p>
       </div>
     </div>
     <p class="methodology-disclaimer">This report is descriptive research on self-reported federal data. It is not legal advice and does not assert regulatory violation, negligence, or causation.</p>
@@ -3078,8 +3078,8 @@ a.statute-ref-link::after {
 
 <aside class="report-endmatter" aria-label="Report resources and attribution">
   <div class="report-endmatter-inner">
+    <p class="footer-verification-note">Report prepared by PBJ320 · underlying tables generated 2026-06-03</p>
     <p class="footer-methods-link"><a href="#methodology">Methods &amp; sources</a> · <a href="/downloads/PBJ320_NY_2025_daily_staffing_verification_file.xlsx" download="PBJ320_NY_2025_daily_staffing_verification_file.xlsx">PBJ320 verification workbook</a> · <a href="/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip" download="PBJ320_NY_2025_daily_staffing_verification_csvs.zip">CSV package</a></p>
-    <p class="footer-verification-note">Report prepared by PBJ320 · underlying tables generated 2026-06-03 · verification workbook available for download.</p>
     <nav class="related-resources" aria-label="More on PBJ320">
       <span class="related-resources-label">More on PBJ320</span>
       <a href="/">PBJ320</a>

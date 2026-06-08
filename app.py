@@ -249,6 +249,12 @@ except ImportError:
 
 app = Flask(__name__)
 APP_ROOT = os.path.dirname(os.path.abspath(__file__))
+try:
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+except ImportError:
+    pass
 # Legacy CT-only hub search at /owners/ when True; public index lists NY+CT at /owners/, /owners/ny, /owners/ct.
 _OWNERS_CMS_HUB_PUBLIC = False
 # Local (non-Render): always rebuild provider HTML so case-mix / chart edits show on refresh.
@@ -1286,6 +1292,7 @@ def _reject_aggressive_bots_on_heavy_routes():
             'Retry-After': '3600',
         })
 
+# Render liveness: keep both paths as lightweight aliases (see DEPLOYMENT.md health-check path change rule).
 @app.route('/health')
 @app.route('/healthz')
 def health():
@@ -2182,8 +2189,8 @@ def insights_ny_minimum_staffing():
 @app.route('/insights/ny-minimum-staffing/classic')
 @app.route('/insights/ny-minimum-staffing/classic/')
 def insights_ny_minimum_staffing_classic():
-    """Original brown/cream editorial palette (preserved for rollback comparison)."""
-    return _serve_public_html('insights-ny-minimum-staffing.classic.html')
+    """Deprecated palette rollback — redirect to canonical report (avoids stale parallel copy)."""
+    return redirect('/insights/ny-minimum-staffing', code=301)
 
 
 @app.route('/insights/ny-minimum-staffing/press')
@@ -2447,6 +2454,76 @@ def download_pbj_claude_skill_zip():
         as_attachment=True,
         download_name='pbj320-staffing-review.zip',
     )
+
+
+_NY_VERIFICATION_XLSX = 'PBJ320_NY_2025_daily_staffing_verification_file.xlsx'
+_NY_VERIFICATION_ZIP = 'PBJ320_NY_2025_daily_staffing_verification_csvs.zip'
+
+
+def _ny_verification_download_path(filename: str) -> str | None:
+    """Resolve NY verification artifact on disk (public/downloads/ or flat downloads/)."""
+    candidates = (
+        os.path.join(APP_ROOT, 'public', 'downloads', filename),
+        os.path.join(APP_ROOT, 'downloads', filename),
+    )
+    for path in candidates:
+        if os.path.isfile(path):
+            return path
+    return None
+
+
+def _ny_verification_download_response(path: str, *, mimetype: str, filename: str):
+    """Serve verification package with attachment headers (HTTPS-safe, no redirect)."""
+    from flask import abort
+
+    if not path or not os.path.isfile(path):
+        abort(404)
+    response = send_file(
+        path,
+        mimetype=mimetype,
+        as_attachment=True,
+        download_name=filename,
+        conditional=True,
+        max_age=3600,
+        etag=True,
+    )
+    quoted = quote(filename)
+    response.headers['Content-Disposition'] = (
+        f'attachment; filename="{filename}"; filename*=UTF-8\'\'{quoted}'
+    )
+    response.headers['Cache-Control'] = 'public, max-age=3600'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.route('/downloads/PBJ320_NY_2025_daily_staffing_verification_file.xlsx')
+def download_ny_verification_workbook():
+    path = _ny_verification_download_path(_NY_VERIFICATION_XLSX)
+    return _ny_verification_download_response(
+        path or '',
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        filename=_NY_VERIFICATION_XLSX,
+    )
+
+
+@app.route('/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip')
+def download_ny_verification_csv_zip():
+    path = _ny_verification_download_path(_NY_VERIFICATION_ZIP)
+    return _ny_verification_download_response(
+        path or '',
+        mimetype='application/zip',
+        filename=_NY_VERIFICATION_ZIP,
+    )
+
+
+@app.route('/public/downloads/PBJ320_NY_2025_daily_staffing_verification_file.xlsx')
+def download_ny_verification_workbook_public_alias():
+    return redirect('/downloads/PBJ320_NY_2025_daily_staffing_verification_file.xlsx', code=301)
+
+
+@app.route('/public/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip')
+def download_ny_verification_csv_zip_public_alias():
+    return redirect('/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip', code=301)
 
 
 # ---------------------------------------------------------------------------
@@ -20431,6 +20508,11 @@ def static_files(filename):
         from flask import abort
         abort(404)
     
+    # Verification downloads are served by dedicated /downloads/* routes (attachment headers).
+    if filename.startswith('downloads/') or filename.startswith('public/downloads/'):
+        from flask import abort
+        abort(404)
+
     # Exclude directories that shouldn't be served (prevents connection failures)
     excluded_prefixes = ['node_modules/', '.git/', 'pbj-wrapped/node_modules/', 'pbj-wrapped/.git/', 'data/']
     if any(filename.startswith(prefix) for prefix in excluded_prefixes):

@@ -325,6 +325,47 @@ body.pbj-insights-report-page .nav-toggle span {
   max-width: 42rem;
   margin: 0 0 1.25rem;
 }
+.definitions-disclaimer a {
+  color: var(--pbj-brand-ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.definitions-disclaimer a:hover { color: var(--pbj-brand); }
+.ownership-resource-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 10px;
+  margin: 0.85rem 0 0;
+  padding: 10px 12px 10px 11px;
+  max-width: 42rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  background: var(--accent-blue-light);
+  border-left: 3px solid rgba(67, 56, 202, 0.32);
+  border-radius: 0 4px 4px 0;
+}
+.ownership-resource-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--pbj-brand-ink);
+  font-weight: 500;
+  flex: 0 0 auto;
+}
+.ownership-resource-note a {
+  color: var(--pbj-brand-ink);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(67, 56, 202, 0.42);
+}
+.ownership-resource-note a:hover {
+  color: var(--pbj-brand);
+  border-bottom-color: var(--pbj-brand);
+}
 
 /* ── KPI STRIP ── */
 .kpi-strip {
@@ -1185,6 +1226,8 @@ strong { font-weight: 600; }
 .chart-title-short { display: none; }
 .wt-card-label-short { display: none; }
 .chart-title-below-short { display: none; }
+.fac-pct-head-mobile { display: none; }
+.own-sub-short { display: none; }
 .chart-canvas-wrap {
   position: relative;
   width: 100%;
@@ -1204,6 +1247,16 @@ strong { font-weight: 600; }
   margin-top: 10px;
   font-style: italic;
   line-height: 1.45;
+}
+.chart-source-attrib .chart-source-short { display: none; }
+@media (max-width: 360px) {
+  .chart-source-attrib .chart-source-long { display: none; }
+  .chart-source-attrib .chart-source-short { display: inline; }
+}
+.table-source-attrib {
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-style: italic;
 }
 
 /* Toggles */
@@ -1462,6 +1515,16 @@ tr.slice-row-state td:first-child {
   letter-spacing: 0.02em;
 }
 .fac-hprd-head-mobile { display: none; }
+#ownership-slices-table .own-pct-head-mid,
+#ownership-slices-table .own-pct-head-short { display: none; }
+@media (max-width: 900px) {
+  #ownership-slices-table .own-pct-head-long { display: none; }
+  #ownership-slices-table .own-pct-head-mid { display: inline; }
+}
+@media (max-width: 720px) {
+  #ownership-slices-table .own-pct-head-mid { display: none; }
+  #ownership-slices-table .own-pct-head-short { display: inline; }
+}
 .data-table-wrap--facilities {
   border: 1px solid var(--rule);
   border-radius: 6px;
@@ -1966,6 +2029,15 @@ a.statute-ref-link::after {
 .chart-title--ownership .chart-title-line--sub {
   display: block;
   margin-top: 4px;
+  font-size: 10.5px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.chart-canvas-wrap--ownership {
+  height: min(360px, 48vh);
+  min-height: 280px;
 }
 .provider-histogram-lead {
   margin: 28px 0 14px;
@@ -2184,10 +2256,36 @@ a.statute-ref-link::after {
 
   .chart-title-long,
   .wt-card-label-long,
-  .chart-title-below-long { display: none; }
+  .chart-title-below-long,
+  .own-sub-long { display: none; }
   .chart-title-short,
   .wt-card-label-short,
-  .chart-title-below-short { display: inline; }
+  .chart-title-below-short,
+  .own-sub-short { display: inline; }
+  .fac-pct-head-desktop { display: none; }
+  .fac-pct-head-mobile { display: inline; }
+  .chart-title {
+    font-size: 9px;
+    letter-spacing: 0.045em;
+    line-height: 1.25;
+    margin-bottom: 8px;
+  }
+  #provider-days-below-chart-title,
+  #dow-chart-title,
+  #county-chart-title,
+  #monthly-chart-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #ownership .chart-title-line--sub {
+    font-size: 9px;
+    letter-spacing: 0.03em;
+  }
+  .facilities-meta {
+    font-size: 10px;
+    letter-spacing: 0.01em;
+  }
 
   #facilities-table thead th {
     font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
@@ -2393,9 +2491,9 @@ a.statute-ref-link::after {
     text-transform: none;
     letter-spacing: 0.02em;
   }
-  #ownership .chart-canvas-wrap--tall {
-    height: min(520px, 72vh);
-    min-height: 380px;
+  #ownership .chart-canvas-wrap--ownership {
+    height: min(320px, 50vh);
+    min-height: 250px;
   }
   #ownership-slices-table thead { display: none; }
   #ownership-slices-table tbody tr {
@@ -2430,8 +2528,8 @@ a.statute-ref-link::after {
     line-height: 1.2;
     white-space: nowrap;
   }
-  #ownership-slices-table tbody td:nth-child(2),
-  #ownership-slices-table tbody td:nth-child(3) { display: none; }
+  #ownership-slices-table tbody td.below-cell,
+  #ownership-slices-table tbody td.fd-cell { display: none; }
   #ownership-slices-table tr.slice-row-primary td:first-child {
     font-size: 0.94rem;
     font-weight: 700;
@@ -2554,7 +2652,7 @@ a.statute-ref-link::after {
     <h2 id="definitions-heading">Nearly half of NY facility-days fell below 3.50 HPRD</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-metric">HPRD metric</a><a class="methods-jump-link" href="#method-threshold">Threshold</a></span></p>
     <p class="report-scope-note">New York state law requires nursing homes to provide at least <strong>3.50 hours of care per resident per day</strong>. Though staffing is often summarized as a quarterly average, this analysis uses federal <strong>Payroll-Based Journal (PBJ)</strong> data—one record per nursing home per calendar day—to <strong>compare daily staffing levels against that standard</strong>.</p>
-    <p class="report-scope-note">In 2025, New York nursing homes fell below the <strong>3.50 HPRD</strong> minimum on more than <strong>100,000 facility-days — 47% of all daily records analyzed</strong>. Weekend shortfalls were more common, with <strong>77% of Saturday and Sunday records falling below the threshold</strong>. Results also varied substantially by region and ownership type. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
+    <p class="report-scope-note">In 2025, New York nursing homes fell below the <strong>3.50 HPRD</strong> minimum on more than <strong>100,000 facility-days — 47% of all daily records analyzed</strong>. Weekend shortfalls were more common, with <strong>77% of Saturday and Sunday records falling below the threshold</strong>. Shortfalls were also more frequent among for-profit facilities and varied sharply by region, with the Bronx region showing the highest rate. These findings have implications for workforce planning, enforcement, resident advocacy, and how policymakers, families, and the public interpret New York nursing home staffing data.</p>
     <p class="definitions-disclaimer" role="note"><strong>Note:</strong> Descriptive PBJ analysis only—not an endorsement for or against the NY minimum.</p>
     <div class="report-modal-actions" role="group" aria-label="Reference">
       <button type="button" class="statute-modal-trigger" data-statute-modal-open="ny-doh-statute" aria-haspopup="dialog" aria-label="NY minimum staffing rule"><span class="modal-trigger-label-long">NY Minimum Staffing Rule</span><span class="modal-trigger-label-short">NY Minimum Staffing Rule</span></button>
@@ -2598,12 +2696,11 @@ a.statute-ref-link::after {
 
   <section id="weekend" aria-labelledby="weekend-heading">
     <span class="section-label">02 · Day of week</span>
-    <h2 id="weekend-heading">From about one-third midweek to about four-in-five on Sunday</h2>
+    <h2 id="weekend-heading">Any given Sunday: nearly four in five facility-days fell below 3.50 HPRD</h2>
     <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-dow">Day of week</a><a class="methods-jump-link" href="#method-calendar">Weekends &amp; holidays</a></span></p>
-    <p>At 3.50 HPRD, about three in ten facility-days fall below midweek; on Sunday, about four in five do.</p>
-    <blockquote>On <strong>weekends (Saturday and Sunday)</strong> in 2025, a large share of New York nursing home-days were below 3.50 HPRD statewide—higher still among NYC for-profit homes.</blockquote>
+    <p>Below-minimum staffing was far more common on weekends: 79.2% of Sunday facility-days fell below the 3.50 HPRD threshold, compared with 29.7% on Wednesday.</p>
     <div class="chart-wrap" role="figure" aria-labelledby="dow-chart-title">
-      <div class="chart-title" id="dow-chart-title">% of facility-days below <span data-hprd-label>3.50</span> HPRD · by day of week · NY statewide · 2025</div>
+      <div class="chart-title" id="dow-chart-title"><span class="chart-title-long">% of facility-days below <span data-hprd-label>3.50</span> HPRD · by day of week · NY statewide · 2025</span><span class="chart-title-short">% days &lt; <span data-hprd-label>3.50</span> HPRD · DOW · NY · 2025</span></div>
       <div class="chart-canvas-wrap"><canvas id="dowChart" aria-label="Bar chart: percent of facility-days below minimum by day of week"></canvas></div>
 
       <div class="hprd-control hprd-control--dow" id="hprd-control">
@@ -2612,13 +2709,13 @@ a.statute-ref-link::after {
         <input type="range" class="hprd-slider" id="hprd-slider" min="2.5" max="5.5" step="0.01" value="3.5" aria-valuemin="2.5" aria-valuemax="5.5" aria-valuenow="3.5">
       </div>
 
-      <p class="chart-note">Midweek low: Wednesday 29.7%. Weekend high: Sunday 79.2%. Within-week spread about 49.5 pp.</p>
+      <p class="chart-note">Midweek low: Wednesday 29.7%. Weekend high: Sunday 79.2%. Within-week spread about 49.5 pp.<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
     <h3>Weekend vs. weekday breakdown</h3>
     <p>All days, weekdays (Mon–Fri), and weekends (Sat–Sun) at the HPRD threshold above (default <strong>3.50</strong>).</p>
     <div class="weekend-table-grid">
       <div class="wt-card wt-card--combined">
-        <div class="wt-card-label">% facility-days below <span data-hprd-label>3.50</span> HPRD · 2025</div>
+        <div class="wt-card-label"><span class="wt-card-label-long">% facility-days below <span data-hprd-label>3.50</span> HPRD · 2025</span><span class="wt-card-label-short">% days &lt; <span data-hprd-label>3.50</span> HPRD · 2025</span></div>
         <div class="wt-breakdown-head" aria-hidden="true">
           <span class="wt-breakdown-head-label"></span>
           <span>All days</span>
@@ -2651,6 +2748,7 @@ a.statute-ref-link::after {
         </div>
       </div>
     </div>
+    <p class="chart-note chart-source-note"><span class="chart-source-attrib"><span class="chart-source-long">Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true">Source: CMS PBJ · PBJ320 analysis</span></span></p>
   </section>
 
   <section id="provider-compliance" aria-labelledby="provider-compliance-heading">
@@ -2711,7 +2809,7 @@ a.statute-ref-link::after {
                 <th scope="col" class="fac-name-col" data-sort="name" data-label="Facility">Facility</th>
                 <th scope="col" class="fac-location-col" data-sort="location" data-label="County">County</th>
                 <th scope="col" class="fac-own-col" data-sort="ownership" data-label="Ownership">Ownership</th>
-                <th scope="col" class="fac-pct-col" data-sort="pct" data-label="% below" aria-sort="descending">% below</th>
+                <th scope="col" class="fac-pct-col" data-sort="pct" data-label="% below" aria-sort="descending"><span class="fac-pct-head-desktop">% below</span><span class="fac-pct-head-mobile" aria-hidden="true">% &lt;</span></th>
                 <th scope="col" class="fac-hprd-col" data-sort="mean_hprd" data-label="2025 HPRD"><span class="fac-hprd-head-desktop">2025 HPRD</span><span class="fac-hprd-head-mobile" aria-hidden="true"><span class="fac-hprd-head-line">2025</span><span class="fac-hprd-head-line">HPRD</span></span></th>
               </tr>
             </thead>
@@ -2719,50 +2817,57 @@ a.statute-ref-link::after {
           </table>
         </div>
         <div class="facilities-pagination" id="facilities-pagination"></div>
+        <p class="chart-note facilities-table-source"><span class="chart-source-attrib"><span class="chart-source-long">Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true">Source: CMS PBJ · PBJ320 analysis</span></span></p>
       </div>
     </div>
 
     <p id="provider-days-below-histogram-lead" class="provider-histogram-lead">Each bar is the share of <strong>596</strong> nursing homes in that day-below band (100% of days, 90–99%, and so on).</p>
     <div class="chart-wrap" role="figure" aria-labelledby="provider-days-below-chart-title" id="provider-days-below">
-      <div class="chart-title" id="provider-days-below-chart-title">Nursing homes by share of days below <span data-hprd-label>3.50</span> HPRD · NY · 2025</div>
+      <div class="chart-title" id="provider-days-below-chart-title"><span class="chart-title-long">Nursing homes by share of days below <span data-hprd-label>3.50</span> HPRD · NY · 2025</span><span class="chart-title-short">Homes by % days &lt; <span data-hprd-label>3.50</span> HPRD · NY · 2025</span></div>
       <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="providerDaysBelowChart" aria-label="Horizontal bar chart: percent of nursing homes by share of facility-days below minimum"></canvas></div>
-      <p class="chart-note" id="provider-days-below-note">Each bar is a band (e.g. below minimum on 100% of reported days vs. 90–99% of days).</p>
+      <p class="chart-note" id="provider-days-below-note">Each bar is a band (e.g. below minimum on 100% of reported days vs. 90–99% of days).<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
   </section>
 
   <section id="ownership" aria-labelledby="ownership-heading">
     <span class="section-label">04 · Ownership</span>
-    <h2 id="ownership-heading">Ownership type and geography are associated with large differences</h2>
-    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-slices">Ownership &amp; NYC slices</a></span></p>
-    <p>The grouped chart compares below-minimum rates on <strong>all days</strong> with <strong>weekends (Sat–Sun)</strong> across statewide, ownership, and NYC groups. At 3.50 HPRD, NYC government-operated homes were below minimum on <strong>5.4%</strong> of facility-days (99 of 1,825). NYC for-profit homes: <strong>60.1%</strong> (28,335 of 47,172).</p>
+    <h2 id="ownership-heading">For-profit facilities had higher daily shortfall rates</h2>
+    <p class="section-methods"><span class="section-methods-label">Methods</span><span class="section-methods-links"><a class="methods-jump-link" href="#method-slices">Ownership slices</a></span></p>
+    <p>Below-minimum rates differed sharply by ownership type. Statewide, for-profit nursing homes were below New York&rsquo;s <strong>3.50 HPRD</strong> minimum on <strong>55.1%</strong> of 2025 facility-days, compared with <strong>30.6%</strong> for non-profit homes and <strong>20.5%</strong> for government-operated homes.</p>
+    <p>The same pattern appears within New York City. NYC for-profit homes were below minimum on <strong>60.1%</strong> of facility-days, compared with <strong>48.1%</strong> for NYC non-profit homes and <strong>5.4%</strong> for NYC government-operated homes.</p>
+    <p class="definitions-disclaimer" role="note">NYC government-operated homes represent a much smaller facility-day denominator than NYC for-profit homes.</p>
     <div class="chart-wrap" role="figure" aria-labelledby="ownership-chart-title">
-      <div class="chart-title chart-title--ownership" id="ownership-chart-title"><span class="chart-title-line"><span class="chart-title-below-long">% below </span><span class="chart-title-below-short">% &lt; </span><span data-hprd-label>3.50</span> HPRD · 2025</span><span class="chart-title-line chart-title-line--sub"><span class="chart-title-series chart-title-series--all">All days</span> vs. <span class="chart-title-series chart-title-series--wknd">weekends (Sat–Sun)</span></span></div>
-      <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="ownershipChart" aria-label="Grouped horizontal bars: all days and weekends by geography and ownership"></canvas></div>
+      <div class="chart-title chart-title--ownership" id="ownership-chart-title">
+        <span class="chart-title-line">For-profit facilities had higher daily shortfall rates</span>
+        <span class="chart-title-line chart-title-line--sub"><span class="own-sub-long">Share of 2025 facility-days below New York&rsquo;s <span data-hprd-label>3.50</span> HPRD minimum</span><span class="own-sub-short">2025 days &lt; <span data-hprd-label>3.50</span> HPRD · NY</span></span>
+      </div>
+      <div class="chart-canvas-wrap chart-canvas-wrap--ownership"><canvas id="ownershipChart" aria-label="Horizontal bars: share of facility-days below minimum by ownership type, statewide and New York City"></canvas></div>
+      <p class="chart-note chart-source-note" id="ownership-chart-note">NYC accounts for 168 of 596 New York nursing homes (28%) and 33.22% of the state&rsquo;s recorded days below the 3.50 HPRD threshold.<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
-
     <div class="data-table-wrap">
       <table id="ownership-slices-table">
-        <caption>Ownership and geography · all days · 2025</caption>
+        <caption>Ownership type, statewide and NYC · all days · 2025<span class="table-source-attrib"> · Source: CMS PBJ; analysis by PBJ320.</span></caption>
         <thead>
           <tr>
             <th scope="col">Slice</th>
-            <th scope="col">Facility-days</th>
-            <th scope="col">Below min</th>
-            <th scope="col">% below</th>
+            <th scope="col" class="own-pct-col"><span class="own-pct-head-long">% Days Below <span data-hprd-label>3.50</span> HPRD</span><span class="own-pct-head-mid" aria-hidden="true">% Days Below <span data-hprd-label>3.50</span></span><span class="own-pct-head-short" aria-hidden="true">% Days Below</span></th>
+            <th scope="col">Days Below</th>
+            <th scope="col">Facility-Days</th>
           </tr>
         </thead>
         <tbody>
-<tr class="slice-row-primary" data-curve="all_ny" data-fd="216134"><td>All NY</td><td>216,134</td><td class="below-cell">101,779</td><td class="pct-cell pct-mid">47.1%</td></tr>
-<tr class="slice-row-state" data-curve="ny_for_profit" data-fd="149737"><td>NY statewide · for-profit</td><td>149,737</td><td class="below-cell">82,571</td><td class="pct-cell pct-high">55.1%</td></tr>
-<tr class="slice-row-state" data-curve="ny_non_profit" data-fd="55370"><td>NY statewide · non-profit</td><td>55,370</td><td class="below-cell">16,933</td><td class="pct-cell pct-mid">30.6%</td></tr>
-<tr class="slice-row-state" data-curve="ny_government" data-fd="10585"><td>NY statewide · government</td><td>10,585</td><td class="below-cell">2,166</td><td class="pct-cell pct-low">20.5%</td></tr>
-<tr class="slice-row-metro" data-curve="nyc" data-fd="60389"><td>NYC (5 boroughs)</td><td>60,389</td><td class="below-cell">33,809</td><td class="pct-cell pct-high">56.0%</td></tr>
-<tr class="slice-row-child" data-curve="nyc_for_profit" data-fd="47172"><td>NYC · for-profit</td><td>47,172</td><td class="below-cell">28,335</td><td class="pct-cell pct-high">60.1%</td></tr>
-<tr class="slice-row-child" data-curve="nyc_non_profit" data-fd="10950"><td>NYC · non-profit</td><td>10,950</td><td class="below-cell">5,266</td><td class="pct-cell pct-mid">48.1%</td></tr>
-<tr class="slice-row-child" data-curve="nyc_government" data-fd="1825"><td>NYC · government</td><td>1,825</td><td class="below-cell">99</td><td class="pct-cell pct-low">5.4%</td></tr>
+<tr class="slice-row-primary" data-curve="all_ny" data-fd="216134"><td>All NY</td><td class="pct-cell pct-mid">47.1%</td><td class="below-cell">101,779</td><td class="fd-cell">216,134</td></tr>
+<tr class="slice-row-state" data-curve="ny_for_profit" data-fd="149737"><td>NY statewide · for-profit</td><td class="pct-cell pct-high">55.1%</td><td class="below-cell">82,571</td><td class="fd-cell">149,737</td></tr>
+<tr class="slice-row-state" data-curve="ny_non_profit" data-fd="55370"><td>NY statewide · non-profit</td><td class="pct-cell pct-mid">30.6%</td><td class="below-cell">16,933</td><td class="fd-cell">55,370</td></tr>
+<tr class="slice-row-state" data-curve="ny_government" data-fd="10585"><td>NY statewide · government</td><td class="pct-cell pct-low">20.5%</td><td class="below-cell">2,166</td><td class="fd-cell">10,585</td></tr>
+<tr class="slice-row-metro" data-curve="nyc" data-fd="60389"><td>NYC (5 boroughs)</td><td class="pct-cell pct-high">56.0%</td><td class="below-cell">33,809</td><td class="fd-cell">60,389</td></tr>
+<tr class="slice-row-child" data-curve="nyc_for_profit" data-fd="47172"><td>NYC · for-profit</td><td class="pct-cell pct-high">60.1%</td><td class="below-cell">28,335</td><td class="fd-cell">47,172</td></tr>
+<tr class="slice-row-child" data-curve="nyc_non_profit" data-fd="10950"><td>NYC · non-profit</td><td class="pct-cell pct-mid">48.1%</td><td class="below-cell">5,266</td><td class="fd-cell">10,950</td></tr>
+<tr class="slice-row-child" data-curve="nyc_government" data-fd="1825"><td>NYC · government</td><td class="pct-cell pct-low">5.4%</td><td class="below-cell">99</td><td class="fd-cell">1,825</td></tr>
         </tbody>
       </table>
     </div>
+    <p class="ownership-resource-note" role="note"><span class="ownership-resource-label">Related</span><span>Explore New York nursing home ownership records in the <a href="https://www.pbj320.com/owners/ny">PBJ320 ownership database</a>.</span></p>
   </section>
 
   <section id="geography" aria-labelledby="geography-heading">
@@ -2773,12 +2878,12 @@ a.statute-ref-link::after {
     <div class="county-map-wrap fade-in" role="figure" aria-labelledby="county-map-title">
       <div class="chart-title" id="county-map-title"><span class="chart-title-long">County map · % facility-days below <span data-hprd-label>3.50</span> HPRD · 2025</span><span class="chart-title-short">County map · % days &lt; <span data-hprd-label>3.50</span> HPRD · 2025</span></div>
       <div id="countyMap" class="county-map-host"></div>
-      <p class="chart-note">Bubble map by county centroid: circle = upstate county, triangle = NYC borough. Size ≈ facility-day volume; color = % below at 3.50 HPRD.</p>
+      <p class="chart-note">Bubble map by county centroid: circle = upstate county, triangle = NYC borough. Size ≈ facility-day volume; color = % below at 3.50 HPRD.<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
     <div class="chart-wrap" role="figure" aria-labelledby="county-chart-title">
-      <div class="chart-title" id="county-chart-title">% of facility-days below <span data-hprd-label>3.50</span> HPRD · top 10 counties by volume · 2025</div>
+      <div class="chart-title" id="county-chart-title"><span class="chart-title-long">% of facility-days below <span data-hprd-label>3.50</span> HPRD · top 10 counties by volume · 2025</span><span class="chart-title-short">% days &lt; <span data-hprd-label>3.50</span> HPRD · top 10 counties · NY · 2025</span></div>
       <div class="chart-canvas-wrap chart-canvas-wrap--tall"><canvas id="countyChart" aria-label="Horizontal bar chart: percent below minimum by county"></canvas></div>
-      <p class="chart-note">Counties sorted by % below minimum (lowest to highest among top 10 by volume).</p>
+      <p class="chart-note">Counties sorted by % below minimum (lowest to highest among top 10 by volume).<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
 
   </section>
@@ -2817,13 +2922,13 @@ a.statute-ref-link::after {
     <p class="section-methods">Methods: <a class="methods-jump-link" href="#method-calendar">Months, weeks &amp; holidays</a></p>
     <p>Monthly rates stayed in a narrow band—about <strong>44%</strong> (April) to <strong>50%</strong> (December)—far smaller than the weekday–weekend gap above. <strong>December</strong> is the high month: it includes Christmas (a federal holiday) and typical year-end weekend patterns. Statewide, facility-days on <strong>federal holidays</strong> were about <strong>52%</strong> below 3.50 HPRD vs. <strong>47%</strong> on other days. Use <strong>By week</strong> for detail.</p>
     <div class="chart-wrap" role="figure" aria-labelledby="monthly-chart-title">
-      <div class="chart-title" id="monthly-chart-title">% of facility-days below 3.5 HPRD · by month · NY statewide · 2025</div>
+      <div class="chart-title" id="monthly-chart-title"><span class="chart-title-long">% of facility-days below 3.5 HPRD · by month · NY statewide · 2025</span><span class="chart-title-short">% days &lt; 3.5 HPRD · by month · NY · 2025</span></div>
       <div class="chart-toolbar" role="group" aria-label="Calendar aggregation">
         <button type="button" class="toggle-btn active" data-calendar-toggle data-mode="month" aria-pressed="true">By month</button>
         <button type="button" class="toggle-btn" data-calendar-toggle data-mode="week" aria-pressed="false">By week</button>
       </div>
       <div class="chart-canvas-wrap"><canvas id="monthlyChart" aria-label="Line chart: percent below minimum by month or week"></canvas></div>
-      <p class="chart-note" id="monthly-chart-note">Dashed line: 50%. Monthly variation is small relative to day-of-week.</p>
+      <p class="chart-note" id="monthly-chart-note">Dashed line: 50%. Monthly variation is small relative to day-of-week.<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span></p>
     </div>
     <div class="callout-stat callout-ok" role="note">
       <div class="callout-stat-num">~6 pp</div>
@@ -3467,6 +3572,10 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     return !!(global.matchMedia && global.matchMedia('(max-width: 640px)').matches);
   }
 
+  function facilitiesPageSize() {
+    return isMobileReport() ? 10 : 20;
+  }
+
   function pctClass(pct) {
     var ui = global.PBJ_REPORT_UI || {};
     var mid = ui.colorPctMid != null ? ui.colorPctMid : 50;
@@ -3677,7 +3786,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
     state.filtered = list;
 
-    var maxPage = Math.max(1, Math.ceil(list.length / state.pageSize));
+    var maxPage = Math.max(1, Math.ceil(list.length / facilitiesPageSize()));
 
     if (state.page > maxPage) state.page = maxPage;
 
@@ -3707,9 +3816,13 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
     var n = state.filtered.length;
 
-    var start = (state.page - 1) * state.pageSize;
+    var pageSize = facilitiesPageSize();
 
-    var pageRows = state.filtered.slice(start, start + state.pageSize);
+    var start = (state.page - 1) * pageSize;
+
+    var pageRows = state.filtered.slice(start, start + pageSize);
+
+    var mobile = isMobileReport();
 
 
 
@@ -3720,8 +3833,6 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       var own = OWN_LABELS[r.ownership] || r.ownership;
 
       var loc = formatFacilityLocation(r);
-
-      var mobile = isMobileReport();
 
       var displayName = escapeHtml(formatProviderDisplayName(r.name));
 
@@ -3766,19 +3877,21 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
     if (meta) {
 
-      var end = Math.min(start + state.pageSize, n);
+      var end = Math.min(start + pageSize, n);
 
       var thresh = Number(state.threshold).toFixed(2);
 
-      meta.textContent =
+      var showing = n === total
 
-        (n === total
+          ? 'Showing ' + (n ? start + 1 : 0) + '–' + end + ' of ' + n
 
-          ? 'Showing ' + (n ? start + 1 : 0) + '–' + end + ' of ' + n + ' facilities'
+          : 'Showing ' + (n ? start + 1 : 0) + '–' + end + ' of ' + n + ' (' + total + ')';
 
-          : 'Showing ' + (n ? start + 1 : 0) + '–' + end + ' of ' + n + ' (filtered from ' + total + ')') +
+      meta.textContent = mobile
 
-        ' · sorted by % below · threshold ' + thresh + ' HPRD';
+        ? showing + ' · %< · ' + thresh + ' HPRD'
+
+        : showing + ' facilities · sorted by % below · threshold ' + thresh + ' HPRD';
 
     }
 
@@ -3816,7 +3929,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
     var n = state.filtered.length;
 
-    var pages = Math.max(1, Math.ceil(n / state.pageSize));
+    var pages = Math.max(1, Math.ceil(n / facilitiesPageSize()));
 
     if (pages <= 1) {
 
@@ -3882,11 +3995,21 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
       }
 
+      var pctDesktop = th.querySelector('.fac-pct-head-desktop');
+
+      var pctMobile = th.querySelector('.fac-pct-head-mobile');
+
       var desktopHead = th.querySelector('.fac-hprd-head-desktop');
 
       var mobileHead = th.querySelector('.fac-hprd-head-mobile');
 
-      if (desktopHead) {
+      if (pctDesktop) {
+
+        pctDesktop.textContent = label + arrow;
+
+        if (pctMobile) pctMobile.textContent = '% <' + arrow;
+
+      } else if (desktopHead) {
 
         desktopHead.textContent = label + arrow;
 
@@ -4090,7 +4213,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
         var p = btn.getAttribute('data-page');
 
-        var pages = Math.max(1, Math.ceil(state.filtered.length / state.pageSize));
+        var pages = Math.max(1, Math.ceil(state.filtered.length / facilitiesPageSize()));
 
         if (p === 'prev') state.page = Math.max(1, state.page - 1);
 
@@ -4191,6 +4314,8 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     if (global.matchMedia) {
       try {
         global.matchMedia('(max-width: 640px)').addEventListener('change', function () {
+          var maxPage = Math.max(1, Math.ceil(state.filtered.length / facilitiesPageSize()));
+          if (state.page > maxPage) state.page = maxPage;
           renderTable();
         });
       } catch (e) { /* ignore */ }
@@ -4676,49 +4801,17 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     return null;
   }
 
-  function applyOwnershipChartColors(chart) {
-    if (!chart || chart.data.datasets.length < 2) return;
-    var C = global.PBJ320Report && global.PBJ320Report.COLORS;
-    var allBg = (C && C.weekdayBg) || 'rgba(37,99,235,0.72)';
-    var allBd = (C && C.weekday) || '#2563eb';
-    var wkBg = (C && C.weekendBg) || 'rgba(220,38,38,0.72)';
-    var wkBd = (C && C.weekend) || '#dc2626';
-    var n = chart.data.labels ? chart.data.labels.length : 0;
-    chart.data.datasets[0].backgroundColor = n ? Array(n).fill(allBg) : allBg;
-    chart.data.datasets[0].borderColor = n ? Array(n).fill(allBd) : allBd;
-    chart.data.datasets[1].backgroundColor = n ? Array(n).fill(wkBg) : wkBg;
-    chart.data.datasets[1].borderColor = n ? Array(n).fill(wkBd) : wkBd;
-  }
-
   function updateOwnershipChart(threshold) {
     var chart = chartStore.ownershipChart;
     var spec = ownershipChartSpec();
-    if (!chart || !spec || !spec.slices || !spec.slices.length) return;
-    var I = modeData();
-    var allPcts = spec.slices.map(function (s) {
-      if (I && I.curves && I.curves[s.all_curve]) {
-        return lookupCurve(I.curves[s.all_curve], threshold).pct_below;
-      }
-      return s.all_pct;
-    });
-    var satPcts = spec.slices.map(function (s) {
-      var wkKey = s.wknd_curve || s.sat_curve;
-      if (I && I.curves && wkKey && I.curves[wkKey]) {
-        return lookupCurve(I.curves[wkKey], threshold).pct_below;
-      }
-      return s.wknd_pct != null ? s.wknd_pct : s.sat_pct;
-    });
-    if (chart.data.datasets.length < 2) return;
-    chart.data.datasets[0].data = allPcts;
-    chart.data.datasets[1].data = satPcts;
-    var xMax = dynamicAxisMax(allPcts.concat(satPcts), {
-      padding: 4,
-      minSpan: 10,
-      ceiling: (spec && spec.xMax != null) ? spec.xMax + 6 : 100,
-    });
-    chart.options.scales.x.max = xMax;
-    chart.options.scales.x.min = 0;
-    applyOwnershipChartColors(chart);
+    var layout = global.PBJ320OwnershipChart;
+    if (!chart || !spec || !layout || !chart.data.datasets.length) return;
+    var payload = layout.buildPayload(spec, threshold);
+    chart.data.labels = payload.labels;
+    chart.data.datasets[0].data = payload.data;
+    chart.$pbjOwnRows = payload.rows;
+    chart.$pbjStatewideRef = payload.statewideRef;
+    layout.applyColors(chart);
     chart.update('none');
   }
 
@@ -4888,6 +4981,14 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
 
   function fmtPct(n) {
     return (Math.round(Number(n) * 10) / 10).toFixed(1);
+  }
+
+  var PBJ_CHART_SOURCE_SUFFIX_HTML =
+    '<span class="chart-source-attrib"><span class="chart-source-long"> Source: CMS PBJ; analysis by PBJ320.</span><span class="chart-source-short" aria-hidden="true"> Source: CMS PBJ · PBJ320 analysis</span></span>';
+
+  function setChartNoteText(el, body) {
+    if (!el || body == null) return;
+    el.innerHTML = body + PBJ_CHART_SOURCE_SUFFIX_HTML;
   }
 
   function pctColor(pct, thresholds) {
@@ -5115,9 +5216,11 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       var chronic = dist.counts[0] + dist.counts[1];
       var chronicPct = nHomes ? (100 * chronic / nHomes) : 0;
       var never = dist.counts[6];
-      note.textContent =
+      setChartNoteText(
+        note,
         fmtInt(chronic) + ' homes (' + fmtPct(chronicPct) + '% of ' + fmtInt(nHomes) + ') were below minimum on at least 90% of reported days; ' +
-        fmtInt(never) + ' homes never fell below at ' + Number(threshold).toFixed(2) + ' HPRD.';
+        fmtInt(never) + ' homes never fell below at ' + Number(threshold).toFixed(2) + ' HPRD.'
+      );
     }
     var lead = document.getElementById('provider-days-below-lead');
     var histLead = document.getElementById('provider-days-below-histogram-lead');
@@ -5370,7 +5473,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
       var titleEl = document.getElementById(spec.titleId);
       if (titleEl && d.title) titleEl.textContent = d.title;
       var noteEl = document.getElementById(spec.noteId);
-      if (noteEl && d.note) noteEl.textContent = d.note;
+      if (noteEl && d.note) setChartNoteText(noteEl, d.note);
       document.querySelectorAll('[data-calendar-toggle]').forEach(function (btn) {
         var active = btn.getAttribute('data-mode') === mode;
         btn.classList.toggle('active', active);
@@ -5386,24 +5489,255 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     setMode(initialKey);
   }
 
-  function ownershipDisplayLabels(spec) {
-    var tiers = spec.slice_tiers || [];
-    return (spec.labels || []).map(function (label, i) {
-      if (tiers[i] === 'metro-child') return '\u2003\u2003' + label;
-      return label;
-    });
+  var OWNERSHIP_BAR_DEFS = [
+    { curve: 'ny_for_profit', region: 'state' },
+    { curve: 'ny_non_profit', region: 'state' },
+    { curve: 'ny_government', region: 'state' },
+    { curve: 'nyc_for_profit', region: 'nyc' },
+    { curve: 'nyc_non_profit', region: 'nyc' },
+    { curve: 'nyc_government', region: 'nyc' },
+  ];
+  var OWNERSHIP_TYPE_LABELS = ['For-profit', 'Non-profit', 'Government'];
+
+  function ownershipInteractiveMode() {
+    var root = global.PBJ_REPORT_INTERACTIVE;
+    if (!root || !root.modes) return null;
+    return root.modes[root.default_mode || 'total'] || root.modes.total;
   }
 
-  function ownershipAxisLabels(spec) {
-    if (!isMobileReport()) return ownershipDisplayLabels(spec);
-    var tiers = spec.slice_tiers || [];
-    return (spec.labels || []).map(function (label, i) {
-      var short = label
-        .replace(/^NY statewide · /, 'NY ')
-        .replace(/^NYC \(5 boroughs\)$/, 'NYC (5 boro.)');
-      if (tiers[i] === 'metro-child') return '  ' + short;
-      return short;
+  function ownershipLookupCurve(curve, threshold) {
+    for (var i = 0; i < curve.length; i++) {
+      if (Math.abs(curve[i].threshold - threshold) < 0.001) return curve[i];
+    }
+    var best = curve[0];
+    var bestD = Math.abs(best.threshold - threshold);
+    for (var j = 1; j < curve.length; j++) {
+      var d = Math.abs(curve[j].threshold - threshold);
+      if (d < bestD) {
+        best = curve[j];
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  function ownershipSlicePct(spec, curves, curveKey, threshold) {
+    if (curves && curves[curveKey]) {
+      return ownershipLookupCurve(curves[curveKey], threshold).pct_below;
+    }
+    var slices = spec.slices || [];
+    for (var i = 0; i < slices.length; i++) {
+      if (slices[i].all_curve === curveKey) return slices[i].all_pct;
+    }
+    return null;
+  }
+
+  function buildOwnershipChartPayload(spec, threshold) {
+    var curves = ownershipInteractiveMode();
+    curves = curves && curves.curves;
+    var statewideRef = ownershipSlicePct(spec, curves, 'all_ny', threshold);
+    var labels = [];
+    var data = [];
+    var rows = [];
+
+    for (var s = 0; s < 3; s++) {
+      var stateDef = OWNERSHIP_BAR_DEFS[s];
+      labels.push(OWNERSHIP_TYPE_LABELS[s]);
+      data.push(ownershipSlicePct(spec, curves, stateDef.curve, threshold));
+      rows.push({ kind: 'bar', label: OWNERSHIP_TYPE_LABELS[s], region: 'state', curve: stateDef.curve });
+    }
+
+    labels.push('');
+    data.push(null);
+    rows.push({ kind: 'gap' });
+
+    for (var n = 3; n < 6; n++) {
+      var nycDef = OWNERSHIP_BAR_DEFS[n];
+      labels.push(OWNERSHIP_TYPE_LABELS[n - 3]);
+      data.push(ownershipSlicePct(spec, curves, nycDef.curve, threshold));
+      rows.push({ kind: 'bar', label: OWNERSHIP_TYPE_LABELS[n - 3], region: 'nyc', curve: nycDef.curve });
+    }
+
+    return { labels: labels, data: data, rows: rows, statewideRef: statewideRef };
+  }
+
+  function applyOwnershipChartColors(chart) {
+    if (!chart || !chart.data.datasets.length) return;
+    var rows = chart.$pbjOwnRows || [];
+    var stateBg = COLORS.weekdayBg;
+    var stateBd = COLORS.weekday;
+    var nycBg = 'rgba(37,99,235,0.55)';
+    var bgs = [];
+    var bds = [];
+    var bws = [];
+    rows.forEach(function (row) {
+      if (row.kind !== 'bar') {
+        bgs.push('transparent');
+        bds.push('transparent');
+        bws.push(0);
+        return;
+      }
+      if (row.region === 'nyc') {
+        bgs.push(nycBg);
+        bds.push(nycBg);
+        bws.push(0);
+      } else {
+        bgs.push(stateBg);
+        bds.push(stateBd);
+        bws.push(1.5);
+      }
     });
+    chart.data.datasets[0].backgroundColor = bgs;
+    chart.data.datasets[0].borderColor = bds;
+    chart.data.datasets[0].borderWidth = bws;
+  }
+
+  function ownershipMinBarWidthPlugin() {
+    var MIN_PX_DESKTOP = 14;
+    var MIN_PX_MOBILE = 12;
+    return {
+      id: 'pbjOwnershipMinBar',
+      afterDatasetsDraw: function (chart) {
+        var ds = chart.data.datasets[0];
+        var meta = chart.getDatasetMeta(0);
+        var rows = chart.$pbjOwnRows || [];
+        var xScale = chart.scales.x;
+        var area = chart.chartArea;
+        if (!ds || !meta || !meta.data || !xScale || !area) return;
+        var minPx = isMobileReport() ? MIN_PX_MOBILE : MIN_PX_DESKTOP;
+        var zeroX = xScale.getPixelForValue(0);
+        var ctx = chart.ctx;
+        ctx.save();
+        meta.data.forEach(function (bar, i) {
+          if (!rows[i] || rows[i].kind !== 'bar') {
+            bar.$pbjVisEnd = bar.x;
+            return;
+          }
+          var val = ds.data[i];
+          if (val == null || !isFinite(val)) {
+            bar.$pbjVisEnd = zeroX;
+            return;
+          }
+          var left = zeroX;
+          var end = bar.x;
+          bar.$pbjVisEnd = end;
+          if (end - left >= minPx) return;
+          var row = rows[i];
+          var bg = row.region === 'nyc' ? 'rgba(37,99,235,0.55)' : COLORS.weekdayBg;
+          var h = Math.max(bar.height, isMobileReport() ? 18 : 22);
+          var y = bar.y - h / 2;
+          ctx.fillStyle = bg;
+          if (ctx.roundRect) {
+            ctx.beginPath();
+            ctx.roundRect(left, y, minPx, h, 3);
+            ctx.fill();
+            if (row.region !== 'nyc') {
+              ctx.strokeStyle = COLORS.weekday;
+              ctx.lineWidth = 1.5;
+              ctx.stroke();
+            }
+          } else {
+            ctx.fillRect(left, y, minPx, h);
+            if (row.region !== 'nyc') {
+              ctx.strokeStyle = COLORS.weekday;
+              ctx.lineWidth = 1.5;
+              ctx.strokeRect(left, y, minPx, h);
+            }
+          }
+          bar.$pbjVisEnd = left + minPx;
+        });
+        ctx.restore();
+      },
+    };
+  }
+
+  function ownershipBarValueLabelsPlugin() {
+    return {
+      id: 'pbjOwnershipBarValues',
+      afterDatasetsDraw: function (chart) {
+        var ds = chart.data.datasets[0];
+        var meta = chart.getDatasetMeta(0);
+        var rows = chart.$pbjOwnRows || [];
+        var xScale = chart.scales.x;
+        if (!ds || !meta || !meta.data || !xScale) return;
+        var ctx = chart.ctx;
+        var area = chart.chartArea;
+        if (!area) return;
+        var zeroX = xScale.getPixelForValue(0);
+        ctx.save();
+        ctx.fillStyle = '#475569';
+        ctx.font = '500 ' + (isMobileReport() ? 10 : 10.5) + "px 'IBM Plex Sans', system-ui, sans-serif";
+        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'left';
+        var pad = isMobileReport() ? 6 : 8;
+        meta.data.forEach(function (bar, i) {
+          if (!rows[i] || rows[i].kind !== 'bar') return;
+          var val = ds.data[i];
+          if (val == null || !isFinite(val)) return;
+          var label = Math.round(Number(val)) + '%';
+          var barEnd = bar.$pbjVisEnd != null ? bar.$pbjVisEnd : bar.x;
+          barEnd = Math.max(barEnd, zeroX);
+          var x = Math.max(barEnd + pad, area.left + 2);
+          ctx.fillText(label, x, bar.y);
+        });
+        ctx.restore();
+      },
+    };
+  }
+
+  function ownershipStatewideRefPlugin() {
+    return {
+      id: 'pbjOwnershipStatewideRef',
+      afterDatasetsDraw: function (chart) {
+        var pct = chart.$pbjStatewideRef;
+        var xScale = chart.scales.x;
+        var area = chart.chartArea;
+        if (pct == null || !xScale || !area) return;
+        var x = xScale.getPixelForValue(pct);
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(15,23,42,0.22)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x, area.top);
+        ctx.lineTo(x, area.bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = "500 8.5px 'IBM Plex Mono', ui-monospace, monospace";
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        var refLabel = 'Statewide average: ' + Math.round(Number(pct)) + '%';
+        ctx.fillText(refLabel, x, area.top - 4);
+        ctx.restore();
+      },
+    };
+  }
+
+  function ownershipGroupGapPlugin() {
+    return {
+      id: 'pbjOwnershipGroupGap',
+      afterDatasetsDraw: function (chart) {
+        var rows = chart.$pbjOwnRows || [];
+        var yScale = chart.scales.y;
+        var area = chart.chartArea;
+        if (!yScale || !area) return;
+        var ctx = chart.ctx;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(15,23,42,0.1)';
+        ctx.lineWidth = 1;
+        rows.forEach(function (row, i) {
+          if (row.kind !== 'gap') return;
+          var y = yScale.getPixelForValue(i);
+          ctx.beginPath();
+          ctx.moveTo(area.left, y);
+          ctx.lineTo(area.right, y);
+          ctx.stroke();
+        });
+        ctx.restore();
+      },
+    };
   }
 
   function ownershipChartSpec() {
@@ -5422,7 +5756,7 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     if (!layout || !layout.padding) return;
     var pad = layout.padding;
     pad.left = mobile ? 2 : 4;
-    pad.right = mobile ? 8 : 12;
+    pad.right = mobile ? 44 : 52;
     pad.top = 4;
     pad.bottom = 8;
   }
@@ -5431,58 +5765,43 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     var chart = ownershipChartRef();
     var spec = ownershipChartSpec();
     if (!chart || !spec) return;
-    var mobile = isMobileReport();
-    chart.data.labels = ownershipAxisLabels(spec);
-    setOwnershipLayoutPadding(chart, mobile);
+    var thr = (global.PBJ320Threshold && global.PBJ320Threshold.currentThreshold) || 3.5;
+    var payload = buildOwnershipChartPayload(spec, thr);
+    chart.data.labels = payload.labels;
+    chart.$pbjOwnRows = payload.rows;
+    setOwnershipLayoutPadding(chart, isMobileReport());
     chart.update('none');
-  }
-
-  function ownershipTickFont(tier) {
-    if (tier === 'primary') return { size: 11, weight: '700' };
-    if (tier === 'metro') return { size: 10, weight: '600' };
-    if (tier === 'metro-child') return { size: 9.5, weight: '400' };
-    return { size: 10, weight: '400' };
   }
 
   function initOwnershipGrouped(spec) {
     var ctx = document.getElementById(spec.id);
-    if (!ctx || !global.Chart || !spec.datasets || spec.datasets.length < 2) return;
+    if (!ctx || !global.Chart || !spec.datasets || !spec.datasets[0]) return;
     if (ownershipChartInstance) return;
-    var allDs = spec.datasets[0];
-    var satDs = spec.datasets[1];
-    var n = (spec.labels || []).length;
-    var tiers = spec.slice_tiers || [];
     var mobile = isMobileReport();
-    var displayLabels = ownershipAxisLabels(spec);
-    var allBg = Array(n).fill(COLORS.weekdayBg);
-    var allBd = Array(n).fill(COLORS.weekday);
-    var wkBg = Array(n).fill(COLORS.weekendBg);
-    var wkBd = Array(n).fill(COLORS.weekend);
-    if (n > 0) {
-      allBd[0] = '#1d4ed8';
-      allBg[0] = 'rgba(29,78,216,0.82)';
-    }
+    var thr = (global.PBJ320Threshold && global.PBJ320Threshold.currentThreshold) || 3.5;
+    var payload = buildOwnershipChartPayload(spec, thr);
 
     ownershipChartInstance = new global.Chart(ctx.getContext('2d'), {
       type: 'bar',
+      plugins: [
+        ownershipMinBarWidthPlugin(),
+        ownershipBarValueLabelsPlugin(),
+        ownershipStatewideRefPlugin(),
+        ownershipGroupGapPlugin(),
+      ],
       data: {
-        labels: displayLabels,
+        labels: payload.labels,
         datasets: [
           {
-            label: allDs.label || 'All days',
-            data: allDs.values.slice(),
-            backgroundColor: allBg,
-            borderColor: allBd,
+            label: 'All days',
+            data: payload.data,
+            backgroundColor: [],
+            borderColor: [],
             borderWidth: 1.5,
-            borderRadius: 2,
-          },
-          {
-            label: satDs.label || 'Weekends (Sat–Sun)',
-            data: satDs.values.slice(),
-            backgroundColor: wkBg,
-            borderColor: wkBd,
-            borderWidth: 1.5,
-            borderRadius: 2,
+            borderRadius: 3,
+            skipNull: true,
+            barThickness: mobile ? 24 : 28,
+            maxBarThickness: mobile ? 26 : 30,
           },
         ],
       },
@@ -5492,37 +5811,48 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
         layout: {
           padding: {
             left: mobile ? 2 : 4,
-            right: mobile ? 8 : 12,
-            top: 4,
-            bottom: 8,
+            right: mobile ? 44 : 52,
+            top: 14,
+            bottom: 4,
+          },
+        },
+        datasets: {
+          bar: {
+            categoryPercentage: 0.94,
+            barPercentage: 1,
           },
         },
         plugins: {
-          legend: {
-            display: true,
-            position: 'bottom',
-            labels: { boxWidth: 12, font: { size: mobile ? 9 : 10 } },
-          },
+          legend: { display: false },
           tooltip: {
+            filter: function (item) {
+              var rows = item.chart.$pbjOwnRows || [];
+              return rows[item.dataIndex] && rows[item.dataIndex].kind === 'bar';
+            },
             callbacks: {
               title: function (items) {
                 if (!items.length) return '';
-                var idx = items[0].dataIndex;
-                return (spec.labels && spec.labels[idx]) || items[0].label;
+                var chart = items[0].chart;
+                var row = (chart.$pbjOwnRows || [])[items[0].dataIndex];
+                if (!row || row.kind !== 'bar') return '';
+                return (row.region === 'nyc' ? 'New York City' : 'New York State') + ' \u00b7 ' + row.label;
               },
               label: function (item) {
-                return (item.dataset.label || '') + ': ' + item.raw + '% below minimum';
+                return Math.round(Number(item.raw)) + '% of facility-days below minimum';
               },
             },
           },
         },
         scales: {
           x: {
-            min: spec.xMin != null ? spec.xMin : 0,
-            max: spec.xMax != null ? spec.xMax : 100,
+            min: 0,
+            max: 80,
             ticks: {
-              maxTicksLimit: mobile ? 5 : 11,
-              callback: function (v) { return v + '%'; },
+              stepSize: 20,
+              callback: function (v) {
+                if (v % 20 !== 0) return '';
+                return v + '%';
+              },
             },
             grid: { color: COLORS.grid },
           },
@@ -5531,15 +5861,41 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
             ticks: {
               autoSkip: false,
               padding: mobile ? 4 : 8,
-              font: {
-                size: mobile ? 9 : 10,
-                weight: '500',
+              font: function (ctx) {
+                var rows = ctx.chart.$pbjOwnRows || [];
+                var row = rows[ctx.index];
+                if (row && row.kind === 'gap') {
+                  return { size: mobile ? 9 : 9.5, weight: '600', family: "'IBM Plex Mono', ui-monospace, monospace" };
+                }
+                if (row && row.kind === 'bar' && row.region === 'nyc') {
+                  return { size: mobile ? 9.5 : 10.5, weight: '400', family: "'IBM Plex Sans', system-ui, sans-serif" };
+                }
+                return { size: mobile ? 10 : 11, weight: '500', family: "'IBM Plex Sans', system-ui, sans-serif" };
+              },
+              color: function (ctx) {
+                var rows = ctx.chart.$pbjOwnRows || [];
+                var row = rows[ctx.index];
+                if (row && row.kind === 'gap') return '#64748b';
+                if (row && row.kind === 'bar' && row.region === 'nyc') return '#64748b';
+                return '#334155';
+              },
+              callback: function (val, idx) {
+                var rows = (this.chart && this.chart.$pbjOwnRows) || [];
+                var row = rows[idx];
+                if (!row) return '';
+                if (row.kind === 'gap') return 'NYC';
+                if (row.kind === 'bar') return row.label;
+                return '';
               },
             },
           },
         },
       }),
     });
+
+    ownershipChartInstance.$pbjOwnRows = payload.rows;
+    ownershipChartInstance.$pbjStatewideRef = payload.statewideRef;
+    applyOwnershipChartColors(ownershipChartInstance);
 
     if (global.PBJ320Threshold) {
       global.PBJ320Threshold.registerChart(spec.id, ownershipChartInstance);
@@ -5751,6 +6107,11 @@ window.PBJ_REPORT_CHARTS = [{"type": "dow","id": "dowChart","labels": ["Mon","Tu
     updateProviderDaysBelowChart(thresh);
     initScrollReveal();
   }
+
+  global.PBJ320OwnershipChart = {
+    buildPayload: buildOwnershipChartPayload,
+    applyColors: applyOwnershipChartColors,
+  };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);

@@ -1,4 +1,4 @@
-"""HTML for state ownership index pages (/owners/ny, /owners/ct; draft fl/nj/id)."""
+"""HTML for state ownership index pages (/owners/ny, /owners/ct, /owners/fl; draft nj/id)."""
 from __future__ import annotations
 
 import html
@@ -576,8 +576,9 @@ def render_state_owner_index_locked_body(state_name: str = "") -> str:
       <h1>Ownership index not available</h1>
       <p class="owners-hub-lead">
         Ownership pages are currently available for
-        <a href="/owners/ny">New York nursing home ownership search</a> and
-        <a href="/owners/ct">Connecticut nursing home ownership search</a> only.
+        <a href="/owners/ny">New York nursing home ownership search</a>,
+        <a href="/owners/ct">Connecticut nursing home ownership search</a>, and
+        <a href="/owners/fl">Florida nursing home ownership search</a> only.
         {label} does not have a published ownership index on PBJ320 yet.
       </p>
       <p class="owners-hub-aside">

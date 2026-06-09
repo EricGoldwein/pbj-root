@@ -1,8 +1,8 @@
-"""Ownership / CHOW visibility: CT + NY public launch, broader states for internal preview.
+"""Ownership / CHOW visibility: CT + NY + FL public launch, broader states for internal preview.
 
 Published externally (production default):
   - State-page ownership blocks, provider ownership sections, and /owners/<pac> profiles
-    for facilities and organizations tied to Connecticut (CT) or New York (NY).
+    for facilities and organizations tied to Connecticut (CT), New York (NY), or Florida (FL).
 
 Internal preview (local dev or explicit env / admin key):
   - Same UI for additional states (e.g. Minnesota) without treating them as published.
@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-OWNERSHIP_PUBLIC_STATES = frozenset({"CT", "NY"})
+OWNERSHIP_PUBLIC_STATES = frozenset({"CT", "FL", "NY"})
 # Back-compat alias (first public state)
 OWNERSHIP_BETA_STATE = "CT"
 

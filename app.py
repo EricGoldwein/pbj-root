@@ -255,7 +255,7 @@ try:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 except ImportError:
     pass
-# Legacy CT-only hub search at /owners/ when True; public index lists NY+CT at /owners/, /owners/ny, /owners/ct.
+# Legacy CT-only hub search at /owners/ when True; public index lists NY+CT+FL at /owners/, /owners/ny, /owners/ct, /owners/fl.
 _OWNERS_CMS_HUB_PUBLIC = False
 # Local (non-Render): always rebuild provider HTML so case-mix / chart edits show on refresh.
 if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
@@ -6092,7 +6092,7 @@ def _owners_hub_index_json_ld() -> str:
         page_title='Nursing Home Ownership Indexes | PBJ320',
         page_url=page_url,
         description=(
-            'Browse reported CMS nursing home ownership entities in New York and Connecticut '
+            'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida '
             'with PBJ320 staffing context.'
         ),
         breadcrumb_name='Ownership',
@@ -6100,10 +6100,10 @@ def _owners_hub_index_json_ld() -> str:
 
 
 def _owners_cms_index_html():
-    """Public ownership index — links to NY/CT state browse pages (not a national database)."""
+    """Public ownership index — links to NY/CT/FL state browse pages (not a national database)."""
     layout = get_pbj_site_layout(
         'Nursing Home Ownership Indexes | PBJ320',
-        'Browse reported CMS nursing home ownership entities in New York and Connecticut with PBJ320 '
+        'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida with PBJ320 '
         'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
         _public_site_origin() + '/owners',
         extra_head=(
@@ -6121,11 +6121,13 @@ def _owners_cms_index_html():
       </p>
       <p class="owners-state-unlock-note">
         <strong>Available now:</strong> state ownership indexes for
-        <a href="/owners/ny">New York</a> and <a href="/owners/ct">Connecticut</a>.
+        <a href="/owners/ny">New York</a>, <a href="/owners/ct">Connecticut</a>, and
+        <a href="/owners/fl">Florida</a>.
       </p>
       <ul class="owners-hub-state-cards">
         <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
         <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
       </ul>
       <p class="owners-hub-aside">
         Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
@@ -6210,7 +6212,7 @@ def _owners_state_locked_html(state_name: str = ''):
     body = render_state_owner_index_locked_body(state_name)
     layout = get_pbj_site_layout(
         'Ownership index not available | PBJ320',
-        'Ownership index pages are currently available for New York and Connecticut on PBJ320.',
+        'Ownership index pages are currently available for New York, Connecticut, and Florida on PBJ320.',
         _public_site_origin() + '/owners',
         extra_head=f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">',
         robots_meta='noindex, follow',
@@ -6220,7 +6222,7 @@ def _owners_state_locked_html(state_name: str = ''):
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """CMS ownership profile autocomplete (CT/NY; draft FL/NJ/ID); optional ?state=ny|ct|fl|nj|id."""
+    """CMS ownership profile autocomplete (CT/NY/FL; draft NJ/ID); optional ?state=ny|ct|fl|nj|id."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
     from ownership.state_owner_index import (
@@ -6257,7 +6259,7 @@ def owners_cms_search_api():
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():
-    """CMS ownership index (NY + CT). FEC contributions search is at /owner/."""
+    """CMS ownership index (NY + CT + FL). FEC contributions search is at /owner/."""
     if request.args.get('owner'):
         return redirect('/owner', code=302)
     resp = make_response(_owners_cms_index_html())
@@ -6303,7 +6305,9 @@ def owners_legacy_router(subpath):
     if index_code:
         return owners_state_index_route()
     _canon, st_code = resolve_state_slug(segment)
-    if st_code and st_code not in ('NY', 'CT'):
+    from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
+
+    if st_code and st_code not in OWNERSHIP_PUBLIC_STATES:
         st_name = STATE_CODE_TO_NAME.get(st_code, st_code)
         resp = make_response(_owners_state_locked_html(st_name))
         resp.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -6398,6 +6402,7 @@ def _build_sitemap_xml() -> str:
         ('/owners', '0.7', 'weekly'),
         ('/owners/ny', '0.7', 'weekly'),
         ('/owners/ct', '0.7', 'weekly'),
+        ('/owners/fl', '0.7', 'weekly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -6501,6 +6506,7 @@ def _sitemap_static_url_lines(base: str, today: str, quarter_lastmod: str) -> li
         ('/owners', '0.7', 'weekly'),
         ('/owners/ny', '0.7', 'weekly'),
         ('/owners/ct', '0.7', 'weekly'),
+        ('/owners/fl', '0.7', 'weekly'),
     ]
     seen_paths = {p for p, _, _ in static_pages}
     for path, priority, changefreq in SITEMAP_TRUST_PAGES:
@@ -21057,10 +21063,13 @@ def _path_should_send_noindex() -> bool:
         return True
     if _is_cms_owner_profile_path(path):
         return False
-    if path in ('/owners', '/owners/', '/owners/ny', '/owners/ct'):
-        return False
-    from ownership.state_owner_index import DRAFT_OWNER_INDEX_SLUGS
+    from ownership.state_owner_index import DRAFT_OWNER_INDEX_SLUGS, PUBLIC_OWNER_INDEX_SLUGS
 
+    if path.rstrip('/') in (
+        {'/owners', '/owners/'}
+        | {f'/owners/{slug}' for slug in PUBLIC_OWNER_INDEX_SLUGS}
+    ):
+        return False
     if path.rstrip('/') in {f'/owners/{slug}' for slug in DRAFT_OWNER_INDEX_SLUGS}:
         return True
     noindex_prefixes = (

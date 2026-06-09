@@ -1,4 +1,4 @@
-"""SEO/indexability tests for /owners/ny and /owners/ct state ownership index pages."""
+"""SEO/indexability tests for published state ownership index pages (NY, CT, FL)."""
 from __future__ import annotations
 
 import json
@@ -46,11 +46,19 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
     def test_canonical_paths(self):
         self.assertEqual(state_index_canonical_path("NY"), "/owners/ny")
         self.assertEqual(state_index_canonical_path("CT"), "/owners/ct")
+        self.assertEqual(state_index_canonical_path("FL"), "/owners/fl")
+
+    def test_fl_public_index_not_draft(self):
+        self.assertFalse(state_owner_index_is_draft("FL"))
+        body, layout = render_state_owner_index_body("FL", get_canonical_slug=lambda s: "florida")
+        self.assertNotIn("owners-state-draft-banner", body)
+        self.assertIn("Largest FL portfolios", body)
+        self.assertIn(layout["subtitle"], body)
 
     def test_sitemap_includes_public_state_pages(self):
         paths = {row[0] for row in public_owner_index_sitemap_paths()}
-        self.assertEqual(paths, {"/owners/ny", "/owners/ct"})
-        draft_paths = {f"/owners/{slug}" for slug in ("fl", "nj", "id")}
+        self.assertEqual(paths, {"/owners/ny", "/owners/ct", "/owners/fl"})
+        draft_paths = {f"/owners/{slug}" for slug in ("nj", "id")}
         self.assertFalse(draft_paths & paths)
         for path, _pri, changefreq, lastmod in public_owner_index_sitemap_paths():
             self.assertEqual(changefreq, "weekly")
@@ -58,7 +66,6 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
 
     def test_draft_state_indexes_meta_and_slug(self):
         cases = (
-            ("fl", "FL", "Florida", "florida", "Largest FL portfolios"),
             ("nj", "NJ", "New Jersey", "new-jersey", "Largest NJ portfolios"),
             ("id", "ID", "Idaho", "idaho", "Largest ID portfolios"),
         )

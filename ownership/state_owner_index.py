@@ -1,8 +1,8 @@
 """
-State-level CMS ownership index pages (/owners/ny, /owners/ct; draft FL/NJ/ID).
+State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl; draft NJ/ID).
 
-Published: NY + CT (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
-Draft indexes: FL, NJ, ID — routable locally, noindex, excluded from hub/sitemap until launch.
+Published: NY + CT + FL (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
+Draft indexes: NJ, ID — routable locally, noindex, excluded from hub/sitemap until launch.
 """
 from __future__ import annotations
 
@@ -37,12 +37,12 @@ _PROVIDER_INFO_CSV = _REPO_ROOT / "provider_info_combined_latest.csv"
 PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
     "ny": "NY",
     "ct": "CT",
+    "fl": "FL",
 }
 
-# Draft state indexes: same UI as NY/CT, not linked from /owners hub or sitemap.
-STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"FL", "NJ", "ID"})
+# Draft state indexes: same UI as published pages, not linked from /owners hub or sitemap.
+STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"NJ", "ID"})
 DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {
-    "fl": "FL",
     "nj": "NJ",
     "id": "ID",
 }
@@ -198,7 +198,7 @@ def public_owner_index_sitemap_paths() -> list[tuple[str, str, str, str]]:
 
 
 def resolve_public_owner_index_slug(slug: str | None) -> str | None:
-    """Map /owners/<slug> to NY or CT when slug is a published index route."""
+    """Map /owners/<slug> to a published state code when slug is a public index route."""
     s = (slug or "").strip().lower()
     return PUBLIC_OWNER_INDEX_SLUGS.get(s)
 

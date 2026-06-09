@@ -2,13 +2,18 @@
 
 import os
 import unittest
+from pathlib import Path
 
 from site_public_config import (
+    NY_PREVIEW_DEFINITIONS_HEADING,
     inject_ny_staffing_report_preview,
     is_ny_staffing_report_preview_path,
     ny_staffing_report_preview_path,
     ny_staffing_report_preview_token,
 )
+
+ROOT = Path(__file__).resolve().parents[1]
+REPORT_HTML = ROOT / "insights-ny-minimum-staffing.html"
 
 
 class NyStaffingPreviewTest(unittest.TestCase):
@@ -40,6 +45,23 @@ class NyStaffingPreviewTest(unittest.TestCase):
         self.assertIn('position: sticky', out)
         self.assertIn('0.9rem * 1.35', out)
         self.assertNotIn(':root {\n  --ny-preview-banner-offset: calc(0.65rem * 2 + 1.35em', out)
+
+    def test_inject_replaces_definitions_heading_only_on_preview(self):
+        html = REPORT_HTML.read_text(encoding="utf-8")
+        self.assertIn('id="definitions-heading"', html)
+        self.assertNotIn(NY_PREVIEW_DEFINITIONS_HEADING, html)
+        out = inject_ny_staffing_report_preview(
+            html,
+            '/preview/ny-staffing-compliance-2025/testtok',
+        )
+        self.assertIn(
+            f'<h2 id="definitions-heading">{NY_PREVIEW_DEFINITIONS_HEADING}</h2>',
+            out,
+        )
+        self.assertIn(
+            'New York nursing homes reported staffing below the 3.50 HPRD standard on',
+            out,
+        )
 
     def test_custom_token_from_env(self):
         prev = os.environ.get('NY_STAFFING_REPORT_PREVIEW_TOKEN')

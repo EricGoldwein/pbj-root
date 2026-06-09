@@ -215,6 +215,13 @@ _NY_PREVIEW_BANNER_TEXT = (
 _NY_PREVIEW_BANNER_HTML = (
     f'<div class="ny-staffing-preview-banner" role="status">{_NY_PREVIEW_BANNER_TEXT}</div>'
 )
+NY_PREVIEW_DEFINITIONS_HEADING = (
+    'Nearly half of NY facility-days fell below 3.50 direct care HPRD'
+)
+_DEFINITIONS_HEADING_RE = re.compile(
+    r'<h2 id="definitions-heading">.*?</h2>',
+    re.DOTALL,
+)
 _VIEWPORT_META_RE = re.compile(
     r'(<meta\s+name=["\']viewport["\'][^>]*>)',
     re.IGNORECASE,
@@ -254,6 +261,11 @@ def inject_ny_staffing_report_preview(html: str, preview_path: str) -> str:
         'https://www.pbj320.com/insights/ny-minimum-staffing/',
     ):
         html = html.replace(old, canonical)
+    html = _DEFINITIONS_HEADING_RE.sub(
+        f'<h2 id="definitions-heading">{NY_PREVIEW_DEFINITIONS_HEADING}</h2>',
+        html,
+        count=1,
+    )
     return html
 
 

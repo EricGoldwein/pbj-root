@@ -1,5 +1,7 @@
 # Data deploy (Render, no LFS checkout)
 
+**Deploy flow, health checks, smoke tests, rollback:** **`DEPLOYMENT.md`** (canonical). This doc covers **CSV/index/data build gates** only.
+
 GitHub LFS bandwidth blocks Render from smudging large files at clone. **Full longitudinal data stays in git** as normal blobs:
 
 | Committed file | Size (approx) | Build step |
@@ -13,7 +15,7 @@ Build script: `scripts/ensure_deploy_csvs.py` (first step in `render.yaml` `buil
 
 **ProviderInfoNorm gates:** build runs `backfill_provider_norm_urban.py` then `validate_provider_norm_snapshot.py`. When paired NH is absent on Render, validate uses **self-check** fill counts on the committed Norm (CMI/urban must already be backfilled in git). Before push, run `python scripts/simulate_render_deploy_gates.py` — hides local-only `provider_info` files and re-runs those gates.
 
-**Start command:** `python scripts/render_start.py` → Gunicorn on `0.0.0.0:$PORT` immediately. With `PBJ_SKIP_START_CSV_ENSURE=1`, restart does not re-run CSV work. **Do not** set Dashboard start to `ensure_deploy_csvs && gunicorn` — health checks get `connection refused` until Gunicorn binds (~20–30s).
+**Start command:** `python scripts/render_start.py` → Gunicorn on `0.0.0.0:$PORT` immediately. With `PBJ_SKIP_START_CSV_ENSURE=1`, restart does not re-run CSV work. **Do not** put CSV/index work in the start command. Health check path: `/healthz` (see **`DEPLOYMENT.md`**).
 
 **State pages (`/state/*`):** `python scripts/build_state_page_aggregates.py` runs after CSV materialization and writes `data/state_page_aggregates.json.gz` (facility counts, case-mix medians, rural shares, high-risk buckets for the canonical quarter). At runtime the app hydrates in-memory caches from that file; if missing or stale (CSV mtime changed), it falls back to the same compute paths as before.
 

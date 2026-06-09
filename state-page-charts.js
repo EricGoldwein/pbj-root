@@ -61,7 +61,62 @@
         };
       }
 
-      function makeLineTime(id, quarters, datasets, yTitle, directCareSuffix, integerFormat, extraScales) {
+      function trimTrailingZeros(s) {
+        return String(s).replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "");
+      }
+
+      function normalizeValueFormat(arg) {
+        if (arg === true || arg === "count") return "count";
+        if (arg === "percent") return "percent";
+        return "hprd";
+      }
+
+      /** Y-axis tick labels — compact for large counts, metric-aware elsewhere. */
+      function formatAxisValue(n, kind) {
+        n = Number(n);
+        if (!isFinite(n)) return n != null ? String(n) : "";
+        if (kind === "percent") {
+          if (Math.abs(n) >= 10) return Math.round(n) + "%";
+          return trimTrailingZeros(n.toFixed(1)) + "%";
+        }
+        if (kind === "count") {
+          var sign = n < 0 ? "-" : "";
+          var abs = Math.abs(n);
+          if (abs >= 1e9) return sign + trimTrailingZeros((abs / 1e9).toFixed(2)) + "B";
+          if (abs >= 1e6) return sign + trimTrailingZeros((abs / 1e6).toFixed(2)) + "M";
+          if (abs >= 1e4) {
+            var k = abs / 1e3;
+            return sign + (k >= 100 ? String(Math.round(k)) : trimTrailingZeros(k.toFixed(1))) + "K";
+          }
+          if (abs >= 1e3) return sign + Math.round(abs).toLocaleString(undefined, { maximumFractionDigits: 0 });
+          return sign + String(Math.round(abs));
+        }
+        return trimTrailingZeros((Math.round(n * 100) / 100).toFixed(2));
+      }
+
+      /** Line charts: hide points at rest; show on hover (matches total/contract interaction). */
+      function withLineHoverPoints(ds) {
+        var color = ds.borderColor || "#2dd4bf";
+        return {
+          pointRadius: 0,
+          pointHoverRadius: 5,
+          pointHitRadius: 12,
+          pointBackgroundColor: color,
+          pointBorderColor: color,
+          pointBorderWidth: 2
+        };
+      }
+
+      /** Tooltip values — full precision for counts; metric-aware elsewhere. */
+      function formatTooltipValue(n, kind) {
+        n = Number(n);
+        if (!isFinite(n)) return n != null ? String(n) : "";
+        if (kind === "percent") return trimTrailingZeros(n.toFixed(2)) + "%";
+        if (kind === "count") return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
+        return (Math.round(n * 100) / 100).toFixed(2);
+      }
+
+      function makeLineTime(id, quarters, datasets, yTitle, directCareSuffix, valueFormat, extraScales) {
         var ctx = document.getElementById(id);
         if (!ctx || !quarters || !quarters.length) return;
         var spanYears = getSpanYears(quarters);
@@ -76,12 +131,15 @@
             fill: false,
             spanGaps: false
           };
+          Object.assign(row, withLineHoverPoints(ds));
           if (ds.yAxisID) row.yAxisID = ds.yAxisID;
           return row;
         });
-        var formatValue = integerFormat
-          ? function(v) { return (typeof v === "number" && !isNaN(v)) ? Math.round(v).toLocaleString() : (v != null ? String(v) : ""); }
-          : function(v) { return (typeof v === "number" && !isNaN(v)) ? (Math.round(v * 100) / 100).toFixed(2) : (v != null ? v : ""); };
+        var metricKind = normalizeValueFormat(valueFormat);
+        var formatValue = function(v) {
+          if (typeof v !== "number" || isNaN(v)) return v != null ? String(v) : "";
+          return formatTooltipValue(v, metricKind);
+        };
         var scales = {
           y: {
             position: "left",
@@ -89,10 +147,7 @@
             ticks: {
               color: textColor,
               callback: function(value) {
-                var n = Number(value);
-                if (!isFinite(n)) return value;
-                if (integerFormat) return Math.round(n).toLocaleString(undefined, { maximumFractionDigits: 0 });
-                return (Math.round(n * 100) / 100).toFixed(2);
+                return formatAxisValue(value, metricKind);
               }
             },
             grid: { color: gridColor },
@@ -126,6 +181,7 @@
           options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             plugins: {
               legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
               tooltip: {
@@ -199,7 +255,7 @@
           if (role === "lpn") {
             var ds2 = [{ label: "Total LPN", data: payload.lpn || [], borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }];
             if (payload.lpn_care && payload.lpn_care.length) {
-              ds2.push({ label: "LPN (direct care)", data: payload.lpn_care, borderColor: "rgba(161,161,170,0.9)", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false });
+              ds2.push({ label: "LPN (excl. Admin)", data: payload.lpn_care, borderColor: "rgba(161,161,170,0.9)", borderDash: [6, 4], tension: 0.3, fill: false, spanGaps: false });
             }
             return ds2;
           }
@@ -212,7 +268,7 @@
           var spanYears = getSpanYears(quarters);
           var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
           var timeDatasets = datasets.map(function(ds) {
-            return {
+            var row = {
               label: ds.label,
               borderColor: ds.borderColor,
               borderDash: ds.borderDash,
@@ -221,10 +277,12 @@
               spanGaps: false,
               data: buildTimeSeriesData(quarters, ds.data)
             };
+            return Object.assign(row, withLineHoverPoints(ds));
           });
           var opts = {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: { mode: "index", intersect: false },
             plugins: {
               legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } },
               tooltip: {
@@ -238,7 +296,7 @@
                   },
                   label: function(context) {
                     var v = context.parsed.y;
-                    if (typeof v === "number" && !isNaN(v)) return context.dataset.label + ": " + (Math.round(v * 100) / 100).toFixed(2);
+                    if (typeof v === "number" && !isNaN(v)) return context.dataset.label + ": " + formatTooltipValue(v, "hprd");
                     return context.dataset.label + ": " + (v != null ? v : "");
                   },
                   afterBody: function(tooltipItems) {
@@ -254,7 +312,10 @@
             scales: {
               y: {
                 beginAtZero: false,
-                ticks: { color: textColor },
+                ticks: {
+                  color: textColor,
+                  callback: function(value) { return formatAxisValue(value, "hprd"); }
+                },
                 grid: { color: gridColor },
                 border: { color: axisColor, width: 1 },
                 title: { display: true, text: "Hours per resident day", color: textColor }
@@ -317,12 +378,12 @@
       if (d.census && d.census.length) {
         makeLineTime("stateChartCensus", quarters, [
           { label: "Resident census", data: d.census, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }
-        ], "Census", null);
+        ], "Census", null, "count");
       }
       if (d.contract && d.contract.length) {
         makeLineTime("stateChartContract", quarters, [
           { label: "Contract %", data: d.contract, borderColor: "#2dd4bf", tension: 0.3, fill: false, spanGaps: false }
-        ], "Contract %", null);
+        ], "Contract %", null, "percent");
       }
     })
     .catch(function(e) { console.warn("State chart data not available", e); });

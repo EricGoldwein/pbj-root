@@ -8,9 +8,11 @@ import unittest
 from ownership.state_owner_index import (
     STATE_INDEX_META,
     public_owner_index_sitemap_paths,
+    resolve_state_owner_index_slug,
     state_index_canonical_path,
     state_index_layout_meta,
     state_index_subtitle,
+    state_owner_index_is_draft,
 )
 from ownership.state_owner_index_html import render_state_owner_index_body
 from ownership.state_owner_index_seo import build_state_owner_index_json_ld
@@ -48,9 +50,35 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
     def test_sitemap_includes_public_state_pages(self):
         paths = {row[0] for row in public_owner_index_sitemap_paths()}
         self.assertEqual(paths, {"/owners/ny", "/owners/ct"})
+        draft_paths = {f"/owners/{slug}" for slug in ("fl", "nj", "id")}
+        self.assertFalse(draft_paths & paths)
         for path, _pri, changefreq, lastmod in public_owner_index_sitemap_paths():
             self.assertEqual(changefreq, "weekly")
             self.assertRegex(lastmod, r"^\d{4}-\d{2}-\d{2}$")
+
+    def test_draft_state_indexes_meta_and_slug(self):
+        cases = (
+            ("fl", "FL", "Florida", "florida", "Largest FL portfolios"),
+            ("nj", "NJ", "New Jersey", "new-jersey", "Largest NJ portfolios"),
+            ("id", "ID", "Idaho", "idaho", "Largest ID portfolios"),
+        )
+        for slug, code, name, state_page_slug, portfolio_short in cases:
+            with self.subTest(slug=slug):
+                self.assertEqual(resolve_state_owner_index_slug(slug), code)
+                self.assertTrue(state_owner_index_is_draft(code))
+                layout = state_index_layout_meta(code)
+                self.assertEqual(layout["canonical_path"], f"/owners/{slug}")
+                self.assertIn(name, layout["page_title"])
+                self.assertIn(name, layout["h1"])
+                self.assertIn("Ownership Search", layout["h1"])
+                self.assertEqual(STATE_INDEX_META[code]["state_page_slug"], state_page_slug)
+                body, layout_out = render_state_owner_index_body(
+                    code, get_canonical_slug=lambda _s, sp=state_page_slug: sp
+                )
+                self.assertIn(layout_out["subtitle"], body)
+                self.assertIn("owners-state-draft-banner", body)
+                self.assertIn(portfolio_short, body)
+                self.assertIn(f"This {name} ownership index is not published", body)
 
     def test_render_has_one_h1_and_crawlable_intro(self):
         body, layout = render_state_owner_index_body("NY", get_canonical_slug=lambda s: "new-york")

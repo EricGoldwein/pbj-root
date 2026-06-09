@@ -1,7 +1,7 @@
 """
 Gunicorn config for Render. Binds to 0.0.0.0:PORT so Render's port scan detects the service.
-Using Python to read PORT avoids shell $PORT expansion issues. Health check path /health
-should be set in Render so it uses HTTP GET instead of port-scan only.
+Using Python to read PORT avoids shell $PORT expansion issues. Health check path /healthz
+(or /health) should be set in Render so it uses HTTP GET instead of port-scan only.
 
 Render stability: one worker, few gthread threads — cold /provider renders are CPU-bound
 (pandas CSV scans). Extra threads increase concurrent cold work and OOM risk (status 137).

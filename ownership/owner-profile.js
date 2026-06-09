@@ -295,12 +295,11 @@
   var sortDir = 'asc';
   var colIndex = {
     legal: 0,
-    state: 1,
-    county: 2,
-    role: 3,
-    hprd: 4,
-    stars: 5,
-    census: 6,
+    county: 1,
+    role: 2,
+    hprd: 3,
+    stars: 4,
+    census: 5,
   };
 
   function visibleRows() {

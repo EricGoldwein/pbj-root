@@ -70,6 +70,21 @@ def test_rn_direct_only_not_flagged_when_total_rn_healthy():
     assert all(v is not None for v in out['chart_direct'])
 
 
+def test_rn_stable_low_home_not_flagged_at_09():
+    """Chronically ~0.09 RN HPRD is extreme but not a quarterly data break."""
+    flagged, reason = is_staffing_hprd_anomaly(
+        0.09, 0.088, 0.091, profile='rn', typical_level=0.09
+    )
+    assert flagged is False
+    assert reason is None
+
+
+def test_rn_abs_floor_still_catches_clear_break():
+    flagged, reason = is_staffing_hprd_anomaly(0.07, 0.42, 0.44, profile='rn', typical_level=0.40)
+    assert flagged is True
+    assert 'below 0.08' in reason
+
+
 def test_lpn_neighbor_rule_skipped_for_low_lpn_homes():
     # Typical LPN ~0.08 HPRD: neighbor dip should not trigger neighbor rule.
     assert is_staffing_hprd_anomaly(

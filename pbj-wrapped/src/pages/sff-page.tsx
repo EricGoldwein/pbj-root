@@ -122,6 +122,26 @@ export default function SFFPage() {
     return regionNames[regionNum] || `Region ${regionNum}`;
   };
 
+  const CMS_SFF_SOURCE_FALLBACK =
+    'https://www.cms.gov/Medicare/Provider-Enrollment-and-Certification/SurveyCertificationGenInfo/Policy-and-Memos-to-States-and-Regions-Items/CMS1215978';
+
+  const sffSourceHref = (url?: string) => {
+    if (!url) return CMS_SFF_SOURCE_FALLBACK;
+    if (url.startsWith('/')) {
+      const base =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : 'https://www.pbj320.com';
+      return `${base}${url}`;
+    }
+    return url;
+  };
+
+  const sffSourceLinkLabel = (url?: string) =>
+    url && (url.startsWith('/downloads/sff/') || url.includes('/downloads/sff/'))
+      ? 'PBJ320 SFF posting (PDF)'
+      : 'CMS SFF Posting';
+
   // Update SEO/OG tags based on page scope
   // Fetch dynamic source dates (PBJ quarter, SFF posting) from main site API
   useEffect(() => {
@@ -147,7 +167,8 @@ export default function SFFPage() {
     const qLabel = sourceDates?.pbjQuarter ?? 'latest quarter';
     
     let title = 'Special Focus Facilities Program | PBJ320';
-    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${sourceDates?.sffPosting ?? 'latest posting'}; CMS PBJ (${qLabel}).`;
+    const sffSourceLabel = sffSourceLinkLabel(sourceDates?.sffSourceUrl);
+    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: ${sffSourceLabel} ${sourceDates?.sffPosting ?? 'latest posting'}; CMS PBJ (${qLabel}).`;
     
     if (scope === 'usa') {
       title = 'Special Focus Facilities Program — United States | PBJ320';
@@ -1098,7 +1119,16 @@ export default function SFFPage() {
             )}
           </div>
             <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
-              Source: CMS SFF Posting ({sourceDates?.sffPosting ?? 'latest posting'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
+              Source:{' '}
+              <a
+                href={sffSourceHref(sourceDates?.sffSourceUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 underline"
+              >
+                {sffSourceLinkLabel(sourceDates?.sffSourceUrl)}
+              </a>{' '}
+              ({sourceDates?.sffPosting ?? 'latest posting'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
           </div>
         </div>
@@ -1422,7 +1452,7 @@ export default function SFFPage() {
         <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
           <div className="text-left text-xs text-gray-200 mb-4">
             <p className="mb-1">
-              Source: <a href={sourceDates?.sffSourceUrl ?? 'https://www.cms.gov/Medicare/Provider-Enrollment-and-Certification/SurveyCertificationGenInfo/Policy-and-Memos-to-States-and-Regions-Items/CMS1215978'} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">CMS SFF Posting</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
+              Source: <a href={sffSourceHref(sourceDates?.sffSourceUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">{sffSourceLinkLabel(sourceDates?.sffSourceUrl)}</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
             {candidateJSON && (
               <p className="text-gray-200">

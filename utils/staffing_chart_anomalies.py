@@ -30,13 +30,13 @@ _ROLE_PROFILES: dict[str, dict[str, float | None]] = {
 
     'rn': {
 
-        'abs': 0.10,
+        'abs': 0.08,
 
         'neighbor_frac': 0.05,
 
         'neighbor_cap': 0.25,
 
-        'typical_floor': None,
+        'typical_floor': 0.12,
 
     },
 

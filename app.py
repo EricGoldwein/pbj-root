@@ -641,11 +641,15 @@ def _entity_portfolio_ai_line(entity_id) -> str:
 
 @app.route('/api/state/<state_code>/chart-data')
 def api_state_chart_data(state_code):
-    """Return state historical chart data as JSON (avoids embedding JSON in HTML and script syntax errors)."""
-    if not state_code or len(state_code) != 2:
+    """Return state or national historical chart data as JSON (avoids embedding JSON in HTML)."""
+    if not state_code:
         return jsonify({'error': 'invalid state code'}), 400
-    code = state_code.upper()
-    d = get_state_historical_data(code)
+    if is_usa_page_slug(state_code):
+        d = get_national_historical_chart_data()
+    elif len(state_code) == 2:
+        d = get_state_historical_data(state_code.upper())
+    else:
+        return jsonify({'error': 'invalid state code'}), 400
     if not d or not d.get('raw_quarters'):
         return jsonify({'error': 'no data'}), 404
     return jsonify(d)
@@ -2524,6 +2528,31 @@ def download_ny_verification_workbook_public_alias():
 @app.route('/public/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip')
 def download_ny_verification_csv_zip_public_alias():
     return redirect('/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip', code=301)
+
+
+@app.route('/downloads/sff/<path:filename>')
+def download_sff_posting_pdf(filename):
+    """Serve hosted CMS SFF candidate-list PDFs from pbj-wrapped/public (PBJ320 copy)."""
+    safe = os.path.basename(str(filename or '').replace('\\', '/'))
+    if (
+        not safe.startswith('sff-posting-with-candidate-list')
+        or not safe.endswith('.pdf')
+        or '..' in safe
+    ):
+        from flask import abort
+        abort(404)
+    for base in (
+        os.path.join(APP_ROOT, 'pbj-wrapped', 'public'),
+        os.path.join('pbj-wrapped', 'public'),
+    ):
+        file_path = os.path.join(base, safe)
+        if os.path.isfile(file_path):
+            response = send_file(file_path, mimetype='application/pdf', download_name=safe)
+            response.headers['Cache-Control'] = 'public, max-age=86400'
+            response.headers['X-Content-Type-Options'] = 'nosniff'
+            return response
+    from flask import abort
+    abort(404)
 
 
 # ---------------------------------------------------------------------------
@@ -6137,11 +6166,14 @@ def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_descri
     return '\n'.join([_json_ld_script(web_page), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
-def _owners_state_index_html(state_code: str):
+def _owners_state_index_html(state_code: str, *, robots_meta: str | None = None):
+    from ownership.state_owner_index import state_owner_index_is_draft
     from ownership.state_owner_index_html import render_state_owner_index_body
 
     body, layout_meta = render_state_owner_index_body(state_code, get_canonical_slug=get_canonical_slug)
     canon = _public_site_origin() + layout_meta['canonical_path']
+    if robots_meta is None and state_owner_index_is_draft(state_code):
+        robots_meta = 'noindex, nofollow'
     extra = (
         _owners_state_index_json_ld(
             state_code,
@@ -6157,6 +6189,7 @@ def _owners_state_index_html(state_code: str):
         layout_meta['meta_description'],
         canon,
         extra_head=extra,
+        robots_meta=robots_meta,
     )
     hub_js_v = _static_asset_version('owners-hub.js')
     script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
@@ -6187,13 +6220,17 @@ def _owners_state_locked_html(state_name: str = ''):
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """CMS ownership profile autocomplete (CT/NY); optional ?state=ny|ct."""
+    """CMS ownership profile autocomplete (CT/NY; draft FL/NJ/ID); optional ?state=ny|ct|fl|nj|id."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import (
+        resolve_state_owner_index_slug,
+        search_state_owner_index,
+        state_owner_index_is_draft,
+    )
 
     state_arg = (request.args.get('state') or '').strip().lower()
-    state_code = resolve_public_owner_index_slug(state_arg) if state_arg else None
+    state_code = resolve_state_owner_index_slug(state_arg) if state_arg else None
     if state_arg and not state_code:
         return jsonify({'suggestions': []})
 
@@ -6201,7 +6238,19 @@ def owners_cms_search_api():
     pac = normalize_associate_id(q)
     if len(q) < 2 and len(pac) != 10:
         return jsonify({'suggestions': []})
-    limit = 12
+    limit = 40 if state_code else 12
+    if state_code and state_owner_index_is_draft(state_code):
+        rows = search_state_owner_index(q, state_code, limit=limit)
+        suggestions = [
+            {
+                'associate_id': str(row.get('associate_id') or ''),
+                'name': str(row.get('name') or ''),
+                'profile_url': str(row.get('profile_url') or ''),
+                'facility_count': int(row.get('facility_count') or 0),
+            }
+            for row in rows
+        ]
+        return jsonify({'suggestions': suggestions})
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
@@ -6219,17 +6268,24 @@ def owners_cms_index():
 
 @app.route('/owners/ny')
 @app.route('/owners/ct')
+@app.route('/owners/fl')
+@app.route('/owners/nj')
+@app.route('/owners/id')
 def owners_state_index_route():
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import resolve_state_owner_index_slug, state_owner_index_is_draft
 
     segment = (request.path or '').rstrip('/').split('/')[-1].lower()
-    state_code = resolve_public_owner_index_slug(segment)
+    state_code = resolve_state_owner_index_slug(segment)
     if not state_code:
         from flask import abort
         abort(404)
     resp = make_response(_owners_state_index_html(state_code))
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    resp.headers['Cache-Control'] = 'public, max-age=300'
+    if state_owner_index_is_draft(state_code):
+        resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
+        resp.headers['X-Robots-Tag'] = 'noindex, nofollow'
+    else:
+        resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
@@ -6241,10 +6297,10 @@ def owners_legacy_router(subpath):
         return cms_owner_profile_page(segment)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
-    from ownership.state_owner_index import resolve_public_owner_index_slug
+    from ownership.state_owner_index import resolve_state_owner_index_slug
 
-    pub_code = resolve_public_owner_index_slug(segment)
-    if pub_code and subpath.strip().lower() in ('ny', 'ct'):
+    index_code = resolve_state_owner_index_slug(segment)
+    if index_code:
         return owners_state_index_route()
     _canon, st_code = resolve_state_slug(segment)
     if st_code and st_code not in ('NY', 'CT'):
@@ -6368,6 +6424,10 @@ def _build_sitemap_xml() -> str:
     for state_code in sorted(STATE_CODE_TO_NAME.keys()):
         slug = get_canonical_slug(state_code)
         urls.append(f'  <url><loc>{base}/state/{slug}</loc><lastmod>{quarter_lastmod}</lastmod><changefreq>weekly</changefreq><priority>0.6</priority></url>')
+    urls.append(
+        f'  <url><loc>{base}/state/{USA_PAGE_SLUG}</loc><lastmod>{quarter_lastmod}</lastmod>'
+        f'<changefreq>weekly</changefreq><priority>0.65</priority></url>'
+    )
     try:
         from ownership.owner_indexability import (
             load_owner_indexability_cache,
@@ -6593,6 +6653,15 @@ STATE_CODE_TO_NAME = {v: k.title() for k, v in STATE_NAME_TO_CODE.items()}
 # States included in rankings (exclude Puerto Rico so rankings are 51: 50 states + DC)
 STATES_FOR_RANKING = set(STATE_CODE_TO_NAME.keys()) - {'PR'}
 
+USA_PAGE_SLUG = 'usa'
+USA_PAGE_NAME = 'United States'
+
+
+def is_usa_page_slug(identifier: str | None) -> bool:
+    """True for /state/usa and common aliases."""
+    key = (identifier or '').strip().lower()
+    return key in ('usa', 'us', 'national', 'united-states', 'united states')
+
 # Canonical slug mapping: state code -> canonical slug (lowercase, hyphenated)
 # Examples: TN -> /tn, NY -> /new-york
 def get_canonical_slug(state_code):
@@ -6776,6 +6845,81 @@ def format_quarter(quarter_str):
     if match:
         return f"Q{match.group(2)} {match.group(1)}"
     return str(quarter_str)
+
+
+def _prior_year_quarter_label(raw_quarter) -> str:
+    """Display label for the year-ago quarter, e.g. Q4 2024 from 2025Q4."""
+    qstr = str(raw_quarter or '')
+    if len(qstr) >= 6 and qstr[4:6] in ('Q1', 'Q2', 'Q3', 'Q4'):
+        return f'{qstr[4:6]} {int(qstr[:4]) - 1}'
+    return 'the same quarter last year'
+
+
+def _signed_hprd_delta_phrase(diff: float) -> str:
+    """Parenthetical signed HPRD change, e.g. (+0.03) or (−0.12)."""
+    ad = abs(float(diff))
+    sign = '+' if diff > 0 else '\u2212'
+    return f'({sign}{ad:.2f})'
+
+
+def _staffing_ratio_yoy_sentence(
+    yoy_diff, prior_hprd, raw_quarter, format_metric_value, subject: str,
+) -> str:
+    """Full YoY staffing-ratio sentence for takeaway prose (no leading space)."""
+    if yoy_diff is None or not subject:
+        return ''
+    try:
+        diff = float(yoy_diff)
+    except (TypeError, ValueError):
+        return ''
+    prior_label = _prior_year_quarter_label(raw_quarter)
+    ad = abs(diff)
+    if ad <= 0.01:
+        prior_fmt = (
+            format_metric_value(prior_hprd, 'Total_Nurse_HPRD', 'N/A')
+            if prior_hprd is not None
+            else 'N/A'
+        )
+        if prior_fmt and prior_fmt != 'N/A':
+            return f'{subject} remains in line with {prior_label} ({prior_fmt} HPRD).'
+        return f'{subject} is essentially unchanged from {prior_label}.'
+    direction = 'up' if diff > 0 else 'down'
+    delta_phrase = _signed_hprd_delta_phrase(diff)
+    if ad <= 0.05:
+        return f'{subject} is {direction} slightly {delta_phrase} since {prior_label}.'
+    return f'{subject} is {direction} {delta_phrase} since {prior_label}.'
+
+
+def _hprd_yoy_narrative_clause(yoy_diff, prior_hprd, raw_quarter, format_metric_value) -> str:
+    """Deprecated wrapper — prefer _staffing_ratio_yoy_sentence with an explicit subject."""
+    sentence = _staffing_ratio_yoy_sentence(
+        yoy_diff, prior_hprd, raw_quarter, format_metric_value, 'HPRD',
+    )
+    return f' {sentence}' if sentence else ''
+
+
+def _national_facility_medians_for_quarter(raw_quarter):
+    """Median facility total nurse HPRD and census for a quarter (all U.S. facilities)."""
+    if not HAS_PANDAS or not raw_quarter:
+        return None, None
+    try:
+        fq = load_csv_data('facility_quarterly_metrics.csv')
+        if fq is None or not isinstance(fq, pd.DataFrame) or fq.empty:
+            return None, None
+        sub = fq[fq['CY_Qtr'].astype(str) == str(raw_quarter)]
+        if sub.empty:
+            return None, None
+        hprd = pd.to_numeric(sub.get('Total_Nurse_HPRD'), errors='coerce').dropna()
+        hprd = hprd[hprd > 0]
+        census = pd.to_numeric(sub.get('avg_daily_census'), errors='coerce').dropna()
+        census = census[census > 0]
+        if hprd.empty:
+            return None, None
+        med_hprd = float(hprd.median())
+        med_census = int(round(float(census.median()))) if not census.empty else None
+        return med_hprd, med_census
+    except Exception:
+        return None, None
 
 
 def _quarter_display_to_cy_qtr(quarter_display):
@@ -12834,7 +12978,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     }
     function roleDatasets(role) {
       if (role === 'rn') return rolePack(sr.rn, 'Total RN', 'RN (excl. Admin/DON)');
-      if (role === 'lpn') return rolePack(sr.lpn, 'Total LPN', 'LPN (direct care)');
+      if (role === 'lpn') return rolePack(sr.lpn, 'Total LPN', 'LPN (excl. Admin)');
       if (role === 'aide') return rolePack(sr.aide, aideChartLegendLabel(), '');
       return null;
     }
@@ -12852,10 +12996,22 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
         if (ds._anomalyFlags) {
           out._anomalyFlags = ds._anomalyFlags;
           out.pointRadius = ds._anomalyFlags.map(function(flag) { return flag ? 5 : 0; });
-          out.pointHoverRadius = ds._anomalyFlags.map(function(flag) { return flag ? 6 : 0; });
-          out.pointBackgroundColor = ds._anomalyFlags.map(function(flag) { return flag ? 'rgba(251, 191, 36, 0.9)' : 'transparent'; });
-          out.pointBorderColor = ds._anomalyFlags.map(function(flag) { return flag ? 'rgba(251, 191, 36, 0.95)' : 'transparent'; });
+          out.pointHoverRadius = ds._anomalyFlags.map(function(flag) { return flag ? 7 : 5; });
+          out.pointHitRadius = 12;
+          out.pointBackgroundColor = ds._anomalyFlags.map(function(flag, i) {
+            return flag ? 'rgba(251, 191, 36, 0.9)' : (ds.borderColor || '#2dd4bf');
+          });
+          out.pointBorderColor = ds._anomalyFlags.map(function(flag, i) {
+            return flag ? 'rgba(251, 191, 36, 0.95)' : (ds.borderColor || '#2dd4bf');
+          });
           out.pointStyle = ds._anomalyFlags.map(function(flag) { return flag ? 'rectRot' : 'circle'; });
+        } else {
+          out.pointRadius = 0;
+          out.pointHoverRadius = 5;
+          out.pointHitRadius = 12;
+          out.pointBackgroundColor = ds.borderColor || '#2dd4bf';
+          out.pointBorderColor = ds.borderColor || '#2dd4bf';
+          out.pointBorderWidth = 2;
         }
         return out;
       });
@@ -15876,10 +16032,10 @@ def get_sff_posting_display() -> str:
 
 
 def get_sff_source_url() -> str:
-    """Return link to latest local SFF PDF when available; fallback to CMS SFF program page."""
+    """Return link to latest hosted PBJ320 SFF PDF when available; fallback to CMS SFF program page."""
     latest_name = _find_latest_sff_pdf_filename()
     if latest_name:
-        return f"/{latest_name}"
+        return f"/downloads/sff/{latest_name}"
     from site_public_config import CMS_SFF_PROGRAM_URL
     return CMS_SFF_PROGRAM_URL
 
@@ -15908,6 +16064,83 @@ def load_sff_facilities():
                 continue
     return []
 
+def _build_quarterly_chart_payload(rows, cols):
+    """Build chart JSON payload from state or national quarterly metric rows."""
+    raw_quarters = []
+    total_data = []
+    direct_data = []
+    rn_data = []
+    rn_care_data = []
+    lpn_data = []
+    lpn_care_data = []
+    aide_data = []
+    census_data = []
+    beds_data = []
+    contract_data = []
+    for _, row in rows.iterrows():
+        q_str = str(row['CY_Qtr'])
+        raw_quarters.append(q_str)
+        total_data.append(round_half_up(float(row['Total_Nurse_HPRD']), 2) if pd.notna(row.get('Total_Nurse_HPRD')) else None)
+        direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 2) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
+        rn_data.append(round_half_up(float(row['RN_HPRD']), 2) if pd.notna(row.get('RN_HPRD')) else None)
+        rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 2) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
+        lpn_data.append(round_half_up(float(row['LPN_HPRD']), 2) if 'LPN_HPRD' in cols and pd.notna(row.get('LPN_HPRD')) else None)
+        lpn_care_data.append(round_half_up(float(row['LPN_Care_HPRD']), 2) if 'LPN_Care_HPRD' in cols and pd.notna(row.get('LPN_Care_HPRD')) else None)
+        aide_data.append(
+            round_half_up(float(row['Nurse_Assistant_HPRD']), 2)
+            if 'Nurse_Assistant_HPRD' in cols and pd.notna(row.get('Nurse_Assistant_HPRD'))
+            else None
+        )
+        resident_census = None
+        if 'resident_census' in cols and pd.notna(row.get('resident_census')):
+            resident_census = round_half_up(float(row['resident_census']), 0)
+        if resident_census is None and 'total_resident_days' in cols and pd.notna(row.get('total_resident_days')):
+            trd = float(row['total_resident_days'])
+            if trd >= 0:
+                resident_census = round_half_up(trd / 90, 0)
+        if resident_census is None and 'facility_count' in cols and pd.notna(row.get('facility_count')):
+            census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
+            if census_col in cols and pd.notna(row.get(census_col)):
+                resident_census = round_half_up(float(row['facility_count']) * float(row[census_col]), 0)
+        if resident_census is None:
+            census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
+            resident_census = round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None
+        census_data.append(int(resident_census) if resident_census is not None and (pd.notna(resident_census) if hasattr(pd, 'notna') else resident_census == resident_census) and resident_census >= 0 else None)
+        if 'MDScensus' in cols and pd.notna(row.get('MDScensus')):
+            beds_data.append(int(round_half_up(float(row['MDScensus']), 0) or 0))
+        else:
+            beds_data.append(None)
+        contract_data.append(round_half_up(float(row['Contract_Percentage']), 2) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else None)
+    return {
+        'raw_quarters': raw_quarters,
+        'total': total_data,
+        'direct': direct_data,
+        'rn': rn_data,
+        'rn_care': rn_care_data,
+        'lpn': lpn_data,
+        'lpn_care': lpn_care_data,
+        'aide': aide_data,
+        'census': census_data,
+        'beds': beds_data if any(v is not None for v in beds_data) else None,
+        'contract': contract_data,
+    }
+
+
+def get_national_historical_chart_data():
+    """National (USA) quarterly chart payload — same shape as get_state_historical_data()."""
+    if not HAS_PANDAS:
+        return None
+    try:
+        national_df = load_csv_data('national_quarterly_metrics.csv')
+        if national_df is None or national_df.empty:
+            return None
+        national_rows = national_df.sort_values('CY_Qtr')
+        return _build_quarterly_chart_payload(national_rows, national_rows.columns)
+    except Exception as e:
+        print(f'Error loading national historical chart data: {e}')
+        return None
+
+
 def get_state_historical_data(state_code):
     """Get historical quarterly data for a state (for longitudinal charts).
 
@@ -15923,67 +16156,6 @@ def get_state_historical_data(state_code):
     if not code:
         return None
 
-    def build_result(state_rows, cols):
-        raw_quarters = []
-        total_data = []
-        direct_data = []
-        rn_data = []
-        rn_care_data = []
-        lpn_data = []
-        lpn_care_data = []
-        aide_data = []
-        census_data = []
-        beds_data = []
-        contract_data = []
-        for _, row in state_rows.iterrows():
-            q_str = str(row['CY_Qtr'])
-            raw_quarters.append(q_str)
-            total_data.append(round_half_up(float(row['Total_Nurse_HPRD']), 2) if pd.notna(row.get('Total_Nurse_HPRD')) else None)
-            direct_data.append(round_half_up(float(row['Nurse_Care_HPRD']), 2) if 'Nurse_Care_HPRD' in cols and pd.notna(row.get('Nurse_Care_HPRD')) else None)
-            rn_data.append(round_half_up(float(row['RN_HPRD']), 2) if pd.notna(row.get('RN_HPRD')) else None)
-            rn_care_data.append(round_half_up(float(row['RN_Care_HPRD']), 2) if 'RN_Care_HPRD' in cols and pd.notna(row.get('RN_Care_HPRD')) else None)
-            lpn_data.append(round_half_up(float(row['LPN_HPRD']), 2) if 'LPN_HPRD' in cols and pd.notna(row.get('LPN_HPRD')) else None)
-            lpn_care_data.append(round_half_up(float(row['LPN_Care_HPRD']), 2) if 'LPN_Care_HPRD' in cols and pd.notna(row.get('LPN_Care_HPRD')) else None)
-            aide_data.append(
-                round_half_up(float(row['Nurse_Assistant_HPRD']), 2)
-                if 'Nurse_Assistant_HPRD' in cols and pd.notna(row.get('Nurse_Assistant_HPRD'))
-                else None
-            )
-            # State resident census: resident_census (fallback sum), total_resident_days/90, or facility_count * avg_daily_census
-            resident_census = None
-            if 'resident_census' in cols and pd.notna(row.get('resident_census')):
-                resident_census = round_half_up(float(row['resident_census']), 0)
-            if resident_census is None and 'total_resident_days' in cols and pd.notna(row.get('total_resident_days')):
-                trd = float(row['total_resident_days'])
-                if trd >= 0:
-                    resident_census = round_half_up(trd / 90, 0)
-            if resident_census is None and 'facility_count' in cols and pd.notna(row.get('facility_count')):
-                census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
-                if census_col in cols and pd.notna(row.get(census_col)):
-                    resident_census = round_half_up(float(row['facility_count']) * float(row[census_col]), 0)
-            if resident_census is None:
-                census_col = 'avg_daily_census' if 'avg_daily_census' in cols else 'Avg_Daily_Census'
-                resident_census = round_half_up(float(row[census_col]), 1) if census_col in cols and pd.notna(row.get(census_col)) else None
-            census_data.append(int(resident_census) if resident_census is not None and (pd.notna(resident_census) if hasattr(pd, 'notna') else resident_census == resident_census) and resident_census >= 0 else None)
-            if 'MDScensus' in cols and pd.notna(row.get('MDScensus')):
-                beds_data.append(int(round_half_up(float(row['MDScensus']), 0) or 0))
-            else:
-                beds_data.append(None)
-            contract_data.append(round_half_up(float(row['Contract_Percentage']), 2) if 'Contract_Percentage' in cols and pd.notna(row.get('Contract_Percentage')) else None)
-        return {
-            'raw_quarters': raw_quarters,
-            'total': total_data,
-            'direct': direct_data,
-            'rn': rn_data,
-            'rn_care': rn_care_data,
-            'lpn': lpn_data,
-            'lpn_care': lpn_care_data,
-            'aide': aide_data,
-            'census': census_data,
-            'beds': beds_data if any(v is not None for v in beds_data) else None,
-            'contract': contract_data,
-        }
-
     try:
         state_df = load_csv_data('state_quarterly_metrics.csv')
         if state_df is not None and not state_df.empty:
@@ -15991,7 +16163,7 @@ def get_state_historical_data(state_code):
             state_df['STATE'] = state_df['STATE'].astype(str).str.strip().str.upper()
             state_rows = state_df[state_df['STATE'] == code].sort_values('CY_Qtr')
             if not state_rows.empty:
-                return build_result(state_rows, state_rows.columns)
+                return _build_quarterly_chart_payload(state_rows, state_rows.columns)
     except Exception as e:
         print(f"Error loading state_quarterly for {state_code}: {e}")
 
@@ -16028,7 +16200,7 @@ def get_state_historical_data(state_code):
             agg = agg.merge(beds_sums.rename('MDScensus'), left_on='CY_Qtr', right_index=True, how='left')
             agg['MDScensus'] = agg['MDScensus'].round(0)
         state_rows = agg.sort_values('CY_Qtr')
-        return build_result(state_rows, state_rows.columns)
+        return _build_quarterly_chart_payload(state_rows, state_rows.columns)
     except Exception as e:
         print(f"Error loading historical data (facility fallback) for {state_code}: {e}")
         return None
@@ -16304,13 +16476,16 @@ def generate_us_chart_html():
     """
     return chart_html
 
-def generate_state_chart_html(state_name, state_code):
-    """Generate Chart.js state staffing charts (Total+Direct, RN, Census, Contract). Data loaded via API to avoid JSON-in-HTML syntax errors."""
-    state_esc = html.escape(str(state_name)) if state_name else ''
-    state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
+def generate_state_chart_html(state_name, state_code, *, national_page: bool = False):
+    """Generate Chart.js staffing charts (Total+Direct, RN, Census, Contract). Data loaded via API."""
+    state_esc = '' if national_page else (html.escape(str(state_name)) if state_name else '')
+    if national_page:
+        state_code_esc = html.escape(USA_PAGE_SLUG, quote=True)
+    else:
+        state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
     state_sub = f'<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 0.75rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);">{state_esc}</p>' if state_esc else ''
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
-    macpac_info = get_macpac_chart_info(state_code) if state_code else None
+    macpac_info = None if national_page else (get_macpac_chart_info(state_code) if state_code else None)
     if macpac_info is not None and macpac_info.get('line_value') is not None and macpac_info['line_value'] >= 1.5:
         min_display = macpac_info.get('min_display_str') or f'~{macpac_info["line_value"]:.2f}'
         state_min_phrase = f' State min. ({min_display} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC</a>.'
@@ -16381,7 +16556,7 @@ def generate_state_chart_html(state_name, state_code):
 ''' + chart_block('Resident Census', 'stateChartCensus') + '''
 ''' + chart_block('Contract Staff %', 'stateChartContract') + '''
 </div>
-<script src="/state-page-charts.js?v=2"></script>
+<script src="/state-page-charts.js?v=6"></script>
 '''
 
 
@@ -16980,6 +17155,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         pass
     national_hprd = get_national_hprd_for_quarter(raw_quarter)
     yoy_diff = None
+    prior_hprd = None
     if cur_hprd is not None and raw_quarter:
         try:
             qstr = str(raw_quarter)
@@ -16991,7 +17167,8 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                     if not prior_row.empty:
                         pv = prior_row.iloc[0].get('Total_Nurse_HPRD')
                         if pv is not None and not (isinstance(pv, float) and pd.isna(pv)):
-                            yoy_diff = cur_hprd - float(pv)
+                            prior_hprd = float(pv)
+                            yoy_diff = cur_hprd - prior_hprd
         except Exception:
             pass
     state_na_hprd = None
@@ -17005,12 +17182,16 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     avg_facility_census = int(_afc) if _afc is not None else None
     state_narrative = ''
     if cur_hprd is not None:
-        parts = [f"<strong>{html.escape(state_name)}</strong> reported <strong>{total_hprd_val} HPRD</strong> in {quarter}."]
-        if yoy_diff is not None and yoy_diff != 0:
-            qstr = str(raw_quarter)
-            prior_yr = int(qstr[:4]) - 1 if len(qstr) >= 4 else None
-            prior_label = f"{qstr[4:6]} {prior_yr}" if len(qstr) >= 6 and prior_yr is not None else "same quarter last year"
-            parts.append(f" HPRD is {'up' if yoy_diff > 0 else 'down'} {abs(yoy_diff):.2f} since {prior_label}.")
+        state_ratio_subject = f"{state_name}'s statewide staffing ratio"
+        parts = [
+            f"<strong>{html.escape(state_name)}'s</strong> statewide staffing ratio is "
+            f"<strong>{total_hprd_val} HPRD</strong> in {quarter}."
+        ]
+        yoy_sentence = _staffing_ratio_yoy_sentence(
+            yoy_diff, prior_hprd, raw_quarter, format_metric_value, state_ratio_subject,
+        )
+        if yoy_sentence:
+            parts.append(f' {html.escape(yoy_sentence)}')
         if national_hprd is not None:
             if cur_hprd < national_hprd * 0.97:
                 parts.append(f" This level is below the national ratio of {format_metric_value(national_hprd, 'Total_Nurse_HPRD', 'N/A')} HPRD")
@@ -17041,16 +17222,17 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             if rank_total_nurse and total_states
             else ''
         )
+        _state_possessive = f"{html.escape(state_name)}'s"
         state_narrative = (
             f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
-            f'In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of '
-            f'<strong>{total_hprd_val} HPRD</strong> of total nurse staffing.'
+            f'In {quarter}, <strong>{_state_possessive}</strong> statewide staffing ratio is '
+            f'<strong>{total_hprd_val} HPRD</strong>.'
             f'{_rank_alt}.</p>'
             if _rank_alt
             else
             f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
-            f'In {quarter}, <strong>{html.escape(state_name)}</strong> nursing homes reported an average of '
-            f'<strong>{total_hprd_val} HPRD</strong> of total nurse staffing.</p>'
+            f'In {quarter}, <strong>{_state_possessive}</strong> statewide staffing ratio is '
+            f'<strong>{total_hprd_val} HPRD</strong>.</p>'
         )
     _state_hprd_body = build_hprd_floor_analogy_body(
         cur_hprd, state_na_hprd, state_name, census=avg_facility_census, context='state'
@@ -17222,6 +17404,260 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     
     # Return content and metadata so caller can render state page with its own layout (separate from PBJpedia)
     return (content, page_title, seo_description, canonical_url)
+
+
+def generate_usa_page_html(national_data, quarter, raw_quarter=None):
+    """USA national staffing page — same chart/table patterns as state pages without state-specific chrome."""
+    try:
+        from pbj_format import format_metric_value, na_display, NA_HINT_DEFAULT
+    except ImportError:
+        format_metric_value = lambda v, k, d='N/A': f"{round_half_up(float(v), 2):.2f}" if v is not None else d  # type: ignore[misc]
+        na_display = lambda title=None, text='N/A': text  # type: ignore[misc]
+        NA_HINT_DEFAULT = ''
+
+    def metric_cell(value, metric_key, na_tip=None):
+        s = format_metric_value(value, metric_key, 'N/A')
+        return na_display(na_tip or NA_HINT_DEFAULT) if s == 'N/A' else s
+
+    def get_val(key, default='N/A'):
+        try:
+            if isinstance(national_data, dict):
+                return national_data.get(key, default)
+            return national_data.get(key, default) if hasattr(national_data, 'get') else getattr(national_data, key, default)
+        except Exception:
+            return default
+
+    try:
+        facility_count = int(float(get_val('facility_count', 0) or 0))
+        facility_count_display = f'{facility_count:,}' if facility_count > 0 else '—'
+    except (TypeError, ValueError):
+        facility_count = None
+        facility_count_display = '—'
+
+    try:
+        avg_daily_census_float = float(get_val('avg_daily_census', 0) or 0)
+    except (TypeError, ValueError):
+        avg_daily_census_float = 0
+
+    try:
+        trd = float(get_val('total_resident_days', 0) or 0)
+    except (TypeError, ValueError):
+        trd = 0
+
+    if trd > 0:
+        _tr = round_half_up(trd / 90, 0)
+        total_residents = int(_tr) if _tr is not None else 0
+    elif facility_count and avg_daily_census_float > 0:
+        _tr = round_half_up(facility_count * avg_daily_census_float, 0)
+        total_residents = int(_tr) if _tr is not None else 0
+    else:
+        total_residents = 0
+    total_residents_display = f'{total_residents:,}' if total_residents > 0 else 'N/A'
+
+    total_hprd_val = format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')
+    rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
+    contract_val = format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')
+
+    cur_hprd = None
+    try:
+        v = get_val('Total_Nurse_HPRD')
+        if v != 'N/A':
+            cur_hprd = float(v)
+    except (TypeError, ValueError):
+        pass
+
+    yoy_diff = None
+    prior_hprd = None
+    if cur_hprd is not None and raw_quarter:
+        try:
+            qstr = str(raw_quarter)
+            if len(qstr) >= 6 and qstr[4:6] in ('Q1', 'Q2', 'Q3', 'Q4'):
+                prior_q = f'{int(qstr[:4]) - 1}{qstr[4:6]}'
+                national_df = load_csv_data('national_quarterly_metrics.csv')
+                if national_df is not None and not national_df.empty:
+                    prior_row = national_df[national_df['CY_Qtr'].astype(str) == prior_q]
+                    if not prior_row.empty:
+                        pv = prior_row.iloc[0].get('Total_Nurse_HPRD')
+                        if pv is not None and not (isinstance(pv, float) and pd.isna(pv)):
+                            prior_hprd = float(pv)
+                            yoy_diff = cur_hprd - prior_hprd
+        except Exception:
+            pass
+
+    direct_care_hprd_val = format_metric_value(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD', 'N/A')
+    med_hprd_raw, med_census = _national_facility_medians_for_quarter(raw_quarter)
+    med_hprd_val = (
+        format_metric_value(med_hprd_raw, 'Total_Nurse_HPRD', 'N/A')
+        if med_hprd_raw is not None
+        else 'N/A'
+    )
+    med_census_display = f'{med_census:,}' if med_census else 'N/A'
+
+    narrative_parts = [
+        f'The <strong>{html.escape(USA_PAGE_NAME)}</strong> nationwide staffing ratio is '
+        f'<strong>{total_hprd_val} HPRD</strong>, including '
+        f'<strong>{direct_care_hprd_val} Direct Care HPRD</strong> and '
+        f'<strong>{rn_hprd_val} RN HPRD</strong>.',
+    ]
+    if med_hprd_val != 'N/A' and med_census_display != 'N/A':
+        narrative_parts.append(
+            f' The typical (median) U.S. nursing home provides '
+            f'<strong>{med_hprd_val} total nurse HPRD</strong> for '
+            f'<strong>{med_census_display} residents</strong>.'
+        )
+    usa_ratio_subject = 'The nationwide staffing ratio'
+    yoy_sentence = _staffing_ratio_yoy_sentence(
+        yoy_diff, prior_hprd, raw_quarter, format_metric_value, usa_ratio_subject,
+    )
+    if yoy_sentence:
+        narrative_parts.append(f' {html.escape(yoy_sentence)}')
+    usa_narrative = (
+        '<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; '
+        f'color: rgba(226,232,240,0.92);">{"".join(narrative_parts)}</p>'
+    )
+
+    _bs = 'padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; white-space: nowrap;'
+    badges_line = (
+        f'<span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
+        f'<span style="{_bs}">{total_hprd_val} HPRD</span>'
+        f'<span class="pbj-badge-mobile-hide" style="{_bs}">{rn_hprd_val} RN HPRD</span>'
+        f'<span class="pbj-badge-mobile-hide" style="{_bs}">{contract_val}% contract</span>'
+        f'</span>'
+    )
+
+    usa_na_hprd = None
+    try:
+        na = get_val('Nurse_Assistant_HPRD')
+        if na != 'N/A':
+            usa_na_hprd = float(na)
+    except (TypeError, ValueError):
+        pass
+    _afc = round_half_up(avg_daily_census_float, 0) if avg_daily_census_float > 0 else None
+    avg_facility_census = int(_afc) if _afc is not None else None
+    _usa_hprd_body = build_hprd_floor_analogy_body(
+        cur_hprd, usa_na_hprd, USA_PAGE_NAME, census=avg_facility_census, context='state'
+    )
+    usa_hprd_trigger, usa_hprd_modal = render_hprd_means_explainer(total_hprd_val, _usa_hprd_body, uid='usa')
+    usa_actions = render_takeaway_actions_row(usa_hprd_trigger, '', '')
+
+    chart_html = generate_state_chart_html('', '', national_page=True)
+    usa_page_url = f'{_public_site_origin()}/state/{USA_PAGE_SLUG}'
+    cta_section = render_custom_report_cta('state', usa_page_url, state_name=USA_PAGE_NAME, region='')
+
+    usa_takeaway_card = f'''
+<div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem; position: relative;">
+<div class="pbj-takeaway-top">
+{PBJ_TAKEAWAY_AVATAR_HTML}
+<div class="pbj-takeaway-top-main">
+<div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(USA_PAGE_NAME)}</span></div>
+<span class="pbj-takeaway-brand-pill">PBJ320</span>
+</div>
+</div>
+<p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>
+{usa_narrative}
+{usa_actions}
+{usa_hprd_modal}
+</div>'''
+
+    report_link = (
+        f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
+        f'<a href="/report">National staffing map &amp; state rankings</a></p>'
+    )
+
+    content = f"""
+    <h1 class="pbj-state-title"><span class="pbj-state-title-full">{USA_PAGE_NAME} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{USA_PAGE_NAME} PBJ Staffing</span></h1>
+    <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
+    {usa_takeaway_card}
+    {chart_html}
+    <details class="pbj-details pbj-state-staffing-table">
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> U.S. Staffing Stats</summary>
+    <div class="pbj-details-content">
+    <div class="pbj-table-wrap"><table style="max-width: 600px;">
+        <tr><th scope="col">Metric</th><th scope="col">Value</th></tr>
+        <tr><td>Total Nurse Staffing HPRD</td><td>{metric_cell(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')}</td></tr>
+        <tr><td title="Excludes admin, DON (Director of Nursing)">Direct Care Nurse HPRD</td><td>{metric_cell(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')}</td></tr>
+        <tr><td>RN HPRD</td><td>{metric_cell(get_val('RN_HPRD'), 'RN_HPRD')}</td></tr>
+        <tr><td title="Excludes admin, DON (Director of Nursing)">RN Direct Care HPRD</td><td>{metric_cell(get_val('RN_Care_HPRD'), 'RN_Care_HPRD')}</td></tr>
+        <tr><td>LPN HPRD</td><td>{metric_cell(get_val('LPN_HPRD'), 'LPN_HPRD')}</td></tr>
+        <tr><td title="Excludes LPN admin">LPN Direct Care HPRD</td><td>{metric_cell(get_val('LPN_Care_HPRD'), 'LPN_Care_HPRD')}</td></tr>
+        <tr><td>Nurse Aide HPRD</td><td>{metric_cell(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD')}</td></tr>
+        <tr><td>Contract Staff Percentage</td><td>{metric_cell(get_val('Contract_Percentage'), 'Contract_Percentage')}%</td></tr>
+        <tr><td>Number of Facilities</td><td>{facility_count_display}</td></tr>
+        <tr><td>Average Daily Census (per facility)</td><td>{metric_cell(get_val('avg_daily_census'), 'avg_daily_census')}</td></tr>
+    </table></div>
+    {report_link}
+    </div>
+    </details>
+    <div class="pbj-page-bottom-stack">
+    {render_methodology_block()}
+    {cta_section}
+    </div>
+    """
+
+    page_title = f'{USA_PAGE_NAME} PBJ Nursing Home Staffing'
+    seo_description = (
+        f'{USA_PAGE_NAME} PBJ nursing home staffing data: {total_hprd_val} HPRD in {quarter} '
+        f'across {facility_count_display} nursing homes and {total_residents_display} residents. '
+        'National nursing home staffing trends from CMS Payroll-Based Journal (PBJ) public data.'
+    )
+    canonical_url = usa_page_url
+    return content, page_title, seo_description, canonical_url
+
+
+def generate_usa_page():
+    """Generate /state/usa national staffing page."""
+    _log_mem('generate_usa_page_start')
+    if not HAS_PANDAS:
+        return 'Pandas not available. Dynamic pages require pandas.', 503
+
+    national_df = load_csv_data('national_quarterly_metrics.csv')
+    if national_df is None or national_df.empty:
+        return 'National data not available', 503
+
+    latest_quarter = get_canonical_latest_quarter()
+    if latest_quarter is not None and not national_df[national_df['CY_Qtr'] == latest_quarter].empty:
+        latest_data = national_df[national_df['CY_Qtr'] == latest_quarter].iloc[0]
+    else:
+        latest_quarter = get_latest_quarter(national_df)
+        latest_data = national_df[national_df['CY_Qtr'] == latest_quarter].iloc[0] if latest_quarter else national_df.iloc[-1]
+
+    formatted_quarter = format_quarter(latest_quarter)
+    content, page_title, seo_description, canonical_url = generate_usa_page_html(
+        latest_data, formatted_quarter, raw_quarter=latest_quarter
+    )
+    try:
+        from pbj_format import format_metric_value as _fmt_metric
+        total_hprd_display = _fmt_metric(latest_data.get('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
+    except Exception:
+        total_hprd_display = str(latest_data.get('Total_Nurse_HPRD') or '')
+
+    origin = _public_site_origin()
+    web_page = {
+        '@context': 'https://schema.org',
+        '@type': 'WebPage',
+        'name': page_title,
+        'url': canonical_url,
+        'description': seo_description,
+    }
+    if total_hprd_display and total_hprd_display != '—':
+        web_page['additionalProperty'] = [
+            {'@type': 'PropertyValue', 'name': 'National average total nurse HPRD', 'value': total_hprd_display}
+        ]
+    crumbs = [('Home', f'{origin}/'), (f'{USA_PAGE_NAME} PBJ Staffing', canonical_url)]
+    extra_head = _json_ld_script(web_page) + '\n' + _breadcrumb_list_json_ld(crumbs, page_url=canonical_url)
+
+    layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=extra_head)
+    html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
+    if HAS_CSRF and generate_csrf:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
+    else:
+        html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    _log_mem('generate_usa_page_end')
+    return html_content, 200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': _public_quarterly_html_cache_control(),
+    }
+
 
 def generate_region_page_html(region_num, region_data, states_in_region, state_data_list, quarter, rank=None, total_regions=None, sff_facilities=None, raw_quarter=None):
     """Generate HTML for CMS region page"""
@@ -18638,6 +19074,10 @@ def _provider_page_impl(ccn):
 
 def _state_page_impl(state_slug):
     _log_mem("route_state_before")
+    if is_usa_page_slug(state_slug):
+        out = generate_usa_page()
+        _log_mem("route_state_after")
+        return out
     canonical_slug, state_code = resolve_state_slug(state_slug)
     if not canonical_slug or not state_code:
         from flask import abort
@@ -18789,6 +19229,9 @@ def canonical_state_page(state_slug):
         from flask import abort
         abort(404)
     
+    if is_usa_page_slug(state_slug):
+        return redirect(f'/state/{USA_PAGE_SLUG}', code=302)
+
     canonical_slug, state_code = resolve_state_slug(state_slug)
     
     if not canonical_slug or not state_code:
@@ -20616,6 +21059,10 @@ def _path_should_send_noindex() -> bool:
         return False
     if path in ('/owners', '/owners/', '/owners/ny', '/owners/ct'):
         return False
+    from ownership.state_owner_index import DRAFT_OWNER_INDEX_SLUGS
+
+    if path.rstrip('/') in {f'/owners/{slug}' for slug in DRAFT_OWNER_INDEX_SLUGS}:
+        return True
     noindex_prefixes = (
         '/api/',
         '/premium/',

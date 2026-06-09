@@ -140,14 +140,67 @@ def _check_provider_combined() -> None:
     _log('ensure_deploy_csvs: OK provider_info_combined_latest.csv')
 
 
+STATE_LPN_COLUMNS = ('LPN_HPRD', 'LPN_Care_HPRD')
+NATIONAL_LPN_COLUMNS = STATE_LPN_COLUMNS
+REGION_LPN_COLUMNS = STATE_LPN_COLUMNS
+
 STATE_MEDIAN_COLUMNS = (
     'Total_Nurse_HPRD_Median',
     'RN_HPRD_Median',
     'Nurse_Care_HPRD_Median',
     'RN_Care_HPRD_Median',
+    'LPN_HPRD_Median',
+    'LPN_Care_HPRD_Median',
     'Nurse_Assistant_HPRD_Median',
     'Contract_Percentage_Median',
 )
+
+
+def _csv_missing_columns(path: str, required: tuple[str, ...]) -> list[str]:
+    try:
+        with open(path, newline='', encoding='utf-8') as f:
+            headers = csv.DictReader(f).fieldnames or []
+    except OSError as exc:
+        _log(f'ensure_deploy_csvs: WARN could not read {os.path.basename(path)} header: {exc}')
+        return list(required)
+    return [c for c in required if c not in headers]
+
+
+def _ensure_quarterly_lpn_columns() -> None:
+    """Add LPN_HPRD / LPN_Care_HPRD to state, national, and region quarterly CSVs when missing."""
+    if not os.path.isfile(os.path.join(APP_ROOT, FACILITY_CSV)):
+        _log('ensure_deploy_csvs: WARN facility CSV missing; skip quarterly LPN patch')
+        return
+    targets = (
+        ('state_quarterly_metrics.csv', STATE_LPN_COLUMNS),
+        ('national_quarterly_metrics.csv', NATIONAL_LPN_COLUMNS),
+        ('cms_region_quarterly_metrics.csv', REGION_LPN_COLUMNS),
+    )
+    need_patch = False
+    for rel, cols in targets:
+        path = os.path.join(APP_ROOT, rel)
+        if not os.path.isfile(path):
+            _log(f'ensure_deploy_csvs: WARN {rel} missing; skip LPN check for that file')
+            continue
+        missing = _csv_missing_columns(path, cols)
+        if missing:
+            need_patch = True
+            _log(f'ensure_deploy_csvs: {rel} missing LPN columns: {", ".join(missing)}')
+        else:
+            _log(f'ensure_deploy_csvs: OK {rel} has LPN columns')
+    if not need_patch:
+        return
+    patch_script = os.path.join(APP_ROOT, 'scripts', 'patch_state_quarterly_lpn.py')
+    if not os.path.isfile(patch_script):
+        _log('ensure_deploy_csvs: WARN missing patch_state_quarterly_lpn.py')
+        return
+    import subprocess
+
+    rc = subprocess.call([sys.executable, patch_script], cwd=APP_ROOT)
+    if rc != 0:
+        _log(f'ensure_deploy_csvs: WARN patch_state_quarterly_lpn.py exited {rc}')
+    else:
+        _log('ensure_deploy_csvs: OK quarterly LPN columns patched (state/national/region)')
 
 
 def _ensure_state_quarterly_median_columns() -> None:
@@ -219,6 +272,7 @@ def main() -> int:
             _log('ensure_deploy_csvs: ERROR ProviderInfoNorm failed parity validation')
             return 1
     _check_provider_combined()
+    _ensure_quarterly_lpn_columns()
     _ensure_state_quarterly_median_columns()
     scb_script = os.path.join(APP_ROOT, 'scripts', 'ensure_staffing_compliance_bundle.py')
     if os.path.isfile(scb_script):

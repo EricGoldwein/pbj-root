@@ -364,9 +364,13 @@ STATE_MEDIAN_COLUMNS = (
     "RN_HPRD_Median",
     "Nurse_Care_HPRD_Median",
     "RN_Care_HPRD_Median",
+    "LPN_HPRD_Median",
+    "LPN_Care_HPRD_Median",
     "Nurse_Assistant_HPRD_Median",
     "Contract_Percentage_Median",
 )
+
+STATE_LPN_COLUMNS = ("LPN_HPRD", "LPN_Care_HPRD")
 
 
 def _check_state_quarterly_median_columns(errors: List[str], notes: List[str]) -> None:
@@ -395,8 +399,31 @@ def _check_state_quarterly_median_columns(errors: List[str], notes: List[str]) -
         )
         return
     notes.append(
-        "state_quarterly_metrics.csv includes six *_Median columns (/report map median mode)."
+        "state_quarterly_metrics.csv includes *_Median columns (/report map median mode)."
     )
+
+
+def _check_state_quarterly_lpn_columns(errors: List[str], notes: List[str]) -> None:
+    path = REPO_ROOT / "state_quarterly_metrics.csv"
+    if not path.is_file():
+        return
+    try:
+        import pandas as pd  # pylint: disable=import-error
+
+        head = pd.read_csv(path, nrows=0)
+    except Exception as exc:
+        errors.append(f"could not read state_quarterly_metrics.csv header for LPN check: {exc}")
+        return
+    cols = set(head.columns)
+    missing = [c for c in STATE_LPN_COLUMNS if c not in cols]
+    if missing:
+        errors.append(
+            "state_quarterly_metrics.csv missing LPN columns: "
+            + ", ".join(missing)
+            + " — run: python scripts/patch_state_quarterly_lpn.py"
+        )
+        return
+    notes.append("state_quarterly_metrics.csv includes LPN_HPRD and LPN_Care_HPRD.")
 
 
 def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
@@ -438,6 +465,7 @@ def main() -> int:
         _check_owners_autocomplete_health(errors, notes)
         _check_required_deploy_data(errors, notes)
         _check_state_quarterly_median_columns(errors, notes)
+        _check_state_quarterly_lpn_columns(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
         _check_public_case_mix_export(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script

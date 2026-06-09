@@ -11,6 +11,14 @@ HTML = ROOT / "insights-ny-minimum-staffing.html"
 EXPECTED_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
+def _launch_chromium(playwright):
+    try:
+        return playwright.chromium.launch(headless=True)
+    except Exception as exc:
+        print(f"SKIP Playwright Chromium not installed: {exc}", file=sys.stderr)
+        return None
+
+
 def main() -> int:
     if not HTML.is_file():
         print(f"missing report HTML: {HTML}", file=sys.stderr)
@@ -25,7 +33,9 @@ def main() -> int:
     file_url = HTML.resolve().as_uri() + "#calendar"
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = _launch_chromium(p)
+        if browser is None:
+            return 0
         page = browser.new_page(viewport={"width": 1280, "height": 900})
         page.goto(file_url, wait_until="networkidle", timeout=120_000)
         page.wait_for_selector("#dowChart", timeout=30_000)
@@ -88,19 +98,20 @@ def main() -> int:
             print(f"FAIL y-axis tick range {pct_ticks!r}", file=sys.stderr)
             return 1
 
-    # Move HPRD slider and confirm bar count stays at seven.
+    # Move HPRD threshold via public API (slider lives in a hidden scenario panel).
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = _launch_chromium(p)
+        if browser is None:
+            return 0
         page = browser.new_page(viewport={"width": 1280, "height": 900})
         page.goto(file_url, wait_until="networkidle", timeout=120_000)
-        page.wait_for_selector("#hprd-slider", timeout=30_000)
+        page.wait_for_selector("#dowChart", timeout=30_000)
         page.evaluate(
             """() => {
-              const slider = document.getElementById('hprd-slider');
-              if (!slider) throw new Error('hprd-slider missing');
-              slider.value = '4.00';
-              slider.dispatchEvent(new Event('input', { bubbles: true }));
-              slider.dispatchEvent(new Event('change', { bubbles: true }));
+              if (!window.PBJ320Threshold || !window.PBJ320Threshold.applyThreshold) {
+                throw new Error('PBJ320Threshold.applyThreshold missing');
+              }
+              window.PBJ320Threshold.applyThreshold(4.0, { scope: 'global' });
             }"""
         )
         page.wait_for_timeout(800)
@@ -118,6 +129,49 @@ def main() -> int:
     if after["labels"] != EXPECTED_LABELS or len(after["data"]) != 7:
         print(
             f"FAIL after threshold update labels={after['labels']!r} data_len={len(after['data'])}",
+            file=sys.stderr,
+        )
+        return 1
+
+    # Metric-mode controls exist on the report; DOW chart must stay at seven bars.
+    with sync_playwright() as p:
+        browser = _launch_chromium(p)
+        if browser is None:
+            return 0
+        page = browser.new_page(viewport={"width": 1280, "height": 900})
+        page.goto(file_url, wait_until="networkidle", timeout=120_000)
+        page.wait_for_selector("#dowChart", timeout=30_000)
+        page.evaluate(
+            """() => {
+              window.PBJ_REPORT_METRIC_MODE = 'broad_pbj_total_hprd';
+              if (!window.PBJ320Threshold || !window.PBJ320Threshold.applyThreshold) {
+                throw new Error('PBJ320Threshold.applyThreshold missing');
+              }
+              window.PBJ320Threshold.applyThreshold(
+                window.PBJ320Threshold.currentThreshold,
+                { scope: 'global' }
+              );
+              if (window.PBJ320ScenarioControls && window.PBJ320ScenarioControls.updateChrome) {
+                window.PBJ320ScenarioControls.updateChrome();
+              }
+            }"""
+        )
+        page.wait_for_timeout(800)
+        after_mode = page.evaluate(
+            """() => {
+              const chart = window.PBJ320Threshold.chartStore.dowChart;
+              return {
+                labels: (chart.data.labels || []).slice(),
+                data: (chart.data.datasets[0].data || []).slice(),
+              };
+            }"""
+        )
+        browser.close()
+
+    if after_mode["labels"] != EXPECTED_LABELS or len(after_mode["data"]) != 7:
+        print(
+            f"FAIL after metric-mode update labels={after_mode['labels']!r} "
+            f"data_len={len(after_mode['data'])}",
             file=sys.stderr,
         )
         return 1

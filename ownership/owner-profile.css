@@ -462,26 +462,6 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.entity-portfolio-root .owner-portfolio-grid,
-.entity-portfolio-root .owner-portfolio-grid--3,
-.entity-portfolio-root .entity-portfolio-grid--3 {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-}
-
-@media (max-width: 639px) {
-  .entity-portfolio-root .owner-portfolio-grid,
-  .entity-portfolio-root .entity-portfolio-grid--3 {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  }
-}
-
-@media (max-width: 420px) {
-  .entity-portfolio-root .owner-portfolio-grid,
-  .entity-portfolio-root .entity-portfolio-grid--3 {
-    grid-template-columns: minmax(0, 1fr) !important;
-  }
-}
-
 .owner-portfolio-grid--4 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -951,8 +931,7 @@ a.owner-facility-primary:hover {
 }
 
 button.owner-role-pct-btn {
-  display: inline-block;
-  vertical-align: baseline;
+  display: inline;
   margin: 0;
   padding: 0;
   border: none;
@@ -961,9 +940,6 @@ button.owner-role-pct-btn {
   text-decoration: underline;
   text-decoration-color: rgba(129, 140, 248, 0.45);
   text-underline-offset: 0.14em;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 button.owner-role-pct-btn:hover {
@@ -1467,99 +1443,6 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
   font-size: 0.78rem;
 }
 
-.entity-high-risk-metrics {
-  margin: 1rem 0 1.25rem;
-}
-
-.entity-high-risk-metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
-  gap: 0.85rem;
-  margin-top: 0.75rem;
-}
-
-.entity-risk-metric-card {
-  background: var(--owner-card-bg, #1e293b);
-  border: 1px solid rgba(129, 140, 248, 0.22);
-  border-radius: 10px;
-  padding: 0.85rem 0.9rem;
-  min-height: 4.5rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-}
-
-.entity-risk-metric-card--warn {
-  border-top: 3px solid #f59e0b;
-}
-
-.entity-risk-metric-label {
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--owner-muted, #94a3b8);
-  line-height: 1.25;
-  margin-bottom: 0.35rem;
-}
-
-.entity-risk-metric-value-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  margin-top: auto;
-}
-
-.entity-risk-metric-value {
-  font-size: 1.35rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: #e2e8f0;
-  line-height: 1.1;
-}
-
-.entity-risk-metric-value-row .owner-info-btn {
-  flex-shrink: 0;
-}
-
-.owner-info-modal--sff .owner-info-modal-card {
-  max-width: min(26rem, 92vw);
-}
-
-.owner-info-modal-body--sff p {
-  margin: 0 0 0.65rem;
-  line-height: 1.5;
-  color: #cbd5e1;
-}
-
-.owner-info-modal-body--sff p:last-child {
-  margin-bottom: 0;
-}
-
-.owner-info-modal-body--sff .owner-info-cta {
-  margin-top: 0.65rem;
-  margin-bottom: 0;
-}
-
-.owner-info-modal-body--sff .owner-info-cta-link {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.45rem 0.75rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #e0e7ff;
-  background: rgba(99, 102, 241, 0.28);
-  border: 1px solid rgba(129, 140, 248, 0.45);
-  text-decoration: none;
-}
-
-.owner-info-modal-body--sff .owner-info-cta-link:hover {
-  color: #fff;
-  background: rgba(99, 102, 241, 0.42);
-}
-
 .owner-about-link {
   font: inherit;
   font-size: 0.88rem;
@@ -1941,9 +1824,9 @@ button.owner-flag:hover {
 }
 
 .owner-role-cell-inner {
-  white-space: nowrap;
-  overflow: hidden;
-  max-width: 5.5rem;
+  white-space: normal;
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 
 .owner-stars {
@@ -2403,8 +2286,12 @@ button.owner-flag:hover {
   .owner-facilities-table th.owner-col-role {
     width: 5.25rem;
     min-width: 5.25rem;
-    text-align: right;
+    text-align: center;
     white-space: nowrap;
+  }
+
+  .owner-facilities-table td.owner-role-cell {
+    text-align: center;
   }
 
   .owner-facilities-table .owner-col-flags {
@@ -2431,9 +2318,10 @@ button.owner-flag:hover {
   }
 
   .owner-role-pct-stack {
-    align-items: flex-end;
-    text-align: right;
+    align-items: center;
+    text-align: center;
     gap: 0.04rem;
+    width: 100%;
   }
 
   .owner-role-pct-btn,
@@ -2469,11 +2357,17 @@ button.owner-flag:hover {
     overflow-wrap: break-word;
   }
 
-  a.owner-facility-primary,
-  button.owner-role-pct-btn {
+  a.owner-facility-primary {
     min-height: 1.35rem;
     display: inline-flex;
     align-items: center;
+  }
+
+  button.owner-role-pct-btn {
+    display: inline;
+    min-height: 0;
+    vertical-align: baseline;
+    text-align: center;
   }
 }
 
@@ -3589,7 +3483,20 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   border: 0;
 }
 
-/* State ownership index (/owners/ny, /owners/ct) */
+/* State ownership index (/owners/ny, /owners/ct; draft /owners/fl|nj|id) */
+.owners-state-draft-banner {
+  position: relative;
+  z-index: 1;
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde68a;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 .owners-state-index {
   --owners-periwinkle: #a5b4fc;
   --owners-periwinkle-soft: rgba(129, 140, 248, 0.12);

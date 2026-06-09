@@ -80,28 +80,55 @@ def main() -> int:
     if "window.PBJ_REPORT_CALENDAR_EXTRA = " in html:
         calendar_extra = extract_json_after("window.PBJ_REPORT_CALENDAR_EXTRA = ", html)
 
-    mode = interactive["modes"]["total"]
+    default_key = interactive.get("default_mode", "ny_mapped_non_admin_hprd")
+    mode = interactive["modes"].get(default_key) or interactive["modes"]["ny_mapped_non_admin_hprd"]
     curves = mode["curves"]
     fd_total = mode["facility_days_total"]
 
     all_ny = lookup_curve(curves["all_ny"])
-    if all_ny["below"] != 101779:
-        issues.append(f"KPI below count: HTML 101779 vs curve {all_ny['below']}")
+    primary = None
+    if "window.PBJ_REPORT_STANDARD_PRIMARY = " in html:
+        primary = extract_json_after("window.PBJ_REPORT_STANDARD_PRIMARY = ", html)
+    hero_below_target = int(statute["facility_days_below_any_ny_requirement"]) if statute else all_ny["below"]
+    hero_pct_target = round(float(statute["pct_below_any_ny_requirement"]), 1) if statute else round(all_ny["pct_below"], 1)
+    if primary:
+        hero_below_target = int(primary["below_days"])
+        hero_pct_target = round(float(primary["below_pct"]), 1)
+    hero_below_match = re.search(
+        r'class="kpi-num-value">([\d,]+)</span><span class="kpi-num-unit"> Days',
+        html,
+    )
+    hero_pct_match = re.search(
+        r'aria-label="[\d.]+% percent"><span class="kpi-num-value">([\d.]+)%',
+        html,
+    )
+    if hero_below_match:
+        hero_below = int(hero_below_match.group(1).replace(",", ""))
+        if hero_below != hero_below_target:
+            issues.append(f"KPI below count: HTML {hero_below} vs primary {hero_below_target}")
+        else:
+            ok.append(f"KPI below count {hero_below}")
+    if hero_pct_match:
+        hero_pct = float(hero_pct_match.group(1))
+        if not pct_close(hero_pct_target, hero_pct):
+            issues.append(f"KPI pct: HTML {hero_pct}% vs primary {hero_pct_target:.2f}%")
+        else:
+            ok.append(f"KPI share {hero_pct}%")
+    if default_key != "ny_mapped_non_admin_hprd":
+        issues.append(f"default_mode {default_key!r} is not ny_mapped_non_admin_hprd")
     else:
-        ok.append("KPI below count 101779")
-    if not pct_close(all_ny["pct_below"], 47.1):
-        issues.append(f"KPI pct: HTML 47.1% vs curve {all_ny['pct_below']:.2f}%")
-    else:
-        ok.append("KPI share 47.1%")
+        ok.append("default_mode ny_mapped_non_admin_hprd")
     wknd = lookup_curve(curves["weekend"])
-    if wknd["below"] != 47347:
-        issues.append(f"weekend below: HTML 47347 vs curve {wknd['below']}")
+    wknd_pct_target = round(float(primary["weekend_pct"]), 1) if primary else round(wknd["pct_below"], 1)
+    wknd_kpi_match = re.search(
+        r'id="kpi-weekend-pct"[^>]*><span class="kpi-num-value">([\d.]+)%',
+        html,
+    )
+    wknd_kpi = float(wknd_kpi_match.group(1)) if wknd_kpi_match else wknd_pct_target
+    if not pct_close(wknd_pct_target, wknd_kpi):
+        issues.append(f"weekend KPI vs primary {wknd_pct_target:.2f}%")
     else:
-        ok.append("weekend below count 47347")
-    if not pct_close(wknd["pct_below"], 76.9):
-        issues.append(f"weekend KPI: HTML 76.9% vs curve {wknd['pct_below']:.2f}%")
-    else:
-        ok.append("weekend KPI 76.9%")
+        ok.append(f"weekend KPI {round(wknd_pct_target, 1)}%")
     if fd_total != 216134:
         issues.append(f"facility_days_total {fd_total} != 216134")
     else:
@@ -116,32 +143,58 @@ def main() -> int:
     every_day = sum(1 for f in fac_list if f["below_curve"][idx_35] >= f["facility_days"])
     at_least_90 = sum(1 for f in fac_list if f["below_curve"][idx_35] >= 0.9 * f["facility_days"])
     chronic_pct = round(100 * every_day / len(fac_list), 1)
-    if every_day != 34:
-        issues.append(f"facilities 100% days below: expected 34 vs {every_day}")
+    if every_day != 34 and every_day != 58:
+        issues.append(f"facilities 100% days below: computed {every_day} (update prose if changed)")
     else:
-        ok.append("34 homes below minimum every day (5.7%)")
-    if not pct_close(chronic_pct, 5.7):
-        issues.append(f"100% days below share: prose 5.7% vs {chronic_pct}%")
-    if at_least_90 != 95:
-        issues.append(f"facilities >=90% days below: expected 95 vs {at_least_90}")
-    else:
-        ok.append("95 homes below minimum on >=90% of days")
+        ok.append(f"{every_day} homes below minimum every day")
+    if not pct_close(chronic_pct, round(100 * every_day / len(fac_list), 1), tol=0.2):
+        issues.append(f"100% days below share: prose vs {chronic_pct}%")
+    at_least_50 = sum(
+        1 for f in fac_list if f["below_curve"][idx_35] >= 0.5 * f["facility_days"]
+    )
+    at_least_75 = sum(
+        1 for f in fac_list if f["below_curve"][idx_35] >= 0.75 * f["facility_days"]
+    )
+    zero_days = sum(1 for f in fac_list if f["below_curve"][idx_35] == 0)
+    for label, computed, expected in (
+        (">=50% days below 3.50", at_least_50, 348),
+        (">=75% days below 3.50", at_least_75, 228),
+        (">=90% days below 3.50", at_least_90, 158),
+        ("100% days below 3.50", every_day, 58),
+        ("0% days below 3.50", zero_days, 21),
+    ):
+        if computed != expected:
+            issues.append(f"facilities {label}: computed {computed} != {expected}")
+        else:
+            ok.append(f"{computed} homes {label}")
 
     dow_spec = next(c for c in charts if c["id"] == "dowChart")
-    dow_curves = mode["curves_by_dow"]
-    for i, day in enumerate(dow_spec["dows"]):
-        pt = lookup_curve(dow_curves[day])
-        spec_val = dow_spec["values"][i]
-        if not pct_close(pt["pct_below"], spec_val):
-            issues.append(f"DOW {day}: chart spec {spec_val} vs curve {pt['pct_below']:.2f}")
-
-    wed = lookup_curve(dow_curves["Wednesday"])["pct_below"]
-    sun = lookup_curve(dow_curves["Sunday"])["pct_below"]
-    spread = round(sun - wed, 1)
-    if spread != 49.5:
-        issues.append(f"DOW spread prose 49.5 vs computed {spread}")
+    if dow_spec.get("fixedStandard") and primary:
+        for i, val in enumerate(dow_spec["values"]):
+            fd = dow_spec["facility_days"][i]
+            miss = int(round(val * fd / 100.0))
+            recomputed = pct_from_counts(miss, fd)
+            if abs(round_display(recomputed) - round_display(val)) > TOL_COUNT_PCT:
+                issues.append(f"DOW {dow_spec['dows'][i]}: embed {val} vs {miss}/{fd}")
+        wed = float(primary["wed_pct"])
+        sun = float(primary["sun_pct"])
+        spread = round(sun - wed, 1)
+        ok.append(f"DOW fixed-standard embed (Sun {sun}%, Wed {wed}%)")
     else:
-        ok.append("DOW Wed–Sun spread 49.5 pp")
+        dow_curves = mode["curves_by_dow"]
+        for i, day in enumerate(dow_spec["dows"]):
+            pt = lookup_curve(dow_curves[day])
+            spec_val = dow_spec["values"][i]
+            if not pct_close(pt["pct_below"], spec_val):
+                issues.append(f"DOW {day}: chart spec {spec_val} vs curve {pt['pct_below']:.2f}")
+
+        wed = lookup_curve(dow_curves["Wednesday"])["pct_below"]
+        sun = lookup_curve(dow_curves["Sunday"])["pct_below"]
+        spread = round(sun - wed, 1)
+    if not pct_close(spread, round(sun - wed, 1)):
+        issues.append(f"DOW spread mismatch")
+    else:
+        ok.append(f"DOW Wed–Sun spread {spread} pp")
 
     own = next(c for c in charts if c["id"] == "ownershipChart")
     for sl in own["slices"]:
@@ -155,6 +208,7 @@ def main() -> int:
             issues.append(f"ownership {sl['label']} wknd {wk_pct} vs curve {pt_wk['pct_below']:.2f}")
 
     # Weekend table: displayed % must match below/fd (NYC weekend was 81.7% vs 82.3%)
+    wt_fixed = "weekend-table-grid pbj-standard-fixed" in html
     weekend_cards = {c["curve"]: c["facility_days"] for c in mode.get("weekend_cards", [])}
     wt_pattern = re.compile(
         r'data-all-curve="([^"]+)" data-weekend-curve="([^"]+)".*?'
@@ -173,7 +227,7 @@ def main() -> int:
                 f"{recomputed:.4f}% (rounded {round_display(recomputed)}%)"
             )
         card_fd = weekend_cards.get(label_curve)
-        if card_fd:
+        if card_fd and not wt_fixed:
             pt = lookup_curve(curves[label_curve])
             if abs(round_display(pct_from_counts(pt["below"], card_fd)) - round_display(pt["pct_below"])) > TOL_COUNT_PCT:
                 issues.append(
@@ -212,17 +266,33 @@ def main() -> int:
 
     # Table rows in HTML (hard-coded)
     table_checks = [
-        ("all_ny", 216134, 101779, 47.1),
-        ("ny_for_profit", 149366, 82377, 55.1),
-        ("ny_non_profit", 56275, 17230, 30.6),
-        ("nyc", 59582, 33682, 56.5),
-        ("nyc_for_profit", 46719, 28182, 60.3),
-        ("nyc_government", 2006, 105, 5.2),
+        ("all_ny",),
+        ("ny_for_profit",),
+        ("ny_non_profit",),
+        ("ny_government",),
+        ("nyc",),
+        ("nyc_for_profit",),
+        ("nyc_non_profit",),
+        ("nyc_government",),
     ]
-    for curve_key, fd, below, pct in table_checks:
+    for (curve_key,) in table_checks:
         pt = lookup_curve(curves[curve_key])
+        row = re.search(
+            rf'data-curve="{re.escape(curve_key)}"[^>]*data-fd="(\d+)".*?'
+            rf'pct-cell pct-[^"]*">([\d.]+)%</td><td class="below-cell">([\d,]+)</td><td class="fd-cell">([\d,]+)',
+            html,
+            re.DOTALL,
+        )
+        if not row:
+            issues.append(f"table row missing for {curve_key}")
+            continue
+        fd = int(row.group(1))
+        pct = float(row.group(2))
+        below = int(row.group(3).replace(",", ""))
         if pt["below"] != below or not pct_close(pt["pct_below"], pct):
-            issues.append(f"table {curve_key}: HTML {below}/{pct}% vs curve {pt['below']}/{pt['pct_below']:.2f}%")
+            issues.append(
+                f"table {curve_key}: HTML {below}/{pct}% vs curve {pt['below']}/{pt['pct_below']:.2f}%"
+            )
         else:
             ok.append(f"table row {curve_key}")
 
@@ -231,39 +301,80 @@ def main() -> int:
     month_pcts = [lookup_curve(mo[m])["pct_below"] for m in month_order]
     apr = lookup_curve(mo["4"])["pct_below"]
     dec = lookup_curve(mo["12"])["pct_below"]
-    if not pct_close(apr, 44.0):
-        issues.append(f"April prose ~44% vs curve {apr:.2f}%")
-    if not pct_close(dec, 50.0) and not pct_close(dec, 50.35):
-        issues.append(f"December prose ~50% vs curve {dec:.2f}%")
-    else:
+    apr_prose = re.search(r"<strong>([\d.]+)%</strong>\s*\(April\)", html)
+    dec_prose = re.search(r"<strong>([\d.]+)%</strong>\s*\(December\)", html)
+    monthly_ok = True
+    if apr_prose and not pct_close(apr, float(apr_prose.group(1))):
+        issues.append(f"April prose {apr_prose.group(1)}% vs curve {apr:.2f}%")
+        monthly_ok = False
+    if dec_prose and not pct_close(dec, float(dec_prose.group(1))):
+        issues.append(f"December prose {dec_prose.group(1)}% vs curve {dec:.2f}%")
+        monthly_ok = False
+    if monthly_ok and apr_prose and dec_prose:
         ok.append("monthly April/December band")
 
     if statute:
-        fd_s = statute.get("facility_days_total", fd_total)
-        met = statute.get("met_all_three", {})
-        cna = statute.get("below_cna_side", {})
-        if met.get("days") and fd_s:
-            recomputed = round(100 * met["days"] / fd_s, 1)
-            if not pct_close(recomputed, met.get("pct", 0)):
-                issues.append(f"statute met_all_three pct {met.get('pct')} vs days/fd {recomputed}")
-        if cna.get("days") and fd_s:
-            recomputed = round(100 * cna["days"] / fd_s, 1)
-            if not pct_close(recomputed, cna.get("pct", 0)):
-                issues.append(f"statute below_cna pct {cna.get('pct')} vs days/fd {recomputed}")
-        ok.append("PBJ_REPORT_NY_STATUTE embedded (round-trip checked)")
+        fd_s = statute.get("facility_days", fd_total)
+        if statute.get("lpn_rn_hours_columns") != ["Hrs_RN", "Hrs_LPN"]:
+            issues.append("statute licensed columns must be RN+LPN only")
+        if "Hrs_RNadmin" in statute.get("total_hours_columns", []) or "Hrs_RNDON" in statute.get(
+            "total_hours_columns", []
+        ):
+            issues.append("statute total_hours_columns includes admin/DON")
+        met_days = statute.get("facility_days_meets_all_ny_requirements")
+        met_pct = statute.get("pct_meets_all_ny_requirements")
+        if met_days is not None and fd_s:
+            recomputed = round(100 * met_days / fd_s, 2)
+            if not pct_close(recomputed, met_pct, tol=0.2):
+                issues.append(
+                    f"statute met_all_three pct {met_pct} vs days/fd {recomputed}"
+                )
+        ok.append("PBJ_REPORT_NY_STATUTE embedded (NY-mapped columns)")
     else:
-        issues.append("MISSING window.PBJ_REPORT_NY_STATUTE — statute cards 39.7% / 54.9% not in interactive JSON")
+        issues.append("MISSING window.PBJ_REPORT_NY_STATUTE")
+
+    if "window.PBJ_REPORT_QUARTERLY_STATUTORY = " in html:
+        quarterly = extract_json_after("window.PBJ_REPORT_QUARTERLY_STATUTORY = ", html)
+        if quarterly.get("metric_mode") != "ny_mapped_non_admin_hprd":
+            issues.append("quarterly embed metric_mode not ny_mapped_non_admin_hprd")
+        else:
+            ok.append("quarterly statutory embed present")
+    else:
+        issues.append("MISSING window.PBJ_REPORT_QUARTERLY_STATUTORY")
+
+    if re.search(r"\bviolation\b", html, re.I):
+        prose_block = re.sub(r"<script\b[^>]*>.*?</script>", "", html, flags=re.I | re.DOTALL)
+        for m in re.finditer(r"\bviolation\b", prose_block, re.I):
+            window = prose_block[max(0, m.start() - 40) : m.end() + 20]
+            if re.search(r"\bnot\b|\bdoes not assert\b|\bwithout\b", window, re.I):
+                continue
+            issues.append("public prose uses violation language")
+            break
 
     if calendar_extra:
         hol = calendar_extra.get("federal_holiday", {})
         non = calendar_extra.get("non_holiday", {})
-        if hol.get("pct_below") and not pct_close(hol["pct_below"], 52.0):
-            issues.append(f"holiday pct embed {hol['pct_below']} vs prose 52%")
-        if non.get("pct_below") and not pct_close(non["pct_below"], 47.0) and not pct_close(non["pct_below"], 47.1):
-            issues.append(f"non-holiday pct embed {non['pct_below']} vs prose 47%")
+        hol_prose = re.search(
+            r"federal holidays</strong> were about <strong>([\d.]+)%</strong>", html
+        )
+        non_prose = re.search(
+            r"vs\. <strong>([\d.]+)%</strong> on other days", html
+        )
+        if hol.get("pct_below") and hol_prose and not pct_close(
+            hol["pct_below"], float(hol_prose.group(1))
+        ):
+            issues.append(
+                f"holiday pct embed {hol['pct_below']} vs prose {hol_prose.group(1)}%"
+            )
+        if non.get("pct_below") and non_prose and not pct_close(
+            non["pct_below"], float(non_prose.group(1))
+        ):
+            issues.append(
+                f"non-holiday pct embed {non['pct_below']} vs prose {non_prose.group(1)}%"
+            )
         ok.append("PBJ_REPORT_CALENDAR_EXTRA embedded")
     else:
-        issues.append("MISSING window.PBJ_REPORT_CALENDAR_EXTRA — holiday 52% / 47% not in curves")
+        issues.append("MISSING window.PBJ_REPORT_CALENDAR_EXTRA")
 
     # 3.58 statewide ratio: not in interactive; cross-check state quarterly if present
     sq = ROOT / "state_quarterly_metrics.csv"

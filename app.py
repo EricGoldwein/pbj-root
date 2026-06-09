@@ -654,6 +654,45 @@ def api_state_chart_data(state_code):
         return jsonify({'error': 'no data'}), 404
     return jsonify(d)
 
+
+@app.route('/api/state/<state_code>/high-risk-table')
+def api_state_high_risk_table(state_code):
+    """Paginated high-risk facility rows for state pages (lazy-loaded after first paint)."""
+    from flask import request
+
+    st = (state_code or '').strip().upper()[:2]
+    if len(st) != 2 or not st.isalpha():
+        return jsonify({'error': 'invalid state code'}), 400
+    category = (request.args.get('category') or 'all').strip()
+    allowed = {'all', 'sff', 'sffCandidates', 'oneStarOverall', 'abuse'}
+    if category not in allowed:
+        return jsonify({'error': 'invalid category'}), 400
+    try:
+        offset = max(0, int(request.args.get('offset') or 0))
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        limit = min(100, max(1, int(request.args.get('limit') or 10)))
+    except (TypeError, ValueError):
+        limit = 10
+
+    cy_qtr = (request.args.get('quarter') or '').strip() or get_canonical_latest_quarter() or ''
+    buckets = _high_risk_buckets_for_state_page(st, cy_qtr)
+    sff_facilities = [
+        f for f in (load_sff_facilities() or []) if (f.get('state') or '').upper() == st
+    ]
+    payload = _high_risk_table_api_payload(
+        st, category, offset, limit, buckets, sff_facilities=sff_facilities, cy_qtr=cy_qtr,
+    )
+    if payload is None:
+        return jsonify({'error': 'no data'}), 404
+    resp = jsonify(payload)
+    resp.headers['Cache-Control'] = _public_quarterly_html_cache_control()
+    resp.headers['X-PBJ-High-Risk-Source'] = (
+        'aggregate_cache' if _STATE_PAGE_AGGREGATES_HYDRATE_OK else 'live_fallback'
+    )
+    return resp
+
 @app.route('/search_index.json')
 def search_index():
     """Serve search index for home page autocomplete (facility, entity, state)"""
@@ -1373,12 +1412,12 @@ def warmup():
         checks['error'] = str(e)
         ok = False
     try:
-        checks['state_page_aggregates'] = {
-            'ok': _hydrate_state_page_aggregates_from_disk(),
-            'hydrated': _STATE_PAGE_AGGREGATES_HYDRATE_OK,
-        }
+        checks['state_page_aggregates'] = _state_page_aggregates_warmup_check()
+        if not checks['state_page_aggregates'].get('ok'):
+            ok = False
     except Exception as e:
-        checks['state_page_aggregates'] = {'ok': False, 'error': str(e)}
+        checks['state_page_aggregates'] = {'ok': False, 'error': str(e), 'live_fallback': True}
+        ok = False
     return jsonify({'ok': ok, 'checks': checks}), (200 if ok else 503)
 
 
@@ -7032,6 +7071,7 @@ _STATE_FACILITY_COUNTS_AT = 0.0
 _STATE_FACILITY_COUNTS_TTL = 900
 _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED = False
 _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+_STATE_PAGE_AGGREGATES_STATUS: dict = {}
 # Only load latest N quarters from provider_info_combined.csv; full file stays on disk for other uses.
 _LATEST_PROVIDER_QUARTERS = 4
 
@@ -7462,9 +7502,46 @@ def _median_positive(vals: list[float]) -> float | None:
     return vals[mid]
 
 
+def _state_page_aggregates_warmup_check() -> dict:
+    """Detailed aggregate bundle status for /warmup (no silent fallback)."""
+    global _STATE_PAGE_AGGREGATES_STATUS
+    try:
+        import state_page_aggregates as spa
+
+        inspect = spa.inspect_bundle_status(APP_ROOT)
+        _STATE_PAGE_AGGREGATES_STATUS = dict(inspect)
+        hydrated = _hydrate_state_page_aggregates_from_disk()
+        inspect = dict(_STATE_PAGE_AGGREGATES_STATUS or inspect)
+        inspect.update({
+            'ok': bool(hydrated and inspect.get('validation_ok')),
+            'hydrated': bool(_STATE_PAGE_AGGREGATES_HYDRATE_OK),
+            'live_fallback': not bool(_STATE_PAGE_AGGREGATES_HYDRATE_OK),
+            'canonical_quarter_loaded': (
+                str(inspect.get('canonical_quarter') or '')
+                or str((_HIGH_RISK_BY_STATE_CACHE_VAL or (None,))[1] if _HIGH_RISK_BY_STATE_CACHE_VAL else '')
+            ),
+        })
+        if not inspect.get('bundle_exists'):
+            inspect['failure'] = 'bundle_file_missing_on_disk'
+        elif not inspect.get('validation_ok'):
+            inspect['failure'] = inspect.get('validation_reason') or 'validation_failed'
+        elif not hydrated:
+            inspect['failure'] = 'hydrate_returned_false'
+        return inspect
+    except Exception as e:
+        return {
+            'ok': False,
+            'hydrated': False,
+            'live_fallback': True,
+            'failure': 'exception',
+            'error': str(e),
+        }
+
+
 def _hydrate_state_page_aggregates_from_disk() -> bool:
     """Load deploy-built data/state_page_aggregates.json.gz into process caches (fast state pages)."""
     global _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED, _STATE_PAGE_AGGREGATES_HYDRATE_OK
+    global _STATE_PAGE_AGGREGATES_STATUS
     global _STATE_FACILITY_COUNTS_BY_QUARTER, _STATE_FACILITY_COUNTS_BUILD_KEY, _STATE_FACILITY_COUNTS_AT
     global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_KEY, _STATE_CASE_MIX_MEDIANS_AT
     global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
@@ -7476,13 +7553,24 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
     try:
         import state_page_aggregates as spa
 
+        _STATE_PAGE_AGGREGATES_STATUS = spa.inspect_bundle_status(APP_ROOT)
         bundle = spa.load_bundle(APP_ROOT)
     except Exception as e:
         print(f'[state_page] aggregate hydrate import/load failed: {e}', flush=True)
         _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+        _STATE_PAGE_AGGREGATES_STATUS = {
+            'ok': False,
+            'hydrated': False,
+            'live_fallback': True,
+            'failure': 'import_or_load_exception',
+            'error': str(e),
+        }
         return False
     if not bundle:
         _STATE_PAGE_AGGREGATES_HYDRATE_OK = False
+        status = dict(_STATE_PAGE_AGGREGATES_STATUS or {})
+        status.update({'ok': False, 'hydrated': False, 'live_fallback': True})
+        _STATE_PAGE_AGGREGATES_STATUS = status
         return False
 
     q = str(bundle.get('canonical_quarter') or '').strip()
@@ -7528,6 +7616,14 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
         _HIGH_RISK_BY_STATE_CACHE_AT = now
 
     _STATE_PAGE_AGGREGATES_HYDRATE_OK = True
+    _STATE_PAGE_AGGREGATES_STATUS = {
+        **(_STATE_PAGE_AGGREGATES_STATUS or {}),
+        'ok': True,
+        'hydrated': True,
+        'live_fallback': False,
+        'failure': None,
+        'canonical_quarter': q,
+    }
     print(f'[state_page] hydrated deploy aggregates for {q}', flush=True)
     return True
 
@@ -13865,7 +13961,9 @@ def _provider_staffing_compliance_warning(
                 'state_abbr': state_abbr,
                 'threshold_display': th_s,
                 'sentence': (
-                    f'{n} of {total} reported PBJ days below {state_abbr} staffing threshold'
+                    f'{n} of {total} reported PBJ days below {state_abbr} direct care standard (3.50 HPRD)'
+                    if st == 'NY'
+                    else f'{n} of {total} reported PBJ days below {state_abbr} staffing threshold'
                 ),
             })
 
@@ -13927,11 +14025,8 @@ def _provider_staffing_compliance_warning(
         th_raw = str(top.get('threshold_display') or '—').strip()
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
-        min_phrase = (
-            f'{st_abbr_esc} staffing minimum (~{th_disp} HPRD)'
-            if st_u
-            else f'staffing minimum (~{th_disp} HPRD)'
-        )
+        metric_used = str(summary.get('state_min_metric_used') or '').strip()
+        ny_direct_care = st_u == 'NY' or metric_used == 'direct_care_hprd'
         flags_note = ''
         if len(issues) > 1 and _SEVERITY_RANK.get(overall, 0) >= _SEVERITY_RANK['high']:
             flags_note = (
@@ -13939,15 +14034,35 @@ def _provider_staffing_compliance_warning(
                 f'({len(issues)} staffing flags this quarter.)</span>'
             )
         q_part = f' in {q_label}' if q_label else ''
-        modal_title = f'Days below {st_abbr_esc} staffing minimum'
-        th_body = html.escape(th_raw, quote=False)
-        modal_body = (
-            f'<p><strong>{n_show} of {total_show}</strong> reported days had total nursing HPRD '
-            f'below {th_body} (RN, LPN, CNA, aide, MedAide, and admin/DON hours &#247; census).</p>'
-            f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against MACPAC&#8217;s {th_body} HPRD '
-            f'{st_abbr_esc} benchmark&#8212;not a legal finding. '
-            f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
-        )
+        if ny_direct_care:
+            min_phrase = 'NY direct care standard (3.50 HPRD)'
+            modal_title = 'Days below NY direct care standard'
+            modal_body = (
+                f'<p><strong>{n_show} of {total_show}</strong> reported days had NY-mapped direct care HPRD '
+                f'below 3.50 (RN, LPN, CNA, nurse aide trainee, and medication aide hours &#247; census; '
+                f'excludes DON and nursing administrator).</p>'
+                f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against N.Y. Public Health Law '
+                f'&#167; 2895-b minimum direct-care staffing (3.50 HPRD total component). '
+                f'PBJ320&#8217;s PBJ role mapping is informative&#8212;not an enforcement determination. '
+                f'<a href="https://www.nysenate.gov/legislation/laws/PBH/2895-B" rel="noopener noreferrer" '
+                f'target="_blank">NY Public Health Law &#167; 2895-b</a> &#183; '
+                f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
+            )
+        else:
+            min_phrase = (
+                f'{st_abbr_esc} staffing minimum (~{th_disp} HPRD)'
+                if st_u
+                else f'staffing minimum (~{th_disp} HPRD)'
+            )
+            modal_title = f'Days below {st_abbr_esc} staffing minimum'
+            th_body = html.escape(th_raw, quote=False)
+            modal_body = (
+                f'<p><strong>{n_show} of {total_show}</strong> reported days had total nursing HPRD '
+                f'below {th_body} (RN, LPN, CNA, aide, MedAide, and admin/DON hours &#247; census).</p>'
+                f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against MACPAC&#8217;s {th_body} HPRD '
+                f'{st_abbr_esc} benchmark&#8212;not a legal finding. '
+                f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
+            )
         min_btn = _owner_info_inline_btn(
             modal_title,
             modal_body,
@@ -16583,6 +16698,419 @@ def generate_state_chart_html(state_name, state_code, *, national_page: bool = F
 '''
 
 
+_HIGH_RISK_TAB_DEFS = (
+    ('all', 'All', 'All PBJ320 high-risk indicators in this state (deduplicated by facility).'),
+    ('sff', 'SFF', 'Current Special Focus Facilities (CMS).'),
+    ('sffCandidates', 'SFF cand.', 'Facilities monitored for potential SFF designation.'),
+    ('oneStarOverall', '★ Overall', 'CMS overall rating of 1 star.'),
+    ('abuse', 'Abuse', 'Facilities flagged with the CMS abuse icon.'),
+)
+
+
+def _high_risk_prepare_buckets(high_risk_buckets: dict | None) -> dict:
+    buckets = dict(high_risk_buckets or {})
+    all_by_ccn: dict[str, dict] = {}
+    for cat_key, _, _ in _HIGH_RISK_TAB_DEFS[1:]:
+        for fac in buckets.get(cat_key) or []:
+            ccn = str(fac.get('ccn') or '').strip().zfill(6)[-6:]
+            if not ccn.isdigit():
+                continue
+            if ccn not in all_by_ccn:
+                all_by_ccn[ccn] = dict(fac)
+            else:
+                prev = all_by_ccn[ccn]
+                prev['hasAbuse'] = prev.get('hasAbuse') or fac.get('hasAbuse')
+                for rk in (
+                    'overall_rating', 'staffing_rating', 'health_inspection_rating',
+                    'qm_rating', 'status',
+                ):
+                    if not prev.get(rk) and fac.get(rk):
+                        prev[rk] = fac.get(rk)
+    buckets['all'] = list(all_by_ccn.values())
+    return buckets
+
+
+def _high_risk_tab_counts(high_risk_buckets: dict | None) -> tuple[dict[str, int], int]:
+    buckets = _high_risk_prepare_buckets(high_risk_buckets)
+    counts = {key: len(buckets.get(key) or []) for key, _, _ in _HIGH_RISK_TAB_DEFS}
+    total = len(buckets.get('all') or []) or sum(
+        counts[k] for k, _, _ in _HIGH_RISK_TAB_DEFS[1:]
+    )
+    return counts, total
+
+
+def _high_risk_sff_by_ccn(sff_facilities: list | None) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for sf in sff_facilities or []:
+        ccn_k = str(sf.get('provider_number') or '').strip().zfill(6)
+        if ccn_k:
+            out[ccn_k] = sf
+    return out
+
+
+def _high_risk_facility_row_html(
+    fac: dict,
+    provider_info: dict,
+    sff_by_ccn: dict[str, dict],
+    *,
+    row_hidden: bool = False,
+) -> str:
+    from ownership.display_format import cms_ratings_stack_html, format_cms_star_rating
+
+    try:
+        from pbj_format import format_metric_value as _fmt_hprd
+    except ImportError:
+        def _fmt_hprd(value, metric_key, default='—'):
+            try:
+                if value is None or str(value).strip() == '':
+                    return default
+                r = round_half_up(float(value), 2)
+                return f'{r:.2f}' if r is not None else default
+            except (TypeError, ValueError):
+                return default
+
+    ccn = str(fac.get('ccn') or '').strip().zfill(6)
+    name_raw = fac.get('name') or 'Unknown'
+    name = capitalize_facility_name(name_raw)
+    city_raw = (fac.get('city') or '').strip()
+    city = capitalize_city_name(city_raw) if city_raw else ''
+    if not city and ccn:
+        city = capitalize_city_name((provider_info.get(ccn) or {}).get('city') or '')
+    prov = provider_info.get(ccn) or {} if ccn else {}
+    ovr = fac.get('overall_rating') or prov.get('overall_rating')
+    staff = fac.get('staffing_rating') or prov.get('staffing_rating')
+    _hi = (
+        fac.get('health_inspection_rating')
+        or prov.get('health_inspection_rating')
+        or prov.get('health_inspection')
+    )
+    _qm = (
+        fac.get('qm_rating')
+        or prov.get('qm_rating')
+        or prov.get('quality_measures_rating')
+        or prov.get('quality_measure_rating')
+    )
+    ratings_cell = cms_ratings_stack_html(ovr, staff, _qm, health_inspection=_hi)
+    census_raw = fac.get('census') or prov.get('avg_residents_per_day')
+    try:
+        if census_raw is None or str(census_raw).strip() in ('', '—', '-'):
+            census_cell = '—'
+        else:
+            census_cell = str(int(round(float(str(census_raw).replace(',', '')))))
+    except (TypeError, ValueError):
+        census_cell = '—'
+    hprd_raw = (
+        fac.get('total_nurse_hprd')
+        or prov.get('reported_total_nurse_hrs_per_resident_per_day')
+        or prov.get('Total_Nurse_HPRD')
+    )
+    hprd_cell = (
+        _fmt_hprd(hprd_raw, 'Total_Nurse_HPRD', '—')
+        if hprd_raw is not None and str(hprd_raw).strip()
+        else '—'
+    )
+    city_bit = (
+        f'<span class="state-hr-city">({html.escape(city)})</span>' if city else ''
+    )
+    facility_cell = (
+        f'<div class="state-hr-facility-cell">'
+        f'<a class="state-hr-facility-name" href="/provider/{html.escape(ccn)}">{html.escape(name)}</a>'
+        f'{city_bit}</div>'
+    )
+
+    badges: list[str] = []
+    sff_raw = str(fac.get('status') or '').strip()
+    sff_up = sff_raw.upper()
+    sf = sff_by_ccn.get(ccn) if ccn else None
+    months_val = sf.get('months_as_sff') if sf else None
+    months_tip = (
+        f' title="Months as SFF: {html.escape(str(months_val))}"'
+        if months_val is not None
+        else ''
+    )
+    if sff_up == 'SFF':
+        badges.append(
+            f'<span class="state-hr-badge state-hr-badge--sff"{months_tip}>SFF</span>'
+        )
+    elif 'CANDIDATE' in sff_up:
+        badges.append(
+            f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
+        )
+    if fac.get('hasAbuse'):
+        badges.append(
+            '<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">'
+            '\u26a0</span>'
+        )
+    try:
+        if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
+            badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
+            badges.append('<span class="state-hr-badge state-hr-badge--1stf" title="1-star staffing">1★S</span>')
+    except (TypeError, ValueError):
+        pass
+    flags_cell = ' '.join(badges) if badges else '—'
+
+    tr_attr = ' class="state-hr-row-more" hidden' if row_hidden else ''
+    return (
+        f'<tr{tr_attr}><td class="state-hr-col-facility">{facility_cell}</td>'
+        f'<td class="num state-hr-census">{html.escape(census_cell)}</td>'
+        f'<td class="state-hr-ratings">{ratings_cell}</td>'
+        f'<td class="state-hr-col-flags">{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
+    )
+
+
+def _high_risk_table_api_payload(
+    state_code: str,
+    category: str,
+    offset: int,
+    limit: int,
+    high_risk_buckets: dict | None,
+    *,
+    sff_facilities: list | None = None,
+    cy_qtr: str | None = None,
+) -> dict | None:
+    buckets = _high_risk_prepare_buckets(high_risk_buckets)
+    lst = list(buckets.get(category) or [])
+    lst.sort(key=lambda f: (str(f.get('name') or '')).lower())
+    total = len(lst)
+    if total == 0 and category != 'all':
+        return {
+            'state': state_code,
+            'category': category,
+            'quarter': cy_qtr or '',
+            'total': 0,
+            'offset': offset,
+            'limit': limit,
+            'rows_html': '',
+            'has_more': False,
+        }
+    if total == 0:
+        return None
+    page = lst[offset: offset + limit]
+    ccns = {
+        str(f.get('ccn') or '').strip().zfill(6)
+        for f in page
+        if str(f.get('ccn') or '').strip().isdigit()
+    }
+    provider_info = load_provider_info(ccn_set=ccns) if ccns else {}
+    sff_by_ccn = _high_risk_sff_by_ccn(sff_facilities)
+    rows_html = ''.join(
+        _high_risk_facility_row_html(fac, provider_info, sff_by_ccn) for fac in page
+    )
+    return {
+        'state': state_code,
+        'category': category,
+        'quarter': cy_qtr or '',
+        'total': total,
+        'offset': offset,
+        'limit': limit,
+        'rows_html': rows_html,
+        'has_more': (offset + limit) < total,
+    }
+
+
+def _render_state_pbj_high_risk_section_lazy(
+    state_name: str,
+    state_code: str,
+    high_risk_buckets: dict | None,
+    *,
+    raw_quarter: str | None = None,
+    footer_html: str = '',
+) -> str:
+    """High-risk summary + lazy-loaded table (counts SSR; rows via /api/state/XX/high-risk-table)."""
+    counts, total = _high_risk_tab_counts(high_risk_buckets)
+    if total <= 0:
+        return ''
+    st = (state_code or '').strip().upper()[:2]
+    q = html.escape(str(raw_quarter or ''), quote=True)
+    tooltip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP)
+    tab_id_prefix = 'state-hr-tab-'
+    panel_id_prefix = 'state-hr-panel-'
+    first_selected = 'all'
+    section = f'''
+    <details class="pbj-details pbj-page-bottom-details state-high-risk-details" data-state-high-risk="1" data-state-code="{html.escape(st)}" data-quarter="{q}">
+    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
+    <div class="pbj-details-content">
+    <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
+      <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--below"><span class="pbj-high-risk-help">PBJ320 high-risk</span>
+      <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span></span>
+      nursing homes in {html.escape(state_name)} ({total:,} facilities).
+    </p>
+    <div class="state-hr-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
+    '''
+    for cat_key, tab_label, _desc in _HIGH_RISK_TAB_DEFS:
+        count = counts.get(cat_key, 0)
+        tid = tab_id_prefix + cat_key
+        pid = panel_id_prefix + cat_key
+        selected = cat_key == first_selected
+        aria_val = 'true' if selected else 'false'
+        section += (
+            f'<button type="button" role="tab" id="{tid}" aria-controls="{pid}" '
+            f'aria-selected="{aria_val}" class="state-hr-tab-btn" data-panel="{pid}" data-category="{cat_key}" '
+            f'style="padding:0.4rem 0.75rem; font-size:0.875rem; background:rgba(15,23,42,0.6); '
+            f'color:rgba(226,232,240,0.85); border:1px solid rgba(129,140,248,0.35); border-radius:6px; cursor:pointer;">'
+            f'{tab_label} ({count})</button>'
+        )
+    section += '</div>'
+    for cat_key, tab_label, _desc in _HIGH_RISK_TAB_DEFS:
+        pid = panel_id_prefix + cat_key
+        tid = tab_id_prefix + cat_key
+        is_first = cat_key == first_selected
+        panel_style = 'display:block;' if is_first else 'display:none;'
+        count = counts.get(cat_key, 0)
+        section += (
+            f'<div role="tabpanel" id="{pid}" aria-labelledby="{tid}" class="state-hr-panel" '
+            f'data-category="{cat_key}" data-loaded="0" style="{panel_style}">'
+        )
+        if count == 0:
+            section += (
+                f'<p style="color:rgba(226,232,240,0.8); font-size:0.9rem;">'
+                f'No {tab_label.lower()} in this state.</p>'
+            )
+        else:
+            section += f'''
+    <div class="pbj-table-wrap" style="overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0.5rem 0;">
+    <table class="state-hr-table" style="width:100%; min-width:360px; border-collapse:collapse; font-size:0.875rem;">
+    <thead><tr>
+      <th scope="col">Facility</th>
+      <th scope="col" class="num">Census</th>
+      <th scope="col">CMS ratings</th>
+      <th scope="col">Indicators</th>
+      <th scope="col" class="num">Total HPRD</th>
+    </tr></thead>
+    <tbody class="state-hr-tbody" data-panel="{pid}" data-category="{cat_key}">
+      <tr class="state-hr-loading"><td colspan="5" style="color:rgba(226,232,240,0.75);">Loading facilities…</td></tr>
+    </tbody></table></div>
+    <p class="pbj-meta-line state-hr-more-note" data-panel="{pid}" style="margin:0.35rem 0 0;font-size:0.85rem;display:none;"></p>
+    '''
+        section += '</div>'
+    section += _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT
+    if (footer_html or '').strip():
+        section += f'<div class="state-hr-section-foot">{(footer_html or "").strip()}</div>'
+    section += '''
+    </div></details>'''
+    return section
+
+
+_STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
+    <style>
+    .state-hr-table th, .state-hr-table td { padding: 0.5rem 0.4rem; border: 1px solid rgba(129,140,248,0.25); text-align:left; vertical-align: top; }
+    .state-hr-table th.num, .state-hr-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .state-hr-table th { background: rgba(67, 56, 202, 0.22); color: #818cf8; font-weight:600; }
+    .state-hr-table tbody tr:nth-child(even) { background: rgba(15,23,42,0.4); }
+    .state-hr-facility-cell { line-height: 1.25; }
+    .state-hr-facility-name { display: inline; }
+    .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.85em; white-space: nowrap; margin-left: 0.2rem; }
+    .state-hr-col-flags { white-space: nowrap; }
+    .state-hr-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; margin: 0 0.1rem 0 0; white-space: nowrap; vertical-align: middle; }
+    .state-hr-show-all-btn--inline { margin: 0; padding: 0; font-size: inherit; background: none; border: none; color: #a5b4fc; text-decoration: underline; cursor: pointer; }
+    .state-hr-tab-btn[aria-selected="true"] { background: rgba(99, 102, 241, 0.45) !important; border-color: #818cf8 !important; color: #e2e8f0 !important; font-weight: 600; }
+    .state-hr-ratings .owner-ratings-stack { display: inline-flex; flex-direction: column; gap: 0.12rem; }
+    .state-hr-ratings .owner-rating-row { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; }
+    .state-hr-ratings .owner-rating-k { color: #94a3b8; font-weight: 600; min-width: 1.6rem; }
+    .state-hr-ratings .owner-rating-stars { letter-spacing: 0.05em; color: #fbbf24; }
+    .state-hr-ratings .owner-rating-stars-on--low { color: #f87171; }
+    .state-hr-ratings .owner-rating-none { color: #64748b; }
+    @media (max-width: 640px) {
+      .state-hr-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.22rem; }
+      .state-hr-tab-btn { font-size: 0.68rem; padding: 0.32rem 0.35rem; line-height: 1.2; white-space: normal; text-align: center; }
+      .state-hr-table { font-size: 0.76rem; }
+      .state-hr-table th, .state-hr-table td { padding: 0.3rem 0.2rem; vertical-align: middle; }
+    }
+    </style>
+    <script>
+    (function(){
+      var root = document.querySelector(".state-high-risk-details[data-state-high-risk]");
+      if (!root) return;
+      var stateCode = (root.getAttribute("data-state-code") || "").toUpperCase();
+      var quarter = root.getAttribute("data-quarter") || "";
+      var pageSize = 10;
+      function loadPanel(panel, offset, append) {
+        var cat = panel.getAttribute("data-category") || "all";
+        var tbody = panel.querySelector(".state-hr-tbody");
+        var note = panel.querySelector(".state-hr-more-note");
+        if (!tbody || !stateCode) return;
+        if (!append) {
+          tbody.innerHTML = '<tr class="state-hr-loading"><td colspan="5">Loading facilities…</td></tr>';
+        }
+        var url = "/api/state/" + encodeURIComponent(stateCode) + "/high-risk-table?category="
+          + encodeURIComponent(cat) + "&offset=" + offset + "&limit=" + pageSize
+          + (quarter ? "&quarter=" + encodeURIComponent(quarter) : "");
+        fetch(url).then(function(r){
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).then(function(data){
+          if (!data || data.error) {
+            throw new Error(data && data.error ? String(data.error) : "empty");
+          }
+          if (!data.rows_html) {
+            tbody.innerHTML = '<tr><td colspan="5">No facilities in this category.</td></tr>';
+            if (note) note.style.display = "none";
+            panel.setAttribute("data-loaded", "1");
+            return;
+          }
+          if (append) {
+            tbody.insertAdjacentHTML("beforeend", data.rows_html);
+          } else {
+            tbody.innerHTML = data.rows_html;
+          }
+          panel.setAttribute("data-loaded", "1");
+          panel.setAttribute("data-offset", String(offset + pageSize));
+          if (note) {
+            if (data.has_more) {
+              note.style.display = "block";
+              note.innerHTML = 'Showing ' + Math.min(offset + pageSize, data.total).toLocaleString()
+                + ' of ' + data.total.toLocaleString() + ' · '
+                + '<button type="button" class="state-hr-show-all-btn state-hr-show-all-btn--inline" data-panel="'
+                + panel.id + '">Show more</button>';
+            } else if (data.total > pageSize) {
+              note.style.display = "block";
+              note.textContent = "Showing all " + data.total.toLocaleString() + ".";
+            } else {
+              note.style.display = "none";
+            }
+          }
+        }).catch(function(){
+          tbody.innerHTML = '<tr><td colspan="5">Could not load facilities. Try refreshing.</td></tr>';
+        });
+      }
+      root.querySelectorAll(".state-hr-tab-btn").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var panelId = btn.getAttribute("data-panel");
+          root.querySelectorAll(".state-hr-tab-btn").forEach(function(t){ t.setAttribute("aria-selected", "false"); });
+          root.querySelectorAll(".state-hr-panel").forEach(function(p){ p.style.display = "none"; });
+          btn.setAttribute("aria-selected", "true");
+          var p = document.getElementById(panelId);
+          if (p) {
+            p.style.display = "block";
+            if (p.getAttribute("data-loaded") !== "1") loadPanel(p, 0, false);
+          }
+        });
+      });
+      root.addEventListener("click", function(ev){
+        var btn = ev.target && ev.target.closest ? ev.target.closest(".state-hr-show-all-btn") : null;
+        if (!btn) return;
+        var panelId = btn.getAttribute("data-panel");
+        var panel = panelId ? document.getElementById(panelId) : null;
+        if (!panel) return;
+        var off = parseInt(panel.getAttribute("data-offset") || String(pageSize), 10) || pageSize;
+        loadPanel(panel, off, true);
+      });
+      function boot() {
+        var first = root.querySelector('.state-hr-panel[data-category="all"]')
+          || root.querySelector(".state-hr-panel");
+        if (first && first.getAttribute("data-loaded") !== "1") loadPanel(first, 0, false);
+      }
+      if (root.open) boot();
+      root.addEventListener("toggle", function(){ if (root.open) boot(); });
+    })();
+    </script>
+    '''
+
+
 def _render_state_pbj_high_risk_section(
     state_name: str,
     state_code: str,
@@ -17108,13 +17636,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             f'<a href="{html.escape(_sff_href, quote=True)}">'
             f'{html.escape(_st_abbr)} Special Focus Facilities</a></p>'
         )
-    # PBJ320 High-Risk: SFF, candidates, 1-star ratings, abuse icon (provider snapshot scan)
-    sff_section = _render_state_pbj_high_risk_section(
+    # PBJ320 High-Risk: counts SSR; facility rows lazy-loaded via /api/state/XX/high-risk-table
+    sff_section = _render_state_pbj_high_risk_section_lazy(
         state_name,
         state_code,
         high_risk_buckets,
-        {},
-        sff_facilities=sff_facilities,
+        raw_quarter=raw_quarter,
         footer_html=_sff_footer,
     )
     
@@ -19392,17 +19919,14 @@ def generate_state_page(state_code):
         total_hprd=state_hprd_display,
     )
     state_extra_head = state_json_ld
-    state_extra_head += (
-        f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
-    )
-    try:
-        from ownership.chow_lookup import chow_count_for_state
-        if chow_count_for_state(state_code) > 0:
-            state_extra_head += (
-                f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
-            )
-    except Exception:
-        pass
+    if 'state-high-risk-details' in content or 'pbj-details-top-owners' in content:
+        state_extra_head += (
+            f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
+        )
+    if 'pbj-details-ownership-chow' in content or 'chow-state-block' in content:
+        state_extra_head += (
+            f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+        )
     layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=state_extra_head)
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
     if HAS_CSRF and generate_csrf:
@@ -19413,6 +19937,7 @@ def generate_state_page(state_code):
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': _public_quarterly_html_cache_control(),
+        'X-PBJ-State-Aggregates': 'hydrated' if _STATE_PAGE_AGGREGATES_HYDRATE_OK else 'live_fallback',
     }
 
 @app.route('/pbjpedia/region/<region_number>')

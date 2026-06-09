@@ -332,26 +332,50 @@ def _render_state_chow_recent_table(
     initial_visible: int = 10,
     page_size: int = 10,
 ) -> str:
-    """One row per CMS transaction; inline pagination (no /chow monitor link)."""
+    """One row per CMS transaction; inline pagination (no /chow monitor link).
+
+    Caps SSR rows so ownership-heavy states (TX/FL/CA) do not ship thousands of CHOW
+    detail panels in initial HTML. Full history remains on the state ownership index.
+    """
+    import os
+
     st = state_code.upper()[:2]
     all_rows = chow_records_for_state(st, limit=0)
     if not all_rows:
         return '<p class="pbj-meta-line">No transactions in this state index.</p>'
 
     initial = max(1, int(initial_visible))
+    try:
+        ssr_cap = max(initial + page_size, int(os.environ.get('PBJ_STATE_CHOW_SSR_CAP', '100')))
+    except (TypeError, ValueError):
+        ssr_cap = 100
+    ssr_cap = max(initial, min(ssr_cap, 250))
+    rows_ssr = all_rows[:ssr_cap]
+    truncated = len(all_rows) > len(rows_ssr)
+
     table_inner = render_chow_events_table(
-        all_rows,
+        rows_ssr,
         org_link_fn=_org_link_from_chow_record,
         facility_link_fn=_facility_col_from_record,
-        max_rows=len(all_rows),
+        max_rows=len(rows_ssr),
         initial_visible=initial,
         mobile_change_stack=True,
     )
     foot = render_chow_paginate_footer(
-        total=len(all_rows),
+        total=len(rows_ssr),
         initial_visible=initial,
         page_size=page_size,
     )
+    truncate_note = ''
+    if truncated:
+        from ownership.state_owner_index import state_index_canonical_path
+
+        index_href = html.escape(state_index_canonical_path(st))
+        foot += (
+            f'<p class="chow-state-actions chow-state-truncate-note">'
+            f'Showing the most recent {len(rows_ssr):,} of {len(all_rows):,} indexed changes. '
+            f'<a href="{index_href}">Browse full {html.escape(st)} ownership &amp; CHOW search</a>.</p>'
+        )
     return table_inner + foot + CHOW_TABLE_INIT_SCRIPT
 
 

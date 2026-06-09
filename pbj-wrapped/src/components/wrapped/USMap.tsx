@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { loadMapLibraries } from '../../lib/mapScripts';
 
 interface USMapProps {
   className?: string;
@@ -32,44 +33,17 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
 
-    const loadScript = (src: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        if ((window as any).d3 && src.includes('d3')) {
-          resolve();
-          return;
-        }
-        if ((window as any).topojson && src.includes('topojson')) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        document.head.appendChild(script);
-      });
-    };
-
     const drawMap = async () => {
       try {
         setIsLoading(true);
-        await Promise.all([
-          loadScript('https://d3js.org/d3.v7.min.js'),
-          loadScript('https://cdn.jsdelivr.net/npm/topojson-client@3'),
-        ]);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const d3 = (window as any).d3;
-        const topojson = (window as any).topojson;
-
+        const { d3, topojson } = await loadMapLibraries();
         if (!d3 || !topojson) {
-          console.error('D3 or TopoJSON not loaded');
           setIsLoading(false);
           return;
         }
+        const d3lib = d3 as any;
 
-        const svg = d3.select(svgRef.current);
+        const svg = d3lib.select(svgRef.current);
         svg.selectAll('*').remove();
 
         const container = containerRef.current;
@@ -79,12 +53,12 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
         svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
 
         // Load US map data
-        const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
-        const states = topojson.feature(us, us.objects.states);
+        const us = await d3lib.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+        const states = topojson.feature(us, (us as { objects: { states: unknown } }).objects.states) as { features: unknown[] };
 
         // Create projection
-        const projection = d3.geoAlbersUsa().fitSize([width - 20, height - 20], states);
-        const path = d3.geoPath().projection(projection);
+        const projection = d3lib.geoAlbersUsa().fitSize([width - 20, height - 20], states);
+        const path = d3lib.geoPath().projection(projection);
 
         // Draw states
         svg.selectAll('.state')
@@ -104,7 +78,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
           .on('mouseover', function(this: SVGPathElement, _event: MouseEvent, d: any) {
             const stateName = d.properties.name;
             setHoveredState(stateName);
-            d3.select(this)
+            d3lib.select(this)
               .transition()
               .duration(200)
               .style('fill', 'rgba(59, 130, 246, 0.7)')
@@ -112,7 +86,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
           })
           .on('mouseout', function(this: SVGPathElement, _event: MouseEvent, _d: any) {
             setHoveredState(null);
-            d3.select(this)
+            d3lib.select(this)
               .transition()
               .duration(200)
               .style('fill', (_d: any, i: number) => `rgba(59, 130, 246, ${0.3 + (i % 3) * 0.1})`)
@@ -129,8 +103,7 @@ export const USMap: React.FC<USMapProps> = ({ className = '' }) => {
           });
 
         setIsLoading(false);
-      } catch (error) {
-        console.error('Error drawing map:', error);
+      } catch {
         setIsLoading(false);
       }
     };

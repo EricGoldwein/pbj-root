@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { loadMapLibraries } from '../../lib/mapScripts';
 
 interface StateOutlineProps {
   stateCode: string;
@@ -38,21 +39,6 @@ export const StateOutline: React.FC<StateOutlineProps> = ({ stateCode, className
     const stateName = stateNameMap[stateAbbr];
     if (!stateName) return;
 
-    // Load D3 and TopoJSON from CDN
-    const loadScript = (src: string): Promise<void> => {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) {
-          resolve();
-          return;
-        }
-        const script = document.createElement('script');
-        script.src = src;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load ${src}`));
-        document.head.appendChild(script);
-      });
-    };
-
     const showFallback = () => {
       if (!svgRef.current) return;
       // Fallback: show state code as text
@@ -66,25 +52,14 @@ export const StateOutline: React.FC<StateOutlineProps> = ({ stateCode, className
 
     const drawState = async () => {
       try {
-        // Load D3 and TopoJSON
-        await Promise.all([
-          loadScript('https://d3js.org/d3.v7.min.js'),
-          loadScript('https://cdn.jsdelivr.net/npm/topojson-client@3'),
-        ]);
-
-        // Wait a bit for scripts to initialize
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        const d3 = (window as any).d3;
-        const topojson = (window as any).topojson;
-
+        const { d3, topojson } = await loadMapLibraries();
         if (!d3 || !topojson) {
-          console.error('D3 or TopoJSON not loaded', { d3: !!d3, topojson: !!topojson });
           showFallback();
           return;
         }
 
-        const svg = d3.select(svgRef.current);
+        const d3lib = d3 as any;
+        const svg = d3lib.select(svgRef.current);
         svg.selectAll('*').remove();
 
         const width = 400;
@@ -92,8 +67,8 @@ export const StateOutline: React.FC<StateOutlineProps> = ({ stateCode, className
         svg.attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
 
         // Load US map data
-        const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
-        const states = topojson.feature(us, us.objects.states);
+        const us = await d3lib.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+        const states = topojson.feature(us, (us as { objects: { states: unknown } }).objects.states) as { features: Array<{ properties: { name?: string; abbrev?: string } }> };
 
         // Find the specific state - try both name and abbreviation
         let stateFeature = states.features.find((f: any) => f.properties.name === stateName);
@@ -102,16 +77,15 @@ export const StateOutline: React.FC<StateOutlineProps> = ({ stateCode, className
           stateFeature = states.features.find((f: any) => f.properties.abbrev === stateAbbr);
         }
         if (!stateFeature) {
-          console.warn(`State not found: ${stateName} (${stateAbbr})`);
           showFallback();
           return;
         }
 
         // Create projection to fit the state
-        const projection = d3.geoAlbersUsa()
+        const projection = d3lib.geoAlbersUsa()
           .fitSize([width - 40, height - 40], { type: 'FeatureCollection', features: [stateFeature] });
 
-        const path = d3.geoPath().projection(projection);
+        const path = d3lib.geoPath().projection(projection);
 
         // Draw the state
         svg.append('g')
@@ -126,8 +100,7 @@ export const StateOutline: React.FC<StateOutlineProps> = ({ stateCode, className
           .attr('stroke-linejoin', 'round');
 
 
-      } catch (error) {
-        console.error('Error drawing state outline:', error);
+      } catch {
         showFallback();
       }
     };

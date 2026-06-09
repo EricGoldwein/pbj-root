@@ -207,6 +207,11 @@ body.pbj-insights-report-page:has(.ny-staffing-preview-chrome) .ny-staffing-prev
 </script>
 """
 _NY_PREVIEW_CHROME_OPEN = '<div class="ny-staffing-preview-chrome">'
+_REPORT_SITE_HEADER_OPEN_RE = re.compile(r'(<div class="report-site-header">)', re.IGNORECASE)
+_REPORT_SITE_HEADER_BEFORE_HERO_RE = re.compile(
+    r'(</div>\s*)(?=<header class="hero")',
+    re.IGNORECASE,
+)
 _NAVBAR_OPEN_RE = re.compile(r'(<nav\s+class=["\']navbar["\'])', re.IGNORECASE)
 _NAVBAR_CLOSE_RE = re.compile(r'(</nav>)', re.IGNORECASE)
 _NY_PREVIEW_BANNER_TEXT = (
@@ -239,7 +244,15 @@ def inject_ny_staffing_report_preview(html: str, preview_path: str) -> str:
     if 'ny-staffing-preview-banner-styles' not in html:
         html = html.replace('</head>', _NY_PREVIEW_BANNER_STYLES + '</head>', 1)
     if 'class="ny-staffing-preview-banner"' not in html:
-        if _NAVBAR_OPEN_RE.search(html):
+        if _REPORT_SITE_HEADER_OPEN_RE.search(html):
+            html = _REPORT_SITE_HEADER_OPEN_RE.sub(
+                _NY_PREVIEW_CHROME_OPEN + _NY_PREVIEW_BANNER_HTML + r'\1',
+                html,
+                count=1,
+            )
+            if 'ny-staffing-preview-chrome' in html:
+                html = _REPORT_SITE_HEADER_BEFORE_HERO_RE.sub(r'\1</div>', html, count=1)
+        elif _NAVBAR_OPEN_RE.search(html):
             html = _NAVBAR_OPEN_RE.sub(
                 _NY_PREVIEW_CHROME_OPEN + _NY_PREVIEW_BANNER_HTML + r'\1',
                 html,
@@ -314,7 +327,7 @@ def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None =
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '46'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '48'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 

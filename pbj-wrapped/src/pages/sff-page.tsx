@@ -137,10 +137,29 @@ export default function SFFPage() {
     return url;
   };
 
-  const sffSourceLinkLabel = (url?: string) =>
-    url && (url.startsWith('/downloads/sff/') || url.includes('/downloads/sff/'))
-      ? 'PBJ320 SFF posting (PDF)'
-      : 'CMS SFF Posting';
+  const SFF_MONTH_LABELS = ['Jan.', 'Feb.', 'Mar.', 'Apr.', 'May', 'Jun.', 'Jul.', 'Aug.', 'Sep.', 'Oct.', 'Nov.', 'Dec.'];
+
+  const resolvedSffPosting = useMemo(() => {
+    if (sourceDates?.sffPosting) return sourceDates.sffPosting;
+    const doc = candidateJSON?.document_date;
+    if (doc?.year && doc?.month) {
+      const monthLabel = SFF_MONTH_LABELS[Math.max(0, Math.min(11, Number(doc.month) - 1))];
+      return `${monthLabel} ${doc.year}`;
+    }
+    return 'latest posting';
+  }, [sourceDates, candidateJSON]);
+
+  const resolvedSffPdfHref = useMemo(() => {
+    const docLabel = (candidateJSON?.document_date as { label?: string } | undefined)?.label;
+    const pdfPath = sourceDates?.sffSourceUrl
+      ?? (docLabel ? `/downloads/sff/${docLabel}.pdf` : undefined);
+    return sffSourceHref(pdfPath);
+  }, [sourceDates, candidateJSON]);
+
+  const getStatePageSlug = (stateCode: string): string =>
+    getStateName(stateCode).toLowerCase().replace(/\s+/g, '-');
+
+  const isStateScope = Boolean(scope && scope.length === 2 && !scope.startsWith('region'));
 
   // Update SEO/OG tags based on page scope
   // Fetch dynamic source dates (PBJ quarter, SFF posting) from main site API
@@ -167,8 +186,7 @@ export default function SFFPage() {
     const qLabel = sourceDates?.pbjQuarter ?? 'latest quarter';
     
     let title = 'Special Focus Facilities Program | PBJ320';
-    const sffSourceLabel = sffSourceLinkLabel(sourceDates?.sffSourceUrl);
-    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: ${sffSourceLabel} ${sourceDates?.sffPosting ?? 'latest posting'}; CMS PBJ (${qLabel}).`;
+    let description = `Complete list of Special Focus Facilities (SFFs), SFF Candidates, Graduates, and facilities no longer participating in Medicare/Medicaid. Source: CMS SFF Posting ${resolvedSffPosting}; CMS PBJ (${qLabel}).`;
     
     if (scope === 'usa') {
       title = 'Special Focus Facilities Program — United States | PBJ320';
@@ -192,7 +210,7 @@ export default function SFFPage() {
       ogUrl: fullUrl,
       canonical: fullUrl,
     });
-  }, [scope, sourceDates]);
+  }, [scope, sourceDates, resolvedSffPosting]);
 
   useEffect(() => {
     async function loadData() {
@@ -237,7 +255,6 @@ export default function SFFPage() {
                 }
               });
               
-              console.log(`Loaded SFF JSON: ${jsonData.facilities.length} total facilities (SFF: ${tableA.length}, Graduate: ${tableB.length}, Terminated: ${tableC.length}, Candidate: ${tableD.length})`);
             } else {
               console.warn('SFF JSON file has unexpected structure');
             }
@@ -265,9 +282,6 @@ export default function SFFPage() {
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || []; // Current-quarter facility metrics (Census, HPRD)
         
-        // Debug: Log data counts for troubleshooting
-        console.log(`[SFF Page] Data loaded: Provider Q2=${providerInfoQ2.length}, Facility Q2=${facilityQ2.length}, Provider Q1=${providerInfoQ1.length}`);
-        
         // STRICT CCN normalization: pad to exactly 6 digits, no variations
         const normalizeCCN = (ccn: string): string => {
           if (!ccn) return '';
@@ -291,8 +305,6 @@ export default function SFFPage() {
           
           // Detect shift: Total_Nurse_HPRD is 0 but Nurse_Care_HPRD has a value (> 0.5 to avoid false positives)
           if (totalHPRD === 0 && directCareHPRD > 0.5) {
-            console.log(`[Auto-Correcting Shift] PROVNUM=${facility.PROVNUM}, shifting columns right`);
-            
             // Shift columns: each field gets the value from the next field
             return {
               ...facility,
@@ -441,7 +453,7 @@ export default function SFFPage() {
           // Convert to array of facilities, handling duplicates by using highest priority category
           // Priority: Decertified (Terminated) > SFF > Candidate > Graduate
           const allPDFFacilities: Array<PDFFacilityData & { status: SFFStatus; categories: string[] }> = [];
-          for (const [ccn, facilities] of facilitiesByCCN.entries()) {
+          for (const [, facilities] of facilitiesByCCN.entries()) {
             if (facilities.length === 0) continue;
             
             // Get all unique categories for this facility
@@ -467,21 +479,9 @@ export default function SFFPage() {
               categories, // Store all categories for filtering later
             });
             
-            // Log if facility appears in multiple categories
-            if (categories.length > 1) {
-              console.log(`[Multi-Category] CCN=${ccn}, Name=${baseFacility.facility_name}, Categories=${categories.join(', ')}, Using status=${priorityStatus}`);
-            }
           }
 
           totalFromJSON = allPDFFacilities.length;
-          console.log(`[Processing] Total unique facilities from JSON: ${totalFromJSON} (from ${sffFacilitiesData.facilities.length} entries)`);
-          
-          // Debug: Track NY candidates specifically
-          const nyCandidatesInJSON = allPDFFacilities.filter((f: any) => 
-            f.state === 'NY' && (f.categories && f.categories.includes('Candidate'))
-          );
-          console.log(`[NY Debug] Found ${nyCandidatesInJSON.length} NY candidates in JSON (including multi-category):`, 
-            nyCandidatesInJSON.map((f: any) => ({ ccn: f.provider_number?.toString().trim(), categories: f.categories || [f.category] })));
           
           for (const pdfFacility of allPDFFacilities) {
             const ccn = pdfFacility.provider_number?.toString().trim();
@@ -492,25 +492,7 @@ export default function SFFPage() {
             }
             
             // No longer skip duplicates - we've already handled them in the grouping step
-            
-              // Debug: Log specific facilities that user mentioned
-              const isProblematicFacility = ccn === '165344' || ccn === '155857' || ccn === '175172' || ccn === '235187' || 
-                                         pdfFacility.facility_name?.toLowerCase().includes('aspire') ||
-                                         pdfFacility.facility_name?.toLowerCase().includes('tranquility') ||
-                                         pdfFacility.facility_name?.toLowerCase().includes('excel healthcare') ||
-                                         pdfFacility.facility_name?.toLowerCase().includes('mission point');
-            
-            // Debug: Log NY candidates specifically
-            const isNyCandidate = pdfFacility.state === 'NY' && pdfFacility.status === 'Candidate';
-            if (isNyCandidate) {
-              console.log(`[NY Candidate Processing] CCN=${ccn}, Name=${pdfFacility.facility_name}, JSON State=${pdfFacility.state}, JSON Status=${pdfFacility.status}, Has Provider=${!!findProviderByCCN(ccn)}, Has Facility=${!!findFacilityByCCN(ccn)}`);
-            }
-            
-            // Debug: Log first few facilities to see what we're processing
-            if (allFacilitiesList.length < 5 || isProblematicFacility) {
-              console.log(`[Processing] CCN=${ccn}, Name=${pdfFacility.facility_name || 'MISSING'}, Status=${pdfFacility.status}, Months=${pdfFacility.months_as_sff}`);
-            }
-            
+
             // PRIORITY 1: Find facility data FIRST using CCN directly (HPRD, Census are most important)
             // STRICT: Only normalized 6-digit CCN matching
             let facility = findFacilityByCCN(ccn);
@@ -665,10 +647,7 @@ export default function SFFPage() {
               processedCCNs.add(ccn);
               processedCCNs.add(normalizedCCN);
             } else {
-              // Provider not found in Q2 - still create facility entry using CSV data
-              // This is important for facilities that may have closed or stopped reporting
-              console.warn(`[No Provider Match] CCN=${ccn}, Name=${pdfFacility.facility_name}, Status=${pdfFacility.status} - Creating entry from CSV data only`);
-              
+              // Provider not found in Q2 - still create facility entry using SFF posting data
               // Try Q1 provider data as fallback - STRICT matching only
               const normalized = normalizeCCN(ccn);
               let provider = normalized ? providerInfoQ1.find(p => {
@@ -1118,17 +1097,16 @@ export default function SFFPage() {
               </button>
             )}
           </div>
-            <p className="text-gray-300 text-xs md:text-sm mb-2 whitespace-nowrap">
+            <p className="text-gray-300 text-xs md:text-sm mb-2">
               Source:{' '}
               <a
-                href={sffSourceHref(sourceDates?.sffSourceUrl)}
+                href={resolvedSffPdfHref}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-blue-400 hover:text-blue-300 underline"
               >
-                {sffSourceLinkLabel(sourceDates?.sffSourceUrl)}
-              </a>{' '}
-              ({sourceDates?.sffPosting ?? 'latest posting'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
+                CMS SFF Posting ({resolvedSffPosting})
+              </a>; CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
             </p>
           </div>
         </div>
@@ -1449,14 +1427,23 @@ export default function SFFPage() {
           )}
         </div>
 
-        <div className="mt-8 md:mt-10 pt-6 border-t border-gray-700">
-          <div className="text-left text-xs text-gray-200 mb-4">
-            <p className="mb-1">
-              Source: <a href={sffSourceHref(sourceDates?.sffSourceUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline">{sffSourceLinkLabel(sourceDates?.sffSourceUrl)}</a> ({sourceDates?.sffPosting ?? 'Unknown'}); CMS PBJ ({sourceDates?.pbjQuarter ?? 'latest quarter'})
-            </p>
+        <div className="mt-8 md:mt-10">
+          <div className="text-left text-xs text-gray-400 mb-4 space-y-1">
             {candidateJSON && (
-              <p className="text-gray-200">
-                Complete list: {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Decertified ({candidateJSON.summary.total_count} total)
+              <p className="text-gray-300/90 leading-snug">
+                <span className="text-gray-500 font-medium">Nationwide:</span>{' '}
+                {candidateJSON.summary.current_sff_count} SFFs, {candidateJSON.summary.candidates_count} Candidates, {candidateJSON.summary.graduated_count} Graduates, {candidateJSON.summary.no_longer_participating_count} Decertified ({candidateJSON.summary.total_count} total)
+              </p>
+            )}
+            {isStateScope && scope && (
+              <p className="text-gray-500 leading-snug">
+                Related <span className="text-gray-600" aria-hidden="true">·</span>{' '}
+                <a
+                  href={`/state/${getStatePageSlug(scope.toUpperCase())}`}
+                  className="text-indigo-300/95 hover:text-indigo-200 underline underline-offset-2 decoration-indigo-400/35"
+                >
+                  {getStateName(scope.toUpperCase())} staffing
+                </a>
               </p>
             )}
           </div>

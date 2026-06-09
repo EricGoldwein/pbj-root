@@ -60,12 +60,20 @@ class NyEditorialDailyQuarterlyTest(unittest.TestCase):
         self.assertIn("not NY DOH enforcement determinations", self.html)
 
     def test_provider_table_has_quarterly_miss_column(self):
+        self.assertIn('data-sort="qtrs_below"', self.html)
+        self.assertIn('data-label="Qtrs &lt; 3.50"', self.html)
         self.assertIn('data-sort="qtrs_miss"', self.html)
-        self.assertIn('data-label="Qtrs missed floor"', self.html)
+        self.assertIn('data-label="Qtrs &lt; Floor"', self.html)
         self.assertIn(
             "Quarterly values are statutory-style PBJ mappings",
             self.html,
         )
+        self.assertIn(
+            "NY nursing homes · daily direct care staff below 3.50 HPRD",
+            self.html,
+        )
+        self.assertIn("floorNoteDesktop = 'min: ' + thresh + ' Direct HPRD", self.html)
+        self.assertIn("floorNoteMobile = 'min: ' + thresh + ' Direct HPRD", self.html)
 
     def test_methods_daily_vs_quarterly_distinction(self):
         self.assertIn("Daily vs. quarterly:", self.html)

@@ -377,11 +377,15 @@
     style.id = 'pbj-site-shell-styles';
     style.textContent = [
       'html{overflow-y:scroll;scrollbar-gutter:stable;}',
-      '.navbar{background:rgba(10,15,26,0.92)!important;backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;box-shadow:inset 0 -1px 0 rgba(255,255,255,0.08)!important;border-bottom:1px solid rgba(148,163,184,0.28)!important;}',
-      '.navbar .nav-container{max-width:1200px !important;margin:0 auto !important;padding:0 20px !important;height:60px !important;}',
+      '.navbar{background:rgba(10,15,26,0.92)!important;backdrop-filter:blur(12px)!important;-webkit-backdrop-filter:blur(12px)!important;border-bottom:1px solid rgba(148,163,184,0.28)!important;}',
+      '.navbar .nav-container{max-width:1200px !important;margin:0 auto !important;padding:0 clamp(12px,4vw,20px) !important;height:60px !important;max-height:60px !important;display:flex !important;align-items:center !important;justify-content:space-between !important;box-sizing:border-box !important;min-width:0 !important;}',
       '.navbar .nav-brand,.navbar .nav-link{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif !important;}',
       '.navbar .nav-menu{gap:30px !important;align-items:center !important;}',
-      '.navbar .nav-link{padding:8px 0 !important;font-size:16px !important;line-height:1.25 !important;font-weight:500 !important;color:rgba(255,255,255,0.88) !important;}',
+      '.navbar .nav-link{padding:8px 0 !important;font-size:16px !important;line-height:1.25 !important;font-weight:500 !important;color:rgba(255,255,255,0.88) !important;display:inline-block !important;min-height:0 !important;border:0 !important;background:transparent !important;}',
+      '@media (min-width:769px){',
+      '  .navbar .nav-menu{position:static !important;flex-direction:row !important;height:auto !important;min-height:0 !important;background:transparent !important;border:0 !important;padding:0 !important;margin:0 !important;}',
+      '  .navbar .nav-link{padding:8px 0 !important;min-height:0 !important;border:0 !important;display:inline-block !important;}',
+      '}',
       '.navbar .nav-link:hover{color:#93c5fd !important;}',
       '.navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;}',
       '.navbar .nav-link.active:hover{color:#60a5fa !important;}',

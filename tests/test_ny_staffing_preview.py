@@ -46,6 +46,23 @@ class NyStaffingPreviewTest(unittest.TestCase):
         self.assertIn('0.9rem * 1.35', out)
         self.assertNotIn(':root {\n  --ny-preview-banner-offset: calc(0.65rem * 2 + 1.35em', out)
 
+    def test_inject_wraps_site_header_and_progress_in_preview_chrome(self):
+        html = REPORT_HTML.read_text(encoding='utf-8')
+        out = inject_ny_staffing_report_preview(
+            html,
+            '/preview/ny-staffing-compliance-2025/testtok',
+        )
+        self.assertIn('class="report-site-header"', out)
+        self.assertIn(
+            'class="ny-staffing-preview-chrome">'
+            '<div class="ny-staffing-preview-banner"',
+            out,
+        )
+        self.assertIn(
+            'report-mobile-jump-progress-fill"></span></div>\n</div>\n\n</div><header class="hero"',
+            out,
+        )
+
     def test_inject_replaces_definitions_heading_only_on_preview(self):
         html = REPORT_HTML.read_text(encoding="utf-8")
         self.assertIn('id="definitions-heading"', html)

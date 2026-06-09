@@ -61,9 +61,11 @@ README_REQUIRED_PHRASES = (
     "facility-day",
     "Not legal advice",
     "Not NY DOH enforcement",
-    "Strictly less than threshold",
+    "Strict threshold rule",
     "Daily shortfalls are not the same as quarterly compliance",
     "statutory-style calculations",
+    "direct_care_hprd",
+    "total_hprd (Excel)",
 )
 
 ANCHOR_STATEWIDE_FD = 216_134
@@ -222,7 +224,7 @@ def verify() -> list[str]:
         "ccn",
         "quarter",
         "census_days",
-        "ny_mapped_total_hprd",
+        "direct_care_hprd",
         "below_350_total",
         "below_220_cna_side",
         "below_110_licensed",
@@ -414,7 +416,7 @@ def verify() -> list[str]:
     if not quarterly_section_ok:
         errors.append("report HTML missing quarterly statutory mapping section")
     if 'data-sort="qtrs_below"' not in html:
-        errors.append("report HTML missing Qtrs < 3.50 table column")
+        errors.append("report HTML missing Qtrs < Floor table column")
 
     return errors
 

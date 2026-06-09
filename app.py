@@ -8652,7 +8652,7 @@ gtag('config', 'G-NDPVY6TWBK');
 <style>
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0f1a; color: #e2e8f0; line-height: 1.6; min-height: 100vh; color-scheme: dark; }}
-.pbj-content {{ padding: 40px 20px; max-width: 1100px; margin: 0 auto; border-top: 1px solid rgba(71, 85, 105, 0.45); }}
+.pbj-content {{ padding: clamp(16px, 2.5vw, 24px) 20px 40px; max-width: 1100px; margin: 0 auto; }}
 .pbj-content-box {{ background: #111827; border-radius: 16px; padding: 40px 48px; margin-bottom: 24px; border: 1px solid rgba(51, 65, 85, 0.55); box-shadow: 0 12px 40px -20px rgba(15, 23, 42, 0.75); color: #e2e8f0; transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease; }}
 .pbj-content-box:hover {{ box-shadow: 0 16px 44px -18px rgba(15, 23, 42, 0.85); border-color: rgba(71, 85, 105, 0.7); }}
 .pbj-takeaway {{ background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(99, 102, 241, 0.2) !important; box-shadow: 0 12px 36px -16px rgba(15, 23, 42, 0.75); }}
@@ -10171,18 +10171,36 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
 .custom-report-cta .custom-report-cta-sms a {{ color: #818cf8; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-sms a:hover {{ color: #a5b4fc; text-decoration: underline; text-underline-offset: 3px; }}
-.navbar {{ background: rgba(2, 6, 23, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
-.nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }}
-.nav-brand {{ display: flex; align-items: center; color: #e2e8f0; font-size: 1.2rem; font-weight: 700; }}
-.nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; }}
+.navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
+.nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 clamp(12px, 4vw, 20px); display: flex; justify-content: space-between; align-items: center; height: 60px; min-width: 0; box-sizing: border-box; }}
+.nav-brand {{ display: flex; align-items: center; color: #eef2f7; font-size: 1.2rem; font-weight: 700; min-width: 0; line-height: 1.2; }}
+.nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; min-width: 0; }}
 .nav-brand a:hover {{ opacity: 0.92; }}
 .nav-menu {{ display: flex; gap: 30px; align-items: center; }}
-.nav-link {{ color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; padding: 8px 0; transition: color 0.2s ease; }}
+.nav-link {{ color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; padding: 8px 0; line-height: 1.25; font-size: 16px; transition: color 0.2s ease; }}
 .nav-link:hover {{ color: #93c5fd; }}
 .nav-link.active {{ color: #60a5fa; font-weight: 600; }}
 .nav-link--ownership-beta {{ display: none !important; }}
 .nav-toggle {{ display: none; flex-direction: column; cursor: pointer; gap: 4px; }}
 .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
+@media (min-width: 769px) {{
+  .nav-menu {{
+    position: static;
+    flex-direction: row;
+    height: auto;
+    min-height: 0;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    margin: 0;
+  }}
+  .nav-link {{
+    display: inline-block;
+    min-height: 0;
+    border: 0;
+    background: transparent;
+  }}
+}}
 .footer-section-hr {{ border: 0; border-top: 1px solid rgba(255, 255, 255, 0.1); height: 0; margin: clamp(20px, 3vw, 32px) 0 0 0; width: 100%; }}
 .footer-section-hr + .footer {{ border-top: none; }}
 .footer {{ text-align: center; padding: 32px 20px 40px; color: #a8b4c4; font-size: 0.9rem; background: #0d121f; margin-top: 0; border-top: 1px solid rgba(148, 163, 184, 0.18); width: 100%; box-sizing: border-box; }}
@@ -10369,7 +10387,6 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
         <a href="/phoebe" class="nav-link">PBJ Explained</a>
-        <a href="/owner" class="nav-link">FEC Contributions</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>

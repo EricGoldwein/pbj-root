@@ -209,6 +209,24 @@ def format_chow_date_short_label(iso: str) -> str:
     return f"{calendar.month_abbr[mo]} {day:02d}"
 
 
+def format_chow_date_feed_label(iso: str) -> str:
+    """Compact ownership-feed date M/D/YY (no leading zeros on month/day)."""
+    if not iso or len(iso) < 10:
+        return iso or "—"
+    p = iso.split("-")
+    if len(p) != 3:
+        return iso
+    try:
+        year = int(p[0])
+        mo = int(p[1])
+        day = int(p[2])
+    except ValueError:
+        return iso
+    if not 1 <= mo <= 12 or day < 1:
+        return iso
+    return f"{mo}/{day}/{year % 100:02d}"
+
+
 def chow_index_date_range_label() -> str:
     """Human-readable effective-date span for the current CHOW index."""
     summary = _load_index().get("summary") or {}

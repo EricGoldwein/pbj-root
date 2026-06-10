@@ -2934,6 +2934,42 @@
     }
     
     /* HPRD columns should all be the same width - no special narrowing for Total */
+
+    /* HPRD Total + Nurse Aide: centered value with spark stacked below */
+    #stateTable tbody td.col-hprd.reported-value.col-trend-cell--center {
+      vertical-align: middle !important;
+      text-align: center !important;
+    }
+
+    #stateTable tbody td.col-hprd.reported-value.col-trend-cell--center .report-metric-cell {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      line-height: 1.1;
+    }
+
+    #stateTable tbody td.col-hprd.reported-value.col-trend-cell--center .report-metric-val {
+      font-variant-numeric: tabular-nums;
+    }
+
+    #stateTable tbody td.col-hprd.reported-value.col-trend-cell--center .report-trend-spark {
+      display: block;
+      flex-shrink: 0;
+    }
+
+    .tooltip .report-tooltip-spark {
+      display: flex;
+      justify-content: center;
+      margin-top: 4px;
+    }
+    }
+
+    @media (max-width: 768px) {
+      .report-trend-spark {
+        display: none !important;
+      }
     }
     
     /* Center all HPRD columns (Total, RN, Nurse Aide) */
@@ -5027,6 +5063,11 @@ __REPORT_SSR_TABLE_ROWS__
     let providerDataByState = {}; // Store provider-level data for admin/DON calculations
     let hasStateMedianColumns = false; // true when state_quarterly_metrics.csv includes *_Median columns
     let regionQuarterlyData = {}; // Store region-level data from cms_region_quarterly_metrics.csv, keyed by region full name
+    let stateQuarterlyHistory = {}; // stateName -> { CY_Qtr -> row }
+    let nationalQuarterlyHistory = {}; // CY_Qtr -> row
+    let regionQuarterlyHistory = {}; // regionFull -> { CY_Qtr -> metrics }
+    let hprdTrendQuarters = []; // latest 4 CY_Qtr ending at anchor quarter
+    let forProfitQuarterlyHistory = {}; // stateName -> { CY_Qtr -> for-profit % }
     // currentQuarterYear is already declared globally at the top of the script
 
     // CSV line parser - defined early so it can be used
@@ -5176,29 +5217,30 @@ __REPORT_SSR_TABLE_ROWS__
           const regionQuarterlyRows = parseCSV(regionQuarterlyText);
           regionQuarterlyRows.forEach(row => {
             const regionFull = row.REGION?.trim();
-            if (regionFull) {
-              regionQuarterlyData[regionFull] = {
-                REGION: regionFull,
-                REGION_NUMBER: parseInt(row.REGION_NUMBER) || 0,
-                REGION_NAME: row.REGION_NAME?.trim() || '',
-                CY_Qtr: row.CY_Qtr?.trim() || '',
-                Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-                RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-                Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-                RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-                Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-                Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-                // Pre-calculated medians - handle missing columns gracefully
-                Total_Nurse_HPRD_Median: (row.Total_Nurse_HPRD_Median !== undefined && row.Total_Nurse_HPRD_Median !== '') ? parseFloat(row.Total_Nurse_HPRD_Median) : null,
-                RN_HPRD_Median: (row.RN_HPRD_Median !== undefined && row.RN_HPRD_Median !== '') ? parseFloat(row.RN_HPRD_Median) : null,
-                Nurse_Care_HPRD_Median: (row.Nurse_Care_HPRD_Median !== undefined && row.Nurse_Care_HPRD_Median !== '') ? parseFloat(row.Nurse_Care_HPRD_Median) : null,
-                RN_Care_HPRD_Median: (row.RN_Care_HPRD_Median !== undefined && row.RN_Care_HPRD_Median !== '') ? parseFloat(row.RN_Care_HPRD_Median) : null,
-                Nurse_Assistant_HPRD_Median: (row.Nurse_Assistant_HPRD_Median !== undefined && row.Nurse_Assistant_HPRD_Median !== '') ? parseFloat(row.Nurse_Assistant_HPRD_Median) : null,
-                Contract_Percentage_Median: (row.Contract_Percentage_Median !== undefined && row.Contract_Percentage_Median !== '') ? parseFloat(row.Contract_Percentage_Median) : null
-              };
-            }
+            const qtr = (row.CY_Qtr || '').trim();
+            if (!regionFull || !qtr) return;
+            const metrics = {
+              REGION: regionFull,
+              REGION_NUMBER: parseInt(row.REGION_NUMBER) || 0,
+              REGION_NAME: row.REGION_NAME?.trim() || '',
+              CY_Qtr: qtr,
+              Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
+              RN_HPRD: parseFloat(row.RN_HPRD) || 0,
+              Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
+              RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
+              Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
+              Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
+              Total_Nurse_HPRD_Median: (row.Total_Nurse_HPRD_Median !== undefined && row.Total_Nurse_HPRD_Median !== '') ? parseFloat(row.Total_Nurse_HPRD_Median) : null,
+              RN_HPRD_Median: (row.RN_HPRD_Median !== undefined && row.RN_HPRD_Median !== '') ? parseFloat(row.RN_HPRD_Median) : null,
+              Nurse_Care_HPRD_Median: (row.Nurse_Care_HPRD_Median !== undefined && row.Nurse_Care_HPRD_Median !== '') ? parseFloat(row.Nurse_Care_HPRD_Median) : null,
+              RN_Care_HPRD_Median: (row.RN_Care_HPRD_Median !== undefined && row.RN_Care_HPRD_Median !== '') ? parseFloat(row.RN_Care_HPRD_Median) : null,
+              Nurse_Assistant_HPRD_Median: (row.Nurse_Assistant_HPRD_Median !== undefined && row.Nurse_Assistant_HPRD_Median !== '') ? parseFloat(row.Nurse_Assistant_HPRD_Median) : null,
+              Contract_Percentage_Median: (row.Contract_Percentage_Median !== undefined && row.Contract_Percentage_Median !== '') ? parseFloat(row.Contract_Percentage_Median) : null
+            };
+            if (!regionQuarterlyHistory[regionFull]) regionQuarterlyHistory[regionFull] = {};
+            regionQuarterlyHistory[regionFull][qtr] = metrics;
           });
-          console.log(`? Loaded ${Object.keys(regionQuarterlyData).length} regions with quarterly data`);
+          console.log(`? Loaded ${Object.keys(regionQuarterlyHistory).length} regions with quarterly history`);
         }
 
         // Parse CSV
@@ -5217,6 +5259,33 @@ __REPORT_SSR_TABLE_ROWS__
         }
         if (reportEmbedDebug() && mostRecentQuarter) {
           console.log(`Report quarter (PBJ): ${mostRecentQuarter}`);
+        }
+
+        hprdTrendQuarters = latestNCyQtrs(mostRecentQuarter, 4);
+
+        stateQuarterlyHistory = {};
+        stateRows.forEach(row => {
+          const stateAbbrRaw = (row.STATE || '').trim().toUpperCase();
+          if (stateAbbrRaw === 'PR') return;
+          const stateName = abbrToName[stateAbbrRaw] || row.STATE;
+          const qtr = (row.CY_Qtr || '').trim();
+          if (!stateName || !qtr) return;
+          if (!stateQuarterlyHistory[stateName]) stateQuarterlyHistory[stateName] = {};
+          stateQuarterlyHistory[stateName][qtr] = row;
+        });
+
+        nationalQuarterlyHistory = {};
+        nationalRows.forEach(row => {
+          const qtr = (row.CY_Qtr || '').trim();
+          if (qtr) nationalQuarterlyHistory[qtr] = row;
+        });
+
+        if (mostRecentQuarter) {
+          regionQuarterlyData = {};
+          Object.keys(regionQuarterlyHistory).forEach(regionFull => {
+            const snap = regionQuarterlyHistory[regionFull][mostRecentQuarter];
+            if (snap) regionQuarterlyData[regionFull] = snap;
+          });
         }
         
         // Filter for the most recent quarter; exclude Puerto Rico so rankings are 51 (50 states + DC)
@@ -5773,6 +5842,25 @@ __REPORT_SSR_TABLE_ROWS__
       function providerStateAbbr(v) {
         return String(v || '').trim().toUpperCase().slice(0, 2);
       }
+      forProfitQuarterlyHistory = {};
+      const forProfitTallies = {};
+      allData.forEach(row => {
+        const cy = providerQuarterToCyQtr(rowProviderQuarter(row));
+        const stateName = abbrToName[providerStateAbbr(row.state)];
+        if (!cy || !stateName) return;
+        const tallyKey = cy + '\0' + stateName;
+        if (!forProfitTallies[tallyKey]) forProfitTallies[tallyKey] = { forProfit: 0, total: 0 };
+        forProfitTallies[tallyKey].total += 1;
+        if (ownershipIsForProfit(row.ownership_type)) forProfitTallies[tallyKey].forProfit += 1;
+      });
+      Object.keys(forProfitTallies).forEach(tallyKey => {
+        const sep = tallyKey.indexOf('\0');
+        const cy = tallyKey.slice(0, sep);
+        const stateName = tallyKey.slice(sep + 1);
+        const tally = forProfitTallies[tallyKey];
+        if (!forProfitQuarterlyHistory[stateName]) forProfitQuarterlyHistory[stateName] = {};
+        forProfitQuarterlyHistory[stateName][cy] = tally.total > 0 ? (tally.forProfit / tally.total) * 100 : null;
+      });
       const stateCaseMix = {};
       recentData.forEach(row => {
         const stateAbbr = providerStateAbbr(row.state);
@@ -6039,6 +6127,7 @@ __REPORT_SSR_TABLE_ROWS__
         if (!regionData[regionKey]) {
           regionData[regionKey] = {
             name: regionDisplayName,
+            regionFull: regionKey,
             regionNumber: regionInfo.regionNumber,
             regionName: regionInfo.regionName,
             states: [],
@@ -6661,6 +6750,274 @@ __REPORT_SSR_TABLE_ROWS__
       return '<abbr class="pbj-na" title="' + tip.replace(/"/g, '&quot;') + '">' + t + '</abbr>';
     }
 
+    function cyQtrPrior(q) {
+      const m = /^(\d{4})Q([1-4])$/.exec(String(q || '').trim());
+      if (!m) return null;
+      const y = parseInt(m[1], 10);
+      const qn = parseInt(m[2], 10);
+      if (qn === 1) return `${y - 1}Q4`;
+      return `${y}Q${qn - 1}`;
+    }
+
+    function latestNCyQtrs(anchor, n) {
+      const trail = [];
+      let q = String(anchor || '').trim();
+      for (let i = 0; i < n; i++) {
+        if (!q) break;
+        trail.push(q);
+        q = cyQtrPrior(q);
+      }
+      return trail.reverse();
+    }
+
+    function reportTrendSeriesOk(values) {
+      if (!values || values.length < 4) return null;
+      const out = [];
+      for (let i = 0; i < 4; i++) {
+        const v = values[i];
+        if (v === null || v === undefined || !Number.isFinite(v)) return null;
+        out.push(Number(v));
+      }
+      return out;
+    }
+
+    function reportTrendSparkSvg(values) {
+      const w = 48;
+      const h = 17;
+      const padX = 4;
+      const padY = 3.5;
+      const innerW = w - (2 * padX);
+      const innerH = h - (2 * padY);
+      const vmin = Math.min(...values);
+      const vmax = Math.max(...values);
+      const span = vmax - vmin;
+      const n = values.length;
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        const v = values[i];
+        const x = n > 1 ? padX + (innerW * i / (n - 1)) : w / 2;
+        const y = span <= 0 ? padY + (innerH / 2) : padY + innerH - (((v - vmin) / span) * innerH);
+        pts.push([x, y]);
+      }
+      const stroke = '#a5b4fc';
+      const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+      const dots = pts.map(([x, y], i) => {
+        const r = i === (n - 1) ? 2.0 : 1.65;
+        const opacity = i === (n - 1) ? 0.95 : 0.78;
+        return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r.toFixed(2)}" fill="${stroke}" opacity="${opacity.toFixed(2)}"/>`;
+      }).join('');
+      return `<svg class="report-trend-spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true" focusable="false"><polyline fill="none" stroke="${stroke}" stroke-opacity="0.5" stroke-width="1.1" stroke-linecap="round" stroke-linejoin="round" points="${poly}"/>${dots}</svg>`;
+    }
+
+    function parseRowTrendValue(row, avgKey, medianKey, useMedian) {
+      if (!row) return null;
+      let raw = row[avgKey];
+      if (useMedian && medianKey && row[medianKey] !== undefined && row[medianKey] !== null && row[medianKey] !== '') {
+        raw = row[medianKey];
+      }
+      const v = parseFloat(raw);
+      return Number.isFinite(v) ? v : null;
+    }
+
+    function parseQuarterlyHprdTrend(row, excludeAdmin, useMedian) {
+      if (!row) return null;
+      if (excludeAdmin) {
+        return parseRowTrendValue(row, 'Nurse_Care_HPRD', 'Nurse_Care_HPRD_Median', useMedian);
+      }
+      return parseRowTrendValue(row, 'Total_Nurse_HPRD', 'Total_Nurse_HPRD_Median', useMedian);
+    }
+
+    function parseQuarterlyRnTrend(row, excludeAdmin, useMedian) {
+      if (!row) return null;
+      if (excludeAdmin) {
+        return parseRowTrendValue(row, 'RN_Care_HPRD', 'RN_Care_HPRD_Median', useMedian);
+      }
+      return parseRowTrendValue(row, 'RN_HPRD', 'RN_HPRD_Median', useMedian);
+    }
+
+    function getStateTrendByParser(stateName, parserFn, excludeAdmin, useMedian) {
+      const hist = stateQuarterlyHistory[stateName];
+      if (!hist || !hprdTrendQuarters.length) return null;
+      return hprdTrendQuarters.map(q => parserFn(hist[q], excludeAdmin, useMedian));
+    }
+
+    function aggregateRegionTrendFromStates(regionFull, parserFn, excludeAdmin, useMedian) {
+      const region = regionData[regionFull];
+      if (!region || !Array.isArray(region.states) || !hprdTrendQuarters.length) return null;
+      // Resident-day weighted rollup from state_quarterly_metrics — same method as aggregateRegionData()
+      // table HPRD. Equivalent to facility rollup when each state HPRD is already facility-weighted.
+      return hprdTrendQuarters.map(q => {
+        let totalHours = 0;
+        let totalDays = 0;
+        region.states.forEach(stateName => {
+          const row = stateQuarterlyHistory[stateName]?.[q];
+          if (!row) return;
+          const metric = parserFn(row, excludeAdmin, useMedian);
+          const days = parseFloat(row.total_resident_days);
+          if (metric !== null && Number.isFinite(days) && days > 0) {
+            totalHours += metric * days;
+            totalDays += days;
+          }
+        });
+        return totalDays > 0 ? totalHours / totalDays : null;
+      });
+    }
+
+    function aggregateRegionContractTrendFromStates(regionFull) {
+      const region = regionData[regionFull];
+      if (!region || !Array.isArray(region.states) || !hprdTrendQuarters.length) return null;
+      return hprdTrendQuarters.map(q => {
+        let totalContractHours = 0;
+        let totalHours = 0;
+        region.states.forEach(stateName => {
+          const row = stateQuarterlyHistory[stateName]?.[q];
+          if (!row) return;
+          const days = parseFloat(row.total_resident_days);
+          const contractPct = parseFloat(row.Contract_Percentage);
+          const totalHPRD = parseFloat(row.Total_Nurse_HPRD);
+          if (days > 0 && Number.isFinite(contractPct) && Number.isFinite(totalHPRD)) {
+            totalContractHours += (contractPct / 100) * totalHPRD * days;
+            totalHours += totalHPRD * days;
+          }
+        });
+        return totalHours > 0 ? (totalContractHours / totalHours) * 100 : null;
+      });
+    }
+
+    function getStateTotalHprdTrend(stateName, excludeAdmin, useMedian) {
+      return getStateTrendByParser(stateName, parseQuarterlyHprdTrend, excludeAdmin, useMedian);
+    }
+
+    function getStateRnTrend(stateName, excludeAdmin, useMedian) {
+      return getStateTrendByParser(stateName, parseQuarterlyRnTrend, excludeAdmin, useMedian);
+    }
+
+    function getStateNaTrend(stateName, useMedian) {
+      return getStateTrendByParser(stateName, (row) => parseRowTrendValue(row, 'Nurse_Assistant_HPRD', 'Nurse_Assistant_HPRD_Median', useMedian), false, useMedian);
+    }
+
+    function getStateContractTrend(stateName) {
+      return getStateTrendByParser(stateName, (row) => parseRowTrendValue(row, 'Contract_Percentage', 'Contract_Percentage_Median', false), false, false);
+    }
+
+    function getStateForProfitTrend(stateName) {
+      const hist = forProfitQuarterlyHistory[stateName];
+      if (!hist || !hprdTrendQuarters.length) return null;
+      return hprdTrendQuarters.map(q => {
+        const v = hist[q];
+        return v !== null && v !== undefined && Number.isFinite(v) ? Number(v) : null;
+      });
+    }
+
+    function getRegionTotalHprdTrend(regionFull, excludeAdmin, useMedian) {
+      return aggregateRegionTrendFromStates(regionFull, parseQuarterlyHprdTrend, excludeAdmin, useMedian);
+    }
+
+    function getRegionRnTrend(regionFull, excludeAdmin, useMedian) {
+      return aggregateRegionTrendFromStates(regionFull, parseQuarterlyRnTrend, excludeAdmin, useMedian);
+    }
+
+    function getRegionNaTrend(regionFull, useMedian) {
+      return aggregateRegionTrendFromStates(
+        regionFull,
+        (row) => parseRowTrendValue(row, 'Nurse_Assistant_HPRD', 'Nurse_Assistant_HPRD_Median', useMedian),
+        false,
+        useMedian
+      );
+    }
+
+    function getRegionContractTrend(regionFull) {
+      return aggregateRegionContractTrendFromStates(regionFull);
+    }
+
+    function getRegionForProfitTrend(regionFull) {
+      const region = regionData[regionFull];
+      if (!region || !Array.isArray(region.states) || !hprdTrendQuarters.length) return null;
+      return hprdTrendQuarters.map(q => {
+        let forProfitFacilities = 0;
+        let knownFacilities = 0;
+        region.states.forEach(stateName => {
+          const pct = forProfitQuarterlyHistory[stateName]?.[q];
+          const row = stateQuarterlyHistory[stateName]?.[q];
+          const denom = row ? (parseInt(row.facility_count, 10) || 0) : 0;
+          if (pct !== null && pct !== undefined && Number.isFinite(pct) && denom > 0) {
+            forProfitFacilities += (pct / 100) * denom;
+            knownFacilities += denom;
+          }
+        });
+        return knownFacilities > 0 ? (forProfitFacilities / knownFacilities) * 100 : null;
+      });
+    }
+
+    function getNationalTotalHprdTrend(excludeAdmin, useMedian) {
+      if (!hprdTrendQuarters.length) return null;
+      return hprdTrendQuarters.map(q => {
+        if (!excludeAdmin) {
+          return parseQuarterlyHprdTrend(nationalQuarterlyHistory[q], false, useMedian);
+        }
+        let totalHours = 0;
+        let totalDays = 0;
+        Object.keys(stateQuarterlyHistory).forEach(stateName => {
+          const row = stateQuarterlyHistory[stateName][q];
+          if (!row) return;
+          const metric = parseQuarterlyHprdTrend(row, true, useMedian);
+          const days = parseFloat(row.total_resident_days);
+          if (metric !== null && Number.isFinite(days) && days > 0) {
+            totalHours += metric * days;
+            totalDays += days;
+          }
+        });
+        return totalDays > 0 ? totalHours / totalDays : null;
+      });
+    }
+
+    function reportMetricTrendInnerHtml(displayContent, series) {
+      const ok = reportTrendSeriesOk(series);
+      if (!ok) {
+        return `<span class="report-metric-cell report-metric-cell--plain"><span class="report-metric-val">${displayContent}</span></span>`;
+      }
+      return `<span class="report-metric-cell"><span class="report-metric-val">${displayContent}</span>${reportTrendSparkSvg(ok)}</span>`;
+    }
+
+    function reportTooltipTrendHtml(series) {
+      if (window.innerWidth <= 768) return '';
+      const ok = reportTrendSeriesOk(series);
+      if (!ok) return '';
+      return `<div class="report-tooltip-spark">${reportTrendSparkSvg(ok)}</div>`;
+    }
+
+    function mapTooltipTrendSeries(stateName, metric) {
+      const useMedian = showMedians && mapDisplayMode === 'median';
+      if (metric === 'Total_Nurse_HPRD') {
+        return getStateTotalHprdTrend(stateName, excludeAdminDON, useMedian);
+      }
+      if (metric === 'Total_RN_HPRD') {
+        return getStateRnTrend(stateName, excludeAdminDON, useMedian);
+      }
+      if (metric === 'Nurse_Assistant_HPRD') {
+        return getStateNaTrend(stateName, useMedian);
+      }
+      return null;
+    }
+
+    function createReportTrendCell(displayText, series, className, centerAlign) {
+      const td = document.createElement('td');
+      td.className = className + ' col-trend-cell' + (centerAlign ? ' col-trend-cell--center' : '');
+      if (window.innerWidth <= 768) {
+        td.textContent = displayText;
+        return td;
+      }
+      const inner = reportMetricTrendInnerHtml(displayText, series);
+      if (inner.includes('report-trend-spark')) {
+        td.innerHTML = inner;
+      } else if (typeof displayText === 'string' && displayText.includes('<')) {
+        td.innerHTML = displayText;
+      } else {
+        td.textContent = displayText;
+      }
+      return td;
+    }
+
     // Helper function to create a table cell
     function createTableCell(content, className = '', style = '') {
       const td = document.createElement('td');
@@ -6976,29 +7333,30 @@ __REPORT_SSR_TABLE_ROWS__
         reportedRNText = (Math.round(reportedRNValue * 100) / 100).toFixed(2);
         reportedNAText = (Math.round(reportedNAValue * 100) / 100).toFixed(2);
         
-        // Reported HPRD cells - CSS handles widths
-        const reportedTotalCell = createTableCell(reportedTotalText, 'col-hprd reported-value');
-        tr.appendChild(reportedTotalCell);
-        
-        const reportedRNCell = createTableCell(reportedRNText, 'col-hprd reported-value');
-        tr.appendChild(reportedRNCell);
-        
-        const reportedNACell = createTableCell(reportedNAText, 'col-hprd reported-value nurse-aide-mobile-hide');
-        tr.appendChild(reportedNACell);
+        const totalHprdTrendSeries = currentTableView === 'region'
+          ? getRegionTotalHprdTrend(state.regionFull, tableExcludeAdminDON, tableShowMedians)
+          : getStateTotalHprdTrend(state.name, tableExcludeAdminDON, tableShowMedians);
+        const rnTrendSeries = currentTableView === 'region'
+          ? getRegionRnTrend(state.regionFull, tableExcludeAdminDON, tableShowMedians)
+          : getStateRnTrend(state.name, tableExcludeAdminDON, tableShowMedians);
+        const naTrendSeries = currentTableView === 'region'
+          ? getRegionNaTrend(state.regionFull, tableShowMedians)
+          : getStateNaTrend(state.name, tableShowMedians);
+        tr.appendChild(createReportTrendCell(reportedTotalText, totalHprdTrendSeries, 'col-hprd reported-value', true));
+        tr.appendChild(createReportTrendCell(reportedRNText, rnTrendSeries, 'col-hprd reported-value', true));
+        tr.appendChild(createReportTrendCell(reportedNAText, naTrendSeries, 'col-hprd reported-value nurse-aide-mobile-hide', true));
         
         // Contract % cell - always use regular value (median toggle removed from table)
         const contractPercent = state.Contract_Percentage !== undefined ? state.Contract_Percentage : null;
         const contractText = contractPercent !== null ? `${contractPercent.toFixed(1)}%` : naLabel('-', NA_HINT_DEFAULT);
-        const contractCell = createTableCell(contractText, 'col-contract');
-        tr.appendChild(contractCell);
+        tr.appendChild(createTableCell(contractText, 'col-contract'));
         
         // For-Profit % cell
         const forProfitPercent = (state.forProfitPercent !== undefined && Number.isFinite(state.forProfitPercent))
           ? state.forProfitPercent
           : null;
         const forProfitText = forProfitPercent !== null ? `${forProfitPercent.toFixed(1)}%` : naLabel('-', NA_HINT_DEFAULT);
-        const forProfitCell = createTableCell(forProfitText, 'col-forprofit');
-        tr.appendChild(forProfitCell);
+        tr.appendChild(createTableCell(forProfitText, 'col-forprofit'));
         
         // Append row to tbody
         tbody.appendChild(tr);
@@ -7548,8 +7906,8 @@ __REPORT_SSR_TABLE_ROWS__
               }
               
               metricLabel += reportMapModeSuffix(currentMetric);
+              const mapTrendHtmlEarly = reportTooltipTrendHtml(mapTooltipTrendSeries(stateName, currentMetric));
               
-              // Case-mix removed from desktop hover tooltips
               tooltip.transition()
                 .duration(200)
                 .style('opacity', 0.95);
@@ -7557,6 +7915,7 @@ __REPORT_SSR_TABLE_ROWS__
               tooltip.html(`
                 <strong>${stateName}</strong><br/>
                 ${metricLabel}: ${formattedValue} (Rank: ${rank})<br/>
+                ${mapTrendHtmlEarly}
                 <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
                 <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
               `)
@@ -8022,10 +8381,11 @@ __REPORT_SSR_TABLE_ROWS__
               primaryValue = (Math.round(value * 100) / 100).toFixed(2);
             }
             
-            // Case-mix removed from desktop hover tooltips
+            const mapTrendHtml = reportTooltipTrendHtml(mapTooltipTrendSeries(stateName, currentMetric));
             tooltipContent = `
               <strong>${stateName}</strong><br/>
               ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
+              ${mapTrendHtml}
               <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
               <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
             `;

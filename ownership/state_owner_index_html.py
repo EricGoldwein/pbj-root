@@ -11,7 +11,7 @@ from ownership.chow_lookup import (
     chow_facility_label,
     chow_facility_place_label,
     chow_records_for_state,
-    format_chow_date_short_label,
+    format_chow_date_feed_label,
 )
 from ownership.display_format import format_org_display
 from ownership.page_integrations import _facility_link_from_record, _org_link_from_chow_record
@@ -428,7 +428,7 @@ def _render_chow_feed(
     stores: list[str] = []
     for i, rec in enumerate(rows):
         rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
-        eff = html.escape(format_chow_date_short_label(str(rec.get("effective_date") or "")) or "—")
+        eff = html.escape(format_chow_date_feed_label(str(rec.get("effective_date") or "")) or "—")
         facility = _facility_link_from_record(rec)
         facility_plain = html.escape(_chow_facility_plain_name(rec), quote=True)
         panel_id = f"chow-detail-{rid}"

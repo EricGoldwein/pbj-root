@@ -2714,6 +2714,32 @@ def _cy_qtr_sort_key(q):
     return (int(m.group(1)), int(m.group(2)))
 
 
+def _cy_qtr_prior(q: str) -> str | None:
+    m = re.match(r'^(\d{4})Q([1-4])$', str(q or '').strip())
+    if not m:
+        return None
+    year, qn = int(m.group(1)), int(m.group(2))
+    if qn == 1:
+        return f'{year - 1}Q4'
+    return f'{year}Q{qn - 1}'
+
+
+def _latest_n_cy_qtrs(anchor_qtr: str, n: int = 4) -> list[str]:
+    """Chronological list of the latest ``n`` CY_Qtr values ending at ``anchor_qtr``."""
+    anchor = str(anchor_qtr or '').strip()
+    if not anchor or n < 1:
+        return []
+    trail: list[str] = []
+    q = anchor
+    for _ in range(n):
+        if not q:
+            break
+        trail.append(q)
+        q = _cy_qtr_prior(q)
+    trail.reverse()
+    return trail
+
+
 def _provider_csv_collect_quarters(path_used, col_refs, pd_local):
     """Distinct canonical CY_Qtr values present in a ProviderInfo-style CSV (non-snapshot)."""
     qcols = []
@@ -4320,6 +4346,12 @@ def _badge_star_span_html(icons: str, star_count: int | None = None) -> str:
 PBJ_TAKEAWAY_AVATAR_HTML = (
     '<img src="/phoebe-avatar-72.webp" alt="Phoebe J" width="48" height="48" '
     'loading="lazy" decoding="async" class="pbj-takeaway-avatar">'
+)
+
+PBJ_TAKEAWAY_BRAND_PILL_HTML = (
+    '<span class="pbj-takeaway-brand-pill">'
+    '<span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span>'
+    '</span>'
 )
 
 
@@ -6277,13 +6309,13 @@ def _owners_state_locked_html(state_name: str = ''):
 
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
-    """CMS ownership profile autocomplete (CT/NY/FL; draft NJ/ID); optional ?state=ny|ct|fl|nj|id."""
+    """CMS ownership autocomplete: state index search when ?state= is set; hub catalog otherwise."""
     from flask import jsonify
     from ownership.owner_profile import normalize_associate_id, search_public_owner_profiles
     from ownership.state_owner_index import (
         resolve_state_owner_index_slug,
-        search_state_owner_index,
-        state_owner_index_is_draft,
+        state_owner_index_enabled_for_state,
+        state_owner_index_search_suggestions,
     )
 
     state_arg = (request.args.get('state') or '').strip().lower()
@@ -6296,18 +6328,10 @@ def owners_cms_search_api():
     if len(q) < 2 and len(pac) != 10:
         return jsonify({'suggestions': []})
     limit = 40 if state_code else 12
-    if state_code and state_owner_index_is_draft(state_code):
-        rows = search_state_owner_index(q, state_code, limit=limit)
-        suggestions = [
-            {
-                'associate_id': str(row.get('associate_id') or ''),
-                'name': str(row.get('name') or ''),
-                'profile_url': str(row.get('profile_url') or ''),
-                'facility_count': int(row.get('facility_count') or 0),
-            }
-            for row in rows
-        ]
-        return jsonify({'suggestions': suggestions})
+    if state_code and state_owner_index_enabled_for_state(state_code):
+        return jsonify({
+            'suggestions': state_owner_index_search_suggestions(q, state_code, limit=limit),
+        })
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
@@ -9819,10 +9843,12 @@ abbr.pbj-na {{
 .pbj-ai-toast--visible {{ opacity: 1; transform: translateX(-50%) translateY(0); }}
 .pbj-takeaway-footer {{ margin-top: 0; padding-top: 0; border-top: none; }}
 .pbj-takeaway-brand-pill {{
-  display: inline-block; padding: 0.3rem 0.65rem; border-radius: 999px; font-size: 0.68rem; font-weight: 700;
-  letter-spacing: 0.06em; text-transform: uppercase; color: rgba(226, 232, 240, 0.92);
+  display: inline-flex; align-items: center; padding: 0.28rem 0.55rem;
+  border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0; line-height: 1;
   background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(129, 140, 248, 0.38); flex-shrink: 0; white-space: nowrap;
 }}
+.pbj-takeaway-brand-pill .pbj-brand-pbj {{ color: #e2e8f0; }}
+.pbj-takeaway-brand-pill .pbj-brand-320 {{ color: #818cf8; }}
 @media (max-width: 768px) {{
   .pbj-takeaway-actions {{ flex-wrap: nowrap; align-items: stretch; }}
   .pbj-takeaway-actions__hprd {{ min-width: 0; }}
@@ -9836,7 +9862,7 @@ abbr.pbj-na {{
   .pbj-takeaway-top {{ gap: 10px; }}
   .pbj-takeaway-avatar {{ width: 40px; height: 40px; }}
   .pbj-takeaway-top-main {{ gap: 0.35rem 0.5rem; }}
-  .pbj-takeaway-brand-pill {{ font-size: 0.65rem; padding: 0.22rem 0.5rem; }}
+  .pbj-takeaway-brand-pill {{ font-size: 0.65rem; padding: 0.22rem 0.45rem; }}
   .pbj-chart-header-row {{ flex-direction: column; align-items: stretch; }}
   .pbj-staffing-role-chart .pbj-chart-header-row {{
     display: flex; flex-direction: row; align-items: center; justify-content: space-between;
@@ -14809,7 +14835,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">PBJ320</span>
+{PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
 <div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{priority_flags_html}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
@@ -15686,7 +15712,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">PBJ320</span>
+{PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{_scope}</p>
@@ -15870,7 +15896,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-<span class="pbj-takeaway-brand-pill">PBJ320</span>
+{PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.25rem 0;">{tier1_badges}</p>
@@ -16839,14 +16865,156 @@ def _high_risk_sff_by_ccn(sff_facilities: list | None) -> dict[str, dict]:
     return out
 
 
+def _state_hr_trend_series_ok(values: list[float | None] | None) -> list[float] | None:
+    if not values or len(values) < 4:
+        return None
+    out: list[float] = []
+    for v in values[:4]:
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return None
+        if fv != fv:
+            return None
+        out.append(fv)
+    return out if len(out) == 4 else None
+
+
+_STATE_HR_TREND_SPARK_W = 48
+_STATE_HR_TREND_SPARK_H = 17
+
+
+def _state_hr_trend_spark_svg(values: list[float], *, kind: str) -> str:
+    """Compact 4-quarter sparkline with visible point markers (flat series = level line + 4 dots)."""
+    w, h = _STATE_HR_TREND_SPARK_W, _STATE_HR_TREND_SPARK_H
+    pad_x, pad_y = 4.0, 3.5
+    inner_w = w - (2 * pad_x)
+    inner_h = h - (2 * pad_y)
+    vmin, vmax = min(values), max(values)
+    span = vmax - vmin
+    n = len(values)
+    pts: list[tuple[float, float]] = []
+    for i, v in enumerate(values):
+        x = pad_x + (inner_w * i / (n - 1)) if n > 1 else (w / 2)
+        if span <= 0:
+            y = pad_y + (inner_h / 2)
+        else:
+            y = pad_y + inner_h - (((v - vmin) / span) * inner_h)
+        pts.append((x, y))
+    stroke = '#5eead4' if kind == 'census' else '#a5b4fc'
+    poly = ' '.join(f'{x:.1f},{y:.1f}' for x, y in pts)
+    dots: list[str] = []
+    for i, (x, y) in enumerate(pts):
+        r = 2.0 if i == (n - 1) else 1.65
+        opacity = 0.95 if i == (n - 1) else 0.78
+        dots.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.2f}" fill="{stroke}" opacity="{opacity:.2f}"/>'
+        )
+    return (
+        f'<svg class="state-hr-trend-spark state-hr-trend-spark--{kind}" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}" aria-hidden="true" focusable="false">'
+        f'<polyline fill="none" stroke="{stroke}" stroke-opacity="0.5" stroke-width="1.1" '
+        f'stroke-linecap="round" stroke-linejoin="round" points="{poly}"/>'
+        f'{"".join(dots)}</svg>'
+    )
+
+
+def _state_hr_metric_trend_cell_html(
+    display: str,
+    series: list[float | None] | None,
+    *,
+    kind: str,
+) -> str:
+    """Centered value + attached 4-quarter sparkline (value only when series incomplete)."""
+    esc = html.escape(display)
+    ok = _state_hr_trend_series_ok(series)
+    if not ok:
+        return (
+            f'<span class="state-hr-metric-cell state-hr-metric-cell--plain">'
+            f'<span class="state-hr-metric-val">{esc}</span></span>'
+        )
+    spark = _state_hr_trend_spark_svg(ok, kind=kind)
+    return (
+        f'<span class="state-hr-metric-cell">'
+        f'<span class="state-hr-metric-val">{esc}</span>'
+        f'{spark}'
+        f'</span>'
+    )
+
+
+def _high_risk_sparklines_for_ccns(ccns: set[str], anchor_qtr: str) -> dict[str, dict[str, list[float | None]]]:
+    """Batch four-quarter census/HPRD series for a table page (SQLite only)."""
+    if not ccns:
+        return {}
+    qtr = str(anchor_qtr or '').strip() or (get_canonical_latest_quarter() or '')
+    quarters = _latest_n_cy_qtrs(qtr, 4)
+    if len(quarters) != 4:
+        return {}
+    try:
+        import facility_provider_indexes as fpi
+
+        if not fpi.sqlite_exists():
+            return {}
+        return fpi.load_facility_sparklines_by_ccn(list(ccns), quarters)
+    except Exception:
+        return {}
+
+
+def _state_hr_risk_flags_cell_html(fac: dict, ccn: str, sff_by_ccn: dict[str, dict]) -> str:
+    """Indicator badges for state high-risk table (shared lazy + SSR paths)."""
+    from ownership.display_format import format_cms_star_rating
+
+    badges: list[str] = []
+    sff_raw = str(fac.get('status') or '').strip()
+    sff_up = sff_raw.upper()
+    sf = sff_by_ccn.get(ccn) if ccn else None
+    months_val = sf.get('months_as_sff') if sf else None
+    months_tip = (
+        f' title="Months as SFF: {html.escape(str(months_val))}"'
+        if months_val is not None
+        else ''
+    )
+    if sff_up == 'SFF':
+        badges.append(
+            f'<span class="state-hr-badge state-hr-badge--sff"{months_tip}>SFF</span>'
+        )
+    elif 'CANDIDATE' in sff_up:
+        badges.append(
+            f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>'
+            f'SFF <span class="state-hr-sffc-long">cand.</span>'
+            f'<span class="state-hr-sffc-short">c.</span></span>'
+        )
+    if fac.get('hasAbuse'):
+        badges.append(
+            '<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">'
+            '\u26a0</span>'
+        )
+    try:
+        if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
+            badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
+    except (TypeError, ValueError):
+        pass
+    try:
+        if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
+            badges.append('<span class="state-hr-badge state-hr-badge--1stf" title="1-star staffing">1★S</span>')
+    except (TypeError, ValueError):
+        pass
+    if not badges:
+        return '—'
+    return '<span class="state-hr-flags">' + ''.join(badges) + '</span>'
+
+
 def _high_risk_facility_row_html(
     fac: dict,
     provider_info: dict,
     sff_by_ccn: dict[str, dict],
     *,
     row_hidden: bool = False,
+    sparklines: dict[str, dict[str, list[float | None]]] | None = None,
 ) -> str:
-    from ownership.display_format import cms_ratings_stack_html, format_cms_star_rating
+    from ownership.display_format import cms_ratings_stack_html
 
     try:
         from pbj_format import format_metric_value as _fmt_hprd
@@ -16909,47 +17077,22 @@ def _high_risk_facility_row_html(
         f'{city_bit}</div>'
     )
 
-    badges: list[str] = []
-    sff_raw = str(fac.get('status') or '').strip()
-    sff_up = sff_raw.upper()
-    sf = sff_by_ccn.get(ccn) if ccn else None
-    months_val = sf.get('months_as_sff') if sf else None
-    months_tip = (
-        f' title="Months as SFF: {html.escape(str(months_val))}"'
-        if months_val is not None
-        else ''
+    flags_cell = _state_hr_risk_flags_cell_html(fac, ccn, sff_by_ccn)
+    spark = (sparklines or {}).get(ccn) or {}
+    census_html = _state_hr_metric_trend_cell_html(
+        census_cell, spark.get('census'), kind='census',
     )
-    if sff_up == 'SFF':
-        badges.append(
-            f'<span class="state-hr-badge state-hr-badge--sff"{months_tip}>SFF</span>'
-        )
-    elif 'CANDIDATE' in sff_up:
-        badges.append(
-            f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
-        )
-    if fac.get('hasAbuse'):
-        badges.append(
-            '<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">'
-            '\u26a0</span>'
-        )
-    try:
-        if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
-            badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
-    except (TypeError, ValueError):
-        pass
-    try:
-        if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
-            badges.append('<span class="state-hr-badge state-hr-badge--1stf" title="1-star staffing">1★S</span>')
-    except (TypeError, ValueError):
-        pass
-    flags_cell = ' '.join(badges) if badges else '—'
+    hprd_html = _state_hr_metric_trend_cell_html(
+        hprd_cell, spark.get('hprd'), kind='hprd',
+    )
 
     tr_attr = ' class="state-hr-row-more" hidden' if row_hidden else ''
     return (
         f'<tr{tr_attr}><td class="state-hr-col-facility">{facility_cell}</td>'
-        f'<td class="num state-hr-census">{html.escape(census_cell)}</td>'
+        f'<td class="num state-hr-census">{census_html}</td>'
         f'<td class="state-hr-ratings">{ratings_cell}</td>'
-        f'<td class="state-hr-col-flags">{flags_cell}</td><td class="num">{hprd_cell}</td></tr>'
+        f'<td class="state-hr-col-flags">{flags_cell}</td>'
+        f'<td class="num state-hr-hprd">{hprd_html}</td></tr>'
     )
 
 
@@ -16988,8 +17131,12 @@ def _high_risk_table_api_payload(
     }
     provider_info = load_provider_info(ccn_set=ccns) if ccns else {}
     sff_by_ccn = _high_risk_sff_by_ccn(sff_facilities)
+    sparklines = _high_risk_sparklines_for_ccns(ccns, cy_qtr or '')
     rows_html = ''.join(
-        _high_risk_facility_row_html(fac, provider_info, sff_by_ccn) for fac in page
+        _high_risk_facility_row_html(
+            fac, provider_info, sff_by_ccn, sparklines=sparklines,
+        )
+        for fac in page
     )
     return {
         'state': state_code,
@@ -17095,9 +17242,17 @@ _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
     .state-hr-facility-cell { line-height: 1.25; }
     .state-hr-facility-name { display: inline; }
     .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.85em; white-space: nowrap; margin-left: 0.2rem; }
-    .state-hr-col-flags { white-space: nowrap; }
-    .state-hr-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; margin: 0 0.1rem 0 0; white-space: nowrap; vertical-align: middle; }
+    .state-hr-col-flags { white-space: normal; vertical-align: middle; }
+    .state-hr-flags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; max-width: 6.5rem; }
+    .state-hr-badge { display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; white-space: nowrap; vertical-align: middle; line-height: 1.15; }
+    .state-hr-sffc-short { display: none; }
+    .state-hr-badge--sff { background: rgba(220,38,38,0.2); color: #fca5a5; border: 1px solid rgba(248,113,113,0.35); }
+    .state-hr-badge--sffc { background: rgba(234,88,12,0.18); color: #fdba74; border: 1px solid rgba(251,146,60,0.35); }
+    .state-hr-badge--abuse { background: rgba(127,29,29,0.35); color: #fecaca; border: 1px solid rgba(248,113,113,0.4); }
+    .state-hr-badge--1ovr, .state-hr-badge--1stf { background: rgba(99,102,241,0.15); color: #c7d2fe; border: 1px solid rgba(129,140,248,0.35); }
     .state-hr-show-all-btn--inline { margin: 0; padding: 0; font-size: inherit; background: none; border: none; color: #a5b4fc; text-decoration: underline; cursor: pointer; }
+    .state-hr-show-all-btn--inline:hover { color: #c7d2fe; background: none; }
+    .state-hr-section-foot { margin-top: 0.35rem; }
     .state-hr-tab-btn[aria-selected="true"] { background: rgba(99, 102, 241, 0.45) !important; border-color: #818cf8 !important; color: #e2e8f0 !important; font-weight: 600; }
     .state-hr-ratings .owner-ratings-stack { display: inline-flex; flex-direction: column; gap: 0.12rem; }
     .state-hr-ratings .owner-rating-row { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; }
@@ -17105,11 +17260,20 @@ _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
     .state-hr-ratings .owner-rating-stars { letter-spacing: 0.05em; color: #fbbf24; }
     .state-hr-ratings .owner-rating-stars-on--low { color: #f87171; }
     .state-hr-ratings .owner-rating-none { color: #64748b; }
+    .state-hr-table td.state-hr-census, .state-hr-table td.state-hr-hprd { text-align: center; vertical-align: middle; }
+    .state-hr-metric-cell { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.1; min-width: 48px; }
+    .state-hr-metric-val { font-weight: 600; color: #e2e8f0; font-variant-numeric: tabular-nums; }
+    .state-hr-trend-spark { display: block; width: 48px; height: 17px; flex-shrink: 0; }
     @media (max-width: 640px) {
       .state-hr-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.22rem; }
       .state-hr-tab-btn { font-size: 0.68rem; padding: 0.32rem 0.35rem; line-height: 1.2; white-space: normal; text-align: center; }
       .state-hr-table { font-size: 0.76rem; }
       .state-hr-table th, .state-hr-table td { padding: 0.3rem 0.2rem; vertical-align: middle; }
+      .state-hr-flags { max-width: 4.25rem; gap: 0.14rem; }
+      .state-hr-badge { font-size: 0.62rem; padding: 0.06rem 0.24rem; }
+      .state-hr-sffc-long { display: none; }
+      .state-hr-sffc-short { display: inline; }
+      .state-hr-trend-spark { display: none; }
     }
     </style>
     <script>
@@ -17270,42 +17434,6 @@ def _render_state_pbj_high_risk_section(
     if not total and not sff_by_ccn:
         return ''
 
-    def _risk_flags_html(fac: dict, ccn: str) -> str:
-        badges: list[str] = []
-        sff_raw = str(fac.get('status') or '').strip()
-        sff_up = sff_raw.upper()
-        sf = sff_by_ccn.get(ccn) if ccn else None
-        months_val = sf.get('months_as_sff') if sf else None
-        months_tip = (
-            f' title="Months as SFF: {html.escape(str(months_val))}"'
-            if months_val is not None
-            else ''
-        )
-        if sff_up == 'SFF':
-            badges.append(
-                f'<span class="state-hr-badge state-hr-badge--sff"{months_tip}>SFF</span>'
-            )
-        elif 'CANDIDATE' in sff_up:
-            badges.append(
-                f'<span class="state-hr-badge state-hr-badge--sffc"{months_tip}>SFF cand.</span>'
-            )
-        if fac.get('hasAbuse'):
-            badges.append(
-                '<span class="state-hr-badge state-hr-badge--abuse" title="CMS abuse icon" aria-label="Abuse">'
-                '\u26a0</span>'
-            )
-        try:
-            if int(format_cms_star_rating(fac.get('overall_rating') or '')) == 1:
-                badges.append('<span class="state-hr-badge state-hr-badge--1ovr" title="1-star overall">1★</span>')
-        except (TypeError, ValueError):
-            pass
-        try:
-            if int(format_cms_star_rating(fac.get('staffing_rating') or '')) == 1:
-                badges.append('<span class="state-hr-badge state-hr-badge--1stf" title="1-star staffing">1★S</span>')
-        except (TypeError, ValueError):
-            pass
-        return ' '.join(badges) if badges else '—'
-
     def _facility_row(fac: dict, *, row_hidden: bool = False) -> str:
         ccn = str(fac.get('ccn') or '').strip().zfill(6)
         name_raw = fac.get('name') or 'Unknown'
@@ -17355,7 +17483,7 @@ def _render_state_pbj_high_risk_section(
             f'<a class="state-hr-facility-name" href="/provider/{html.escape(ccn)}">{html.escape(name)}</a>'
             f'{city_bit}</div>'
         )
-        flags_cell = _risk_flags_html(fac, ccn)
+        flags_cell = _state_hr_risk_flags_cell_html(fac, ccn, sff_by_ccn)
         tr_attr = ' class="state-hr-row-more" hidden' if row_hidden else ''
         return (
             f'<tr{tr_attr}><td class="state-hr-col-facility">{facility_cell}</td>'
@@ -17451,8 +17579,10 @@ def _render_state_pbj_high_risk_section(
     .state-hr-facility-cell { line-height: 1.25; }
     .state-hr-facility-name { display: inline; }
     .state-hr-city { color: rgba(226,232,240,0.75); font-size: 0.85em; white-space: nowrap; margin-left: 0.2rem; }
-    .state-hr-col-flags { white-space: nowrap; }
-    .state-hr-badge { display: inline-block; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; margin: 0 0.1rem 0 0; white-space: nowrap; vertical-align: middle; }
+    .state-hr-col-flags { white-space: normal; vertical-align: middle; }
+    .state-hr-flags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.2rem; max-width: 6.5rem; }
+    .state-hr-badge { display: inline-flex; align-items: center; font-size: 0.68rem; font-weight: 600; padding: 0.08rem 0.32rem; border-radius: 4px; white-space: nowrap; vertical-align: middle; line-height: 1.15; }
+    .state-hr-sffc-short { display: none; }
     .state-hr-show-all-btn--inline { margin: 0; padding: 0; font-size: inherit; background: none; border: none; color: #a5b4fc; text-decoration: underline; cursor: pointer; }
     .state-hr-show-all-btn--inline:hover { color: #c7d2fe; background: none; }
     .state-hr-section-foot { margin-top: 0.35rem; }
@@ -17482,8 +17612,11 @@ def _render_state_pbj_high_risk_section(
       .state-hr-ratings .owner-rating-row { font-size: 0.68rem; gap: 0.12rem; }
       .state-hr-ratings .owner-rating-k { min-width: auto; }
       .state-hr-ratings .owner-rating-stars { font-size: 0.62rem; letter-spacing: 0; }
-      .state-hr-badge { font-size: 0.6rem; padding: 0.05rem 0.22rem; }
-      .state-hr-col-flags { max-width: 3.4rem; line-height: 1.1; }
+      .state-hr-flags { max-width: 4.25rem; gap: 0.14rem; }
+      .state-hr-badge { font-size: 0.62rem; padding: 0.06rem 0.24rem; }
+      .state-hr-sffc-long { display: none; }
+      .state-hr-sffc-short { display: inline; }
+      .state-hr-col-flags { max-width: 4.5rem; line-height: 1.15; }
     }
     </style>
     <script>
@@ -17968,7 +18101,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
-<span class="pbj-takeaway-brand-pill">PBJ320</span>
+{PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>
@@ -18189,7 +18322,7 @@ def generate_usa_page_html(national_data, quarter, raw_quarter=None):
 {PBJ_TAKEAWAY_AVATAR_HTML}
 <div class="pbj-takeaway-top-main">
 <div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(USA_PAGE_NAME)}</span></div>
-<span class="pbj-takeaway-brand-pill">PBJ320</span>
+{PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
 <p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>

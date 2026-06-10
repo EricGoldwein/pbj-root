@@ -463,6 +463,79 @@ def load_latest_hprd_by_ccn(cy_qtr: str) -> dict[str, dict] | None:
         return None
 
 
+def _float_or_none(raw: Any) -> float | None:
+    if raw is None:
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if v != v:  # NaN
+        return None
+    return v
+
+
+def load_facility_sparklines_by_ccn(
+    ccn_list: list[str],
+    quarters: list[str],
+) -> dict[str, dict[str, list[float | None]]]:
+    """
+    Batch last-N-quarter census + total HPRD per CCN from facility_quarterly SQLite.
+
+    Returns {ccn: {'census': [q0..qN], 'hprd': [q0..qN]}} aligned with ``quarters`` order.
+    Verified from: facility_quarterly table columns total_nurse_hprd, avg_daily_census.
+    """
+    conn = _get_sqlite_conn()
+    if conn is None or not ccn_list or not quarters:
+        return {}
+    ccns = []
+    seen: set[str] = set()
+    for raw in ccn_list:
+        ccn = _norm_ccn(raw)
+        if ccn and ccn not in seen:
+            seen.add(ccn)
+            ccns.append(ccn)
+    if not ccns:
+        return {}
+    qtrs = [str(q).strip() for q in quarters if str(q).strip()]
+    if not qtrs:
+        return {}
+
+    out: dict[str, dict[str, list[float | None]]] = {
+        ccn: {'census': [None] * len(qtrs), 'hprd': [None] * len(qtrs)} for ccn in ccns
+    }
+    q_index = {q: i for i, q in enumerate(qtrs)}
+    try:
+        chunk_size = 80
+        for i in range(0, len(ccns), chunk_size):
+            batch = ccns[i : i + chunk_size]
+            placeholders_ccn = ','.join('?' for _ in batch)
+            placeholders_q = ','.join('?' for _ in qtrs)
+            sql = (
+                f'SELECT provnum, cy_qtr, total_nurse_hprd, avg_daily_census '
+                f'FROM facility_quarterly '
+                f'WHERE provnum IN ({placeholders_ccn}) AND cy_qtr IN ({placeholders_q})'
+            )
+            cur = conn.execute(sql, batch + qtrs)
+            for row in cur.fetchall():
+                ccn = _norm_ccn(row[0])
+                qtr = str(row[1] or '').strip()
+                if ccn not in out or qtr not in q_index:
+                    continue
+                idx = q_index[qtr]
+                out[ccn]['hprd'][idx] = _float_or_none(row[2])
+                out[ccn]['census'][idx] = _float_or_none(row[3])
+    except sqlite3.Error as e:
+        log_index_event(
+            'sqlite_error',
+            scope='facility_sparklines',
+            quarters=','.join(qtrs),
+            error=str(e)[:200],
+        )
+        return {}
+    return out
+
+
 def load_pickle_index(path: str, csv_path: str | None) -> Any | None:
     if not os.path.isfile(path) or not meta_matches_csv(csv_path):
         return None

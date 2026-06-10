@@ -319,6 +319,29 @@ def search_state_owner_index(
     return [row for *_rest, row in scored[:cap]]
 
 
+def state_owner_index_search_suggestions(
+    query: str,
+    state_code: str,
+    *,
+    limit: int = 40,
+) -> list[dict[str, Any]]:
+    """Autocomplete payloads for /owners/api/cms-search on state index pages."""
+    rows = search_state_owner_index(query, state_code, limit=limit)
+    suggestions: list[dict[str, Any]] = []
+    for row in rows:
+        item: dict[str, Any] = {
+            "associate_id": str(row.get("associate_id") or ""),
+            "name": str(row.get("name") or ""),
+            "profile_url": str(row.get("profile_url") or ""),
+            "facility_count": int(row.get("facility_count") or 0),
+        }
+        total_raw = row.get("facility_count_total")
+        if total_raw is not None:
+            item["facility_count_total"] = int(total_raw)
+        suggestions.append(item)
+    return suggestions
+
+
 def format_index_owner_name(raw: str) -> str:
     return format_org_display(str(raw or "—"))
 

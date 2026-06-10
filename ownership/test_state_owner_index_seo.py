@@ -5,15 +5,18 @@ import json
 import re
 import unittest
 
+from ownership.name_search import name_search_matches
 from ownership.state_owner_index import (
     STATE_INDEX_META,
     format_portfolio_facility_count,
     public_owner_index_sitemap_paths,
     resolve_state_owner_index_slug,
+    search_state_owner_index,
     state_index_canonical_path,
     state_index_layout_meta,
     state_index_subtitle,
     state_owner_index_is_draft,
+    state_owner_index_search_suggestions,
 )
 from ownership.state_owner_index_html import render_state_owner_index_body
 from ownership.state_owner_index_seo import build_state_owner_index_json_ld
@@ -154,6 +157,12 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
             "12 in NY",
         )
 
+    def test_chow_feed_dates_include_year(self) -> None:
+        from ownership.chow_lookup import format_chow_date_feed_label
+
+        self.assertEqual(format_chow_date_feed_label("2024-05-06"), "5/6/24")
+        self.assertEqual(format_chow_date_feed_label("2026-01-15"), "1/15/26")
+
     def test_chow_feed_details_and_meta_markup(self):
         body, _layout = render_state_owner_index_body("NJ", get_canonical_slug=lambda s: "new-jersey")
         self.assertIn('class="ownership-transfer-row"', body)
@@ -207,6 +216,26 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertEqual(crumbs[-1][0], "New York")
         about = web_page.get("about") or []
         self.assertTrue(any(item.get("name") == "New York" for item in about if isinstance(item, dict)))
+
+    def test_state_index_search_middle_name_and_prefix(self) -> None:
+        """State index autocomplete uses ordered token match (e.g. Ben -> Benjamin)."""
+        for code in ("NY", "CT", "FL", "NJ"):
+            with self.subTest(state=code):
+                rows = search_state_owner_index("Benjamin", code, limit=20)
+                self.assertTrue(rows, msg=f"expected Benjamin matches in {code}")
+                names = [str(r.get("name") or "") for r in rows]
+                self.assertTrue(any("benjamin" in n.lower() for n in names))
+                self.assertTrue(
+                    name_search_matches("Ben", names[0]),
+                    msg=f"prefix Ben should match top hit {names[0]!r}",
+                )
+                suggestions = state_owner_index_search_suggestions("Benjamin", code, limit=3)
+                self.assertLessEqual(len(suggestions), 3)
+                for item in suggestions:
+                    self.assertIn("associate_id", item)
+                    self.assertIn("name", item)
+                    self.assertIn("profile_url", item)
+                    self.assertIn("facility_count", item)
 
     def test_json_ld_script_serializes(self):
         from ownership.state_owner_index_seo import render_state_owner_index_json_ld_scripts

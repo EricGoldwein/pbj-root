@@ -162,6 +162,16 @@ def _chow_details_button(panel_id: str) -> str:
     )
 
 
+def _chow_details_button_lazy(chow_id: str, state_code: str) -> str:
+    """Details button that fetches panel HTML on demand (smaller initial state-page payload)."""
+    cid = html.escape(str(chow_id or "").strip(), quote=True)
+    st = html.escape(str(state_code or "").strip().upper()[:2], quote=True)
+    return (
+        f'<button type="button" class="chow-view-details chow-view-details--btn chow-view-details--lazy" '
+        f'data-chow-lazy-id="{cid}" data-chow-state="{st}" aria-expanded="false">Details</button>'
+    )
+
+
 def _chow_party_card(
     *,
     role: str,
@@ -234,16 +244,21 @@ def render_chow_table_rows(
     table_id: str = "",
     max_rows: int = 0,
     initial_visible: int = 0,
+    detail_panel_ssr: int | None = None,
     mobile_change_stack: bool = False,
     mobile_provider_stack: bool = False,
-) -> str:
+) -> tuple[str, str]:
     """HTML tbody rows: Activity, Effective, Details, Facility, Buyer, Seller (modal)."""
     fac_fn = facility_link_fn or _default_facility_link
     limit = max_rows if max_rows > 0 else len(rows)
+    if detail_panel_ssr is None:
+        detail_panel_ssr = initial_visible if initial_visible > 0 else 0
+    panel_ssr_limit = max(0, int(detail_panel_ssr))
     trs: list[str] = []
     stores: list[str] = []
     for i, rec in enumerate(rows[:limit]):
-        rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
+        raw_id = str(rec.get("chow_id") or f"row-{i}")
+        rid = html.escape(raw_id, quote=True)
         eff = html.escape(format_chow_date_dashed(str(rec.get("effective_date") or "")))
         facility = fac_fn(rec)
         buyer = org_link_fn(rec, "buyer")
@@ -251,8 +266,13 @@ def render_chow_table_rows(
         summary = chow_change_summary(rec)
         summary_esc = html.escape(summary) if summary else "—"
         panel_id = f"chow-detail-{rid}"
-        panel = render_chow_detail_panel(rec, panel_id=panel_id)
-        details_btn = _chow_details_button(panel_id)
+        st_code = str(rec.get("state") or "").strip().upper()[:2]
+        if i < panel_ssr_limit:
+            panel = render_chow_detail_panel(rec, panel_id=panel_id)
+            details_btn = _chow_details_button(panel_id)
+        else:
+            details_btn = _chow_details_button_lazy(raw_id, st_code)
+            panel = ""
         row_hidden = initial_visible > 0 and i >= initial_visible
         hidden_attr = " hidden" if row_hidden else ""
         row_extra = " chow-tx-row--paginated-hidden" if row_hidden else ""
@@ -307,7 +327,8 @@ def render_chow_table_rows(
                 f'<td class="chow-tx-org">{seller}</td>'
                 f"</tr>"
             )
-        stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
+        if panel:
+            stores.append(f'<div id="{panel_id}" class="chow-detail-store" hidden>{panel}</div>')
     return "".join(trs), "".join(stores)
 
 
@@ -338,6 +359,7 @@ def render_chow_events_table(
     facility_link_fn=None,
     max_rows: int = 0,
     initial_visible: int = 0,
+    detail_panel_ssr: int | None = None,
     table_class: str = "chow-table chow-tx-table",
     mobile_change_stack: bool = False,
     mobile_provider_stack: bool = False,
@@ -348,6 +370,7 @@ def render_chow_events_table(
         facility_link_fn=facility_link_fn,
         max_rows=max_rows,
         initial_visible=initial_visible,
+        detail_panel_ssr=detail_panel_ssr,
         mobile_change_stack=mobile_change_stack,
         mobile_provider_stack=mobile_provider_stack,
     )
@@ -503,6 +526,27 @@ CHOW_TABLE_INIT_SCRIPT = """
     modal.style.display = 'flex';
     document.body.classList.add('chow-modal-open');
   }
+  function openDetailLazy(chowId, stateCode, btn) {
+    var body = document.getElementById('chowDetailModalBody');
+    if (!body || !chowId) return;
+    var prev = btn ? btn.textContent : '';
+    if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+    var url = '/api/chow/transfer-detail/' + encodeURIComponent(chowId) + '?state=' + encodeURIComponent(stateCode || '');
+    fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+      .then(function(r){ if (!r.ok) throw new Error('fetch failed'); return r.json(); })
+      .then(function(data){
+        body.innerHTML = data.html || '';
+        modal.setAttribute('aria-hidden', 'false');
+        modal.style.display = 'flex';
+        document.body.classList.add('chow-modal-open');
+      })
+      .catch(function(){
+        if (btn) btn.textContent = 'Unavailable';
+      })
+      .finally(function(){
+        if (btn) { btn.disabled = false; if (btn.textContent === 'Loading…') btn.textContent = prev || 'Details'; }
+      });
+  }
   function bind(root){
     if(!root) return;
     root.querySelectorAll('.chow-view-details').forEach(function(btn){
@@ -511,6 +555,9 @@ CHOW_TABLE_INIT_SCRIPT = """
       btn.addEventListener('click', function(e){
         e.preventDefault();
         e.stopPropagation();
+        var lazyId = btn.getAttribute('data-chow-lazy-id');
+        var lazySt = btn.getAttribute('data-chow-state');
+        if (lazyId) { openDetailLazy(lazyId, lazySt, btn); return; }
         var sid = btn.getAttribute('data-chow-detail-store');
         if (sid) openDetail(sid);
       });

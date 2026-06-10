@@ -346,10 +346,10 @@ def _render_state_chow_recent_table(
 
     initial = max(1, int(initial_visible))
     try:
-        ssr_cap = max(initial + page_size, int(os.environ.get('PBJ_STATE_CHOW_SSR_CAP', '100')))
+        ssr_cap = max(initial + page_size, int(os.environ.get('PBJ_STATE_CHOW_SSR_CAP', '40')))
     except (TypeError, ValueError):
-        ssr_cap = 100
-    ssr_cap = max(initial, min(ssr_cap, 250))
+        ssr_cap = 40
+    ssr_cap = max(initial, min(ssr_cap, 80))
     rows_ssr = all_rows[:ssr_cap]
     truncated = len(all_rows) > len(rows_ssr)
 
@@ -359,6 +359,7 @@ def _render_state_chow_recent_table(
         facility_link_fn=_facility_col_from_record,
         max_rows=len(rows_ssr),
         initial_visible=initial,
+        detail_panel_ssr=initial,
         mobile_change_stack=True,
     )
     foot = render_chow_paginate_footer(

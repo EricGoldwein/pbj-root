@@ -84,6 +84,21 @@ def chow_records_for_state(state_code: str, *, limit: int = 0) -> list[dict[str,
     return rows
 
 
+def chow_record_by_id(chow_id: str, *, state_code: str | None = None) -> dict[str, Any] | None:
+    """Single CHOW row by stable chow_id (optional state guard)."""
+    cid = str(chow_id or "").strip()
+    if not cid:
+        return None
+    st_filter = str(state_code or "").strip().upper()[:2] if state_code else ""
+    for rec in _load_index().get("records") or []:
+        if str(rec.get("chow_id") or "").strip() != cid:
+            continue
+        if st_filter and str(rec.get("state") or "").strip().upper()[:2] != st_filter:
+            continue
+        return rec
+    return None
+
+
 def chow_count_for_state(state_code: str) -> int:
     st = str(state_code or "").strip().upper()[:2]
     if not st:

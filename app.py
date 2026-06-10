@@ -2049,6 +2049,21 @@ def chow_index_json():
     return _json_cache_headers(jsonify({'meta': {}, 'summary': {}, 'records': []}))
 
 
+@app.route('/api/chow/transfer-detail/<chow_id>')
+def api_chow_transfer_detail(chow_id):
+    """Lazy-load CHOW detail panel HTML for state-page ownership tables."""
+    from ownership.chow_lookup import chow_record_by_id
+    from ownership.chow_display import render_chow_detail_panel
+    from ownership.page_integrations import _facility_col_from_record, _org_link_from_chow_record
+
+    st = (request.args.get('state') or '').strip().upper()[:2]
+    rec = chow_record_by_id(chow_id, state_code=st or None)
+    if not rec:
+        return jsonify({'error': 'not_found', 'chow_id': chow_id}), 404
+    panel_html = render_chow_detail_panel(rec, panel_id=f'chow-detail-{chow_id}')
+    return _json_cache_headers(jsonify({'chow_id': chow_id, 'html': panel_html}))
+
+
 @app.route('/chow.css')
 def chow_css():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'chow.css', mimetype='text/css'))

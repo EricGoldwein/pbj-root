@@ -6065,22 +6065,6 @@ def cms_owner_profile_page(owner_id):
     robots_meta = owner_robots_meta(index_class)
     if not profile_has_public_state(profile):
         robots_meta = 'noindex, follow'
-    focus_state = (request.args.get('from_state') or '').strip().upper()[:2]
-    if focus_state:
-        profile_states = {
-            str(s or '').strip().upper()[:2]
-            for s in (profile.get('states') or [])
-            if str(s or '').strip()
-        }
-        if focus_state not in profile_states:
-            by_state = (profile.get('portfolio_summary') or {}).get('by_state') or []
-            profile_states |= {
-                str(row[0] or '').strip().upper()[:2]
-                for row in by_state
-                if row and str(row[0] or '').strip()
-            }
-        if focus_state in profile_states:
-            profile['portfolio_focus_state'] = focus_state
     try:
         html = generate_owner_profile_html(profile, robots_meta=robots_meta)
     except Exception as _owner_render_err:

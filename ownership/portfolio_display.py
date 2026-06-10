@@ -412,9 +412,9 @@ def portfolio_snapshot_section_html(
         aria = "Portfolio metrics"
         cards.append(
             snapshot_metric_card_html(
-                "Facilities",
+                "Total Facilities",
                 str(n),
-                "Facilities",
+                "Total Facilities",
                 fac_help,
                 tone="accent",
                 value_title="Distinct CMS-linked facilities nationwide",

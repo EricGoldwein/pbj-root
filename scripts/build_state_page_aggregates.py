@@ -21,7 +21,7 @@ def main() -> int:
     # Import app after path setup (heavy; needs pandas + CSVs).
     import app as app_mod  # noqa: E402
 
-    if not app_mod.HAS_PANDAS:
+    if app_mod.get_pd() is None:
         print('[build_state_page_aggregates] pandas required', flush=True)
         return 1
 
@@ -69,6 +69,13 @@ def main() -> int:
     }
 
     out_path = spa.write_bundle(str(REPO), bundle)
+    if not out_path or not Path(out_path).is_file():
+        print('[build_state_page_aggregates] ERROR bundle not written', flush=True)
+        return 1
+    bundle_bytes = Path(out_path).stat().st_size
+    if bundle_bytes < 1024:
+        print(f'[build_state_page_aggregates] ERROR bundle too small ({bundle_bytes} bytes)', flush=True)
+        return 1
     elapsed = time.perf_counter() - t0
     n_states_fc = len(facility_counts or {})
     n_states_cm = len(case_mix_medians or {})
@@ -76,9 +83,13 @@ def main() -> int:
     print(
         f'[build_state_page_aggregates] wrote {out_path} '
         f'({n_states_fc} states facility counts, {n_states_cm} case-mix, '
-        f'{n_states_hr} high-risk) in {elapsed:.1f}s',
+        f'{n_states_hr} high-risk, {bundle_bytes:,} bytes) in {elapsed:.1f}s',
         flush=True,
     )
+    ok, reason, _details = spa.validate_bundle_sources(str(REPO), bundle)
+    if not ok:
+        print(f'[build_state_page_aggregates] ERROR bundle validation failed: {reason}', flush=True)
+        return 1
     return 0
 
 

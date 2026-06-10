@@ -674,8 +674,6 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     owner_type = html.escape(profile.get("owner_type") or "")
     states = profile.get("states") or []
     facilities = profile.get("facilities") or []
-    focus_state = str(profile.get("portfolio_focus_state") or "").strip().upper()[:2]
-    facilities = _sort_facilities_focus_first(facilities, focus_state)
     en_raw = str(profile.get("enrollment_pac_label") or "Enrollment PAC")
     ow_raw = str(profile.get("owner_pac_label") or "Owner PAC")
     en_label = html.escape(en_raw)
@@ -1010,13 +1008,13 @@ def _owner_profile_header_html(
       <header class="owner-profile-header owner-profile-header--branded">
         {back_html}
         <div class="owner-profile-header-top">
-          <a class="owner-profile-brand" href="/state/connecticut" aria-label="Connecticut PBJ320">
+          <div class="owner-profile-brand" aria-label="PBJ320 Ownership">
             <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
             <span class="owner-profile-brand-lockup">
               <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
               <span class="owner-profile-brand-suffix">Ownership</span>
             </span>
-          </a>
+          </div>
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
             {meta_row}
@@ -1395,19 +1393,6 @@ def _facility_state_code(f: dict[str, Any]) -> str:
     return str(f.get("state") or "").strip().upper()[:2]
 
 
-def _sort_facilities_focus_first(
-    fac_list: list[dict[str, Any]], focus_state: str
-) -> list[dict[str, Any]]:
-    st = (focus_state or "").strip().upper()[:2]
-    if not st or len(fac_list) < 2:
-        return list(fac_list)
-    focus: list[dict[str, Any]] = []
-    rest: list[dict[str, Any]] = []
-    for f in fac_list:
-        (focus if _facility_state_code(f) == st else rest).append(f)
-    return focus + rest
-
-
 def _portfolio_state_codes(fac_list: list[dict[str, Any]]) -> list[str]:
     return sorted({_facility_state_code(f) for f in fac_list if _facility_state_code(f)})
 
@@ -1470,13 +1455,11 @@ def _owner_facilities_table_html(
     )
     filter_html = ""
     mobile_toolbar = ""
-    focus_state = str(profile.get("portfolio_focus_state") or "").strip().upper()[:2]
     state_codes = _portfolio_state_codes(fac_list)
     state_filter_html = ""
     if len(state_codes) > 1:
         opts = ['<option value="">All states</option>']
         for code in state_codes:
-            selected = ' selected' if code == focus_state else ''
             label = code
             try:
                 from app import STATE_CODE_TO_NAME
@@ -1485,7 +1468,7 @@ def _owner_facilities_table_html(
             except Exception:
                 pass
             opts.append(
-                f'<option value="{html.escape(code)}"{selected}>{html.escape(label)}</option>'
+                f'<option value="{html.escape(code)}">{html.escape(label)}</option>'
             )
         state_filter_html = (
             f'<select id="ownerFacilitiesStateFilter" class="owner-table-state-filter" '

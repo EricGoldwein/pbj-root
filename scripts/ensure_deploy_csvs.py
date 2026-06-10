@@ -293,6 +293,14 @@ def main() -> int:
         rc = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
         if rc != 0:
             _log('ensure_deploy_csvs: WARN provider index build failed (cold path will use CSV streams)')
+    spa_script = os.path.join(APP_ROOT, 'scripts', 'ensure_state_page_aggregates_bundle.py')
+    if os.path.isfile(spa_script):
+        import subprocess
+
+        rc_spa = subprocess.call([sys.executable, spa_script], cwd=APP_ROOT)
+        if rc_spa != 0:
+            _log('ensure_deploy_csvs: ERROR state page aggregates bundle required for /state speed')
+            return 1
     _log(f'ensure_deploy_csvs: done total_elapsed_s={_time.perf_counter() - t_main:.2f}')
     return 0
 

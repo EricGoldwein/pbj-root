@@ -32,6 +32,8 @@ data/compliance/staffing_compliance_index.sqlite
 !data/compliance/staffing_compliance_summary.csv.gz
 !data/compliance/staffing_compliance_manifest.json
 !data/compliance/staffing_compliance_thresholds.json
+# State page aggregates: commit gzip fallback; ensure script rebuilds when sources drift
+!data/state_page_aggregates.json.gz
 state_quarterly_metrics.csv
 national_quarterly_metrics.csv
 cms_region_quarterly_metrics.csv

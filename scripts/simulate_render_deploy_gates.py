@@ -114,6 +114,18 @@ def main() -> int:
                     f'-- Render uses Norm self-check only'
                 )
 
+    spa_rel = 'data/state_page_aggregates.json.gz'
+    spa_abs = os.path.join(APP_ROOT, spa_rel)
+    if spa_rel not in tracked:
+        _log(
+            'simulate_render_deploy_gates: ERROR state_page_aggregates.json.gz not in git '
+            '(commit deploy bundle or ensure Render buildCommand runs ensure_state_page_aggregates_bundle)'
+        )
+        return 1
+    if not os.path.isfile(spa_abs) or os.path.getsize(spa_abs) < 1024:
+        _log('simulate_render_deploy_gates: ERROR tracked state_page_aggregates.json.gz missing or too small')
+        return 1
+
     failed = False
     with _hide_untracked_provider_info(tracked):
         for script in ('backfill_provider_norm_urban.py', 'validate_provider_norm_snapshot.py'):
@@ -124,6 +136,11 @@ def main() -> int:
 
     if failed:
         _log('simulate_render_deploy_gates: ERROR would fail Render build — fix before push')
+        return 1
+
+    rc_spa = _run_gate('ensure_state_page_aggregates_bundle.py')
+    if rc_spa != 0:
+        _log(f'simulate_render_deploy_gates: FAIL ensure_state_page_aggregates_bundle exited {rc_spa}')
         return 1
 
     _log('simulate_render_deploy_gates: OK (tracked artifacts only)')

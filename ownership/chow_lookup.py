@@ -98,6 +98,32 @@ def chow_total_count() -> int:
     return int(summary.get("total_records") or len(idx.get("records") or []))
 
 
+def chow_facility_place_label(rec: dict[str, Any]) -> str:
+    """Compact city or county for a CHOW row (from provider index by CCN)."""
+    from ownership.display_format import format_org_display
+
+    ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]
+    if not ccn.isdigit():
+        return ""
+    try:
+        from ownership.owner_portfolio_metrics import _ccn_provider_lookup
+
+        pi = _ccn_provider_lookup().get(ccn) or {}
+    except Exception:
+        pi = {}
+    city = format_org_display(str(pi.get("city") or ""))
+    st = str(rec.get("state") or pi.get("state") or "").strip().upper()[:2]
+    if city and len(st) == 2:
+        return f"{city}, {st}"
+    county = format_org_display(str(pi.get("county") or ""))
+    co = county
+    if co.lower().endswith(" county"):
+        co = co[: -len(" county")].strip()
+    if co and len(st) == 2:
+        return f"{co} Co., {st}"
+    return st if len(st) == 2 else co
+
+
 def chow_facility_label(rec: dict[str, Any]) -> str:
     """Provider name for a CHOW row; prefer PBJ provider name over buyer/seller labels."""
     ccn = str(rec.get("ccn") or "").strip().zfill(6)[-6:]

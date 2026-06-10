@@ -105,7 +105,14 @@ COL_CNA_SIDE_HPRD = "cna_side_hprd"
 COL_LICENSED_NURSE_HPRD = "licensed_nurse_hprd"
 COL_DIRECT_CARE_INCLUDE_DON_HPRD = "direct_care_include_don_hprd"
 COL_BELOW_350_DIRECT_CARE = "below_350_direct_care"
+COL_BELOW_350_TOTAL_NURSING = "below_350_total_nursing"
 COL_MET_ALL_THREE_DIRECT_CARE = "met_all_three_direct_care"
+COL_DAYS_BELOW_350_DIRECT = "days_below_350_direct"
+COL_DAYS_BELOW_350_TOTAL = "days_below_350_total"
+COL_PCT_BELOW_350_DIRECT = "pct_below_350_direct"
+COL_PCT_BELOW_350_TOTAL = "pct_below_350_total"
+COL_PCT_DAYS_BELOW_350_DIRECT = "pct_days_below_350_direct"
+COL_PCT_DAYS_BELOW_350_TOTAL = "pct_days_below_350_total"
 
 FACILITY_QUARTER_COL_RENAME = {
     "ny_mapped_total_hours": "direct_care_hours",
@@ -179,6 +186,8 @@ def _methodology_readme_lines() -> list[tuple[str, str]]:
         ("Daily compliance flags (Excel on exported HPRD columns)", ""),
         (COL_BELOW_350_DIRECT_CARE, f"={COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}"),
         (COL_BELOW_350_DIRECT_CARE + " (Excel)", f"={COL_DIRECT_CARE_HPRD}<3.5"),
+        (COL_BELOW_350_TOTAL_NURSING, f"={COL_TOTAL_HPRD}<{THRESHOLD_TOTAL}"),
+        (COL_BELOW_350_TOTAL_NURSING + " (Excel)", f"={COL_TOTAL_HPRD}<3.5"),
         ("below_220_cna_side", f"={COL_CNA_SIDE_HPRD}<{NY_STATUTE_CNA_MIN_HPRD}"),
         ("below_220_cna_side (Excel)", f"={COL_CNA_SIDE_HPRD}<2.2"),
         ("below_110_licensed", f"={COL_LICENSED_NURSE_HPRD}<{NY_STATUTE_LPN_RN_MIN_HPRD}"),
@@ -198,11 +207,11 @@ def _methodology_readme_lines() -> list[tuple[str, str]]:
             f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus)",
         ),
         (
-            "Quarterly below_350_total",
+            "Quarterly below_350_direct_care_quarter",
             f"=Quarterly {COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}",
         ),
         (
-            "Quarterly below_350_total (Excel)",
+            "Quarterly below_350_direct_care_quarter (Excel)",
             f"=Quarterly {COL_DIRECT_CARE_HPRD}<3.5",
         ),
         (
@@ -458,6 +467,8 @@ def _prepare_merged(year: int) -> pd.DataFrame:
     )
 
     merged["below_350_ny_mapped"] = _col_series(merged, "hprd_ny_mapped_total") < THRESHOLD_TOTAL
+    merged["below_350_total_nursing"] = _col_series(merged, "hprd") < THRESHOLD_TOTAL
+    merged["below_350_direct"] = merged["below_350_ny_mapped"]
     merged["below_220_cna_side"] = (
         _col_series(merged, "hprd_ny_mapped_cna_side") < NY_STATUTE_CNA_MIN_HPRD
     )
@@ -467,8 +478,8 @@ def _prepare_merged(year: int) -> pd.DataFrame:
     merged["met_all_three_ny_mapped"] = ~(
         merged["below_350_ny_mapped"] | merged["below_220_cna_side"] | merged["below_110_licensed"]
     )
-    # Legacy column names for transitional sheet builders
-    merged["below_350_hprd"] = merged["below_350_ny_mapped"]
+    # Legacy alias for internal aggregations
+    merged["below_350_hprd"] = merged["below_350_direct"]
     merged["below_220_cna_hprd"] = merged["below_220_cna_side"]
     merged["below_110_licensed_hprd"] = merged["below_110_licensed"]
     merged["met_all_three_ny_floors"] = merged["met_all_three_ny_mapped"]
@@ -486,15 +497,30 @@ def _prepare_merged(year: int) -> pd.DataFrame:
     return merged
 
 
-def _count_below(mask: pd.Series, merged: pd.DataFrame) -> tuple[int, int]:
+def _count_below(mask: pd.Series, merged: pd.DataFrame) -> tuple[int, int, int]:
     sub = merged.loc[mask & _finite_mask(merged)]
     fd = len(sub)
-    bl = int(sub["below_350_hprd"].sum()) if fd else 0
-    return fd, bl
+    if not fd:
+        return 0, 0, 0
+    return (
+        fd,
+        int(sub["below_350_direct"].sum()),
+        int(sub["below_350_total_nursing"].sum()),
+    )
 
 
 def _pct(bl: int, fd: int) -> float | None:
     return round(100.0 * bl / fd, 1) if fd else None
+
+
+def _summary_below_fields(fd: int, bl_direct: int, bl_total: int) -> dict[str, Any]:
+    return {
+        "facility_days": fd,
+        COL_DAYS_BELOW_350_DIRECT: bl_direct,
+        COL_DAYS_BELOW_350_TOTAL: bl_total,
+        COL_PCT_BELOW_350_DIRECT: _pct(bl_direct, fd),
+        COL_PCT_BELOW_350_TOTAL: _pct(bl_total, fd),
+    }
 
 
 def _build_facility_links(merged: pd.DataFrame) -> pd.DataFrame:
@@ -546,6 +572,7 @@ def _build_daily_sheet(merged: pd.DataFrame) -> pd.DataFrame:
             COL_LICENSED_NURSE_HPRD: _col_series(merged, "hprd_ny_mapped_licensed").round(4),
             COL_DIRECT_CARE_INCLUDE_DON_HPRD: _col_series(merged, "hprd_ny_mapped_include_don").round(4),
             COL_BELOW_350_DIRECT_CARE: merged["below_350_ny_mapped"],
+            COL_BELOW_350_TOTAL_NURSING: merged["below_350_total_nursing"],
             "below_220_cna_side": merged["below_220_cna_side"],
             "below_110_licensed": merged["below_110_licensed"],
             COL_MET_ALL_THREE_DIRECT_CARE: merged["met_all_three_ny_mapped"],
@@ -562,16 +589,23 @@ def _build_facility_summary(merged: pd.DataFrame, links_df: pd.DataFrame) -> pd.
         county=("county", "first"),
         ownership_type=("ownership_display", "first"),
         nyc_flag=("is_nyc", "first"),
-        facility_days=("below_350_hprd", "size"),
-        days_below_350=("below_350_hprd", "sum"),
+        facility_days=("below_350_direct", "size"),
+        days_below_350_direct=("below_350_direct", "sum"),
+        days_below_350_total=("below_350_total_nursing", "sum"),
         mean_direct_care_hprd=("hprd_ny_mapped_total", "mean"),
+        mean_total_hprd=("hprd", "mean"),
         mean_cna_side_hprd=("hprd_ny_mapped_cna_side", "mean"),
         mean_licensed_nurse_hprd=("hprd_ny_mapped_licensed", "mean"),
         days_below_220_cna=("below_220_cna_hprd", "sum"),
         days_below_110_licensed=("below_110_licensed_hprd", "sum"),
         days_met_all_three=("met_all_three_ny_floors", "sum"),
     ).reset_index()
-    rows["pct_days_below_350"] = (100.0 * rows["days_below_350"] / rows["facility_days"]).round(1)
+    rows[COL_PCT_DAYS_BELOW_350_DIRECT] = (
+        100.0 * rows[COL_DAYS_BELOW_350_DIRECT] / rows["facility_days"]
+    ).round(1)
+    rows[COL_PCT_DAYS_BELOW_350_TOTAL] = (
+        100.0 * rows[COL_DAYS_BELOW_350_TOTAL] / rows["facility_days"]
+    ).round(1)
     rows["pct_days_below_220_cna"] = (
         100.0 * rows["days_below_220_cna"] / rows["facility_days"]
     ).round(1)
@@ -581,7 +615,7 @@ def _build_facility_summary(merged: pd.DataFrame, links_df: pd.DataFrame) -> pd.
     rows["pct_days_met_all_three"] = (
         100.0 * rows["days_met_all_three"] / rows["facility_days"]
     ).round(1)
-    for col in ("mean_direct_care_hprd", "mean_cna_side_hprd", "mean_licensed_nurse_hprd"):
+    for col in ("mean_direct_care_hprd", "mean_total_hprd", "mean_cna_side_hprd", "mean_licensed_nurse_hprd"):
         rows[col] = rows[col].round(4)
     link_cols = ["pbj320_provider_url", "medicare_care_compare_url", "cms_pbj_daily_base_url"]
     rows = rows.merge(links_df[["ccn", *link_cols]], on="ccn", how="left")
@@ -601,14 +635,14 @@ def _build_facility_summary(merged: pd.DataFrame, links_df: pd.DataFrame) -> pd.
         pivot = _facility_quarter_pivot_flags(fq_df)
         if not pivot.empty:
             rows = rows.merge(pivot, on="ccn", how="left")
-    return rows.sort_values("days_below_350", ascending=False)
+    return rows.sort_values(COL_DAYS_BELOW_350_DIRECT, ascending=False)
 
 
 def _enrich_facility_persistence_flags(rows: pd.DataFrame) -> pd.DataFrame:
     """Per-facility daily persistence flags @ NY-mapped 3.50 HPRD (strictly below)."""
     out = rows.copy()
-    pct = out["pct_days_below_350"]
-    bl = out["days_below_350"]
+    pct = out[COL_PCT_DAYS_BELOW_350_DIRECT]
+    bl = out[COL_DAYS_BELOW_350_DIRECT]
     fd = out["facility_days"]
     out["below_350_ge_50pct_days"] = pct >= 50.0
     out["below_350_ge_75pct_days"] = pct >= 75.0
@@ -617,9 +651,9 @@ def _enrich_facility_persistence_flags(rows: pd.DataFrame) -> pd.DataFrame:
     out["below_350_zero_days"] = bl == 0
 
     def _band(row: pd.Series) -> str:
-        if row["days_below_350"] >= row["facility_days"]:
+        if row[COL_DAYS_BELOW_350_DIRECT] >= row["facility_days"]:
             return "100% of days"
-        p = float(row["pct_days_below_350"])
+        p = float(row[COL_PCT_DAYS_BELOW_350_DIRECT])
         if p >= 90:
             return "90-99%"
         if p >= 75:
@@ -628,7 +662,7 @@ def _enrich_facility_persistence_flags(rows: pd.DataFrame) -> pd.DataFrame:
             return "50-74%"
         if p >= 25:
             return "25-49%"
-        if row["days_below_350"] > 0:
+        if row[COL_DAYS_BELOW_350_DIRECT] > 0:
             return "1-24%"
         return "0% (none)"
 
@@ -723,9 +757,11 @@ def _build_facility_quarter_summary(merged: pd.DataFrame) -> pd.DataFrame:
     if fq.empty:
         return fq
     fq["ownership_type"] = fq["ownership_type"].map(OWNERSHIP_DISPLAY).fillna(fq["ownership_type"])
-    fq = fq.rename(
-        columns={k: v for k, v in FACILITY_QUARTER_COL_RENAME.items() if k in fq.columns}
-    )
+    quarter_renames = {
+        **FACILITY_QUARTER_COL_RENAME,
+        "below_350_total": "below_350_direct_care_quarter",
+    }
+    fq = fq.rename(columns={k: v for k, v in quarter_renames.items() if k in fq.columns})
     return fq.sort_values(["ccn", "quarter"])
 
 
@@ -733,15 +769,8 @@ def _build_dow_summary(merged: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for dow in ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]:
         mask = _col_eq(merged, "dow", dow)
-        fd, bl = _count_below(mask, merged)
-        rows.append(
-            {
-                "day_of_week": dow,
-                "facility_days": fd,
-                "days_below_350": bl,
-                "pct_below_350": _pct(bl, fd),
-            }
-        )
+        fd, bl_direct, bl_total = _count_below(mask, merged)
+        rows.append({"day_of_week": dow, **_summary_below_fields(fd, bl_direct, bl_total)})
     return pd.DataFrame(rows)
 
 
@@ -756,15 +785,13 @@ def _build_weekend_weekday_summary(merged: pd.DataFrame) -> pd.DataFrame:
             ("Weekdays", base & is_wkd),
             ("Weekends", base & is_wknd),
         ):
-            fd, bl = _count_below(day_mask, merged)
-            calc = round(bl / fd, 6) if fd else None
+            fd, bl_direct, bl_total = _count_below(day_mask, merged)
+            calc = round(bl_direct / fd, 6) if fd else None
             rows.append(
                 {
                     "slice": slice_label,
                     "day_type": day_type,
-                    "facility_days": fd,
-                    "days_below_350": bl,
-                    "pct_below_350": _pct(bl, fd),
+                    **_summary_below_fields(fd, bl_direct, bl_total),
                     "calculation_check": calc,
                 }
             )
@@ -784,19 +811,22 @@ def _build_ownership_summary(merged: pd.DataFrame) -> pd.DataFrame:
         ("NYC government", "nyc_government", "Government"),
         ("NYC other / unknown", "nyc_other", "Other / unknown"),
     ]
-    _, all_bl = _count_below(pd.Series(True, index=merged.index), merged)
+    _, all_bl_direct, all_bl_total = _count_below(pd.Series(True, index=merged.index), merged)
     rows = []
     for slice_label, key, own_type in specs:
         mask = _ownership_mask(merged, key)
-        fd, bl = _count_below(mask, merged)
+        fd, bl_direct, bl_total = _count_below(mask, merged)
         rows.append(
             {
                 "slice": slice_label,
                 "ownership_type": own_type or "All",
-                "facility_days": fd,
-                "days_below_350": bl,
-                "pct_below_350": _pct(bl, fd),
-                "share_of_all_ny_days_below_350": round(100.0 * bl / all_bl, 2) if all_bl else None,
+                **_summary_below_fields(fd, bl_direct, bl_total),
+                "share_of_all_ny_days_below_350_direct": (
+                    round(100.0 * bl_direct / all_bl_direct, 2) if all_bl_direct else None
+                ),
+                "share_of_all_ny_days_below_350_total": (
+                    round(100.0 * bl_total / all_bl_total, 2) if all_bl_total else None
+                ),
             }
         )
     return pd.DataFrame(rows)
@@ -807,14 +837,22 @@ def _build_county_summary(merged: pd.DataFrame) -> pd.DataFrame:
     g = merged.groupby("county_norm", observed=True)
     rows = g.agg(
         facility_count=("ccn", "nunique"),
-        facility_days=("below_350_hprd", "size"),
-        days_below_350=("below_350_hprd", "sum"),
+        facility_days=("below_350_direct", "size"),
+        days_below_350_direct=("below_350_direct", "sum"),
+        days_below_350_total=("below_350_total_nursing", "sum"),
         mean_direct_care_hprd=("hprd_ny_mapped_total", "mean"),
+        mean_total_hprd=("hprd", "mean"),
     ).reset_index()
     rows = rows.rename(columns={"county_norm": "county"})
     rows["nyc_borough_flag"] = rows["county"].astype(str).str.upper().isin(nyc_counties)
-    rows["pct_below_350"] = (100.0 * rows["days_below_350"] / rows["facility_days"]).round(1)
+    rows[COL_PCT_BELOW_350_DIRECT] = (
+        100.0 * rows[COL_DAYS_BELOW_350_DIRECT] / rows["facility_days"]
+    ).round(1)
+    rows[COL_PCT_BELOW_350_TOTAL] = (
+        100.0 * rows[COL_DAYS_BELOW_350_TOTAL] / rows["facility_days"]
+    ).round(1)
     rows["mean_direct_care_hprd"] = rows["mean_direct_care_hprd"].round(4)
+    rows["mean_total_hprd"] = rows["mean_total_hprd"].round(4)
     return rows.sort_values("facility_days", ascending=False)
 
 
@@ -910,6 +948,13 @@ def _build_data_dictionary() -> pd.DataFrame:
             f"={COL_DIRECT_CARE_HPRD}<3.5",
         ),
         (
+            COL_BELOW_350_TOTAL_NURSING,
+            "Daily facility data",
+            f"True if {COL_TOTAL_HPRD} < 3.50 (comparison only)",
+            "Derived",
+            f"={COL_TOTAL_HPRD}<3.5",
+        ),
+        (
             "below_220_cna_side",
             "Daily facility data",
             "True if CNA-side HPRD < 2.20 standard",
@@ -939,11 +984,71 @@ def _build_data_dictionary() -> pd.DataFrame:
         ("cms_pbj_daily_q2_url", "Facility links", "CMS PBJ Q2 view filtered to PROVNUM", "Derived", "PROVNUM-only Data Catalog query"),
         ("cms_pbj_daily_q3_url", "Facility links", "CMS PBJ Q3 view filtered to PROVNUM", "Derived", "PROVNUM-only Data Catalog query"),
         ("cms_pbj_daily_q4_url", "Facility links", "CMS PBJ Q4 view filtered to PROVNUM", "Derived", "PROVNUM-only Data Catalog query"),
-        ("facility_days", "Facility summary", "Count of facility-days with finite total HPRD", "Derived", ""),
-        ("days_below_350", "Summary sheets", "Facility-days with total HPRD < 3.50", "Derived", ""),
-        ("pct_below_350", "Summary sheets", "100 × days_below_350 / facility_days", "Derived", "Rounded to 0.1 pp"),
-        ("share_of_all_ny_days_below_350", "Ownership summary", "Slice below days as % of statewide below days", "Derived", ""),
-        ("calculation_check", "Weekend weekday summary", "days_below_350 / facility_days", "Derived", "Unrounded ratio for audit"),
+        ("facility_days", "Summary sheets", "Count of analyzed facility-days with census > 0", "Derived", ""),
+        (
+            COL_DAYS_BELOW_350_DIRECT,
+            "Summary sheets",
+            f"Facility-days with {COL_DIRECT_CARE_HPRD} < 3.50",
+            "Derived",
+            f"=SUM({COL_BELOW_350_DIRECT_CARE})",
+        ),
+        (
+            COL_DAYS_BELOW_350_TOTAL,
+            "Summary sheets",
+            f"Facility-days with {COL_TOTAL_HPRD} < 3.50",
+            "Derived",
+            f"=SUM({COL_BELOW_350_TOTAL_NURSING})",
+        ),
+        (
+            COL_PCT_BELOW_350_DIRECT,
+            "Summary sheets",
+            f"100 × {COL_DAYS_BELOW_350_DIRECT} / facility_days",
+            "Derived",
+            "Rounded to 0.1 pp",
+        ),
+        (
+            COL_PCT_BELOW_350_TOTAL,
+            "Summary sheets",
+            f"100 × {COL_DAYS_BELOW_350_TOTAL} / facility_days",
+            "Derived",
+            "Rounded to 0.1 pp",
+        ),
+        (
+            COL_PCT_DAYS_BELOW_350_DIRECT,
+            "Facility summary",
+            f"100 × {COL_DAYS_BELOW_350_DIRECT} / facility_days",
+            "Derived",
+            "Rounded to 0.1 pp",
+        ),
+        (
+            COL_PCT_DAYS_BELOW_350_TOTAL,
+            "Facility summary",
+            f"100 × {COL_DAYS_BELOW_350_TOTAL} / facility_days",
+            "Derived",
+            "Rounded to 0.1 pp",
+        ),
+        ("mean_total_hprd", "Facility summary; County summary", f"Mean {COL_TOTAL_HPRD}", "Derived", ""),
+        (
+            "share_of_all_ny_days_below_350_direct",
+            "Ownership summary",
+            f"Slice {COL_DAYS_BELOW_350_DIRECT} as % of statewide direct below days",
+            "Derived",
+            "",
+        ),
+        (
+            "share_of_all_ny_days_below_350_total",
+            "Ownership summary",
+            f"Slice {COL_DAYS_BELOW_350_TOTAL} as % of statewide total below days",
+            "Derived",
+            "",
+        ),
+        (
+            "calculation_check",
+            "Weekend weekday summary",
+            f"{COL_DAYS_BELOW_350_DIRECT} / facility_days",
+            "Derived",
+            "Unrounded direct-care ratio for audit",
+        ),
         ("quarter", "Facility quarter summary", "Calendar quarter (1–4)", "Derived from work_date", ""),
         ("census_days", "Facility quarter summary", "Sum of daily MDS census in quarter", "CMS PBJ", ""),
         (
@@ -961,7 +1066,7 @@ def _build_data_dictionary() -> pd.DataFrame:
             f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_INCLUDE_DON)})/SUM(MDScensus)",
         ),
         (
-            "below_350_total",
+            "below_350_direct_care_quarter",
             "Facility quarter summary",
             f"Quarterly {COL_DIRECT_CARE_HPRD} < 3.50",
             "Derived",
@@ -971,11 +1076,11 @@ def _build_data_dictionary() -> pd.DataFrame:
         ("quarters_analyzed", "Facility summary", "Facility-quarters with census > 0", "Derived", "Max 4 per facility"),
         ("qtrs_below_350_display", "Facility summary", "Quarters below 3.50 / quarters analyzed", "Derived", "e.g. 3/4"),
         ("qtrs_missing_floor_display", "Facility summary", "Quarters missing any floor / quarters analyzed", "Derived", "e.g. 2/4"),
-        ("below_350_ge_50pct_days", "Facility summary", "True if pct_days_below_350 >= 50", "Derived", "Daily persistence @ 3.50"),
-        ("below_350_ge_75pct_days", "Facility summary", "True if pct_days_below_350 >= 75", "Derived", "Daily persistence @ 3.50"),
-        ("below_350_ge_90pct_days", "Facility summary", "True if pct_days_below_350 >= 90", "Derived", "Daily persistence @ 3.50"),
-        ("below_350_all_analyzed_days", "Facility summary", "True if days_below_350 == facility_days", "Derived", "100% of analyzed days"),
-        ("below_350_zero_days", "Facility summary", "True if days_below_350 == 0", "Derived", "0% of analyzed days"),
+        ("below_350_ge_50pct_days", "Facility summary", f"True if {COL_PCT_DAYS_BELOW_350_DIRECT} >= 50", "Derived", "Daily persistence @ 3.50 direct care"),
+        ("below_350_ge_75pct_days", "Facility summary", f"True if {COL_PCT_DAYS_BELOW_350_DIRECT} >= 75", "Derived", "Daily persistence @ 3.50 direct care"),
+        ("below_350_ge_90pct_days", "Facility summary", f"True if {COL_PCT_DAYS_BELOW_350_DIRECT} >= 90", "Derived", "Daily persistence @ 3.50 direct care"),
+        ("below_350_all_analyzed_days", "Facility summary", f"True if {COL_DAYS_BELOW_350_DIRECT} == facility_days", "Derived", "100% of analyzed days"),
+        ("below_350_zero_days", "Facility summary", f"True if {COL_DAYS_BELOW_350_DIRECT} == 0", "Derived", "0% of analyzed days"),
         ("provider_day_band", "Facility summary", "Histogram band for provider-day chart", "Derived", "100% / 90-99% / … / 0%"),
         ("provider_day_band", "Provider day bands summary", "Share-of-days band label", "Derived", "Matches report histogram"),
         ("facility_count", "Provider day bands summary", "Homes in band", "Derived", "Denominator 596"),
@@ -1007,6 +1112,7 @@ def _build_reconciliation_checks(
     finite = merged.loc[_finite_mask(merged)]
     statewide_fd = len(finite)
     statewide_bl = int(finite["below_350_ny_mapped"].sum())
+    statewide_bl_total = int(finite["below_350_total_nursing"].sum())
     statewide_pct = round(100.0 * statewide_bl / statewide_fd, 1)
     ANCHOR_STATEWIDE_FD = statewide_fd
     ANCHOR_STATEWIDE_BELOW = statewide_bl
@@ -1014,17 +1120,23 @@ def _build_reconciliation_checks(
 
     is_nyc = _col_bool(merged, "is_nyc")
     is_wknd = _col_bool(merged, "weekend_flag")
-    nyc_wknd_fd, nyc_wknd_bl = _count_below(is_nyc & is_wknd, merged)
+    nyc_wknd_fd, nyc_wknd_bl, _nyc_wknd_bl_total = _count_below(is_nyc & is_wknd, merged)
     nyc_wknd_pct = _pct(nyc_wknd_bl, nyc_wknd_fd)
     ANCHOR_NYC_WKND_FD = nyc_wknd_fd
     ANCHOR_NYC_WKND_BELOW = nyc_wknd_bl
     ANCHOR_NYC_WKND_PCT = nyc_wknd_pct
 
-    own_fp = int(ownership_df.loc[ownership_df["slice"] == "For-profit", "days_below_350"].iloc[0])
-    own_np = int(ownership_df.loc[ownership_df["slice"] == "Non-profit", "days_below_350"].iloc[0])
-    own_gov = int(ownership_df.loc[ownership_df["slice"] == "Government", "days_below_350"].iloc[0])
+    own_fp = int(
+        ownership_df.loc[ownership_df["slice"] == "For-profit", COL_DAYS_BELOW_350_DIRECT].iloc[0]
+    )
+    own_np = int(
+        ownership_df.loc[ownership_df["slice"] == "Non-profit", COL_DAYS_BELOW_350_DIRECT].iloc[0]
+    )
+    own_gov = int(
+        ownership_df.loc[ownership_df["slice"] == "Government", COL_DAYS_BELOW_350_DIRECT].iloc[0]
+    )
     own_other = int(
-        ownership_df.loc[ownership_df["slice"] == "Other / unknown", "days_below_350"].iloc[0]
+        ownership_df.loc[ownership_df["slice"] == "Other / unknown", COL_DAYS_BELOW_350_DIRECT].iloc[0]
     )
     own_sum_bl = own_fp + own_np + own_gov + own_other
 
@@ -1037,37 +1149,62 @@ def _build_reconciliation_checks(
     own_sum_fd = own_fp_fd + own_np_fd + own_gov_fd + own_other_fd
 
     dow_fd = int(dow_df["facility_days"].sum())
-    dow_bl = int(dow_df["days_below_350"].sum())
+    dow_bl = int(dow_df[COL_DAYS_BELOW_350_DIRECT].sum())
+    dow_bl_total = int(dow_df[COL_DAYS_BELOW_350_TOTAL].sum())
 
     wknd_all = weekend_df[
         (weekend_df["slice"] == "All NY") & (weekend_df["day_type"].isin(["Weekdays", "Weekends"]))
     ]
     wknd_fd_sum = int(wknd_all["facility_days"].sum())
-    wknd_bl_sum = int(wknd_all["days_below_350"].sum())
+    wknd_bl_sum = int(wknd_all[COL_DAYS_BELOW_350_DIRECT].sum())
+    wknd_bl_total_sum = int(wknd_all[COL_DAYS_BELOW_350_TOTAL].sum())
 
     pct_rows_ok = True
     for frame in (dow_df, weekend_df, ownership_df):
         for _, row in frame.iterrows():
             fd = int(row["facility_days"])
-            if fd <= 0 or pd.isna(row.get("pct_below_350")):
+            if fd <= 0:
                 continue
-            if not _pct_close(row.get("pct_below_350"), int(row["days_below_350"]), fd):
-                pct_rows_ok = False
+            for pct_col, days_col in (
+                (COL_PCT_BELOW_350_DIRECT, COL_DAYS_BELOW_350_DIRECT),
+                (COL_PCT_BELOW_350_TOTAL, COL_DAYS_BELOW_350_TOTAL),
+            ):
+                if pd.isna(row.get(pct_col)):
+                    continue
+                if not _pct_close(row.get(pct_col), int(row[days_col]), fd):
+                    pct_rows_ok = False
+                    break
+            if not pct_rows_ok:
                 break
 
     checks = [
         ("statewide facility_days equals anchor", statewide_fd == ANCHOR_STATEWIDE_FD),
-        ("statewide days_below_350 ny-mapped equals anchor", statewide_bl == ANCHOR_STATEWIDE_BELOW),
+        (
+            "statewide days_below_350_direct ny-mapped equals anchor",
+            statewide_bl == ANCHOR_STATEWIDE_BELOW,
+        ),
+        (
+            "statewide days_below_350_total equals anchor",
+            statewide_bl_total == int(finite["below_350_total_nursing"].sum()),
+        ),
         ("statewide pct ny-mapped equals anchor after rounding", statewide_pct == ANCHOR_STATEWIDE_PCT),
         (f"NYC weekend facility_days equals {ANCHOR_NYC_WKND_FD:,}", nyc_wknd_fd == ANCHOR_NYC_WKND_FD),
-        (f"NYC weekend days_below_350 equals {ANCHOR_NYC_WKND_BELOW:,}", nyc_wknd_bl == ANCHOR_NYC_WKND_BELOW),
+        (
+            f"NYC weekend days_below_350_direct equals {ANCHOR_NYC_WKND_BELOW:,}",
+            nyc_wknd_bl == ANCHOR_NYC_WKND_BELOW,
+        ),
         (f"NYC weekend pct equals {ANCHOR_NYC_WKND_PCT}% after rounding", nyc_wknd_pct == ANCHOR_NYC_WKND_PCT),
         ("ownership visible rows plus Other/unknown reconcile to All NY (days)", own_sum_bl == statewide_bl),
         ("ownership visible rows plus Other/unknown reconcile to All NY (facility_days)", own_sum_fd == statewide_fd),
         ("day-of-week rows reconcile to All NY (facility_days)", dow_fd == statewide_fd),
-        ("day-of-week rows reconcile to All NY (days_below_350)", dow_bl == statewide_bl),
+        ("day-of-week rows reconcile to All NY (days_below_350_direct)", dow_bl == statewide_bl),
+        ("day-of-week rows reconcile to All NY (days_below_350_total)", dow_bl_total == statewide_bl_total),
         ("weekend + weekday rows reconcile to All NY (facility_days)", wknd_fd_sum == statewide_fd),
-        ("weekend + weekday rows reconcile to All NY (days_below_350)", wknd_bl_sum == statewide_bl),
+        ("weekend + weekday rows reconcile to All NY (days_below_350_direct)", wknd_bl_sum == statewide_bl),
+        (
+            "weekend + weekday rows reconcile to All NY (days_below_350_total)",
+            wknd_bl_total_sum == statewide_bl_total,
+        ),
         ("all displayed percentages recompute from counts within 0.05 pp", pct_rows_ok),
     ]
 
@@ -1090,14 +1227,20 @@ def _build_reconciliation_checks(
     q_summary = _quarterly_statutory_summary(merged)
     if not fq_df.empty:
         fq_n = len(fq_df)
-        fq_below = int(fq_df["below_350_total"].sum())
+        fq_below_col = (
+            "below_350_direct_care_quarter"
+            if "below_350_direct_care_quarter" in fq_df.columns
+            else "below_350_total"
+        )
+        fq_below = int(fq_df[fq_below_col].sum())
         fq_missing = int(fq_df["missing_any_floor"].sum())
         max_q = int(fq_df.groupby("ccn", observed=True)["quarter"].count().max())
-        rollups = _facility_quarter_rollups(fq_df)
+        fq_raw = _compute_quarterly_statutory_rows(merged)
+        rollups = _facility_quarter_rollups(fq_raw)
         logic_ok = bool(
-            (fq_df["missing_any_floor"]
-             == (fq_df["below_350_total"] | fq_df["below_220_cna_side"] | fq_df["below_110_licensed"])).all()
-            and (fq_df["met_all_three"] == ~fq_df["missing_any_floor"]).all()
+            (fq_raw["missing_any_floor"]
+             == (fq_raw["below_350_total"] | fq_raw["below_220_cna_side"] | fq_raw["below_110_licensed"])).all()
+            and (fq_raw["met_all_three"] == ~fq_raw["missing_any_floor"]).all()
         )
         rollup_ok = True
         if "quarters_below_350_total" in facility_df.columns and not rollups.empty:
@@ -1132,7 +1275,11 @@ def _build_reconciliation_checks(
         dist_missing = q_summary.get("facilities_by_quarters_missing_any_floor", {})
         metric_rows = [
             ("quarterly: facility-quarters analyzed", str(len(fq_df)), True),
-            ("quarterly: facility-quarters below 3.50 total HPRD", str(int(fq_df["below_350_total"].sum())), True),
+            (
+                "quarterly: facility-quarters below 3.50 direct care",
+                str(int(fq_df[fq_below_col].sum())),
+                True,
+            ),
             ("quarterly: facility-quarters missing any floor", str(int(fq_df["missing_any_floor"].sum())), True),
         ]
         for qcount in range(5):

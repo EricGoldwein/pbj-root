@@ -7,6 +7,7 @@ import unittest
 
 from ownership.state_owner_index import (
     STATE_INDEX_META,
+    format_portfolio_facility_count,
     public_owner_index_sitemap_paths,
     resolve_state_owner_index_slug,
     state_index_canonical_path,
@@ -55,10 +56,17 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("Largest FL portfolios", body)
         self.assertIn(layout["subtitle"], body)
 
+    def test_nj_public_index_not_draft(self):
+        self.assertFalse(state_owner_index_is_draft("NJ"))
+        body, layout = render_state_owner_index_body("NJ", get_canonical_slug=lambda s: "new-jersey")
+        self.assertNotIn("owners-state-draft-banner", body)
+        self.assertIn("Largest NJ portfolios", body)
+        self.assertIn(layout["subtitle"], body)
+
     def test_sitemap_includes_public_state_pages(self):
         paths = {row[0] for row in public_owner_index_sitemap_paths()}
-        self.assertEqual(paths, {"/owners/ny", "/owners/ct", "/owners/fl"})
-        draft_paths = {f"/owners/{slug}" for slug in ("nj", "id")}
+        self.assertEqual(paths, {"/owners/ny", "/owners/nj", "/owners/ct", "/owners/fl"})
+        draft_paths = {f"/owners/{slug}" for slug in ("id",)}
         self.assertFalse(draft_paths & paths)
         for path, _pri, changefreq, lastmod in public_owner_index_sitemap_paths():
             self.assertEqual(changefreq, "weekly")
@@ -66,7 +74,6 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
 
     def test_draft_state_indexes_meta_and_slug(self):
         cases = (
-            ("nj", "NJ", "New Jersey", "new-jersey", "Largest NJ portfolios"),
             ("id", "ID", "Idaho", "idaho", "Largest ID portfolios"),
         )
         for slug, code, name, state_page_slug, portfolio_short in cases:
@@ -132,6 +139,34 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("About this New York ownership index", body)
         self.assertIn("owners-state-method-trigger", body)
         self.assertIn("PBJ320 maps CMS nursing home ownership records", body)
+
+    def test_portfolio_facility_count_labels(self):
+        self.assertEqual(
+            format_portfolio_facility_count("NJ", {"facility_count": 53, "facility_count_total": 72}),
+            "53 in NJ · 72 total",
+        )
+        self.assertEqual(
+            format_portfolio_facility_count("NJ", {"facility_count": 37, "facility_count_total": 37}),
+            "37 in NJ",
+        )
+        self.assertEqual(
+            format_portfolio_facility_count("NY", {"facility_count": 12}),
+            "12 in NY",
+        )
+
+    def test_chow_feed_details_and_meta_markup(self):
+        body, _layout = render_state_owner_index_body("NJ", get_canonical_slug=lambda s: "new-jersey")
+        self.assertIn('class="ownership-transfer-row"', body)
+        self.assertIn('class="ownership-transfer-title"', body)
+        self.assertIn('class="ownership-transfer-location"', body)
+        self.assertIn('class="ownership-transfer-buyer"', body)
+        self.assertIn('class="ownership-transfer-details chow-view-details"', body)
+        self.assertIn(">Details</button>", body)
+        self.assertNotIn("Transfer details", body)
+        self.assertNotIn("Reported buyer:", body)
+        self.assertNotIn("owners-state-chow-head", body)
+        self.assertNotIn('ownership-transfer-location">·', body)
+        self.assertIn('aria-label="View ownership transfer details for', body)
 
     def test_try_chips_link_to_owner_profiles(self):
         body, _layout = render_state_owner_index_body("NY", get_canonical_slug=lambda s: "new-york")

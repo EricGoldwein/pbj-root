@@ -1,8 +1,8 @@
 """
-State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl; draft NJ/ID).
+State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl, /owners/nj; draft ID).
 
-Published: NY + CT + FL (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
-Draft indexes: NJ, ID — routable locally, noindex, excluded from hub/sitemap until launch.
+Published: NY + CT + FL + NJ (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
+Draft indexes: ID — routable locally, noindex, excluded from hub/sitemap until launch.
 """
 from __future__ import annotations
 
@@ -38,12 +38,12 @@ PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
     "ny": "NY",
     "ct": "CT",
     "fl": "FL",
+    "nj": "NJ",
 }
 
 # Draft state indexes: same UI as published pages, not linked from /owners hub or sitemap.
-STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"NJ", "ID"})
+STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"ID"})
 DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {
-    "nj": "NJ",
     "id": "ID",
 }
 
@@ -321,6 +321,17 @@ def search_state_owner_index(
 
 def format_index_owner_name(raw: str) -> str:
     return format_org_display(str(raw or "—"))
+
+
+def format_portfolio_facility_count(state_code: str, row: dict[str, Any]) -> str:
+    """In-state CMS-linked count plus nationwide total when the owner spans states."""
+    st = (state_code or "").strip().upper()[:2]
+    in_n = int(row.get("facility_count") or 0)
+    total_raw = row.get("facility_count_total")
+    total_n = int(total_raw) if total_raw is not None else in_n
+    if total_n > in_n:
+        return f"{in_n} in {st} · {total_n} total"
+    return f"{in_n} in {st}"
 
 
 def _parse_iso_date_label(raw: str) -> str:

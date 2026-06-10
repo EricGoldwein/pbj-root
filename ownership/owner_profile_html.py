@@ -584,9 +584,10 @@ def _facility_mobile_card(f: dict[str, Any]) -> str:
             str(f.get("role") or ""),
         ]
     ).lower()
+    st_code = _facility_state_code(f)
     return (
         f'<li class="owner-m-card owner-m-card--facility owner-m-card--facility-compact" '
-        f'data-search="{html.escape(search)}">'
+        f'data-search="{html.escape(search)}" data-state="{html.escape(st_code)}">'
         f'<div class="owner-m-card__body">{title_block}{metrics}</div></li>'
     )
 
@@ -673,6 +674,8 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     owner_type = html.escape(profile.get("owner_type") or "")
     states = profile.get("states") or []
     facilities = profile.get("facilities") or []
+    focus_state = str(profile.get("portfolio_focus_state") or "").strip().upper()[:2]
+    facilities = _sort_facilities_focus_first(facilities, focus_state)
     en_raw = str(profile.get("enrollment_pac_label") or "Enrollment PAC")
     ow_raw = str(profile.get("owner_pac_label") or "Owner PAC")
     en_label = html.escape(en_raw)
@@ -1388,6 +1391,27 @@ def _facilities_enrollment_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     return rows
 
 
+def _facility_state_code(f: dict[str, Any]) -> str:
+    return str(f.get("state") or "").strip().upper()[:2]
+
+
+def _sort_facilities_focus_first(
+    fac_list: list[dict[str, Any]], focus_state: str
+) -> list[dict[str, Any]]:
+    st = (focus_state or "").strip().upper()[:2]
+    if not st or len(fac_list) < 2:
+        return list(fac_list)
+    focus: list[dict[str, Any]] = []
+    rest: list[dict[str, Any]] = []
+    for f in fac_list:
+        (focus if _facility_state_code(f) == st else rest).append(f)
+    return focus + rest
+
+
+def _portfolio_state_codes(fac_list: list[dict[str, Any]]) -> list[str]:
+    return sorted({_facility_state_code(f) for f in fac_list if _facility_state_code(f)})
+
+
 def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     rows = []
     for f in fac_list:
@@ -1409,8 +1433,9 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
                 str(f.get("role") or ""),
             ]
         ).lower()
+        st_code = _facility_state_code(f)
         rows.append(
-            f'<tr data-search="{html.escape(search)}">'
+            f'<tr data-search="{html.escape(search)}" data-state="{html.escape(st_code)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
             f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
             f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
@@ -1445,9 +1470,31 @@ def _owner_facilities_table_html(
     )
     filter_html = ""
     mobile_toolbar = ""
+    focus_state = str(profile.get("portfolio_focus_state") or "").strip().upper()[:2]
+    state_codes = _portfolio_state_codes(fac_list)
+    state_filter_html = ""
+    if len(state_codes) > 1:
+        opts = ['<option value="">All states</option>']
+        for code in state_codes:
+            selected = ' selected' if code == focus_state else ''
+            label = code
+            try:
+                from app import STATE_CODE_TO_NAME
+
+                label = STATE_CODE_TO_NAME.get(code, code)
+            except Exception:
+                pass
+            opts.append(
+                f'<option value="{html.escape(code)}"{selected}>{html.escape(label)}</option>'
+            )
+        state_filter_html = (
+            f'<select id="ownerFacilitiesStateFilter" class="owner-table-state-filter" '
+            f'aria-label="Filter by state">{"".join(opts)}</select>'
+        )
     if n >= FACILITIES_FILTER_MIN:
         filter_html = (
             '<div class="owner-facilities-header-actions">'
+            f'{state_filter_html}'
             '<button type="button" class="owner-table-view-toggle" id="ownerFacilitiesTableViewBtn" '
             'aria-pressed="false" aria-label="Switch to table view">Table view</button>'
             f'<input type="search" id="ownerFacilitiesFilter" class="owner-table-filter-input owner-table-filter-input--desktop" '

@@ -7,13 +7,19 @@ import random
 from typing import Any, Callable
 
 from ownership.chow_display import CHOW_TABLE_INIT_SCRIPT, render_chow_transfer_modal_body
-from ownership.chow_lookup import chow_records_for_state, format_chow_date_short_label
+from ownership.chow_lookup import (
+    chow_facility_label,
+    chow_facility_place_label,
+    chow_records_for_state,
+    format_chow_date_short_label,
+)
 from ownership.display_format import format_org_display
 from ownership.page_integrations import _facility_link_from_record, _org_link_from_chow_record
 from ownership.owner_profile import associate_profile_url, normalize_associate_id
 from ownership.state_owner_index import (
     STATE_INDEX_META,
     format_index_owner_name,
+    format_portfolio_facility_count,
     list_state_owner_index_rows,
     state_index_layout_meta,
     state_owner_index_is_draft,
@@ -226,7 +232,16 @@ def _render_search_card_sources() -> str:
     return _render_external_data_sources(labeled=True)
 
 
-def _try_chip_entry(row: dict[str, Any]) -> dict[str, str] | None:
+def _owner_profile_href(profile_url: str, *, state_code: str = "") -> str:
+    href = str(profile_url or "").strip()
+    st = (state_code or "").strip().upper()[:2]
+    if not href or not st:
+        return href
+    join = "&" if "?" in href else "?"
+    return f"{href}{join}from_state={st}"
+
+
+def _try_chip_entry(row: dict[str, Any], *, state_code: str = "") -> dict[str, str] | None:
     """Owner shortcut with canonical /owners/{pac} profile when indexed."""
     pac = normalize_associate_id(str(row.get("associate_id") or ""))
     if len(pac) != 10:
@@ -234,7 +249,10 @@ def _try_chip_entry(row: dict[str, Any]) -> dict[str, str] | None:
     display = format_index_owner_name(str(row.get("name") or ""))
     if not display or display == "—":
         return None
-    href = str(row.get("profile_url") or "").strip() or associate_profile_url(pac)
+    href = _owner_profile_href(
+        str(row.get("profile_url") or "").strip() or associate_profile_url(pac),
+        state_code=state_code,
+    )
     if not href.startswith("/owners/") or href.rstrip("/") == "/owners":
         return None
     return {
@@ -329,11 +347,11 @@ def _render_state_h1(h1: str) -> str:
     return f'<h1 class="owners-state-h1">{html.escape(h1)}</h1>'
 
 
-def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str) -> str:
+def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str, state_code: str = "") -> str:
     """Crawlable owner shortcuts; JS may refresh from the same pool JSON."""
     entries: list[dict[str, str]] = []
     for row in try_pool:
-        chip = _try_chip_entry(row)
+        chip = _try_chip_entry(row, state_code=state_code)
         if chip:
             entries.append(chip)
     if not entries:
@@ -354,35 +372,42 @@ def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str)
     )
 
 
-def _chow_row_subline(rec: dict[str, Any]) -> str:
-    """One-line hint for what the transfer row is about."""
-    buyer_raw = str(rec.get("buyer_org_name") or rec.get("buyer_dba_name") or "").strip()
-    if buyer_raw:
-        buyer = format_org_display(buyer_raw)
-        return f"Reported buyer: {html.escape(buyer)}"
-    return "CMS change of ownership"
+def _chow_facility_plain_name(rec: dict[str, Any]) -> str:
+    fac_raw = chow_facility_label(rec)
+    if fac_raw.startswith("CCN "):
+        return fac_raw
+    if fac_raw and fac_raw != "—":
+        return format_org_display(fac_raw)
+    return "—"
 
 
-def _render_top_orgs(rows: list[dict[str, Any]], *, state_name: str) -> str:
+def _render_top_orgs(rows: list[dict[str, Any]], *, state_code: str, state_name: str) -> str:
     if not rows:
         return '<p class="owners-state-empty">No ownership-linked entities in this index yet.</p>'
-    count_tip = html.escape(
-        f"Distinct CMS-linked facilities in {state_name or 'this state'}",
-        quote=True,
-    )
+    st = (state_code or "").strip().upper()[:2]
     items: list[str] = []
     for i, row in enumerate(rows, start=1):
         name = html.escape(format_index_owner_name(str(row.get("name") or "—")))
-        url = html.escape(str(row.get("profile_url") or f"/owners/{row.get('associate_id') or ''}"))
-        cnt = int(row.get("facility_count") or 0)
-        fac_lbl = "facility" if cnt == 1 else "facilities"
+        raw_url = str(row.get("profile_url") or f"/owners/{row.get('associate_id') or ''}")
+        url = html.escape(_owner_profile_href(raw_url, state_code=st))
+        count_lbl = format_portfolio_facility_count(st, row)
+        in_n = int(row.get("facility_count") or 0)
+        total_n = int(row.get("facility_count_total") or in_n)
+        if total_n > in_n:
+            count_tip = (
+                f"{in_n} distinct CMS-linked {state_name or st} facilities; "
+                f"{total_n} nationwide for this owner"
+            )
+        else:
+            count_tip = f"Distinct CMS-linked facilities in {state_name or 'this state'}"
+        count_tip_esc = html.escape(count_tip, quote=True)
         items.append(
             f'<li class="owners-state-ranked-item">'
             f'<a class="owners-state-ranked-row" href="{url}">'
             f'<span class="owners-state-ranked-n" aria-hidden="true">{i}</span>'
             f'<span class="owners-state-ranked-name">{name}</span>'
-            f'<span class="owners-state-ranked-meta" title="{count_tip}" '
-            f'aria-label="{count_tip}">{cnt} {fac_lbl}</span>'
+            f'<span class="owners-state-ranked-meta" title="{count_tip_esc}" '
+            f'aria-label="{count_tip_esc}">{html.escape(count_lbl)}</span>'
             f"</a></li>"
         )
     return f'<ol class="owners-state-ranked">{"".join(items)}</ol>'
@@ -405,20 +430,31 @@ def _render_chow_feed(
         rid = html.escape(str(rec.get("chow_id") or f"row-{i}"), quote=True)
         eff = html.escape(format_chow_date_short_label(str(rec.get("effective_date") or "")) or "—")
         facility = _facility_link_from_record(rec)
+        facility_plain = html.escape(_chow_facility_plain_name(rec), quote=True)
         panel_id = f"chow-detail-{rid}"
-        subline = _chow_row_subline(rec)
+        details_label = f"View ownership transfer details for {facility_plain}"
+        place = chow_facility_place_label(rec)
+        location_html = (
+            f'<div class="ownership-transfer-location">{html.escape(place)}</div>'
+            if place
+            else ""
+        )
+        buyer_raw = str(rec.get("buyer_org_name") or rec.get("buyer_dba_name") or "").strip()
+        buyer_html = ""
+        if buyer_raw:
+            buyer = html.escape(format_org_display(buyer_raw))
+            buyer_html = f'<div class="ownership-transfer-buyer">Buyer: {buyer}</div>'
         items.append(
-            f'<li class="owners-state-chow-item">'
-            f'<span class="owners-state-chow-date">{eff}</span>'
-            f'<span class="owners-state-chow-facility">{facility}</span>'
-            f'<button type="button" class="owners-state-chow-view chow-view-details" '
+            f'<li class="ownership-transfer-row">'
+            f'<div class="ownership-transfer-date">{eff}</div>'
+            f'<div class="ownership-transfer-main">'
+            f'<div class="ownership-transfer-title">{facility}</div>'
+            f"{location_html}"
+            f"{buyer_html}"
+            f"</div>"
+            f'<button type="button" class="ownership-transfer-details chow-view-details" '
             f'data-chow-detail-store="{panel_id}" aria-expanded="false" '
-            f'title="Transfer details" aria-label="Transfer details">'
-            f'<span class="owners-state-chow-view-label" aria-hidden="true">'
-            f'<span class="owners-state-chow-view-line">Transfer</span>'
-            f'<span class="owners-state-chow-view-line">details</span>'
-            f"</span></button>"
-            f'<span class="owners-state-chow-sub">{subline}</span>'
+            f'title="Details" aria-label="{details_label}">Details</button>'
             f"</li>"
         )
         body = render_chow_transfer_modal_body(
@@ -458,8 +494,8 @@ def render_state_owner_index_body(
     try_pool_rows, index_total = list_state_owner_index_rows(st, limit=_TRY_POOL_LIMIT, offset=0)
     top_rows, _ = list_state_owner_index_rows(st, limit=default_browse_limit, offset=0)
     page_ctx = state_owner_page_context(st)
-    top_html = _render_top_orgs(top_rows, state_name=state_name)
-    try_search_html = _render_try_search_hints(try_pool_rows, state_slug=state_slug)
+    top_html = _render_top_orgs(top_rows, state_code=st, state_name=state_name)
+    try_search_html = _render_try_search_hints(try_pool_rows, state_slug=state_slug, state_code=st)
     owners_hub_href = "/owners"
     state_staffing_path = f"/state/{state_page_slug}"
     state_staffing_href = html.escape(state_staffing_path)

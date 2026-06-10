@@ -92,9 +92,15 @@
 
       meta.className = 'owners-hub-result-pac';
 
+      var totalCnt = parseInt(item.facility_count_total, 10);
+
+      if (isNaN(totalCnt) || totalCnt < cnt) totalCnt = cnt;
+
       if (stateCode && cnt > 0) {
 
-        meta.textContent = cnt + (cnt === 1 ? ' facility' : ' facilities') + ' in ' + stateCode;
+        var facWord = cnt === 1 ? ' facility' : ' facilities';
+
+        meta.textContent = cnt + ' ' + stateCode + facWord + (totalCnt > cnt ? ' (' + totalCnt + ' total)' : '');
 
       } else if (item.associate_id && cnt > 0) {
 

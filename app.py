@@ -6065,6 +6065,22 @@ def cms_owner_profile_page(owner_id):
     robots_meta = owner_robots_meta(index_class)
     if not profile_has_public_state(profile):
         robots_meta = 'noindex, follow'
+    focus_state = (request.args.get('from_state') or '').strip().upper()[:2]
+    if focus_state:
+        profile_states = {
+            str(s or '').strip().upper()[:2]
+            for s in (profile.get('states') or [])
+            if str(s or '').strip()
+        }
+        if focus_state not in profile_states:
+            by_state = (profile.get('portfolio_summary') or {}).get('by_state') or []
+            profile_states |= {
+                str(row[0] or '').strip().upper()[:2]
+                for row in by_state
+                if row and str(row[0] or '').strip()
+            }
+        if focus_state in profile_states:
+            profile['portfolio_focus_state'] = focus_state
     try:
         html = generate_owner_profile_html(profile, robots_meta=robots_meta)
     except Exception as _owner_render_err:
@@ -6160,11 +6176,12 @@ def _owners_cms_index_html():
       </p>
       <p class="owners-state-unlock-note">
         <strong>Available now:</strong> state ownership indexes for
-        <a href="/owners/ny">New York</a>, <a href="/owners/ct">Connecticut</a>, and
-        <a href="/owners/fl">Florida</a>.
+        <a href="/owners/ny">New York</a>, <a href="/owners/nj">New Jersey</a>,
+        <a href="/owners/ct">Connecticut</a>, and <a href="/owners/fl">Florida</a>.
       </p>
       <ul class="owners-hub-state-cards">
         <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/nj"><span class="owners-hub-state-card-title">New Jersey</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
         <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
         <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
       </ul>
@@ -6440,6 +6457,7 @@ def _build_sitemap_xml() -> str:
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
         ('/owners', '0.7', 'weekly'),
         ('/owners/ny', '0.7', 'weekly'),
+        ('/owners/nj', '0.7', 'weekly'),
         ('/owners/ct', '0.7', 'weekly'),
         ('/owners/fl', '0.7', 'weekly'),
     ]
@@ -6544,6 +6562,7 @@ def _sitemap_static_url_lines(base: str, today: str, quarter_lastmod: str) -> li
         ('/nursing-home-staffing-data', '0.7', 'monthly'),
         ('/owners', '0.7', 'weekly'),
         ('/owners/ny', '0.7', 'weekly'),
+        ('/owners/nj', '0.7', 'weekly'),
         ('/owners/ct', '0.7', 'weekly'),
         ('/owners/fl', '0.7', 'weekly'),
     ]
@@ -10242,6 +10261,8 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
 .pbj-cta-premium a {{ color: #818cf8; font-weight: 600; transition: color 0.2s ease; }}
 .pbj-cta-premium a:hover {{ color: #a5b4fc; }}
 .pbj-state-min-badge {{ display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; color: #fecaca; background: rgba(127, 29, 29, 0.38); border: 1px solid rgba(248, 113, 113, 0.55); }}
+button.pbj-state-min-badge {{ cursor: pointer; font-family: inherit; }}
+button.pbj-state-min-badge:hover {{ background: rgba(127, 29, 29, 0.52); border-color: rgba(248, 113, 113, 0.75); }}
 a.custom-report-cta {{
   display: block; margin: 1.75rem 0; padding: 1rem 1.2rem; max-width: 56rem; font-size: 0.9375rem; font-weight: 500;
   line-height: 1.5; color: #e2e8f0; text-decoration: none; cursor: pointer; box-sizing: border-box;
@@ -12083,6 +12104,16 @@ def get_macpac_chart_info(state_code):
     if not state_code:
         return None
     state_code_upper = (state_code or '').strip().upper()[:2]
+    if state_code_upper == 'NY':
+        return {
+            'line_value': 3.50,
+            'label_short': 'NY Direct Care Min. 3.50',
+            'label_long': 'NY Direct Care Min. 3.50',
+            'badge_label': 'NY Direct Care Min. 3.50',
+            'min_display_str': '3.50',
+            'direct_care': True,
+            'macpac_reference_hprd': 3.56,
+        }
     state_code_lower = state_code_upper.lower()
     for path in ['pbj-wrapped/public/data/json/state_standards.json', 'state_standards.json']:
         if os.path.exists(path):
@@ -12130,6 +12161,74 @@ def get_macpac_chart_info(state_code):
             except (TypeError, ValueError):
                 pass
     return None
+
+
+def _state_staffing_chart_footnote_phrase(state_code, macpac_info) -> str:
+    """Concise MACPAC / state-min footnote for staffing charts."""
+    if macpac_info is None or macpac_info.get('line_value') is None or macpac_info['line_value'] < 1.5:
+        return ''
+    macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+    st = (state_code or '').strip().upper()[:2]
+    if st == 'NY':
+        return (
+            f' NY direct care min. 3.50 HPRD; '
+            f'<a href="{macpac_url}" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC</a> cites ~3.56.'
+        )
+    min_display = macpac_info.get('min_display_str') or f'~{macpac_info["line_value"]:.2f}'
+    return (
+        f' State min. ({min_display} HPRD) may reflect calculated equivalents by '
+        f'<a href="{macpac_url}" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC</a>.'
+    )
+
+
+def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
+    """Clickable state-min badge + brief modal (NY direct care). Returns (badge_html, modal_html)."""
+    if macpac_info is None or macpac_info.get('line_value') is None or macpac_info['line_value'] <= 1.5:
+        return '', ''
+    label = (macpac_info.get('badge_label') or macpac_info.get('label_short') or '').strip()
+    if not label:
+        st = (state_code or '').strip().upper()[:2]
+        label = f'{st} Min. ~{macpac_info["line_value"]:.2f}'
+    label_esc = html.escape(label)
+    st = (state_code or '').strip().upper()[:2]
+    macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
+    if st == 'NY':
+        body = (
+            f'<p class="pbj-hprd-means-body">New York\'s direct-care minimum is '
+            f'<strong>3.50 HPRD</strong> (RN, LPN, CNA; excludes admin/DON). '
+            f'<a href="{macpac_url}" target="_blank" rel="noopener">MACPAC</a> cites ~3.56 total nursing.</p>'
+        )
+    else:
+        body = (
+            f'<p class="pbj-hprd-means-body">State minimum staffing benchmark from '
+            f'<a href="{macpac_url}" target="_blank" rel="noopener">MACPAC</a> '
+            f'({label_esc}); verify against current statute.</p>'
+        )
+    mid = f'pbjStateMinModal-{uid}'
+    bid = f'pbjStateMinBtn-{uid}'
+    cid = f'pbjStateMinClose-{uid}'
+    badge = (
+        f'<button type="button" class="pbj-state-min-badge pbj-badge-mobile-hide" id="{bid}" '
+        f'aria-haspopup="dialog" aria-controls="{mid}" '
+        f'aria-label="{html.escape(label + " — details", quote=True)}">{label_esc}</button>'
+    )
+    modal = (
+        f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" aria-labelledby="{mid}Title">'
+        f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
+        f'<h3 id="{mid}Title">{label_esc}</h3>'
+        f'<div class="pbj-casemix-aux-body">{body}</div>'
+        f'</div></div>'
+        f'<script>(function(){{'
+        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
+        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}});'
+        f'if(c)c.addEventListener("click",x);m.addEventListener("click",function(e){{if(e.target===m)x();}});'
+        f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")x();}});'
+        f'}})();</script>'
+    )
+    return badge, modal
+
 
 _STATE_CONTRACT_MEDIAN_CACHE: tuple[str, int, dict[str, dict[str, float | None]]] | None = None
 _STATE_CONTRACT_MEDIAN_LOCK = threading.Lock()
@@ -16622,13 +16721,8 @@ def generate_state_chart_html(state_name, state_code, *, national_page: bool = F
     else:
         state_code_esc = html.escape(state_code.upper(), quote=True) if state_code else ''
     state_sub = f'<p class="pbj-chart-facility" style="text-align:center;margin:0.25rem 0 0.75rem 0;font-size:0.85rem;color:rgba(226,232,240,0.75);">{state_esc}</p>' if state_esc else ''
-    macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
     macpac_info = None if national_page else (get_macpac_chart_info(state_code) if state_code else None)
-    if macpac_info is not None and macpac_info.get('line_value') is not None and macpac_info['line_value'] >= 1.5:
-        min_display = macpac_info.get('min_display_str') or f'~{macpac_info["line_value"]:.2f}'
-        state_min_phrase = f' State min. ({min_display} HPRD) may reflect calculated equivalents by <a href="{macpac_url}" target="_blank" rel="noopener" style="color:#818cf8;">MACPAC</a>.'
-    else:
-        state_min_phrase = ''
+    state_min_phrase = '' if national_page else _state_staffing_chart_footnote_phrase(state_code, macpac_info)
     total_staffing_footer = f'''<p class="pbj-chart-footnote" style="margin:0.5rem 0 0 0;font-size:0.7rem;line-height:1.35;color:rgba(226,232,240,0.65);">
 <span class="pbj-chart-footnote-desktop">Direct staff excludes Admin/DON.{state_min_phrase}</span>
 <span class="pbj-chart-footnote-mobile">Direct staff excludes Admin/DON.{state_min_phrase}</span>
@@ -17506,15 +17600,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Region link removed per user request
     region_link = ""
     
-    # State standard (MACPAC) as badge only when relevant (> 1.5 HPRD); use range display (e.g. ~1.56-2.31) for range states
+    # State standard badge when relevant (> 1.5 HPRD); NY uses direct-care 3.50 with brief modal.
     state_standard_badge = ""
-    state_standard_footer = ""
+    state_standard_modal = ""
     _macpac_info = get_macpac_chart_info(state_code) if state_code else None
     if _macpac_info is not None and _macpac_info.get('line_value') is not None and _macpac_info['line_value'] > 1.5:
-        label_short = _macpac_info.get('label_short') or f"{state_code} Min. ~{_macpac_info['line_value']:.2f}"
-        state_standard_badge = (
-            f'<span class="pbj-state-min-badge pbj-badge-mobile-hide" '
-            f'title="State minimum staffing benchmark (MACPAC estimate).">{label_short} HPRD</span>'
+        state_standard_badge, state_standard_modal = render_state_min_badge_explainer(
+            state_code, _macpac_info, uid='state'
         )
 
     # Get basics: prefer facility count from facility_quarterly for this same quarter; fall back to state_quarterly (same quarter). Never show 0 when both missing; no synthetic data.
@@ -17805,7 +17897,6 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         'Share of reported nursing hours delivered by contract staff in this state.',
         quote=True
     )
-    state_rural_badge_html = render_state_rural_badge_html(state_code, raw_quarter)
     _hprd_desktop = f'{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})'
     _hprd_mobile = (
         f'{total_hprd_val} HPRD · Rk {rank_total_nurse}'
@@ -17818,7 +17909,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         f'<span class="pbj-hprd-rank-mobile-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_mobile}</span>'
         f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_rn_hprd_badge_title}">{rn_hprd_val} RN HPRD</span>'
         f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_contract_badge_title}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>'
-        f'{state_standard_badge}{state_rural_badge_html}'
+        f'{state_standard_badge}'
         f'</span>'
     )
     # State outline: D3 + TopoJSON (will be placed inside PBJ takeaway card)
@@ -17887,6 +17978,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
 {state_narrative}
 {_state_actions}
 {state_hprd_modal}
+{state_standard_modal}
 </div>'''
     try:
         from ownership.page_integrations import (

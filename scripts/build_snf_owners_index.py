@@ -260,6 +260,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
             m = meta.get(pac) or {}
             buckets = owner_link_buckets.get(pac) or {"any": ccns}
             counts = facility_link_counts_from_buckets(buckets)
+            counts["facility_count"] = len(ccns)
             rows.append(
                 {
                     "associate_id": pac,
@@ -309,6 +310,7 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
 
     owner_link_buckets: dict[str, dict[str, set[str]]] = {}
     by_state: dict[str, dict[str, set[str]]] = {st: {} for st in STATE_OWNER_INDEX_STATES}
+    total_by_pac: dict[str, set[str]] = {}
     meta: dict[str, dict[str, Any]] = {}
 
     conn = sqlite3.connect(db)
@@ -329,10 +331,12 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
                 continue
             ccn_norm = _norm_ccn_key(ccn)
             fac_st = ccn_state.get(ccn_norm) or ""
-            if fac_st not in STATE_OWNER_INDEX_STATES:
-                continue
             ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
             if len(ow_pac) != 10:
+                continue
+            if fac_st:
+                total_by_pac.setdefault(ow_pac, set()).add(ccn_norm)
+            if fac_st not in STATE_OWNER_INDEX_STATES:
                 continue
             accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
             by_state[fac_st].setdefault(ow_pac, set()).add(ccn_norm)
@@ -353,11 +357,13 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
             m = meta.get(pac) or {}
             buckets = owner_link_buckets.get(pac) or {"any": ccns}
             counts = facility_link_counts_from_buckets(buckets)
+            counts["facility_count"] = len(ccns)
             rows.append(
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
                     "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    "facility_count_total": len(total_by_pac.get(pac) or set()),
                     **counts,
                 }
             )

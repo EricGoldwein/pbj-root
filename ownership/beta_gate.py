@@ -2,7 +2,7 @@
 
 Published externally (production default):
   - State-page ownership blocks, provider ownership sections, and /owners/<pac> profiles
-    for facilities and organizations tied to Connecticut (CT), New York (NY), or Florida (FL).
+    for facilities and organizations tied to CT, FL, NJ, or NY.
 
 Internal preview (local dev or explicit env / admin key):
   - Same UI for additional states (e.g. Minnesota) without treating them as published.
@@ -20,7 +20,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-OWNERSHIP_PUBLIC_STATES = frozenset({"CT", "FL", "NY"})
+OWNERSHIP_PUBLIC_STATES = frozenset({"CT", "FL", "NJ", "NY"})
 # Back-compat alias (first public state)
 OWNERSHIP_BETA_STATE = "CT"
 

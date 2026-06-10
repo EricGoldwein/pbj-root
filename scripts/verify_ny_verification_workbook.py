@@ -225,7 +225,7 @@ def verify() -> list[str]:
         "quarter",
         "census_days",
         "direct_care_hprd",
-        "below_350_total",
+        "below_350_direct_care_quarter",
         "below_220_cna_side",
         "below_110_licensed",
         "missing_any_floor",
@@ -240,7 +240,11 @@ def verify() -> list[str]:
             errors.append(f"facility has more than 4 quarters: max={max_q}")
         logic = (
             fq["missing_any_floor"]
-            == (fq["below_350_total"] | fq["below_220_cna_side"] | fq["below_110_licensed"])
+            == (
+                fq["below_350_direct_care_quarter"]
+                | fq["below_220_cna_side"]
+                | fq["below_110_licensed"]
+            )
         ).all()
         if not logic:
             errors.append("missing_any_floor != OR(three below flags) on facility-quarters")
@@ -300,7 +304,7 @@ def verify() -> list[str]:
         roll = (
             fq.groupby("ccn", observed=True)
             .agg(
-                quarters_below_350_total=("below_350_total", "sum"),
+                quarters_below_350_total=("below_350_direct_care_quarter", "sum"),
                 quarters_missing_any_floor=("missing_any_floor", "sum"),
             )
             .reset_index()
@@ -339,11 +343,11 @@ def verify() -> list[str]:
             errors.append(
                 f"NYC weekend facility_days {row['facility_days']} != {ANCHOR_NYC_WKND_FD}"
             )
-        if int(row["days_below_350"]) != ANCHOR_NYC_WKND_BELOW:
+        if int(row["days_below_350_direct"]) != ANCHOR_NYC_WKND_BELOW:
             errors.append(
-                f"NYC weekend days_below_350 {row['days_below_350']} != {ANCHOR_NYC_WKND_BELOW}"
+                f"NYC weekend days_below_350_direct {row['days_below_350_direct']} != {ANCHOR_NYC_WKND_BELOW}"
             )
-        pct = float(row["pct_below_350"])
+        pct = float(row["pct_below_350_direct"])
         if abs(pct - 83.4) > 0.05:
             errors.append(f"NYC weekend pct {pct} != 83.4")
 
@@ -351,9 +355,9 @@ def verify() -> list[str]:
     all_row = ownership.loc[ownership["slice"] == "All NY"].iloc[0]
     if int(all_row["facility_days"]) != ANCHOR_STATEWIDE_FD:
         errors.append(f"statewide facility_days {all_row['facility_days']} != {ANCHOR_STATEWIDE_FD}")
-    if int(all_row["days_below_350"]) != ANCHOR_STATEWIDE_BELOW:
+    if int(all_row["days_below_350_direct"]) != ANCHOR_STATEWIDE_BELOW:
         errors.append(
-            f"statewide days_below_350 {all_row['days_below_350']} != {ANCHOR_STATEWIDE_BELOW}"
+            f"statewide days_below_350_direct {all_row['days_below_350_direct']} != {ANCHOR_STATEWIDE_BELOW}"
         )
 
     visible = ownership.loc[
@@ -363,8 +367,8 @@ def verify() -> list[str]:
     ]
     if int(visible["facility_days"].sum()) != int(all_row["facility_days"]):
         errors.append("ownership facility_days do not reconcile to All NY")
-    if int(visible["days_below_350"].sum()) != int(all_row["days_below_350"]):
-        errors.append("ownership days_below_350 do not reconcile to All NY")
+    if int(visible["days_below_350_direct"].sum()) != int(all_row["days_below_350_direct"]):
+        errors.append("ownership days_below_350_direct do not reconcile to All NY")
 
     other_row = ownership.loc[ownership["slice"] == "Other / unknown"]
     if not other_row.empty and int(other_row.iloc[0]["facility_days"]) > 0:

@@ -20,6 +20,17 @@
       ],
       "daily_formula": "sum(pbj_columns) / MDScensus",
       "description": "PBJ320 Total_Nurse_HPRD (all reported nursing roles incl. admin/DON)."
+    },
+    "direct_care_hprd": {
+      "pbj_columns": [
+        "Hrs_RN",
+        "Hrs_LPN",
+        "Hrs_CNA",
+        "Hrs_NAtrn",
+        "Hrs_MedAide"
+      ],
+      "daily_formula": "sum(pbj_columns) / MDScensus",
+      "description": "NY PHL § 2895-b mapped direct care HPRD (RN+LPN+CNA+NA trainee+MedAide; excludes DON and nursing admin)."
     }
   },
   "global_day_rules": [
@@ -43,14 +54,14 @@
   "state_thresholds": [
     {
       "state": "NY",
-      "metric": "total_nurse_hprd",
-      "threshold": 3.56,
+      "metric": "direct_care_hprd",
+      "threshold": 3.5,
       "comparator": "<",
-      "label": "Days below NY 3.56 HPRD threshold",
+      "label": "Days below NY 3.50 direct care HPRD",
       "enabled": true,
       "summary_count_col": "below_state_min_days_count",
       "summary_pct_col": "below_state_min_days_pct",
-      "notes": "New York’s enacted staffing requirements are not summarized here as a single 3.56 HPRD statutory figure. MACPAC’s state staffing compendium lists 3.56 HPRD as New York’s total estimated nursing facility staffing requirement (aggregate RN, LPN, and CNA, including DON). PBJ320 screens reported PBJ total nursing HPRD against that MACPAC benchmark for comparison only—not as a legal finding."
+      "notes": "N.Y. Public Health Law § 2895-b sets a 3.50 HPRD minimum for mapped direct-care nursing (RN, LPN, CNA, nurse aide trainee, medication aide). PBJ320 screens reported PBJ daily hours using that role mapping (excludes DON and nursing administrator)—informative, not an enforcement determination. Source: https://www.nysenate.gov/legislation/laws/PBH/2895-B"
     },
     {
       "state": "CT",

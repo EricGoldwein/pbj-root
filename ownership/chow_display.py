@@ -183,9 +183,17 @@ def render_chow_transfer_modal_body(
     facility_link_fn=None,
 ) -> str:
     """Seller → buyer summary for state ownership index modals."""
+    from ownership.chow_lookup import chow_facility_place_label
+
     fac_fn = facility_link_fn or _default_facility_link
     eff = html.escape(format_chow_date(str(rec.get("effective_date") or "")) or "—")
     facility = fac_fn(rec)
+    place = chow_facility_place_label(rec)
+    place_html = (
+        f'<p class="owners-chow-modal-place">{html.escape(place)}</p>'
+        if place
+        else ""
+    )
     buyer = org_link_fn(rec, "buyer")
     seller = org_link_fn(rec, "seller")
     summary = chow_change_summary(rec)
@@ -201,7 +209,7 @@ def render_chow_transfer_modal_body(
         f'<div class="owners-chow-modal-transfer">'
         f'<div class="owners-chow-modal-head-row">'
         f'<p class="owners-chow-modal-date"><span class="owners-chow-modal-date-k">Effective</span> {eff}</p>'
-        f'<div class="owners-chow-modal-facility">{facility}</div>'
+        f'<div class="owners-chow-modal-facility">{facility}{place_html}</div>'
         f"</div>"
         f"{summary_html}"
         f'<div class="owners-chow-transfer-flow" role="group" aria-label="Ownership transfer">'
@@ -538,7 +546,9 @@ CHOW_TABLE_INIT_SCRIPT = """
         return wrap.querySelectorAll('.chow-tx-row--paginated-hidden[hidden], .owners-chow-item--more[hidden]');
       }
       function visibleCount(){
-        return wrap.querySelectorAll('.chow-tx-row:not([hidden]), .owners-state-chow-item:not([hidden])').length;
+        return wrap.querySelectorAll(
+          '.chow-tx-row:not([hidden]), .ownership-transfer-row:not([hidden]), .owners-state-chow-item:not([hidden])'
+        ).length;
       }
       function update(){
         var shown = visibleCount();

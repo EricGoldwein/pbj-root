@@ -13274,20 +13274,18 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
     var datasets = [{ label: 'Avg daily census', data: censusPack.census, borderColor: '#2dd4bf', tension: 0.3, fill: false, spanGaps: false, yAxisID: 'y' }];
     var hasBeds = censusPack.beds && censusPack.beds.some(function(v) { return v != null && !isNaN(v); });
     if (hasBeds) {
-      datasets.push({ label: 'Certified beds', data: censusPack.beds, borderColor: 'rgba(148, 163, 184, 0.85)', borderDash: [5, 4], tension: 0, fill: false, spanGaps: false, yAxisID: 'y1' });
+      datasets.push({ label: 'Certified beds', data: censusPack.beds, borderColor: 'rgba(148, 163, 184, 0.85)', borderDash: [5, 4], tension: 0, fill: false, spanGaps: false, yAxisID: 'y' });
     }
     var spanYears = getSpanYears(quarters);
     var maxTicks = window.innerWidth < 768 ? Math.min(12, Math.max(6, Math.ceil(spanYears) + 1)) : Math.min(15, Math.max(6, Math.ceil(spanYears) + 2));
     var timeDatasets = datasets.map(function(ds) {
-      return { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, yAxisID: ds.yAxisID || 'y', data: buildTimeSeriesData(quarters, ds.data) };
+      return { label: ds.label, borderColor: ds.borderColor, borderDash: ds.borderDash, tension: ds.tension !== undefined ? ds.tension : 0.3, fill: false, spanGaps: false, yAxisID: 'y', data: buildTimeSeriesData(quarters, ds.data) };
     });
+    var yTitle = hasBeds ? 'Residents / beds' : 'Census';
     var scales = {
-      y: { position: 'left', beginAtZero: false, ticks: { color: textColor, callback: function(v) { return (typeof v === 'number' && !isNaN(v)) ? Math.round(v).toLocaleString() : v; } }, grid: { color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: 'Census', color: textColor } },
+      y: { position: 'left', beginAtZero: false, ticks: { color: textColor, callback: function(v) { return (typeof v === 'number' && !isNaN(v)) ? Math.round(v).toLocaleString() : v; } }, grid: { color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: yTitle, color: textColor } },
       x: { type: 'time', time: { unit: 'quarter', displayFormats: { year: 'yyyy', quarter: 'yyyy Qq', month: 'MMM yyyy' }, tooltipFormat: 'yyyy Qq' }, ticks: { color: textColor, maxTicksLimit: maxTicks, autoSkip: true, font: { size: 11 }, callback: timeTickCallback(quarters) }, grid: { color: gridColor }, border: { color: axisColor, width: 1 } }
     };
-    if (hasBeds) {
-      scales.y1 = { position: 'right', beginAtZero: false, ticks: { color: textColor, callback: function(v) { return (typeof v === 'number' && !isNaN(v)) ? Math.round(v).toLocaleString() : v; } }, grid: { drawOnChartArea: false, color: gridColor }, border: { color: axisColor, width: 1 }, title: { display: true, text: 'Beds', color: textColor } };
-    }
     new Chart(ctx.getContext('2d'), { type: 'line', data: { datasets: timeDatasets }, options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { labels: { color: textColor, boxWidth: 14, boxPadding: 3, font: { size: 11 } } }, tooltip: { callbacks: {

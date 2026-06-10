@@ -4900,7 +4900,7 @@ __REPORT_SSR_TABLE_ROWS__
     </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
-  <script src="/pbj-site-universal.js?v=32"></script>
+  <script src="/pbj-site-universal.js?v=49"></script>
   <script>
     (function() {
       var overlay = document.getElementById('contact-overlay');
@@ -4978,7 +4978,6 @@ __REPORT_SSR_TABLE_ROWS__
       }
     })();
     
-    // Mobile Navigation Toggle
     document.addEventListener('DOMContentLoaded', function() {
       // Ensure loading row colspan is correct
       const loadingRow = document.getElementById('loadingRow');
@@ -4997,24 +4996,6 @@ __REPORT_SSR_TABLE_ROWS__
         }
       }
       
-      const navToggle = document.getElementById('navToggle');
-      const navMenu = document.getElementById('navMenu');
-      
-      if (navToggle && navMenu) {
-        navToggle.addEventListener('click', function() {
-          navMenu.classList.toggle('active');
-          navToggle.classList.toggle('active');
-        });
-        
-        // Close mobile menu when a nav link is clicked
-        const navLinks = navMenu.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
-          link.addEventListener('click', function() {
-            navMenu.classList.remove('active');
-            navToggle.classList.remove('active');
-          });
-        });
-      }
     });
   </script>
   <!-- D3 for map: defer — runs in order before the deferred report data script below -->

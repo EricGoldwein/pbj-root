@@ -10577,9 +10577,6 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   </div>
   <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
   <script>
-  (function(){ var t=document.getElementById('navToggle'); var m=document.getElementById('navMenu'); if(t&&m){ t.addEventListener('click',function(){ m.classList.toggle('active'); t.classList.toggle('active'); document.body.style.overflow=m.classList.contains('active')?'hidden':''; }); } })();
-  </script>
-  <script>
   (function(){
     var overlay = document.getElementById('contact-overlay');
     var dialog = document.getElementById('contact-dialog');

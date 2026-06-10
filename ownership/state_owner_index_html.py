@@ -543,8 +543,8 @@ def render_state_owner_index_body(
               placeholder="{search_placeholder}" autocomplete="off" spellcheck="false"
               aria-label="{search_label}"
               aria-autocomplete="list" aria-controls="ownersHubSearchResults" aria-expanded="false">
+            <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>
           </div>
-          <ul id="ownersHubSearchResults" class="owners-hub-search-results owners-state-search-results" role="listbox" hidden></ul>
           {try_search_html}
         </div>
       </div>

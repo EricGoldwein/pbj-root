@@ -118,12 +118,11 @@ def ny_staffing_report_preview_path(*, include_token: bool = True) -> str:
 
 
 def ny_staffing_report_preview_redirect_to_public() -> bool:
-    return os.environ.get('NY_STAFFING_REPORT_PREVIEW_REDIRECT', '').strip().lower() in (
-        '1',
-        'true',
-        'yes',
-        'on',
-    )
+    """After public launch, preview token URLs 301 to /insights/ny-minimum-staffing."""
+    raw = (os.environ.get('NY_STAFFING_REPORT_PREVIEW_REDIRECT') or 'true').strip().lower()
+    if raw in ('0', 'false', 'no', 'off'):
+        return False
+    return raw in ('1', 'true', 'yes', 'on')
 
 
 def is_ny_staffing_report_preview_path(path: str) -> bool:

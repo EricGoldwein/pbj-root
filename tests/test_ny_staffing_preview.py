@@ -9,6 +9,7 @@ from site_public_config import (
     inject_ny_staffing_report_preview,
     is_ny_staffing_report_preview_path,
     ny_staffing_report_preview_path,
+    ny_staffing_report_preview_redirect_to_public,
     ny_staffing_report_preview_token,
 )
 
@@ -90,6 +91,25 @@ class NyStaffingPreviewTest(unittest.TestCase):
                 os.environ.pop('NY_STAFFING_REPORT_PREVIEW_TOKEN', None)
             else:
                 os.environ['NY_STAFFING_REPORT_PREVIEW_TOKEN'] = prev
+
+    def test_preview_redirects_to_public_by_default(self):
+        prev = os.environ.pop('NY_STAFFING_REPORT_PREVIEW_REDIRECT', None)
+        try:
+            self.assertTrue(ny_staffing_report_preview_redirect_to_public())
+        finally:
+            if prev is not None:
+                os.environ['NY_STAFFING_REPORT_PREVIEW_REDIRECT'] = prev
+
+    def test_preview_redirect_can_be_disabled(self):
+        prev = os.environ.get('NY_STAFFING_REPORT_PREVIEW_REDIRECT')
+        try:
+            os.environ['NY_STAFFING_REPORT_PREVIEW_REDIRECT'] = 'false'
+            self.assertFalse(ny_staffing_report_preview_redirect_to_public())
+        finally:
+            if prev is None:
+                os.environ.pop('NY_STAFFING_REPORT_PREVIEW_REDIRECT', None)
+            else:
+                os.environ['NY_STAFFING_REPORT_PREVIEW_REDIRECT'] = prev
 
 
 if __name__ == '__main__':

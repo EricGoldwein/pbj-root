@@ -23,6 +23,13 @@ class NyClassicRedirectTest(unittest.TestCase):
         self.assertNotIn("101,779", text)
         self.assertNotIn("47.1%", text)
 
+    def test_press_url_redirects_to_primary_report(self):
+        client = app.test_client()
+        resp = client.get("/insights/ny-minimum-staffing/press", follow_redirects=False)
+        self.assertEqual(resp.status_code, 301)
+        self.assertIn("/insights/ny-minimum-staffing", resp.headers.get("Location", ""))
+        self.assertNotIn("/press", resp.headers.get("Location", "").rstrip("/").split("/")[-1])
+
 
 if __name__ == "__main__":
     unittest.main()

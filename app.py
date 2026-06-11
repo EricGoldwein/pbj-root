@@ -2255,8 +2255,9 @@ def insights_ny_minimum_staffing_classic():
 @app.route('/insights/ny-minimum-staffing/press')
 @app.route('/insights/ny-minimum-staffing/press/')
 def insights_ny_minimum_staffing_press():
-    """Media-facing press release (slate palette; links to full interactive report)."""
-    return _serve_public_html('insights-ny-minimum-staffing-press.html')
+    """Unpublished — redirect to canonical interactive report."""
+    from flask import redirect
+    return redirect('/insights/ny-minimum-staffing', code=301)
 
 
 @app.route('/insights/ny-minimum-staffing-2025')

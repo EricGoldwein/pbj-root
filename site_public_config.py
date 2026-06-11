@@ -358,6 +358,7 @@ SITEMAP_EXCLUDED_PATHS: frozenset[str] = frozenset({
     '/pbjpedia/non-nursing-staff',
     '/pbjpedia/data-limitations',
     '/pbjpedia/history',
+    '/insights/ny-minimum-staffing/press',
 })
 
 # Static trust pages included in sitemap (path, priority, changefreq).

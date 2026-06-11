@@ -206,6 +206,23 @@ def verify() -> list[str]:
     for phrase in README_REQUIRED_PHRASES:
         if phrase.lower() not in readme_text.lower():
             errors.append(f"README missing phrase: {phrase}")
+    if "detail" in readme.columns:
+        leading_formula = readme["detail"].astype(str).str.match(r"^=", na=False)
+        if leading_formula.any():
+            sample = readme.loc[leading_formula, "detail"].astype(str).head(3).tolist()
+            errors.append(
+                "README detail cells must not start with = (document Excel expressions as plain text): "
+                + "; ".join(sample)
+            )
+
+    data_dict = pd.read_excel(XLSX, sheet_name="Data dictionary")
+    if "formula_or_notes" in data_dict.columns:
+        leading_formula = data_dict["formula_or_notes"].astype(str).str.match(r"^=", na=False)
+        if leading_formula.any():
+            sample = data_dict.loc[leading_formula, "formula_or_notes"].astype(str).head(3).tolist()
+            errors.append(
+                "Data dictionary formula_or_notes must not start with =: " + "; ".join(sample)
+            )
 
     recon = pd.read_excel(XLSX, sheet_name="Reconciliation checks")
     if "result" not in recon.columns:

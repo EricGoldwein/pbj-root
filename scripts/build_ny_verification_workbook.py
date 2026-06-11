@@ -130,7 +130,8 @@ def _pbj_role_sum(cols: tuple[str, ...]) -> str:
 
 
 def _excel_daily_hprd_formula(cols: tuple[str, ...]) -> str:
-    return f"=({_pbj_role_sum(cols)})/MDScensus"
+    """Excel expression as documentation text (no leading = — avoids #NAME? in README cells)."""
+    return f"({_pbj_role_sum(cols)})/MDScensus"
 
 
 def _methodology_readme_lines() -> list[tuple[str, str]]:
@@ -184,35 +185,35 @@ def _methodology_readme_lines() -> list[tuple[str, str]]:
         ),
         ("", ""),
         ("Daily compliance flags (Excel on exported HPRD columns)", ""),
-        (COL_BELOW_350_DIRECT_CARE, f"={COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}"),
-        (COL_BELOW_350_DIRECT_CARE + " (Excel)", f"={COL_DIRECT_CARE_HPRD}<3.5"),
-        (COL_BELOW_350_TOTAL_NURSING, f"={COL_TOTAL_HPRD}<{THRESHOLD_TOTAL}"),
-        (COL_BELOW_350_TOTAL_NURSING + " (Excel)", f"={COL_TOTAL_HPRD}<3.5"),
-        ("below_220_cna_side", f"={COL_CNA_SIDE_HPRD}<{NY_STATUTE_CNA_MIN_HPRD}"),
-        ("below_220_cna_side (Excel)", f"={COL_CNA_SIDE_HPRD}<2.2"),
-        ("below_110_licensed", f"={COL_LICENSED_NURSE_HPRD}<{NY_STATUTE_LPN_RN_MIN_HPRD}"),
-        ("below_110_licensed (Excel)", f"={COL_LICENSED_NURSE_HPRD}<1.1"),
+        (COL_BELOW_350_DIRECT_CARE, f"{COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}"),
+        (COL_BELOW_350_DIRECT_CARE + " (Excel)", f"{COL_DIRECT_CARE_HPRD}<3.5"),
+        (COL_BELOW_350_TOTAL_NURSING, f"{COL_TOTAL_HPRD}<{THRESHOLD_TOTAL}"),
+        (COL_BELOW_350_TOTAL_NURSING + " (Excel)", f"{COL_TOTAL_HPRD}<3.5"),
+        ("below_220_cna_side", f"{COL_CNA_SIDE_HPRD}<{NY_STATUTE_CNA_MIN_HPRD}"),
+        ("below_220_cna_side (Excel)", f"{COL_CNA_SIDE_HPRD}<2.2"),
+        ("below_110_licensed", f"{COL_LICENSED_NURSE_HPRD}<{NY_STATUTE_LPN_RN_MIN_HPRD}"),
+        ("below_110_licensed (Excel)", f"{COL_LICENSED_NURSE_HPRD}<1.1"),
         (
             COL_MET_ALL_THREE_DIRECT_CARE,
-            f"=AND(NOT({COL_BELOW_350_DIRECT_CARE}),NOT(below_220_cna_side),NOT(below_110_licensed))",
+            f"AND(NOT({COL_BELOW_350_DIRECT_CARE}),NOT(below_220_cna_side),NOT(below_110_licensed))",
         ),
         ("", ""),
         ("Quarterly facility-quarter metrics", ""),
         (
             f"Quarterly {COL_DIRECT_CARE_HPRD}",
-            f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus) within CCN+quarter",
+            f"SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus) within CCN+quarter",
         ),
         (
             f"Quarterly {COL_DIRECT_CARE_HPRD} (Excel)",
-            f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus)",
+            f"SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus)",
         ),
         (
             "Quarterly below_350_direct_care_quarter",
-            f"=Quarterly {COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}",
+            f"Quarterly {COL_DIRECT_CARE_HPRD}<{THRESHOLD_TOTAL}",
         ),
         (
             "Quarterly below_350_direct_care_quarter (Excel)",
-            f"=Quarterly {COL_DIRECT_CARE_HPRD}<3.5",
+            f"Quarterly {COL_DIRECT_CARE_HPRD}<3.5",
         ),
         (
             "Quarterly CNA-side / licensed floors",
@@ -945,35 +946,35 @@ def _build_data_dictionary() -> pd.DataFrame:
             "Daily facility data",
             f"True if {COL_DIRECT_CARE_HPRD} < 3.50 standard",
             "Derived",
-            f"={COL_DIRECT_CARE_HPRD}<3.5",
+            f"{COL_DIRECT_CARE_HPRD}<3.5",
         ),
         (
             COL_BELOW_350_TOTAL_NURSING,
             "Daily facility data",
             f"True if {COL_TOTAL_HPRD} < 3.50 (comparison only)",
             "Derived",
-            f"={COL_TOTAL_HPRD}<3.5",
+            f"{COL_TOTAL_HPRD}<3.5",
         ),
         (
             "below_220_cna_side",
             "Daily facility data",
             "True if CNA-side HPRD < 2.20 standard",
             "Derived",
-            f"={COL_CNA_SIDE_HPRD}<2.2",
+            f"{COL_CNA_SIDE_HPRD}<2.2",
         ),
         (
             "below_110_licensed",
             "Daily facility data",
             "True if licensed-nurse HPRD < 1.10 standard",
             "Derived",
-            f"={COL_LICENSED_NURSE_HPRD}<1.1",
+            f"{COL_LICENSED_NURSE_HPRD}<1.1",
         ),
         (
             COL_MET_ALL_THREE_DIRECT_CARE,
             "Daily facility data",
             "True if all three direct-care standards met",
             "Derived",
-            f"=AND(NOT({COL_BELOW_350_DIRECT_CARE}),NOT(below_220_cna_side),NOT(below_110_licensed))",
+            f"AND(NOT({COL_BELOW_350_DIRECT_CARE}),NOT(below_220_cna_side),NOT(below_110_licensed))",
         ),
         ("source_file_quarter", "Daily facility data", "PBJ quarterly file label", "CMS PBJ filename", "e.g. 2025Q1"),
         ("facility_links_sheet_key", "Daily facility data", "Join key to Facility links sheet", "Derived", "Equals ccn; avoids repeating URLs on 216k+ daily rows"),
@@ -990,14 +991,14 @@ def _build_data_dictionary() -> pd.DataFrame:
             "Summary sheets",
             f"Facility-days with {COL_DIRECT_CARE_HPRD} < 3.50",
             "Derived",
-            f"=SUM({COL_BELOW_350_DIRECT_CARE})",
+            f"SUM({COL_BELOW_350_DIRECT_CARE})",
         ),
         (
             COL_DAYS_BELOW_350_TOTAL,
             "Summary sheets",
             f"Facility-days with {COL_TOTAL_HPRD} < 3.50",
             "Derived",
-            f"=SUM({COL_BELOW_350_TOTAL_NURSING})",
+            f"SUM({COL_BELOW_350_TOTAL_NURSING})",
         ),
         (
             COL_PCT_BELOW_350_DIRECT,
@@ -1056,21 +1057,21 @@ def _build_data_dictionary() -> pd.DataFrame:
             "Facility quarter summary",
             "Quarterly NY direct care HPRD",
             "Derived",
-            f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus)",
+            f"SUM({_pbj_role_sum(HRS_NY_MAPPED_TOTAL)})/SUM(MDScensus)",
         ),
         (
             "direct_care_include_don_hprd",
             "Facility quarter summary",
             "Include-DON sensitivity quarterly direct care HPRD",
             "Derived",
-            f"=SUM({_pbj_role_sum(HRS_NY_MAPPED_INCLUDE_DON)})/SUM(MDScensus)",
+            f"SUM({_pbj_role_sum(HRS_NY_MAPPED_INCLUDE_DON)})/SUM(MDScensus)",
         ),
         (
             "below_350_direct_care_quarter",
             "Facility quarter summary",
             f"Quarterly {COL_DIRECT_CARE_HPRD} < 3.50",
             "Derived",
-            f"={COL_DIRECT_CARE_HPRD}<3.5",
+            f"{COL_DIRECT_CARE_HPRD}<3.5",
         ),
         ("missing_any_floor", "Facility quarter summary", "Any quarterly floor missed", "Derived", "OR of three floor checks"),
         ("quarters_analyzed", "Facility summary", "Facility-quarters with census > 0", "Derived", "Max 4 per facility"),

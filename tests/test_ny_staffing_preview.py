@@ -4,8 +4,11 @@ import os
 import unittest
 from pathlib import Path
 
+from app import app
 from site_public_config import (
+    GOOGLE_ANALYTICS_MEASUREMENT_ID,
     NY_PREVIEW_DEFINITIONS_HEADING,
+    inject_google_analytics_head,
     inject_ny_staffing_report_preview,
     is_ny_staffing_report_preview_path,
     ny_staffing_report_preview_path,
@@ -110,6 +113,45 @@ class NyStaffingPreviewTest(unittest.TestCase):
                 os.environ.pop('NY_STAFFING_REPORT_PREVIEW_REDIRECT', None)
             else:
                 os.environ['NY_STAFFING_REPORT_PREVIEW_REDIRECT'] = prev
+
+    def test_inject_google_analytics_once(self):
+        html = '<html><head><title>x</title></head><body></body></html>'
+        out = inject_google_analytics_head(html)
+        self.assertIn(GOOGLE_ANALYTICS_MEASUREMENT_ID, out)
+        self.assertEqual(out, inject_google_analytics_head(out))
+
+    def test_report_editorial_copy_updates(self):
+        html = REPORT_HTML.read_text(encoding='utf-8')
+        self.assertIn('chart-title-short">% days &lt; std</span></div>', html)
+        self.assertIn('Any given Sunday: four in five were below 3.50 HPRD', html)
+        self.assertIn('Use the', html)
+        self.assertIn('controls on the charts to see how compliance changes', html)
+        self.assertIn('Staffing below 3.50 HPRD was far more common on weekends', html)
+        self.assertIn('For many homes, sub-3.50 staffing was routine', html)
+
+    def test_report_section_nav_breakpoints(self):
+        html = REPORT_HTML.read_text(encoding='utf-8')
+        self.assertIn('@media (min-width: 1404px)', html)
+        self.assertIn('@media (min-width: 769px) and (max-width: 1403px)', html)
+        self.assertIn('.report-body-layout > .report-mobile-jump {\n    display: block;', html)
+
+    def test_mobile_pbj_panel_threshold_grid(self):
+        html = REPORT_HTML.read_text(encoding='utf-8')
+        self.assertIn('.chart-pbj-controls--in-panel .chart-pbj-threshold-label {\n    display: none;', html)
+        self.assertIn('.chart-pbj-controls--in-panel .ny-scenario-threshold-row {\n    display: flex;', html)
+        self.assertIn('content: " HPRD threshold";', html)
+        self.assertIn('.chart-pbj-toggle-panel {\n    left: 0;\n    right: 0;', html)
+        self.assertIn('.chart-pbj-controls--in-panel .ny-scenario-modes--row.chart-pbj-modes', html)
+        self.assertIn('.ny-scenario-modes--row:not(.chart-pbj-modes)', html)
+
+    def test_report_and_insights_hub_include_ga(self):
+        client = app.test_client()
+        report = client.get('/insights/ny-minimum-staffing')
+        self.assertEqual(report.status_code, 200)
+        self.assertIn(GOOGLE_ANALYTICS_MEASUREMENT_ID, report.get_data(as_text=True))
+        hub = client.get('/insights')
+        self.assertEqual(hub.status_code, 200)
+        self.assertIn(GOOGLE_ANALYTICS_MEASUREMENT_ID, hub.get_data(as_text=True))
 
 
 if __name__ == '__main__':

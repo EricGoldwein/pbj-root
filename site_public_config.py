@@ -91,6 +91,25 @@ def inject_public_site_verification_meta(html: str) -> str:
     return _HEAD_OPEN_RE.sub(r'\1\n' + BING_WEBMASTER_VERIFICATION_META, html, count=1)
 
 
+GOOGLE_ANALYTICS_MEASUREMENT_ID = 'G-NDPVY6TWBK'
+
+GOOGLE_ANALYTICS_GTAG_SNIPPET = f"""<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id={GOOGLE_ANALYTICS_MEASUREMENT_ID}"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){{dataLayer.push(arguments);}}
+gtag('js', new Date());
+gtag('config', '{GOOGLE_ANALYTICS_MEASUREMENT_ID}');
+</script>"""
+
+
+def inject_google_analytics_head(html: str) -> str:
+    """Insert GA4 gtag snippet once per HTML document."""
+    if GOOGLE_ANALYTICS_MEASUREMENT_ID in html or 'googletagmanager.com/gtag/js' in html:
+        return html
+    return _HEAD_OPEN_RE.sub(r'\1\n' + GOOGLE_ANALYTICS_GTAG_SNIPPET, html, count=1)
+
+
 # NY staffing compliance report — public vs pre-publication preview (unlisted, noindex).
 NY_STAFFING_REPORT_HTML = 'insights-ny-minimum-staffing.html'
 NY_STAFFING_REPORT_PREVIEW_SLUG = 'ny-staffing-compliance-2025'

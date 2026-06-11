@@ -88,13 +88,11 @@ class NyProviderPersistenceTest(unittest.TestCase):
     def test_report_prose_mentions_half_and_90(self):
         html = HTML.read_text(encoding="utf-8")
         lead = self._provider_lead_visible_text(html)
-        self.assertIn("348", lead)
-        self.assertIn("58.4%", lead)
-        self.assertIn("50%", lead)
-        self.assertIn("158", lead)
+        self.assertRegex(lead, re.compile(r"six in ten", re.I))
+        self.assertRegex(lead, re.compile(r"one-quarter", re.I))
+        self.assertRegex(lead, re.compile(r"one in seven", re.I))
         self.assertIn("90%", lead)
-        self.assertIn("58", lead)
-        self.assertRegex(lead, re.compile(r"every reported day", re.I))
+        self.assertIn("3.50 HPRD", lead)
         self.assertNotRegex(lead, re.compile(r"compliance|violation|enforcement", re.I))
 
     def test_math_audit_exits_zero(self):

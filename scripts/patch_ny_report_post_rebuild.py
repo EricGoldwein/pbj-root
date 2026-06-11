@@ -72,9 +72,7 @@ def patch_html() -> None:
     )
 
     section_heading = (
-        f"More than half of NY facility-days were below the 3.50 HPRD standard"
-        if pct >= 50
-        else f"Nearly half of NY facility-days were below the 3.50 HPRD standard"
+        "NY nursing homes fell short of staffing standards nearly three out of five days"
     )
     html = re.sub(
         r'<h2 id="definitions-heading">.*?</h2>',
@@ -99,21 +97,17 @@ def patch_html() -> None:
         flags=re.DOTALL,
     )
 
-    facilities = _load_embed("PBJ_REPORT_FACILITIES")
-    idx_35 = int(round((THRESHOLD - facilities["threshold_start"]) / facilities["threshold_step"]))
-    fac_list = facilities["facilities"]
-    every_day = sum(1 for f in fac_list if f["below_curve"][idx_35] >= f["facility_days"])
-    at_least_50 = sum(1 for f in fac_list if f["below_curve"][idx_35] >= 0.5 * f["facility_days"])
-    at_least_90 = sum(1 for f in fac_list if f["below_curve"][idx_35] >= 0.9 * f["facility_days"])
-    at_least_50_pct = round(100 * at_least_50 / len(fac_list), 1)
+    provider_lead = (
+        "<p id=\"provider-days-below-lead\">For most New York nursing homes, direct care staffing below "
+        "<strong>3.50 HPRD</strong> was the norm. Nearly six in ten facilities reported below "
+        "<strong>3.50 HPRD</strong> on at least half of their analyzed 2025 days, and about one-quarter "
+        "fell below the standard on at least <strong>90%</strong> of days. At the other end, roughly "
+        "one in seven homes met or exceeded <strong>3.50 HPRD</strong> on more than "
+        "<strong>90%</strong> of days.</p>"
+    )
     html = re.sub(
         r'<p id="provider-days-below-lead">.*?</p>',
-        f'<p id="provider-days-below-lead">Among <strong>596</strong> New York nursing homes, '
-        f"<strong>{at_least_50}</strong> (<strong>{at_least_50_pct}%</strong>) "
-        f"reported staffing below <strong>3.50</strong> HPRD on at least half of their analyzed "
-        f"2025 facility-days. At the high end, <strong>{at_least_90}</strong> homes were below "
-        f"the standard on at least <strong>90%</strong> of days, including "
-        f"<strong>{every_day}</strong> homes below the standard on every reported day.</p>",
+        provider_lead,
         html,
         count=1,
         flags=re.DOTALL,

@@ -57,6 +57,7 @@ from site_public_config import (
     SITEMAP_EXCLUDED_PATHS,
     SITEMAP_TRUST_PAGES,
     build_robots_txt,
+    inject_google_analytics_head,
     inject_ny_staffing_report_preview,
     inject_public_html_cms_urls,
     inject_public_site_verification_meta,
@@ -1583,6 +1584,8 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     except ImportError:
         pass
     html_content = inject_public_site_verification_meta(html_content)
+    if filename == NY_STAFFING_REPORT_HTML:
+        html_content = inject_google_analytics_head(html_content)
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
     # Forms embed a session-bound CSRF token; do not cache HTML in shared caches.
@@ -1607,6 +1610,7 @@ def _serve_ny_staffing_report_preview(token: str):
     html_content = _rewrite_universal_js_version(html_content)
     html_content = inject_public_html_cms_urls(html_content)
     html_content = inject_public_site_verification_meta(html_content)
+    html_content = inject_google_analytics_head(html_content)
     html_content = inject_ny_staffing_report_preview(html_content, ny_staffing_report_preview_path())
     resp = make_response(html_content)
     resp.mimetype = 'text/html'
@@ -2215,7 +2219,7 @@ def insights():
     feed_html = _render_insights_hub_feed_html(posts)
     itemlist_json_ld = _insights_hub_item_list_json_ld(posts, base)
     og_image = f'{base}/og-image-1200x630.png'
-    return render_template(
+    html = render_template(
         'insights_hub.html',
         feed_html=feed_html,
         itemlist_json_ld=itemlist_json_ld,
@@ -2223,6 +2227,10 @@ def insights():
         og_image=og_image,
         substack_feed_url=NEWSLETTER_SUBSTACK_FEED,
     )
+    resp = make_response(inject_google_analytics_head(html))
+    resp.mimetype = 'text/html'
+    resp.headers['Cache-Control'] = _HTML_CACHE_CONTROL
+    return resp
 
 
 @app.route('/insights-theme.css')
@@ -3780,6 +3788,14 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
   {% if iso_modified %}<meta property="article:modified_time" content="{{ iso_modified }}">{% endif %}
   <meta name="theme-color" content="#f6f7f9">
   <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
+  <script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-NDPVY6TWBK');
+  </script>
   <link rel="stylesheet" href="/insights-theme.css?v=29">
   {{ article_json_ld|safe }}
   <style>

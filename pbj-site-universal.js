@@ -265,6 +265,7 @@
     for (var i = 0; i < links.length; i++) {
       var a = links[i];
       a.classList.remove('active');
+      a.removeAttribute('aria-current');
       var href = a.getAttribute('href');
       if (!href || href.charAt(0) === '#') continue;
       var linkPath = href.replace(/\/$/, '') || '/';
@@ -273,13 +274,17 @@
       if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
       if (!match && linkPath === '/owners-test' && (path === '/owners-test' || path.indexOf('/owners-test/') === 0)) match = true;
       if (!match && linkPath === '/insights' && path.indexOf('/insights') === 0) match = true;
+      if (!match && linkPath === '/insights' && document.body && document.body.classList.contains('pbj-insights-report-page')) match = true;
       if (!match && linkPath === '/insights/trends' && (path === '/insights/trends' || path.indexOf('/insights/trends/') === 0)) match = true;
       if (!match && linkPath === '/report' && path.indexOf('/report') === 0) match = true;
       if (!match && linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) match = true;
       if (!match && linkPath === '/about' && path.indexOf('/about') === 0) match = true;
       if (!match && linkPath === '/premium' && path.indexOf('/premium') === 0) match = true;
       if (!match && linkPath === '/data-sources' && path.indexOf('/data-sources') === 0) match = true;
-      if (match) a.classList.add('active');
+      if (match) {
+        a.classList.add('active');
+        a.setAttribute('aria-current', 'page');
+      }
     }
   }
 
@@ -295,6 +300,7 @@
     var linkPath = href.replace(/\/$/, '') || '/';
     if (path === linkPath) return true;
     if (linkPath === '/insights' && path.indexOf('/insights') === 0) return true;
+    if (linkPath === '/insights' && typeof document !== 'undefined' && document.body && document.body.classList.contains('pbj-insights-report-page')) return true;
     if (linkPath === '/report' && path.indexOf('/report') === 0) return true;
     if (linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) return true;
     if (linkPath === '/about' && path.indexOf('/about') === 0) return true;

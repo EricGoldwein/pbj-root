@@ -95,6 +95,10 @@ def inject_public_site_verification_meta(html: str) -> str:
 NY_STAFFING_REPORT_HTML = 'insights-ny-minimum-staffing.html'
 NY_STAFFING_REPORT_PREVIEW_SLUG = 'ny-staffing-compliance-2025'
 NY_STAFFING_REPORT_PUBLIC_PATH = '/insights/ny-minimum-staffing'
+# Verified from: downloads/ny_350_min_report.png (2848×1504 RGBA)
+NY_STAFFING_REPORT_OG_IMAGE_PATH = '/downloads/ny_350_min_report.png'
+NY_STAFFING_REPORT_OG_IMAGE_WIDTH = 2848
+NY_STAFFING_REPORT_OG_IMAGE_HEIGHT = 1504
 # Default token reduces casual discovery; override in production via NY_STAFFING_REPORT_PREVIEW_TOKEN.
 NY_STAFFING_REPORT_PREVIEW_TOKEN_DEFAULT = 'p4v8nq'
 
@@ -221,7 +225,7 @@ _NY_PREVIEW_BANNER_HTML = (
     f'<div class="ny-staffing-preview-banner" role="status">{_NY_PREVIEW_BANNER_TEXT}</div>'
 )
 NY_PREVIEW_DEFINITIONS_HEADING = (
-    'Nearly half of NY facility-days fell below 3.50 direct care HPRD'
+    'NY nursing homes fell short of staffing standards nearly three out of five days'
 )
 _DEFINITIONS_HEADING_RE = re.compile(
     r'<h2 id="definitions-heading">.*?</h2>',

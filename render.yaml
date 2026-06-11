@@ -38,3 +38,6 @@ services:
         value: "dashboards"
       - key: PBJ_SKIP_BUILD_PROVIDER_INDEXES
         value: "1"
+      # NY staffing report is public; token preview URLs 301 to /insights/ny-minimum-staffing
+      - key: NY_STAFFING_REPORT_PREVIEW_REDIRECT
+        value: "true"

@@ -264,9 +264,9 @@ class NyScenarioControlsTest(unittest.TestCase):
 
         self.assertIn("ny_mapped_include_don_sensitivity", self.html)
 
-        self.assertIn("function curveField()", self.html)
+        self.assertIn("function curveFieldForMode", self.html)
 
-        self.assertIn("below_curve_include_don", self.html.split("function curveField()")[1][:400])
+        self.assertIn("below_curve_include_don", self.html.split("function curveFieldForMode")[1][:400])
 
 
 
@@ -274,17 +274,15 @@ class NyScenarioControlsTest(unittest.TestCase):
 
         self.assertIn('id="provider-days-below-lead"', self.html)
 
-        self.assertIn("<strong>58</strong>", self.html)
-
-        self.assertIn("<strong>158</strong>", self.html)
-
-        self.assertIn("<strong>348</strong>", self.html)
-
         lead_block = self.html.split('id="provider-days-below-lead"')[1][:700]
 
-        self.assertIn("3.50", lead_block)
+        self.assertIn("3.50 HPRD", lead_block)
 
-        self.assertIn("at least <strong>50%</strong>", lead_block)
+        self.assertIn("six in ten", lead_block)
+
+        self.assertIn("one-quarter", lead_block)
+
+        self.assertIn("one in seven", lead_block)
 
         update_fn = self.html.split("function updateProviderDaysBelowChart")[1][:2500]
 
@@ -297,6 +295,56 @@ class NyScenarioControlsTest(unittest.TestCase):
         self.assertIn("PBJ320ScenarioControls", self.html)
 
         self.assertIn("PBJ320ScenarioControls.init", self.html)
+
+
+
+    def test_metric_radios_bound_after_dom_insert(self) -> None:
+
+        block = self.html.split("function injectDailyChartControls")[1].split("function closePbjTogglePanel")[0]
+
+        bind_pos = block.index("bindMetricRadios")
+
+        insert_pos = block.index("insertBefore")
+
+        self.assertGreater(bind_pos, insert_pos)
+
+
+
+    def test_staff_mix_control_order(self) -> None:
+
+        tpl = self.html.split('id="chart-daily-controls-tpl"')[1].split("</template>")[0]
+
+        direct = tpl.index('value="ny_mapped_non_admin_hprd"')
+
+        total = tpl.index('value="broad_pbj_total_hprd"')
+
+        don = tpl.index('value="ny_mapped_include_don_sensitivity"')
+
+        self.assertLess(direct, total)
+
+        self.assertLess(total, don)
+
+        self.assertIn("incl. Admin/DON", tpl)
+
+
+
+    def test_threshold_above_staff_mix_in_panel(self) -> None:
+
+        tpl = self.html.split('id="chart-daily-controls-tpl"')[1].split("</template>")[0]
+
+        thresh = tpl.index("HPRD threshold")
+
+        staff = tpl.index("Staff mix")
+
+        self.assertLess(thresh, staff)
+
+
+
+    def test_county_map_has_scenario_controls_host(self) -> None:
+
+        block = self.html.split('id="county-map-title"')[0].split("county-map-wrap")[-1]
+
+        self.assertIn("data-scenario-controls-host", block)
 
 
 

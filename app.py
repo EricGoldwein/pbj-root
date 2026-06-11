@@ -66,6 +66,7 @@ from site_public_config import (
     ny_staffing_report_preview_redirect_to_public,
     ny_staffing_report_preview_token,
     NY_STAFFING_REPORT_HTML,
+    NY_STAFFING_REPORT_OG_IMAGE_PATH,
     NY_STAFFING_REPORT_PUBLIC_PATH,
     NY_STAFFING_REPORT_PREVIEW_SLUG,
     pbjpedia_is_public,
@@ -2582,6 +2583,26 @@ def download_ny_verification_workbook_public_alias():
 @app.route('/public/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip')
 def download_ny_verification_csv_zip_public_alias():
     return redirect('/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs.zip', code=301)
+
+
+@app.route(NY_STAFFING_REPORT_OG_IMAGE_PATH)
+def download_ny_staffing_report_og_image():
+    """Public OG/share image for NY minimum staffing report (inline; not attachment)."""
+    from flask import abort
+
+    basename = os.path.basename(NY_STAFFING_REPORT_OG_IMAGE_PATH)
+    candidates = (
+        os.path.join(APP_ROOT, 'downloads', basename),
+        os.path.join(APP_ROOT, 'public', 'downloads', basename),
+    )
+    for path in candidates:
+        if os.path.isfile(path):
+            response = _static_cache_headers(
+                send_file(path, mimetype='image/png', max_age=86400, etag=True)
+            )
+            response.headers['Cache-Control'] = 'public, max-age=86400, immutable'
+            return response
+    abort(404)
 
 
 @app.route('/downloads/sff/<path:filename>')

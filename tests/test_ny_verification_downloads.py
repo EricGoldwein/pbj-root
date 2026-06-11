@@ -70,6 +70,19 @@ class NyVerificationDownloadsTest(unittest.TestCase):
         self.assertNotRegex(html, r'href="http://[^"]*PBJ320_NY_2025_daily_staffing_verification')
         self.assertNotRegex(html, r'href="/public/downloads/PBJ320_NY_2025')
 
+    def test_og_image_route_200_inline_png(self):
+        og_path = "/downloads/ny_350_min_report.png"
+        r = self._get(og_path)
+        self.assertEqual(r.status_code, 200, r.data[:200])
+        self.assertGreater(len(r.data), 100_000)
+        self.assertIn("image/png", r.headers.get("Content-Type", "").lower())
+        cd = r.headers.get("Content-Disposition", "")
+        self.assertNotIn("attachment", cd.lower())
+        self.assertNotRegex(
+            (ROOT / "insights-ny-minimum-staffing.html").read_text(encoding="utf-8"),
+            r'og:image" content="https://www\.pbj320\.com/og-image-1200x630\.png"',
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

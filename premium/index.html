@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PBJ320 Premium — Nursing Home Staffing & Ownership Intelligence</title>
-    <meta name="description" content="PBJ320 Premium for daily PBJ staffing data, facility staffing trends by quarter, employee rosters, ownership context, and report-ready nursing home analytics. Pilot $250.">
+    <meta name="description" content="PBJ320 Premium for daily PBJ staffing data, facility staffing trends by quarter, employee rosters, ownership context, and report-ready nursing home analytics. Pilot $320.">
     <meta name="pbj-premium-booking-url" content="/api/premium/dashboard-request">
     <meta name="theme-color" content="#312e81">
     <meta name="color-scheme" content="light">
@@ -30,7 +30,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400..700;1,14..32,400..700&family=JetBrains+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/premium-assets/premium-site.css?v=24">
-    <link rel="stylesheet" href="/premium-assets/premium-hub.css?v=36">
+    <link rel="stylesheet" href="/premium-assets/premium-hub.css?v=42">
 </head>
 <body class="pbj-premium-hub pbj-premium-hub--audit">
     <a href="#main-content" class="visually-hidden-focusable btn btn-sm btn-primary position-fixed top-0 start-0 m-2" style="z-index:1080;">Skip to main content</a>
@@ -68,8 +68,8 @@
                             <div class="pbj-audit-hero-actions" role="group" aria-label="Get started with PBJ320 Premium">
                                 <button type="button" class="pbj-audit-hero-actions__primary" data-open-modal="request-premium">Request Premium Dashboard</button>
                                 <p class="pbj-audit-hero-actions__offer">
-                                    <span class="visually-hidden">$250 pilot includes one facility dashboard and a 45-minute consult.</span>
-                                    <span class="pbj-audit-hero-actions__pilot-offer" aria-hidden="true"><strong class="pbj-audit-hero-actions__pilot-price">$250</strong> pilot: <span class="pbj-audit-hero-actions__includes pbj-audit-hero-actions__includes--full">one facility dashboard + 45-minute consult</span><span class="pbj-audit-hero-actions__includes pbj-audit-hero-actions__includes--short">dashboard + 45-minute consult</span></span>
+                                    <span class="visually-hidden">$320 pilot includes one facility dashboard and an expert review with Eric.</span>
+                                    <span class="pbj-audit-hero-actions__pilot-offer" aria-hidden="true"><strong class="pbj-audit-hero-actions__pilot-price">$320</strong> pilot: <span class="pbj-audit-hero-actions__includes pbj-audit-hero-actions__includes--full">one facility dashboard + expert review with Eric</span><span class="pbj-audit-hero-actions__includes pbj-audit-hero-actions__includes--short">dashboard + expert review</span></span>
                                     <span class="pbj-audit-hero-actions__offer-tail">
                                         <span class="pbj-audit-hero-actions__sep" aria-hidden="true">·</span>
                                         <button type="button" class="pbj-audit-hero-actions__demo-link" data-open-modal="request-demo">Request demo</button>
@@ -163,9 +163,9 @@
                         <div class="row g-3 pbj-audit-pricing__row">
                             <div class="col-12 col-lg-6 d-flex">
                                 <article class="pbj-audit-pricing-card pbj-audit-pricing-card--primary" aria-labelledby="pricing-pilot-title">
-                                    <div class="pbj-audit-pricing-card__badge">Early-user pilot: $250</div>
-                                    <h3 id="pricing-pilot-title" class="pbj-audit-pricing-card__title">Facility Dashboard + 45-Minute Consult</h3>
-                                    <p class="pbj-audit-pricing-card__text">Early pilot pricing for one facility's premium PBJ320 dashboard, plus a 45-minute consult to review key staffing patterns, warning signs, and follow-up questions.</p>
+                                    <div class="pbj-audit-pricing-card__badge">Early-user pilot: $320</div>
+                                    <h3 id="pricing-pilot-title" class="pbj-audit-pricing-card__title">Facility Dashboard + <span class="pbj-audit-pricing-card__title-full">Expert Review with Eric</span><span class="pbj-audit-pricing-card__title-short">Expert Review</span></h3>
+                                    <p class="pbj-audit-pricing-card__text">Early pilot pricing for one facility's premium PBJ320 dashboard, plus a 45-minute expert review with Eric Goldwein, MPH to assess key staffing patterns, warning signs, and follow-up questions.</p>
                                     <div class="pbj-audit-pricing-card__actions">
                                         <button type="button" id="pilot-dashboard-request" class="btn pbj-audit-generate pbj-audit-pricing-card__cta fw-semibold" data-open-modal="request-premium">Request Premium Dashboard</button>
                                         <button type="button" class="btn pbj-audit-generate pbj-audit-pricing-card__cta-outline w-100 fw-semibold d-lg-none" data-open-modal="custom-work" aria-label="Discuss custom PBJ320 work">Discuss Custom Work</button>
@@ -201,9 +201,18 @@
                     </div>
                     <div class="pbj-audit-about">
                         <h2 id="audit-about-heading" class="pbj-audit-about__heading">About PBJ320</h2>
-                        <p class="pbj-audit-about__text">PBJ320 is operated by <a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer">Eric Goldwein</a>, MPH, through <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer">320 Consulting LLC</a>, a public-interest data consultancy focused on nursing home staffing, public health data, and evidence-based analysis.</p>
-                        <p class="pbj-audit-about__text">Eric has worked across public health, journalism, nonprofit advocacy, and data analysis, with a focus on translating complex nursing home datasets into usable screening and reporting tools.</p>
-                        <p class="pbj-audit-about__text">PBJ320 uses CMS Payroll-Based Journal staffing data and other public records to support screening, reporting, advocacy, and legal research. These analyses are not proof of harm, neglect, or regulatory violations on their own.</p>
+                        <div class="pbj-audit-about__body">
+                            <div class="pbj-audit-about__author">
+                                <img class="pbj-audit-about__photo" src="/static/img/eric-goldwein-headshot.jpg" alt="" width="80" height="80" loading="lazy" decoding="async">
+                                <div class="pbj-audit-about__id-text">
+                                    <p class="pbj-audit-about__name"><a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer">Eric Goldwein, MPH</a></p>
+                                    <p class="pbj-audit-about__role">Founder, 320 Consulting</p>
+                                </div>
+                            </div>
+                            <p class="pbj-audit-about__text">PBJ320 is operated through <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer">320 Consulting LLC</a>, a public-interest data consultancy focused on nursing home staffing, public health data, and evidence-based analysis.</p>
+                            <p class="pbj-audit-about__text"><a href="https://www.linkedin.com/in/eric-goldwein/" target="_blank" rel="noopener noreferrer">Eric Goldwein, MPH</a> specializes in nursing home staffing analysis and CMS Payroll-Based Journal data. His nursing home data work has been featured by Columbia Public Health and published in the <em>Journal of the American Geriatrics Society</em>, Positive Aging, and Aging in America News. He has also presented on nursing home issues for the National Association of Medicaid Fraud Control Units, Consumer Voice, the American Society on Aging, and state long-term care ombudsman programs.</p>
+                            <p class="pbj-audit-about__text">PBJ320 uses CMS Payroll-Based Journal staffing data and other public records to support screening, reporting, advocacy, and legal research. These analyses are not proof of harm, neglect, or regulatory violations on their own.</p>
+                        </div>
                     </div>
                 </section>
             </main>
@@ -226,7 +235,7 @@
                     </div>
                     <div class="pbj-audit-foot__bottom">
                         <p class="pbj-audit-foot__copyright">© 2026, <a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer">320 Consulting</a> · <a href="https://www.pbj320.com/terms">Terms</a> · <a href="https://www.pbj320.com/privacy">Privacy</a></p>
-                        <p class="pbj-audit-foot__fine" style="max-width:52rem;margin:0.35rem auto 0;">PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets. PBJ320 surfaces CMS-reported data; it does not verify submissions. <strong>Not legal, medical, or care-quality advice.</strong> <a href="https://www.pbj320.com/about">About</a> · <a href="https://www.pbj320.com/press">Press</a> · <a href="https://www.pbj320.com/premium">Premium</a> · <a href="https://www.pbj320.com/contact">Contact</a>.</p>
+                        <p class="pbj-audit-foot__fine">PBJ320 is a nursing home data platform from 320 Consulting LLC, built from CMS Payroll-Based Journal and other public federal and state datasets. PBJ320 surfaces CMS-reported data; it does not verify submissions. <strong>Not legal, medical, or care-quality advice.</strong> <a href="https://www.pbj320.com/about">About</a> · <a href="https://www.pbj320.com/press">Press</a> · <a href="https://www.pbj320.com/premium">Premium</a> · <a href="https://www.pbj320.com/contact">Contact</a>.</p>
                     </div>
                 </div>
             </footer>
@@ -265,9 +274,6 @@
                     </div>
                     <div id="hub-premium-form-status" class="pbj-hub-form-status mb-2" role="status" aria-live="polite"></div>
                     <button type="submit" class="btn pbj-audit-generate pbj-hub-submit--purple w-100 fw-semibold" id="hub-premium-submit">Send request</button>
-                    <p class="pbj-hub-premium-about">
-                        <a href="https://pbj320.com/premium" class="pbj-hub-premium-about__link">About PBJ320 Premium</a>
-                    </p>
                 </form>
                 <div id="hub-premium-success" hidden role="status" aria-live="polite">
                     <p class="mb-1 fw-semibold">Request received</p>
@@ -350,9 +356,6 @@
                     </div>
                     <div id="hub-demo-form-status" class="pbj-hub-form-status mb-2" role="status" aria-live="polite"></div>
                     <button type="submit" class="btn pbj-audit-generate pbj-hub-submit--purple w-100 fw-semibold" id="hub-demo-submit">Send request</button>
-                    <p class="pbj-hub-premium-about">
-                        <a href="https://pbj320.com/premium" class="pbj-hub-premium-about__link">About PBJ320 Premium</a>
-                    </p>
                 </form>
                 <div id="hub-demo-success" hidden role="status" aria-live="polite">
                     <p class="mb-1 fw-semibold">Request received</p>

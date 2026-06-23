@@ -6,7 +6,7 @@ date: 2026-06-11
 published: true
 previewImage: /downloads/ny_350_min_report.png
 readTime: 12 min read
-tags: NY, Minimum Staffing, PBJ, CMS
+tags: Report, NY, Minimum Staffing, PBJ
 url: /insights/ny-minimum-staffing
 ---
 

@@ -22,7 +22,7 @@ import json
 import sqlite3
 from pathlib import Path
 from datetime import datetime
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlencode, urlparse
 from urllib.request import urlopen, Request
 import xml.etree.ElementTree as ET
 import html
@@ -30,6 +30,7 @@ from html.parser import HTMLParser
 import time
 import threading
 import gzip
+from collections import OrderedDict
 from functools import lru_cache
 from typing import Any
 import re as _re
@@ -49,7 +50,9 @@ from pbj_cross_links import (
     resolve_home_deep_link,
     state_rank_link_html,
 )
+from public_route_context import public_route_context_json_script_tag
 from site_public_config import (
+    PBJ_PUBLIC_SEARCH_JS_VERSION,
     PBJ_SITE_UNIVERSAL_JS_VERSION,
     PUBLIC_SITE_ORIGIN,
     ROBOTS_TXT,
@@ -126,62 +129,26 @@ from pbj_ai_support import (
     _ul_html,
 )
 
+from utils.memory_debug import (
+    cache_entry_summary,
+    estimate_dataframe_bytes,
+    estimate_object_bytes,
+    format_bytes,
+    log_mem as _log_mem,
+    mem_debug_enabled,
+    mem_route_log_enabled,
+    mem_rss_mb as _mem_rss_mb,
+    mem_step,
+    summarize_byte_sizes,
+    utf8_text_bytes,
+)
+
 # Memory debugging — PBJ_MEM_DEBUG=1 for verbose [MEM] labels; PBJ_MEM_ROUTE_LOG=1 for route lines.
 try:
     import psutil  # type: ignore[reportMissingImports]
     _psutil_process = psutil.Process()
 except ImportError:
     _psutil_process = None
-
-
-def _mem_rss_mb():
-    """Process RSS in MB, or None when psutil is unavailable."""
-    if _psutil_process is None:
-        return None
-    try:
-        return round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
-    except Exception:
-        return None
-
-
-def _log_mem(label):
-    if os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() not in ('1', 'true', 'yes'):
-        return
-    rss_mb = _mem_rss_mb()
-    if rss_mb is not None:
-        print(f"[MEM] {label}: {rss_mb:.1f} MB RSS", flush=True)
-
-
-_HEALTH_PROBE_PATHS = frozenset({'/health', '/healthz'})
-
-_MEM_ROUTE_LOG_EXACT = frozenset({
-    '/',
-    '/sitemap.xml',
-    '/search_index.json',
-    '/warmup',
-    '/health',
-    '/healthz',
-})
-_MEM_ROUTE_PREFIXES = (
-    '/provider/',
-    '/entity/',
-    '/api/entity-summary/',
-)
-
-
-def _mem_route_log_enabled() -> bool:
-    v = (os.environ.get('PBJ_MEM_ROUTE_LOG') or '').strip().lower()
-    if v in ('1', 'true', 'yes', 'on'):
-        return True
-    if v in ('0', 'false', 'no', 'off'):
-        return False
-    return os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() in ('1', 'true', 'yes')
-
-
-def _mem_route_is_key(path: str) -> bool:
-    if path in _MEM_ROUTE_LOG_EXACT:
-        return True
-    return any(path.startswith(p) for p in _MEM_ROUTE_PREFIXES)
 
 
 def _mem_rss_log_threshold_mb() -> float:
@@ -192,6 +159,54 @@ def _mem_rss_log_threshold_mb() -> float:
         return float(raw)
     except (TypeError, ValueError):
         return 700.0
+
+
+def _mem_debug_access_ok() -> bool:
+    """Gate /debug/mem: debug env, warmup secret header, or admin view key."""
+    if mem_debug_enabled():
+        return True
+    if _warmup_secret_ok():
+        return True
+    admin_key = (os.environ.get('ADMIN_VIEW_KEY') or '').strip()
+    if admin_key and (request.args.get('key') or '').strip() == admin_key:
+        return True
+    return False
+
+
+_HEALTH_PROBE_PATHS = frozenset({'/health', '/healthz'})
+
+_MEM_ROUTE_LOG_EXACT = frozenset({
+    '/',
+    '/sitemap.xml',
+    '/search_index.json',
+    '/warmup',
+    '/warmup/facility-indexes',
+    '/health',
+    '/healthz',
+    '/debug/mem',
+})
+_MEM_ROUTE_PREFIXES = (
+    '/provider/',
+    '/entity/',
+    '/premium/',
+    '/report/embed/',
+    '/report',
+    '/api/entity-summary/',
+    '/api/provider/',
+    '/owners/api/',
+    '/owner/api/',
+)
+
+
+def _mem_route_log_enabled() -> bool:
+    return mem_route_log_enabled()
+
+
+def _mem_route_is_key(path: str) -> bool:
+    if path in _MEM_ROUTE_LOG_EXACT:
+        return True
+    return any(path.startswith(p) for p in _MEM_ROUTE_PREFIXES)
+
 
 try:
     import markdown  # type: ignore
@@ -269,7 +284,8 @@ if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
 else:
     # Render: keep rendered provider HTML longer under bot traffic (override via env if needed).
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
-    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
+    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '150')
+    os.environ.setdefault('PBJ_FACILITY_QUARTERLY_LRU', '64')
     # GPTBot etc.: rate-limit; cache MISS on /provider does not cold-render (see PBJ_AI_PROVIDER_CACHE_ONLY).
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '4')
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_WINDOW', '60')
@@ -1345,39 +1361,164 @@ def health():
     return 'ok', 200
 
 
-@app.route('/debug/mem')
-def debug_mem():
-    """RSS + cache sizes when PBJ_MEM_DEBUG=1 (not public in production)."""
-    if os.environ.get('PBJ_MEM_DEBUG', '').strip().lower() not in ('1', 'true', 'yes'):
-        from flask import abort
-        abort(404)
-    rss_mb = None
-    if _psutil_process is not None:
-        try:
-            rss_mb = round(_psutil_process.memory_info().rss / (1024 * 1024), 1)
-        except Exception:
-            pass
+def _mem_debug_payload() -> dict:
+    """Non-sensitive RSS + cache inventory for ops (/debug/mem)."""
+    rss_mb = _mem_rss_mb()
     pi = _LOAD_PROVIDER_INFO_CACHE or {}
     pi_q = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE or {}
-    return jsonify({
+    provider_html_stats = _provider_page_html_cache_byte_stats()
+    facility_lru_stats = _facility_quarterly_lru_byte_stats()
+    fq_lru = _facility_quarterly_lru_cache_info()
+
+    load_csv_sample = None
+    if _LOAD_CSV_CACHE:
+        try:
+            _fn, (_t, data) = next(iter(_LOAD_CSV_CACHE.items()))
+            load_csv_sample = estimate_object_bytes(data)
+        except Exception:
+            pass
+
+    compliance_stats = {}
+    try:
+        import staffing_compliance_bundle as scb
+        compliance_stats = scb.lookup_cache_stats()
+    except Exception:
+        pass
+
+    caches = [
+        cache_entry_summary(
+            name='provider_page_html',
+            count=provider_html_stats.get('count'),
+            max_size=_provider_page_cache_max_entries(),
+            ttl_seconds=_provider_page_cache_ttl_seconds(),
+            stores='rendered HTML strings',
+            scope='per CCN',
+            total_bytes=provider_html_stats.get('total_bytes'),
+            avg_bytes=provider_html_stats.get('avg_bytes'),
+            max_bytes=provider_html_stats.get('max_bytes'),
+        ),
+        cache_entry_summary(
+            name='load_csv',
+            count=len(_LOAD_CSV_CACHE),
+            max_size=_LOAD_CSV_CACHE_MAX,
+            ttl_seconds=_LOAD_CSV_TTL,
+            stores='pandas DataFrame or list[dict]',
+            scope='per filename (large facility CSVs excluded)',
+            sample_bytes=load_csv_sample,
+        ),
+        cache_entry_summary(
+            name='provider_info_ccn',
+            count=len(pi),
+            max_size=_PROVIDER_INFO_PARTIAL_CCN_MAX,
+            ttl_seconds=_LOAD_PROVIDER_INFO_TTL,
+            stores='dict per CCN',
+            scope='global national index + partial merges',
+        ),
+        cache_entry_summary(
+            name='provider_info_by_quarter',
+            count=len(pi_q),
+            max_size=_PROVIDER_INFO_BY_QUARTER_MAX,
+            ttl_seconds=_LOAD_PROVIDER_INFO_TTL,
+            stores='dict per (ccn, quarter)',
+            scope='global',
+        ),
+        cache_entry_summary(
+            name='facility_quarterly_lru',
+            count=facility_lru_stats.get('count'),
+            max_size=fq_lru.maxsize if fq_lru else _facility_quarterly_lru_maxsize(),
+            stores='pandas DataFrame per CCN',
+            scope='per facility (LRU)',
+            total_bytes=facility_lru_stats.get('total_bytes'),
+            avg_bytes=facility_lru_stats.get('avg_bytes'),
+            max_bytes=facility_lru_stats.get('max_bytes'),
+        ),
+        cache_entry_summary(
+            name='entity_facilities_result',
+            count=len(_ENTITY_FACILITIES_RESULT_CACHE),
+            max_size=400,
+            ttl_seconds=_ENTITY_FACILITIES_RESULT_TTL,
+            stores='tuple(name, facilities list)',
+            scope='per (entity_id, quarter)',
+        ),
+        cache_entry_summary(
+            name='staffing_compliance_lookup',
+            count=compliance_stats.get('entries'),
+            max_size=compliance_stats.get('max_entries'),
+            stores='small public summary dict',
+            scope='per (ccn, quarter)',
+        ),
+        cache_entry_summary(
+            name='high_risk_by_state',
+            populated=_HIGH_RISK_BY_STATE_CACHE_VAL is not None,
+            ttl_seconds=_HIGH_RISK_BY_STATE_TTL,
+            stores='nested dict buckets by state',
+            scope='per quarter tag',
+        ),
+        cache_entry_summary(
+            name='state_fq_slices',
+            count=len(_STATE_FQ_SLICE_CACHE),
+            ttl_seconds=300,
+            stores='DataFrame slices',
+            scope='per state',
+        ),
+        cache_entry_summary(
+            name='facility_latest_hprd_by_ccn',
+            count=len(_FACILITY_LATEST_HPRD_BY_CCN_VAL or {}),
+            ttl_seconds=_FACILITY_LATEST_HPRD_BY_CCN_TTL,
+            stores='dict metrics per CCN',
+            scope='global per quarter (~15k CCNs when warm)',
+            populated=_FACILITY_LATEST_HPRD_BY_CCN_VAL is not None,
+        ),
+        cache_entry_summary(
+            name='search_index',
+            populated=_SEARCH_INDEX_CACHE is not None,
+            ttl_seconds=_SEARCH_INDEX_TTL,
+            stores='parsed JSON dict',
+            scope='global',
+        ),
+        cache_entry_summary(
+            name='state_page_aggregates',
+            populated=_STATE_PAGE_AGGREGATES_HYDRATE_OK,
+            stores='hydrated bundle → multiple downstream caches',
+            scope='global per deploy artifact',
+        ),
+        cache_entry_summary(
+            name='report_fp_by_state',
+            populated=_REPORT_FP_BY_STATE_INDEX_VAL is not None,
+            ttl_seconds=_REPORT_FP_BY_STATE_INDEX_TTL,
+            stores='dict percent by state',
+            scope='per quarter',
+        ),
+    ]
+    return {
         'rss_mb': rss_mb,
-        'caches': {
-            'provider_info_ccns': len(pi),
-            'provider_info_by_quarter': len(pi_q),
+        'pid': os.getpid(),
+        'worker_hint': 'each Gunicorn worker has separate caches',
+        'provider_page_html': provider_html_stats,
+        'facility_quarterly_lru': {
+            **facility_lru_stats,
+            'lru_hits': fq_lru.hits if fq_lru else 0,
+            'lru_misses': fq_lru.misses if fq_lru else 0,
+            'max_entries': fq_lru.maxsize if fq_lru else _facility_quarterly_lru_maxsize(),
+        },
+        'caches': caches,
+        'legacy_counts': {
             'provider_page_html': len(_PROVIDER_PAGE_CACHE),
             'load_csv': len(_LOAD_CSV_CACHE),
-            'high_risk_by_state': _HIGH_RISK_BY_STATE_CACHE_VAL is not None,
-            'search_index': _SEARCH_INDEX_CACHE is not None,
-            'state_case_mix_medians_quarter': (
-                next(iter(_STATE_CASE_MIX_MEDIANS.keys()), None)
-                if isinstance(_STATE_CASE_MIX_MEDIANS, dict) and _STATE_CASE_MIX_MEDIANS
-                else None
-            ),
-            'state_page_aggregates_hydrated': _STATE_PAGE_AGGREGATES_HYDRATE_OK,
-            'provider_info_full_cache': bool(_LOAD_PROVIDER_INFO_CACHE),
+            'provider_info_ccns': len(pi),
+            'provider_info_by_quarter': len(pi_q),
             'state_fq_slices': len(_STATE_FQ_SLICE_CACHE),
         },
-    })
+    }
+
+
+@app.route('/debug/mem')
+def debug_mem():
+    """RSS + cache sizes when debug mode is enabled (404 in normal production)."""
+    if not _mem_debug_access_ok():
+        from flask import abort
+        abort(404)
+    return jsonify(_mem_debug_payload())
 
 
 _WARMUP_TEST_CCN = '075325'
@@ -1386,6 +1527,7 @@ _WARMUP_TEST_CCN = '075325'
 @app.route('/warmup')
 def warmup():
     """Readiness probe: exercise search_index without rendering provider HTML or loading pandas."""
+    _log_mem('warmup_before')
     checks = {'app': 'ok'}
     ok = True
     try:
@@ -1420,6 +1562,7 @@ def warmup():
     except Exception as e:
         checks['state_page_aggregates'] = {'ok': False, 'error': str(e), 'live_fallback': True}
         ok = False
+    _log_mem('warmup_after')
     return jsonify({'ok': ok, 'checks': checks}), (200 if ok else 503)
 
 
@@ -1504,6 +1647,7 @@ def warm_facility_quarterly_provider_indexes() -> dict:
         'rss_mb_before': rss_before,
         'rss_mb_after': rss_after,
     }
+    _log_mem('warmup_facility_indexes_after', gc_collect=True)
     print(
         '[PBJ_WARMUP] '
         + json.dumps(out, separators=(',', ':'), sort_keys=True),
@@ -1518,6 +1662,7 @@ def warmup_facility_indexes():
     from flask import abort
     if not _warmup_secret_ok():
         abort(403)
+    _log_mem('warmup_facility_indexes_before')
     return jsonify(warm_facility_quarterly_provider_indexes())
 
 
@@ -3193,6 +3338,7 @@ def _report_embed_provider_latest_csv():
 
 
 def _report_embed_high_risk_by_state():
+    _log_mem('report_hrs_before')
     t0 = time.perf_counter()
     pd_local = get_pd()
     if pd_local is None:
@@ -3215,12 +3361,14 @@ def _report_embed_high_risk_by_state():
         )
     ms = round((time.perf_counter() - t0) * 1000, 1)
     _report_perf_log(hrs_embed_ms=ms)
+    _log_mem('report_hrs_after')
     resp = jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'states': states})
     resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
 
 
 def _report_embed_high_risk_by_cms_region():
+    _log_mem('report_hrr_before')
     t0 = time.perf_counter()
     pd_local = get_pd()
     if pd_local is None:
@@ -3244,6 +3392,7 @@ def _report_embed_high_risk_by_cms_region():
         )
     ms = round((time.perf_counter() - t0) * 1000, 1)
     _report_perf_log(hrr_embed_ms=ms)
+    _log_mem('report_hrr_after')
     resp = jsonify({'quarter': quarter_used, 'quarterRequested': quarter_requested, 'regions': regions})
     resp.headers['Cache-Control'] = 'public, max-age=300'
     return resp
@@ -3398,6 +3547,7 @@ def _report_for_profit_payload(quarter_requested: str) -> tuple[dict, bool]:
 
 
 def _report_embed_for_profit_by_state():
+    _log_mem('report_fp_before')
     t0 = time.perf_counter()
     pd_local = get_pd()
     if pd_local is None:
@@ -3412,6 +3562,7 @@ def _report_embed_for_profit_by_state():
     payload, cache_hit = _report_for_profit_payload(quarter_requested)
     ms = round((time.perf_counter() - t0) * 1000, 1)
     _report_perf_log(fp_embed_ms=ms, fp_cache_hit=cache_hit, embedWarning=payload.get('embedWarning'))
+    _log_mem('report_fp_after')
     return _report_embed_json_response(payload, embed_ms=ms, cache_hit=cache_hit)
 
 
@@ -4276,6 +4427,7 @@ def _parse_rss_item(item_el) -> dict | None:
     description = ''
     raw_date = ''
     image_url = ''
+    podcast_enclosure_url = ''
     encoded_full = ''
     categories = []
     for el in item_el:
@@ -4294,7 +4446,10 @@ def _parse_rss_item(item_el) -> dict | None:
             encoded_full = txt or _elem_text(el)
         elif local == 'enclosure':
             url = (el.get('url') or '').strip()
-            if url and ('image' in (el.get('type') or '').lower() or not el.get('type')):
+            enc_type = (el.get('type') or '').lower()
+            if url and enc_type.startswith('audio/'):
+                podcast_enclosure_url = url
+            elif url and ('image' in enc_type or not el.get('type')):
                 image_url = url
         elif local.lower() == 'pubdate':
             raw_date = txt
@@ -4310,6 +4465,7 @@ def _parse_rss_item(item_el) -> dict | None:
         return None
     if encoded_full and len(encoded_full) > len(description or ''):
         description = _strip_html_fragment(encoded_full)
+    is_podcast = bool(podcast_enclosure_url) or description.lower().startswith('listen now')
     return {
         'title': title,
         'url': link,
@@ -4320,6 +4476,8 @@ def _parse_rss_item(item_el) -> dict | None:
         'source': 'substack',
         'image_url': image_url or None,
         'categories': categories,
+        'is_podcast': is_podcast,
+        'podcast_enclosure_url': podcast_enclosure_url or None,
     }
 
 
@@ -5114,7 +5272,7 @@ def _get_dual_track_insights_posts() -> list:
     ]
     merged = _get_external_insights_posts() + native
     merged.sort(key=lambda x: x.get('sort_date') or '', reverse=True)
-    return merged
+    return [_enrich_insights_hub_post(p) for p in merged]
 
 
 def _public_site_origin() -> str:
@@ -5171,9 +5329,46 @@ def _infer_insights_read_time(post: dict) -> str:
     return '8 min read'
 
 
+def _insights_post_lookup_key(post: dict) -> str:
+    """Lowercase slug + URL fragment for hub tag/image overrides."""
+    return ' '.join(
+        str(post.get(k) or '').strip().lower()
+        for k in ('slug', 'url', 'external_url')
+    )
+
+
+def _enrich_insights_hub_post(post: dict) -> dict:
+    """Apply per-post hub card overrides (tags, podcast flag, preview images)."""
+    if not isinstance(post, dict):
+        return post
+    key = _insights_post_lookup_key(post)
+    if 'ironman-mike-wasserman' in key or 'mike-wasserman-nursing-homes' in key:
+        post['hub_tag'] = 'Interview'
+        post['is_podcast'] = True
+        post['image_url'] = '/insights-interview-podcast.png'
+        post['preview_image'] = '/insights-interview-podcast.png'
+    elif 'ny-minimum-staffing' in key:
+        post['hub_tag'] = 'Report'
+    desc = str(post.get('description') or '').strip().lower()
+    if desc.startswith('listen now') or post.get('podcast_enclosure_url'):
+        post['is_podcast'] = True
+    return post
+
+
 def _infer_insights_industry_tag(post: dict) -> str:
-    allowed = {'Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends'}
+    hub_tag = str(post.get('hub_tag') or '').strip()
+    if hub_tag:
+        return hub_tag
+    allowed = {
+        'Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS',
+        'State Trends', 'Interview', 'Report',
+    }
     ext_url = str(post.get('external_url') or post.get('url') or '').lower()
+    slug_key = str(post.get('slug') or '').lower()
+    if 'ironman-mike-wasserman' in ext_url or 'mike-wasserman-nursing-homes' in ext_url:
+        return 'Interview'
+    if 'ny-minimum-staffing' in ext_url or slug_key == 'ny-minimum-staffing':
+        return 'Report'
     if 'the-other-3000-days-at-seagate' in ext_url:
         return 'PBJ Deep Dive'
     tags = post.get('tags') or []
@@ -5194,6 +5389,19 @@ def _infer_insights_industry_tag(post: dict) -> str:
     if re.search(r'state|states|national|trend|quarter|q[1-4]', combined):
         return 'State Trends'
     return 'PBJ Deep Dive'
+
+
+def _insights_external_action_label(post: dict) -> tuple[str, str]:
+    """Return (button label, aria-label) for external hub cards."""
+    if post.get('is_podcast'):
+        return (
+            'Listen',
+            'Listen to this episode on Substack (new tab)',
+        )
+    return (
+        'Read',
+        'Read this article on Substack (new tab)',
+    )
 
 
 def _render_insights_hub_card_html(post: dict) -> str:
@@ -5220,6 +5428,9 @@ def _render_insights_hub_card_html(post: dict) -> str:
             f'<img src="/pbj_favicon.png" alt="" width="20" height="20">View</a></div></div></article></li>'
         )
     ext_url = html.escape(post.get('external_url') or post.get('url') or '#', quote=True)
+    action_label, action_aria = _insights_external_action_label(post)
+    action_label_esc = html.escape(action_label)
+    action_aria_esc = html.escape(action_aria)
     return (
         f'<li class="card external" data-post-type="external"><article class="card-shell">'
         f'<div class="card-media-wrap"><img class="featured" src="{image_esc}" alt="Feature story preview" loading="lazy"></div>'
@@ -5227,8 +5438,8 @@ def _render_insights_hub_card_html(post: dict) -> str:
         f'<h2><a href="{ext_url}" target="_blank" rel="noopener">{title}</a></h2><p class="meta">{meta_line}</p>'
         + (f'<p class="desc">{desc}</p>' if desc else '')
         + f'<div class="card-actions"><a class="read-action substack" href="{ext_url}" target="_blank" rel="noopener" '
-        f'aria-label="Open this article on Substack (new tab)"><span class="read-action-icon-wrap">'
-        f'<img src="/substack.png" alt="" width="18" height="18"></span>Open article</a></div></div></article></li>'
+        f'aria-label="{action_aria_esc}"><span class="read-action-icon-wrap">'
+        f'<img src="/substack.png" alt="" width="18" height="18"></span>{action_label_esc}</a></div></div></article></li>'
     )
 
 
@@ -5888,6 +6099,12 @@ def serve_pbj_site_universal():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript'))
 
 
+@app.route('/public-search.js')
+def serve_public_search_js():
+    """Global header search overlay (facilities, chains, states, owners on ownership pages)."""
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'public-search.js', mimetype='application/javascript'))
+
+
 @app.route('/state-page-charts.js')
 def serve_state_page_charts():
     """State page chart logic (no inline script = no brace/syntax errors)."""
@@ -6110,6 +6327,7 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
             f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
             f'<script src="/owner-fec-contributions.js?v={_static_asset_version("owner-fec-contributions.js")}" defer></script>'
         ),
+        route_context_overrides={'kind': 'ownership'},
     )
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
@@ -6234,6 +6452,7 @@ def _owners_cms_index_html():
             _owners_hub_index_json_ld()
             + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
+        route_context_overrides={'kind': 'ownership'},
     )
     body = '''
     <div class="owners-hub owners-hub-index">
@@ -6317,6 +6536,12 @@ def _owners_state_index_html(state_code: str, *, robots_meta: str | None = None)
         canon,
         extra_head=extra,
         robots_meta=robots_meta,
+        route_context_overrides={
+            'kind': 'ownership',
+            'ownershipStateSlug': layout_meta.get('state_slug'),
+            'stateAbbr': layout_meta.get('state_code') or state_code,
+            'stateName': layout_meta.get('state_name'),
+        },
     )
     hub_js_v = _static_asset_version('owners-hub.js')
     script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
@@ -6778,6 +7003,20 @@ STATE_CODE_TO_NAME = {v: k.title() for k, v in STATE_NAME_TO_CODE.items()}
 # States included in rankings (exclude Puerto Rico so rankings are 51: 50 states + DC)
 STATES_FOR_RANKING = set(STATE_CODE_TO_NAME.keys()) - {'PR'}
 
+# Human-readable CMS region subtitles for state staffing comparison tables.
+CMS_REGION_GEO_LABELS = {
+    1: 'New England',
+    2: 'New York / New Jersey / Puerto Rico / Virgin Islands',
+    3: 'Delaware / District of Columbia / Maryland / Pennsylvania / Virginia / West Virginia',
+    4: 'Alabama / Florida / Georgia / Kentucky / Mississippi / North Carolina / South Carolina / Tennessee',
+    5: 'Illinois / Indiana / Michigan / Minnesota / Ohio / Wisconsin',
+    6: 'Arkansas / Louisiana / New Mexico / Oklahoma / Texas',
+    7: 'Iowa / Kansas / Missouri / Nebraska',
+    8: 'Colorado / Montana / North Dakota / South Dakota / Utah / Wyoming',
+    9: 'Arizona / California / Hawaii / Nevada / Pacific Territories',
+    10: 'Alaska / Idaho / Oregon / Washington',
+}
+
 USA_PAGE_SLUG = 'usa'
 USA_PAGE_NAME = 'United States'
 
@@ -6870,6 +7109,13 @@ def load_state_agency_contact():
 
 _LOAD_CSV_CACHE = {}
 _LOAD_CSV_TTL = 300  # 5 min — reduces disk I/O; data typically updated in batches
+_LOAD_CSV_CACHE_MAX = max(4, int(os.environ.get('PBJ_LOAD_CSV_CACHE_MAX', '10')))
+# Never cache full national facility/provider tables — each copy is hundreds of MB.
+_LOAD_CSV_NO_CACHE = frozenset({
+    'facility_quarterly_metrics.csv',
+    'facility_quarterly_metrics_latest.csv',
+    'provider_info_combined.csv',
+})
 
 def load_csv_data(filename):
     """Load CSV data, trying multiple locations. Cached 2 min for provider/state/entity page speed.
@@ -6919,13 +7165,19 @@ def load_csv_data(filename):
                             out['PROVNUM'] = _normalize_provnum_series(out['PROVNUM'])
                             out['CY_Qtr'] = out['CY_Qtr'].astype(str).str.strip()
                             out = out.drop_duplicates(subset=['PROVNUM', 'CY_Qtr'], keep='last')
-                    _LOAD_CSV_CACHE[filename] = (now, out)
+                    if filename not in _LOAD_CSV_NO_CACHE:
+                        _LOAD_CSV_CACHE[filename] = (now, out)
+                        while len(_LOAD_CSV_CACHE) > _LOAD_CSV_CACHE_MAX:
+                            _LOAD_CSV_CACHE.pop(next(iter(_LOAD_CSV_CACHE)))
                     return out
                 else:
                     with open(path, 'r', encoding='utf-8') as f:
                         reader = csv.DictReader(f)
                         out = list(reader)
-                    _LOAD_CSV_CACHE[filename] = (now, out)
+                    if filename not in _LOAD_CSV_NO_CACHE:
+                        _LOAD_CSV_CACHE[filename] = (now, out)
+                        while len(_LOAD_CSV_CACHE) > _LOAD_CSV_CACHE_MAX:
+                            _LOAD_CSV_CACHE.pop(next(iter(_LOAD_CSV_CACHE)))
                     return out
             except Exception as e:
                 print(f"Error loading {path}: {e}")
@@ -7141,10 +7393,14 @@ _LOAD_PROVIDER_INFO_CACHE = None
 _LOAD_PROVIDER_INFO_AT = 0
 _LOAD_PROVIDER_INFO_TTL = 900  # 15 min
 _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = None
+_PROVIDER_INFO_PARTIAL_CCN_MAX = max(500, int(os.environ.get('PBJ_PROVIDER_INFO_PARTIAL_MAX', '2500')))
+_PROVIDER_INFO_BY_QUARTER_MAX = max(1000, int(os.environ.get('PBJ_PROVIDER_INFO_BY_QUARTER_MAX', '8000')))
 _STATE_CASE_MIX_MEDIANS = None  # raw_quarter -> {state_code: median float}
 _STATE_CASE_MIX_MEDIANS_AT = 0.0
 _STATE_CASE_MIX_MEDIANS_KEY = None
 _STATE_CASE_MIX_MEDIANS_TTL = 900
+_CASE_MIX_VALUES_BY_QUARTER: dict[str, dict[str, list[float]]] | None = None
+_STAFFING_COMPARISON_BY_QUARTER: dict[str, dict] | None = None
 _STATE_FACILITY_COUNTS_BY_QUARTER = None  # CY_Qtr -> {state_abbr: int}
 _STATE_FACILITY_COUNTS_BUILD_KEY = None  # (path, mtime)
 _STATE_FACILITY_COUNTS_AT = 0.0
@@ -7349,6 +7605,27 @@ def _resolved_provider_info_paths():
     return out
 
 
+def _trim_provider_info_caches() -> None:
+    """Prevent partial entity/bot scans from growing provider info dicts without bound."""
+    global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
+    if _LOAD_PROVIDER_INFO_CACHE and len(_LOAD_PROVIDER_INFO_CACHE) > _PROVIDER_INFO_PARTIAL_CCN_MAX:
+        print(
+            f'[MEM] provider_info_ccn cache trim: {len(_LOAD_PROVIDER_INFO_CACHE)} > {_PROVIDER_INFO_PARTIAL_CCN_MAX}',
+            flush=True,
+        )
+        _LOAD_PROVIDER_INFO_CACHE.clear()
+    if (
+        _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
+        and len(_LOAD_PROVIDER_INFO_BY_QUARTER_CACHE) > _PROVIDER_INFO_BY_QUARTER_MAX
+    ):
+        print(
+            f'[MEM] provider_info_by_quarter cache trim: '
+            f'{len(_LOAD_PROVIDER_INFO_BY_QUARTER_CACHE)} > {_PROVIDER_INFO_BY_QUARTER_MAX}',
+            flush=True,
+        )
+        _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.clear()
+
+
 def _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter):
     """Keep ccn-only / entity partial scans in process cache so provider pages do not re-scan CSV."""
     global _LOAD_PROVIDER_INFO_CACHE, _LOAD_PROVIDER_INFO_AT, _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE
@@ -7364,6 +7641,7 @@ def _merge_partial_provider_info_cache(provider_dict, provider_dict_by_quarter):
         if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE is None:
             _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE = {}
         _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.update(provider_dict_by_quarter)
+    _trim_provider_info_caches()
 
 
 def load_provider_info(ccn_only=None, ccn_set=None):
@@ -7626,6 +7904,7 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
     global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_KEY, _STATE_CASE_MIX_MEDIANS_AT
     global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
     global _HIGH_RISK_BY_STATE_CACHE_KEY, _HIGH_RISK_BY_STATE_CACHE_VAL, _HIGH_RISK_BY_STATE_CACHE_AT
+    global _STAFFING_COMPARISON_BY_QUARTER
 
     if _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED:
         return _STATE_PAGE_AGGREGATES_HYDRATE_OK
@@ -7686,7 +7965,21 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
     rural_all = bundle.get('rural_shares_by_quarter') or {}
     rural_block = rural_all.get(q) if isinstance(rural_all, dict) else None
     if isinstance(rural_block, dict):
-        _store_rural_shares_cache(q, rural_block.get('national'), rural_block.get('states') or {})
+        rural_counts = rural_block.get('state_counts') or {}
+        if rural_counts:
+            _store_rural_shares_cache(
+                q,
+                rural_block.get('national'),
+                rural_block.get('states') or {},
+                rural_counts,
+            )
+
+    cmp_all = bundle.get('staffing_comparison_by_quarter') or {}
+    cmp_block = cmp_all.get(q) if isinstance(cmp_all, dict) else None
+    if isinstance(cmp_block, dict):
+        if _STAFFING_COMPARISON_BY_QUARTER is None:
+            _STAFFING_COMPARISON_BY_QUARTER = {}
+        _STAFFING_COMPARISON_BY_QUARTER[q] = dict(cmp_block)
 
     hr_all = bundle.get('high_risk_by_quarter') or {}
     eff = str(bundle.get('effective_high_risk_quarter') or q).strip()
@@ -7710,7 +8003,7 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
 
 def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
     """One CSV pass: per-state median case-mix HPRD for a quarter (no national provider dict)."""
-    global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_AT, _STATE_CASE_MIX_MEDIANS_KEY
+    global _STATE_CASE_MIX_MEDIANS, _STATE_CASE_MIX_MEDIANS_AT, _STATE_CASE_MIX_MEDIANS_KEY, _CASE_MIX_VALUES_BY_QUARTER
     q = str(raw_quarter or '').strip()
     if not q or not HAS_PANDAS:
         return {}
@@ -7722,10 +8015,12 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
     except OSError:
         mtime = 0
     cache_key = (path, mtime, q)
+    cached_vals = (_CASE_MIX_VALUES_BY_QUARTER or {}).get(q)
     if (
         isinstance(_STATE_CASE_MIX_MEDIANS, dict)
         and _STATE_CASE_MIX_MEDIANS_KEY == cache_key
         and q in _STATE_CASE_MIX_MEDIANS
+        and cached_vals
         and (now - _STATE_CASE_MIX_MEDIANS_AT) < _STATE_CASE_MIX_MEDIANS_TTL
     ):
         return _STATE_CASE_MIX_MEDIANS.get(q) or {}
@@ -7843,8 +8138,11 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
             for st, counts in rural_by_state.items()
             if counts[1] > 0
         }
-        _store_rural_shares_cache(q, nat_pct, state_pcts)
+        _store_rural_shares_cache(q, nat_pct, state_pcts, rural_by_state)
     medians = {st: m for st, vals in by_state.items() if (m := _median_positive(vals)) is not None}
+    if _CASE_MIX_VALUES_BY_QUARTER is None:
+        _CASE_MIX_VALUES_BY_QUARTER = {}
+    _CASE_MIX_VALUES_BY_QUARTER[q] = {st: list(vals) for st, vals in by_state.items()}
     if _STATE_CASE_MIX_MEDIANS is None:
         _STATE_CASE_MIX_MEDIANS = {}
     _STATE_CASE_MIX_MEDIANS[q] = medians
@@ -8120,13 +8418,18 @@ _RURAL_SHARE_BY_QUARTER_AT = 0
 _RURAL_SHARE_CACHE_TTL = 900
 
 
-def _store_rural_shares_cache(raw_quarter: str, nat_pct, state_pcts: dict) -> None:
+def _store_rural_shares_cache(raw_quarter: str, nat_pct, state_pcts: dict, state_counts: dict | None = None) -> None:
     """Persist rural share aggregates (shared across state pages for the same quarter label)."""
     global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
     q = str(raw_quarter or '').strip()
     if not q:
         return
-    _RURAL_SHARE_BY_QUARTER_CACHE = {'q': q, 'national': nat_pct, 'states': dict(state_pcts or {})}
+    _RURAL_SHARE_BY_QUARTER_CACHE = {
+        'q': q,
+        'national': nat_pct,
+        'states': dict(state_pcts or {}),
+        'state_counts': dict(state_counts or {}),
+    }
     _RURAL_SHARE_BY_QUARTER_AT = time.time()
 
 
@@ -8279,7 +8582,7 @@ def _build_rural_shares_for_quarter(raw_quarter):
         if counts[1] > 0
     }
     if q:
-        _store_rural_shares_cache(q, nat_pct, state_pcts)
+        _store_rural_shares_cache(q, nat_pct, state_pcts, by_state)
     return nat_pct, state_pcts
 
 
@@ -8489,6 +8792,26 @@ def shorten_facility_display_name(full_name, max_len=40):
     if len(display) < 3 or len(display) >= len(name) - 2:
         return name, name
     return display, name
+
+
+def _premium_request_facility_short_name(facility_name: str) -> str:
+    """Short facility label for Premium request CTA.
+
+    Verified from: shorten_facility_display_name, facility_hprd_place_labels.
+    Uses compact display when shorten leaves display==full (already-short CMS names).
+    """
+    norm = _normalize_display_name(facility_name)
+    if not norm or norm == '\u2014':
+        return ''
+    display, full = shorten_facility_display_name(facility_name)
+    if display and full and display != full:
+        return display
+    first, _short = facility_hprd_place_labels(facility_name)
+    if first and norm and first != norm and first not in ('Residents here', 'this facility'):
+        return first
+    if display and display not in ('Residents here', 'this facility') and len(display) >= 3:
+        return display
+    return ''
 
 
 def shorten_entity_display_name(full_name, max_len=36):
@@ -8788,10 +9111,17 @@ def get_latest_provider_info_for_ccn(ccn):
     """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
     return _latest_provider_info_row_for_ccn(ccn)
 
-def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None):
+def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None, route_context_overrides=None):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
     base = _public_site_origin()
     canon = canonical_url or base
+    from urllib.parse import urlparse
+    _route_path = urlparse(canon).path or '/'
+    _route_context_tag = public_route_context_json_script_tag(
+        _route_path,
+        overrides=route_context_overrides,
+    )
+    _combined_extra_head = _route_context_tag + (extra_head or '')
     og_image = f'{base}/og-image-1200x630.png'
     robots_line = ''
     if robots_meta:
@@ -8828,6 +9158,7 @@ gtag('config', 'G-NDPVY6TWBK');
 <style>
 * {{ margin: 0; padding: 0; box-sizing: border-box; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0f1a; color: #e2e8f0; line-height: 1.6; min-height: 100vh; color-scheme: dark; }}
+[id] {{ scroll-margin-top: 5rem; }}
 .pbj-content {{ padding: clamp(16px, 2.5vw, 24px) 20px 40px; max-width: 1100px; margin: 0 auto; }}
 .pbj-content-box {{ background: #111827; border-radius: 16px; padding: 40px 48px; margin-bottom: 24px; border: 1px solid rgba(51, 65, 85, 0.55); box-shadow: 0 12px 40px -20px rgba(15, 23, 42, 0.75); color: #e2e8f0; transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease; }}
 .pbj-content-box:hover {{ box-shadow: 0 16px 44px -18px rgba(15, 23, 42, 0.85); border-color: rgba(71, 85, 105, 0.7); }}
@@ -8907,6 +9238,187 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 }}
 .pbj-state-staffing-table .pbj-table-wrap table tbody tr:nth-child(odd) td {{
   background: rgba(15, 23, 42, 0.35);
+}}
+.pbj-staffing-cmp-wrap {{ max-width: 100%; }}
+.pbj-staffing-cmp-table {{
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}}
+.pbj-staffing-cmp-table caption.pbj-staffing-cmp-caption {{
+  caption-side: bottom;
+  text-align: left;
+  padding: 0.55rem 0 0;
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: rgba(148, 163, 184, 0.9);
+}}
+.pbj-staffing-cmp-caption-icon {{
+  margin-right: 0.2rem;
+  opacity: 0.85;
+}}
+.pbj-staffing-cmp-footer {{
+  margin-top: 0.85rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+}}
+.pbj-staffing-cmp-footer .pbj-cross-links {{
+  margin: 0 !important;
+}}
+.pbj-staffing-cmp-table th,
+.pbj-staffing-cmp-table td {{
+  border: none;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  padding: 0.42rem 0.55rem;
+  vertical-align: top;
+  line-height: 1.3;
+}}
+.pbj-staffing-cmp-table thead th {{
+  border-bottom: 1px solid rgba(148, 163, 184, 0.32);
+  background: rgba(30, 41, 59, 0.55);
+  color: rgba(199, 210, 254, 0.95);
+  font-weight: 600;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}}
+.pbj-staffing-cmp-th-state {{
+  color: #e2e8f0;
+}}
+.pbj-staffing-cmp-th-inner {{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: nowrap;
+}}
+.pbj-staffing-cmp-table tbody tr:nth-child(even) td {{
+  background: rgba(15, 23, 42, 0.22);
+}}
+.pbj-staffing-cmp-table tbody tr:nth-child(odd) td {{
+  background: transparent;
+}}
+.pbj-staffing-cmp-metric {{
+  color: rgba(226, 232, 240, 0.94);
+  font-weight: 500;
+  font-size: 0.84rem;
+  text-align: left;
+  width: 30%;
+  line-height: 1.35;
+}}
+.pbj-staffing-cmp-val {{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: rgba(203, 213, 225, 0.92);
+  font-size: 0.86rem;
+}}
+.pbj-staffing-cmp-val--state {{
+  font-weight: 650;
+  color: #f8fafc;
+  font-size: 0.9rem;
+}}
+.pbj-staffing-cmp-val--cmp .pbj-staffing-cmp-primary {{
+  display: block;
+}}
+.pbj-staffing-cmp-val--cmp .pbj-staffing-cmp-delta {{
+  display: block;
+  margin-top: 0.12rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.25;
+  color: rgba(148, 163, 184, 0.88);
+}}
+.pbj-staffing-cmp-val--rank {{
+  color: rgba(199, 210, 254, 0.92);
+  white-space: nowrap;
+}}
+.pbj-staffing-cmp-na {{
+  color: rgba(148, 163, 184, 0.75);
+  text-decoration: none;
+  border: none;
+  cursor: help;
+}}
+.pbj-staffing-cmp-info-wrap {{
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.15rem;
+  vertical-align: middle;
+}}
+.pbj-staffing-cmp-info-btn {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.35);
+  font: inherit;
+  font-size: 0.58rem;
+  font-weight: 700;
+  font-style: italic;
+  font-family: Georgia, "Times New Roman", serif;
+  line-height: 1;
+  color: rgba(203, 213, 225, 0.85);
+  cursor: help;
+  vertical-align: middle;
+}}
+.pbj-staffing-cmp-info-btn:hover,
+.pbj-staffing-cmp-info-btn:focus-visible {{
+  border-color: rgba(129, 140, 248, 0.65);
+  color: #c7d2fe;
+  outline: none;
+}}
+.pbj-staffing-cmp-popover {{
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1000;
+  min-width: 220px;
+  max-width: min(300px, calc(100vw - 24px));
+  padding: 8px 10px;
+  background: #0f172a;
+  border: 1px solid rgba(99, 102, 241, 0.32);
+  border-radius: 6px;
+  font-size: 0.76rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
+  color: #e2e8f0;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}}
+.pbj-staffing-cmp-popover-sub {{
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: rgba(148, 163, 184, 0.92);
+}}
+.pbj-staffing-cmp-info-wrap:hover .pbj-staffing-cmp-popover,
+.pbj-staffing-cmp-info-wrap.is-open .pbj-staffing-cmp-popover {{
+  opacity: 1;
+  pointer-events: auto;
+}}
+.pbj-staffing-cmp-popover.pbj-staffing-cmp-popover--fixed {{
+  position: fixed;
+  z-index: 10050;
+  margin: 0;
+  opacity: 1;
+  pointer-events: none;
+}}
+.pbj-state-staffing-table[open] .pbj-details-content {{
+  overflow: visible;
 }}
 .pbj-details summary {{ list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1rem; font-weight: 600; font-size: 0.9375rem; color: #c7d2fe; background: rgba(30, 41, 59, 0.45); transition: background 0.2s ease, color 0.2s ease; user-select: none; }}
 .pbj-details summary::-webkit-details-marker {{ display: none; }}
@@ -10351,7 +10863,74 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .custom-report-cta .custom-report-cta-sms {{ margin-top: 0.4rem; font-size: 0.8rem; color: rgba(226,232,240,0.75); }}
 .custom-report-cta .custom-report-cta-sms a {{ color: #818cf8; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-sms a:hover {{ color: #a5b4fc; text-decoration: underline; text-underline-offset: 3px; }}
-.navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
+.pbj-provider-premium-bridge {{
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem;
+  margin: 0.75rem 0 0; padding: 0.875rem 1rem; width: 100%; max-width: none;
+  box-sizing: border-box; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 10px;
+  background: rgba(15, 23, 42, 0.38);
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__premium,
+.pbj-provider-premium-bridge__premium {{
+  display: inline-flex; align-items: flex-start; gap: 0.5rem; max-width: 100%;
+  padding: 0.2rem 0.35rem; margin: -0.2rem -0.35rem; border-radius: 6px;
+  text-decoration: none; color: inherit; transition: color 0.2s ease, background 0.2s ease;
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__premium:hover,
+.pbj-provider-premium-bridge__premium:hover {{
+  text-decoration: none; background: rgba(30, 41, 59, 0.42);
+}}
+.pbj-provider-premium-bridge__premium:focus-visible {{
+  outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px;
+}}
+.pbj-provider-premium-bridge__icon {{
+  width: 16px; height: 16px; flex: 0 0 16px; display: block; margin-top: 0.1em;
+}}
+.pbj-provider-premium-bridge__premium-body {{
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; min-width: 0;
+}}
+@media (min-width: 641px) {{
+  .pbj-provider-premium-bridge__premium-body {{
+    flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0.35rem 0.55rem;
+  }}
+}}
+.pbj-provider-premium-bridge__premium-title {{
+  font-size: 0.9375rem; font-weight: 600; line-height: 1.3; color: #c7d2fe;
+}}
+.pbj-provider-premium-bridge__premium-arrow {{
+  color: #a5b4fc; font-weight: 600;
+}}
+.pbj-provider-premium-bridge__premium:hover .pbj-provider-premium-bridge__premium-title,
+.pbj-provider-premium-bridge__premium:hover .pbj-provider-premium-bridge__premium-arrow {{
+  color: #e0e7ff;
+}}
+.pbj-provider-premium-bridge__premium-subtitle {{
+  font-size: 0.78rem; line-height: 1.45; color: rgba(148, 163, 184, 0.92); font-weight: 400;
+}}
+.pbj-provider-premium-bridge__premium:hover .pbj-provider-premium-bridge__premium-subtitle {{
+  color: rgba(203, 213, 225, 0.88);
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__request,
+.pbj-provider-premium-bridge__request {{
+  display: inline; margin-left: calc(16px + 0.5rem); max-width: 100%;
+  font-size: 0.78rem; line-height: 1.45; font-weight: 500; font-style: italic;
+  color: rgba(165, 180, 252, 0.82); text-decoration: none;
+  padding: 0.1rem 0; transition: color 0.2s ease;
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__request:hover,
+.pbj-provider-premium-bridge__request:hover {{
+  color: #a5b4fc; text-decoration: underline; text-underline-offset: 2px;
+}}
+.pbj-provider-premium-bridge__request:focus-visible {{
+  outline: 2px solid rgba(129, 140, 248, 0.55); outline-offset: 2px; border-radius: 4px;
+}}
+@media (max-width: 640px) {{
+  .pbj-provider-premium-bridge {{ gap: 0.6875rem; padding: 0.875rem 0.9rem; }}
+  .pbj-provider-premium-bridge__premium-title {{ font-size: 0.9rem; }}
+  .pbj-provider-premium-bridge__premium-subtitle,
+  .pbj-content-box a.pbj-provider-premium-bridge__request,
+  .pbj-provider-premium-bridge__request {{ font-size: 0.76rem; }}
+}}
+.navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 clamp(12px, 4vw, 20px); display: flex; justify-content: space-between; align-items: center; height: 60px; min-width: 0; box-sizing: border-box; }}
 .nav-brand {{ display: flex; align-items: center; color: #eef2f7; font-size: 1.2rem; font-weight: 700; min-width: 0; line-height: 1.2; }}
 .nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; min-width: 0; }}
@@ -10418,12 +10997,90 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     font-size: 0.84rem;
     gap: 0.4rem;
   }}
+  .pbj-staffing-cmp-table thead {{ display: none; }}
+  .pbj-staffing-cmp-table caption.pbj-staffing-cmp-caption {{
+    padding-top: 0.45rem;
+    font-size: 0.72rem;
+  }}
+  .pbj-staffing-cmp-table,
+  .pbj-staffing-cmp-table tbody,
+  .pbj-staffing-cmp-table tr {{
+    display: block;
+    width: 100%;
+  }}
+  .pbj-staffing-cmp-table tr {{
+    padding: 0.55rem 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+  }}
+  .pbj-staffing-cmp-table tr:last-child {{ border-bottom: none; }}
+  .pbj-staffing-cmp-table td {{
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent !important;
+    text-align: left;
+    padding: 0.18rem 0;
+  }}
+  .pbj-staffing-cmp-metric {{
+    width: auto;
+    font-size: 0.84rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    padding-bottom: 0.1rem;
+    color: rgba(226, 232, 240, 0.96);
+  }}
+  .pbj-staffing-cmp-val {{
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    gap: 0.35rem 0.65rem;
+    text-align: right;
+  }}
+  .pbj-staffing-cmp-val::before {{
+    content: attr(data-label);
+    text-align: left;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: rgba(148, 163, 184, 0.95);
+    line-height: 1.3;
+  }}
+  .pbj-staffing-cmp-val--state::before {{
+    color: rgba(199, 210, 254, 0.95);
+    font-weight: 600;
+  }}
+  .pbj-staffing-cmp-val--state {{
+    font-size: 0.92rem;
+  }}
+  .pbj-staffing-cmp-val--cmp {{
+    grid-template-columns: minmax(0, 1fr) auto;
+  }}
+  .pbj-staffing-cmp-val--cmp .pbj-staffing-cmp-primary {{
+    display: inline;
+    grid-column: 2;
+    text-align: right;
+  }}
+  .pbj-staffing-cmp-val--cmp .pbj-staffing-cmp-delta {{
+    display: inline;
+    grid-column: 2;
+    margin-top: 0;
+    margin-left: 0.35rem;
+    font-size: 0.68rem;
+    white-space: nowrap;
+  }}
+  .pbj-staffing-cmp-val--state .pbj-staffing-cmp-primary,
+  .pbj-staffing-cmp-val--rank {{
+    grid-column: 2;
+  }}
+  .pbj-staffing-cmp-popover {{
+    right: auto;
+    left: 0;
+    max-width: min(280px, calc(100vw - 32px));
+  }}
   .state-page-charts .pbj-chart-header-state-mobile.section-header {{
     font-size: 0.84rem;
     margin-bottom: 0.15rem;
     padding-bottom: 0.2rem;
   }}
-  .navbar {{ position: relative; }}
   .nav-menu {{
     display: flex !important;
     flex-direction: column;
@@ -10550,7 +11207,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .contact-toast {{ position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); background: rgba(30, 41, 59, 0.95); color: #e2e8f0; padding: 0.875rem 1.5rem; border-radius: 12px; font-size: 0.9375rem; font-weight: 500; z-index: 10001; box-shadow: 0 8px 32px rgba(0,0,0,0.24); border: 1px solid rgba(148, 163, 184, 0.2); backdrop-filter: blur(8px); }}
 .contact-toast.error {{ background: rgba(30, 41, 59, 0.95); color: #fca5a5; border-color: rgba(248, 113, 113, 0.25); }}
 </style>
-{extra_head}
+{_combined_extra_head}
 </head>
 <body>'''
     nav = '''
@@ -10839,12 +11496,58 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           }
         });
       });
+      function bindStaffingCmpPopover(wrap) {
+        if (!wrap || wrap.getAttribute('data-pbj-cmp-bound')) return;
+        wrap.setAttribute('data-pbj-cmp-bound', '1');
+        var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn');
+        var popover = wrap.querySelector('.pbj-staffing-cmp-popover');
+        if (!btn || !popover) return;
+        var inDetails = !!wrap.closest('.pbj-details-content');
+        function positionPopover() {
+          if (inDetails) {
+            positionTooltipInDetails(wrap, popover);
+            popover.classList.add('pbj-staffing-cmp-popover--fixed');
+            return;
+          }
+          requestAnimationFrame(function() { clampTooltipToViewport(popover); });
+        }
+        function clearPopover() {
+          popover.classList.remove('pbj-staffing-cmp-popover--fixed');
+          clearTooltipPosition(popover);
+        }
+        wrap.addEventListener('mouseenter', function() {
+          if (!wrap.classList.contains('is-open')) positionPopover();
+        });
+        wrap.addEventListener('mouseleave', function() {
+          if (!wrap.classList.contains('is-open')) clearPopover();
+        });
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          var open = wrap.classList.toggle('is-open');
+          btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) positionPopover();
+          else clearPopover();
+        });
+      }
+      document.querySelectorAll('.pbj-staffing-cmp-info-wrap').forEach(bindStaffingCmpPopover);
       document.addEventListener('click', function(e) {
         if (e.target && e.target.closest && e.target.closest('.pbj-risk-badge-info-wrap')) return;
         document.querySelectorAll('.pbj-risk-badge-info-wrap.is-open').forEach(function(wrap) {
           wrap.classList.remove('is-open');
           var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
           if (tooltip) clearTooltipPosition(tooltip);
+        });
+        if (e.target && e.target.closest && e.target.closest('.pbj-staffing-cmp-info-wrap')) return;
+        document.querySelectorAll('.pbj-staffing-cmp-info-wrap.is-open').forEach(function(wrap) {
+          wrap.classList.remove('is-open');
+          var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn');
+          if (btn) btn.setAttribute('aria-expanded', 'false');
+          var popover = wrap.querySelector('.pbj-staffing-cmp-popover');
+          if (popover) {
+            popover.classList.remove('pbj-staffing-cmp-popover--fixed');
+            clearTooltipPosition(popover);
+          }
         });
       });
     });
@@ -10863,6 +11566,41 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         )
     head = inject_public_site_verification_meta(head)
     return {'head': head, 'nav': nav, 'content_open': content_open, 'content_close': content_close}
+
+
+def _render_facility_premium_cta(ccn: str, facility_name: str = '') -> str:
+    """Compact bordered Premium callout for provider pages with a valid six-digit CCN."""
+    checkout_url = _stripe_premium_payment_link_url(ccn)
+    if not checkout_url:
+        return ''
+    short_name = _premium_request_facility_short_name(facility_name)
+    if short_name:
+        request_label = f'Request {short_name} Dashboard'
+    else:
+        request_label = 'Request Dashboard'
+    stripe_href = html.escape(checkout_url, quote=True)
+    request_text = html.escape(request_label)
+    premium_aria = html.escape(
+        'PBJ320 Premium. Daily staffing, acuity analysis, ownership, employee-level detail',
+        quote=True,
+    )
+    return (
+        f'<div class="pbj-provider-premium-bridge">'
+        f'<a href="/premium" class="pbj-provider-premium-bridge__premium"'
+        f' aria-label="{premium_aria}">'
+        f'<img src="/pbj_favicon.png" alt="" width="16" height="16" '
+        f'class="pbj-provider-premium-bridge__icon" decoding="async">'
+        f'<span class="pbj-provider-premium-bridge__premium-body">'
+        f'<span class="pbj-provider-premium-bridge__premium-title">'
+        f'PBJ320 Premium <span class="pbj-provider-premium-bridge__premium-arrow">'
+        f'\u2192</span></span>'
+        f'<span class="pbj-provider-premium-bridge__premium-subtitle">'
+        f'Daily staffing, acuity analysis, ownership, employee-level detail</span>'
+        f'</span></a>'
+        f'<a href="{stripe_href}" class="pbj-provider-premium-bridge__request">'
+        f'{request_text}</a>'
+        f'</div>'
+    )
 
 
 def render_custom_report_cta(context, page_url, **kwargs):
@@ -11054,6 +11792,27 @@ def render_methodology_block():
 
 
 _CCN_ALLOWED_RE = _re.compile(r'^[A-Z0-9]{1,6}$')
+_STRIPE_PREMIUM_CCN_RE = _re.compile(r'^\d{6}$')
+_STRIPE_PREMIUM_PAYMENT_LINK = 'https://buy.stripe.com/eVq7sE8KUaFrevvgLU7N600'
+
+
+def _valid_stripe_premium_ccn(ccn) -> str:
+    """Return a six-digit CCN for Stripe client_reference_id, or empty string if invalid."""
+    if ccn is None:
+        return ''
+    s = str(ccn).strip()
+    if not _STRIPE_PREMIUM_CCN_RE.fullmatch(s):
+        return ''
+    return s
+
+
+def _stripe_premium_payment_link_url(ccn) -> str:
+    """Stripe Payment Link with client_reference_id for provider-page checkout."""
+    stripe_ccn = _valid_stripe_premium_ccn(ccn)
+    if not stripe_ccn:
+        return ''
+    query = urlencode({'client_reference_id': f'ccn_{stripe_ccn}'})
+    return f'{_STRIPE_PREMIUM_PAYMENT_LINK}?{query}'
 
 
 def normalize_ccn(ccn):
@@ -11271,9 +12030,56 @@ def _ensure_provider_indexes_hydrated() -> None:
         _PROVIDER_INDEXES_HYDRATED = True
 
 
-@lru_cache(maxsize=128)
-def _load_facility_quarterly_for_provider_cached(prov):
-    """Cached per-process slice from deploy SQLite or facility_quarterly_metrics.csv."""
+_FACILITY_QUARTERLY_DF_LRU: OrderedDict = OrderedDict()
+_FACILITY_QUARTERLY_DF_LRU_LOCK = threading.Lock()
+_FACILITY_QUARTERLY_DF_LRU_HITS = 0
+_FACILITY_QUARTERLY_DF_LRU_MISSES = 0
+
+
+def _facility_quarterly_lru_maxsize() -> int:
+    raw = (os.environ.get('PBJ_FACILITY_QUARTERLY_LRU') or '').strip()
+    if raw:
+        try:
+            return max(8, int(raw))
+        except ValueError:
+            pass
+    if os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID'):
+        return 64
+    return 128
+
+
+def _facility_quarterly_lru_cache_info():
+    from collections import namedtuple
+
+    CacheInfo = namedtuple('CacheInfo', ['hits', 'misses', 'maxsize', 'currsize'])
+    with _FACILITY_QUARTERLY_DF_LRU_LOCK:
+        return CacheInfo(
+            _FACILITY_QUARTERLY_DF_LRU_HITS,
+            _FACILITY_QUARTERLY_DF_LRU_MISSES,
+            _facility_quarterly_lru_maxsize(),
+            len(_FACILITY_QUARTERLY_DF_LRU),
+        )
+
+
+def _clear_facility_quarterly_lru_cache() -> None:
+    global _FACILITY_QUARTERLY_DF_LRU_HITS, _FACILITY_QUARTERLY_DF_LRU_MISSES
+    with _FACILITY_QUARTERLY_DF_LRU_LOCK:
+        _FACILITY_QUARTERLY_DF_LRU.clear()
+    _FACILITY_QUARTERLY_DF_LRU_HITS = 0
+    _FACILITY_QUARTERLY_DF_LRU_MISSES = 0
+
+
+def _facility_quarterly_lru_byte_stats() -> dict:
+    with _FACILITY_QUARTERLY_DF_LRU_LOCK:
+        frames = list(_FACILITY_QUARTERLY_DF_LRU.values())
+    sizes = [estimate_dataframe_bytes(df) or 0 for df in frames]
+    stats = summarize_byte_sizes(sizes)
+    stats['max_entries'] = _facility_quarterly_lru_maxsize()
+    return stats
+
+
+def _load_facility_quarterly_for_provider_uncached(prov):
+    """Load one facility's quarterly slice (no LRU — used by cached wrapper)."""
     pdm = get_pd()
     if pdm is None:
         return None
@@ -11341,6 +12147,28 @@ def _load_facility_quarterly_for_provider_cached(prov):
     out = pdm.concat(chunks_list, axis=0, ignore_index=True) if chunks_list else None
     _log_mem("facility_quarterly_stream_end")
     return out if out is not None and not out.empty else None
+
+
+def _load_facility_quarterly_for_provider_cached(prov):
+    """Cached per-process slice from deploy SQLite or facility_quarterly_metrics.csv."""
+    global _FACILITY_QUARTERLY_DF_LRU_HITS, _FACILITY_QUARTERLY_DF_LRU_MISSES
+    with _FACILITY_QUARTERLY_DF_LRU_LOCK:
+        if prov in _FACILITY_QUARTERLY_DF_LRU:
+            _FACILITY_QUARTERLY_DF_LRU.move_to_end(prov)
+            _FACILITY_QUARTERLY_DF_LRU_HITS += 1
+            return _FACILITY_QUARTERLY_DF_LRU[prov]
+    _FACILITY_QUARTERLY_DF_LRU_MISSES += 1
+    df = _load_facility_quarterly_for_provider_uncached(prov)
+    if df is not None and not df.empty:
+        with _FACILITY_QUARTERLY_DF_LRU_LOCK:
+            _FACILITY_QUARTERLY_DF_LRU[prov] = df
+            while len(_FACILITY_QUARTERLY_DF_LRU) > _facility_quarterly_lru_maxsize():
+                _FACILITY_QUARTERLY_DF_LRU.popitem(last=False)
+    return df if df is not None and not df.empty else None
+
+
+_load_facility_quarterly_for_provider_cached.cache_clear = _clear_facility_quarterly_lru_cache  # type: ignore[attr-defined]
+_load_facility_quarterly_for_provider_cached.cache_info = _facility_quarterly_lru_cache_info  # type: ignore[attr-defined]
 
 
 def _max_cy_qtr_from_facility_csv():
@@ -14937,9 +15765,27 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         seo_desc,
         f"{base_url}/provider/{prov}",
         extra_head=provider_json_ld + _ownership_page_css,
+        route_context_overrides={
+            'kind': 'provider',
+            'ccn': prov,
+            'stateAbbr': state_code or None,
+            'stateName': state_name or None,
+            'stateSlug': canonical_slug or None,
+        },
     )
     facility_page_url = f"{base_url}/provider/{prov}"
-    custom_report_cta_html = render_custom_report_cta('facility', facility_page_url, facility_name=facility_name, ccn=prov, state_name=state_name, entity_name=entity_name or '')
+    _facility_premium_cta_html = _render_facility_premium_cta(prov, facility_name)
+    custom_report_cta_html = (
+        '' if _facility_premium_cta_html
+        else render_custom_report_cta(
+            'facility',
+            facility_page_url,
+            facility_name=facility_name,
+            ccn=prov,
+            state_name=state_name,
+            entity_name=entity_name or '',
+        )
+    )
     _residents_sub = f"{census_int:,} residents" if census_int else "Census not reported"
     # City, ST as one part (e.g. "Brooklyn, NY" with state linked)
     if city and state_link:
@@ -15025,6 +15871,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
 {_provider_ownership_chow_block}
 {render_methodology_block()}
 </div>
+{_facility_premium_cta_html}
 
 <div class="pbj-page-footer">
 <p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
@@ -16183,7 +17030,13 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         entity_extra_head += (
             f'<script src="/owner-profile.js?v={_static_asset_version("owner-profile.js")}" defer></script>'
         )
-    layout = get_pbj_site_layout(page_title, seo_desc, f"{base_url}/entity/{entity_id}", extra_head=entity_extra_head)
+    layout = get_pbj_site_layout(
+        page_title,
+        seo_desc,
+        f"{base_url}/entity/{entity_id}",
+        extra_head=entity_extra_head,
+        route_context_overrides={'kind': 'entity', 'entityId': int(entity_id)},
+    )
     entity_page_url = f"{base_url}/entity/{entity_id}"
     care_compare_entity_url = f'https://www.medicare.gov/care-compare/details/chains/{entity_id}'
     custom_report_cta_html = render_custom_report_cta('entity', entity_page_url, entity_name=entity_name)
@@ -16637,6 +17490,335 @@ def get_national_hprd_for_quarter(raw_quarter):
         return float(v)
     except Exception:
         return None
+
+
+def _staffing_comparison_block(raw_quarter):
+    """Precomputed national/region comparison metrics from deploy bundle (O(1) at runtime)."""
+    q = str(raw_quarter or '').strip()
+    if not q or not _STAFFING_COMPARISON_BY_QUARTER:
+        return None
+    block = _STAFFING_COMPARISON_BY_QUARTER.get(q)
+    return block if isinstance(block, dict) else None
+
+
+_STAFFING_COMPARISON_METRIC_KEYS = (
+    'Total_Nurse_HPRD',
+    'RN_HPRD',
+    'Nurse_Care_HPRD',
+    'RN_Care_HPRD',
+    'Nurse_Assistant_HPRD',
+    'Contract_Percentage',
+)
+
+
+def build_staffing_comparison_for_quarter(raw_quarter):
+    """Build national + CMS region comparison metrics for deploy bundle (runs once at build)."""
+    q = str(raw_quarter or '').strip()
+    if not q or not HAS_PANDAS:
+        return {}
+    nat = get_national_quarter_metrics(q) or {}
+    national = {k: nat.get(k) for k in _STAFFING_COMPARISON_METRIC_KEYS if nat.get(k) is not None}
+    regions: dict[str, dict] = {}
+    region_case_mix: dict[str, float] = {}
+    region_rural: dict[str, float] = {}
+    for region_num in range(1, 11):
+        rm = get_region_quarter_metrics(region_num, q) or {}
+        row = {k: rm.get(k) for k in _STAFFING_COMPARISON_METRIC_KEYS if rm.get(k) is not None}
+        if row:
+            regions[str(region_num)] = row
+        abbrs = get_states_in_cms_region(region_num)
+        cm = _median_case_mix_from_facility_values(abbrs, q)
+        if cm is not None:
+            region_case_mix[str(region_num)] = cm
+        rural = _region_rural_share_from_state_counts(abbrs, q)
+        if rural is not None:
+            region_rural[str(region_num)] = rural
+    national_cm = _median_case_mix_from_facility_values(None, q)
+    out = {
+        'national': national,
+        'regions': regions,
+        'national_case_mix_median': national_cm,
+        'region_case_mix_medians': region_case_mix,
+        'region_rural_shares': region_rural,
+    }
+    return out
+
+
+def get_national_quarter_metrics(raw_quarter):
+    """Return national quarterly metrics row as dict for a CY_Qtr, or None."""
+    block = _staffing_comparison_block(raw_quarter)
+    if block and block.get('national'):
+        return dict(block['national'])
+    if not HAS_PANDAS or not raw_quarter:
+        return None
+    try:
+        national_df = load_csv_data('national_quarterly_metrics.csv')
+        if national_df is None or national_df.empty:
+            return None
+        row = national_df[national_df['CY_Qtr'].astype(str) == str(raw_quarter)]
+        if row.empty:
+            return None
+        return row.iloc[0].to_dict()
+    except Exception:
+        return None
+
+
+def get_states_in_cms_region(region_num):
+    """State abbreviations in a CMS region (from cms_region_state_mapping.csv)."""
+    if not region_num or not HAS_PANDAS:
+        return []
+    try:
+        mapping_df = load_csv_data('cms_region_state_mapping.csv')
+        if mapping_df is None or mapping_df.empty:
+            return []
+        rows = mapping_df[mapping_df['CMS_Region_Number'] == int(region_num)]
+        return [
+            str(s).strip().upper()[:2]
+            for s in rows['State_Code'].tolist()
+            if str(s).strip()
+        ]
+    except Exception:
+        return []
+
+
+def format_cms_region_comparison_label(region_info, region_state_abbrs=None):
+    """Human-readable CMS region column header, e.g. CMS Region 1 · New England."""
+    if region_info is None:
+        return 'CMS Region'
+    try:
+        region_num = int(
+            region_info.get('CMS_Region_Number')
+            or region_info.get('Region_Number')
+            or 0
+        )
+    except (TypeError, ValueError):
+        return 'CMS Region'
+    geo = CMS_REGION_GEO_LABELS.get(region_num)
+    if not geo and region_state_abbrs:
+        names = [
+            STATE_CODE_TO_NAME.get(str(s).strip().upper()[:2], str(s))
+            for s in region_state_abbrs
+        ]
+        geo = ' / '.join(names) if names else None
+    if region_num and geo:
+        return f'CMS Region {region_num} \u00b7 {geo}'
+    if region_num:
+        return f'CMS Region {region_num}'
+    return 'CMS Region'
+
+
+_CMS_REGION_MEMBER_DISPLAY_NAMES = {
+    'VI': 'the U.S. Virgin Islands',
+    'PR': 'Puerto Rico',
+    'DC': 'the District of Columbia',
+    'AS': 'American Samoa',
+    'GU': 'Guam',
+    'MP': 'the Northern Mariana Islands',
+}
+
+
+def _oxford_comma_prose(items):
+    """Join display names for CMS region popover copy."""
+    if not items:
+        return ''
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f'{items[0]} and {items[1]}'
+    return ', '.join(items[:-1]) + f', and {items[-1]}'
+
+
+def format_cms_region_short_header(region_num):
+    """Compact table header label, e.g. CMS Region 2."""
+    try:
+        n = int(region_num)
+        return f'CMS Region {n}' if n else 'CMS Region'
+    except (TypeError, ValueError):
+        return 'CMS Region'
+
+
+def format_cms_region_member_list_prose(region_state_abbrs):
+    """Prose list of jurisdictions in a CMS region for popover text."""
+    abbrs = sorted(
+        {str(s).strip().upper()[:2] for s in (region_state_abbrs or []) if str(s).strip()},
+        key=lambda a: STATE_CODE_TO_NAME.get(a, a),
+    )
+    names = [
+        _CMS_REGION_MEMBER_DISPLAY_NAMES.get(abbr) or STATE_CODE_TO_NAME.get(abbr, abbr)
+        for abbr in abbrs
+    ]
+    return _oxford_comma_prose(names)
+
+
+def _aggregate_region_metrics_from_states(state_abbrs, raw_quarter):
+    """Census-weighted region HPRD aggregates from state_quarterly_metrics (not a simple state average)."""
+    if not HAS_PANDAS or not raw_quarter or not state_abbrs:
+        return None
+    try:
+        state_df = load_csv_data('state_quarterly_metrics.csv')
+        if state_df is None or state_df.empty:
+            return None
+        abbrs = {str(s).strip().upper()[:2] for s in state_abbrs if str(s).strip()}
+        sq = state_df[
+            (state_df['CY_Qtr'].astype(str) == str(raw_quarter))
+            & (state_df['STATE'].astype(str).str.strip().str.upper().isin(abbrs))
+        ]
+        if sq.empty:
+            return None
+        total_resident_days = float(sq['total_resident_days'].sum())
+        if total_resident_days <= 0:
+            return None
+
+        def _weighted_hprd(col):
+            if col not in sq.columns:
+                return None
+            return float((sq[col] * sq['total_resident_days']).sum() / total_resident_days)
+
+        total_nurse_hours = float((sq['Total_Nurse_HPRD'] * sq['total_resident_days']).sum())
+        contract_hours = float(sq['Total_Contract_Hours'].sum()) if 'Total_Contract_Hours' in sq.columns else 0.0
+        contract_pct = (contract_hours / total_nurse_hours * 100.0) if total_nurse_hours > 0 else None
+        return {
+            'Total_Nurse_HPRD': _weighted_hprd('Total_Nurse_HPRD'),
+            'RN_HPRD': _weighted_hprd('RN_HPRD'),
+            'Nurse_Care_HPRD': _weighted_hprd('Nurse_Care_HPRD'),
+            'RN_Care_HPRD': _weighted_hprd('RN_Care_HPRD'),
+            'Nurse_Assistant_HPRD': _weighted_hprd('Nurse_Assistant_HPRD'),
+            'Contract_Percentage': contract_pct,
+        }
+    except Exception:
+        return None
+
+
+def get_region_quarter_metrics(region_num, raw_quarter):
+    """Return CMS region quarterly metrics dict for a region number and quarter."""
+    if not region_num or not raw_quarter:
+        return None
+    block = _staffing_comparison_block(raw_quarter)
+    if block:
+        row = (block.get('regions') or {}).get(str(int(region_num)))
+        if isinstance(row, dict) and row:
+            return dict(row)
+    try:
+        region_num_int = int(region_num)
+    except (TypeError, ValueError):
+        return None
+    if HAS_PANDAS:
+        try:
+            region_df = load_csv_data('cms_region_quarterly_metrics.csv')
+            if region_df is not None and not region_df.empty:
+                row = region_df[
+                    (region_df['REGION_NUMBER'] == region_num_int)
+                    & (region_df['CY_Qtr'].astype(str) == str(raw_quarter))
+                ]
+                if not row.empty:
+                    return row.iloc[0].to_dict()
+        except Exception:
+            pass
+    state_abbrs = get_states_in_cms_region(region_num_int)
+    return _aggregate_region_metrics_from_states(state_abbrs, raw_quarter)
+
+
+def _median_case_mix_from_facility_values(state_abbrs, raw_quarter):
+    """Median case-mix HPRD from facility-level values (all U.S. when state_abbrs is None)."""
+    if not raw_quarter:
+        return None
+    q = str(raw_quarter).strip()
+    block = _staffing_comparison_block(q)
+    if block and state_abbrs is None:
+        v = block.get('national_case_mix_median')
+        if v is not None:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                pass
+    _ensure_state_case_mix_medians(q)
+    values_by_state = (_CASE_MIX_VALUES_BY_QUARTER or {}).get(q) or {}
+    if state_abbrs is None:
+        vals: list[float] = []
+        for st_vals in values_by_state.values():
+            vals.extend(st_vals)
+        return _median_positive(vals)
+    abbrs = {str(s).strip().upper()[:2] for s in state_abbrs if str(s).strip()}
+    vals = []
+    for st, st_vals in values_by_state.items():
+        if st in abbrs:
+            vals.extend(st_vals)
+    return _median_positive(vals)
+
+
+def _region_rural_share_from_state_counts(region_state_abbrs, raw_quarter):
+    """Facility-weighted rural share for a CMS region from per-state facility counts."""
+    if not region_state_abbrs or not raw_quarter:
+        return None
+    q = str(raw_quarter).strip()
+    get_rural_shares_for_quarter(q)
+    cached = _RURAL_SHARE_BY_QUARTER_CACHE or {}
+    counts = cached.get('state_counts') or {} if cached.get('q') == q else {}
+    if not counts:
+        nat_pct, _states = _build_rural_shares_for_quarter(q)
+        if nat_pct is None:
+            return None
+        cached = _RURAL_SHARE_BY_QUARTER_CACHE or {}
+        counts = cached.get('state_counts') or {} if cached.get('q') == q else {}
+    abbrs = {str(s).strip().upper()[:2] for s in region_state_abbrs if str(s).strip()}
+    rural_n = 0
+    total_n = 0
+    for st, bucket in counts.items():
+        if st not in abbrs or not isinstance(bucket, (list, tuple)) or len(bucket) < 2:
+            continue
+        rural_n += int(bucket[0])
+        total_n += int(bucket[1])
+    if total_n <= 0:
+        return None
+    return round(100.0 * rural_n / total_n, 1)
+
+
+def get_median_case_mix_hprd_for_states(state_abbrs, raw_quarter):
+    """Median case-mix HPRD across facilities in the given states (facility-level median)."""
+    return _median_case_mix_from_facility_values(state_abbrs, raw_quarter)
+
+
+def get_national_median_case_mix_hprd(raw_quarter):
+    """Median case-mix HPRD across all U.S. facilities for a quarter."""
+    block = _staffing_comparison_block(raw_quarter)
+    if block and block.get('national_case_mix_median') is not None:
+        try:
+            return float(block['national_case_mix_median'])
+        except (TypeError, ValueError):
+            pass
+    return _median_case_mix_from_facility_values(None, raw_quarter)
+
+
+def get_region_median_case_mix_hprd(region_num, raw_quarter):
+    """Median case-mix HPRD across facilities in a CMS region."""
+    if not region_num or not raw_quarter:
+        return None
+    block = _staffing_comparison_block(raw_quarter)
+    if block:
+        v = (block.get('region_case_mix_medians') or {}).get(str(int(region_num)))
+        if v is not None:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                pass
+    abbrs = get_states_in_cms_region(region_num)
+    return _median_case_mix_from_facility_values(abbrs, raw_quarter)
+
+
+def get_region_rural_facility_share(region_num, raw_quarter):
+    """Percent of nursing homes labeled rural within a CMS region (facility-weighted)."""
+    if not region_num or not raw_quarter:
+        return None
+    block = _staffing_comparison_block(raw_quarter)
+    if block:
+        v = (block.get('region_rural_shares') or {}).get(str(int(region_num)))
+        if v is not None:
+            try:
+                return float(v)
+            except (TypeError, ValueError):
+                pass
+    abbrs = get_states_in_cms_region(region_num)
+    return _region_rural_share_from_state_counts(abbrs, raw_quarter)
 
 
 def generate_us_chart_html():
@@ -17703,6 +18885,229 @@ def _render_state_pbj_high_risk_section(
     return section
 
 
+def _staffing_cmp_rank_display(rank, total_states):
+    """Format state rank as #X of 51, or em dash when unavailable."""
+    if rank and total_states:
+        return f'#{int(rank)} of {int(total_states)}'
+    return '—'
+
+
+def _staffing_cmp_em_dash(tooltip=None):
+    """Unavailable comparison cell (plain em dash, optional tooltip)."""
+    tip = f' title="{html.escape(tooltip, quote=True)}"' if tooltip else ''
+    return f'<span class="pbj-staffing-cmp-na"{tip}>\u2014</span>'
+
+
+def _staffing_cmp_parse_raw(val):
+    """Parse a metric value to float for delta math, or None."""
+    if val is None or val == 'N/A' or val == '':
+        return None
+    if isinstance(val, float) and pd.isna(val):
+        return None
+    try:
+        return float(val)
+    except (TypeError, ValueError):
+        return None
+
+
+def _staffing_cmp_rounded_compare(state_raw, compare_raw, kind):
+    """Rounded values used for display-equality checks (Same as ST)."""
+    if state_raw is None or compare_raw is None:
+        return None, None
+    if kind == 'hprd':
+        return round_half_up(state_raw, 2), round_half_up(compare_raw, 2)
+    if kind == 'contract':
+        return round_half_up(state_raw, 1), round_half_up(compare_raw, 1)
+    if kind == 'share':
+        return round_half_up(state_raw, 0), round_half_up(compare_raw, 0)
+    return state_raw, compare_raw
+
+
+def _staffing_cmp_delta_text(state_raw, compare_raw, kind, state_abbr):
+    """Muted delta helper, e.g. +0.04 vs NY (neutral; not evaluative)."""
+    if state_raw is None or compare_raw is None:
+        return None
+    st = str(state_abbr or 'state').strip().upper()[:2] or 'ST'
+    sr, cr = _staffing_cmp_rounded_compare(state_raw, compare_raw, kind)
+    if sr is None or cr is None:
+        return None
+    if sr == cr:
+        return f'Same as {st}'
+    if kind == 'hprd':
+        d = round_half_up(compare_raw - state_raw, 2)
+        if d is None or d == 0:
+            return f'Same as {st}'
+        sign = '+' if d > 0 else ''
+        return f'{sign}{d:.2f} vs {st}'
+    d = round_half_up(compare_raw - state_raw, 1)
+    if d is None or d == 0:
+        return f'Same as {st}'
+    sign = '+' if d > 0 else ''
+    return f'{sign}{d:.1f} pts vs {st}'
+
+
+def _staffing_cmp_format_primary(raw, kind):
+    """Format primary display text for a comparison value."""
+    if raw is None:
+        return None
+    try:
+        from pbj_format import format_metric_value
+    except ImportError:
+        format_metric_value = lambda v, k, d=None: f'{float(v):.2f}' if v is not None else d  # type: ignore[misc]
+    if kind == 'hprd':
+        return format_metric_value(raw, 'Total_Nurse_HPRD', None)
+    if kind == 'contract':
+        s = format_metric_value(raw, 'Contract_Percentage', None)
+        return f'{s}%' if s else None
+    if kind == 'share':
+        r = round_half_up(raw, 0)
+        return f'{int(r)}%' if r is not None else None
+    return None
+
+
+def _staffing_cmp_info_popover_html(popover_id, label, main_text, sub_text=None):
+    """Accessible info icon + popover for table headers."""
+    btn_label = html.escape(f'About {label}', quote=True)
+    main_esc = html.escape(main_text or '', quote=True)
+    sub_html = ''
+    if sub_text:
+        sub_html = (
+            f'<span class="pbj-staffing-cmp-popover-sub">{html.escape(sub_text, quote=True)}</span>'
+        )
+    return (
+        f'<span class="pbj-staffing-cmp-info-wrap" id="{html.escape(popover_id, quote=True)}">'
+        f'<button type="button" class="pbj-staffing-cmp-info-btn" aria-label="{btn_label}" '
+        f'aria-expanded="false" aria-controls="{html.escape(popover_id, quote=True)}-tip">i</button>'
+        f'<span class="pbj-staffing-cmp-popover" id="{html.escape(popover_id, quote=True)}-tip" role="tooltip">'
+        f'<span class="pbj-staffing-cmp-popover-main">{main_esc}</span>{sub_html}</span></span>'
+    )
+
+
+def _staffing_cmp_value_cell(primary, delta=None, css_class='', data_label='', na_tip=None):
+    """Render one comparison table value cell."""
+    label_attr = f' data-label="{html.escape(data_label, quote=True)}"' if data_label else ''
+    if not primary:
+        inner = _staffing_cmp_em_dash(na_tip)
+    else:
+        delta_html = ''
+        if delta:
+            delta_html = f'<span class="pbj-staffing-cmp-delta">{html.escape(delta, quote=True)}</span>'
+        inner = f'<span class="pbj-staffing-cmp-primary">{primary}</span>{delta_html}'
+    return f'<td class="pbj-staffing-cmp-val {css_class}"{label_attr}>{inner}</td>'
+
+
+def render_state_staffing_comparison_table(
+    state_name,
+    state_code,
+    region_num,
+    region_member_prose,
+    rows,
+    rankings_link_html='',
+):
+    """Render state staffing comparison table (desktop columns + mobile stacked values)."""
+    st_abbr = html.escape((state_code or '').strip().upper()[:2] or 'ST', quote=True)
+    state_hdr = html.escape(state_name or 'State', quote=True)
+    region_short = format_cms_region_short_header(region_num)
+    region_hdr = html.escape(region_short, quote=True)
+    region_pop_main = (
+        f'{region_short} includes {region_member_prose}.'
+        if region_member_prose
+        else region_short
+    )
+    region_pop_sub = (
+        'Regional figures are calculated from facility-level data using the same methodology '
+        'as the state figures.'
+    )
+    region_info_html = _staffing_cmp_info_popover_html(
+        f'pbj-staffing-cmp-region-info-{st_abbr}',
+        region_short,
+        region_pop_main,
+        region_pop_sub,
+    )
+    rank_pop_main = (
+        'Ranks compare the 50 states and D.C. by the displayed metric value. A higher or lower '
+        'rank is not inherently positive or negative for every metric, including contract '
+        'staffing share and rural-facility share.'
+    )
+    rank_info_html = _staffing_cmp_info_popover_html(
+        f'pbj-staffing-cmp-rank-info-{st_abbr}',
+        'State rank',
+        rank_pop_main,
+    )
+    body_rows = []
+    for row in rows:
+        metric = html.escape(str(row.get('metric') or ''), quote=True)
+        metric_title = row.get('metric_title')
+        metric_td = (
+            f'<td class="pbj-staffing-cmp-metric" title="{html.escape(metric_title, quote=True)}">{metric}</td>'
+            if metric_title
+            else f'<td class="pbj-staffing-cmp-metric">{metric}</td>'
+        )
+        state_primary = row.get('state_primary') or row.get('state')
+        region_primary = row.get('region_primary')
+        us_primary = row.get('us_primary')
+        region_delta = row.get('region_delta')
+        us_delta = row.get('us_delta')
+        rank_val = row.get('rank') or '\u2014'
+        na_tip = row.get('na_tip')
+        body_rows.append(
+            '<tr>'
+            f'{metric_td}'
+            + _staffing_cmp_value_cell(
+                state_primary,
+                css_class='pbj-staffing-cmp-val--state',
+                data_label=state_hdr,
+            )
+            + _staffing_cmp_value_cell(
+                region_primary,
+                delta=region_delta,
+                css_class='pbj-staffing-cmp-val--cmp',
+                data_label=region_hdr,
+                na_tip=na_tip,
+            )
+            + _staffing_cmp_value_cell(
+                us_primary,
+                delta=us_delta,
+                css_class='pbj-staffing-cmp-val--cmp',
+                data_label='U.S.',
+                na_tip=na_tip,
+            )
+            + _staffing_cmp_value_cell(
+                rank_val,
+                css_class='pbj-staffing-cmp-val--rank',
+                data_label='State rank',
+            )
+            + '</tr>'
+        )
+    caption = (
+        '<caption class="pbj-staffing-cmp-caption">'
+        '<span class="pbj-staffing-cmp-caption-icon" aria-hidden="true">\u24d8</span> '
+        'State rank reflects the displayed value, not necessarily stronger or weaker performance.'
+        '</caption>'
+    )
+    footer = ''
+    if rankings_link_html:
+        footer = f'<div class="pbj-staffing-cmp-footer">{rankings_link_html}</div>'
+    return (
+        f'<div class="pbj-table-wrap pbj-staffing-cmp-wrap">'
+        f'<table class="pbj-staffing-cmp-table">'
+        f'{caption}'
+        f'<thead><tr>'
+        f'<th scope="col" class="pbj-staffing-cmp-th-metric">Metric</th>'
+        f'<th scope="col" class="pbj-staffing-cmp-th-state">{state_hdr}</th>'
+        f'<th scope="col" class="pbj-staffing-cmp-th-cmp">'
+        f'<span class="pbj-staffing-cmp-th-inner">{region_hdr}{region_info_html}</span></th>'
+        f'<th scope="col" class="pbj-staffing-cmp-th-cmp">U.S.</th>'
+        f'<th scope="col" class="pbj-staffing-cmp-th-rank">'
+        f'<span class="pbj-staffing-cmp-th-inner">State rank{rank_info_html}</span></th>'
+        f'</tr></thead>'
+        f'<tbody>{"".join(body_rows)}</tbody>'
+        f'</table>'
+        f'{footer}'
+        f'</div>'
+    )
+
+
 def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None, state_rankings_df=None):
     """Generate state page content. Returns (content, page_title, seo_description, canonical_url) for use with get_pbj_site_layout (state page is separate from PBJpedia)."""
     try:
@@ -17825,23 +19230,109 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     rank_contract = get_rank_for_metric('Contract_Percentage')
     state_median_case_mix = get_state_median_case_mix_hprd(state_code, raw_quarter)
     rank_case_mix_median = get_rank_for_state_case_mix_median(state_code, raw_quarter)
-    case_mix_median_display = metric_cell(
-        state_median_case_mix, 'Total_Nurse_HPRD', NA_HINT_CASE_MIX
-    )
     state_rural_pct = get_state_rural_facility_share(state_code, raw_quarter)
     national_rural_pct = get_rural_shares_for_quarter(raw_quarter)[0]
     rank_rural_share = get_rank_for_state_rural_share(state_code, raw_quarter)
-    rural_share_display = f'{state_rural_pct:.0f}%' if state_rural_pct is not None else 'N/A'
-    rural_vs_us_display = (
-        f'U.S. {national_rural_pct:.0f}%'
-        if national_rural_pct is not None
-        else 'N/A'
-    )
-    rural_rank_display = (
-        f'#{rank_rural_share} of {total_states}'
-        if rank_rural_share and total_states
-        else 'N/A'
-    )
+
+    # CMS region + U.S. comparison values (same quarter as state row)
+    _region_num = None
+    if region_info is not None and hasattr(region_info, 'get'):
+        try:
+            _region_num = int(region_info.get('CMS_Region_Number') or region_info.get('Region_Number') or 0)
+        except (TypeError, ValueError):
+            _region_num = None
+    _region_state_abbrs = get_states_in_cms_region(_region_num) if _region_num else []
+    _region_member_prose = format_cms_region_member_list_prose(_region_state_abbrs)
+    _national_metrics = get_national_quarter_metrics(raw_quarter) or {}
+    _region_metrics = get_region_quarter_metrics(_region_num, raw_quarter) or {}
+    _cmp_na_tip = 'Regional comparison unavailable for this metric.'
+    _st_abbr_cmp = (state_code or '').strip().upper()[:2] or 'ST'
+
+    def _staffing_cmp_row(metric, kind, state_raw, region_raw, us_raw, rank, metric_title=None):
+        state_p = _staffing_cmp_format_primary(state_raw, kind)
+        region_p = _staffing_cmp_format_primary(region_raw, kind)
+        us_p = _staffing_cmp_format_primary(us_raw, kind)
+        return {
+            'metric': metric,
+            'metric_title': metric_title,
+            'state_primary': html.escape(state_p) if state_p else None,
+            'region_primary': html.escape(region_p) if region_p else None,
+            'us_primary': html.escape(us_p) if us_p else None,
+            'region_delta': (
+                _staffing_cmp_delta_text(state_raw, region_raw, kind, _st_abbr_cmp)
+                if state_p and region_p else None
+            ),
+            'us_delta': (
+                _staffing_cmp_delta_text(state_raw, us_raw, kind, _st_abbr_cmp)
+                if state_p and us_p else None
+            ),
+            'rank': _staffing_cmp_rank_display(rank, total_states),
+            'na_tip': _cmp_na_tip,
+        }
+
+    _national_case_mix = get_national_median_case_mix_hprd(raw_quarter)
+    _region_case_mix = get_region_median_case_mix_hprd(_region_num, raw_quarter) if _region_num else None
+    _region_rural = get_region_rural_facility_share(_region_num, raw_quarter) if _region_num else None
+    _staffing_cmp_rows = [
+        _staffing_cmp_row(
+            'Total Nurse Staffing HPRD', 'hprd',
+            _staffing_cmp_parse_raw(get_val('Total_Nurse_HPRD')),
+            _staffing_cmp_parse_raw(_region_metrics.get('Total_Nurse_HPRD')),
+            _staffing_cmp_parse_raw(_national_metrics.get('Total_Nurse_HPRD')),
+            rank_total_nurse,
+        ),
+        _staffing_cmp_row(
+            'Direct Care Nurse HPRD', 'hprd',
+            _staffing_cmp_parse_raw(get_val('Nurse_Care_HPRD')),
+            _staffing_cmp_parse_raw(_region_metrics.get('Nurse_Care_HPRD')),
+            _staffing_cmp_parse_raw(_national_metrics.get('Nurse_Care_HPRD')),
+            rank_direct_care,
+            metric_title='Excludes admin, DON (Director of Nursing)',
+        ),
+        _staffing_cmp_row(
+            'RN HPRD', 'hprd',
+            _staffing_cmp_parse_raw(get_val('RN_HPRD')),
+            _staffing_cmp_parse_raw(_region_metrics.get('RN_HPRD')),
+            _staffing_cmp_parse_raw(_national_metrics.get('RN_HPRD')),
+            rank_rn_hprd,
+        ),
+        _staffing_cmp_row(
+            'RN Direct Care HPRD', 'hprd',
+            _staffing_cmp_parse_raw(get_val('RN_Care_HPRD')),
+            _staffing_cmp_parse_raw(_region_metrics.get('RN_Care_HPRD')),
+            _staffing_cmp_parse_raw(_national_metrics.get('RN_Care_HPRD')),
+            rank_rn_care,
+            metric_title='Excludes admin, DON (Director of Nursing)',
+        ),
+        _staffing_cmp_row(
+            'Nurse Aide HPRD', 'hprd',
+            _staffing_cmp_parse_raw(get_val('Nurse_Assistant_HPRD')),
+            _staffing_cmp_parse_raw(_region_metrics.get('Nurse_Assistant_HPRD')),
+            _staffing_cmp_parse_raw(_national_metrics.get('Nurse_Assistant_HPRD')),
+            rank_nurse_aide,
+        ),
+        _staffing_cmp_row(
+            'Contract Staff Percentage', 'contract',
+            _staffing_cmp_parse_raw(get_val('Contract_Percentage')),
+            _staffing_cmp_parse_raw(_region_metrics.get('Contract_Percentage')),
+            _staffing_cmp_parse_raw(_national_metrics.get('Contract_Percentage')),
+            rank_contract,
+        ),
+        _staffing_cmp_row(
+            'Median Case-Mix HPRD (Acuity)', 'hprd',
+            _staffing_cmp_parse_raw(state_median_case_mix),
+            _staffing_cmp_parse_raw(_region_case_mix),
+            _staffing_cmp_parse_raw(_national_case_mix),
+            rank_case_mix_median,
+        ),
+        _staffing_cmp_row(
+            'Rural Facilities (Share)', 'share',
+            _staffing_cmp_parse_raw(state_rural_pct),
+            _staffing_cmp_parse_raw(_region_rural),
+            _staffing_cmp_parse_raw(national_rural_pct),
+            rank_rural_share,
+        ),
+    ]
     
     # Get Total HPRD with rank for overview table (use format_metric_value for audit rounding)
     total_hprd_val = format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')
@@ -17883,6 +19374,14 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     _staffing_rankings_footer = (
         f'<p class="pbj-cross-links" style="margin-top: 0.75rem;">'
         f'<a href="{html.escape(_rankings_href, quote=True)}">State staffing rankings</a></p>'
+    )
+    _staffing_comparison_table = render_state_staffing_comparison_table(
+        state_name,
+        state_code,
+        _region_num,
+        _region_member_prose,
+        _staffing_cmp_rows,
+        rankings_link_html=_staffing_rankings_footer,
     )
     _sff_footer = ''
     if sff_facilities and state_code:
@@ -18166,18 +19665,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     <details class="pbj-details pbj-state-staffing-table">
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {html.escape((state_code or '').strip().upper()[:2] or state_name)} Staffing Stats</summary>
     <div class="pbj-details-content">
-    <div class="pbj-table-wrap"><table style="max-width: 600px;">
-        <tr><th scope="col">Metric</th><th scope="col">Value</th><th scope="col">National Rank</th></tr>
-        <tr><td>Total Nurse Staffing HPRD</td><td>{metric_cell(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')}</td><td>#{rank_total_nurse} of {total_states if total_states else na_display()}</td></tr>
-        <tr><td title="Excludes admin, DON (Director of Nursing)">Direct Care Nurse HPRD</td><td>{metric_cell(get_val('Nurse_Care_HPRD'), 'Nurse_Care_HPRD')}</td><td>#{rank_direct_care} of {total_states if rank_direct_care and total_states else na_display()}</td></tr>
-        <tr><td>RN HPRD</td><td>{metric_cell(get_val('RN_HPRD'), 'RN_HPRD')}</td><td>#{rank_rn_hprd} of {total_states if total_states else na_display()}</td></tr>
-        <tr><td title="Excludes admin, DON (Director of Nursing)">RN Direct Care HPRD</td><td>{metric_cell(get_val('RN_Care_HPRD'), 'RN_Care_HPRD')}</td><td>#{rank_rn_care} of {total_states if rank_rn_care and total_states else na_display()}</td></tr>
-        <tr><td>Nurse Aide HPRD</td><td>{metric_cell(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD')}</td><td>#{rank_nurse_aide} of {total_states if rank_nurse_aide and total_states else na_display()}</td></tr>
-        <tr><td>Contract Staff Percentage</td><td>{metric_cell(get_val('Contract_Percentage'), 'Contract_Percentage')}%</td><td>#{rank_contract} of {total_states if rank_contract and total_states else na_display()}</td></tr>
-        <tr><td>Median Case-Mix HPRD (Acuity)</td><td>{case_mix_median_display}</td><td>#{rank_case_mix_median} of {total_states if rank_case_mix_median and total_states else na_display()}</td></tr>
-        <tr><td>Rural facilities (share)</td><td>{rural_share_display}</td><td>{rural_vs_us_display} · {rural_rank_display}</td></tr>
-    </table></div>
-    {_staffing_rankings_footer}
+    {_staffing_comparison_table}
     </div>
     </details>
     <div class="pbj-page-bottom-stack">
@@ -18453,7 +19941,18 @@ def generate_usa_page():
     crumbs = [('Home', f'{origin}/'), (f'{USA_PAGE_NAME} PBJ Staffing', canonical_url)]
     extra_head = _json_ld_script(web_page) + '\n' + _breadcrumb_list_json_ld(crumbs, page_url=canonical_url)
 
-    layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=extra_head)
+    layout = get_pbj_site_layout(
+        page_title,
+        seo_description,
+        canonical_url,
+        extra_head=extra_head,
+        route_context_overrides={
+            'kind': 'state',
+            'stateAbbr': 'USA',
+            'stateName': USA_PAGE_NAME,
+            'stateSlug': USA_PAGE_SLUG,
+        },
+    )
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
     if HAS_CSRF and generate_csrf:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
@@ -19474,7 +20973,49 @@ def pbjpedia_index():
 # Per-CCN provider page HTML cache (TTL overridable for prod vs local tuning)
 _PROVIDER_PAGE_CACHE = {}
 _PROVIDER_PAGE_CACHE_MAX = 150
+_PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '50'))
 _PROVIDER_COLD_RENDER_SEM = None
+
+
+def _provider_page_html_budget_bytes() -> int:
+    return max(1, int(_PROVIDER_PAGE_HTML_BUDGET_MB * 1024 * 1024))
+
+
+def _provider_page_html_cache_byte_stats() -> dict:
+    sizes = []
+    for _ccn, (_cached_at, html) in _PROVIDER_PAGE_CACHE.items():
+        if isinstance(html, str):
+            sizes.append(utf8_text_bytes(html))
+        elif html is not None:
+            sizes.append(estimate_object_bytes(html) or 0)
+    stats = summarize_byte_sizes(sizes)
+    budget = _provider_page_html_budget_bytes()
+    stats['budget_bytes'] = budget
+    stats['budget_human'] = format_bytes(budget)
+    stats['over_budget'] = stats['total_bytes'] > budget
+    return stats
+
+
+def _enforce_provider_page_html_budget() -> dict:
+    """Evict oldest provider HTML entries when total cached HTML exceeds budget (default 50MB/worker)."""
+    evicted = 0
+    budget = _provider_page_html_budget_bytes()
+    while _PROVIDER_PAGE_CACHE:
+        stats = _provider_page_html_cache_byte_stats()
+        if stats['total_bytes'] <= budget:
+            break
+        oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
+        _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
+        evicted += 1
+    if evicted:
+        final = _provider_page_html_cache_byte_stats()
+        print(
+            f'[MEM] provider_page_html_budget evicted={evicted} '
+            f'total={final.get("total_human")} budget={format_bytes(budget)} '
+            f'entries={final.get("count")}',
+            flush=True,
+        )
+    return _provider_page_html_cache_byte_stats()
 
 
 def _provider_cold_render_semaphore():
@@ -19698,6 +21239,7 @@ def _provider_page_impl(ccn):
             timer.outcome = 'not_found'
             abort(404)
 
+        _log_mem('route_provider_before')
         now = time.time()
         hit = _provider_page_cached_response(prov, now)
         if hit is not None:
@@ -19788,6 +21330,7 @@ def _provider_page_impl(ccn):
         _ensure_provider_indexes_hydrated()
         t_sec = time.perf_counter()
         facility_df = load_facility_quarterly_for_provider(prov)
+        _log_mem('route_provider_facility_df')
         provider_section_record('facility_quarterly', t_sec)
         if facility_df is None or facility_df.empty:
             timer.status = 404
@@ -19795,6 +21338,7 @@ def _provider_page_impl(ccn):
             abort(404)
         t_sec = time.perf_counter()
         provider_info_row = _provider_info_row_for_ccn(prov)
+        _log_mem('route_provider_provider_info')
         provider_section_record('provider_info', t_sec)
 
         sem = _provider_cold_render_semaphore()
@@ -19827,6 +21371,8 @@ def _provider_page_impl(ccn):
 
         t_cold = time.perf_counter()
         html = generate_provider_page_html(prov, facility_df, provider_info_row)
+        del facility_df
+        _log_mem('route_provider_html_built')
         timer.cold_render_ms = round((time.perf_counter() - t_cold) * 1000, 1)
         try:
             from flask import g
@@ -19858,7 +21404,8 @@ def _provider_page_impl(ccn):
                 oldest_key = min(_PROVIDER_PAGE_CACHE, key=lambda k: _PROVIDER_PAGE_CACHE[k][0])
                 _PROVIDER_PAGE_CACHE.pop(oldest_key, None)
             _PROVIDER_PAGE_CACHE[prov] = (now, html)
-        _log_mem("route_provider_after")
+            _enforce_provider_page_html_budget()
+        _log_mem('route_provider_after', gc_collect=True)
         timer.outcome = 'cold_render'
         timer.status = 200
         return html, 200, _provider_page_html_headers(cache_hit=False)
@@ -19930,6 +21477,7 @@ def provider_staffing_compliance_summary_api(ccn):
     """Public-safe compliance counts for a facility quarter (no flagged dates)."""
     from flask import jsonify, request
 
+    _log_mem('compliance_api_before')
     prov = normalize_ccn(ccn)
     if not prov:
         return jsonify({'error': 'invalid ccn'}), 400
@@ -19940,7 +21488,9 @@ def provider_staffing_compliance_summary_api(ccn):
         return jsonify({'error': 'quarter required'}), 400
     summary = get_provider_staffing_compliance_public(prov, quarter)
     if summary is None:
+        _log_mem('compliance_api_after')
         return jsonify({'ccn': prov, 'quarter': quarter, 'available': False}), 404
+    _log_mem('compliance_api_after')
     return jsonify({'ccn': prov, 'quarter': quarter, 'available': True, 'summary': summary})
 
 
@@ -20023,6 +21573,16 @@ def canonical_state_page(state_slug):
         csv_path = os.path.join(APP_ROOT, state_slug)
         if os.path.isfile(csv_path):
             return send_file(csv_path, mimetype='text/csv')
+        from flask import abort
+        abort(404)
+
+    # Handle root-level JS bundles (public-search.js, etc.)
+    if state_slug.endswith('.js'):
+        js_path = os.path.join(APP_ROOT, state_slug)
+        if os.path.isfile(js_path):
+            return _static_cache_headers(
+                send_from_directory(APP_ROOT, state_slug, mimetype='application/javascript')
+            )
         from flask import abort
         abort(404)
     
@@ -20184,7 +21744,18 @@ def generate_state_page(state_code):
         state_extra_head += (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
         )
-    layout = get_pbj_site_layout(page_title, seo_description, canonical_url, extra_head=state_extra_head)
+    layout = get_pbj_site_layout(
+        page_title,
+        seo_description,
+        canonical_url,
+        extra_head=state_extra_head,
+        route_context_overrides={
+            'kind': 'state',
+            'stateAbbr': state_code,
+            'stateName': state_name,
+            'stateSlug': get_canonical_slug(state_code),
+        },
+    )
     html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
     if HAS_CSRF and generate_csrf:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
@@ -21953,6 +23524,34 @@ def compress_response(response):
             response.headers['Content-Length'] = len(compressed)
         except Exception:
             pass
+    return response
+
+
+@app.after_request
+def _rewrite_site_script_versions(response):
+    """Keep pbj-site-universal.js version current on cached dynamic HTML; drop separate public-search tags."""
+    if response.status_code != 200 or response.direct_passthrough:
+        return response
+    ct = (response.headers.get('Content-Type') or '').split(';')[0].strip().lower()
+    if ct != 'text/html':
+        return response
+    try:
+        html = response.get_data(as_text=True)
+        if not html or 'pbj-site-universal.js' not in html:
+            return response
+        html = _rewrite_universal_js_version(html)
+        html = re.sub(
+            r'<script[^>]+src="/public-search\.js[^"]*"[^>]*>\s*</script>\s*',
+            '',
+            html,
+            flags=re.IGNORECASE,
+        )
+        data = html.encode(response.charset or 'utf-8')
+        response.set_data(data)
+        if not response.headers.get('Content-Encoding'):
+            response.headers['Content-Length'] = len(data)
+    except Exception:
+        pass
     return response
 
 

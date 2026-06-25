@@ -9179,7 +9179,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-content {{ padding: clamp(16px, 2.5vw, 24px) 20px 40px; max-width: 1100px; margin: 0 auto; }}
 .pbj-content-box {{ background: #111827; border-radius: 16px; padding: 40px 48px; margin-bottom: 24px; border: 1px solid rgba(51, 65, 85, 0.55); box-shadow: 0 12px 40px -20px rgba(15, 23, 42, 0.75); color: #e2e8f0; transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease; }}
 .pbj-content-box:hover {{ box-shadow: 0 16px 44px -18px rgba(15, 23, 42, 0.85); border-color: rgba(71, 85, 105, 0.7); }}
-.pbj-takeaway {{ background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(99, 102, 241, 0.2) !important; box-shadow: 0 12px 36px -16px rgba(15, 23, 42, 0.75); }}
+.pbj-takeaway {{ background: rgba(15, 23, 42, 0.5); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(99, 102, 241, 0.2) !important; box-shadow: 0 12px 36px -16px rgba(15, 23, 42, 0.75); overflow: visible; }}
 .pbj-takeaway:hover {{ border-color: rgba(129, 140, 248, 0.35) !important; box-shadow: 0 16px 40px -14px rgba(99, 102, 241, 0.12); }}
 .pbj-content-box h1 {{ font-size: 2rem; color: #818cf8; margin-bottom: 0.5rem; font-weight: 700; }}
 .pbj-content-box h2 {{ font-size: 1.4rem; color: #818cf8; margin-top: 1.5rem; margin-bottom: 0.75rem; font-weight: 600; }}
@@ -9425,6 +9425,139 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-staffing-cmp-info-wrap:hover .pbj-staffing-cmp-popover,
 .pbj-staffing-cmp-info-wrap.is-open .pbj-staffing-cmp-popover {{
   opacity: 1;
+  pointer-events: auto;
+}}
+.pbj-entity-states-badge-wrap {{
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  margin-bottom: 6px;
+}}
+.pbj-entity-states-badge-btn {{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  font: inherit;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e4e4e7;
+  background: rgba(39, 39, 42, 0.75);
+  border: 1px solid #3f3f46;
+  transition: all 0.2s ease;
+}}
+.pbj-entity-states-badge-chevron {{
+  font-size: 0.65em;
+  line-height: 1;
+  color: rgba(161, 161, 170, 0.9);
+  transition: transform 0.15s ease;
+}}
+.pbj-entity-states-badge-btn:focus-visible {{
+  filter: brightness(1.06);
+  outline: 2px solid rgba(129, 140, 248, 0.4);
+  outline-offset: 2px;
+}}
+.pbj-entity-states-badge-wrap.is-open .pbj-entity-states-badge-btn {{
+  filter: brightness(1.04);
+}}
+.pbj-entity-states-badge-wrap.is-open .pbj-entity-states-badge-chevron {{
+  transform: rotate(180deg);
+}}
+.pbj-takeaway-badges-row .pbj-entity-states-badge-btn {{
+  background: rgba(67, 56, 202, 0.18);
+  color: #a5b4fc;
+  border: 1px solid rgba(129, 140, 248, 0.35);
+}}
+.pbj-entity-states-badge-wrap .pbj-staffing-cmp-popover {{
+  left: 0;
+  right: auto;
+  min-width: 220px;
+  display: none;
+  opacity: 1;
+  pointer-events: none;
+  transition: none;
+}}
+.pbj-entity-states-badge-wrap .entity-states-popover {{
+  padding: 0;
+  overflow: hidden;
+  width: max-content;
+  min-width: 11.5rem;
+  max-width: min(260px, calc(100vw - 32px));
+}}
+.pbj-entity-states-badge-wrap.is-open .pbj-staffing-cmp-popover {{
+  display: block;
+  pointer-events: auto;
+}}
+.entity-states-popover .pbj-entity-states-list {{
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  list-style: none;
+  max-height: min(280px, 45vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}}
+.entity-states-popover .pbj-entity-states-row {{
+  margin: 0;
+  padding: 0;
+}}
+.entity-states-popover .pbj-entity-states-row + .pbj-entity-states-row {{
+  border-top: 1px solid rgba(99, 102, 241, 0.14);
+}}
+.entity-states-popover .pbj-entity-states-row a {{
+  color: #a5b4fc;
+  text-decoration: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.15rem;
+  min-height: 2.25rem;
+  border-radius: 4px;
+  line-height: 1.35;
+}}
+.entity-states-popover .pbj-entity-states-name {{
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}}
+.entity-states-popover .pbj-entity-states-row a:hover,
+.entity-states-popover .pbj-entity-states-row a:focus-visible {{
+  color: #c7d2fe;
+  background: rgba(99, 102, 241, 0.12);
+  text-decoration: none;
+  outline: none;
+}}
+.pbj-entity-states-count {{
+  justify-self: end;
+  color: rgba(203, 213, 225, 0.88);
+  font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 2ch;
+  padding-left: 0.25rem;
+}}
+.pbj-takeaway.pbj-takeaway--states-popover-open {{
+  position: relative;
+  z-index: 40;
+}}
+.entity-states-popover.pbj-entity-states-popover--viewport {{
+  display: block;
+  opacity: 1;
+  visibility: visible;
+  z-index: 10050;
+  min-width: 11.5rem;
+  max-width: min(260px, calc(100vw - 32px));
+  width: max-content;
+  top: auto;
+  right: auto;
+  bottom: auto;
   pointer-events: auto;
 }}
 .pbj-staffing-cmp-popover.pbj-staffing-cmp-popover--fixed {{
@@ -11174,6 +11307,24 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     left: 0;
     max-width: min(280px, calc(100vw - 32px));
   }}
+  .pbj-entity-states-badge-wrap .entity-states-popover {{
+    min-width: 11.5rem;
+    max-width: min(260px, calc(100vw - 32px));
+  }}
+  .entity-states-popover .pbj-entity-states-list {{
+    max-height: min(240px, 40vh);
+    padding: 0.5rem 0.85rem 0.5rem 0.75rem;
+  }}
+  .entity-states-popover .pbj-entity-states-row a {{
+    padding: 0.55rem 0.1rem;
+    min-height: 2.75rem;
+    gap: 0.75rem;
+  }}
+  .pbj-entity-states-count {{
+    min-width: 2ch;
+    padding-left: 0.35rem;
+    padding-right: 0.1rem;
+  }}
   .state-page-charts .pbj-chart-header-state-mobile.section-header {{
     font-size: 0.84rem;
     margin-bottom: 0.15rem;
@@ -11561,6 +11712,97 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       tooltip.style.bottom = 'auto';
       requestAnimationFrame(function() { clampTooltipToViewport(tooltip); });
     }
+    function clearEntityStatesViewport(popover) {
+      if (!popover) return;
+      popover.classList.remove('pbj-entity-states-popover--viewport');
+      popover.style.position = '';
+      popover.style.top = '';
+      popover.style.left = '';
+      popover.style.right = '';
+      popover.style.width = '';
+      popover.style.minWidth = '';
+      popover.style.maxWidth = '';
+      popover.style.bottom = '';
+      popover.style.transform = '';
+      popover.style.zIndex = '';
+      popover.style.display = '';
+      popover.style.opacity = '';
+      popover.style.visibility = '';
+      var list = popover.querySelector('.pbj-entity-states-list');
+      if (list) list.style.maxHeight = '';
+      if (popover._pbjStatesPortalHome && popover.parentNode === document.body) {
+        var home = popover._pbjStatesPortalHome;
+        if (home.parent) {
+          if (home.next && home.next.parentNode === home.parent) {
+            home.parent.insertBefore(popover, home.next);
+          } else {
+            home.parent.appendChild(popover);
+          }
+        }
+      }
+    }
+    function isEntityStatesMobile() {
+      return !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+    }
+    function entityStatesPopoverForWrap(wrap) {
+      return wrap._pbjStatesPopover || wrap.querySelector('.pbj-staffing-cmp-popover');
+    }
+    function positionEntityStatesPopover(wrap, popover) {
+      if (!isEntityStatesMobile()) {
+        clearEntityStatesViewport(popover);
+        return;
+      }
+      var btn = wrap.querySelector('.pbj-entity-states-badge-btn');
+      if (!btn) return;
+      if (!popover._pbjStatesPortalHome) {
+        popover._pbjStatesPortalHome = { parent: popover.parentNode, next: popover.nextSibling };
+      }
+      if (popover.parentNode !== document.body) {
+        document.body.appendChild(popover);
+      }
+      var r = btn.getBoundingClientRect();
+      var margin = 12;
+      var vw = window.innerWidth || document.documentElement.clientWidth;
+      var vh = window.innerHeight || document.documentElement.clientHeight;
+      popover.classList.add('pbj-entity-states-popover--viewport');
+      popover.style.display = 'block';
+      popover.style.opacity = '1';
+      popover.style.visibility = 'visible';
+      popover.style.position = 'fixed';
+      popover.style.width = 'max-content';
+      popover.style.minWidth = '11.5rem';
+      popover.style.maxWidth = (vw - margin * 2) + 'px';
+      popover.style.top = (r.bottom + 4) + 'px';
+      popover.style.left = Math.max(margin, r.left) + 'px';
+      popover.style.right = 'auto';
+      popover.style.bottom = 'auto';
+      popover.style.transform = '';
+      popover.style.zIndex = '10050';
+      requestAnimationFrame(function() {
+        var list = popover.querySelector('.pbj-entity-states-list');
+        var popRect = popover.getBoundingClientRect();
+        var popW = popRect.width;
+        var left = Math.max(margin, Math.min(r.left, vw - margin - popW));
+        var top = r.bottom + 4;
+        popover.style.left = left + 'px';
+        popover.style.top = top + 'px';
+        if (!list) return;
+        var available = vh - margin - top;
+        if (popRect.height > available) {
+          list.style.maxHeight = Math.max(120, available - 12) + 'px';
+        } else {
+          list.style.maxHeight = '';
+        }
+        popRect = popover.getBoundingClientRect();
+        if (top + popRect.height > vh - margin) {
+          var aboveTop = r.top - popRect.height - 4;
+          if (aboveTop >= margin) {
+            popover.style.top = aboveTop + 'px';
+            list.style.maxHeight = '';
+          }
+        }
+      });
+    }
     document.addEventListener('DOMContentLoaded', function() {
       document.querySelectorAll('.pbj-high-risk-help-wrap').forEach(function(wrap) {
         var tooltip = wrap.querySelector('.pbj-high-risk-tooltip');
@@ -11597,10 +11839,34 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       function bindStaffingCmpPopover(wrap) {
         if (!wrap || wrap.getAttribute('data-pbj-cmp-bound')) return;
         wrap.setAttribute('data-pbj-cmp-bound', '1');
-        var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn');
+        var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn, .pbj-entity-states-badge-btn');
         var popover = wrap.querySelector('.pbj-staffing-cmp-popover');
         if (!btn || !popover) return;
+        if (wrap.classList.contains('pbj-entity-states-badge-wrap')) {
+          wrap._pbjStatesPopover = popover;
+        }
         var inDetails = !!wrap.closest('.pbj-details-content');
+        var isEntityStates = wrap.classList.contains('pbj-entity-states-badge-wrap');
+        var takeaway = isEntityStates ? wrap.closest('.pbj-takeaway') : null;
+        function setTakeawayElevated(on) {
+          if (takeaway) takeaway.classList.toggle('pbj-takeaway--states-popover-open', !!on);
+        }
+        function openEntityStates() {
+          wrap.classList.add('is-open');
+          btn.setAttribute('aria-expanded', 'true');
+          setTakeawayElevated(true);
+          if (isEntityStatesMobile()) {
+            requestAnimationFrame(function() {
+              positionEntityStatesPopover(wrap, popover);
+            });
+          }
+        }
+        function closeEntityStates() {
+          wrap.classList.remove('is-open');
+          btn.setAttribute('aria-expanded', 'false');
+          clearEntityStatesViewport(popover);
+          setTakeawayElevated(false);
+        }
         function positionPopover() {
           if (inDetails) {
             positionTooltipInDetails(wrap, popover);
@@ -11612,6 +11878,23 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         function clearPopover() {
           popover.classList.remove('pbj-staffing-cmp-popover--fixed');
           clearTooltipPosition(popover);
+          if (isEntityStates) closeEntityStates();
+        }
+        if (isEntityStates) {
+          btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (wrap.classList.contains('is-open')) closeEntityStates();
+            else openEntityStates();
+          });
+          btn.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && wrap.classList.contains('is-open')) {
+              e.preventDefault();
+              closeEntityStates();
+              btn.focus();
+            }
+          });
+          return;
         }
         wrap.addEventListener('mouseenter', function() {
           if (!wrap.classList.contains('is-open')) positionPopover();
@@ -11637,14 +11920,20 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           if (tooltip) clearTooltipPosition(tooltip);
         });
         if (e.target && e.target.closest && e.target.closest('.pbj-staffing-cmp-info-wrap')) return;
+        if (e.target && e.target.closest && e.target.closest('.entity-states-popover')) return;
         document.querySelectorAll('.pbj-staffing-cmp-info-wrap.is-open').forEach(function(wrap) {
           wrap.classList.remove('is-open');
-          var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn');
+          var btn = wrap.querySelector('.pbj-staffing-cmp-info-btn, .pbj-entity-states-badge-btn');
           if (btn) btn.setAttribute('aria-expanded', 'false');
-          var popover = wrap.querySelector('.pbj-staffing-cmp-popover');
+          var popover = entityStatesPopoverForWrap(wrap) || wrap.querySelector('.pbj-staffing-cmp-popover');
           if (popover) {
             popover.classList.remove('pbj-staffing-cmp-popover--fixed');
             clearTooltipPosition(popover);
+          }
+          if (wrap.classList.contains('pbj-entity-states-badge-wrap')) {
+            var takeaway = wrap.closest('.pbj-takeaway');
+            if (takeaway) takeaway.classList.remove('pbj-takeaway--states-popover-open');
+            if (popover) clearEntityStatesViewport(popover);
           }
         });
       });
@@ -15288,8 +15577,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     base_url = _public_site_origin()
     state_link = f'<a href="/state/{canonical_slug}">{state_code}</a>' if (canonical_slug and state_code) else (state_code or state_name)
     # Entity link (relative); same style as other footer links (no brighter color)
-    entity_link = f'<a href="/entity/{entity_id}">{html.escape(entity_name or '')}</a>' if entity_id and entity_name else (entity_name or '')
-    entity_breadcrumb_link = f'<a href="/entity/{entity_id}">{html.escape(entity_name or '')}</a>' if entity_id and entity_name else ''
+    _entity_name_esc = html.escape(entity_name or '')
+    entity_link = (
+        f'<a href="/entity/{entity_id}">{_entity_name_esc}</a>'
+        if entity_id and entity_name
+        else (entity_name or '')
+    )
+    entity_breadcrumb_link = (
+        f'<a href="/entity/{entity_id}">{_entity_name_esc}</a>' if entity_id and entity_name else ''
+    )
     # Residents count for subtitle (census_int set later; we need it here for location line)
     # Prefer provider info for the same quarter as the page so case-mix matches displayed HPRD quarter
     pi = provider_info_row or {}
@@ -16637,6 +16933,51 @@ def _page_switcher_script_tag() -> str:
     return f'<script src="/pbj-page-switcher.js?v={PBJ_PAGE_SWITCHER_JS_VERSION}"></script>'
 
 
+def render_entity_states_badge_html(
+    state_counts: dict[str, int],
+    *,
+    badge_style: str,
+    uid: str,
+) -> str:
+    """Entity takeaway badge: hover or click/tap reveals linked state list with facility counts."""
+    counts = {
+        str(k).strip().upper()[:2]: int(v)
+        for k, v in (state_counts or {}).items()
+        if k and str(k).strip() and int(v or 0) > 0
+    }
+    codes = sorted(counts.keys(), key=lambda c: STATE_CODE_TO_NAME.get(c, c))
+    n_st = len(codes)
+    if n_st <= 0:
+        return ''
+    label = f'{n_st} State' if n_st == 1 else f'{n_st} States'
+    uid_safe = re.sub(r'[^a-zA-Z0-9_-]', '', str(uid or 'entity'))[:48] or 'entity'
+    pop_id = f'entityStatesPop-{uid_safe}'
+    list_items: list[str] = []
+    for abbr in codes:
+        name = STATE_CODE_TO_NAME.get(abbr, abbr)
+        slug = get_canonical_slug(abbr)
+        cnt = counts[abbr]
+        href = html.escape(f'/state/{slug}', quote=True)
+        list_items.append(
+            f'<div class="pbj-entity-states-row">'
+            f'<a href="{href}"><span class="pbj-entity-states-name">{html.escape(name)}</span>'
+            f'<span class="pbj-entity-states-count">{cnt:,}</span></a></div>'
+        )
+    states_plain = ', '.join(STATE_CODE_TO_NAME.get(c, c) for c in codes)
+    aria_label = html.escape(f'{label}: {states_plain}', quote=True)
+    return (
+        f'<span class="pbj-staffing-cmp-info-wrap pbj-entity-states-badge-wrap">'
+        f'<button type="button" class="pbj-entity-states-badge-btn" '
+        f'aria-expanded="false" aria-haspopup="listbox" aria-controls="{pop_id}" aria-label="{aria_label}">'
+        f'{html.escape(label)}'
+        f'<span class="pbj-entity-states-badge-chevron" aria-hidden="true">\u25be</span>'
+        f'</button>'
+        f'<span id="{pop_id}" class="pbj-staffing-cmp-popover entity-states-popover" role="tooltip">'
+        f'<div class="pbj-entity-states-list">{"".join(list_items)}</div>'
+        f'</span></span>'
+    )
+
+
 def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None):
     """Generate HTML for entity (chain) page. facilities: list of dicts with ccn, name, city, state, optional metrics.
     If chain_row is provided (from load_chain_performance), enrich the PBJ Takeaway narrative from CMS chain data.
@@ -16690,6 +17031,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 
     # Chain-level metrics from latest quarter (aggregate across facilities)
     states_set = set()
+    states_counter: dict[str, int] = {}
     total_hprd_vals = []
     rn_hprd_vals = []
     contract_vals = []
@@ -16700,6 +17042,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         st = (fac.get('state') or '').strip().upper()[:2]
         if st:
             states_set.add(st)
+            states_counter[st] = states_counter.get(st, 0) + 1
         tn = fac.get('Total_Nurse_HPRD')
         if tn is not None and not (isinstance(tn, float) and pd.isna(tn)):
             total_hprd_vals.append(float(tn))
@@ -16733,7 +17076,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     pbj_takeaway_ownership = ''
     if n > 0:
         _b = 'display:inline-block;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;margin-right:6px;margin-bottom:6px;background:rgba(67,56,202,0.22);color:#818cf8;border:1px solid rgba(129,140,248,0.35);'
-        _scope = f'<span style="{_b}">{n:,} Facilities</span><span style="{_b}">{num_states} States</span>'
+        _scope = (
+            f'<span style="{_b}">{n:,} Facilities</span>'
+            f'{render_entity_states_badge_html(states_counter, badge_style=_b, uid=f"scope-{entity_id}")}'
+        )
         if avg_total is not None:
             _scope += f'<span style="{_b}">Avg Total HPRD: {format_metric_value(avg_total, "Total_Nurse_HPRD")}</span>'
         _entity_esc = html.escape(entity_name or "This chain")
@@ -16750,7 +17096,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
-<p style="margin: 0.5rem 0 0.25rem 0;">{_scope}</p>
+<div class="pbj-takeaway-badges-row" style="display:flex;flex-wrap:wrap;align-items:center;margin:0.5rem 0 0.25rem 0;">{_scope}</div>
 <p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{_p_ops}{_p_value}</p>
 </div>'''
     if not chain_row and _entity_ps:
@@ -16822,7 +17168,10 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         _badge_neutral = 'display:inline-block;padding:4px 10px;border-radius:6px;font-size:0.8rem;font-weight:600;margin-right:6px;margin-bottom:6px;background:rgba(39,39,42,0.55);color:#a1a1aa;border:1px solid #3f3f46;'
         _fp = round_half_up(for_profit, 0) if for_profit is not None else None
         fp_pct = int(_fp) if _fp is not None else None
-        tier1_badges = f'<span style="{_badge}">{n_fac:,} Facilities</span><span style="{_badge}">{n_st} States</span>'
+        tier1_badges = (
+            f'<span style="{_badge}">{n_fac:,} Facilities</span>'
+            f'{render_entity_states_badge_html(states_counter, badge_style=_badge, uid=str(entity_id))}'
+        )
         if fp_pct is not None:
             tier1_badges += f'<span style="{_badge}">{fp_pct}% For-Profit</span>'
         overall_stars = _fractional_stars_html(overall_rating)
@@ -16943,7 +17292,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {PBJ_TAKEAWAY_BRAND_PILL_HTML}
 </div>
 </div>
-<p style="margin: 0.5rem 0 0.25rem 0;">{tier1_badges}</p>
+<div class="pbj-takeaway-badges-row" style="display:flex;flex-wrap:wrap;align-items:center;margin:0.5rem 0 0.25rem 0;">{tier1_badges}</div>
 <p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p1_simple}</p>
 <p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p2}</p>
 <p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p3}</p>

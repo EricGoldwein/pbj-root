@@ -571,7 +571,9 @@ def main():
     """Main analysis function."""
     # File paths
     base_path = Path(__file__).parent
-    sff_json_path = base_path / 'pbj-wrapped' / 'public' / 'sff-facilities.json'
+    sff_json_path = base_path / 'data' / 'derived' / 'sff' / 'sff_facilities.json'
+    if not sff_json_path.is_file():
+        sff_json_path = base_path / 'pbj-wrapped' / 'public' / 'sff-facilities.json'
     facility_csv_path = base_path / 'facility_lite_metrics.csv'
     provider_csv_path = base_path / 'provider_info_combined.csv'
     

@@ -85,30 +85,20 @@ def _run_git(args: List[str]) -> str:
 
 
 def _latest_provider_months() -> Tuple[Optional[str], Optional[str], Optional[Path]]:
-    candidates = []
-    latest_path = None
-    provider_files = list((REPO_ROOT / "provider_info").glob("NH_ProviderInfo_*.csv"))
-    for p in provider_files:
-        parsed = _parse_provider_filename(p)
-        if parsed:
-            y, mo = parsed
-            candidates.append((y, mo))
-    if provider_files:
-        latest_path = max(provider_files, key=lambda p: p.stat().st_mtime)
-    if not candidates:
-        return None, None, latest_path
-    uniq = sorted(set(candidates), reverse=True)
-    latest = _format_month_year(uniq[0][0], uniq[0][1])
-    previous = _format_month_year(uniq[1][0], uniq[1][1]) if len(uniq) > 1 else latest
+    from utils.date_utils import (  # pylint: disable=import-error
+        _latest_two_provider_info_months,
+        newest_provider_snapshot_path,
+    )
+
+    latest, previous = _latest_two_provider_info_months(REPO_ROOT)
+    latest_path = newest_provider_snapshot_path(REPO_ROOT)
     return latest, previous, latest_path
 
 
 def _latest_provider_snapshot_file() -> Optional[Path]:
-    provider_dir = REPO_ROOT / "provider_info"
-    snaps = list(provider_dir.glob("NH_ProviderInfo_*.csv"))
-    if not snaps:
-        return None
-    return max(snaps, key=lambda p: p.stat().st_mtime)
+    from utils.date_utils import newest_provider_snapshot_path  # pylint: disable=import-error
+
+    return newest_provider_snapshot_path(REPO_ROOT)
 
 
 def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
@@ -426,6 +416,175 @@ def _check_state_quarterly_lpn_columns(errors: List[str], notes: List[str]) -> N
     notes.append("state_quarterly_metrics.csv includes LPN_HPRD and LPN_Care_HPRD.")
 
 
+def _pdf_release_tag(filename: str) -> Optional[str]:
+    """YYYY-MM tag from an SFF posting PDF filename."""
+    try:
+        from sff_paths import extract_pdf_release_parts  # pylint: disable=import-error
+
+        parts = extract_pdf_release_parts(filename)
+        if not parts:
+            return None
+        year, month_num, _ = parts
+        return f"{year:04d}-{month_num:02d}"
+    except Exception:
+        return None
+
+
+def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
+    """Public SFF JSON must match newest raw PDF and fill months_as_sff for SFF rows."""
+    try:
+        from sff_paths import (  # pylint: disable=import-error
+            SFF_FACILITIES_JSON,
+            SFF_PUBLIC_JSON,
+            find_latest_raw_pdf,
+        )
+    except Exception as exc:
+        errors.append(f"SFF path helpers unavailable: {exc}")
+        return
+
+    if not SFF_PUBLIC_JSON.is_file():
+        errors.append("pbj-wrapped/public/sff-facilities.json missing (run scripts/sff/publish_sff_artifacts.py)")
+        return
+
+    try:
+        with SFF_PUBLIC_JSON.open("r", encoding="utf-8") as handle:
+            public_data = json.load(handle)
+    except Exception as exc:
+        errors.append(f"could not parse {SFF_PUBLIC_JSON.name}: {exc}")
+        return
+
+    doc = public_data.get("document_date") or {}
+    public_release = str(doc.get("source_release") or "").strip()
+    latest_pdf = find_latest_raw_pdf()
+    if latest_pdf is None:
+        errors.append("no raw SFF PDF found under data_sources/cms/sff/raw")
+    else:
+        expected_release = _pdf_release_tag(latest_pdf.name)
+        if expected_release and public_release != expected_release:
+            errors.append(
+                "SFF public JSON source_release mismatch: "
+                f"public={public_release or 'n/a'} newest_pdf={expected_release} ({latest_pdf.name})"
+            )
+
+    facilities = public_data.get("facilities") or []
+    sff_rows = [row for row in facilities if isinstance(row, dict) and row.get("category") == "SFF"]
+    with_months = 0
+    if not sff_rows:
+        errors.append("public sff-facilities.json has no SFF category rows")
+    else:
+        with_months = sum(1 for row in sff_rows if row.get("months_as_sff") is not None)
+        if with_months < len(sff_rows):
+            errors.append(
+                f"months_as_sff missing for {len(sff_rows) - with_months}/{len(sff_rows)} public SFF rows"
+            )
+
+    if SFF_FACILITIES_JSON.is_file():
+        try:
+            with SFF_FACILITIES_JSON.open("r", encoding="utf-8") as handle:
+                derived_data = json.load(handle)
+            derived_release = str((derived_data.get("document_date") or {}).get("source_release") or "").strip()
+            if public_release and derived_release and public_release != derived_release:
+                errors.append(
+                    f"SFF derived vs public source_release mismatch: derived={derived_release} public={public_release}"
+                )
+        except Exception as exc:
+            errors.append(f"could not parse derived SFF JSON: {exc}")
+
+    notes.append(
+        "SFF public artifact: "
+        f"release={public_release or 'n/a'}, sff_rows={len(sff_rows)}, "
+        f"months_as_sff={with_months}/{len(sff_rows)}"
+    )
+
+
+def _parse_chain_performance_month(path_obj: Path) -> Optional[Tuple[int, int]]:
+    """Parse Month_Year from Nursing_Home_Chain_Performance_Measures_May_2026.csv."""
+    m_word = re.search(
+        r"(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|"
+        r"sep|sept|september|oct|october|nov|november|dec|december)[_-](\d{4})",
+        path_obj.stem,
+        re.IGNORECASE,
+    )
+    if not m_word:
+        return None
+    month = MONTH_LOOKUP.get(m_word.group(1).lower())
+    if not month:
+        return None
+    return int(m_word.group(2)), month
+
+
+def _latest_chain_performance_csv() -> Optional[Path]:
+    ownership_dir = REPO_ROOT / "ownership"
+    files = list(ownership_dir.glob("Nursing_Home_Chain_Performance_Measures_*.csv"))
+    dated: List[Tuple[Tuple[int, int], Path]] = []
+    for path in files:
+        parsed = _parse_chain_performance_month(path)
+        if parsed:
+            dated.append((parsed, path))
+    if not dated:
+        return None
+    dated.sort(key=lambda item: item[0], reverse=True)
+    return dated[0][1]
+
+
+def _check_chain_csv_freshness(errors: List[str], notes: List[str]) -> None:
+    """Newest chain CSV must be tracked in git and include spot entity 885 (Baptist Home)."""
+    latest = _latest_chain_performance_csv()
+    if latest is None:
+        errors.append("no Nursing_Home_Chain_Performance_Measures_*.csv found in ownership/")
+        return
+
+    rel = latest.relative_to(REPO_ROOT).as_posix()
+    try:
+        tracked = {line.strip().replace("\\", "/") for line in _run_git(["ls-files"]).splitlines()}
+    except subprocess.CalledProcessError as exc:
+        errors.append(f"could not inspect git-tracked chain CSVs: {exc}")
+        tracked = set()
+    if tracked and rel not in tracked:
+        errors.append(
+            f"newest chain performance CSV is not git-tracked (prod will miss entity takeaway data): {rel}"
+        )
+
+    parsed = _parse_chain_performance_month(latest)
+    month_label = _format_month_year(parsed[0], parsed[1]) if parsed else latest.name
+
+    try:
+        import pandas as pd  # pylint: disable=import-error
+    except Exception:
+        notes.append("Skipped chain spot-check: pandas unavailable.")
+        return
+
+    try:
+        df = pd.read_csv(latest, dtype=str, low_memory=False)
+    except Exception as exc:
+        errors.append(f"could not read chain CSV {latest.name}: {exc}")
+        return
+
+    id_col = next((c for c in df.columns if str(c).strip().lower() in ("chain id", "chain_id")), None)
+    name_col = next((c for c in df.columns if str(c).strip().lower() == "chain"), None)
+    if not id_col:
+        errors.append(f"chain CSV missing Chain ID column: {latest.name}")
+        return
+
+    spot_id = "885"
+    hit = df[df[id_col].astype(str).str.strip().str.split(".").str[0] == spot_id]
+    if hit.empty:
+        errors.append(f"chain spot entity {spot_id} missing from newest chain CSV ({latest.name})")
+        return
+
+    chain_name = ""
+    if name_col and not hit.empty:
+        chain_name = str(hit.iloc[0].get(name_col) or "").strip()
+    if "BAPTIST" not in chain_name.upper():
+        errors.append(
+            f"chain spot entity {spot_id} name unexpected in {latest.name}: {chain_name or 'n/a'}"
+        )
+
+    notes.append(
+        f"Chain CSV fresh: {latest.name} ({month_label}), spot entity {spot_id}={chain_name or 'ok'}"
+    )
+
+
 def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
     """Unit tests for public case-mix export rule (no full app data load)."""
     script = REPO_ROOT / "scripts" / "check_public_case_mix_export.py"
@@ -453,6 +612,28 @@ def _check_public_case_mix_export(errors: List[str], notes: List[str]) -> None:
     notes.append("Public case-mix export unit checks passed.")
 
 
+def _check_provider_release_handoff(errors: List[str], notes: List[str]) -> None:
+    """Ensure newest Norm has paired NH locally and passes norm validate (PBJapp parity)."""
+    script = REPO_ROOT / "scripts" / "verify_provider_release_handoff.py"
+    if not script.is_file():
+        notes.append("Skipped provider handoff check: verify_provider_release_handoff.py missing.")
+        return
+    proc = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    for line in (proc.stdout or "").splitlines():
+        if line.startswith("[INFO] "):
+            notes.append(f"provider handoff: {line[7:]}")
+        elif line.startswith("[FAIL] "):
+            errors.append(line[7:])
+    if proc.returncode != 0 and not any("provider handoff" in e for e in errors):
+        tail = ((proc.stdout or "") + (proc.stderr or "")).strip().splitlines()
+        errors.append(f"provider release handoff check failed: {tail[-1] if tail else proc.returncode}")
+
+
 def main() -> int:
     os.chdir(REPO_ROOT)
     errors: List[str] = []
@@ -467,7 +648,10 @@ def main() -> int:
         _check_state_quarterly_median_columns(errors, notes)
         _check_state_quarterly_lpn_columns(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
+        _check_sff_public_artifacts(errors, notes)
+        _check_chain_csv_freshness(errors, notes)
         _check_public_case_mix_export(errors, notes)
+        _check_provider_release_handoff(errors, notes)
     except Exception as exc:  # broad on purpose for guardrail script
         errors.append(f"validator crashed: {exc}")
 

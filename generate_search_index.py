@@ -70,6 +70,8 @@ def _norm_provider_row(row):
 def load_sff_ccns(script_dir):
     """Load CCN -> category ('SFF' or 'Candidate') from sff-facilities.json. Used to enrich search index when CSV has no sff_status."""
     paths = [
+        os.path.join(script_dir, 'data', 'derived', 'sff', 'sff_facilities.json'),
+        'data/derived/sff/sff_facilities.json',
         os.path.join(script_dir, 'pbj-wrapped', 'public', 'sff-facilities.json'),
         'pbj-wrapped/public/sff-facilities.json',
         os.path.join(script_dir, 'sff-facilities.json'),
@@ -97,10 +99,15 @@ def load_sff_ccns(script_dir):
 
 
 def load_chain_performance_facility_count(script_dir):
-    """Load Chain ID -> Number of facilities from CMS Chain Performance CSV.
-    Prefers 2025-11/Chain_Performance_20260218.csv. Returns dict chain_id (int) -> facility count (int)."""
+    """Load Chain ID -> Number of facilities from newest CMS Chain Performance CSV."""
+    ownership_dir = os.path.join(script_dir, 'ownership')
+    chain_glob = os.path.join(ownership_dir, 'Nursing_Home_Chain_Performance_Measures_*.csv')
+    chain_paths = sorted(glob.glob(chain_glob), key=os.path.getmtime, reverse=True)
     canonical = os.path.join(script_dir, '2025-11', 'Chain_Performance_20260218.csv')
-    for path in [canonical] + [os.path.join(script_dir, p) for p in ['chain_performance.csv', '2025-11/Chain_Performance_20260218.csv']]:
+    for path in chain_paths + [canonical] + [
+        os.path.join(script_dir, 'chain_performance.csv'),
+        os.path.join(script_dir, '2025-11', 'Chain_Performance_20260218.csv'),
+    ]:
         if not os.path.isfile(path):
             continue
         try:

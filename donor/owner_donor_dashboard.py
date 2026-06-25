@@ -89,10 +89,10 @@ app = Flask(__name__, template_folder='templates')
 # Data paths
 BASE_DIR = Path(__file__).parent.parent
 OWNERS_DB = BASE_DIR / "donor" / "output" / "owners_database.csv"
-OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_Jan_2026.csv"  # Full 250k CSV
+OWNERSHIP_RAW = BASE_DIR / "ownership" / "SNF_All_Owners_May_2026.csv"  # fallback; see _get_latest_ownership_raw_path
 OWNERSHIP_NORM = BASE_DIR / "donor" / "output" / "ownership_normalized.csv"
 PROVIDER_INFO = BASE_DIR / "provider_info_combined.csv"
-PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Dec2025.csv"  # Has Legal Business Name
+PROVIDER_INFO_LATEST = BASE_DIR / "provider_info" / "NH_ProviderInfo_Mar2026.csv"  # fallback; see _get_latest_provider_info_path
 FACILITY_NAME_MAPPING = BASE_DIR / "donor" / "output" / "facility_name_mapping.csv"  # Pre-computed mapping
 ENTITY_LOOKUP = BASE_DIR / "ownership" / "entity_lookup.csv"
 DONATIONS_DB = BASE_DIR / "donor" / "output" / "owner_donations_database.csv"
@@ -109,6 +109,28 @@ facility_metrics_df = None
 
 _data_loaded = False
 _data_load_lock = threading.Lock()
+
+
+def _get_latest_provider_info_path() -> tuple[Path, None]:
+    """Newest NH_ProviderInfo_*.csv by mtime (Legal Business Name matching)."""
+    provider_dir = BASE_DIR / "provider_info"
+    files = [p for p in provider_dir.glob("NH_ProviderInfo_*.csv") if p.is_file()]
+    if files:
+        return max(files, key=lambda p: p.stat().st_mtime), None
+    return PROVIDER_INFO_LATEST, None
+
+
+def _get_latest_ownership_raw_path() -> tuple[Path, None]:
+    """Newest SNF_All_Owners*.csv (same resolver as /owners profiles)."""
+    try:
+        from ownership.owner_profile import snf_owners_csv_path
+
+        path = snf_owners_csv_path()
+        if path and path.is_file():
+            return path, None
+    except Exception:
+        pass
+    return OWNERSHIP_RAW, None
 
 
 def ensure_data_loaded() -> None:
@@ -312,16 +334,17 @@ def load_data():
     
     # Load latest provider info with Legal Business Name (for facility matching)
     global provider_info_latest_df
-    if PROVIDER_INFO_LATEST.exists():
+    provider_latest_path, _ = _get_latest_provider_info_path()
+    if provider_latest_path.exists():
         try:
-            print(f"Loading latest provider info with Legal Business Name: {PROVIDER_INFO_LATEST}")
-            provider_info_latest_df = pd.read_csv(PROVIDER_INFO_LATEST, dtype=str, low_memory=False)
+            print(f"Loading latest provider info with Legal Business Name: {provider_latest_path}")
+            provider_info_latest_df = pd.read_csv(provider_latest_path, dtype=str, low_memory=False)
             print(f"✓ Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
         except Exception as e:
             print(f"✗ Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()
     else:
-        print(f"⚠ Latest provider info not found: {PROVIDER_INFO_LATEST}")
+        print(f"⚠ Latest provider info not found: {provider_latest_path}")
         provider_info_latest_df = pd.DataFrame()
     
     # Load pre-computed facility name mapping (if exists - speeds up matching)

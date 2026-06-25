@@ -2,15 +2,14 @@
 
 ## Public vs dist
 
-- **`public/`** is the **source of truth** for:
-  - **SFF data**: `sff-facilities.json`, `sff_table_a.csv`–`sff_table_d.csv`, `sff-candidate-months.json`, and the CMS SFF PDF. Update these in `public/`; then run `npm run build` so `dist/` gets a copy.
+- **`public/`** receives **published deploy copies** of SFF data from `python scripts/sff/run_pipeline.py` (canonical source: `data/derived/sff/`). Files include `sff-facilities.json`, `sff_table_a.csv`–`sff_table_d.csv`, `sff-candidate-months.json`, and the current CMS SFF PDF. After publishing, run `npm run build` so `dist/` gets a copy.
   - Static assets (images, favicon, etc.) and the **quarterly JSON** tree under `public/data/json/` (see below).
 - **`dist/`** is **build output**. Vite copies `public/` into `dist/` on `npm run build`. Flask serves:
   - `/data/<path>` from `pbj-wrapped/dist/data`
   - `/wrapped/<path>` and `/sff/<path>` from `pbj-wrapped/dist`
 - For **SFF JSON**, Flask will serve from `dist/` first; if the file is missing there (e.g. you updated `public/` but haven’t rebuilt), it falls back to `public/` so the latest SFF data is still used.
 
-**After updating SFF:** Run `convert-sff-csvs-to-json.py` (writes `public/sff-facilities.json`), then `npm run build` so `dist/sff-facilities.json` is updated. Optionally rely on the fallback to serve from `public/` until you rebuild.
+**After updating SFF:** Ingest the new PDF (`python scripts/sff/ingest_sff_release.py …`), then run `python scripts/sff/run_pipeline.py` (extract → build → publish). Optionally run `npm run build` in `pbj-wrapped` so `dist/sff-facilities.json` is updated. Flask falls back to `public/` when `dist/` is stale.
 
 ---
 

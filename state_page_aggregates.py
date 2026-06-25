@@ -10,7 +10,7 @@ import json
 import os
 from typing import Any
 
-BUNDLE_VERSION = 2
+BUNDLE_VERSION = 3
 DEFAULT_REL_PATH = os.path.join('data', 'state_page_aggregates.json.gz')
 _SIGNATURE_CHUNK = 65536
 
@@ -185,9 +185,9 @@ def _validate_v2_signature(app_root: str, bundle: dict[str, Any]) -> tuple[bool,
 
 def validate_bundle_sources(app_root: str, bundle: dict[str, Any]) -> tuple[bool, str, dict[str, Any]]:
     version = bundle.get('version')
-    if version == 1:
-        return _validate_v1_mtime(app_root, bundle)
-    if version == 2:
+    if version in (1, 2, 3):
+        if version == 1:
+            return _validate_v1_mtime(app_root, bundle)
         return _validate_v2_signature(app_root, bundle)
     return False, f'unsupported_version_{version!r}', {'mode': 'unknown', 'version': version}
 
@@ -257,7 +257,7 @@ def load_bundle(app_root: str) -> dict[str, Any] | None:
         return None
     if not isinstance(data, dict):
         return None
-    if data.get('version') not in (1, 2):
+    if data.get('version') not in (1, 2, 3):
         print(f'[state_page_aggregates] unsupported version {data.get("version")!r}', flush=True)
         return None
     ok, reason, details = validate_bundle_sources(app_root, data)

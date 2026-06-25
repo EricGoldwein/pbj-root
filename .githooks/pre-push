@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+python scripts/simulate_render_deploy_gates.py
+python scripts/validate_release.py

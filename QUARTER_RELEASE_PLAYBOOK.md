@@ -36,9 +36,11 @@ Every page that displays PBJ quarter data must trace to this source (or a genera
 
 ### SFF truth
 
-- **Source PDF:** `pbj-wrapped/public/sff-posting-with-candidate-list-<month>-<year>.pdf`
-- **Derived JSONs:** `pbj-wrapped/public/sff-facilities.json`, `pbj-wrapped/public/sff-candidate-months.json`
+- **Raw source PDFs:** `data_sources/cms/sff/raw/YYYY-MM/sff-posting-with-candidate-list-<month>-<year>.pdf` (+ `manifest.json`)
+- **Canonical derived dataset:** `data/derived/sff/sff_facilities.json` (+ `sff_facilities.csv`, `tables/sff_table_*.csv`)
+- **Deploy copies:** `pbj-wrapped/public/sff-facilities.json`, `sff-candidate-months.json`, current PDF
 - Document date must come from source file metadata/filename, not hardcoded month/year.
+- Pipeline: `python scripts/sff/run_pipeline.py`
 
 ### Owners truth
 

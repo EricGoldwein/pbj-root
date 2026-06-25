@@ -60,7 +60,7 @@ def render_facility_sources_footer(
     """Facility page: PBJ quarter + CMS Provider Info + Care Compare (one footer line)."""
     _ = include_chow, include_macpac, pbj_quarter_display
     line_parts = [
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ")}</span>',
         f'<span class="pbj-sources-item">{_ext_link(CMS_PROVIDER_INFO_URL, "CMS Provider Info")}</span>',
     ]
     cc = (care_compare_url or '').strip()
@@ -93,7 +93,7 @@ def render_entity_sources_footer(
         chain_link_label = f'CMS Chain Metrics ({chain_label_text})'
     chain_link = _ext_link(CMS_CHAIN_PERF_URL, chain_link_label)
     line_parts = [
-        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ (2017-2025)")}</span>',
+        f'<span class="pbj-sources-item">{_ext_link(CMS_PBJ_DAILY_URL, "CMS PBJ")}</span>',
         f'<span class="pbj-sources-item">{chain_link}</span>',
     ]
     cc = (care_compare_url or '').strip()

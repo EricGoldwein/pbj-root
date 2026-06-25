@@ -290,18 +290,63 @@ def entity_takeaway_hprd_help_span_html(
     entity_esc = html.escape(entity_name or "this chain")
     if weighted_hprd is not None:
         tip = (
-            f"{val} is the average total nurse HPRD among {entity_esc} nursing homes. "
+            f"Average total nurse HPRD among {entity_esc} nursing homes. "
             f"The weighted average ({weighted_hprd:.2f} HPRD) weights each facility's census "
             "so that larger nursing homes count more than the smaller ones."
         )
     else:
-        tip = f"{val} is the average total nurse HPRD among {entity_esc} nursing homes."
+        tip = f"Average total nurse HPRD among {entity_esc} nursing homes."
     return (
         f'<span class="pbj-high-risk-help-wrap">'
         f'<span class="pbj-high-risk-help">{html.escape(val)}</span>'
         f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(tip)}</span>'
         f"</span>"
     )
+
+
+def synthetic_chain_row_from_portfolio(
+    entity_ps: dict[str, Any],
+    facilities: list[dict[str, Any]],
+    provider_info: dict[str, dict[str, Any]],
+    *,
+    avg_rn: float | None = None,
+) -> dict[str, Any] | None:
+    """Build CMS chain-performance-shaped row from PBJ roster when chain CSV is unavailable."""
+    if not entity_ps or not entity_ps.get("n_facilities"):
+        return None
+    n_fac = int(entity_ps["n_facilities"])
+    n_states = int(entity_ps.get("n_states") or 0)
+    for_profit = 0
+    sff_cand = 0
+    typed = 0
+    for fac in facilities:
+        ccn = str(fac.get("ccn") or "").strip().zfill(6)
+        if not ccn:
+            continue
+        info = provider_info.get(ccn) or {}
+        ot = str(info.get("ownership_type") or "").strip().lower()
+        if ot:
+            typed += 1
+            if "for-profit" in ot or "for profit" in ot:
+                for_profit += 1
+        sff_status = str(info.get("sff_status") or "").strip().upper()
+        if "CANDIDATE" in sff_status:
+            sff_cand += 1
+    fp_pct = round(100.0 * for_profit / typed, 1) if typed else None
+    hprd = entity_ps.get("wmean_hprd")
+    if hprd is None:
+        hprd = entity_ps.get("umean_hprd")
+    return {
+        "Number of facilities": n_fac,
+        "Number of states and territories with operations": n_states,
+        "Average overall 5-star rating": entity_ps.get("umean_overall_rating"),
+        "Average staffing rating": entity_ps.get("umean_staffing_rating"),
+        "Average total nurse hours per resident day": hprd,
+        "Average total Registered Nurse hours per resident day": avg_rn,
+        "Number of Special Focus Facilities (SFF)": entity_ps.get("sff_count") or 0,
+        "Number of SFF candidates": sff_cand,
+        "Percent of facilities classified as for-profit": fp_pct,
+    }
 
 
 def _entity_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:

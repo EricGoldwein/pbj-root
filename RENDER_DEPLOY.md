@@ -1,4 +1,9 @@
-# Render deployment (pbj web + old-pbj320 static)
+# Render memory, cache, and provider warming
+
+**Production deploy runbook** (deploy flow, `/healthz`, smoke tests, rollback, risk levels): **`DEPLOYMENT.md`**.  
+**Local dev:** `DEPLOY_AND_RUN.md`. **CSV/index build gates:** `docs/DATA_DEPLOY.md`.
+
+This file covers Render-specific **memory tuning**, **provider cache warming**, and the optional **`old-pbj320`** static site — not the canonical production deploy procedure.
 
 ## Two services — only one uses Python memory
 
@@ -17,16 +22,53 @@ Defaults are unchanged unless you set env vars in the Render dashboard (**Enviro
 |----------|---------|----------|
 | `PBJ_GUNICORN_WORKERS` | `2` | Set to `1` on 512MB plans to cut RAM (~half). Slightly less parallel request capacity. |
 | `PBJ_GUNICORN_THREADS` | `4` | Usually leave at 4 with 1 worker. |
-| `PBJ_PROVIDER_PAGE_CACHE_MAX` | `400` on Render | Set in code via `setdefault` when `RENDER` is set; optional override in dashboard. |
-| `PBJ_PROVIDER_PAGE_CACHE_TTL` | **900 on Render** (15 min) | Set automatically in `app.py` on Render (`setdefault`); **no dashboard entry required**. Local dev defaults to 120s unless you set this. Not the same as `PBJ_MEM_LOG_RSS_MB`. |
+| `PBJ_PROVIDER_PAGE_CACHE_TTL` | **900 on Render** (15 min) | Set automatically in `app.py` on Render (`setdefault`); optional override in dashboard. |
+| `PBJ_PROVIDER_PAGE_CACHE_MAX` | **150 on Render** | Max in-memory provider HTML entries per worker; override via env if needed. |
+| `PBJ_PROVIDER_PAGE_HTML_BUDGET_MB` | **50** | Per-worker cap on total cached provider HTML bytes; oldest entries evicted when exceeded. |
+| `PBJ_FACILITY_QUARTERLY_LRU` | **64 on Render** (128 local) | Max per-facility quarterly DataFrames retained per worker; try **32** if `/debug/mem` shows large LRU footprint. |
 | `PBJ_AI_CRAWLER_RATE_LIMIT` | `12` on Render | Max `/provider/*` and `/entity/*` requests per IP per window for User-Agents matching `gptbot` / `oai-searchbot`. Set `0` to disable. |
 | `PBJ_AI_CRAWLER_RATE_WINDOW` | `60` | Seconds for the limit above. Over limit → `429` + `Retry-After` (crawler can retry later). |
 | `PBJ_AI_CRAWLER_MARKERS` | `gptbot,oai-searchbot` | Comma-separated UA substrings; does not block `ChatGPT-User` (human link clicks). |
 | `PBJ_MEM_DEBUG` | off | Set to `1` temporarily; logs `[MEM]` RSS and enables `GET /debug/mem` (404 when off). |
-| `PBJ_MEM_ROUTE_LOG` | off (on when `PBJ_MEM_DEBUG=1`) | `[MEM_ROUTE]` lines: RSS, path, elapsed ms, status for `/`, `/sitemap.xml`, `/provider/*`, `/entity/*`, `/search_index.json`, `/api/entity-summary/*`. |
+| `PBJ_MEM_ROUTE_LOG` | off (on when `PBJ_MEM_DEBUG=1`) | `[MEM_ROUTE]` lines: RSS, path, elapsed ms, status for heavy routes (`/provider/*`, `/entity/*`, `/premium/*`, `/report*`, `/warmup*`, compliance API, owner API). |
 | `PBJ_MEM_LOG_RSS_MB` | `700` | **Unrelated to page cache.** Logs any route when process RSS ≥ 700 MB (needs `psutil`). |
 
-**Profiling:** After deploy with `PBJ_MEM_DEBUG=1`, hit `/health`, one `/provider/…`, one `/entity/…`, then `GET /debug/mem` to see cache sizes.
+### Memory profiling (2GB Render)
+
+While profiling, set **`PBJ_GUNICORN_WORKERS=1`** on the 2GB service. Two pandas-heavy workers duplicate indexes and caches and can make the 2GB limit look like creep when it is really **2× baseline RSS**.
+
+Enable temporarily:
+
+```bash
+PBJ_MEM_DEBUG=1
+PBJ_GUNICORN_WORKERS=1
+```
+
+**Pass 1 — cold fill** (note `rss_mb`, `provider_page_html.total_bytes`, `facility_quarterly_lru.total_bytes` after each step):
+
+1. `GET /healthz`
+2. `GET /debug/mem`
+3. Cold `GET /provider/075325` (wait for 200)
+4. `GET /debug/mem`
+5. Cold `GET /provider/335513` (wait for 200)
+6. `GET /debug/mem`
+7. `GET /entity/<large_chain_id>` (pick a chain with many facilities from production)
+8. `GET /debug/mem`
+9. `GET /state/ny` or `GET /report` (major aggregate page)
+10. `GET /debug/mem`
+
+**Pass 2 — repeat the same sequence.** Compare snapshots:
+
+| Pattern | Meaning |
+|---------|---------|
+| RSS and cache byte totals **flat on pass 2** | Healthy first-pass cache fill (A) |
+| RSS or `provider_page_html.total_bytes` / `facility_quarterly_lru.total_bytes` **grow every pass** | True leak or unbounded cache (B) — lower `PBJ_PROVIDER_PAGE_CACHE_MAX`, `PBJ_FACILITY_QUARTERLY_LRU`, or investigate partial provider-info merges |
+
+If `provider_page_html.total_bytes` routinely exceeds **50MB** under normal warm traffic, the app evicts oldest HTML automatically; consider lowering `PBJ_PROVIDER_PAGE_CACHE_MAX` (e.g. 75) or `PBJ_PROVIDER_PAGE_HTML_BUDGET_MB`.
+
+Access `/debug/mem` via `PBJ_MEM_DEBUG=1`, header `X-PBJ-Warmup-Key: $PBJ_WARMUP_SECRET`, or `?key=$ADMIN_VIEW_KEY`.
+
+**Quick profiling:** After deploy with `PBJ_MEM_DEBUG=1`, hit `/healthz`, one `/provider/…`, one `/entity/…`, then `GET /debug/mem` to see cache sizes.
 
 ## Provider cache warming (optional, modest)
 
@@ -70,13 +112,11 @@ Current settings (publish directory `.`, empty build command) publish the **enti
 
 **If `pbj-root.onrender.com` is still linked anywhere:** Prefer linking to `https://pbj320.com` (dynamic app) instead.
 
-## Health check
+## Health check and start command
 
-- Web service: **Health Check Path** = `/health` (HTTP GET; must return 2xx).
-- Start command: `python scripts/render_start.py` (see `render.yaml` / `Procfile`) — **not** `ensure_deploy_csvs.py && gunicorn …`.
-- `/health` is side-effect free (no pandas, no provider indexes). Render probes as soon as Gunicorn binds.
+Canonical settings: **`DEPLOYMENT.md`** (`/healthz` liveness, `/warmup` readiness smoke only, `python scripts/render_start.py`, full `render.yaml` build pipeline).
 
-### Startup timing (Render logs)
+### Startup log markers (troubleshooting)
 
 After deploy, grep logs for:
 
@@ -88,10 +128,4 @@ After deploy, grep logs for:
 | `[gunicorn] Listening on 0.0.0.0:10000 at …` | Port open — health checks can succeed |
 | `ensure_deploy_csvs: begin` in **build** logs only | CSV materialization at deploy build |
 
-If you see `ensure_deploy_csvs` for **20+ seconds before** any `[gunicorn] Listening` line, the **Dashboard Start Command** still prepends CSV work — change it to match `render.yaml`.
-
-## "No open HTTP ports" / connection refused on :10000
-
-- **Cause:** Gunicorn not listening yet (often `ensure_deploy_csvs` in start command blocks exec).
-- **Fix:** Dashboard → **Settings** → **Start Command** = `python scripts/render_start.py` (or sync Blueprint).
-- **render.yaml** binds `0.0.0.0:$PORT` via Gunicorn; **Health Check Path** = `/health`.
+If you see `ensure_deploy_csvs` for **20+ seconds at instance start** (not in build logs) before `[gunicorn] Listening`, the Dashboard Start Command is wrong — see **`DEPLOYMENT.md`** (must be `python scripts/render_start.py` only).

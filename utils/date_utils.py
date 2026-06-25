@@ -76,22 +76,64 @@ def _parse_ownership_filename(path_obj):
     return None
 
 
+def _provider_info_month_candidates(base_dir: Path) -> list[tuple[int, int]]:
+    """Months present in deployed Norm snapshots and/or local NH CMS extracts."""
+    candidates: set[tuple[int, int]] = set()
+    provider_dir = base_dir / "provider_info"
+    for pattern in ("ProviderInfoNorm_*.csv", "NH_ProviderInfo_*.csv"):
+        for p in provider_dir.glob(pattern):
+            parsed = _parse_provider_filename(p)
+            if parsed:
+                candidates.add(parsed)
+    return sorted(candidates, reverse=True)
+
+
 def _latest_two_provider_info_months(base_dir):
-    candidates = set()
-    for p in (base_dir / "provider_info").glob("*.csv"):
-        parsed = _parse_provider_filename(p)
-        if parsed:
-            y, mo = parsed
-            candidates.add((y, mo))
-    for p in base_dir.glob("provider_info_combined*.csv"):
-        # Combined files are snapshots without explicit month; do not use for source month labels.
-        _ = p
+    candidates = _provider_info_month_candidates(base_dir)
     if not candidates:
         return None, None
-    candidates = sorted(candidates, reverse=True)
     latest = _format_month_year(candidates[0][0], candidates[0][1])
-    previous = _format_month_year(candidates[1][0], candidates[1][1]) if len(candidates) > 1 else latest
+    previous = (
+        _format_month_year(candidates[1][0], candidates[1][1])
+        if len(candidates) > 1
+        else latest
+    )
     return latest, previous
+
+
+def newest_provider_snapshot_path(base_dir: Path) -> Path | None:
+    """Best provider snapshot file for the newest processing month (NH preferred, else Norm)."""
+    candidates = _provider_info_month_candidates(base_dir)
+    if not candidates:
+        return None
+    year, month = candidates[0]
+    month_names = (
+        "",
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+    )
+    if month < 1 or month > 12:
+        return None
+    provider_dir = base_dir / "provider_info"
+    for name in (
+        f"NH_ProviderInfo_{month_names[month]}{year}.csv",
+        f"NH_ProviderInfo_{month_names[month]}_{year}.csv",
+        f"ProviderInfoNorm_{year}_{month:02d}.csv",
+    ):
+        path = provider_dir / name
+        if path.is_file():
+            return path
+    return None
 
 
 def _latest_affiliated_entity_month(base_dir):

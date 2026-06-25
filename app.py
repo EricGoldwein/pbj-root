@@ -2788,7 +2788,7 @@ def download_sff_posting_pdf(filename):
 # Report page: same-origin JSON/CSV via GET /report?p=… (report.html relies on this)
 # ---------------------------------------------------------------------------
 # GET /report?p=pi prefers newest ProviderInfoNorm_* with populated urban (see _preferred_provider_norm_snapshot_path).
-_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_05.csv')
+_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_06.csv')
 _HIGH_RISK_BY_STATE_CACHE_KEY = None
 _HIGH_RISK_BY_STATE_CACHE_VAL = None
 _HIGH_RISK_BY_STATE_CACHE_AT = 0.0
@@ -6105,6 +6105,12 @@ def serve_public_search_js():
     return _static_cache_headers(send_from_directory(APP_ROOT, 'public-search.js', mimetype='application/javascript'))
 
 
+@app.route('/pbj-page-switcher.js')
+def serve_pbj_page_switcher_js():
+    """Desktop entity/state title-row autocomplete on /entity and /state pages."""
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-page-switcher.js', mimetype='application/javascript'))
+
+
 @app.route('/state-page-charts.js')
 def serve_state_page_charts():
     """State page chart logic (no inline script = no brace/syntax errors)."""
@@ -7673,7 +7679,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
     ):
         return _LOAD_PROVIDER_INFO_CACHE
     provider_paths = _resolved_provider_info_paths()
-    if not HAS_PANDAS:
+    if get_pd() is None:
         return {}
     def _row_val(r, *keys):
         for k in keys:
@@ -7711,6 +7717,7 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'sff_status', 'Special Focus Status',
                 'abuse_icon', 'Abuse Icon', 'has_abuse_icon',
                 'urban', 'Urban', 'URBAN',
+                'processing_date',
             }
             # Keep any chain/entity id/name variants we didn't enumerate explicitly.
             keep_cols.update(
@@ -8153,7 +8160,7 @@ def _ensure_state_case_mix_medians(raw_quarter: str) -> dict[str, float]:
 
 def _scan_provider_row_for_ccn_quarter(ccn: str, raw_quarter: str) -> dict | None:
     """Return one provider-info row for CCN+quarter without building the national index."""
-    if not HAS_PANDAS:
+    if get_pd() is None:
         return None
     ccn = str(ccn or '').strip().zfill(6)
     q = str(raw_quarter or '').strip()
@@ -8812,6 +8819,16 @@ def _premium_request_facility_short_name(facility_name: str) -> str:
     if display and display not in ('Residents here', 'this facility') and len(display) >= 3:
         return display
     return ''
+
+
+def _premium_request_facility_mobile_token(facility_name: str) -> str:
+    """Leading word for mobile Premium request CTA (e.g. Burns Nursing Home -> Burns)."""
+    short = _premium_request_facility_short_name(facility_name)
+    source = short or capitalize_facility_name(facility_name) or _normalize_display_name(facility_name)
+    if not source or source == '\u2014':
+        return ''
+    match = re.match(r'\S+', str(source).strip())
+    return match.group(0) if match else ''
 
 
 def shorten_entity_display_name(full_name, max_len=36):
@@ -10832,6 +10849,53 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
 /* State page H1: desktop show full only; mobile shows short only (via @media) */
 .pbj-state-title .pbj-state-title-full {{ display: inline; }}
 .pbj-state-title .pbj-state-title-mobile {{ display: none !important; }}
+.pbj-page-title-row {{ display: flex; align-items: center; justify-content: space-between; gap: 0.75rem 1.25rem; flex-wrap: wrap; margin-bottom: 0.35rem; }}
+.pbj-page-title-row h1 {{ flex: 1 1 auto; min-width: 0; margin: 0; line-height: 1.2; }}
+.pbj-page-header-switcher {{ display: none; flex: 0 1 20rem; width: 100%; max-width: 22rem; position: relative; margin-left: auto; align-self: center; }}
+@media (min-width: 769px) {{
+  .pbj-page-header-switcher {{ display: block; }}
+}}
+.pbj-page-header-switcher-input-wrap {{
+  display: flex; align-items: center; gap: 0.45rem; padding: 0.5rem 0.65rem; border-radius: 8px;
+  border: 1px solid rgba(129, 140, 248, 0.35); background: rgba(15, 23, 42, 0.88);
+  min-height: 2.35rem; box-sizing: border-box;
+}}
+.pbj-page-header-switcher-icon {{ color: rgba(148, 163, 184, 0.95); display: inline-flex; flex-shrink: 0; }}
+.pbj-page-header-switcher-input {{
+  flex: 1; min-width: 0; border: 0; background: transparent; color: #e2e8f0; font-size: 0.875rem;
+  font-family: inherit; outline: none;
+}}
+.pbj-page-header-switcher-input::placeholder {{ color: rgba(148, 163, 184, 0.75); }}
+.pbj-page-header-switcher-results {{
+  display: none; position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 1200;
+  margin: 0; padding: 0.25rem 0; list-style: none; max-height: 16rem; overflow-y: auto;
+  background: #0f172a; border: 1px solid rgba(129, 140, 248, 0.35); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.45);
+}}
+.pbj-page-header-switcher-results[data-open="true"] {{ display: block; }}
+.pbj-page-header-switcher-results a {{
+  display: block; padding: 0.5rem 0.75rem; color: #e2e8f0; text-decoration: none; font-size: 0.875rem;
+}}
+.pbj-page-header-switcher-results a.pbj-page-header-switcher-option {{
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.12rem;
+}}
+.pbj-page-header-switcher-option-title {{
+  font-weight: 600; color: #e2e8f0; min-width: 0; line-height: 1.3;
+}}
+.pbj-page-header-switcher-option-meta {{
+  font-size: 0.78rem; color: rgba(148, 163, 184, 0.95); font-weight: 400;
+  line-height: 1.35; font-variant-numeric: tabular-nums;
+}}
+.pbj-page-header-switcher-results a:hover {{ background: rgba(67, 56, 202, 0.22); color: #f8fafc; }}
+.pbj-page-header-switcher-results a:hover .pbj-page-header-switcher-option-meta {{
+  color: rgba(203, 213, 225, 0.92);
+}}
+.pbj-page-header-switcher-meta {{
+  display: block; font-size: 0.78rem; color: rgba(148, 163, 184, 0.95); margin-top: 0.1rem; font-weight: 400;
+}}
+.pbj-page-header-switcher-empty {{
+  display: block; padding: 0.65rem 0.75rem; color: rgba(148, 163, 184, 0.95); font-size: 0.85rem;
+}}
 .pbj-cta-premium {{ margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(30, 41, 59, 0.6); border-radius: 10px; font-size: 0.95rem; color: #e2e8f0; }}
 .pbj-cta-premium a {{ color: #818cf8; font-weight: 600; transition: color 0.2s ease; }}
 .pbj-cta-premium a:hover {{ color: #a5b4fc; }}
@@ -10864,29 +10928,48 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
 .custom-report-cta .custom-report-cta-sms a {{ color: #818cf8; font-weight: 500; text-decoration: none; }}
 .custom-report-cta .custom-report-cta-sms a:hover {{ color: #a5b4fc; text-decoration: underline; text-underline-offset: 3px; }}
 .pbj-provider-premium-bridge {{
-  display: flex; flex-direction: column; align-items: flex-start; gap: 0.75rem;
   margin: 0.75rem 0 0; padding: 0.875rem 1rem; width: 100%; max-width: none;
   box-sizing: border-box; border: 1px solid rgba(148, 163, 184, 0.28); border-radius: 10px;
   background: rgba(15, 23, 42, 0.38);
 }}
-.pbj-content-box a.pbj-provider-premium-bridge__premium,
-.pbj-provider-premium-bridge__premium {{
-  display: inline-flex; align-items: flex-start; gap: 0.5rem; max-width: 100%;
-  padding: 0.2rem 0.35rem; margin: -0.2rem -0.35rem; border-radius: 6px;
-  text-decoration: none; color: inherit; transition: color 0.2s ease, background 0.2s ease;
+.pbj-provider-premium-bridge__stack {{
+  display: flex; flex-direction: column; gap: 0.38rem; width: 100%;
 }}
-.pbj-content-box a.pbj-provider-premium-bridge__premium:hover,
+.pbj-content-box a.pbj-provider-premium-bridge__premium,
+.pbj-provider-premium-bridge__premium,
+.pbj-content-box a.pbj-provider-premium-bridge__request,
+.pbj-provider-premium-bridge__request {{
+  display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 0.28rem;
+  align-items: center; width: 100%; max-width: 100%; padding: 0.12rem 0.2rem; margin: 0;
+  border-radius: 6px; text-decoration: none; box-sizing: border-box;
+  transition: color 0.2s ease, background 0.2s ease;
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__request {{
+  color: #f1f5f9; font-style: italic; font-weight: 400; text-decoration: none;
+}}
+.pbj-content-box a.pbj-provider-premium-bridge__request .pbj-provider-premium-bridge__request-text {{
+  color: inherit;
+}}
+.pbj-provider-premium-bridge__premium {{
+  color: inherit;
+}}
 .pbj-provider-premium-bridge__premium:hover {{
-  text-decoration: none; background: rgba(30, 41, 59, 0.42);
+  background: rgba(30, 41, 59, 0.42); text-decoration: none;
 }}
 .pbj-provider-premium-bridge__premium:focus-visible {{
   outline: 2px solid rgba(129, 140, 248, 0.65); outline-offset: 2px;
 }}
+.pbj-provider-premium-bridge__glyph {{
+  width: 16px; height: 16px; display: inline-flex; align-items: center; justify-content: center;
+}}
 .pbj-provider-premium-bridge__icon {{
-  width: 16px; height: 16px; flex: 0 0 16px; display: block; margin-top: 0.1em;
+  width: 16px; height: 16px; display: block; object-fit: contain;
+}}
+.pbj-provider-premium-bridge__unlock {{
+  width: 14px; height: 14px; display: block; color: rgba(165, 180, 252, 0.88);
 }}
 .pbj-provider-premium-bridge__premium-body {{
-  display: flex; flex-direction: column; align-items: flex-start; gap: 0.25rem; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; min-width: 0;
 }}
 @media (min-width: 641px) {{
   .pbj-provider-premium-bridge__premium-body {{
@@ -10904,30 +10987,44 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   color: #e0e7ff;
 }}
 .pbj-provider-premium-bridge__premium-subtitle {{
-  font-size: 0.78rem; line-height: 1.45; color: rgba(148, 163, 184, 0.92); font-weight: 400;
+  font-size: 0.875rem; line-height: 1.45; color: rgba(148, 163, 184, 0.92); font-weight: 400;
 }}
 .pbj-provider-premium-bridge__premium:hover .pbj-provider-premium-bridge__premium-subtitle {{
   color: rgba(203, 213, 225, 0.88);
 }}
-.pbj-content-box a.pbj-provider-premium-bridge__request,
 .pbj-provider-premium-bridge__request {{
-  display: inline; margin-left: calc(16px + 0.5rem); max-width: 100%;
-  font-size: 0.78rem; line-height: 1.45; font-weight: 500; font-style: italic;
-  color: rgba(165, 180, 252, 0.82); text-decoration: none;
-  padding: 0.1rem 0; transition: color 0.2s ease;
+  color: #f1f5f9; font-size: 0.78rem; line-height: 1.45;
+  font-weight: 400; font-style: italic; text-decoration: none;
 }}
 .pbj-content-box a.pbj-provider-premium-bridge__request:hover,
 .pbj-provider-premium-bridge__request:hover {{
-  color: #a5b4fc; text-decoration: underline; text-underline-offset: 2px;
+  color: #ffffff; background: rgba(30, 41, 59, 0.32); text-decoration: underline;
+  text-underline-offset: 2px;
 }}
 .pbj-provider-premium-bridge__request:focus-visible {{
-  outline: 2px solid rgba(129, 140, 248, 0.55); outline-offset: 2px; border-radius: 4px;
+  outline: 2px solid rgba(129, 140, 248, 0.55); outline-offset: 2px;
+}}
+.pbj-provider-premium-bridge__request-text--desktop {{ display: none !important; }}
+.pbj-provider-premium-bridge__request-text--mobile {{ display: inline !important; }}
+@media (min-width: 641px) {{
+  .pbj-provider-premium-bridge__request-text--desktop {{ display: inline !important; }}
+  .pbj-provider-premium-bridge__request-text--mobile {{ display: none !important; }}
 }}
 @media (max-width: 640px) {{
-  .pbj-provider-premium-bridge {{ gap: 0.6875rem; padding: 0.875rem 0.9rem; }}
-  .pbj-provider-premium-bridge__premium-title {{ font-size: 0.9rem; }}
-  .pbj-provider-premium-bridge__premium-subtitle,
-  .pbj-content-box a.pbj-provider-premium-bridge__request,
+  .pbj-provider-premium-bridge {{ padding: 0.875rem 0.9rem; }}
+  .pbj-provider-premium-bridge__premium {{
+    grid-template-rows: auto auto; align-items: start; row-gap: 0.2rem;
+  }}
+  .pbj-provider-premium-bridge__glyph {{
+    grid-column: 1; grid-row: 1; align-self: center;
+  }}
+  .pbj-provider-premium-bridge__premium-body {{ display: contents; }}
+  .pbj-provider-premium-bridge__premium-title {{
+    grid-column: 2; grid-row: 1; font-size: 0.9rem;
+  }}
+  .pbj-provider-premium-bridge__premium-subtitle {{
+    grid-column: 2; grid-row: 2; font-size: 0.8rem;
+  }}
   .pbj-provider-premium-bridge__request {{ font-size: 0.76rem; }}
 }}
 .navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
@@ -10992,6 +11089,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .section-header {{ font-size: 1.2em; }}
   .pbj-state-staffing-table summary,
   .state-high-risk-details summary,
+  .pbj-details-ownership summary,
   .pbj-details-methodology summary {{
     padding: 0.6rem 0.75rem;
     font-size: 0.84rem;
@@ -11573,33 +11671,63 @@ def _render_facility_premium_cta(ccn: str, facility_name: str = '') -> str:
     checkout_url = _stripe_premium_payment_link_url(ccn)
     if not checkout_url:
         return ''
-    short_name = _premium_request_facility_short_name(facility_name)
-    if short_name:
-        request_label = f'Request {short_name} Dashboard'
+    full_name = capitalize_facility_name(facility_name) or _normalize_display_name(facility_name)
+    mobile_token = _premium_request_facility_mobile_token(facility_name)
+    if full_name and len(str(full_name).strip()) >= 4:
+        request_label_desktop = f'Request PBJ320 Dashboard for {full_name}'
     else:
-        request_label = 'Request Dashboard'
+        request_label_desktop = 'Request PBJ320 Dashboard'
+    if mobile_token:
+        request_label_mobile = f'Request {mobile_token} PBJ320 Dashboard'
+    else:
+        request_label_mobile = request_label_desktop
     stripe_href = html.escape(checkout_url, quote=True)
-    request_text = html.escape(request_label)
+    request_desktop = html.escape(request_label_desktop)
+    request_mobile = html.escape(request_label_mobile)
     premium_aria = html.escape(
-        'PBJ320 Premium. Daily staffing, acuity analysis, ownership, employee-level detail',
+        'PBJ320 Premium. Daily PBJ, acuity analysis, employee detail, ownership',
         quote=True,
     )
+    unlock_svg = (
+        '<svg class="pbj-provider-premium-bridge__unlock" xmlns="http://www.w3.org/2000/svg" '
+        'viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+        '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>'
+        '<path d="M7 11V7a5 5 0 0 1 9.9-1"/></svg>'
+    )
+    if request_label_mobile == request_label_desktop:
+        request_text_html = (
+            f'<span class="pbj-provider-premium-bridge__request-text '
+            f'pbj-provider-premium-bridge__request-text--desktop '
+            f'pbj-provider-premium-bridge__request-text--mobile">{request_desktop}</span>'
+        )
+    else:
+        request_text_html = (
+            f'<span class="pbj-provider-premium-bridge__request-text '
+            f'pbj-provider-premium-bridge__request-text--desktop">{request_desktop}</span>'
+            f'<span class="pbj-provider-premium-bridge__request-text '
+            f'pbj-provider-premium-bridge__request-text--mobile">{request_mobile}</span>'
+        )
     return (
-        f'<div class="pbj-provider-premium-bridge">'
-        f'<a href="/premium" class="pbj-provider-premium-bridge__premium"'
-        f' aria-label="{premium_aria}">'
+        f'<div class="pbj-provider-premium-bridge" data-pbj-premium-bridge="4">'
+        f'<div class="pbj-provider-premium-bridge__stack">'
+        f'<a href="/premium" class="pbj-provider-premium-bridge__premium" aria-label="{premium_aria}">'
+        f'<span class="pbj-provider-premium-bridge__glyph">'
         f'<img src="/pbj_favicon.png" alt="" width="16" height="16" '
         f'class="pbj-provider-premium-bridge__icon" decoding="async">'
+        f'</span>'
         f'<span class="pbj-provider-premium-bridge__premium-body">'
         f'<span class="pbj-provider-premium-bridge__premium-title">'
         f'PBJ320 Premium <span class="pbj-provider-premium-bridge__premium-arrow">'
         f'\u2192</span></span>'
         f'<span class="pbj-provider-premium-bridge__premium-subtitle">'
-        f'Daily staffing, acuity analysis, ownership, employee-level detail</span>'
+        f'Daily PBJ, acuity analysis, employee detail, ownership</span>'
         f'</span></a>'
         f'<a href="{stripe_href}" class="pbj-provider-premium-bridge__request">'
-        f'{request_text}</a>'
-        f'</div>'
+        f'<span class="pbj-provider-premium-bridge__glyph">{unlock_svg}</span>'
+        f'{request_text_html}'
+        f'</a>'
+        f'</div></div>'
     )
 
 
@@ -16473,16 +16601,41 @@ def _chain_val(row, *keys, default=None):
                 return v
     return default
 
-def _star_display(val):
-    """Format 1–5 rating as star string (number of stars only, e.g. ★★★★). Returns '—' if missing."""
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        return "—"
-    try:
-        _f = round_half_up(float(val), 0)
-        full = min(5, max(0, int(_f))) if _f is not None else 0
-        return "★" * full if full else "—"
-    except (TypeError, ValueError):
-        return "—"
+
+PBJ_PAGE_SWITCHER_JS_VERSION = '4'
+
+
+def _page_header_switcher_html(mode: str) -> str:
+    """Desktop-only inline search for entity or state pages."""
+    if mode not in ('entity', 'state'):
+        return ''
+    label = 'Jump to another chain' if mode == 'entity' else 'Jump to another state'
+    placeholder = 'Search chains…' if mode == 'entity' else 'Search states…'
+    return (
+        f'<div class="pbj-page-header-switcher" data-mode="{html.escape(mode)}" role="search">'
+        f'<label for="pbj-page-header-switcher-input-{mode}" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">{html.escape(label)}</label>'
+        f'<div class="pbj-page-header-switcher-input-wrap">'
+        f'<span class="pbj-page-header-switcher-icon" aria-hidden="true">'
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>'
+        f'</span>'
+        f'<input type="search" id="pbj-page-header-switcher-input-{mode}" class="pbj-page-header-switcher-input" '
+        f'placeholder="{html.escape(placeholder)}" autocomplete="off" spellcheck="false" '
+        f'role="combobox" aria-autocomplete="list" aria-expanded="false" '
+        f'aria-controls="pbj-page-header-switcher-results-{mode}">'
+        f'</div>'
+        f'<ul class="pbj-page-header-switcher-results" id="pbj-page-header-switcher-results-{mode}" role="listbox"></ul>'
+        f'</div>'
+    )
+
+
+def _page_title_row(title_inner_html: str, *, switcher_mode: str | None = None) -> str:
+    switcher = _page_header_switcher_html(switcher_mode) if switcher_mode else ''
+    return f'<div class="pbj-page-title-row">{title_inner_html}{switcher}</div>'
+
+
+def _page_switcher_script_tag() -> str:
+    return f'<script src="/pbj-page-switcher.js?v={PBJ_PAGE_SWITCHER_JS_VERSION}"></script>'
+
 
 def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None):
     """Generate HTML for entity (chain) page. facilities: list of dicts with ccn, name, city, state, optional metrics.
@@ -16600,6 +16753,15 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 <p style="margin: 0.5rem 0 0.25rem 0;">{_scope}</p>
 <p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{_p_ops}{_p_value}</p>
 </div>'''
+    if not chain_row and _entity_ps:
+        try:
+            from ownership.portfolio_display import synthetic_chain_row_from_portfolio
+
+            chain_row = synthetic_chain_row_from_portfolio(
+                _entity_ps, facilities, provider_info, avg_rn=avg_rn,
+            )
+        except Exception:
+            pass
     if chain_row:
         def _f(v, default='—'):
             if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -17084,7 +17246,8 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
     )
 
     inner = f"""
-<h1>{html.escape(entity_name)}</h1>
+{_page_title_row(f'<h1>{html.escape(entity_name)}</h1>', switcher_mode='entity')}
+{_page_switcher_script_tag()}
 {_entity_page_modal_html}
 {entity_intro_html}
 {pbj_takeaway_ownership}
@@ -19655,9 +19818,14 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         _state_top_owners_line = ''
         _state_chow_line = ''
     _state_ownership_index_cross_link = ''
+    _state_h1 = (
+        f'<h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span>'
+        f'<span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>'
+    )
+    _state_title_block = _page_title_row(_state_h1, switcher_mode='state') + _page_switcher_script_tag()
     # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
     content = f"""
-    <h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span><span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>
+    {_state_title_block}
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
     {_state_ownership_index_cross_link}
     {state_takeaway_card}
@@ -21191,6 +21359,11 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
         return False
     if "aside.className = 'pbj-casemix-breakdown-aside'" in body:
         return False
+    if 'pbj-provider-premium-bridge' in body and 'data-pbj-premium-bridge="4"' not in body:
+        return False
+    if 'pbj-provider-premium-bridge__request-text--desktop">Request ' in body:
+        if 'PBJ320 Dashboard' not in body:
+            return False
     return True
 
 
@@ -23120,6 +23293,31 @@ def data_files(path):
     from flask import abort
     abort(404)
 
+
+_SFF_PUBLISHED_ARTIFACTS = frozenset({
+    'sff-facilities.json',
+    'sff-candidate-months.json',
+    'sff_table_a.csv',
+    'sff_table_b.csv',
+    'sff_table_c.csv',
+    'sff_table_d.csv',
+})
+
+
+def _try_send_sff_published_artifact(path: str):
+    """Prefer pbj-wrapped/public SFF pipeline outputs over stale pbj-wrapped/dist copies."""
+    if path not in _SFF_PUBLISHED_ARTIFACTS:
+        return None
+    public_path = os.path.join(APP_ROOT, 'pbj-wrapped', 'public', path)
+    if not os.path.isfile(public_path):
+        return None
+    if path.endswith('.json'):
+        return send_file(public_path, mimetype='application/json')
+    if path.endswith('.csv'):
+        return send_file(public_path, mimetype='text/csv')
+    return send_from_directory(os.path.join(APP_ROOT, 'pbj-wrapped', 'public'), path)
+
+
 # Serve data for SFF app: /sff/data/... same as /data/... (SPA may request from either)
 @app.route('/sff/data', defaults={'path': ''})
 @app.route('/sff/data/', defaults={'path': ''})
@@ -23148,8 +23346,10 @@ def sff_index():
 @app.route('/sff/<path:path>')
 def sff_static(path):
     """Serve static files and handle SPA routing for SFF"""
+    published = _try_send_sff_published_artifact(path)
+    if published is not None:
+        return published
     wrapped_dist = os.path.join('pbj-wrapped', 'dist')
-    wrapped_public = os.path.join('pbj-wrapped', 'public')
     file_path = os.path.join(wrapped_dist, path)
     if os.path.isfile(file_path):
         # Serve the static file with proper MIME types
@@ -23163,11 +23363,6 @@ def sff_static(path):
             return send_file(file_path)
         else:
             return send_from_directory(wrapped_dist, path)
-    # SFF JSON: if not in dist, serve from public so updated data works without rebuild
-    if path in ('sff-facilities.json', 'sff-candidate-months.json'):
-        public_path = os.path.join(wrapped_public, path)
-        if os.path.isfile(public_path):
-            return send_file(public_path, mimetype='application/json')
     # For SPA routing, serve index.html
     seo = get_seo_metadata(request.path)
     try:
@@ -23199,8 +23394,10 @@ def wrapped_index():
 @app.route('/wrapped/<path:path>')
 def wrapped_static(path):
     """Serve static files and handle SPA routing for wrapped"""
+    published = _try_send_sff_published_artifact(path)
+    if published is not None:
+        return published
     wrapped_dist = os.path.join('pbj-wrapped', 'dist')
-    wrapped_public = os.path.join('pbj-wrapped', 'public')
     file_path = os.path.join(wrapped_dist, path)
     if os.path.isfile(file_path):
         # Serve the static file with proper MIME types
@@ -23214,11 +23411,6 @@ def wrapped_static(path):
             return send_file(file_path)
         else:
             return send_from_directory(wrapped_dist, path)
-    # SFF JSON: if not in dist, serve from public so updated data works without rebuild
-    if path in ('sff-facilities.json', 'sff-candidate-months.json'):
-        public_path = os.path.join(wrapped_public, path)
-        if os.path.isfile(public_path):
-            return send_file(public_path, mimetype='application/json')
     # For SPA routing, serve index.html for any route with server-rendered SEO metadata
     seo = get_seo_metadata(request.path)
     try:

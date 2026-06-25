@@ -1,10 +1,17 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "bundle_schema_version": 1,
   "description": "Staffing compliance thresholds and metric definitions for facility-quarter summaries. Extend state_thresholds for new states; wire MACPAC later without changing summary column names.",
   "metric_definitions": {
     "total_rn_hours": {
       "pbj_columns": ["Hrs_RNDON", "Hrs_RNadmin", "Hrs_RN"],
+      "label": "Total RN hours",
+      "short_label": "Total RN hours",
+      "numerator_description": "Sum of reported RN, RN administrator, and director-of-nursing hours",
+      "denominator_description": "Facility-day (not divided by census)",
+      "included_roles": ["RN", "RN administrator", "Director of nursing"],
+      "excluded_roles": [],
+      "methodology_text": "Total reported RN hours (RN + RN administrator + DON), matching PBJ320 rn_total_8h day counts.",
       "description": "Total reported RN hours (RN + RN administrator + DON), matching PBJ320 rn_total_8h."
     },
     "total_nurse_hprd": {
@@ -19,6 +26,22 @@
         "Hrs_MedAide"
       ],
       "daily_formula": "sum(pbj_columns) / MDScensus",
+      "label": "Total nurse HPRD",
+      "short_label": "Total nursing HPRD",
+      "numerator_description": "Sum of all reported nursing role hours (RN, LPN, CNA, aide trainee, medication aide, and nursing administrators including DON)",
+      "denominator_description": "MDS census for that day (facility-days with census > 0 only)",
+      "included_roles": [
+        "RN",
+        "RN administrator",
+        "Director of nursing",
+        "LPN administrator",
+        "LPN",
+        "CNA",
+        "Nurse aide trainee",
+        "Medication aide"
+      ],
+      "excluded_roles": [],
+      "methodology_text": "PBJ320 Total_Nurse_HPRD: all reported nursing roles including admin/DON, divided by census.",
       "description": "PBJ320 Total_Nurse_HPRD (all reported nursing roles incl. admin/DON)."
     },
     "direct_care_hprd": {
@@ -30,6 +53,13 @@
         "Hrs_MedAide"
       ],
       "daily_formula": "sum(pbj_columns) / MDScensus",
+      "label": "Direct-care nurse HPRD",
+      "short_label": "Direct-care HPRD",
+      "numerator_description": "Sum of reported RN, LPN, CNA, nurse aide trainee, and medication aide hours",
+      "denominator_description": "MDS census for that day (facility-days with census > 0 only)",
+      "included_roles": ["RN", "LPN", "CNA", "Nurse aide trainee", "Medication aide"],
+      "excluded_roles": ["RN administrator", "LPN administrator", "Director of nursing", "Nursing administrator"],
+      "methodology_text": "NY-mapped direct-care HPRD per N.Y. Public Health Law § 2895-b role mapping (excludes DON and nursing administrator).",
       "description": "NY PHL § 2895-b mapped direct care HPRD (RN+LPN+CNA+NA trainee+MedAide; excludes DON and nursing admin)."
     }
   },
@@ -53,10 +83,16 @@
   ],
   "state_thresholds": [
     {
+      "id": "ny_statutory_direct_care_minimum",
       "state": "NY",
       "metric": "direct_care_hprd",
       "threshold": 3.5,
       "comparator": "<",
+      "rule_type": "statutory_minimum",
+      "source_label": "N.Y. Public Health Law § 2895-b",
+      "source_url": "https://www.nysenate.gov/legislation/laws/PBH/2895-B",
+      "public_label": "NY 3.50 direct-care HPRD minimum",
+      "public_methodology_text": "PBJ320 screens reported PBJ direct-care HPRD (RN, LPN, CNA, nurse aide trainee, medication aide; excludes DON and nursing admin) against N.Y. Public Health Law § 2895-b’s 3.50 HPRD total component. Role mapping is informative—not an enforcement determination.",
       "label": "Days below NY 3.50 direct care HPRD",
       "enabled": true,
       "summary_count_col": "below_state_min_days_count",
@@ -64,10 +100,16 @@
       "notes": "N.Y. Public Health Law § 2895-b sets a 3.50 HPRD minimum for mapped direct-care nursing (RN, LPN, CNA, nurse aide trainee, medication aide). PBJ320 screens reported PBJ daily hours using that role mapping (excludes DON and nursing administrator)—informative, not an enforcement determination. Source: https://www.nysenate.gov/legislation/laws/PBH/2895-B"
     },
     {
+      "id": "ct_macpac_total_nursing_screen",
       "state": "CT",
       "metric": "total_nurse_hprd",
       "threshold": 3.06,
       "comparator": "<",
+      "rule_type": "analytical_threshold",
+      "source_label": "MACPAC state staffing compendium (2022)",
+      "source_url": "https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/",
+      "public_label": "CT 3.06 total nursing HPRD screen",
+      "public_methodology_text": "MACPAC state compendium: 3.06 HPRD total estimated staffing. CT Public Act (eff. Oct 2021, Sec. 10) directed DPH to set nursing home minimums often summarized as ~3.0 direct-care hours per resident per day. PBJ320 applies the 3.06 benchmark to total reported nursing HPRD (all PBJ nursing roles incl. admin/DON), not Nurse_Care_HPRD alone.",
       "label": "Days below CT 3.06 total nursing HPRD",
       "enabled": true,
       "summary_count_col": "below_state_min_days_count",

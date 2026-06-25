@@ -49,7 +49,9 @@ _MANIFEST_CACHE: dict[str, Any] | None = None
 _MANIFEST_MTIME: float = 0.0
 _THRESHOLDS_CACHE: dict[str, Any] | None = None
 _THRESHOLDS_MTIME: float = 0.0
+_LOOKUP_CACHE_MAX = max(64, int(os.environ.get('PBJ_COMPLIANCE_LOOKUP_CACHE_MAX', '512')))
 _LOOKUP_CACHE: dict[tuple[str, str], dict[str, Any] | None] = {}
+_LOOKUP_CACHE_ORDER: list[tuple[str, str]] = []
 _LOOKUP_LOCK = threading.Lock()
 _SQLITE_CONN: sqlite3.Connection | None = None
 _SQLITE_LOCK = threading.Lock()
@@ -206,6 +208,25 @@ def _sqlite_connect(app_root: str) -> sqlite3.Connection | None:
         return _SQLITE_CONN
 
 
+def _lookup_cache_set(key: tuple[str, str], value: dict[str, Any] | None) -> None:
+    with _LOOKUP_LOCK:
+        if key in _LOOKUP_CACHE:
+            try:
+                _LOOKUP_CACHE_ORDER.remove(key)
+            except ValueError:
+                pass
+        _LOOKUP_CACHE[key] = value
+        _LOOKUP_CACHE_ORDER.append(key)
+        while len(_LOOKUP_CACHE_ORDER) > _LOOKUP_CACHE_MAX:
+            old = _LOOKUP_CACHE_ORDER.pop(0)
+            _LOOKUP_CACHE.pop(old, None)
+
+
+def lookup_cache_stats() -> dict[str, int]:
+    with _LOOKUP_LOCK:
+        return {'entries': len(_LOOKUP_CACHE), 'max_entries': _LOOKUP_CACHE_MAX}
+
+
 def lookup_public_summary(app_root: str, ccn: str, quarter: str) -> dict[str, Any] | None:
     """Return public-safe compliance counts for facility × quarter, or None."""
     prov = normalize_ccn(ccn)
@@ -215,7 +236,13 @@ def lookup_public_summary(app_root: str, ccn: str, quarter: str) -> dict[str, An
     key = (prov, q)
     with _LOOKUP_LOCK:
         if key in _LOOKUP_CACHE:
-            return _LOOKUP_CACHE[key]
+            hit = _LOOKUP_CACHE[key]
+            try:
+                _LOOKUP_CACHE_ORDER.remove(key)
+                _LOOKUP_CACHE_ORDER.append(key)
+            except ValueError:
+                pass
+            return hit
 
     conn = _sqlite_connect(app_root)
     row_dict: dict[str, Any] | None = None
@@ -236,12 +263,10 @@ def lookup_public_summary(app_root: str, ccn: str, quarter: str) -> dict[str, An
         out = {k: row_dict.get(k) for k in _PUBLIC_COLUMNS}
         out['ccn'] = prov
         out['quarter'] = q
-        with _LOOKUP_LOCK:
-            _LOOKUP_CACHE[key] = out
+        _lookup_cache_set(key, out)
         return out
 
-    with _LOOKUP_LOCK:
-        _LOOKUP_CACHE[key] = None
+    _lookup_cache_set(key, None)
     return None
 
 
@@ -299,6 +324,7 @@ def invalidate_caches() -> None:
     global _MANIFEST_CACHE, _MANIFEST_MTIME, _SQLITE_CONN
     with _LOOKUP_LOCK:
         _LOOKUP_CACHE.clear()
+        _LOOKUP_CACHE_ORDER.clear()
     _MANIFEST_CACHE = None
     _MANIFEST_MTIME = 0.0
     with _SQLITE_LOCK:

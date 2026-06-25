@@ -1,0 +1,23 @@
+name: Release guards
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  release-guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Simulate Render deploy gates
+        run: python scripts/simulate_render_deploy_gates.py
+      - name: Validate release guardrails
+        run: python scripts/validate_release.py

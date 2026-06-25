@@ -35,6 +35,11 @@ def main() -> int:
     facility_counts = app_mod._ensure_state_facility_counts_for_quarter(q)
     case_mix_medians = app_mod._ensure_state_case_mix_medians(q)
     national_rural, rural_by_state = app_mod.get_rural_shares_for_quarter(q)
+    rural_counts = {}
+    cached_rural = getattr(app_mod, '_RURAL_SHARE_BY_QUARTER_CACHE', None) or {}
+    if cached_rural.get('q') == str(q):
+        rural_counts = dict(cached_rural.get('state_counts') or {})
+    staffing_comparison = app_mod.build_staffing_comparison_for_quarter(q)
     high_risk_val, effective_qtr = app_mod._compute_high_risk_by_state_for_quarter(q)
     if isinstance(high_risk_val, tuple) and len(high_risk_val) >= 1:
         high_risk_by_state = high_risk_val[0] if isinstance(high_risk_val[0], dict) else {}
@@ -56,6 +61,12 @@ def main() -> int:
         'sources': {
             'facility_quarterly': spa.source_meta(fq_path, str(REPO)),
             'provider_primary': spa.source_meta(provider_path, str(REPO)),
+            'national_quarterly': spa.source_meta(
+                str(REPO / 'national_quarterly_metrics.csv'), str(REPO)
+            ),
+            'state_quarterly': spa.source_meta(
+                str(REPO / 'state_quarterly_metrics.csv'), str(REPO)
+            ),
         },
         'facility_counts_by_quarter': {str(q): facility_counts},
         'case_mix_medians_by_quarter': {str(q): case_mix_medians},
@@ -63,8 +74,10 @@ def main() -> int:
             str(q): {
                 'national': national_rural,
                 'states': rural_by_state or {},
+                'state_counts': rural_counts,
             },
         },
+        'staffing_comparison_by_quarter': {str(q): staffing_comparison},
         'high_risk_by_quarter': {str(q): high_risk_by_state},
     }
 

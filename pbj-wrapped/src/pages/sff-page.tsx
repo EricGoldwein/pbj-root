@@ -383,13 +383,8 @@ export default function SFFPage() {
           
           // STRICT: Only use normalized 6-digit CCN as key
           const normalized = normalizeCCN(provNum);
-          if (normalized) {
-            // If key already exists, log a warning (shouldn't happen with strict matching)
-            if (facilityMap.has(normalized)) {
-              console.warn(`[Duplicate CCN] PROVNUM=${provNum} (normalized=${normalized}) already in map - keeping first entry`);
-            } else {
-              facilityMap.set(normalized, corrected);
-            }
+          if (normalized && !facilityMap.has(normalized)) {
+            facilityMap.set(normalized, corrected);
           }
         });
         
@@ -402,13 +397,8 @@ export default function SFFPage() {
           
           // STRICT: Only use normalized 6-digit CCN as key
           const normalized = normalizeCCN(provNum);
-          if (normalized) {
-            // If key already exists, log a warning (shouldn't happen with strict matching)
-            if (providerMap.has(normalized)) {
-              console.warn(`[Duplicate CCN] PROVNUM=${provNum} (normalized=${normalized}) already in map - keeping first entry`);
-            } else {
-              providerMap.set(normalized, p);
-            }
+          if (normalized && !providerMap.has(normalized)) {
+            providerMap.set(normalized, p);
           }
         });
         

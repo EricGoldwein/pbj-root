@@ -354,9 +354,10 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
       console.warn('  provider_info_combined.csv not found, skipping provider JSON');
       return resolve({ providerQ1: [], providerQ2: [] });
     }
-    const providerQ1 = [];
-    const providerQ2 = [];
+    const providerQ1ByProvnum = new Map();
+    const providerQ2ByProvnum = new Map();
     let processedRows = 0;
+    let duplicateProvnumSkipped = 0;
     const sampleRawQuarters = new Set();
     const PRECHECK_SAMPLE = 150000;
     const stream = createReadStream(providerPath, { encoding: 'utf8' });
@@ -373,16 +374,31 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
         }
         const parsedRow = parseProviderInfoRow(raw);
         processedRows++;
-        if (parsedRow.CY_Qtr === q1Quarter) providerQ1.push(parsedRow);
-        else if (parsedRow.CY_Qtr === q2Quarter) providerQ2.push(parsedRow);
+        const provKey = parsedRow.PROVNUM;
+        if (!provKey) return;
+        if (parsedRow.CY_Qtr === q1Quarter) {
+          if (providerQ1ByProvnum.has(provKey)) duplicateProvnumSkipped++;
+          else providerQ1ByProvnum.set(provKey, parsedRow);
+        } else if (parsedRow.CY_Qtr === q2Quarter) {
+          if (providerQ2ByProvnum.has(provKey)) duplicateProvnumSkipped++;
+          else providerQ2ByProvnum.set(provKey, parsedRow);
+        }
         if (processedRows % 100000 === 0) {
-          console.log(`  Processed ${processedRows.toLocaleString()} rows... (Q1: ${providerQ1.length}, Q2: ${providerQ2.length})`);
+          console.log(
+            `  Processed ${processedRows.toLocaleString()} rows... `
+            + `(Q1: ${providerQ1ByProvnum.size}, Q2: ${providerQ2ByProvnum.size})`,
+          );
         }
       },
       complete: () => {
+        const providerQ1 = [...providerQ1ByProvnum.values()];
+        const providerQ2 = [...providerQ2ByProvnum.values()];
         const sampleList = [...sampleRawQuarters].sort().slice(0, 25);
         console.log(`  Precheck: sample raw "quarter" values (first ${PRECHECK_SAMPLE} rows): ${sampleList.length ? sampleList.join(', ') : '(none non-empty)'}`);
         console.log(`  Total processed: ${processedRows.toLocaleString()} rows`);
+        if (duplicateProvnumSkipped > 0) {
+          console.log(`  Deduped provider rows: skipped ${duplicateProvnumSkipped.toLocaleString()} duplicate PROVNUM+quarter rows`);
+        }
         writeFileSync(join(OUTPUT_DIR, 'provider_q1.json'), JSON.stringify(providerQ1));
         writeFileSync(join(OUTPUT_DIR, 'provider_q2.json'), JSON.stringify(providerQ2));
         writeFileSync(join(Q_PROVIDER, 'provider_q1.json'), JSON.stringify(providerQ1));

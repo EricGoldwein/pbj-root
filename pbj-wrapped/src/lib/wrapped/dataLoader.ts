@@ -146,6 +146,17 @@ function normalizeQuarterId(raw: string | undefined): string {
   return (raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
+/** One row per PROVNUM (provider_info_combined can repeat CCN within a quarter). */
+function dedupeProviderInfoByProvnum(rows: ProviderInfoRow[]): ProviderInfoRow[] {
+  const map = new Map<string, ProviderInfoRow>();
+  for (const row of rows) {
+    const key = (row.PROVNUM ?? '').toString().trim().replace(/[^0-9]/g, '').padStart(6, '0');
+    if (!key) continue;
+    if (!map.has(key)) map.set(key, row);
+  }
+  return [...map.values()];
+}
+
 /** Parse numeric fields from CSV rows. Exported to satisfy TS noUnusedLocals. */
 export function _parseStateRow(row: any): StateQuarterlyRow {
   return {
@@ -508,8 +519,8 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
     const nationalQ2 = nationalBySuffix['q2'] ?? null;
     const facilityQ1 = facilityBySuffix['q1'] ?? [];
     const facilityQ2 = facilityBySuffix['q2'] ?? [];
-    const providerQ1 = providerBySuffix['q1'] ?? [];
-    const providerQ2 = providerBySuffix['q2'] ?? [];
+    const providerQ1 = dedupeProviderInfoByProvnum(providerBySuffix['q1'] ?? []);
+    const providerQ2 = dedupeProviderInfoByProvnum(providerBySuffix['q2'] ?? []);
 
     const hasMinimalData = stateQ1.length > 0 || stateQ2.length > 0;
     if (!hasMinimalData) {

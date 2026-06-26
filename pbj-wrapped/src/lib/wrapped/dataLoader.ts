@@ -146,37 +146,6 @@ function normalizeQuarterId(raw: string | undefined): string {
   return (raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
 }
 
-/**
- * Strict quarter check for facility/provider staffing only.
- * On mismatch, return [] so metrics show N/A — never throws; page must still load.
- */
-function alignStaffingRowsToExpectedQuarter<T extends { CY_Qtr?: string }>(
-  rows: T[],
-  expectedQuarter: string,
-  label: string,
-): T[] {
-  const expected = normalizeQuarterId(expectedQuarter);
-  if (!expected || rows.length === 0) {
-    return rows;
-  }
-  const withQuarter = rows.filter((row) => normalizeQuarterId(row.CY_Qtr));
-  if (withQuarter.length === 0) {
-    return rows;
-  }
-  const sampleActual = normalizeQuarterId(withQuarter[0].CY_Qtr);
-  if (sampleActual && sampleActual !== expected) {
-    console.warn(
-      `[Data] ${label} stale: file rows are ${sampleActual}, site expects ${expected}. ` +
-      'Staffing columns will show N/A until quarterly JSON is rebuilt.',
-    );
-    return [];
-  }
-  return rows.filter((row) => {
-    const q = normalizeQuarterId(row.CY_Qtr);
-    return !q || q === expected;
-  });
-}
-
 /** Parse numeric fields from CSV rows. Exported to satisfy TS noUnusedLocals. */
 export function _parseStateRow(row: any): StateQuarterlyRow {
   return {
@@ -531,33 +500,18 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       }
     }
 
-    // State/region/national: use preprocessed files as-is (wrapped trends; not SFF staffing).
     const stateQ1 = stateBySuffix['q1'] ?? [];
     const stateQ2 = stateBySuffix['q2'] ?? [];
     const regionQ1 = regionBySuffix['q1'] ?? [];
     const regionQ2 = regionBySuffix['q2'] ?? [];
     const nationalQ1 = nationalBySuffix['q1'] ?? null;
     const nationalQ2 = nationalBySuffix['q2'] ?? null;
-    // Facility/provider q2 only: must match current quarter or staffing shows N/A (not wrong quarter).
     const facilityQ1 = facilityBySuffix['q1'] ?? [];
-    const facilityQ2 = alignStaffingRowsToExpectedQuarter(
-      facilityBySuffix['q2'] ?? [],
-      currentQuarter,
-      'facility q2',
-    );
+    const facilityQ2 = facilityBySuffix['q2'] ?? [];
     const providerQ1 = providerBySuffix['q1'] ?? [];
-    const providerQ2 = alignStaffingRowsToExpectedQuarter(
-      providerBySuffix['q2'] ?? [],
-      currentQuarter,
-      'provider q2',
-    );
+    const providerQ2 = providerBySuffix['q2'] ?? [];
 
-    const hasMinimalData =
-      stateQ1.length > 0
-      || stateQ2.length > 0
-      || facilityQ1.length > 0
-      || (facilityBySuffix['q2'] ?? []).length > 0
-      || (providerBySuffix['q2'] ?? []).length > 0;
+    const hasMinimalData = stateQ1.length > 0 || stateQ2.length > 0;
     if (!hasMinimalData) {
       throw new Error('No state quarterly JSON data available. Run preprocess-data to generate JSON files.');
     }

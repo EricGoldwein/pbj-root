@@ -467,10 +467,10 @@ def _check_wrapped_quarterly_json(errors: List[str], notes: List[str]) -> None:
         errors.append(f"could not parse national_q2.json: {exc}")
         return
     if actual and actual != expected:
-        notes.append(
+        errors.append(
             "wrapped quarterly JSON stale: national_q2.json CY_Qtr="
             f"{actual} but latest_quarter_data.json quarter={expected} "
-            "(Render build runs npm run preprocess; local: cd pbj-wrapped && npm run preprocess)"
+            "(run: cd pbj-wrapped && npm run preprocess)"
         )
     else:
         notes.append(f"wrapped national_q2 CY_Qtr={actual or 'n/a'} matches latest_quarter_data")

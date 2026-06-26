@@ -467,15 +467,16 @@ def _check_wrapped_quarterly_json(errors: List[str], notes: List[str]) -> None:
         errors.append(f"could not parse national_q2.json: {exc}")
         return
     if actual and actual != expected:
-        errors.append(
+        notes.append(
             "wrapped quarterly JSON stale: national_q2.json CY_Qtr="
             f"{actual} but latest_quarter_data.json quarter={expected} "
-            "(run: cd pbj-wrapped && npm run preprocess)"
+            "(Render build runs npm run preprocess; local: cd pbj-wrapped && npm run preprocess)"
         )
     else:
         notes.append(f"wrapped national_q2 CY_Qtr={actual or 'n/a'} matches latest_quarter_data")
 
 
+def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
     """Public SFF JSON must match newest raw PDF and fill months_as_sff for SFF rows."""
     try:
         from sff_paths import (  # pylint: disable=import-error

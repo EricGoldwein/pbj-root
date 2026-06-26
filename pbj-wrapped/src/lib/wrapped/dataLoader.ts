@@ -90,6 +90,8 @@ export interface LoadedData {
   regionStateMapping: Map<number, Set<string>>;
   stateStandards: Map<string, StateStandardRow>; // Map state code to standard
   sffData: SFFData | null; // SFF data from sff-facilities.json
+  /** q2 file = current quarter; q1 file = prior. From /api/dates (not from filenames). */
+  quarters: { current: string; prior: string };
 }
 
 /**
@@ -138,6 +140,58 @@ export function _filterByQuarter<T extends { CY_Qtr: string }>(
     const q = row.CY_Qtr.trim().toUpperCase().replace(/\s+/g, '');
     return q && normalizedQuarters.includes(q);
   });
+}
+
+function normalizeQuarterId(raw: string | undefined): string {
+  return (raw ?? '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+/**
+ * Keep only rows for the expected quarter. If the preprocessed q2 file is stale (wrong CY_Qtr),
+ * return [] so UI shows N/A instead of mislabeled prior-quarter staffing.
+ */
+function alignRowsToExpectedQuarter<T extends { CY_Qtr?: string }>(
+  rows: T[],
+  expectedQuarter: string,
+  label: string,
+): T[] {
+  const expected = normalizeQuarterId(expectedQuarter);
+  if (!expected || rows.length === 0) {
+    return rows;
+  }
+  const withQuarter = rows.filter((row) => normalizeQuarterId(row.CY_Qtr));
+  if (withQuarter.length === 0) {
+    return rows;
+  }
+  const aligned = rows.filter((row) => {
+    const q = normalizeQuarterId(row.CY_Qtr);
+    return !q || q === expected;
+  });
+  const sampleActual = normalizeQuarterId(withQuarter[0].CY_Qtr);
+  if (sampleActual && sampleActual !== expected) {
+    console.error(
+      `[Data] ${label} stale: file rows are ${sampleActual}, site expects ${expected}. ` +
+      'Staffing columns will show N/A until quarterly JSON is rebuilt (npm run preprocess).',
+    );
+    return [];
+  }
+  return aligned;
+}
+
+function alignNationalToExpectedQuarter(
+  row: NationalQuarterlyRow | null,
+  expectedQuarter: string,
+  label: string,
+): NationalQuarterlyRow | null {
+  if (!row) return null;
+  const expected = normalizeQuarterId(expectedQuarter);
+  const actual = normalizeQuarterId(row.CY_Qtr);
+  if (!expected || !actual) return row;
+  if (actual === expected) return row;
+  console.error(
+    `[Data] ${label} stale: JSON has ${actual}, site expects ${expected}.`,
+  );
+  return null;
 }
 
 /** Parse numeric fields from CSV rows. Exported to satisfy TS noUnusedLocals. */
@@ -283,20 +337,55 @@ export function _parseProviderInfoRow(row: any): ProviderInfoRow {
 }
 
 /**
+ * Resolve [current, prior] quarter ids for wrapped JSON (q2/q1 files).
+ * Primary: /api/dates. Fallback: preprocessed quarter_manifest.json (no hardcoded quarter literals).
+ */
+async function resolveWrappedQuarters(apiBase: string, basePath: string): Promise<string[]> {
+  try {
+    const datesRes = await fetch(`${apiBase}/api/dates`);
+    if (datesRes.ok) {
+      const datesData = (await datesRes.json()) as { quarters?: string[] };
+      if (Array.isArray(datesData?.quarters) && datesData.quarters.length > 0) {
+        return datesData.quarters;
+      }
+    }
+  } catch {
+    // ignore — try manifest below
+  }
+  try {
+    const manifestRes = await fetch(`${basePath}/json/quarter_manifest.json`);
+    if (manifestRes.ok) {
+      const manifest = (await manifestRes.json()) as { q1_quarter?: string; q2_quarter?: string };
+      if (manifest.q2_quarter && manifest.q1_quarter) {
+        return [manifest.q2_quarter, manifest.q1_quarter];
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
+/**
  * Load data via JSON only. Uses /api/dates to discover quarters; requests only those JSON files.
  * No CSV fetches. State/region scope loads only state/region + mapping (and scope-filtered facility/provider).
  */
 export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 'state' | 'region', identifier?: string): Promise<LoadedData> {
   try {
     const apiBase = getApiBase();
-    const datesRes = await fetch(`${apiBase}/api/dates`);
-    const datesData = (datesRes.ok ? await datesRes.json() : null) as { quarters?: string[] } | null;
-    const quarters: string[] = Array.isArray(datesData?.quarters) && datesData.quarters.length > 0
-      ? datesData.quarters
-      : ['2025Q1', '2025Q2'];
+    const quarters = await resolveWrappedQuarters(apiBase, basePath);
+    if (quarters.length < 2) {
+      throw new Error('Could not resolve PBJ quarters (/api/dates and quarter_manifest.json unavailable)');
+    }
+    const currentQuarter = normalizeQuarterId(quarters[0]);
+    const priorQuarter = normalizeQuarterId(quarters[1]);
 
     if (DEV) {
-      console.log('[Data] Quarters from API:', quarters, '→ using fixed q1/q2 files (most recent = q2)');
+      console.log(
+        '[Data] Quarters from API:',
+        quarters,
+        `→ q2 file = ${currentQuarter}, q1 file = ${priorQuarter}`,
+      );
     }
 
     const q = `${basePath}/json/quarterly`;
@@ -459,18 +548,17 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       }
     }
 
-    // Only q1/q2; q2 = most recent quarter. No fallbacks.
-    const stateQ1 = stateBySuffix['q1'] ?? [];
-    const stateQ2 = stateBySuffix['q2'] ?? [];
-    const regionQ1 = regionBySuffix['q1'] ?? [];
-    const regionQ2 = regionBySuffix['q2'] ?? [];
-    const nationalQ1 = nationalBySuffix['q1'] ?? null;
-    const nationalQ2 = nationalBySuffix['q2'] ?? null;
-    // Current quarter only: q2 = most recent (e.g. 2025Q3). No fallbacks to prior quarters.
-    const facilityQ1 = facilityBySuffix['q1'] ?? [];
-    const facilityQ2 = facilityBySuffix['q2'] ?? [];
-    const providerQ1 = providerBySuffix['q1'] ?? [];
-    const providerQ2 = providerBySuffix['q2'] ?? [];
+    // q1/q2 are file suffixes only — current quarter = q2, prior = q1 (from /api/dates).
+    const stateQ1 = alignRowsToExpectedQuarter(stateBySuffix['q1'] ?? [], priorQuarter, 'state q1');
+    const stateQ2 = alignRowsToExpectedQuarter(stateBySuffix['q2'] ?? [], currentQuarter, 'state q2');
+    const regionQ1 = alignRowsToExpectedQuarter(regionBySuffix['q1'] ?? [], priorQuarter, 'region q1');
+    const regionQ2 = alignRowsToExpectedQuarter(regionBySuffix['q2'] ?? [], currentQuarter, 'region q2');
+    const nationalQ1 = alignNationalToExpectedQuarter(nationalBySuffix['q1'] ?? null, priorQuarter, 'national q1');
+    const nationalQ2 = alignNationalToExpectedQuarter(nationalBySuffix['q2'] ?? null, currentQuarter, 'national q2');
+    const facilityQ1 = alignRowsToExpectedQuarter(facilityBySuffix['q1'] ?? [], priorQuarter, 'facility q1');
+    const facilityQ2 = alignRowsToExpectedQuarter(facilityBySuffix['q2'] ?? [], currentQuarter, 'facility q2');
+    const providerQ1 = alignRowsToExpectedQuarter(providerBySuffix['q1'] ?? [], priorQuarter, 'provider q1');
+    const providerQ2 = alignRowsToExpectedQuarter(providerBySuffix['q2'] ?? [], currentQuarter, 'provider q2');
 
     const hasMinimalData = stateQ1.length > 0 || stateQ2.length > 0;
     if (!hasMinimalData) {
@@ -491,6 +579,7 @@ export async function loadAllData(basePath: string = '/data', scope?: 'usa' | 's
       regionStateMapping,
       stateStandards: stateStandardsMap,
       sffData: sffDataJson ?? null,
+      quarters: { current: currentQuarter, prior: priorQuarter },
     };
   } catch (error) {
     console.error('Error loading data:', error);

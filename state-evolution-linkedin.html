@@ -624,21 +624,44 @@
       }
     }
 
-    // Update stats panel with Q3 2025 data
+    // Update stats panel with latest quarter in the dataset
+    function normalizeQuarterId(q) {
+      return String(q || '').trim().toUpperCase().replace(/\s+/g, '');
+    }
+
+    function quarterSortKey(q) {
+      const m = normalizeQuarterId(q).match(/^(\d{4})Q([1-4])$/);
+      if (!m) return 0;
+      return parseInt(m[1], 10) * 10 + parseInt(m[2], 10);
+    }
+
+    function latestQuarterId(rows) {
+      let best = '';
+      let bestKey = 0;
+      for (const row of rows || []) {
+        const q = normalizeQuarterId(row.CY_Qtr);
+        const key = quarterSortKey(q);
+        if (key > bestKey) {
+          bestKey = key;
+          best = q;
+        }
+      }
+      return best;
+    }
+
     function updateStatsPanel(nationalData, stateData) {
-      // Find Q3 2025 data
-      const q3_2025 = nationalData.find(row => row.CY_Qtr === '2025Q3');
-      if (!q3_2025) {
-        console.log('Q3 2025 data not found');
+      const latestQ = latestQuarterId(nationalData);
+      const latestRow = nationalData.find(row => normalizeQuarterId(row.CY_Qtr) === latestQ);
+      if (!latestRow) {
+        console.log('Latest quarter national data not found');
         return;
       }
       
       // Get facility count from national data or sum from state data
-      let facilityCount = parseFloat(q3_2025.facility_count) || 0;
+      let facilityCount = parseFloat(latestRow.facility_count) || 0;
       if (!facilityCount || facilityCount === 0) {
-        // Fallback: count unique states with data
-        const q3StateData = stateData.filter(row => row.CY_Qtr === '2025Q3');
-        facilityCount = q3StateData.length;
+        const latestStateData = stateData.filter(row => normalizeQuarterId(row.CY_Qtr) === latestQ);
+        facilityCount = latestStateData.length;
       }
       
       // Format numbers
@@ -661,20 +684,20 @@
       document.getElementById('statNursingHomes').textContent = formatNumber(facilityCount);
       
       // Residents should be nationwide total - use MDScensus if available, otherwise avg_daily_census
-      const totalResidents = parseFloat(q3_2025.MDScensus) || parseFloat(q3_2025.avg_daily_census);
+      const totalResidents = parseFloat(latestRow.MDScensus) || parseFloat(latestRow.avg_daily_census);
       document.getElementById('statResidents').textContent = formatNumber(totalResidents);
       
-      const totalHPRD = parseFloat(q3_2025.Total_Nurse_HPRD);
-      const directCareHPRD = parseFloat(q3_2025.Nurse_Care_HPRD);
+      const totalHPRD = parseFloat(latestRow.Total_Nurse_HPRD);
+      const directCareHPRD = parseFloat(latestRow.Nurse_Care_HPRD);
       document.getElementById('statTotalHPRD').innerHTML = 
         `${formatDecimal(totalHPRD)}<br><span style="font-size: 12px; opacity: 0.85; white-space: nowrap;">(incl.&nbsp;${formatDecimal(directCareHPRD)}&nbsp;Direct&nbsp;Care)</span>`;
       
-      const rnHPRD = parseFloat(q3_2025.RN_HPRD);
-      const rnCareHPRD = parseFloat(q3_2025.RN_Care_HPRD);
+      const rnHPRD = parseFloat(latestRow.RN_HPRD);
+      const rnCareHPRD = parseFloat(latestRow.RN_Care_HPRD);
       document.getElementById('statRNHPRD').innerHTML = 
         `${formatDecimal(rnHPRD)}<br><span style="font-size: 12px; opacity: 0.85; white-space: nowrap;">(incl.&nbsp;${formatDecimal(rnCareHPRD)}&nbsp;Direct&nbsp;RN)</span>`;
       
-      const contractPct = parseFloat(q3_2025.Contract_Percentage);
+      const contractPct = parseFloat(latestRow.Contract_Percentage);
       document.getElementById('statContract').textContent = formatPercent(contractPct);
     }
 

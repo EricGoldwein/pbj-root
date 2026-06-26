@@ -1,7 +1,7 @@
 {
   "name": "pbj-wrapped",
   "version": "1.0.0",
-  "description": "PBJ Wrapped Q2 2025 - Nursing Home Staffing Data",
+  "description": "PBJ Wrapped - Nursing Home Staffing Data",
   "type": "module",
   "scripts": {
     "dev": "vite",

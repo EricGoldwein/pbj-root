@@ -5,6 +5,9 @@ Render clones the repo — not your full working tree. Local-only files (e.g.
 provider_info/NH_ProviderInfo_May2026.csv when gitignored) make validate/backfill
 pass locally but fail on Render.
 
+Runs ensure_deploy_csvs.py --quick (same as Render buildCommand) so facility_quarterly_metrics.csv
+is materialized before state-page aggregate validation.
+
 Usage (required before push when touching deploy gates or ProviderInfoNorm):
 
     python scripts/simulate_render_deploy_gates.py
@@ -128,19 +131,24 @@ def main() -> int:
 
     failed = False
     with _hide_untracked_provider_info(tracked):
-        for script in ('backfill_provider_norm_urban.py', 'validate_provider_norm_snapshot.py'):
-            rc = _run_gate(script)
-            if rc != 0:
-                failed = True
-                _log(f'simulate_render_deploy_gates: FAIL {script} exited {rc}')
+        env = os.environ.copy()
+        env.setdefault('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '1')
+        ensure_path = os.path.join(APP_ROOT, 'scripts', 'ensure_deploy_csvs.py')
+        if not os.path.isfile(ensure_path):
+            _log('simulate_render_deploy_gates: ERROR ensure_deploy_csvs.py missing')
+            return 1
+        _log('simulate_render_deploy_gates: running ensure_deploy_csvs.py --quick ...')
+        rc = subprocess.call(
+            [sys.executable, ensure_path, '--quick'],
+            cwd=APP_ROOT,
+            env=env,
+        )
+        if rc != 0:
+            failed = True
+            _log(f'simulate_render_deploy_gates: FAIL ensure_deploy_csvs.py --quick exited {rc}')
 
     if failed:
         _log('simulate_render_deploy_gates: ERROR would fail Render build — fix before push')
-        return 1
-
-    rc_spa = _run_gate('ensure_state_page_aggregates_bundle.py')
-    if rc_spa != 0:
-        _log(f'simulate_render_deploy_gates: FAIL ensure_state_page_aggregates_bundle exited {rc_spa}')
         return 1
 
     _log('simulate_render_deploy_gates: OK (tracked artifacts only)')

@@ -430,7 +430,52 @@ def _pdf_release_tag(filename: str) -> Optional[str]:
         return None
 
 
-def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
+def _check_wrapped_quarterly_json(errors: List[str], notes: List[str]) -> None:
+    """Wrapped SFF uses facility_*_q2.json — CY_Qtr must match latest_quarter_data.json."""
+    q_path = REPO_ROOT / "latest_quarter_data.json"
+    if not q_path.exists():
+        return
+    with q_path.open("r", encoding="utf-8") as handle:
+        latest = json.load(handle)
+    expected = str(latest.get("quarter") or "").strip().upper().replace(" ", "")
+    if not expected:
+        return
+
+    manifest_path = REPO_ROOT / "pbj-wrapped" / "public" / "data" / "json" / "quarter_manifest.json"
+    if manifest_path.is_file():
+        try:
+            with manifest_path.open("r", encoding="utf-8") as handle:
+                manifest = json.load(handle)
+            manifest_q2 = str(manifest.get("q2_quarter") or "").strip().upper().replace(" ", "")
+            if manifest_q2 and manifest_q2 != expected:
+                errors.append(
+                    "quarter_manifest.json q2_quarter mismatch: "
+                    f"manifest={manifest_q2} latest_quarter_data={expected}"
+                )
+        except Exception as exc:
+            errors.append(f"could not parse quarter_manifest.json: {exc}")
+
+    national_q2 = REPO_ROOT / "pbj-wrapped" / "public" / "data" / "json" / "quarterly" / "national" / "national_q2.json"
+    if not national_q2.is_file():
+        notes.append("wrapped national_q2.json missing (preprocess not run yet)")
+        return
+    try:
+        with national_q2.open("r", encoding="utf-8") as handle:
+            national = json.load(handle)
+        actual = str(national.get("CY_Qtr") or "").strip().upper().replace(" ", "")
+    except Exception as exc:
+        errors.append(f"could not parse national_q2.json: {exc}")
+        return
+    if actual and actual != expected:
+        errors.append(
+            "wrapped quarterly JSON stale: national_q2.json CY_Qtr="
+            f"{actual} but latest_quarter_data.json quarter={expected} "
+            "(run: cd pbj-wrapped && npm run preprocess)"
+        )
+    else:
+        notes.append(f"wrapped national_q2 CY_Qtr={actual or 'n/a'} matches latest_quarter_data")
+
+
     """Public SFF JSON must match newest raw PDF and fill months_as_sff for SFF rows."""
     try:
         from sff_paths import (  # pylint: disable=import-error
@@ -649,6 +694,7 @@ def main() -> int:
         _check_state_quarterly_lpn_columns(errors, notes)
         _check_staged_large_non_lfs(errors, notes)
         _check_sff_public_artifacts(errors, notes)
+        _check_wrapped_quarterly_json(errors, notes)
         _check_chain_csv_freshness(errors, notes)
         _check_public_case_mix_export(errors, notes)
         _check_provider_release_handoff(errors, notes)

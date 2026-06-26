@@ -10,6 +10,27 @@ import numpy as np
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 
+import re
+
+def _latest_quarter_from_series(series: pd.Series) -> Optional[str]:
+    """Return the latest YYYYQn quarter id from a series of quarter strings."""
+    normalized = (
+        series.dropna()
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        .str.replace(r'\s+', '', regex=True)
+    )
+    valid = normalized[normalized.str.match(r'^\d{4}Q[1-4]$', na=False)]
+    if valid.empty:
+        return None
+
+    def sort_key(q: str) -> Tuple[int, int]:
+        m = re.match(r'^(\d{4})Q([1-4])$', q)
+        return (int(m.group(1)), int(m.group(2)))
+
+    return max(valid.unique(), key=sort_key)
+
 def normalize_ccn(ccn: str) -> str:
     """Normalize CCN to 6 digits with leading zeros."""
     if not ccn:
@@ -43,9 +64,11 @@ def load_facility_metrics(csv_path: str) -> pd.DataFrame:
     """Load facility metrics (HPRD data) from CSV."""
     df = pd.read_csv(csv_path, dtype={'PROVNUM': str})
     
-    # Filter for Q2 2025 (most recent)
+    # Filter for latest quarter in CSV
     if 'CY_Qtr' in df.columns:
-        df = df[df['CY_Qtr'] == '2025Q2'].copy()
+        latest_q = _latest_quarter_from_series(df['CY_Qtr'])
+        if latest_q:
+            df = df[df['CY_Qtr'].astype(str).str.strip().str.upper().str.replace(r'\s+', '', regex=True) == latest_q].copy()
     
     # Normalize provider numbers
     df['PROVNUM'] = df['PROVNUM'].apply(normalize_ccn)
@@ -60,9 +83,11 @@ def load_provider_info(csv_path: str) -> pd.DataFrame:
     """Load provider info (case-mix data) from CSV."""
     df = pd.read_csv(csv_path, dtype={'ccn': str})
     
-    # Filter for Q2 2025
+    # Filter for latest quarter in CSV
     if 'quarter' in df.columns:
-        df = df[df['quarter'] == '2025Q2'].copy()
+        latest_q = _latest_quarter_from_series(df['quarter'])
+        if latest_q:
+            df = df[df['quarter'].astype(str).str.strip().str.upper().str.replace(r'\s+', '', regex=True) == latest_q].copy()
     
     # Normalize provider numbers
     df['ccn'] = df['ccn'].apply(normalize_ccn)

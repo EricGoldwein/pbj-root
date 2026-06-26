@@ -277,7 +277,7 @@ export default function SFFPage() {
           : undefined;
         const data = await loadAllData(baseDataPath, dataScope, dataIdentifier);
         
-        // Provider/facility quarterly: q1 = prior quarter (2025Q2), q2 = current quarter (2025Q3)
+        // Provider/facility quarterly: q1 = prior quarter, q2 = current (from /api/dates + preprocessed JSON)
         const providerInfoQ1 = data.providerInfo.q1 || [];
         const providerInfoQ2 = data.providerInfo.q2 || [];
         const facilityQ2 = data.facilityData.q2 || []; // Current-quarter facility metrics (Census, HPRD)
@@ -334,7 +334,7 @@ export default function SFFPage() {
             return found;
           }
           
-          // If not in map, search array directly (q2 is already current quarter from loader, e.g. 2025Q3)
+          // If not in map, search array directly (q2 is current quarter from loader)
           const foundInArray = facilityQ2.find((f: FacilityLiteRow) => {
             const fProvNum = f.PROVNUM?.toString().trim() || '';
             if (!fProvNum) return false;
@@ -373,7 +373,7 @@ export default function SFFPage() {
         facilityQ2.forEach((f: FacilityLiteRow) => {
           const provNum = f.PROVNUM?.toString().trim() || '';
           if (!provNum) return;
-          // q2 from loader is current quarter (e.g. 2025Q3) – no quarter filter
+          // q2 from loader is current quarter – no quarter filter
           
           // Auto-correct CSV column shifts before adding to map
           const corrected = correctColumnShift(f);

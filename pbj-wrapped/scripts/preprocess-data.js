@@ -141,14 +141,26 @@ function normalizeQuarterForProvider(raw) {
   return upper;
 }
 
+/** CCN / PROVNUM as zero-padded 6-digit string for consistent joins. */
+function normalizeProvnum(raw) {
+  const digits = (raw ?? '').toString().replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.padStart(6, '0').slice(-6);
+}
+
 function parseCSV(filePath) {
   const csv = readFileSync(filePath, 'utf-8');
-  return Papa.parse(csv, {
+  const parsed = Papa.parse(csv, {
     header: true,
     skipEmptyLines: true,
     transformHeader: (header) => header.trim(),
-    fastMode: true, // Faster parsing for large files
-  }).data;
+    // fastMode drops/corrupts rows on large CSVs (~32k parse errors on facility_quarterly_metrics.csv).
+    fastMode: false,
+  });
+  if (parsed.errors?.length) {
+    console.warn(`  ⚠️ ${filePath}: ${parsed.errors.length} Papa parse errors`);
+  }
+  return parsed.data;
 }
 
 function parseCSVStreaming(filePath, callback) {
@@ -156,12 +168,14 @@ function parseCSVStreaming(filePath, callback) {
   return new Promise((resolve, reject) => {
     const csv = readFileSync(filePath, 'utf-8');
     const results = [];
+    let parseErrors = 0;
     Papa.parse(csv, {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
-      fastMode: true,
+      fastMode: false,
       step: (result) => {
+        if (result.errors?.length) parseErrors += result.errors.length;
         results.push(result.data);
         // Process in chunks to avoid memory issues
         if (results.length % 50000 === 0) {
@@ -169,6 +183,9 @@ function parseCSVStreaming(filePath, callback) {
         }
       },
       complete: () => {
+        if (parseErrors > 0) {
+          console.warn(`  ⚠️ ${filePath}: ${parseErrors} Papa parse errors`);
+        }
         resolve(results);
       },
       error: (error) => {
@@ -307,8 +324,10 @@ function parseNationalRow(row) {
 
 function parseFacilityRow(row) {
   // Support facility_quarterly_metrics.csv columns (RN_HPRD, RN_Care_HPRD, avg_daily_census) and legacy names
+  const provnum = normalizeProvnum(row.PROVNUM ?? row.ccn ?? row.CCN);
   return {
     ...row,
+    PROVNUM: provnum || row.PROVNUM,
     Total_Nurse_HPRD: parseNumeric(row.Total_Nurse_HPRD),
     Nurse_Care_HPRD: parseNumeric(row.Nurse_Care_HPRD),
     Total_RN_HPRD: parseNumeric(row.Total_RN_HPRD ?? row.RN_HPRD),
@@ -322,8 +341,9 @@ function parseProviderInfoRow(row) {
   const rawQuarter = row.quarter ?? row.CY_Qtr ?? row.CY_QTR ?? row.cy_qtr ?? '';
   const quarter = normalizeQuarterForProvider(rawQuarter);
 
+  const provnum = normalizeProvnum(row.ccn ?? row.PROVNUM ?? row.CCN);
   return {
-    PROVNUM: (row.ccn || row.PROVNUM || '').toString().trim(),
+    PROVNUM: provnum,
     PROVNAME: (row.provider_name || row.PROVNAME || '').trim(),
     STATE: (row.state || row.STATE || '').trim().toUpperCase(),
     CITY: (row.city || row.CITY || '').trim() || undefined,
@@ -345,6 +365,25 @@ function parseProviderInfoRow(row) {
   };
 }
 
+/** Overlay q2 rows from provider_info_combined_latest.csv (same source as main app). */
+function overlayProviderLatestQuarter(providerQ2ByProvnum, q2Quarter) {
+  const latestPath = join(DATA_DIR, 'provider_info_combined_latest.csv');
+  if (!existsSync(latestPath)) {
+    console.log('  provider_info_combined_latest.csv not found; using combined.csv only');
+    return 0;
+  }
+  const latestRows = parseCSV(latestPath);
+  let overlaid = 0;
+  for (const raw of latestRows) {
+    const parsedRow = parseProviderInfoRow(raw);
+    if (!parsedRow.PROVNUM || parsedRow.CY_Qtr !== q2Quarter) continue;
+    providerQ2ByProvnum.set(parsedRow.PROVNUM, parsedRow);
+    overlaid++;
+  }
+  console.log(`  Overlaid ${overlaid.toLocaleString()} q2 rows from provider_info_combined_latest.csv`);
+  return overlaid;
+}
+
 // Process provider info using stream to avoid loading huge file into memory
 function processProviderInfo({ q1Quarter, q2Quarter }) {
   return new Promise((resolve, reject) => {
@@ -357,7 +396,8 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
     const providerQ1ByProvnum = new Map();
     const providerQ2ByProvnum = new Map();
     let processedRows = 0;
-    let duplicateProvnumSkipped = 0;
+    let duplicateProvnumReplaced = 0;
+    let providerParseErrors = 0;
     const sampleRawQuarters = new Set();
     const PRECHECK_SAMPLE = 150000;
     const stream = createReadStream(providerPath, { encoding: 'utf8' });
@@ -365,8 +405,9 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
       header: true,
       skipEmptyLines: true,
       transformHeader: (header) => header.trim(),
-      fastMode: true,
+      fastMode: false,
       step: (result) => {
+        if (result.errors?.length) providerParseErrors += result.errors.length;
         const raw = result.data;
         if (processedRows < PRECHECK_SAMPLE) {
           const q = (raw.quarter ?? raw.CY_Qtr ?? '').toString().trim();
@@ -377,11 +418,11 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
         const provKey = parsedRow.PROVNUM;
         if (!provKey) return;
         if (parsedRow.CY_Qtr === q1Quarter) {
-          if (providerQ1ByProvnum.has(provKey)) duplicateProvnumSkipped++;
-          else providerQ1ByProvnum.set(provKey, parsedRow);
+          if (providerQ1ByProvnum.has(provKey)) duplicateProvnumReplaced++;
+          providerQ1ByProvnum.set(provKey, parsedRow);
         } else if (parsedRow.CY_Qtr === q2Quarter) {
-          if (providerQ2ByProvnum.has(provKey)) duplicateProvnumSkipped++;
-          else providerQ2ByProvnum.set(provKey, parsedRow);
+          if (providerQ2ByProvnum.has(provKey)) duplicateProvnumReplaced++;
+          providerQ2ByProvnum.set(provKey, parsedRow);
         }
         if (processedRows % 100000 === 0) {
           console.log(
@@ -391,13 +432,17 @@ function processProviderInfo({ q1Quarter, q2Quarter }) {
         }
       },
       complete: () => {
+        if (providerParseErrors > 0) {
+          console.warn(`  ⚠️ provider_info_combined.csv: ${providerParseErrors} Papa parse errors`);
+        }
+        overlayProviderLatestQuarter(providerQ2ByProvnum, q2Quarter);
         const providerQ1 = [...providerQ1ByProvnum.values()];
         const providerQ2 = [...providerQ2ByProvnum.values()];
         const sampleList = [...sampleRawQuarters].sort().slice(0, 25);
         console.log(`  Precheck: sample raw "quarter" values (first ${PRECHECK_SAMPLE} rows): ${sampleList.length ? sampleList.join(', ') : '(none non-empty)'}`);
         console.log(`  Total processed: ${processedRows.toLocaleString()} rows`);
-        if (duplicateProvnumSkipped > 0) {
-          console.log(`  Deduped provider rows: skipped ${duplicateProvnumSkipped.toLocaleString()} duplicate PROVNUM+quarter rows`);
+        if (duplicateProvnumReplaced > 0) {
+          console.log(`  Deduped provider rows: replaced ${duplicateProvnumReplaced.toLocaleString()} duplicate PROVNUM+quarter rows (last wins)`);
         }
         writeFileSync(join(OUTPUT_DIR, 'provider_q1.json'), JSON.stringify(providerQ1));
         writeFileSync(join(OUTPUT_DIR, 'provider_q2.json'), JSON.stringify(providerQ2));
@@ -805,6 +850,10 @@ async function runPreprocessing() {
       q1_quarter: q1Quarter,
       q2_quarter: q2Quarter,
       quarters: [q1Quarter, q2Quarter],
+      facility_q1_row_count: facilityQ1.length,
+      facility_q2_row_count: facilityQ2.length,
+      provider_q1_row_count: providerQ1.length,
+      provider_q2_row_count: providerQ2.length,
       generated_at: new Date().toISOString(),
     };
     const manifestPaths = [

@@ -5,5 +5,9 @@
     "2025Q3",
     "2025Q4"
   ],
-  "generated_at": "2026-06-26T02:27:20.235Z"
+  "facility_q1_row_count": 14392,
+  "facility_q2_row_count": 14266,
+  "provider_q1_row_count": 14716,
+  "provider_q2_row_count": 14699,
+  "generated_at": "2026-06-26T03:12:09.704Z"
 }

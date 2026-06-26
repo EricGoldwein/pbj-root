@@ -475,6 +475,39 @@ def _check_wrapped_quarterly_json(errors: List[str], notes: List[str]) -> None:
     else:
         notes.append(f"wrapped national_q2 CY_Qtr={actual or 'n/a'} matches latest_quarter_data")
 
+    manifest_counts: dict = {}
+    if manifest_path.is_file():
+        try:
+            with manifest_path.open("r", encoding="utf-8") as handle:
+                manifest_counts = json.load(handle)
+        except Exception:
+            manifest_counts = {}
+
+    facility_q2 = REPO_ROOT / "pbj-wrapped" / "public" / "data" / "json" / "quarterly" / "facility" / "facility_q2.json"
+    provider_q2 = REPO_ROOT / "pbj-wrapped" / "public" / "data" / "json" / "quarterly" / "provider" / "provider_q2.json"
+    for label, path, manifest_key in (
+        ("facility_q2", facility_q2, "facility_q2_row_count"),
+        ("provider_q2", provider_q2, "provider_q2_row_count"),
+    ):
+        if not path.is_file():
+            continue
+        try:
+            with path.open("r", encoding="utf-8") as handle:
+                rows = json.load(handle)
+            actual_count = len(rows) if isinstance(rows, list) else 0
+        except Exception as exc:
+            errors.append(f"could not parse {label}.json for row count: {exc}")
+            continue
+        expected_count = manifest_counts.get(manifest_key)
+        if isinstance(expected_count, int) and expected_count > 0 and actual_count != expected_count:
+            errors.append(
+                f"wrapped {label}.json row count mismatch: file={actual_count} "
+                f"quarter_manifest.{manifest_key}={expected_count} "
+                "(run: cd pbj-wrapped && npm run preprocess)"
+            )
+        elif isinstance(expected_count, int) and expected_count > 0:
+            notes.append(f"wrapped {label}.json row count={actual_count} matches quarter_manifest")
+
 
 def _check_sff_public_artifacts(errors: List[str], notes: List[str]) -> None:
     """Public SFF JSON must match newest raw PDF and fill months_as_sff for SFF rows."""

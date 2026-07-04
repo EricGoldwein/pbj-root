@@ -13,8 +13,8 @@ Last reviewed: 2026-05-28 (copy pass). Public surfaces: provider PBJ Takeaway wa
 | Kind | What it means | Examples on PBJ320 |
 |------|----------------|-------------------|
 | **Statutory / direct-care minimum** | State law or rule text describing required direct-care hours per resident per day | NY narrative ~3.50 HPRD in `about.html` / Seagate press; CT PA Sec. 10 (~3.0 direct care) cited in config notes |
-| **MACPAC total estimated staffing requirement** | MACPAC state compendium summary of total nursing HPRD equivalent | NY **3.56**; CT **3.06** — see [MACPAC state staffing standards](https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/) |
-| **PBJ320 operational threshold** | Configured daily screen: total nursing HPRD (all PBJ nursing roles incl. admin/DON) ÷ census, days with census > 0 | NY **3.56**; CT **3.06** in `staffing_compliance_thresholds.json` |
+| **MACPAC total estimated staffing requirement** | MACPAC state compendium summary of total nursing HPRD equivalent | NY **3.56** (chart reference only); CT **3.06** — see [MACPAC state staffing standards](https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/) |
+| **PBJ320 operational threshold** | Configured daily screen: metric + threshold from `staffing_screening_registry` / `staffing_compliance_thresholds.json` | NY **3.50** `direct_care_hprd`; CT **3.06** `total_nurse_hprd` |
 
 **PBJ total nursing HPRD may not equal statutory direct-care staffing.** PBJ320 reports **days below threshold** from CMS PBJ; it does **not** make legal findings of violation or noncompliance.
 

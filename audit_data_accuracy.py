@@ -41,7 +41,11 @@ FACILITY_QUARTERLY_OPTIONAL = [
 ]
 
 STATE_QUARTERLY_REQUIRED = ['STATE', 'CY_Qtr', 'Total_Nurse_HPRD']
-STATE_QUARTERLY_OPTIONAL = ['Nurse_Care_HPRD', 'RN_HPRD', 'RN_Care_HPRD', 'avg_daily_census', 'Avg_Daily_Census', 'Contract_Percentage']
+STATE_QUARTERLY_OPTIONAL = [
+    'Nurse_Care_HPRD', 'RN_HPRD', 'RN_Care_HPRD', 'LPN_HPRD', 'LPN_Care_HPRD',
+    'LPN_HPRD_Median', 'LPN_Care_HPRD_Median',
+    'avg_daily_census', 'Avg_Daily_Census', 'Contract_Percentage',
+]
 
 PROVIDER_INFO_CCN_KEYS = ['ccn', 'PROVNUM', 'CCN', 'Provnum']
 PROVIDER_INFO_ENTITY_KEYS = ['chain_id', 'affiliated_entity_id', 'Chain ID', 'Chain_ID', 'AFFILIATED_ENTITY_ID']
@@ -192,7 +196,12 @@ def audit_chain_performance() -> bool:
 
 
 def audit_sff_json() -> bool:
-    path = find_file('pbj-wrapped/public/sff-facilities.json', 'pbj-wrapped/dist/sff-facilities.json', 'sff-facilities.json')
+    path = find_file(
+        'data/derived/sff/sff_facilities.json',
+        'pbj-wrapped/public/sff-facilities.json',
+        'pbj-wrapped/dist/sff-facilities.json',
+        'sff-facilities.json',
+    )
     if not path:
         print("  [SKIP] sff-facilities.json: not found")
         return True

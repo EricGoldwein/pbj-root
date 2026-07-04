@@ -1,0 +1,44 @@
+﻿git : warning: in the working copy of 'CONSOLIDATION_PLAN.md', CRLF will be replaced by LF the next time Git touches it
+At C:\Users\egold\AppData\Local\Temp\ps-script-abad8a65-9ee7-4a8e-be46-98c24b15e852.ps1:7 char:132
++ ... FilePath _git_status.txt -Encoding utf8; git diff --stat 2>&1 | Out-F ...
++                                              ~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (warning: in the... Git touches it:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+warning: in the working copy of 'DEPLOY_AND_RUN.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'cms_region_quarterly_metrics.csv', CRLF will be replaced by LF the next time Git 
+touches it
+warning: in the working copy of 'data/compliance/staffing_compliance_manifest.json', CRLF will be replaced by LF the 
+next time Git touches it
+warning: in the working copy of 'docs/LFS_BANDWIDTH.md', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'docs/staffing_minimums_methodology.md', CRLF will be replaced by LF the next time Git 
+touches it
+warning: in the working copy of 'ownership/owner_indexability_audit.csv', CRLF will be replaced by LF the next time 
+Git touches it
+warning: in the working copy of 'pbj-wrapped/src/pages/sff-page.tsx', CRLF will be replaced by LF the next time Git 
+touches it
+warning: in the working copy of 'scripts/simulate_render_deploy_gates.py', CRLF will be replaced by LF the next time 
+Git touches it
+warning: in the working copy of 'state-evolution-linkedin.html', CRLF will be replaced by LF the next time Git touches 
+it
+warning: in the working copy of 'state_quarterly_metrics.csv', CRLF will be replaced by LF the next time Git touches it
+ CONSOLIDATION_PLAN.md                             |    5 +-
+ DEPLOY_AND_RUN.md                                 |  107 +-
+ FOLDER_STRUCTURE_CANON.md                         |    8 +-
+ analyze_sff_hprd.py                               |   33 +-
+ audit_data_accuracy.py                            |   13 +-
+ data/compliance/staffing_compliance_manifest.json |    2 +-
+ docs/LFS_BANDWIDTH.md                             |    2 +-
+ docs/staffing_minimums_methodology.md             |    4 +-
+ ownership/owner_indexability_audit.csv            | 6987 ++++++++++++++++++++-
+ pbj-wrapped/package.json                          |    2 +-
+ pbj-wrapped/scripts/preprocess-data.js            |  203 +-
+ pbj-wrapped/src/lib/wrapped/dataLoader.ts         |  125 +-
+ pbj-wrapped/src/pages/sff-page.tsx                |    6 +-
+ press.html                                        |    4 +-
+ render.yaml                                       |    2 +-
+ scripts/simulate_render_deploy_gates.py           |   28 +-
+ scripts/validate_release.py                       |   48 +-
+ state-evolution-linkedin.html                     |   53 +-
+ state_quarterly_metrics.csv                       |    2 +-
+ 19 files changed, 7407 insertions(+), 227 deletions(-)

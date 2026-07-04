@@ -18,14 +18,16 @@ Use this as the canonical map for where files belong.
 - `provider_info/` for ProviderInfoNorm snapshots
 - `ownership/` for ownership/chain source CSVs
 - `data/geo/` for geo/state helper inputs
-- source PDFs/zips should stay outside runtime paths until processed
+- `data_sources/cms/sff/raw/` for versioned CMS SFF posting PDFs (+ manifests)
+- other source PDFs/zips should stay outside runtime paths until processed
 
 ## Derived / Generated
 
 - generated JSONs and merged CSVs used by app
 - SFF derived outputs:
-  - `pbj-wrapped/public/sff-facilities.json`
-  - `pbj-wrapped/public/sff-candidate-months.json`
+  - `data/derived/sff/sff_facilities.json` (canonical)
+  - `data/derived/sff/sff_facilities.csv`
+  - deploy copies in `pbj-wrapped/public/sff-facilities.json`, `sff-candidate-months.json`
 
 ## Local Artifacts (not for release)
 

@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "description": "Bias-control and editorial independence rules for PBJ320 public metadata. Investigative journalism may inform data architecture; it must not set product conclusions, labels, or operator-specific logic.",
+  "core_principle": "PBJ320 should learn from public data joins and source-transparency patterns, not inherit advocacy, litigation strategy, or market-position framing from any single publisher or short seller.",
+  "evidence_tiers": {
+    "observed_data": "Independently collected or regulator-observed records (e.g., survey deficiencies, penalties tied to inspections).",
+    "payroll_submitted": "Facility payroll records submitted to CMS through PBJ; auditable but not independently observed at the bedside.",
+    "facility_reported": "Facility-submitted assessments or CMS calculations that rely on them (e.g., MDS-derived quality measures, case-mix).",
+    "pbj320_derived": "Screening statistics, rankings, and comparisons computed by PBJ320 from public datasets.",
+    "third_party_allegation": "Claims from lawsuits, interviews, or news reports not verified by PBJ320.",
+    "legal_conclusion": "Determinations of violation, negligence, causation, or liability. PBJ320 public pages do not make these."
+  },
+  "source_type_to_evidence_tier": {
+    "inspection_based": "observed_data",
+    "payroll_based": "payroll_submitted",
+    "facility_reported": "facility_reported",
+    "pbj320_derived": "pbj320_derived"
+  },
+  "implementation_rules": [
+    "Do not hard-code conclusions from any single investigative publisher into PBJ320 labels or methodology.",
+    "Do not create operator- or chain-specific public logic unless driven by user-supplied identifiers (e.g., CCN, entity id) with neutral copy.",
+    "Do not add anti-chain, anti-operator, pro-plaintiff, investor, or law-firm-oriented assumptions to public metadata.",
+    "Do not copy sensational labels (e.g., fatal neglect, fraud, gaming, care never delivered, profit from understaffing, tunneling).",
+    "Every new public metric must be defined from documented public data and PBJ320 method notes.",
+    "Every derived metric must carry a caveat distinguishing observed data, facility-reported data, verified findings, PBJ320 estimates, third-party allegations, and legal conclusions.",
+    "Benchmarks and thresholds must name a documented source; disable or omit when the formula or authority is not in the repo.",
+    "Future cost-report fields must use neutral labels such as related-party payments, not extraction, tunneling, or hidden profit.",
+    "Ownership and acquisition views must stay descriptive unless a causal model is fully documented and tested elsewhere."
+  ],
+  "prohibited_vendor_references": [
+    "hunterbrook",
+    "hunterbrook capital",
+    "hunterbrook media",
+    "hunterbrook law"
+  ],
+  "prohibited_operator_hardcoding": [
+    "ensign group",
+    "ensign services",
+    "$ensg",
+    "ensg"
+  ],
+  "future_metric_label_guidance": {
+    "related_party_payments": {
+      "approved_public_label": "Related-party payments",
+      "approved_caveat": "Payments reported on Medicare cost reports between related parties. PBJ320 describes reported amounts; it does not classify intent or legality.",
+      "rejected_labels": ["extraction", "tunneling", "hidden profit", "self-dealing profit"]
+    },
+    "ownership_acquisition_staffing": {
+      "approved_public_label": "Pre/post acquisition staffing pattern",
+      "approved_caveat": "Descriptive comparison of reported PBJ staffing before and after a CMS change-of-ownership date. Not a causal estimate of ownership effects.",
+      "rejected_labels": ["ownership caused understaffing", "acquisition-driven neglect"]
+    },
+    "acuity_staffing_comparison": {
+      "approved_public_label": "Reported staffing vs. acuity benchmark",
+      "approved_caveat": "Comparison to a documented acuity or case-mix benchmark from public CMS data. Not a dollarized gap, legal minimum, or proof of care not delivered.",
+      "rejected_labels": ["staffing gap savings", "care never delivered", "profit from neglect"]
+    }
+  },
+  "rhetorical_conclusion_patterns_to_avoid": [
+    "proves violation",
+    "proves neglect",
+    "proves fraud",
+    "confirms neglect",
+    "demonstrates illegal",
+    "guilty of",
+    "committed fraud",
+    "deliberately withheld care",
+    "systematic neglect",
+    "predatory operator"
+  ]
+}

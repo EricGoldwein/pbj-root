@@ -1,0 +1,17 @@
+{
+  "active_release_date": "2026-05-01",
+  "releases": {
+    "2026-04-01": {
+      "ownership_source_filename": "SNF_All_Owners_2026.04.01.csv",
+      "bridge_lookup_filename": "release_2026-04-01_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
+      "status": "historical_supported"
+    },
+    "2026-05-01": {
+      "ownership_source_filename": "SNF_All_Owners_May_2026.csv",
+      "bridge_lookup_filename": "release_2026-05-01_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
+      "status": "active"
+    }
+  }
+}

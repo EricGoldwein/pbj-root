@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: #f1f5f9;
+      color: #0f172a;
+      width: 1080px;
+      padding: 10px 12px 12px;
+      -webkit-font-smoothing: antialiased;
+    }
+    .dash {
+      background: #fff;
+      border: 1px solid #d9e2ef;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(15,23,42,.06);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 8px 14px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #fff;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .brand { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #1e3a5f; margin-right: 8px; }
+    .brand span.accent { color: #4f46e5; font-weight: 600; }
+    .nav-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+    .nav-pills span {
+      padding: 4px 8px;
+      border-radius: 6px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-weight: 500;
+    }
+    .nav-pills span.on { background: #eef2ff; border-color: #c7d2fe; color: #4338ca; }
+    .facility {
+      margin: 10px 12px 0;
+      padding: 12px 14px;
+      background: linear-gradient(165deg, #eef2ff 0%, #f8fafc 55%, #fff 100%);
+      border: 1px solid #c7d2fe;
+      border-radius: 10px;
+    }
+    .facility h1 {
+      font-family: "Plus Jakarta Sans", Inter, sans-serif;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 4px;
+    }
+    .facility .meta { font-size: 11px; color: #64748b; line-height: 1.45; }
+    .facility .meta a { color: #4338ca; text-decoration: none; font-weight: 600; }
+    .facility .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 10px;
+      padding: 7px 14px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+      box-shadow: 0 2px 8px rgba(124,58,237,.35);
+    }
+    .section-title {
+      margin: 12px 12px 8px;
+      font-family: "Plus Jakarta Sans", Inter, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 10px;
+      margin: 0 12px 10px;
+    }
+    .sidebar {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 10px;
+      color: #475569;
+    }
+    .seg { display: flex; flex-wrap: wrap; gap: 3px; margin-bottom: 8px; }
+    .seg span {
+      padding: 3px 7px;
+      border-radius: 5px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      font-weight: 600;
+      font-size: 9px;
+    }
+    .seg span.on { background: #eef2ff; border-color: #a5b4fc; color: #4338ca; }
+    .dates { margin: 6px 0; font-size: 9px; line-height: 1.5; }
+    .btn-row { display: flex; gap: 6px; margin-top: 8px; }
+    .btn-apply {
+      flex: 1;
+      text-align: center;
+      padding: 5px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      font-weight: 600;
+    }
+    .btn-summary {
+      flex: 1.2;
+      text-align: center;
+      padding: 5px 6px;
+      border-radius: 6px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #7c3aed, #6d28d9);
+      font-size: 9px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 9px;
+      font-size: 9px;
+      line-height: 1.4;
+      min-height: 118px;
+    }
+    .card h3 {
+      font-size: 10px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 4px;
+    }
+    .card .row { display: flex; justify-content: space-between; margin: 3px 0; color: #334155; }
+    .card .muted { color: #64748b; }
+    .stars { color: #f59e0b; letter-spacing: 1px; }
+    .bar-wrap { margin: 6px 0 4px; }
+    .bar-label { display: flex; justify-content: space-between; font-size: 8px; margin-bottom: 2px; }
+    .bar { height: 6px; border-radius: 3px; background: #fee2e2; overflow: hidden; }
+    .bar > i { display: block; height: 100%; background: #ef4444; border-radius: 3px; }
+    .chart-block {
+      margin: 0 12px 12px;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 10px 6px;
+    }
+    .chart-tabs { display: flex; gap: 12px; font-size: 9px; color: #94a3b8; margin-bottom: 6px; }
+    .chart-tabs b { color: #4338ca; font-weight: 700; }
+    .chart-svg { width: 100%; height: auto; display: block; }
+    .legend { display: flex; gap: 12px; font-size: 8px; color: #64748b; margin-top: 4px; flex-wrap: wrap; }
+    .legend i { display: inline-block; width: 10px; height: 2px; vertical-align: middle; margin-right: 3px; }
+  </style>
+</head>
+<body>
+  <div class="dash">
+    <div class="topbar">
+      <div class="brand"><span>PBJ</span><span class="accent">320</span></div>
+      <div class="nav-pills">
+        <span class="on">Compliance</span><span>Acuity</span><span>Trends</span><span>Red Flags</span>
+        <span>Employee Tracker</span><span>Daily PBJ</span>
+      </div>
+    </div>
+    <div class="facility">
+      <h1>Phoebe Jay Nursing Home <span style="font-weight:600;color:#64748b;">(320365)</span></h1>
+      <div class="meta">Brooklyn, NY · <a href="#">Chain: 320 Consulting LLC</a></div>
+      <div class="cta">✨ Build Custom PBJ Report</div>
+    </div>
+    <div class="section-title">1. PBJ Summary</div>
+    <div class="summary-grid">
+      <div class="sidebar">
+        <div class="seg">
+          <span>Years</span><span class="on">Quarters</span><span>Months</span><span>Custom</span><span>Day</span>
+        </div>
+        <div class="dates">Start: 04/08/2022<br>End: 12/31/2025</div>
+        <div class="btn-row">
+          <div class="btn-apply">Apply</div>
+          <div class="btn-summary">✨ PBJ320 Summary</div>
+        </div>
+      </div>
+      <div class="cards">
+        <div class="card">
+          <h3>Profile</h3>
+          <div class="row"><span class="muted">Census</span><strong>300.3</strong></div>
+          <div class="row"><span class="muted">Beds</span><span>320</span></div>
+          <div class="row"><span class="muted">Overall</span><span class="stars">★★★☆☆</span></div>
+          <div class="row"><span class="muted">Staffing</span><span class="stars">★★☆☆☆</span></div>
+          <div class="row"><span class="muted">For profit</span></div>
+        </div>
+        <div class="card">
+          <h3>PBJ Basics</h3>
+          <div class="row"><span class="muted">Total HPRD</span><strong>2.89</strong></div>
+          <div class="row"><span class="muted">Direct</span><span>2.75</span></div>
+          <div class="row"><span class="muted">RN HPRD</span><strong>0.28</strong></div>
+          <div class="row"><span class="muted">Nurse aide</span><span>2.12</span></div>
+          <div class="row"><span class="muted">Contract</span><span>12.1%</span></div>
+          <div class="muted" style="margin-top:4px;font-size:8px;">NY min. ~3.56 HPRD</div>
+        </div>
+        <div class="card">
+          <h3>Acuity &amp; Compliance</h3>
+          <div class="bar-wrap">
+            <div class="bar-label"><span>CMS Case-Mix</span><strong>65.6%</strong></div>
+            <div class="bar"><i style="width:65.6%"></i></div>
+          </div>
+          <div class="bar-wrap">
+            <div class="bar-label"><span>Direct</span><strong>62.1%</strong></div>
+            <div class="bar"><i style="width:62.1%"></i></div>
+          </div>
+          <div class="row" style="margin-top:6px;"><span class="muted">&lt; NY min</span><span>1,364 d</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-block">
+      <div class="chart-tabs"><b>Monthly</b><span>Daily</span><span>Quarterly</span><span>Annually</span></div>
+      <svg class="chart-svg" viewBox="0 0 820 140" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="820" height="140" fill="#fafbfc"/>
+        <line x1="48" y1="12" x2="48" y2="118" stroke="#e2e8f0" stroke-width="1"/>
+        <line x1="48" y1="118" x2="800" y2="118" stroke="#e2e8f0" stroke-width="1"/>
+        <text x="8" y="68" font-size="9" fill="#94a3b8" transform="rotate(-90 8 68)">HPRD</text>
+        <line x1="48" y1="32" x2="800" y2="32" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="48" y1="58" x2="800" y2="58" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="48" y1="84" x2="800" y2="84" stroke="#f1f5f9" stroke-width="1"/>
+        <line x1="48" y1="32" x2="800" y2="32" stroke="#eab308" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.85"/>
+        <text x="52" y="28" font-size="8" fill="#a16207">NY min. (~3.56)</text>
+        <polyline fill="none" stroke="#dc2626" stroke-width="2" stroke-linejoin="round"
+          points="52,95 95,88 138,82 181,78 224,85 267,80 310,76 353,72 396,68 439,74 482,70 525,66 568,62 611,58 654,55 697,52 740,48 783,45"/>
+        <polyline fill="none" stroke="#7c3aed" stroke-width="1.8" stroke-linejoin="round"
+          points="52,100 95,92 138,86 181,82 224,90 267,85 310,81 353,77 396,73 439,79 482,75 525,71 568,67 611,63 654,60 697,57 740,54 783,51"/>
+        <text x="52" y="132" font-size="8" fill="#94a3b8">Apr '23</text>
+        <text x="350" y="132" font-size="8" fill="#94a3b8">Apr '24</text>
+        <text x="720" y="132" font-size="8" fill="#94a3b8">Aug '25</text>
+      </svg>
+      <div class="legend">
+        <span><i style="background:#dc2626"></i>Total</span>
+        <span><i style="background:#7c3aed"></i>Direct</span>
+        <span><i style="background:#eab308;height:1px;border-top:1px dashed #eab308"></i>NY min.</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -69,7 +69,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
     def test_sitemap_includes_public_state_pages(self):
         paths = {row[0] for row in public_owner_index_sitemap_paths()}
         self.assertEqual(paths, {"/owners/ny", "/owners/nj", "/owners/ct", "/owners/fl"})
-        draft_paths = {f"/owners/{slug}" for slug in ("id",)}
+        draft_paths = {f"/owners/{slug}" for slug in ("id", "oh", "ohio")}
         self.assertFalse(draft_paths & paths)
         for path, _pri, changefreq, lastmod in public_owner_index_sitemap_paths():
             self.assertEqual(changefreq, "weekly")
@@ -78,6 +78,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
     def test_draft_state_indexes_meta_and_slug(self):
         cases = (
             ("id", "ID", "Idaho", "idaho", "Largest ID portfolios"),
+            ("oh", "OH", "Ohio", "ohio", "Largest OH portfolios"),
         )
         for slug, code, name, state_page_slug, portfolio_short in cases:
             with self.subTest(slug=slug):

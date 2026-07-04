@@ -63,7 +63,7 @@ Render runs **git checkout before** build env vars apply, so `GIT_LFS_SKIP_SMUDG
 5. **Manual Deploy** once. In build logs, expect:
    - `ensure_deploy_csvs: copied facility_quarterly_metrics_latest.csv -> facility_quarterly_metrics.csv`
    - `ensure_deploy_csvs: OK provider_info/ProviderInfoNorm_2026_04.csv`
-6. Smoke-test `/health`, `/provider/075263`, `/report`. Re-enable auto-deploy only after one green deploy.
+6. Smoke-test per **`DEPLOYMENT.md`** (at minimum `/healthz`, one provider URL, `/report`). Re-enable auto-deploy only after one green deploy.
 
 ### Other options
 

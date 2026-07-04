@@ -106,19 +106,24 @@ def _parse_snf_owners_filename(path: Path) -> tuple[int, int, int] | None:
 
 @lru_cache(maxsize=1)
 def snf_owners_csv_path() -> Path | None:
-    """Newest SNF_All_Owners*.csv in ownership/ (by date in filename)."""
-    if not _OWNERSHIP_DIR.is_dir():
-        return None
-    candidates: list[tuple[tuple[int, int, int], Path]] = []
-    for path in _OWNERSHIP_DIR.glob(_SNF_OWNERS_GLOB):
-        if not path.is_file():
+    """Policy-selected SNF_All_Owners CSV (explicit release; no mtime/glob fallback)."""
+    repo_root = _OWNERSHIP_DIR.parent
+    for policy_root in (repo_root, repo_root.parent / "PBJapp"):
+        policy_file = policy_root / "ownership" / "ownership_release_policy.json"
+        if not policy_file.is_file():
             continue
-        key = _parse_snf_owners_filename(path)
-        if key:
-            candidates.append((key, path))
-    if not candidates:
-        return None
-    return sorted(candidates, reverse=True)[0][1]
+        try:
+            import sys
+
+            root_str = str(policy_root)
+            if root_str not in sys.path:
+                sys.path.insert(0, root_str)
+            from ownership.ownership_release_policy import resolve_ownership_source_path
+
+            return resolve_ownership_source_path(policy_root)
+        except Exception:
+            continue
+    return None
 
 
 def snf_owners_release_month_year(path: Path | None = None) -> tuple[int, int] | None:
@@ -133,10 +138,16 @@ def snf_owners_release_month_year(path: Path | None = None) -> tuple[int, int] |
 
 
 def _ownership_source_fields(path: Path | None) -> dict[str, str]:
-    return {
+    fields = {
         "source_file": path.name if path else "",
         "ownership_source": snf_owners_source_citation(path),
     }
+    if path:
+        parsed = _parse_snf_owners_filename(path)
+        if parsed:
+            y, mo, day = parsed
+            fields["ownership_release_date"] = f"{y:04d}-{mo:02d}-{day:02d}"
+    return fields
 
 
 _SQLITE_THREAD_LOCAL = threading.local()

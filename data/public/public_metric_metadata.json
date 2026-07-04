@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "description": "Public-safe metric source and trust metadata for PBJ320 free site. Enriched copies from pbjapp may override at runtime.",
+  "metrics": [
+    {
+      "metric_id": "health_inspection_deficiencies",
+      "public_label": "Health inspection deficiencies",
+      "source_type": "inspection_based",
+      "plain_english_source": "Recorded by state survey agencies during on-site health inspections and published in CMS Provider Information.",
+      "public_caveat": "Deficiency counts reflect survey findings at a point in time; they do not describe every aspect of care.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "complaint_deficiencies",
+      "public_label": "Complaint deficiencies",
+      "source_type": "inspection_based",
+      "plain_english_source": "Documented in CMS Provider Information from complaint-related survey activity.",
+      "public_caveat": "Complaint surveys may not capture all resident or family concerns.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "fines_penalties",
+      "public_label": "Fines and civil monetary penalties",
+      "source_type": "inspection_based",
+      "plain_english_source": "Federal enforcement actions published in CMS Provider Information and related CMS datasets.",
+      "public_caveat": "Penalty totals may not include all state-level actions or private settlements.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "abuse_icon",
+      "public_label": "Abuse icon",
+      "source_type": "inspection_based",
+      "plain_english_source": "CMS Care Compare abuse flag when a facility has a substantiated abuse citation in the look-back window described in the Five-Star Technical Users' Guide.",
+      "public_caveat": "PBJ320 displays CMS's flag when present; confirm on Care Compare before citing in formal work.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "sff_status",
+      "public_label": "Special Focus Facility status",
+      "source_type": "inspection_based",
+      "plain_english_source": "CMS Special Focus Facility program listings and related CMS publications.",
+      "public_caveat": "SFF candidacy and graduation reflect CMS program rules at the time of posting.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "pbj_daily_staffing",
+      "public_label": "PBJ daily nurse staffing",
+      "source_type": "payroll_based",
+      "plain_english_source": "CMS Payroll-Based Journal daily nurse staffing public use files, submitted by facilities from payroll records.",
+      "public_caveat": "PBJ reports paid hours, not shift-level care delivery or bedside presence.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "total_nurse_hprd",
+      "public_label": "Total nurse HPRD",
+      "source_type": "payroll_based",
+      "plain_english_source": "Total reported nursing hours divided by average daily census from CMS PBJ quarterly or daily files.",
+      "public_caveat": "HPRD can rise when census falls even if total hours are unchanged.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "rn_hprd",
+      "public_label": "RN HPRD",
+      "source_type": "payroll_based",
+      "plain_english_source": "Reported RN hours (including RN admin and DON where included) divided by census from CMS PBJ.",
+      "public_caveat": "Job-code mix and contract staff are facility-reported in PBJ.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "lpn_hprd",
+      "public_label": "LPN HPRD",
+      "source_type": "payroll_based",
+      "plain_english_source": "Reported LPN and LPN administrator hours divided by census from CMS PBJ.",
+      "public_caveat": "LPN totals depend on how facilities classify roles in PBJ submissions.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "nurse_aide_hprd",
+      "public_label": "CNA / nurse aide HPRD",
+      "source_type": "payroll_based",
+      "plain_english_source": "Reported CNA, nurse aide in training, and medication aide hours divided by census from CMS PBJ.",
+      "public_caveat": "Aide hours reflect payroll records, not observed direct-care time per resident.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "weekend_staffing",
+      "public_label": "Weekend staffing",
+      "source_type": "payroll_based",
+      "plain_english_source": "Derived from CMS PBJ daily files by aggregating Saturday and Sunday reported hours.",
+      "public_caveat": "Weekend patterns vary by facility scheduling; a single weekend may not represent typical coverage.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "contract_staff_pct",
+      "public_label": "Contract staff share",
+      "source_type": "payroll_based",
+      "plain_english_source": "Contract or agency hours as a share of total reported hours in CMS PBJ.",
+      "public_caveat": "Contract share describes workforce mix, not care quality or compliance.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "mds_quality_measures",
+      "public_label": "MDS-derived quality measures",
+      "source_type": "facility_reported",
+      "plain_english_source": "Calculated by CMS from Minimum Data Set (MDS) assessments submitted by facilities.",
+      "public_caveat": "Quality measures depend on assessment timing and coding; they are not independent observations.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "long_stay_qm",
+      "public_label": "Long-stay quality measures",
+      "source_type": "facility_reported",
+      "plain_english_source": "CMS quality measures for long-stay residents from MDS assessments in Provider Information.",
+      "public_caveat": "Long-stay measures may lag changes in staffing or operations.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "short_stay_qm",
+      "public_label": "Short-stay quality measures",
+      "source_type": "facility_reported",
+      "plain_english_source": "CMS quality measures for short-stay residents from MDS assessments in Provider Information.",
+      "public_caveat": "Short-stay populations and discharge patterns can affect these rates.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "case_mix_cmi",
+      "public_label": "Case-mix / CMI",
+      "source_type": "facility_reported",
+      "plain_english_source": "CMS nursing case-mix index and expected staffing hours from Provider Information, based on MDS-derived acuity.",
+      "public_caveat": "Case-mix is an acuity benchmark for comparison, not a legal staffing minimum.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "five_star_ratings",
+      "public_label": "Five-Star ratings",
+      "source_type": "facility_reported",
+      "plain_english_source": "CMS Five-Star composite and component ratings from Provider Information.",
+      "public_caveat": "Star ratings combine multiple inputs, including self-reported and survey-based components.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "state_percentile",
+      "public_label": "Within-state percentile",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 ranks a facility's reported total nurse HPRD against other facilities in the same state for the quarter shown.",
+      "public_caveat": "Percentiles are not case-mix adjusted and do not establish legal or clinical conclusions.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "state_ranking",
+      "public_label": "State ranking",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 ordering of states or facilities by reported PBJ metrics for a selected quarter.",
+      "public_caveat": "Rankings describe relative reported staffing, not overall quality or compliance.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "direct_care_hprd",
+      "public_label": "Direct-care nurse HPRD",
+      "source_type": "payroll_based",
+      "plain_english_source": "Mapped direct-care nursing hours (RN, LPN, CNA, nurse aide trainee, medication aide) divided by census from CMS PBJ daily files.",
+      "public_caveat": "Role mapping follows configured state rules (e.g. NY § 2895-b); excludes DON and nursing administrator hours where applicable.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "threshold_shortfall_rate",
+      "public_label": "Days below staffing threshold",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 counts PBJ daily facility-days where the configured staffing metric for that state falls below the paired threshold (e.g. NY direct-care HPRD vs. 3.50; CT total nursing HPRD vs. 3.06).",
+      "public_caveat": "Threshold labels describe reference lines for screening; PBJ320 does not make legal findings of violation.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "weekend_gap",
+      "public_label": "Weekend staffing gap",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 comparison of weekend reported HPRD to weekday or state peer context where shown.",
+      "public_caveat": "Weekend gaps are descriptive patterns that may warrant closer review, not proof of understaffing.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "state_comparison",
+      "public_label": "State comparison",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 compares reported facility or state metrics to state or national aggregates from the same PBJ files.",
+      "public_caveat": "State averages mask wide within-state variation among facilities.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "ownership_summary",
+      "public_label": "Ownership summary",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 aggregates CMS ownership, chain performance, and related public records where available.",
+      "public_caveat": "Ownership links may be incomplete; CMS owner data does not cover every control structure.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "rn_zero_days",
+      "public_label": "Days with zero RN hours",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 counts PBJ daily records where total reported RN, RN admin, and DON hours sum to zero.",
+      "public_caveat": "Zero-hour days may reflect reporting quirks; verify against daily PBJ before relying on a single day.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    },
+    {
+      "metric_id": "rn_below_8hr_days",
+      "public_label": "Days with under 8 RN hours",
+      "source_type": "pbj320_derived",
+      "plain_english_source": "PBJ320 counts PBJ daily records where total reported RN, RN admin, and DON hours are below eight.",
+      "public_caveat": "This screen uses facility-wide daily totals, not shift-level RN coverage.",
+      "show_on_public_site": true,
+      "show_in_methodology": true
+    }
+  ]
+}

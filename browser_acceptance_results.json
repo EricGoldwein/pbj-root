@@ -1,0 +1,74 @@
+﻿{
+  "test_run": {
+    "timestamp_utc": "2026-07-03T19:17:00Z",
+    "project": "pbj-root",
+    "server": {
+      "started": true,
+      "port": 5055,
+      "fallback_port_attempted": false,
+      "command": "python -c \"import app; app.app.run(port=5055, debug=False, use_reloader=False)\"",
+      "stopped": true
+    }
+  },
+  "production": {
+    "url": "https://www.pbj320.com/geo/connecticut",
+    "http_status": 404,
+    "live": false,
+    "title_snippet": "404 Not Found"
+  },
+  "local_routes": [
+    {
+      "url": "http://127.0.0.1:5055/geo/connecticut",
+      "http_status": 200,
+      "title_snippet": "Connecticut geographic staffing — PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q4",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "regional_comparison_table_rows": 9,
+      "choropleth_map_present_initial_html": false,
+      "choropleth_notes": "No canvas/svg/mapbox/leaflet/plotly/choropleth in initial HTML; 'map' substring only from facility names (e.g. MAPLE)."
+    },
+    {
+      "url": "http://127.0.0.1:5055/geo/connecticut?quarter=2025Q3",
+      "http_status": 200,
+      "title_snippet": "Connecticut geographic staffing — PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q3",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "regional_comparison_table_rows": 9,
+      "choropleth_map_present_initial_html": false
+    },
+    {
+      "url": "http://127.0.0.1:5055/geo/connecticut?quarter=2025Q4",
+      "http_status": 200,
+      "title_snippet": "Connecticut geographic staffing — PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q4",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "regional_comparison_table_rows": 9,
+      "choropleth_map_present_initial_html": false
+    },
+    {
+      "url": "http://127.0.0.1:5055/state/connecticut",
+      "http_status": 200,
+      "title_snippet": "Connecticut PBJ Nursing Home Staffing",
+      "geographic_crosslink_to_geo": true,
+      "geo_href_sample": "/geo/connecticut",
+      "visible_geo_copy_snippet": "Geographic staffing by region",
+      "county_in_visible_text": false,
+      "planning_region_in_visible_text": false,
+      "region_in_visible_text": true,
+      "choropleth_map_present_initial_html": true,
+      "choropleth_notes": "canvas and svg present on state page (not geo page)."
+    }
+  ],
+  "acceptance_summary": {
+    "geo_pages_ok": true,
+    "quarter_selector_respects_query": true,
+    "state_geo_crosslink_ok": true,
+    "production_geo_route_deployed": false
+  }
+}

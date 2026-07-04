@@ -1,0 +1,27 @@
+{
+  "source": {
+    "source": "Connecticut Office of Policy and Management / CT Geodata Portal CT Councils of Governments",
+    "source_url": "https://geodata.ct.gov/datasets/ctmaps::ct-councils-of-governments",
+    "arcgis_layer": "CT_Councils_of_Governments FeatureServer/0",
+    "geography_model": "pbj_planning_region",
+    "fips_field": "CouncilsOfGovernmentsFIPS_GEOID",
+    "feature_count": 9,
+    "prepared_by": "scripts/prepare_ct_planning_region_geometry.py"
+  },
+  "registry_fips_matched": [
+    "capitol",
+    "greater_bridgeport",
+    "lower_ct_river_vly",
+    "naugatuck_vly",
+    "northeastern_ct",
+    "nw_hills",
+    "south_central_ct",
+    "southeastern_ct",
+    "western_ct"
+  ],
+  "feature_count": 9,
+  "output_files": [
+    "data\\gis\\ct_planning_regions.geojson",
+    "data\\gis\\ct_planning_regions_svg_paths.json"
+  ]
+}

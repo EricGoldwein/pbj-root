@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "description": "Public-safe methodology copy for PBJ320 free site. Conservative, non-accusatory tone.",
+  "snippets": {
+    "pbj_staffing": "PBJ staffing data is payroll-based and submitted by nursing facilities to CMS. PBJ320 uses this data to calculate daily staffing levels, including total nurse staffing and RN staffing per resident day.",
+    "daily_hprd": "Hours per resident day (HPRD) divides reported nursing hours by average daily census for the same period. HPRD can move when census changes even if total hours stay flat.",
+    "weekend_staffing": "Weekend staffing on PBJ320 is derived from Saturday and Sunday rows in CMS PBJ daily files. It describes reported payroll hours, not observed shift coverage.",
+    "state_thresholds": "State staffing thresholds vary in legal status and methodology. PBJ320 labels thresholds as legal minimums, benchmarks, estimated standards, or proposed standards where applicable.",
+    "metric_reliability": "Not all nursing home metrics are equally independent. Some measures come from state or federal inspections, some are based on payroll records submitted to CMS, and others depend more heavily on facility-reported assessments.",
+    "facility_vs_payroll_vs_inspection": "Inspection-based measures reflect survey or enforcement activity. Payroll-based measures come from CMS PBJ submissions. Facility-reported measures rely on MDS assessments and related CMS calculations.",
+    "pbj320_derived": "PBJ320-derived metrics are calculations based on public datasets. They are intended to identify patterns that may warrant closer review, not to establish legal conclusions.",
+    "ownership_limitations": "Ownership and operator context on PBJ320 comes from CMS public ownership and chain files where available. Links may be incomplete and do not map every investment or management relationship.",
+    "premium_bridge": "Need facility-specific review windows, deeper staffing context, or source-backed exports? PBJ320 Premium provides more detailed analysis using public staffing and ownership records.",
+    "premium_bridge_alt": "Premium tools can support deeper review of staffing around selected date ranges, ownership context, and source-backed facility summaries.",
+    "data_sources_intro": "PBJ320 organizes federally published nursing home datasets for public lookup. Figures should be verified against CMS primary sources before operational or legal use.",
+    "case_mix_benchmark": "CMS case-mix expected staffing is an acuity benchmark from MDS-derived PDPM groups. It is useful for comparison to reported PBJ hours, not a statutory minimum unless separate law applies.",
+    "macpac_reference": "MACPAC state staffing compendium entries summarize state policy research. PBJ320 uses them as estimated reference lines on charts unless a separate verified legal minimum is documented.",
+    "evidence_tiers": "PBJ320 distinguishes observed inspection data, payroll-submitted PBJ hours, facility-reported assessments, PBJ320-derived screening statistics, third-party allegations, and legal conclusions. Public pages present the first four; they do not treat estimates or allegations as findings of violation or neglect.",
+    "independence_principle": "PBJ320 is an independent public-data platform operated by 320 Consulting LLC. Methodology follows documented CMS and other federal sources—not conclusions, incentives, or rhetoric from any single news outlet, investor, or law firm."
+  },
+  "source_type_labels": {
+    "inspection_based": "Inspection-based",
+    "payroll_based": "Payroll-based",
+    "facility_reported": "Facility-reported",
+    "pbj320_derived": "PBJ320-derived"
+  },
+  "source_type_descriptions": {
+    "inspection_based": "Measures recorded or verified through surveys, complaints, penalties, or CMS enforcement programs.",
+    "payroll_based": "Measures from CMS Payroll-Based Journal files submitted from facility payroll records.",
+    "facility_reported": "Measures that rely substantially on facility-submitted assessments or CMS calculations from those assessments.",
+    "pbj320_derived": "Screening statistics, rankings, and comparisons computed by PBJ320 from public data."
+  }
+}

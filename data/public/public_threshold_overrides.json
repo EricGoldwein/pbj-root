@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "description": "Hand-curated threshold type overrides. MACPAC state_standards rows default to estimated_standard unless listed here or in staffing_compliance_thresholds.",
+  "overrides": [
+    {
+      "state": "US",
+      "threshold_id": "federal_baseline_1987",
+      "public_label": "Federal baseline (RN/LPN 24/7; RN DON 8 hr/day)",
+      "value": 0.3,
+      "unit": "total_nurse_hprd",
+      "threshold_type": "legal_minimum",
+      "short_caveat": "Long-standing federal requirement; often cited near 0.3 HPRD for a typical 100-bed facility.",
+      "methodology_caveat": "Federal regulation requires licensed nurse coverage and an RN director of nursing onsite; PBJ320 may display approximate HPRD equivalents for context.",
+      "source_url_or_note": "https://www.cms.gov/medicare/quality/nursing-home-improvement",
+      "show_public": true
+    },
+    {
+      "state": "US",
+      "threshold_id": "cms_2001_study_direct_care",
+      "public_label": "CMS 2001 expert panel recommendation (total direct care)",
+      "value": 4.1,
+      "unit": "total_nurse_hprd",
+      "threshold_type": "benchmark",
+      "short_caveat": "Influential research benchmark, not a binding federal rule.",
+      "methodology_caveat": "CMS convened an expert panel in 2001; facilities are not required to meet 4.1 HPRD.",
+      "source_url_or_note": "https://www.justice.gov/sites/default/files/elderjustice/legacy/2015/07/12/Appropriateness_of_Minimum_Nurse_Staffing_Ratios_in_Nursing_Homes.pdf",
+      "show_public": true
+    },
+    {
+      "state": "US",
+      "threshold_id": "cms_2024_proposed_minimum",
+      "public_label": "CMS 2024 proposed federal minimum (rescinded)",
+      "value": 3.48,
+      "unit": "total_nurse_hprd",
+      "threshold_type": "proposed_standard",
+      "short_caveat": "Proposed federal minimum staffing rule; numeric standards were rescinded and are not enforced.",
+      "methodology_caveat": "Courts vacated key portions and Congress imposed a moratorium; facilities remain subject to pre-2024 federal requirements.",
+      "source_url_or_note": "https://www.cms.gov/medicare/quality/nursing-home-improvement",
+      "show_public": true
+    },
+    {
+      "state": "CT",
+      "threshold_id": "ct_pbj_daily_screen_macpac",
+      "public_label": "CT total nursing HPRD daily screen",
+      "value": 3.06,
+      "unit": "total_nurse_hprd",
+      "threshold_type": "estimated_standard",
+      "short_caveat": "MACPAC estimated total staffing requirement used for PBJ daily screening.",
+      "methodology_caveat": "Connecticut law may reference direct-care hour minimums separately. PBJ320 applies this benchmark to total reported nursing HPRD.",
+      "source_url_or_note": "MACPAC state staffing compendium (2022); CT Public Act direct-care minimums",
+      "show_public": true
+    }
+  ]
+}

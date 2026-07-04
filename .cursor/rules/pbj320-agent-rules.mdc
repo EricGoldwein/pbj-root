@@ -1,5 +1,5 @@
 ---
-description: PBJ320 agent operating protocol — PowerShell, schema verification, encoding, live-page proof, git scope, performance evidence
+description: PBJ320 agent operating protocol — PowerShell, schema verification, encoding, live-page proof, git scope, performance evidence, quarter/artifact parity
 alwaysApply: true
 ---
 
@@ -92,6 +92,37 @@ Only after (1)–(4) fail, suggest hard refresh, restart `python app.py`, or `PB
 - State what still runs before first paint: e.g. `facility_quarterly_metrics_latest.csv` (~181 MB), full `load_csv_data('facility_quarterly_metrics.csv')`, cold provider render, `/report/embed/*`.
 - Prefer log markers (`[PBJ_PROVIDER]`, `X-PBJ-Provider-Cache`, `chart_build_ms`) or a before/after waterfall table.
 - For `/report`, provider pages, owners dashboards: explicitly answer **“Is the large CSV still loaded before first paint?”** yes/no with file name.
+
+## 7. Quarter and artifact parity (no stale push)
+
+**Default:** canonical quarter and served artifacts must agree before push. A quarter lag is a **bug**, not a caveat.
+
+| Source of truth | Files |
+|-----------------|-------|
+| Site label / API | `latest_quarter_data.json`, `/api/dates` (`pbj_quarter_display`, `quarters`) |
+| Wrapped / SFF JSON | `pbj-wrapped/public/data/json/quarterly/**` — `*_q2.json` = **current** quarter, `*_q1.json` = **prior** (slot names, not calendar Q1/Q2) |
+| Row quarter | `CY_Qtr` on each JSON row must match the slot’s intended quarter |
+
+### Before push (quarter / wrapped / SFF / preprocess work)
+
+1. **Regenerate artifacts when that is the fix** — run `cd pbj-wrapped; npm run preprocess` and commit updated JSON when `CY_Qtr` in served files must advance. Do **not** push code-only fixes while git JSON still lags `latest_quarter_data.json`.
+2. **Verify parity** — spot-check at least one served file, e.g. `national_q2.json` `CY_Qtr` and one facility row (CCN + HPRD). Record:
+   - `Verified from: national_q2 CY_Qtr=…, latest_quarter_data.json quarter=…`
+3. **Do not weaken gates to green-push** — if `validate_release.py` or `simulate_render_deploy_gates.py` fails on stale wrapped JSON, fix data or run preprocess; do **not** downgrade the check from error → note to allow push.
+4. **“Deploy will preprocess” is not enough** unless you traced build order (`render.yaml`: preprocess before `vite build`) **and** what path prod serves (`pbj-wrapped/dist/data` vs committed `public/data`). Git-tracked `public/data/json` still matters for dev and fallbacks.
+5. **Smoke the page** — after loader/guard changes on `/sff` or wrapped routes, confirm the page **loads** and staffing fields render or show intentional N/A; never ship guards that empty all quarterly data and hard-fail the page.
+6. **No runtime fallbacks as substitute for data** — do not add client logic that hides stale quarters (empty arrays, wrong-quarter display) instead of rebuilding JSON. Fix upstream first.
+
+### Wrapped preprocess sign-off checklist
+
+```powershell
+cd pbj-wrapped; npm run preprocess
+python -c "import json; print(json.load(open('public/data/json/quarterly/national/national_q2.json'))['CY_Qtr'])"
+python scripts/validate_release.py
+python scripts/simulate_render_deploy_gates.py
+```
+
+Push only when `national_q2` `CY_Qtr` matches `latest_quarter_data.json` `quarter` and SFF/wrapped smoke passes.
 
 ---
 

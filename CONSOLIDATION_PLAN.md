@@ -68,8 +68,9 @@
 | `CALCULATION_ANALYSIS.md` | median calc description | calculateMedian, facility-level vs state-level |
 | `FIXES_SUMMARY.md` | fix descriptions | weighted median, exclude admin/DON |
 | `pbj-wrapped/SLIDE_ORDER_AND_STYLE.md` | slide order, durations | USA 15 slides, State 15 slides, durations |
-| `RENDER_DEPLOY.md` | health check rule | Health Check Path = `/health` |
-| `DEPLOY_AND_RUN.md` | deploy rules | start command, health check |
+| `DEPLOYMENT.md` | production deploy runbook | Health Check Path = `/healthz`, start command, smoke tests |
+| `RENDER_DEPLOY.md` | memory/cache/provider warming | References `DEPLOYMENT.md`; not canonical deploy |
+| `DEPLOY_AND_RUN.md` | local dev / owners | References `DEPLOYMENT.md` for production |
 | `ROUTING_FIXES.md` | route order | JSON/image/CSV before state_slug |
 
 ### B) DERIVED EXPLANATIONS (explanations of code/data; may be merged)

@@ -1,8 +1,8 @@
 """
-State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl, /owners/nj; draft ID).
+State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl, /owners/nj; draft ID, OH).
 
 Published: NY + CT + FL + NJ (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
-Draft indexes: ID — routable locally, noindex, excluded from hub/sitemap until launch.
+Draft indexes: ID, OH — routable, noindex, excluded from hub/sitemap until launch.
 """
 from __future__ import annotations
 
@@ -42,9 +42,11 @@ PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
 }
 
 # Draft state indexes: same UI as published pages, not linked from /owners hub or sitemap.
-STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"ID"})
+STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"ID", "OH"})
 DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {
     "id": "ID",
+    "oh": "OH",
+    "ohio": "OH",
 }
 
 # All routable /owners/<slug> state index pages (public + draft).
@@ -140,6 +142,19 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "Idaho nursing home ownership search",
+    },
+    "OH": {
+        "name": "Ohio",
+        "slug": "oh",
+        "state_page_slug": "ohio",
+        "h1": state_index_h1("Ohio"),
+        "subtitle": state_index_subtitle("Ohio"),
+        "title": "Ohio Nursing Home Ownership Search | PBJ320",
+        "meta_description": (
+            "Search Ohio nursing home owners, PAC IDs, affiliated facilities, "
+            "and staffing context using public CMS ownership and PBJ staffing data."
+        ),
+        "hub_link_label": "Ohio nursing home ownership search",
     },
 }
 

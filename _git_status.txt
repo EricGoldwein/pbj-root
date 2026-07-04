@@ -1,0 +1,158 @@
+﻿ M CONSOLIDATION_PLAN.md
+ M DEPLOY_AND_RUN.md
+ M FOLDER_STRUCTURE_CANON.md
+ M analyze_sff_hprd.py
+ M audit_data_accuracy.py
+ M cms_region_quarterly_metrics.csv
+ M data/compliance/staffing_compliance_manifest.json
+ M docs/LFS_BANDWIDTH.md
+ M docs/staffing_minimums_methodology.md
+ M ownership/owner_indexability_audit.csv
+ M pbj-wrapped/package.json
+ M pbj-wrapped/scripts/preprocess-data.js
+ M pbj-wrapped/src/lib/wrapped/dataLoader.ts
+ M pbj-wrapped/src/pages/sff-page.tsx
+ M press.html
+ M render.yaml
+ M scripts/simulate_render_deploy_gates.py
+ M scripts/validate_release.py
+ M state-evolution-linkedin.html
+ M state_quarterly_metrics.csv
+?? DEPLOYMENT.md
+?? ROUTING_FIXES.md
+?? _dow_700.png
+?? _dow_chart_debug.png
+?? _dow_chart_mobile.png
+?? _dow_fixed.png
+?? _gate_out.txt
+?? _git_status.txt
+?? _linkedin-brand-extract/
+?? _ny_county_bubbles.json
+?? _owners_test.html
+?? _prod.zip
+?? _prod_report.html
+?? _tmp_burns_after_restart.html
+?? _tmp_burns_fixed.html
+?? _tmp_burns_live.html
+?? _tmp_fl_index.json.gz
+?? _tmp_live_verify.html
+?? _tmp_narrative_check.py
+?? _tmp_ny.html
+?? _tmp_owners_fl.html
+?? _tmp_owners_nj.html
+?? _tmp_owners_ny.html
+?? _tmp_preview_audit.html
+?? _tmp_provider_335513.html
+?? _tmp_rn_thresh_audit.py
+?? _tmp_rn_thresh_audit2.py
+?? _tmp_seagate.html
+?? _tmp_sff_audit.py
+?? _tmp_tx.html
+?? _tmp_validate_provider.html
+?? _tmp_verify_335513.html
+?? "app - Copy.py"
+?? cms_region_quarterly_metrics.pre_lpn_20260609_100819.csv
+?? cms_region_quarterly_metrics.pre_lpn_20260625_102633.csv
+?? cms_region_quarterly_metrics.pre_lpn_20260625_102724.csv
+?? cms_region_quarterly_metrics.pre_medians_20260609_100829.csv
+?? cms_region_quarterly_metrics.pre_medians_20260625_102640.csv
+?? cms_region_quarterly_metrics.pre_medians_20260625_102729.csv
+?? data/derived/
+?? "data/geo/state_rankings_q4_2025_datawrapper - Copy.csv"
+?? data/public/
+?? data/sff_source_pdfs/README.md
+?? data_sources/cms/sff/raw/2026-06/
+?? docs/PROGRESSIVE_DISCLOSURE_EXPLORATION.md
+?? docs/STATIC_FRONT_DOOR_PLAN.md
+?? docs/data_sources/
+?? docs/specimens/
+?? downloads/ny_350_min_report_old.png
+?? extract_sff_tables_to_csv.py
+?? facility_quarterly_metrics.pre_dedupe_20260520_202713.csv
+?? facility_quarterly_metrics.pre_unify_20260520_194654.csv
+?? in-logo.zip
+?? insights_posts/_drafts/
+?? link-check-report.txt
+?? national_quarterly_metrics.pre_lpn_20260609_100819.csv
+?? national_quarterly_metrics.pre_lpn_20260625_102633.csv
+?? national_quarterly_metrics.pre_lpn_20260625_102724.csv
+?? ownership/Chain_Performance_20260610.csv
+?? pbj-wrapped/scripts/convert-sff-csvs-to-json.py
+?? premium/demo/hero-dashboard-1x.png
+?? premium/demo/hero-dashboard-1x.webp
+?? premium/demo/hero-dashboard-2x.webp
+?? premium/demo/og-dashboard-render.png
+?? premium/demo/premium-main.png
+?? premium/demo/premium-og.png
+?? premium/demo/sample-dashboard-cover.png
+?? premium/goldwein_headshot.JPG
+?? premium/media/eric-goldwein-headshot.png
+?? provider_snapshot_signals.py
+?? public/downloads/PBJ320_NY_2025_daily_staffing_verification_csvs/
+?? public_metadata.py
+?? report.html.bak
+?? scripts/_audit_quarter_denominators.py
+?? scripts/_check_insights_nesting.py
+?? scripts/_check_nyc_weekend_public.py
+?? scripts/_debug_owner_html.py
+?? scripts/_nh_norm_map.json
+?? scripts/_nh_to_norm_dict.py.txt
+?? scripts/_ny_ct_playwright_report.json
+?? scripts/_ny_predist_audit.py
+?? scripts/_patch_owner_hprd_llms.py
+?? scripts/_poll_prod_copy_sync.py
+?? scripts/_prod_copy_sync_verify.py
+?? scripts/_prod_deploy_verify.py
+?? scripts/_prod_dow_playwright.py
+?? scripts/_prod_stale_search.py
+?? scripts/_restore_d08_casemix.py
+?? scripts/_test_insights_trends_assets.py
+?? scripts/_tmp_editorial_metrics.py
+?? scripts/_tmp_public_payload_audit.py
+?? scripts/_tmp_snapshot_signal_audit.py
+?? scripts/_validate_public_search.py
+?? scripts/_verify_ny_mode_chart.py
+?? scripts/_verify_warmup_constraints.py
+?? scripts/assets/
+?? scripts/audit_ny_copy_sync.py
+?? scripts/audit_ny_ct_playwright.py
+?? scripts/audit_ny_pct_field_consistency.py
+?? scripts/audit_ny_provider_attribution.py
+?? scripts/audit_ny_statutory_role_mapping.py
+?? scripts/audit_provider_missing_artifact.py
+?? scripts/audit_public_metadata.py
+?? scripts/bench_facility_index_warmup.py
+?? scripts/bench_unified_master_index.py
+?? scripts/generate_premium_og.py
+?? scripts/measure_facility_snapshot_cls.py
+?? scripts/measure_pbj320_browser_speed.py
+?? scripts/patch_ny_chart_pbj_toggle.py
+?? scripts/patch_ny_compliance_direct_care.py
+?? scripts/patch_ny_county_bubbles.py
+?? scripts/patch_ny_press_page.py
+?? scripts/patch_ny_report_editorial_daily_quarterly.py
+?? scripts/patch_ny_report_palette.py
+?? scripts/patch_ny_report_standard_primary.py
+?? scripts/patch_ny_report_terminology.py
+?? scripts/provider_url_audit_sample.csv
+?? scripts/reorder_ny_ownership_slices.py
+?? scripts/verify_provider_cold_render_commit.py
+?? seagate_staffing_pbj_old.png
+?? seagate_staffing_pbj_old2.png
+?? staffing_screening_registry.py
+?? state_quarterly_metrics.pre_lpn_20260609_095709.csv
+?? state_quarterly_metrics.pre_lpn_20260609_100818.csv
+?? state_quarterly_metrics.pre_lpn_20260625_102633.csv
+?? state_quarterly_metrics.pre_lpn_20260625_102724.csv
+?? state_quarterly_metrics.pre_medians_20260522_113259.csv
+?? state_quarterly_metrics.pre_medians_20260522_113315.csv
+?? state_quarterly_metrics.pre_medians_20260527_200648.csv
+?? state_quarterly_metrics.pre_medians_20260609_100827.csv
+?? state_quarterly_metrics.pre_medians_20260625_102639.csv
+?? state_quarterly_metrics.pre_medians_20260625_102728.csv
+?? tests/test_provider_snapshot_signals.py
+?? tests/test_public_metadata.py
+?? tests/test_staffing_screening_registry.py
+?? tests/test_state_staffing_comparison_table.py
+?? utils/bounded_cache.py
+?? "wrapped-template/app - Copy.py"

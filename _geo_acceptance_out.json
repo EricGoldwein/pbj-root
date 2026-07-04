@@ -1,0 +1,148 @@
+﻿{
+  "server": {
+    "port": 5055,
+    "base": "http://127.0.0.1:5055"
+  },
+  "local_pages": [
+    {
+      "name": "geo_default",
+      "url": "http://127.0.0.1:5055/geo/connecticut",
+      "status": 200,
+      "error": null,
+      "html_length": 51024,
+      "snippet": "Connecticut geographic staffing \u2014 PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q4",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "region_row_counts": {
+        "tbody_blocks": 11,
+        "max_tbody_tr": 65,
+        "classed_geo_rows": 0,
+        "geo_subpath_links": 0
+      },
+      "choropleth": {
+        "canvas": false,
+        "svg": false,
+        "mapbox": false,
+        "leaflet": false,
+        "choropleth": false,
+        "plotly": false,
+        "any_map_like": false
+      },
+      "geo_links_in_page": [
+        "http://127.0.0.1:5055/geo/connecticut"
+      ],
+      "visible_text_sample": "Connecticut geographic staffing \u2014 PBJ320 Home  \u00b7\n     Connecticut state page Connecticut geographic staffing Connecticut planning region (PBJ) comparison from CMS PBJ quarterly data. State overview and rankings remain on the  state staffing page . Quarter\n       2017Q1 2017Q2 2017Q3 2017Q4 2018Q1 2018Q2 2018Q3 2018Q4 2019Q1 2019Q2 2019Q3 2019Q4 2020Q1 2020Q2 2020Q3 2020Q4 2021Q1 2021Q2 2021Q3 2021Q4 2022Q1 2022Q2 2022Q3 2022Q4 2023Q1 2023Q2 2023Q3 2023Q4 2024Q1 2024Q2 2024Q3 2024Q4 2025Q1 2025Q2"
+    },
+    {
+      "name": "geo_2025Q3",
+      "url": "http://127.0.0.1:5055/geo/connecticut?quarter=2025Q3",
+      "status": 200,
+      "error": null,
+      "html_length": 51017,
+      "snippet": "Connecticut geographic staffing \u2014 PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q3",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "region_row_counts": {
+        "tbody_blocks": 11,
+        "max_tbody_tr": 65,
+        "classed_geo_rows": 0,
+        "geo_subpath_links": 0
+      },
+      "choropleth": {
+        "canvas": false,
+        "svg": false,
+        "mapbox": false,
+        "leaflet": false,
+        "choropleth": false,
+        "plotly": false,
+        "any_map_like": false
+      },
+      "geo_links_in_page": [
+        "http://127.0.0.1:5055/geo/connecticut"
+      ],
+      "visible_text_sample": "Connecticut geographic staffing \u2014 PBJ320 Home  \u00b7\n     Connecticut state page Connecticut geographic staffing Connecticut planning region (PBJ) comparison from CMS PBJ quarterly data. State overview and rankings remain on the  state staffing page . Quarter\n       2017Q1 2017Q2 2017Q3 2017Q4 2018Q1 2018Q2 2018Q3 2018Q4 2019Q1 2019Q2 2019Q3 2019Q4 2020Q1 2020Q2 2020Q3 2020Q4 2021Q1 2021Q2 2021Q3 2021Q4 2022Q1 2022Q2 2022Q3 2022Q4 2023Q1 2023Q2 2023Q3 2023Q4 2024Q1 2024Q2 2024Q3 2024Q4 2025Q1 2025Q2"
+    },
+    {
+      "name": "geo_2025Q4",
+      "url": "http://127.0.0.1:5055/geo/connecticut?quarter=2025Q4",
+      "status": 200,
+      "error": null,
+      "html_length": 51024,
+      "snippet": "Connecticut geographic staffing \u2014 PBJ320 | Connecticut geographic staffing",
+      "default_selected_quarter": "2025Q4",
+      "county_in_visible_text": true,
+      "planning_region_in_visible_text": true,
+      "region_in_visible_text": true,
+      "region_row_counts": {
+        "tbody_blocks": 11,
+        "max_tbody_tr": 65,
+        "classed_geo_rows": 0,
+        "geo_subpath_links": 0
+      },
+      "choropleth": {
+        "canvas": false,
+        "svg": false,
+        "mapbox": false,
+        "leaflet": false,
+        "choropleth": false,
+        "plotly": false,
+        "any_map_like": false
+      },
+      "geo_links_in_page": [
+        "http://127.0.0.1:5055/geo/connecticut"
+      ],
+      "visible_text_sample": "Connecticut geographic staffing \u2014 PBJ320 Home  \u00b7\n     Connecticut state page Connecticut geographic staffing Connecticut planning region (PBJ) comparison from CMS PBJ quarterly data. State overview and rankings remain on the  state staffing page . Quarter\n       2017Q1 2017Q2 2017Q3 2017Q4 2018Q1 2018Q2 2018Q3 2018Q4 2019Q1 2019Q2 2019Q3 2019Q4 2020Q1 2020Q2 2020Q3 2020Q4 2021Q1 2021Q2 2021Q3 2021Q4 2022Q1 2022Q2 2022Q3 2022Q4 2023Q1 2023Q2 2023Q3 2023Q4 2024Q1 2024Q2 2024Q3 2024Q4 2025Q1 2025Q2"
+    },
+    {
+      "name": "state_connecticut",
+      "url": "http://127.0.0.1:5055/state/connecticut",
+      "status": 200,
+      "error": null,
+      "html_length": 290654,
+      "snippet": "Connecticut PBJ Nursing Home Staffing",
+      "default_selected_quarter": null,
+      "county_in_visible_text": false,
+      "planning_region_in_visible_text": false,
+      "region_in_visible_text": true,
+      "region_row_counts": {
+        "tbody_blocks": 18,
+        "max_tbody_tr": 40,
+        "classed_geo_rows": 0,
+        "geo_subpath_links": 0
+      },
+      "choropleth": {
+        "canvas": true,
+        "svg": true,
+        "mapbox": false,
+        "leaflet": false,
+        "choropleth": false,
+        "plotly": false,
+        "any_map_like": true
+      },
+      "geo_links_in_page": [
+        "/geo/connecticut"
+      ],
+      "visible_text_sample": "Connecticut PBJ Nursing Home Staffing PBJ 320 About Report Insights PBJ Explained Premium Connecticut PBJ Nursing Home Staffing Connecticut PBJ Staffing Jump to another state 192 providers \u2022 19,610 residents \u2022 3.74 HPRD Geographic staffing by region PBJ Takeaway : Connecticut PBJ 320 3.74 HPRD (rank: 33) 3.74 HPRD \u00b7 Rk 33 0.62 RN HPRD 5.9% contract CT Min. ~3.06 Connecticut's  statewide staffing ratio is  3.74 HPRD  in Q4 2025. Connecticut's statewide staffing ratio is up (+0.07) since Q4 2024. "
+    }
+  ],
+  "production": {
+    "url": "https://www.pbj320.com/geo/connecticut",
+    "status": 404,
+    "error": "HTTP Error 404: Not Found",
+    "live": false,
+    "is_404": true,
+    "html_length": 711,
+    "snippet": "404 Not Found"
+  },
+  "state_geographic_crosslink": {
+    "status": 200,
+    "has_geo_connecticut_link": true,
+    "geo_links_sample": [
+      "/geo/connecticut"
+    ]
+  }
+}

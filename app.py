@@ -6576,6 +6576,34 @@ def _owners_state_locked_html(state_name: str = ''):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
+@app.route('/owners/api/profile/<owner_id>')
+def owners_api_profile_json(owner_id: str):
+    """JSON owner profile for premium embeds (same payload as public HTML page)."""
+    from flask import jsonify
+    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+
+    pac = normalize_associate_id(str(owner_id or '').replace('.json', '').strip())
+    if len(pac) != 10 or not pac.isdigit():
+        return jsonify({'error': 'invalid_pac', 'message': 'Associate ID must be 10 digits'}), 400
+    if not HAS_PANDAS:
+        return jsonify({'error': 'unavailable', 'message': 'Owner profiles require pandas'}), 503
+    try:
+        profile = load_owner_profile_resolved(pac)
+    except Exception as exc:
+        print(f'owners api profile load failed for {pac}: {exc}', flush=True)
+        return jsonify({'error': 'load_failed', 'message': 'Profile temporarily unavailable'}), 503
+    if not profile:
+        return jsonify({'error': 'not_found', 'message': 'No CMS profile for this associate ID'}), 404
+    from ownership.owner_indexability import classification_for_pac
+
+    index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
+    if index_class == 'suppress':
+        return jsonify({'error': 'not_found', 'message': 'Profile not available'}), 404
+    resp = jsonify(profile)
+    resp.headers['Cache-Control'] = 'private, max-age=300'
+    return resp
+
+
 @app.route('/owners/api/cms-search')
 def owners_cms_search_api():
     """CMS ownership autocomplete: state index search when ?state= is set; hub catalog otherwise."""
@@ -6621,6 +6649,8 @@ def owners_cms_index():
 @app.route('/owners/fl')
 @app.route('/owners/nj')
 @app.route('/owners/id')
+@app.route('/owners/oh')
+@app.route('/owners/ohio')
 def owners_state_index_route():
     from ownership.state_owner_index import resolve_state_owner_index_slug, state_owner_index_is_draft
 
@@ -20167,6 +20197,18 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         _state_top_owners_line = ''
         _state_chow_line = ''
     _state_ownership_index_cross_link = ''
+    _state_geo_link = ''
+    try:
+        import geo_intelligence_bundle as _gib
+        _geo_app_root = os.path.dirname(os.path.abspath(__file__))
+        if _gib.inspect_bundle_status(_geo_app_root, _canonical_slug).get('bundle_exists'):
+            _state_geo_link = (
+                f'<p class="pbj-geo-crosslink" style="margin: 0.35rem 0 0.75rem;">'
+                f'<a href="/premium/{html.escape(_canonical_slug)}">Staffing by planning region</a>'
+                f'</p>'
+            )
+    except Exception:
+        _state_geo_link = ''
     _state_h1 = (
         f'<h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span>'
         f'<span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>'
@@ -20176,6 +20218,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     content = f"""
     {_state_title_block}
     <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
+    {_state_geo_link}
     {_state_ownership_index_cross_link}
     {state_takeaway_card}
     {chart_html}
@@ -22023,6 +22066,112 @@ def provider_page(ccn):
 @app.route('/state/<state_slug>')
 def state_page(state_slug):
     return _state_page_impl(state_slug)
+
+
+def _geo_intelligence_page_impl(state_slug, *, surface: str = "premium"):
+    from flask import abort, redirect, request
+
+    canonical_slug, state_code = resolve_state_slug(state_slug)
+    if not canonical_slug or not state_code:
+        abort(404)
+    try:
+        import geo_intelligence_bundle as gib
+    except ImportError:
+        abort(503)
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    bundle = gib.load_bundle(app_root, canonical_slug)
+    if not bundle:
+        abort(404)
+    state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
+    quarter = (request.args.get('quarter') or '').strip()
+    region = (request.args.get('region') or '').strip()
+    metric = (request.args.get('metric') or '').strip()
+    if surface == "premium":
+        try:
+            import geo_intelligence_ui as giu
+        except ImportError:
+            abort(503)
+        html_out = giu.generate_geo_intelligence_premium_html(
+            state_name=state_name,
+            state_slug=canonical_slug,
+            state_code=state_code,
+            bundle=bundle,
+            quarter=quarter,
+            region=region,
+            metric=metric,
+            site_origin=_public_site_origin(),
+            app_root=app_root,
+        )
+    else:
+        import geo_intelligence_page as gip
+        html_out = gip.generate_geo_intelligence_html(
+            state_name=state_name,
+            state_slug=canonical_slug,
+            state_code=state_code,
+            bundle=bundle,
+            quarter=quarter,
+            region=region,
+            site_origin=_public_site_origin(),
+        )
+    return html_out, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
+
+@app.route('/premium/<state_slug>')
+def premium_geo_intelligence_page(state_slug):
+    """Canonical premium geographic intelligence route (e.g. /premium/connecticut)."""
+    canonical_slug, state_code = resolve_state_slug(state_slug)
+    if not canonical_slug or not state_code:
+        from flask import abort
+        abort(404)
+    try:
+        import geo_intelligence_bundle as gib
+    except ImportError:
+        from flask import abort
+        abort(503)
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    if not gib.load_bundle(app_root, canonical_slug):
+        from flask import abort
+        abort(404)
+    return _geo_intelligence_page_impl(state_slug, surface="premium")
+
+
+@app.route('/geo/<state_slug>')
+def geo_intelligence_page(state_slug):
+    from flask import redirect, request
+
+    canonical_slug, state_code = resolve_state_slug(state_slug)
+    if canonical_slug and state_code:
+        try:
+            import geo_intelligence_bundle as gib
+            app_root = os.path.dirname(os.path.abspath(__file__))
+            if gib.load_bundle(app_root, canonical_slug):
+                qs = (request.query_string or b"").decode("utf-8", "replace")
+                target = f"/premium/{canonical_slug}"
+                if qs:
+                    target = f"{target}?{qs}"
+                return redirect(target, code=301)
+        except ImportError:
+            pass
+    return _geo_intelligence_page_impl(state_slug, surface="premium")
+
+
+@app.route('/api/geo/<state_slug>/status')
+def api_geo_intelligence_status(state_slug):
+    from flask import jsonify
+
+    canonical_slug, state_code = resolve_state_slug(state_slug)
+    if not canonical_slug:
+        return jsonify({'ok': False, 'error': 'unknown_state'}), 404
+    try:
+        import geo_intelligence_bundle as gib
+    except ImportError:
+        return jsonify({'ok': False, 'error': 'geo_module_unavailable'}), 503
+    app_root = os.path.dirname(os.path.abspath(__file__))
+    status = gib.inspect_bundle_status(app_root, canonical_slug)
+    status['ok'] = bool(status.get('bundle_exists'))
+    status['state_code'] = state_code
+    return jsonify(status)
+
 
 @app.route('/entity/<int:entity_id>')
 def entity_page(entity_id):

@@ -1,0 +1,262 @@
+{
+  "base": "https://www.pbj320.com",
+  "measured_at": "2026-05-29T02:53:52Z",
+  "summary": {
+    "checks": 13,
+    "failed": 0,
+    "warned": 0,
+    "pass": 13
+  },
+  "html_pages": [
+    {
+      "label": "owners_hub",
+      "url": "https://www.pbj320.com/owners/",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 1.23,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 230,
+        "domContentLoaded_ms": 418,
+        "load_ms": 564
+      },
+      "provider_cache": null,
+      "facility_quarterly_requests": []
+    },
+    {
+      "label": "owners_ny_index",
+      "url": "https://www.pbj320.com/owners/ny",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 1.25,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 139,
+        "domContentLoaded_ms": 300,
+        "load_ms": 542
+      },
+      "provider_cache": null,
+      "facility_quarterly_requests": [],
+      "owner_row_count": 14
+    },
+    {
+      "label": "owners_ct_index",
+      "url": "https://www.pbj320.com/owners/ct",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 0.79,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 100,
+        "domContentLoaded_ms": 180,
+        "load_ms": 221
+      },
+      "provider_cache": null,
+      "facility_quarterly_requests": [],
+      "owner_row_count": 14
+    },
+    {
+      "label": "owner_profile_ny",
+      "url": "https://www.pbj320.com/owners/6608785985",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 0.85,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 116,
+        "domContentLoaded_ms": 269,
+        "load_ms": 285
+      },
+      "provider_cache": null,
+      "facility_quarterly_requests": []
+    },
+    {
+      "label": "owner_profile_ct",
+      "url": "https://www.pbj320.com/owners/0244206886",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 0.84,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 122,
+        "domContentLoaded_ms": 233,
+        "load_ms": 282
+      },
+      "provider_cache": null,
+      "facility_quarterly_requests": []
+    },
+    {
+      "label": "provider_ny_seagate",
+      "url": "https://www.pbj320.com/provider/335513",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 1.05,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 127,
+        "domContentLoaded_ms": 473,
+        "load_ms": 487
+      },
+      "provider_cache": "HIT",
+      "facility_quarterly_requests": [],
+      "inline_api_status": 200,
+      "inline_api_summary": {
+        "state": "NY",
+        "total_days_reported": 92,
+        "below_state_min_days_count": 92,
+        "state_min_threshold_used": 3.56
+      },
+      "has_hprd_narrative": true
+    },
+    {
+      "label": "provider_ny_below_threshold",
+      "url": "https://www.pbj320.com/provider/335003",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 0.89,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 91,
+        "domContentLoaded_ms": 315,
+        "load_ms": 331
+      },
+      "provider_cache": "HIT",
+      "facility_quarterly_requests": [],
+      "has_compliance_warning": true,
+      "inline_api_status": 200,
+      "inline_api_summary": {
+        "state": "NY",
+        "total_days_reported": 92,
+        "below_state_min_days_count": 90,
+        "state_min_threshold_used": 3.56
+      },
+      "has_hprd_narrative": true
+    },
+    {
+      "label": "provider_ct_below_threshold",
+      "url": "https://www.pbj320.com/provider/075011",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 1.66,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 895,
+        "domContentLoaded_ms": 1043,
+        "load_ms": 1102
+      },
+      "provider_cache": "MISS",
+      "facility_quarterly_requests": [],
+      "has_compliance_warning": true,
+      "inline_api_status": 200,
+      "inline_api_summary": {
+        "state": "CT",
+        "total_days_reported": 92,
+        "below_state_min_days_count": 14,
+        "state_min_threshold_used": 3.06
+      },
+      "has_hprd_narrative": true
+    },
+    {
+      "label": "provider_ct_clean",
+      "url": "https://www.pbj320.com/provider/075441",
+      "kind": "html",
+      "issues": [],
+      "warnings": [],
+      "networkidle_s": 3.56,
+      "status": 200,
+      "navigation": {
+        "ttfb_ms": 2794,
+        "domContentLoaded_ms": 2997,
+        "load_ms": 3010
+      },
+      "provider_cache": "MISS",
+      "facility_quarterly_requests": [],
+      "inline_api_status": 200,
+      "inline_api_summary": {
+        "state": "CT",
+        "total_days_reported": 77,
+        "below_state_min_days_count": 0,
+        "state_min_threshold_used": 3.06
+      },
+      "has_hprd_narrative": true
+    }
+  ],
+  "api_endpoints": [
+    {
+      "label": "api_compliance_335003",
+      "url": "https://www.pbj320.com/api/provider/335003/staffing-compliance-summary.json?quarter=CY2025Q4",
+      "kind": "api",
+      "issues": [],
+      "warnings": [],
+      "elapsed_s": 0.309,
+      "status": 200,
+      "payload_keys": [
+        "available",
+        "ccn",
+        "quarter",
+        "summary"
+      ],
+      "below_state_min_days_count": 90,
+      "state_min_threshold_used": 3.56
+    },
+    {
+      "label": "api_compliance_075011",
+      "url": "https://www.pbj320.com/api/provider/075011/staffing-compliance-summary.json?quarter=CY2025Q4",
+      "kind": "api",
+      "issues": [],
+      "warnings": [],
+      "elapsed_s": 0.065,
+      "status": 200,
+      "payload_keys": [
+        "available",
+        "ccn",
+        "quarter",
+        "summary"
+      ],
+      "below_state_min_days_count": 14,
+      "state_min_threshold_used": 3.06
+    },
+    {
+      "label": "api_compliance_335513",
+      "url": "https://www.pbj320.com/api/provider/335513/staffing-compliance-summary.json?quarter=CY2025Q4",
+      "kind": "api",
+      "issues": [],
+      "warnings": [],
+      "elapsed_s": 0.063,
+      "status": 200,
+      "payload_keys": [
+        "available",
+        "ccn",
+        "quarter",
+        "summary"
+      ],
+      "below_state_min_days_count": 92,
+      "state_min_threshold_used": 3.56
+    },
+    {
+      "label": "api_owners_stats",
+      "url": "https://www.pbj320.com/owners/api/stats",
+      "kind": "api",
+      "issues": [],
+      "warnings": [],
+      "elapsed_s": 0.079,
+      "status": 200,
+      "payload_keys": [
+        "total_donated",
+        "total_donations",
+        "total_individuals",
+        "total_organizations",
+        "total_owners"
+      ]
+    }
+  ],
+  "failures": []
+}

@@ -1,0 +1,3 @@
+﻿4345df5 Add entity states disclosure badge and align trust page dates
+535babf Ship June 2026 provider release with ownership, CHOW, and SFF gates
+796253d Ship global facility search, provider Premium CTA, and Insights hub updates

@@ -237,8 +237,30 @@ def register_premium_routes(app: Flask, app_root: str) -> None:
             abort(404)
         return served
 
+    def _try_premium_geo_intelligence(asset_path: str):
+        """Serve geographic intelligence when this catch-all wins over /premium/<state_slug>."""
+        safe = (asset_path or '').replace('\\', '/').lstrip('/')
+        if not safe or '/' in safe or '..' in safe.split('/'):
+            return None
+        if _CCN_RE.fullmatch(safe) or safe in _BLOCKED_FIRST_SEGMENTS:
+            return None
+        view = app.view_functions.get('premium_geo_intelligence_page')
+        if not view:
+            return None
+        try:
+            import geo_intelligence_bundle as gib
+        except ImportError:
+            return None
+        slug = safe.lower()
+        if not gib.load_bundle(app_root, slug):
+            return None
+        return view(safe)
+
     @app.route('/premium/<path:asset_path>')
     def premium_assets(asset_path: str):
+        geo_page = _try_premium_geo_intelligence(asset_path)
+        if geo_page is not None:
+            return geo_page
         served = try_serve_premium_asset(app_root, asset_path)
         if served is None:
             abort(404)

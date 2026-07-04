@@ -49,6 +49,7 @@ _LARGEST_PORTFOLIOS_TITLE: dict[str, tuple[str, str]] = {
     "FL": ("Largest FL portfolios", "Largest Florida portfolios"),
     "NJ": ("Largest NJ portfolios", "Largest New Jersey portfolios"),
     "ID": ("Largest ID portfolios", "Largest Idaho portfolios"),
+    "OH": ("Largest OH portfolios", "Largest Ohio portfolios"),
 }
 
 

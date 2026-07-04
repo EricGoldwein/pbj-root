@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>[Design specimen] Emerald Peek Rehab — facility hierarchy exploration</title>
+  <link rel="stylesheet" href="facility-progressive-335003.css">
+  <!--
+    ISOLATED DESIGN SPECIMEN — not served by app.py, not imported anywhere.
+    Facility: CCN 335003, Q4 2025 (2025Q4 / CY2025Q4).
+    Verified from local files at specimen build time (2026-06-22):
+      facility_quarterly_metrics.csv
+      state_quarterly_metrics.csv (context only; not used as lead finding)
+      data/compliance/staffing_compliance_summary.csv.gz via bundle fields
+      provider_info/ProviderInfoNorm_2026_05.csv
+      data/compliance/staffing_compliance_thresholds.json
+      data/public/public_methodology_snippets.json
+  -->
+</head>
+<body data-layout="a">
+
+  <div class="specimen-banner" role="status">
+    <strong>Design specimen only</strong> — not linked from production. CCN 335003 · manually selected findings · open locally via <code>docs/specimens/facility-progressive-335003.html</code>
+  </div>
+
+  <div class="specimen-controls" aria-label="Hierarchy option preview">
+    <label>Hierarchy treatment:</label>
+    <button type="button" class="is-active" data-layout="a">Option A — sectioned scroll</button>
+    <button type="button" data-layout="b">Option B — takeaway-first</button>
+  </div>
+
+  <div class="specimen-tradeoffs" id="tradeoffs">
+    <h2>Option A — sectioned scroll</h2>
+    <p>Named bands (“Staffing at a glance”, “Staffing over time”, “Records &amp; methodology”) separate orientation from charts without tabs. Findings stay scannable; charts remain in-document for SEO and print. Tradeoff: longer page, no single collapsed “summary mode.”</p>
+  </div>
+
+  <main class="pbj-content">
+
+    <!-- 1. Facility identity -->
+    <header class="pbj-content-box">
+      <h1>Emerald Peek Rehabilitation and Nursing Center</h1>
+      <p class="pbj-subtitle">Peekskill, <a href="#">NY</a> &bull; 3.15 HPRD &bull; 91 residents &bull; For Profit</p>
+      <p class="pbj-meta-line">CMS provider 335003 &bull; Payroll quarter <strong>Q4 2025</strong> (Oct–Dec 2025)</p>
+      <div class="pbj-badge-row" aria-label="Context badges (not snapshot findings)">
+        <span class="pbj-badge">Total: 3.15 HPRD (Direct: 2.96)</span>
+        <span class="pbj-badge">Case-mix expected: 4.76 HPRD</span>
+      </div>
+    </header>
+
+    <!-- 2. Staffing snapshot / takeaway — max 3 manual findings -->
+    <section class="pbj-content-box pbj-takeaway" id="staffing-snapshot" aria-labelledby="snapshot-heading">
+      <div class="pbj-takeaway-top">
+        <div class="pbj-takeaway-avatar" aria-hidden="true">PBJ</div>
+        <div>
+          <p class="section-eyebrow option-a-only">Staffing at a glance</p>
+          <h2 id="snapshot-heading" class="option-b-only">PBJ Takeaway</h2>
+          <h2 id="snapshot-heading-a" class="option-a-only">Three payroll-based observations</h2>
+        </div>
+      </div>
+      <p class="pbj-takeaway-lead">
+        Selected findings below use authoritative local Q4 2025 data. They describe reported staffing patterns; they are not diagnoses, violation findings, or composite scores.
+      </p>
+
+      <div class="finding-list">
+
+        <!-- Finding 1: NY daily direct care screen (lead — not state average) -->
+        <article class="finding-card" id="finding-daily-screen">
+          <div class="finding-card__head">
+            <span class="finding-card__label">Direct-care days below New York reference</span>
+            <span class="finding-card__grain">Q4 2025 &middot; daily PBJ days</span>
+          </div>
+          <p class="finding-card__observed">91 of 92 reported days (98.9%)</p>
+          <p class="finding-card__comparator">Comparator: 3.50 direct-care HPRD (RN, LPN, CNA, aide trainee, medication aide; excludes DON and nursing admin) — N.Y. Public Health Law § 2895-b reference used in PBJ320 daily screen</p>
+          <p class="finding-card__sentence">
+            During Q4 2025, 91 of 92 reported PBJ days had direct-care HPRD below the 3.50 reference used for New York’s daily payroll screen. This counts facility-submitted payroll days; PBJ320 does not make legal findings of violation.
+          </p>
+          <div class="finding-card__footer">
+            <span class="source-badge source-badge--derived">PBJ320-derived screen</span>
+            <span class="source-badge source-badge--payroll">Payroll-based PBJ</span>
+            <a class="finding-card__evidence-link" href="#evidence-daily-screen">How this is calculated</a>
+          </div>
+        </article>
+
+        <!-- Finding 2: quarterly direct care vs case-mix -->
+        <article class="finding-card" id="finding-case-mix-total">
+          <div class="finding-card__head">
+            <span class="finding-card__label">Reported direct care vs CMS case-mix expected</span>
+            <span class="finding-card__grain">Q4 2025 &middot; quarterly average</span>
+          </div>
+          <p class="finding-card__observed">2.96 HPRD reported direct care</p>
+          <p class="finding-card__comparator">Comparator: 4.76 HPRD CMS case-mix expected total nursing (MDS-derived PDPM acuity benchmark)</p>
+          <p class="finding-card__sentence">
+            In Q4 2025, reported direct-care staffing averaged 2.96 HPRD, below the CMS case-mix expected total of 4.76 HPRD for the same quarter. Case-mix reflects resident acuity from facility assessments; it is a comparison benchmark, not a statutory staffing mandate.
+          </p>
+          <div class="finding-card__footer">
+            <span class="source-badge source-badge--payroll">Payroll-based PBJ</span>
+            <span class="source-badge source-badge--facility">Facility-reported case-mix</span>
+            <a class="finding-card__evidence-link" href="#evidence-case-mix">How this is calculated</a>
+          </div>
+        </article>
+
+        <!-- Finding 3: RN quarterly vs case-mix RN -->
+        <article class="finding-card" id="finding-rn-case-mix">
+          <div class="finding-card__head">
+            <span class="finding-card__label">Reported RN staffing vs case-mix expected RN</span>
+            <span class="finding-card__grain">Q4 2025 &middot; quarterly average</span>
+          </div>
+          <p class="finding-card__observed">0.48 RN HPRD reported</p>
+          <p class="finding-card__comparator">Comparator: 0.84 HPRD CMS case-mix expected RN hours</p>
+          <p class="finding-card__sentence">
+            In Q4 2025, reported RN staffing averaged 0.48 HPRD, below the CMS case-mix expected RN level of 0.84 HPRD. RN HPRD is from payroll-reported hours divided by average daily census for the quarter.
+          </p>
+          <div class="finding-card__footer">
+            <span class="source-badge source-badge--payroll">Payroll-based PBJ</span>
+            <span class="source-badge source-badge--facility">Facility-reported case-mix</span>
+            <a class="finding-card__evidence-link" href="#evidence-rn-hprd">How this is calculated</a>
+          </div>
+        </article>
+
+      </div>
+
+      <p class="pbj-scroll-hint option-b-only">
+        <a href="#staffing-patterns">View staffing trends and role breakdown</a> &middot;
+        <a href="#records-methodology">Records and methodology</a>
+      </p>
+    </section>
+
+    <!-- 3. Staffing patterns (existing-style chart placeholders) -->
+    <section class="pbj-content-box patterns-section" id="staffing-patterns">
+      <p class="section-eyebrow option-a-only">Staffing over time</p>
+      <h2 class="option-a-only">Longitudinal staffing and acuity context</h2>
+      <h2 class="option-b-only">Staffing charts</h2>
+      <p class="section-intro">
+        Production page renders these with Chart.js from <code>facility_quarterly_metrics</code> and provider-info case-mix. Placeholders show layout only.
+      </p>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h3>Total staffing (Q4 2025 and prior quarters)</h3>
+          <p class="chart-note">Total nurse HPRD and direct-care HPRD series; NY 3.50 direct-care reference line on applicable charts.</p>
+          <div class="chart-placeholder" role="img" aria-label="Chart placeholder">
+            Line chart placeholder — reported total 3.15 HPRD, direct 2.96 HPRD (Q4 2025)
+          </div>
+          <div class="chart-legend">
+            <span class="legend-reported">Reported total HPRD</span>
+            <span class="legend-direct">Direct care HPRD</span>
+            <span class="legend-reference">NY direct-care reference (3.50)</span>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>CMS case-mix comparison (Q4 2025)</h3>
+          <p class="chart-note">Reported vs case-mix expected by role — same quarter as provider info snapshot.</p>
+          <div class="chart-placeholder" role="img" aria-label="Case-mix bars placeholder">
+            Bar comparison placeholder — reported direct 2.96 vs case-mix 4.76 total
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>RN / LPN / aide staffing</h3>
+          <p class="chart-note">Role tabs on production page; RN 0.48 HPRD in Q4 2025.</p>
+          <div class="chart-placeholder" role="img" aria-label="Role staffing placeholder">
+            Role staffing chart placeholder
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Records / methodology / evidence -->
+    <section class="pbj-content-box evidence-section" id="records-methodology">
+      <p class="section-eyebrow option-a-only">Records &amp; methodology</p>
+      <h2>Evidence and source notes</h2>
+      <p class="section-intro">
+        Each snapshot finding links here. Inspection-based CMS measures (e.g. star ratings) belong in this band or Patterns context — not mixed into payroll snapshot sentences.
+      </p>
+
+      <details class="evidence-block" id="evidence-daily-screen" open>
+        <summary>Daily New York direct-care screen (Finding 1)</summary>
+        <div class="evidence-block__body">
+          <dl class="evidence-dl">
+            <dt>Observed</dt><dd>91 days with direct-care HPRD below 3.50</dd>
+            <dt>Denominator</dt><dd>92 reported PBJ days in CY2025Q4</dd>
+            <dt>Metric</dt><dd><code>direct_care_hprd</code> — RN, LPN, CNA, nurse aide trainee, medication aide; excludes DON and nursing administrator</dd>
+            <dt>Threshold</dt><dd>3.50 HPRD (<code>ny_statutory_direct_care_minimum</code>)</dd>
+            <dt>Source</dt><dd><code>staffing_compliance_summary.csv.gz</code> / public bundle columns <code>below_state_min_days_count</code>, <code>state_min_label</code></dd>
+          </dl>
+          <p>PBJ320 labels this a payroll-based daily screen, not a legal finding of violation. See <code>staffing_compliance_thresholds.json</code> and <code>public_methodology_snippets.json</code> → <code>state_thresholds</code>, <code>pbj320_derived</code>.</p>
+        </div>
+      </details>
+
+      <details class="evidence-block" id="evidence-case-mix">
+        <summary>Case-mix expected staffing (Finding 2)</summary>
+        <div class="evidence-block__body">
+          <dl class="evidence-dl">
+            <dt>Reported</dt><dd>2.96 <code>Nurse_Care_HPRD</code> (facility_quarterly_metrics, 2025Q4)</dd>
+            <dt>Benchmark</dt><dd>4.76 <code>case_mix_total_nurse_hrs_per_resident_per_day</code> (ProviderInfoNorm May 2026)</dd>
+            <dt>Grain</dt><dd>Quarterly facility average</dd>
+            <dt>Census</dt><dd>91 average daily residents (same quarter)</dd>
+          </dl>
+          <p>CMS case-mix expected staffing is an acuity benchmark from MDS-derived PDPM groups. It is useful for comparison to reported PBJ hours, not a statutory minimum unless separate law applies.</p>
+        </div>
+      </details>
+
+      <details class="evidence-block" id="evidence-rn-hprd">
+        <summary>RN HPRD and case-mix RN (Finding 3)</summary>
+        <div class="evidence-block__body">
+          <dl class="evidence-dl">
+            <dt>Reported</dt><dd>0.48 <code>RN_HPRD</code> (facility_quarterly_metrics, 2025Q4)</dd>
+            <dt>Benchmark</dt><dd>0.84 <code>case_mix_rn_hrs_per_resident_per_day</code> (ProviderInfoNorm)</dd>
+            <dt>Formula</dt><dd>Reported RN hours divided by average daily census for the quarter</dd>
+          </dl>
+          <p>Hours per resident day (HPRD) divides reported nursing hours by average daily census for the same period. HPRD can move when census changes even if total hours stay flat.</p>
+        </div>
+      </details>
+
+      <details class="evidence-block">
+        <summary>Inspection-based context (not a snapshot finding)</summary>
+        <div class="evidence-block__body">
+          <p>CMS provider snapshot for this facility includes a 1-star staffing rating and 2-star overall rating (ProviderInfoNorm). These are <strong>inspection-based</strong> measures, separate from payroll PBJ screens. PBJ320 presents them elsewhere on the live page with screening language — not as payroll conclusions.</p>
+          <p>Source type: inspection-based. See <code>public_methodology_snippets.json</code> → <code>facility_vs_payroll_vs_inspection</code>.</p>
+        </div>
+      </details>
+    </section>
+
+    <!-- 5. Premium transition -->
+    <section class="pbj-content-box" id="premium-bridge">
+      <div class="pbj-premium-bridge">
+        <div class="pbj-premium-bridge__main">
+          <p class="pbj-premium-bridge__title">PBJ320 Premium — deeper facility dashboard</p>
+          <p class="pbj-premium-bridge__desc">
+            The free page orients with quarterly payroll and public screens. Premium adds review-oriented depth without changing the public methodology above.
+          </p>
+          <ul class="pbj-premium-bridge__list">
+            <li>Daily PBJ staffing by role and calendar date</li>
+            <li>Acuity and case-mix context with selectable review windows</li>
+            <li>Ownership and employee-roster exports where available</li>
+            <li>Source-backed facility summaries for follow-up review</li>
+          </ul>
+        </div>
+        <a class="pbj-premium-bridge__cta" href="#" onclick="return false;">Explore Premium (specimen)</a>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="provenance-footer">
+  Data: CCN 335003, CY2025Q4 / 2025Q4. Compliance fields from <code>data/compliance/staffing_compliance_summary.csv.gz</code>.
+  Quarterly HPRD from <code>facility_quarterly_metrics.csv</code>. Case-mix from <code>provider_info/ProviderInfoNorm_2026_05.csv</code>.
+  Threshold definition from <code>data/compliance/staffing_compliance_thresholds.json</code> (NY <code>direct_care_hprd</code> @ 3.50).
+  Methodology phrases from <code>data/public/public_methodology_snippets.json</code>.
+  </footer>
+
+  <script>
+    (function () {
+      var tradeoffCopy = {
+        a: '<h2>Option A — sectioned scroll</h2><p>Named bands (“Staffing at a glance”, “Staffing over time”, “Records &amp; methodology”) separate orientation from charts without tabs. Findings stay scannable; charts remain in-document for SEO and print. Tradeoff: longer page, no single collapsed “summary mode.”</p>',
+        b: '<h2>Option B — takeaway-first</h2><p>Reuses the familiar <code>#pbj-takeaway</code> frame with compact finding cards and inline links to patterns and methodology. Closer to today’s provider page mental model. Tradeoff: section naming is lighter; users may scroll past charts before opening evidence.</p>'
+      };
+      var buttons = document.querySelectorAll('.specimen-controls button');
+      buttons.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var layout = btn.getAttribute('data-layout');
+          document.body.setAttribute('data-layout', layout);
+          document.body.classList.toggle('option-b', layout === 'b');
+          buttons.forEach(function (b) { b.classList.toggle('is-active', b === btn); });
+          document.getElementById('tradeoffs').innerHTML = tradeoffCopy[layout];
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

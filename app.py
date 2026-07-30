@@ -12129,15 +12129,15 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     width: 100%;
     max-width: none;
   }}
-  .pbj-metric--spark {{ min-width: 0; }}
+  .pbj-metric--spark {{ min-width: 0; overflow: hidden; }}
   .pbj-metric {{ padding: 0.55rem 0.6rem; height: auto; min-height: 0; gap: 0.15rem; }}
   .pbj-metric__value {{ font-size: 1.02rem; }}
   .pbj-metric--hprd .pbj-metric__value {{ font-size: 1.28rem; }}
   .pbj-metric--spark .pbj-metric__body {{
     gap: 0.28rem; width: max-content; max-width: 100%;
-    align-self: flex-start;
+    align-self: flex-start; min-width: 0;
   }}
-  .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; overflow: hidden; }}
+  .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; overflow: hidden; flex-shrink: 1; }}
   .pbj-page-overview .pbj-takeaway,
   .pbj-takeaway.pbj-takeaway--in-overview {{
     margin-top: 0.7rem; padding: 0.8rem 0.85rem;
@@ -18437,8 +18437,8 @@ def _hprd_spark_polyline_svg(
     """Straight-line 4-point sparkline SVG (no smoothing / interpolation)."""
     if len(values) < 2:
         return ''
-    # Slight inset so end dots do not clip the viewBox edge (tiny bleed).
-    pad_x, pad_y = 5.5, 4.5
+    # Keep end-dot radius (~2.35) inside the viewBox; mobile scales the SVG down.
+    pad_x, pad_y = 6.0, 5.0
     inner_w = width - (2 * pad_x)
     inner_h = height - (2 * pad_y)
     vmin, vmax = min(values), max(values)
@@ -18466,7 +18466,7 @@ def _hprd_spark_polyline_svg(
         )
     return (
         f'<svg class="pbj-hprd-spark" width="{width:.0f}" height="{height:.0f}" '
-        f'viewBox="0 0 {width:.0f} {height:.0f}" aria-hidden="true" focusable="false">'
+        f'viewBox="0 0 {width:.0f} {height:.0f}" overflow="hidden" aria-hidden="true" focusable="false">'
         f'<polyline fill="none" stroke="{stroke}" stroke-opacity="0.55" stroke-width="1.35" '
         f'stroke-linecap="round" stroke-linejoin="round" points="{poly}"/>'
         f'{"".join(dots)}</svg>'

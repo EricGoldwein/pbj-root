@@ -9747,10 +9747,19 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   border: 1px solid #d97706;
   box-shadow: 0 2px 10px rgba(245, 158, 11, 0.28);
 }}
+.pbj-content-box a.pbj-state-premium-cta__btn,
+.pbj-state-premium-cta__btn {{
+  background: #f59e0b;
+  color: #0f172a !important;
+  text-decoration: none !important;
+}}
+.pbj-content-box a.pbj-state-premium-cta__btn:hover,
+.pbj-content-box a.pbj-state-premium-cta__btn:focus,
 .pbj-state-premium-cta__btn:hover {{
   background: #fbbf24;
-  color: #0f172a;
+  color: #0f172a !important;
   border-color: #f59e0b;
+  text-decoration: none !important;
 }}
 .pbj-state-premium-cta__btn:focus-visible {{
   outline: 2px solid #fde68a;
@@ -9758,11 +9767,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 }}
 @media (max-width: 640px) {{
   .pbj-page-bottom-stack--explore {{
-    gap: 0.9rem;
-    margin-top: 1.25rem;
+    gap: 0.65rem;
+    margin-top: 0.85rem;
   }}
   .pbj-state-explore__head {{
-    margin-bottom: 0.55rem;
+    margin-bottom: 0.45rem;
   }}
   .pbj-explore-card {{
     padding: 0.62rem 0.7rem;
@@ -9774,21 +9783,27 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
     height: 1.85rem;
   }}
   .pbj-explore-panel {{
-    padding: 0.7rem 0.72rem 0.8rem;
+    padding: 0.65rem 0.7rem 0.7rem;
   }}
   .pbj-state-premium-cta {{
     flex-direction: column;
     align-items: stretch;
-    gap: 0.55rem;
-    padding: 0.7rem 0.75rem;
+    gap: 0.45rem;
+    margin-top: 0;
+    padding: 0.65rem 0.7rem;
   }}
   .pbj-state-premium-cta__top {{
-    align-items: center;
-    gap: 0.55rem;
+    flex: 0 1 auto;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }}
+  .pbj-state-premium-cta__icon {{
+    width: 1.85rem;
+    height: 1.85rem;
   }}
   .pbj-state-premium-cta__title {{
     font-size: 0.92rem;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.08rem;
   }}
   .pbj-state-premium-cta__body {{
     font-size: 0.78rem;
@@ -9886,8 +9901,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   border-collapse: collapse;
   table-layout: fixed;
 }}
-.pbj-staffing-cmp-table caption.pbj-staffing-cmp-caption {{
-  caption-side: bottom;
+.pbj-staffing-cmp-note {{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: left;
   padding: 0.55rem 0 0;
   margin: 0;
@@ -10508,6 +10526,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   border-bottom: 1px solid rgba(94, 234, 212, 0.28); padding-bottom: 0.08rem;
   width: fit-content; max-width: 100%;
 }}
+.pbj-takeaway-support__value:has(.pbj-state-min-badge) {{
+  border-bottom: none; padding-bottom: 0;
+}}
 .pbj-takeaway-support__hint {{
   display: block; margin-top: 0.12rem; font-size: 0.66rem; line-height: 1.3;
   color: var(--pbj-ov-muted, #9DA9BC);
@@ -10516,6 +10537,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-takeaway-support__value .pbj-state-min-badge {{
   margin: 0; font-size: 0.8rem; border-radius: 999px; padding: 0.18rem 0.55rem;
   max-width: 100%; white-space: nowrap; overflow: visible;
+  text-decoration: none; border-bottom: none;
 }}
 button.pbj-info-chip {{
   appearance: none; display: inline-flex; align-items: center; justify-content: center;
@@ -12207,9 +12229,9 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
 .pbj-cta-premium {{ margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(30, 41, 59, 0.6); border-radius: 10px; font-size: 0.95rem; color: #e2e8f0; }}
 .pbj-cta-premium a {{ color: #818cf8; font-weight: 600; transition: color 0.2s ease; }}
 .pbj-cta-premium a:hover {{ color: #a5b4fc; }}
-.pbj-state-min-badge {{ display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; color: #fecaca; background: rgba(127, 29, 29, 0.38); border: 1px solid rgba(248, 113, 113, 0.55); }}
-button.pbj-state-min-badge {{ cursor: pointer; font-family: inherit; }}
-button.pbj-state-min-badge:hover {{ background: rgba(127, 29, 29, 0.52); border-color: rgba(248, 113, 113, 0.75); }}
+.pbj-state-min-badge {{ display: inline-block; padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; margin-right: 6px; color: #fecaca; background: rgba(127, 29, 29, 0.38); border: 1px solid rgba(248, 113, 113, 0.55); text-decoration: none; }}
+button.pbj-state-min-badge {{ cursor: pointer; font-family: inherit; text-decoration: none; }}
+button.pbj-state-min-badge:hover {{ background: rgba(127, 29, 29, 0.52); border-color: rgba(248, 113, 113, 0.75); text-decoration: none; }}
 a.custom-report-cta {{
   display: block; margin: 1.75rem 0; padding: 1rem 1.2rem; max-width: 56rem; font-size: 0.9375rem; font-weight: 500;
   line-height: 1.5; color: #e2e8f0; text-decoration: none; cursor: pointer; box-sizing: border-box;
@@ -12404,15 +12426,19 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     gap: 0.4rem;
   }}
   .pbj-staffing-cmp-table thead {{ display: none; }}
-  .pbj-staffing-cmp-table caption.pbj-staffing-cmp-caption {{
-    padding-top: 0.45rem;
+  .pbj-staffing-cmp-note {{
+    padding-top: 0.5rem;
     font-size: 0.72rem;
+    line-height: 1.4;
   }}
   .pbj-staffing-cmp-table,
   .pbj-staffing-cmp-table tbody,
   .pbj-staffing-cmp-table tr {{
     display: block;
     width: 100%;
+  }}
+  .pbj-staffing-cmp-table {{
+    table-layout: auto;
   }}
   .pbj-staffing-cmp-table tr {{
     padding: 0.55rem 0;
@@ -12422,18 +12448,21 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-staffing-cmp-table td {{
     display: block;
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     border: none;
     background: transparent !important;
     text-align: left;
     padding: 0.18rem 0;
   }}
   .pbj-staffing-cmp-metric {{
-    width: auto;
+    width: 100%;
     font-size: 0.84rem;
     font-weight: 600;
-    margin-bottom: 0.35rem;
-    padding-bottom: 0.1rem;
+    margin-bottom: 0.28rem;
+    padding-bottom: 0.06rem;
     color: rgba(226, 232, 240, 0.96);
+    white-space: normal;
   }}
   .pbj-staffing-cmp-val {{
     display: grid;
@@ -12476,6 +12505,9 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   .pbj-staffing-cmp-val--state .pbj-staffing-cmp-primary,
   .pbj-staffing-cmp-val--rank {{
     grid-column: 2;
+  }}
+  .pbj-staffing-cmp-val--rank {{
+    white-space: normal;
   }}
   .pbj-staffing-cmp-popover {{
     right: auto;
@@ -21294,14 +21326,16 @@ _STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      .pbj-explore-hr-preview-city { display: none; }
-      .pbj-explore-hr-preview-city-mobile {
+      /* Higher specificity than `.pbj-explore-hr-preview-row td {{ display: block }}`
+         so the City column does not auto-place under ratings on mobile. */
+      .pbj-explore-hr-preview-row td.pbj-explore-hr-preview-city {{ display: none !important; }}
+      .pbj-explore-hr-preview-city-mobile {{
         display: block;
         margin-top: 0.06rem;
         font-size: 0.7rem;
         color: rgba(148, 163, 184, 0.95);
         line-height: 1.2;
-      }
+      }}
       .pbj-explore-hr-preview-hprd {
         grid-area: hprd;
         text-align: right;
@@ -22071,11 +22105,11 @@ def render_state_staffing_comparison_table(
             )
             + '</tr>'
         )
-    caption = (
-        '<caption class="pbj-staffing-cmp-caption">'
+    note = (
+        '<p class="pbj-staffing-cmp-note">'
         '<span class="pbj-staffing-cmp-caption-icon" aria-hidden="true">\u24d8</span> '
         'State rank reflects the displayed value, not necessarily stronger or weaker performance.'
-        '</caption>'
+        '</p>'
     )
     footer = ''
     if rankings_link_html:
@@ -22083,7 +22117,6 @@ def render_state_staffing_comparison_table(
     return (
         f'<div class="pbj-table-wrap pbj-staffing-cmp-wrap">'
         f'<table class="pbj-staffing-cmp-table">'
-        f'{caption}'
         f'<thead><tr>'
         f'<th scope="col" class="pbj-staffing-cmp-th-metric">Metric</th>'
         f'<th scope="col" class="pbj-staffing-cmp-th-state">{state_hdr}</th>'
@@ -22095,6 +22128,7 @@ def render_state_staffing_comparison_table(
         f'</tr></thead>'
         f'<tbody>{"".join(body_rows)}</tbody>'
         f'</table>'
+        f'{note}'
         f'{footer}'
         f'</div>'
     )

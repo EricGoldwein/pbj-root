@@ -9511,6 +9511,11 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-explore-hr-preview-city-mobile {{
   display: none;
 }}
+.pbj-explore-hr-hprd-unit {{
+  display: none;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.95);
+}}
 .pbj-explore-hr-preview-city,
 .pbj-explore-hr-preview-hprd {{
   color: rgba(226, 232, 240, 0.88);
@@ -9653,31 +9658,55 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.45rem 0.75rem;
-  margin-top: 0.45rem;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
   font-size: 0.78rem;
   color: rgba(203, 213, 225, 0.9);
 }}
+.pbj-explore-hr-showing {{
+  font-size: 0.76rem;
+  color: rgba(148, 163, 184, 0.95);
+  font-variant-numeric: tabular-nums;
+}}
 .pbj-explore-hr-more-btn {{
   margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
+  padding: 0.28rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  background: rgba(15, 23, 42, 0.55);
   font: inherit;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 650;
   color: #5eead4;
   cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 2px;
+  text-decoration: none;
 }}
 .pbj-explore-hr-more-btn:hover {{
   color: #99f6e4;
+  border-color: rgba(94, 234, 212, 0.55);
+  background: rgba(15, 23, 42, 0.75);
 }}
 .pbj-explore-hr-more-btn[disabled] {{
   opacity: 0.55;
   cursor: wait;
 }}
+.state-hr-related {{
+  margin: 0.15rem 0 0;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  color: rgba(148, 163, 184, 0.92);
+  font-style: italic;
+}}
+.state-hr-related a {{
+  font-style: normal;
+  color: #a5b4fc;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}}
+.state-hr-related a:hover {{ color: #c7d2fe; }}
 .pbj-state-premium-cta {{
   display: flex;
   flex-wrap: wrap;
@@ -10344,6 +10373,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-page-summary-meta .pbj-provider-owners-btn-wrap {{
   display: inline-flex; margin-left: 0; vertical-align: middle; flex-shrink: 0;
 }}
+.pbj-page-summary-meta .pbj-provider-owners-btn {{
+  padding: 0.04rem 0.3rem; font-size: 0.72em; line-height: 1.1; min-height: 0;
+}}
 .pbj-page-summary-meta .pbj-meta-owners-sep {{
   display: none;
 }}
@@ -10383,6 +10415,80 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.6rem; margin: 0 0 0; height: auto; min-height: 0; align-items: stretch;
 }}
+.pbj-takeaway-metrics {{
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0; margin: 0.7rem 0 0; border-top: 1px solid var(--pbj-ov-border, #2A3448);
+  align-items: start; min-width: 0;
+}}
+.pbj-takeaway-metrics--n2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+.pbj-takeaway-metrics--n3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+.pbj-takeaway-metrics--n4 {{ grid-template-columns: repeat(4, minmax(0, 1fr)); }}
+.pbj-takeaway-metrics + .pbj-takeaway-support {{
+  margin-top: 0; border-top: 1px solid var(--pbj-ov-border, #2A3448);
+}}
+.pbj-takeaway-metrics .pbj-metric {{
+  padding: 0.55rem 0.7rem 0.4rem; border-radius: 0; gap: 0.12rem;
+  background: transparent; border: none;
+  border-right: 1px solid var(--pbj-ov-border, #2A3448);
+  min-width: 0; overflow: hidden;
+}}
+.pbj-takeaway-metrics .pbj-metric:last-child {{ border-right: 0; }}
+.pbj-takeaway-metrics .pbj-metric--hprd {{
+  border-color: transparent; border-right: 1px solid var(--pbj-ov-border, #2A3448);
+}}
+.pbj-takeaway-metrics .pbj-metric:last-child.pbj-metric--hprd {{ border-right: 0; }}
+.pbj-takeaway-metrics .pbj-metric__label {{
+  font-size: 0.6rem; letter-spacing: 0.05em;
+  min-height: 1.15rem; align-items: center;
+}}
+.pbj-takeaway-metrics .pbj-metric__icon {{
+  width: 0.85rem; height: 0.85rem;
+}}
+.pbj-takeaway-metrics .pbj-metric__value {{
+  font-size: 1.12rem; white-space: nowrap; word-break: normal; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.15;
+}}
+.pbj-takeaway-metrics .pbj-metric--hprd .pbj-metric__value {{
+  font-size: 1.45rem; line-height: 1.15;
+}}
+.pbj-takeaway-metrics .pbj-metric__hint {{
+  font-size: 0.66rem; line-height: 1.25;
+}}
+.pbj-takeaway-metrics .pbj-metric--spark .pbj-metric__body {{
+  width: 100%; max-width: 100%; gap: 0.3rem;
+  align-items: flex-start; margin-top: 0;
+}}
+.pbj-takeaway-metrics .pbj-hprd-spark {{
+  width: 5.75rem; height: 1.7rem; flex: 1 1 auto; min-width: 3.25rem; max-width: 6.75rem;
+  align-self: flex-start; margin-top: 0.12rem;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
+  font-size: 0.6rem; letter-spacing: 0.05em; flex-wrap: nowrap; gap: 0.18rem 0.22rem;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label-text {{
+  white-space: nowrap;
+}}
+.pbj-takeaway-metrics .pbj-metric:not(.pbj-metric--ratings) .pbj-metric__value {{
+  color: #fb923c; font-size: 1.45rem; letter-spacing: -0.02em; line-height: 1.15;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
+  flex-direction: column; gap: 0; margin-top: 0;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-block {{
+  line-height: 1; margin: 0;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-line {{
+  line-height: 1; gap: 0.2rem 0.28rem;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-kind {{
+  font-size: 0.72rem; line-height: 1;
+}}
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars,
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--overall,
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
+.pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--health {{
+  font-size: 0.88rem; white-space: nowrap; line-height: 1;
+}}
 .pbj-metric {{
   display: flex; flex-direction: column; gap: 0.22rem; min-width: 0; height: auto; min-height: 0;
   padding: 0.8rem 0.85rem; border-radius: 10px;
@@ -10419,16 +10525,16 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   min-width: 0;
 }}
 .pbj-metric--spark .pbj-metric__body {{
-  display: inline-flex; align-items: center; justify-content: flex-start;
+  display: inline-flex; align-items: flex-start; justify-content: flex-start;
   gap: 0.35rem; width: max-content; max-width: 100%;
-  align-self: flex-start; margin-top: 0.08rem;
+  align-self: flex-start; margin-top: 0;
 }}
 .pbj-metric--spark .pbj-metric__primary {{
-  display: flex; flex-direction: column; align-items: flex-start; gap: 0.08rem;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.06rem;
   min-width: 0; flex: 0 0 auto; width: auto;
 }}
 .pbj-metric--spark .pbj-metric__primary .pbj-metric__value {{
-  flex: 0 0 auto;
+  flex: 0 0 auto; line-height: 1.15;
 }}
 .pbj-metric--spark .pbj-metric__secondary {{
   margin-top: 0; flex: 0 0 auto;
@@ -10441,9 +10547,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
 }}
 .pbj-hprd-spark {{
-  flex: 0 0 auto; width: 6.75rem; height: 2.2rem; display: block;
+  flex: 0 0 auto; width: 6.75rem; height: 2.0rem; display: block;
   margin: 0; margin-left: 0 !important; margin-right: 0;
-  overflow: hidden;
+  overflow: hidden; align-self: flex-start; margin-top: 0.12rem;
 }}
 .pbj-hprd-spark-sr {{
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
@@ -10454,10 +10560,14 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 }}
 .pbj-page-overview .pbj-takeaway,
 .pbj-takeaway.pbj-takeaway--in-overview {{
-  margin: 0.95rem 0 0; padding: 1.1rem 1.2rem; border-radius: 12px;
+  margin: 0.55rem 0 0; padding: 1.1rem 1.2rem; border-radius: 12px;
   background: var(--pbj-ov-elevated, #181F2E);
   border: 1px solid var(--pbj-ov-border, #2A3448) !important;
   box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}}
+.pbj-page-overview:has(.pbj-page-metrics) .pbj-takeaway,
+.pbj-page-overview:has(.pbj-page-metrics) .pbj-takeaway.pbj-takeaway--in-overview {{
+  margin-top: 0.95rem;
 }}
 .pbj-page-overview .pbj-takeaway:hover,
 .pbj-takeaway.pbj-takeaway--in-overview:hover {{
@@ -10493,7 +10603,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-takeaway-support--n3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
 .pbj-takeaway-support--n2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
 .pbj-takeaway-support__item {{
-  padding: 0.55rem 0.75rem 0.35rem; min-width: 0; overflow: visible;
+  display: block; padding: 0.55rem 0.75rem 0.35rem; min-width: 0; overflow: visible;
   border-right: 1px solid var(--pbj-ov-border, #2A3448);
 }}
 .pbj-takeaway-support__item:last-child {{ border-right: 0; }}
@@ -10513,14 +10623,19 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   display: inline; margin-top: 0; margin-left: 0.15rem;
 }}
 .pbj-takeaway-support__label {{
-  display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem;
+  display: flex; align-items: center; flex-wrap: nowrap; gap: 0.3rem; margin-bottom: 0.2rem;
   font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.2;
+  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.2; max-width: 100%;
+}}
+.pbj-takeaway-support__label .pbj-info-chip {{
+  margin-left: 0.12rem;
 }}
 .pbj-takeaway-support__icon {{
   width: 0.85rem; height: 0.85rem; color: #64748b; flex-shrink: 0; opacity: 0.95;
 }}
-.pbj-takeaway-support__label-text {{ min-width: 0; }}
+.pbj-takeaway-support__label-text {{
+  min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}}
 .pbj-takeaway-support__value {{
   display: block; font-size: 1.05rem; font-weight: 700; color: #5eead4;
   font-variant-numeric: tabular-nums; line-height: 1.25; overflow: visible;
@@ -10534,7 +10649,17 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   display: block; margin-top: 0.12rem; font-size: 0.66rem; line-height: 1.3;
   color: var(--pbj-ov-muted, #9DA9BC);
 }}
-.pbj-takeaway-support__hint--unit {{}}
+.pbj-takeaway-support__value-row {{
+  display: flex; align-items: baseline; gap: 0.28rem; flex-wrap: nowrap;
+  max-width: 100%; min-width: 0;
+}}
+.pbj-takeaway-support__value-row .pbj-takeaway-support__value {{
+  display: inline; width: auto; max-width: none;
+}}
+.pbj-takeaway-support__hint--unit {{
+  display: inline; margin-top: 0; font-size: 0.72rem; font-weight: 600;
+  color: var(--pbj-ov-muted, #9DA9BC); white-space: nowrap; line-height: 1.2;
+}}
 .pbj-takeaway-support__value .pbj-state-min-badge {{
   margin: 0; font-size: 0.8rem; border-radius: 999px; padding: 0.18rem 0.55rem;
   max-width: 100%; white-space: nowrap; overflow: visible;
@@ -10604,17 +10729,18 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   font-size: 0.72rem; letter-spacing: 0.05em;
 }}
 .pbj-metric--ratings .pbj-metric__ratings-row {{
-  display: flex; flex-direction: column; gap: 0.02rem; margin-top: 0.08rem;
+  display: flex; flex-direction: column; gap: 0; margin-top: 0;
 }}
 .pbj-metric--ratings .pbj-metric__rating-block {{
-  display: block; min-width: 0; line-height: 1.05;
+  display: block; min-width: 0; line-height: 1; margin: 0;
 }}
 .pbj-metric--ratings .pbj-metric__rating-line {{
-  display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.28rem 0.35rem; min-width: 0;
+  display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.22rem 0.3rem; min-width: 0;
+  line-height: 1;
 }}
 .pbj-metric--ratings .pbj-metric__rating-kind {{
   font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; text-transform: none;
-  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.2; white-space: nowrap;
+  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1; white-space: nowrap;
 }}
 .pbj-metric--ratings .pbj-metric__rating-stars,
 .pbj-metric--ratings .pbj-metric__rating-stars--overall,
@@ -10864,6 +10990,13 @@ button.pbj-hprd-means-trigger:focus-visible {{
 .pbj-takeaway-top {{ display: flex; align-items: center; gap: 12px; margin-bottom: 0.55rem; }}
 .pbj-takeaway-avatar {{ border-radius: 50%; object-fit: cover; border: 2px solid rgba(129, 140, 248, 0.4); flex-shrink: 0; width: 48px; height: 48px; }}
 .pbj-takeaway-top-main {{ flex: 1; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }}
+.pbj-takeaway-top-flags {{
+  display: inline-flex; flex-shrink: 0; margin-left: auto; max-width: min(100%, 18rem);
+  justify-content: flex-end;
+}}
+.pbj-takeaway-top-flags .pbj-takeaway-priority-flags {{
+  justify-content: flex-end;
+}}
 .pbj-rating-stars-fractional {{ position: relative; display: inline-block; line-height: 1; vertical-align: middle; }}
 .pbj-rating-stars-bg {{ color: rgba(148, 163, 184, 0.35); letter-spacing: 0.06em; }}
 .pbj-rating-stars-fill {{ position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap; color: #fbbf24; letter-spacing: 0.06em; }}
@@ -10910,17 +11043,16 @@ button.pbj-staffing-role-tab.is-active {{ color: #e2e8f0; background: rgba(99, 1
   .pbj-takeaway-support--n4 {{
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }}
-  .pbj-takeaway-support--n3 {{
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }}
-  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(2n),
-  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(2n) {{ border-right: 0; }}
-  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(n+3),
-  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(n+3) {{
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(2n) {{ border-right: 0; }}
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(n+3) {{
     border-top: 1px solid var(--pbj-ov-border, #2A3448);
   }}
-  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(3):not(.pbj-takeaway-support__item--span) {{
-    grid-column: 1 / -1;
+  /* Keep takeaway primary + support n3 at 3 columns. */
+  .pbj-takeaway-metrics--n3 {{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }}
+  .pbj-takeaway-support--n3 {{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }}
 }}
 @media (max-width: 768px) {{
@@ -12116,7 +12248,7 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     display: inline-flex; margin: 0; vertical-align: middle;
   }}
   .pbj-takeaway-support__hint--unit {{
-    display: none !important;
+    display: inline !important; margin-top: 0; font-size: 0.58rem;
   }}
   .pbj-page-metrics {{
     grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; height: auto; min-height: 0;
@@ -12140,7 +12272,11 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; overflow: hidden; flex-shrink: 1; }}
   .pbj-page-overview .pbj-takeaway,
   .pbj-takeaway.pbj-takeaway--in-overview {{
-    margin-top: 0.7rem; padding: 0.8rem 0.85rem;
+    margin-top: 0.45rem; padding: 0.8rem 0.85rem;
+  }}
+  .pbj-page-overview:has(.pbj-page-metrics) .pbj-takeaway,
+  .pbj-page-overview:has(.pbj-page-metrics) .pbj-takeaway.pbj-takeaway--in-overview {{
+    margin-top: 0.7rem;
   }}
   .pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-avatar {{ width: 32px; height: 32px; }}
   .pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-header {{ font-size: 0.95rem; }}
@@ -12148,6 +12284,87 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     max-width: none; font-size: 0.88rem; line-height: 1.5;
   }}
   .pbj-takeaway.pbj-content-box {{ margin: 0.45rem 0 0.6rem; padding: 0.65rem 0.7rem; }}
+  /* Primary takeaway metric row: keep 3 columns; compact spark / icons. */
+  .pbj-takeaway-metrics,
+  .pbj-takeaway-metrics--n3 {{
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0; margin-top: 0.5rem;
+    align-items: start;
+  }}
+  .pbj-takeaway-metrics .pbj-metric,
+  .pbj-takeaway-metrics .pbj-metric--hprd {{
+    padding: 0.4rem 0.28rem 0.28rem; gap: 0.12rem;
+    border-radius: 0; background: transparent;
+    border: none; border-right: 1px solid var(--pbj-ov-border, #2A3448);
+  }}
+  .pbj-takeaway-metrics .pbj-metric:last-child,
+  .pbj-takeaway-metrics .pbj-metric:last-child.pbj-metric--hprd {{ border-right: 0; }}
+  .pbj-takeaway-metrics .pbj-metric__icon {{ display: none; }}
+  .pbj-takeaway-metrics .pbj-metric__label {{
+    font-size: 0.5rem; gap: 0.14rem 0.16rem; flex-wrap: nowrap;
+    max-width: 100%; min-height: 1.05rem; align-items: center;
+  }}
+  .pbj-takeaway-metrics .pbj-metric__label-text {{
+    white-space: nowrap; overflow: visible; text-overflow: clip; min-width: 0;
+  }}
+  .pbj-takeaway-metrics .pbj-metric__value {{ font-size: 0.95rem; }}
+  .pbj-takeaway-metrics .pbj-metric:not(.pbj-metric--ratings) .pbj-metric__value,
+  .pbj-takeaway-metrics .pbj-metric--hprd .pbj-metric__value {{
+    color: #fb923c; font-size: 1.12rem; letter-spacing: -0.02em;
+    line-height: 1.15;
+  }}
+  .pbj-takeaway-metrics .pbj-metric__hint {{ font-size: 0.58rem; }}
+  .pbj-takeaway-metrics .pbj-metric--spark {{
+    grid-column: auto !important; width: auto; max-width: none; overflow: hidden;
+  }}
+  /* Hide "X.XX direct" on mobile so spark reads with Total HPRD value. */
+  .pbj-takeaway-metrics .pbj-metric--spark .pbj-metric__secondary {{
+    display: none !important;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--spark .pbj-metric__body {{
+    display: flex; flex-direction: row; align-items: flex-start; justify-content: flex-start;
+    gap: 0.2rem; width: 100%; max-width: 100%; overflow: hidden; margin-top: 0;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--spark .pbj-metric__primary {{
+    min-width: 0; flex: 0 1 auto; display: flex; flex-direction: row; align-items: center;
+  }}
+  .pbj-takeaway-metrics .pbj-hprd-spark {{
+    width: 2.85rem; max-width: 48%; height: 1.2rem; min-width: 0; flex: 0 1 auto;
+    overflow: visible; align-self: flex-start; margin-top: 0.12rem;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings {{
+    grid-column: auto;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
+    font-size: 0.5rem !important; flex-wrap: nowrap !important; gap: 0.12rem 0.14rem;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
+    flex-direction: column; flex-wrap: nowrap; gap: 0; align-items: flex-start;
+    margin-top: 0;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-kind {{
+    font-size: 0.62rem; line-height: 1;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--overall,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--health {{
+    font-size: 0.78rem; line-height: 1;
+  }}
+  .pbj-takeaway-metrics button.pbj-info-chip,
+  .pbj-takeaway-support button.pbj-info-chip {{
+    width: 0.92rem; height: 0.92rem; min-width: 0.92rem; min-height: 0.92rem;
+    flex-shrink: 0;
+  }}
+  .pbj-takeaway-top-flags {{
+    max-width: min(100%, 11.5rem);
+  }}
+  .pbj-takeaway-top-flags .pbj-takeaway-priority-flags {{
+    gap: 0.22rem 0.3rem;
+  }}
+  .pbj-takeaway-top-flags .pbj-takeaway-flag-badge {{
+    font-size: 0.62rem;
+  }}
   /* n2/n4/default: stack on mobile. n3 stays 3-across (must win over base .pbj-takeaway-support). */
   .pbj-takeaway-support:not(.pbj-takeaway-support--n3),
   .pbj-takeaway-support--n4 {{
@@ -12165,32 +12382,56 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
     gap: 0; border-top: 1px solid var(--pbj-ov-border, #2A3448);
     margin-top: 0.5rem; padding-top: 0;
+    align-items: start;
+  }}
+  .pbj-takeaway-metrics + .pbj-takeaway-support--n3 {{
+    margin-top: 0;
   }}
   .pbj-takeaway-support--n3 .pbj-takeaway-support__item,
   .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(2n),
   .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(n+3) {{
-    padding: 0.4rem 0.35rem 0.28rem; border: none;
+    display: flex; flex-direction: column; align-items: flex-start;
+    padding: 0.4rem 0.28rem 0.28rem; border: none;
     border-right: 1px solid var(--pbj-ov-border, #2A3448);
     border-radius: 0; background: transparent;
   }}
   .pbj-takeaway-support--n3 .pbj-takeaway-support__item:last-child {{ border-right: 0; }}
-  .pbj-takeaway-support--n3 .pbj-takeaway-support__label {{ font-size: 0.52rem; }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__label {{
+    font-size: 0.48rem; gap: 0.1rem; flex-wrap: nowrap; max-width: 100%;
+    min-height: 1.15rem; margin-bottom: 0.12rem; align-items: center;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__label .pbj-info-chip {{
+    margin-left: 0.22rem;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__icon {{
+    display: none;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__label-text {{
+    white-space: nowrap; overflow: visible; text-overflow: clip; max-width: none;
+  }}
   .pbj-takeaway-support--n3 .pbj-takeaway-support__value {{
     font-size: 0.88rem; border-bottom-color: rgba(94, 234, 212, 0.22);
+    line-height: 1.15;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__value-row {{
+    gap: 0.18rem; margin-top: 0;
   }}
   .pbj-takeaway-support__item--span {{
     display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.55rem;
   }}
-  .pbj-metric--ratings {{
+  .pbj-page-metrics .pbj-metric--ratings {{
     grid-column: 1 / -1;
   }}
   .pbj-metric--ratings .pbj-metric__label {{
     font-size: 0.78rem;
   }}
-  .pbj-metric--ratings .pbj-metric__ratings-row {{
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
+    font-size: 0.5rem !important;
+  }}
+  .pbj-page-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
     flex-direction: row; flex-wrap: wrap; gap: 0.2rem 0.75rem; align-items: center;
   }}
-  .pbj-metric--ratings .pbj-metric__rating-block {{
+  .pbj-page-metrics .pbj-metric--ratings .pbj-metric__rating-block {{
     display: inline-flex; flex: 0 1 auto;
   }}
   .pbj-metric--ratings .pbj-metric__rating-kind {{
@@ -14740,9 +14981,9 @@ def _state_staffing_chart_footnote_phrase(state_code, macpac_info) -> str:
 
 
 def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
-    """Clickable state-min badge + brief modal (NY direct care). Returns (badge_html, modal_html)."""
+    """State-min takeaway value + info chip + modal. Returns (value_html, chip_html, modal_html)."""
     if macpac_info is None or macpac_info.get('line_value') is None or macpac_info['line_value'] <= 1.5:
-        return '', ''
+        return '', '', ''
     label = (macpac_info.get('badge_label') or macpac_info.get('label_short') or '').strip()
     if not label:
         st = (state_code or '').strip().upper()[:2]
@@ -14770,12 +15011,11 @@ def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
     mid = f'pbjStateMinModal-{uid}'
     bid = f'pbjStateMinBtn-{uid}'
     cid = f'pbjStateMinClose-{uid}'
-    # Visible on mobile too (support-row value). Do not use pbj-badge-mobile-hide.
-    badge = (
-        f'<button type="button" class="pbj-state-min-badge" id="{bid}" '
-        f'aria-haspopup="dialog" aria-controls="{mid}" '
-        f'aria-label="{html.escape(label + " — details", quote=True)}">'
-        f'{html.escape(min_val)}</button>'
+    value_html = html.escape(min_val)
+    chip = (
+        f'<button type="button" class="pbj-info-chip" id="{bid}" '
+        f'aria-haspopup="dialog" aria-controls="{mid}" aria-expanded="false" '
+        f'aria-label="{html.escape(label + " - details", quote=True)}">i</button>'
     )
     modal = (
         f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
@@ -14786,13 +15026,16 @@ def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
         f'</div></div>'
         f'<script>(function(){{'
         f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
-        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}});'
-        f'if(c)c.addEventListener("click",x);m.addEventListener("click",function(e){{if(e.target===m)x();}});'
-        f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")x();}});'
+        f'if(!b||!m)return;'
+        f'function openM(){{m.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");}}'
+        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");b.focus();}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();openM();}});'
+        f'if(c)c.addEventListener("click",closeM);'
+        f'm.addEventListener("click",function(e){{if(e.target===m)closeM();}});'
+        f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
         f'}})();</script>'
     )
-    return badge, modal
+    return value_html, chip, modal
 
 
 _STATE_CONTRACT_MEDIAN_CACHE: tuple[str, int, dict[str, dict[str, float | None]]] | None = None
@@ -17406,25 +17649,26 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _fac_support_items = []
     if case_mix_total is not None and casemix_str and casemix_str != '—':
         _fac_support_items.append({
-            'label': 'Case-mix',
+            'label': 'CMS case-mix',
             'value_html': html.escape(casemix_str),
             'label_suffix_html': _casemix_chip,
-            'hint': 'CMS acuity',
+            'hint': 'HPRD',
+            'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
             'icon': 'activity',
         })
     if reported_rn is not None and _fac_rn_val != 'N/A':
         _fac_support_items.append({
-            'label': 'RN HPRD',
+            'label': 'RN',
             'value_html': html.escape(_fac_rn_val),
-            'hint': 'hours per resident day',
+            'hint': 'HPRD',
             'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
             'icon': 'pulse',
         })
     if _fac_na_val and _fac_na_val not in ('—', 'N/A'):
         _fac_support_items.append({
-            'label': 'Nurse aide HPRD',
+            'label': 'Nurse aide',
             'value_html': html.escape(_fac_na_val),
-            'hint': 'hours per resident day',
+            'hint': 'HPRD',
             'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
             'icon': 'users',
         })
@@ -17440,10 +17684,57 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if _comp:
             _fac_prose += f' <strong>Compliance:</strong> {_comp}'
     _fac_prose += '</p>'
+    _fac_spark_series = _facility_hprd_spark_series_from_df(facility_df, n=4)
+    _fac_hprd_secondary = ''
+    if direct_hprd_val and direct_hprd_val not in ('—', 'N/A', ''):
+        _fac_hprd_secondary = f'{html.escape(str(direct_hprd_val))} direct'
+    _fac_primary_metrics = render_hprd_spark_metric_html(
+        hprd_val,
+        quarter_display,
+        _fac_spark_series,
+        label='Total HPRD',
+        secondary_html=_fac_hprd_secondary,
+        info_html=_facility_hprd_info,
+    )
+    _fac_primary_metrics += render_page_metric_html(
+        'Residents',
+        f'{census_int:,}' if census_int else '—',
+        hint='Avg daily census' if census_int else 'Not reported',
+        icon='users',
+    )
+    _ratings_overall = (
+        _badge_star_span_html(overall_star_icons, _overall_n)
+        if overall_star_icons != '—'
+        else ''
+    )
+    _ratings_staffing = (
+        _badge_star_span_html(staffing_star_icons, _staff_n)
+        if staffing_star_icons != '—'
+        else ''
+    )
+    _ratings_fallback = ''
+    if not _ratings_overall and not _ratings_staffing:
+        if contract_pct and contract_pct != 'N/A':
+            _ratings_fallback = render_page_metric_html(
+                'Contract staff', f'{contract_pct}%', icon='percent'
+            )
+        elif reported_rn is not None and _fac_rn_val != 'N/A':
+            _ratings_fallback = render_page_metric_html(
+                'RN HPRD', _fac_rn_val, accent='teal', icon='pulse'
+            )
+    _fac_primary_metrics += render_ratings_metric_html(
+        overall_html=_ratings_overall,
+        staffing_html=_ratings_staffing,
+        fallback_html=_ratings_fallback,
+        help_html=_ratings_chip,
+    )
+    _fac_primary_html = render_takeaway_metric_row_html(_fac_primary_metrics, n=3)
     pbj_takeaway_card = render_prose_takeaway_html(
         title_html='PBJ Takeaway',
         prose_html=_fac_prose,
+        primary_html=_fac_primary_html,
         support_html=_fac_support_html,
+        flags_html=priority_flags_html or '',
         extra_html=(
             f'{_facility_ai_helper}{_facility_actions}'
             f'{facility_hprd_modal}{_casemix_info_modal}{_ratings_info_modal}{_provider_info_modal_html}'
@@ -17613,50 +17904,6 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             if _fac_meta_html
             else _provider_owners_subtitle_btn
         )
-    _fac_spark_series = _facility_hprd_spark_series_from_df(facility_df, n=4)
-    _fac_hprd_secondary = ''
-    if direct_hprd_val and direct_hprd_val not in ('—', 'N/A', ''):
-        _fac_hprd_secondary = f'{html.escape(str(direct_hprd_val))} direct'
-    _fac_metrics_html = render_hprd_spark_metric_html(
-        hprd_val,
-        quarter_display,
-        _fac_spark_series,
-        label='Total HPRD',
-        secondary_html=_fac_hprd_secondary,
-        info_html=_facility_hprd_info,
-    )
-    _fac_metrics_html += render_page_metric_html(
-        'Residents',
-        f'{census_int:,}' if census_int else '—',
-        hint='Avg daily census' if census_int else 'Not reported',
-        icon='users',
-    )
-    _ratings_overall = (
-        _badge_star_span_html(overall_star_icons, _overall_n)
-        if overall_star_icons != '—'
-        else ''
-    )
-    _ratings_staffing = (
-        _badge_star_span_html(staffing_star_icons, _staff_n)
-        if staffing_star_icons != '—'
-        else ''
-    )
-    _ratings_fallback = ''
-    if not _ratings_overall and not _ratings_staffing:
-        if contract_pct and contract_pct != 'N/A':
-            _ratings_fallback = render_page_metric_html(
-                'Contract staff', f'{contract_pct}%', icon='percent'
-            )
-        elif reported_rn is not None and _fac_rn_val != 'N/A':
-            _ratings_fallback = render_page_metric_html(
-                'RN HPRD', _fac_rn_val, accent='teal', icon='pulse'
-            )
-    _fac_metrics_html += render_ratings_metric_html(
-        overall_html=_ratings_overall,
-        staffing_html=_ratings_staffing,
-        fallback_html=_ratings_fallback,
-        help_html=_ratings_chip,
-    )
     _fac_ccn = (
         f'<span class="pbj-page-summary-ccn">CMS {html.escape(str(prov))}</span>'
         if prov
@@ -17667,8 +17914,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         title_html=f'<h1>{html.escape(facility_name)}</h1>',
         meta_html=_fac_meta_html,
         ccn_html=_fac_ccn,
-        flags_html=priority_flags_html or '',
-        metrics_html=_fac_metrics_html,
+        flags_html='',
+        metrics_html='',
         takeaway_html=pbj_takeaway_card,
         show_brand=False,
     )
@@ -18723,11 +18970,9 @@ def render_ratings_info_control_html(uid: str = 'ratings-help') -> tuple[str, st
     cid = f'pbjRatingsInfoClose-{uid}'
     desc_id = f'{mid}-desc'
     body = (
-        f'<p id="{desc_id}">The overall rating is CMS’s composite Five-Star Quality Rating for nursing homes. '
-        f'The CMS staffing rating is the staffing component of that system. '
-        f'A red staffing flag elsewhere on this page (when shown) is a separate CMS designation and should not be '
-        f'confused with the staffing star rating. Ratings follow CMS methodology and reporting periods; they are not real-time.</p>'
-        f'<p><a href="/data-sources#methodology">How metrics are calculated</a></p>'
+        f'<p id="{desc_id}">CMS assigns each nursing home an overall rating of 1–5 stars based on health '
+        f'inspections, staffing, and quality measures. Ratings reflect the most recent available CMS reporting periods.</p>'
+        f'<p><a href="/data-sources#cms-star-ratings">How metrics are calculated</a></p>'
     )
     chip = (
         f'<button type="button" class="pbj-info-chip" id="{bid}" '
@@ -18758,8 +19003,10 @@ def render_ratings_info_control_html(uid: str = 'ratings-help') -> tuple[str, st
     return chip, modal
 
 
-def render_takeaway_support_figures_html(items: list[dict] | None) -> str:
-    """Divider-based supporting figures (label / value / optional hint; not metric cards)."""
+def render_takeaway_support_figures_html(
+    items: list[dict] | None,
+) -> str:
+    """Divider-based supporting figures (label above value / optional hint; not metric cards)."""
     rows = []
     for item in (items or [])[:4]:
         if not item:
@@ -18782,18 +19029,35 @@ def render_takeaway_support_figures_html(items: list[dict] | None) -> str:
             if hint
             else ''
         )
+        unit_inline = bool(hint) and (
+            'pbj-takeaway-support__hint--unit' in hint_cls
+            or 'pbj-support-hint--unit' in hint_cls
+        )
+        if unit_inline:
+            value_block = (
+                f'<span class="pbj-takeaway-support__value-row">'
+                f'<span class="pbj-takeaway-support__value">{value_html}</span>'
+                f'{hint_html}</span>'
+            )
+        else:
+            value_block = (
+                f'<span class="pbj-takeaway-support__value">{value_html}</span>'
+                f'{hint_html}'
+            )
         cls = 'pbj-takeaway-support__item'
         if item.get('benchmark'):
             cls += ' pbj-takeaway-support__item--benchmark'
         if item.get('span'):
             cls += ' pbj-takeaway-support__item--span'
+        label_inner = (item.get('label_html') or '').strip()
+        if not label_inner:
+            label_inner = html.escape(label)
         rows.append(
             f'<div class="{cls}">'
             f'<span class="pbj-takeaway-support__label">{icon_html}'
-            f'<span class="pbj-takeaway-support__label-text">{html.escape(label)}</span>'
+            f'<span class="pbj-takeaway-support__label-text">{label_inner}</span>'
             f'{label_suffix}</span>'
-            f'<span class="pbj-takeaway-support__value">{value_html}</span>'
-            f'{hint_html}'
+            f'{value_block}'
             f'</div>'
         )
     if not rows:
@@ -18824,7 +19088,7 @@ def render_casemix_info_control_html(uid: str = 'takeaway-casemix') -> tuple[str
         f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" '
         f'aria-labelledby="{mid}Title" aria-describedby="{desc_id}">'
         f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
-        f'<h3 id="{mid}Title">Case-mix</h3>'
+        f'<h3 id="{mid}Title">CMS case-mix</h3>'
         f'<div class="pbj-casemix-aux-body">{body}</div>'
         f'</div></div>'
         f'<script>(function(){{'
@@ -18843,20 +19107,39 @@ def render_casemix_info_control_html(uid: str = 'takeaway-casemix') -> tuple[str
     return chip, modal
 
 
+def render_takeaway_metric_row_html(metrics_html: str, *, n: int | None = None) -> str:
+    """Primary metric row inside the PBJ Takeaway (divider grid; reuses pbj-metric cells)."""
+    body = (metrics_html or '').strip()
+    if not body:
+        return ''
+    if n is None:
+        # Outer cells only: class starts with pbj-metric then space or end-quote (not __*).
+        n = len(_re.findall(r'<div class="pbj-metric(?:\s|")', body))
+    n = int(n or 0)
+    n_cls = f' pbj-takeaway-metrics--n{n}' if n in (2, 3, 4) else ''
+    return f'<div class="pbj-takeaway-metrics{n_cls}">{body}</div>'
+
+
 def render_prose_takeaway_html(
     *,
     title_html: str,
     prose_html: str,
+    primary_html: str = '',
     support_html: str = '',
     caveat_html: str = '',
     extra_html: str = '',
     outline_html: str = '',
+    flags_html: str = '',
 ) -> str:
-    """Prose-first Phoebe J takeaway (no brand pill, no metric-card grid)."""
+    """Prose-first Phoebe J takeaway (optional primary metrics + support figures)."""
     caveat = (
         f'<p class="pbj-takeaway-caveat">{caveat_html}</p>'
         if (caveat_html or '').strip()
         else ''
+    )
+    flags = (flags_html or '').strip()
+    flags_block = (
+        f'<div class="pbj-takeaway-top-flags">{flags}</div>' if flags else ''
     )
     style_attr = ' style="position: relative;"' if (outline_html or '').strip() else ''
     return (
@@ -18866,8 +19149,10 @@ def render_prose_takeaway_html(
         f'{PBJ_TAKEAWAY_AVATAR_HTML}'
         f'<div class="pbj-takeaway-top-main">'
         f'<div class="pbj-takeaway-header">{title_html}</div>'
+        f'{flags_block}'
         f'</div></div>'
         f'{prose_html}'
+        f'{primary_html or ""}'
         f'{support_html or ""}'
         f'{caveat}'
         f'{extra_html or ""}'
@@ -21021,6 +21306,12 @@ def _high_risk_explore_compact_row_html(
         if hprd_raw is not None and str(hprd_raw).strip()
         else '—'
     )
+    hprd_esc = html.escape(str(hprd))
+    hprd_cell = (
+        f'{hprd_esc}<span class="pbj-explore-hr-hprd-unit"> HPRD</span>'
+        if hprd not in ('—', 'N/A', '')
+        else hprd_esc
+    )
     # Preview-efficient CMS column: Overall + Staffing only (not full 4-row stack).
     ratings = cms_ratings_stack_html(
         fac.get('overall_rating'),
@@ -21039,7 +21330,7 @@ def _high_risk_explore_compact_row_html(
         f'<td class="pbj-explore-hr-preview-ratings" data-label="CMS ratings">{ratings}</td>'
         f'<td class="pbj-explore-hr-preview-flags" data-label="Risk flags">{flags}</td>'
         f'<td class="pbj-explore-hr-preview-hprd num" data-label="Total HPRD">'
-        f'{html.escape(str(hprd))}</td></tr>'
+        f'{hprd_cell}</td></tr>'
     )
 
 
@@ -21172,7 +21463,7 @@ def _render_state_pbj_high_risk_section_lazy(
             else ''
         )
         showing = (
-            f'<span class="pbj-explore-hr-showing">Showing {shown:,} of {preview_total:,}</span>'
+            f'<span class="pbj-explore-hr-showing">{shown:,} of {preview_total:,} facilities</span>'
             if preview_total
             else ''
         )
@@ -21183,7 +21474,7 @@ def _render_state_pbj_high_risk_section_lazy(
          data-category="all">
       <div class="pbj-explore-hr-head">
         <div class="pbj-explore-hr-head-text">
-          <h3 class="pbj-explore-panel__title">High-risk facilities in {name_esc}
+          <h3 class="pbj-explore-panel__title">PBJ320 High-risk facilities in {name_esc}
             <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--inline">
               <button type="button" class="pbj-explore-hr-info" aria-label="What counts as high-risk">i</button>
               <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span>
@@ -21328,16 +21619,15 @@ _STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
         overflow: hidden;
         text-overflow: ellipsis;
       }
-      /* Higher specificity than `.pbj-explore-hr-preview-row td {{ display: block }}`
-         so the City column does not auto-place under ratings on mobile. */
-      .pbj-explore-hr-preview-row td.pbj-explore-hr-preview-city {{ display: none !important; }}
-      .pbj-explore-hr-preview-city-mobile {{
+      /* Hide City column on mobile; city stays under the facility name. */
+      .pbj-explore-hr-preview-row td.pbj-explore-hr-preview-city { display: none !important; }
+      .pbj-explore-hr-preview-city-mobile {
         display: block;
         margin-top: 0.06rem;
         font-size: 0.7rem;
         color: rgba(148, 163, 184, 0.95);
         line-height: 1.2;
-      }}
+      }
       .pbj-explore-hr-preview-hprd {
         grid-area: hprd;
         text-align: right;
@@ -21346,6 +21636,7 @@ _STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
         color: #e2e8f0;
         align-self: start;
       }
+      .pbj-explore-hr-hprd-unit { display: inline; }
       .pbj-explore-hr-preview-ratings {
         grid-area: ratings;
         align-self: center;
@@ -21363,10 +21654,69 @@ _STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
       .pbj-explore-hr-preview-flags .state-hr-flags { max-width: none; }
       .pbj-explore-hr-preview-flags .state-hr-sffc-long { display: none; }
       .pbj-explore-hr-preview-flags .state-hr-sffc-short { display: inline; }
+      .pbj-explore-hr-footer {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.35rem;
+        margin-top: 0.55rem;
+      }
     }
     @media (min-width: 641px) {
       .pbj-explore-hr-preview-city-mobile { display: none; }
+      .pbj-explore-hr-hprd-unit { display: none; }
     }
+    .pbj-explore-hr-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.35rem 0.75rem;
+      margin-top: 0.55rem;
+      padding-top: 0.45rem;
+      border-top: 1px solid rgba(148, 163, 184, 0.18);
+    }
+    .pbj-explore-hr-showing {
+      font-size: 0.76rem;
+      color: rgba(148, 163, 184, 0.95);
+      font-variant-numeric: tabular-nums;
+    }
+    .pbj-explore-hr-more-btn {
+      margin: 0;
+      padding: 0.28rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid rgba(94, 234, 212, 0.35);
+      background: rgba(15, 23, 42, 0.55);
+      font: inherit;
+      font-size: 0.76rem;
+      font-weight: 650;
+      color: #5eead4;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .pbj-explore-hr-more-btn:hover {
+      color: #99f6e4;
+      border-color: rgba(94, 234, 212, 0.55);
+      background: rgba(15, 23, 42, 0.75);
+    }
+    .pbj-explore-hr-more-btn[disabled] {
+      opacity: 0.55;
+      cursor: wait;
+    }
+    .state-hr-related {
+      margin: 0.15rem 0 0;
+      font-size: 0.74rem;
+      line-height: 1.35;
+      color: rgba(148, 163, 184, 0.92);
+      font-style: italic;
+    }
+    .state-hr-related a {
+      font-style: normal;
+      color: #a5b4fc;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .state-hr-related a:hover { color: #c7d2fe; }
+    .state-hr-section-foot { margin-top: 0.35rem; }
     </style>
     <script>
     (function(){
@@ -21391,8 +21741,8 @@ _STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
           if (total <= 0) {
             showing.textContent = "No facilities in this category.";
           } else {
-            showing.textContent = "Showing " + shown.toLocaleString()
-              + " of " + total.toLocaleString();
+            showing.textContent = shown.toLocaleString()
+              + " of " + total.toLocaleString() + " facilities";
           }
         }
         if (!moreBtn && footer && hasMore) {
@@ -22377,12 +22727,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     # Region link removed per user request
     region_link = ""
     
-    # State standard badge when relevant (> 1.5 HPRD); NY uses direct-care 3.50 with brief modal.
-    state_standard_badge = ""
+    # State minimum when relevant (> 1.5 HPRD); plain value + info chip (NY direct-care modal).
+    state_standard_value = ""
+    state_standard_chip = ""
     state_standard_modal = ""
     _macpac_info = get_macpac_chart_info(state_code) if state_code else None
     if _macpac_info is not None and _macpac_info.get('line_value') is not None and _macpac_info['line_value'] > 1.5:
-        state_standard_badge, state_standard_modal = render_state_min_badge_explainer(
+        state_standard_value, state_standard_chip, state_standard_modal = render_state_min_badge_explainer(
             state_code, _macpac_info, uid='state'
         )
 
@@ -22595,8 +22946,8 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         _st_abbr = state_code.strip().upper()[:2]
         _sff_href = f'/sff/{state_code.strip().lower()[:2]}'
         _sff_footer = (
-            f'<p class="pbj-cross-links state-hr-sff-link" style="margin:0.35rem 0 0;">'
-            f'<a href="{html.escape(_sff_href, quote=True)}">'
+            f'<p class="state-hr-related">'
+            f'Related: <a href="{html.escape(_sff_href, quote=True)}">'
             f'{html.escape(_st_abbr)} Special Focus Facilities</a></p>'
         )
     # PBJ320 High-Risk: counts SSR; facility rows lazy-loaded via /api/state/XX/high-risk-table
@@ -22764,7 +23115,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         _rank_value = f'#{rank_total_nurse} of {total_states}'
     _state_support_items = [
         {'label': 'National rank', 'value_html': html.escape(_rank_value), 'icon': 'rank'},
-        {'label': 'RN HPRD', 'value_html': html.escape(rn_hprd_val), 'icon': 'pulse'},
+        {
+            'label': 'RN',
+            'value_html': html.escape(rn_hprd_val),
+            'hint': 'HPRD',
+            'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
+            'icon': 'pulse',
+        },
         {
             'label': 'Contract staff',
             'value_html': html.escape(
@@ -22773,10 +23130,17 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             'icon': 'percent',
         },
     ]
-    if state_standard_badge:
+    if state_standard_value:
         _state_support_items[2] = {
             'label': 'State minimum',
-            'value_html': state_standard_badge,
+            'label_html': (
+                '<span class="pbj-badge-mobile-hide">State minimum</span>'
+                '<span class="pbj-badge-mobile-only">State Standard</span>'
+            ),
+            'value_html': state_standard_value,
+            'label_suffix_html': state_standard_chip,
+            'hint': 'HPRD',
+            'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
             'benchmark': True,
             'icon': 'shield',
         }
@@ -22831,9 +23195,23 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     )
     _na_state = format_metric_value(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD', 'N/A')
     _lpn_state = format_metric_value(get_val('LPN_HPRD'), 'LPN_HPRD', 'N/A')
+    _state_spark_series = _load_state_hprd_spark_series(state_code, raw_quarter, n=4)
+    _state_primary_metrics = (
+        render_hprd_spark_metric_html(
+            total_hprd_val,
+            quarter,
+            _state_spark_series,
+            label='Total HPRD',
+            info_html=state_hprd_trigger,
+        )
+        + render_page_metric_html('Providers', facility_count_display, icon='building')
+        + render_page_metric_html('Residents', total_residents_display, icon='users')
+    )
+    _state_primary_html = render_takeaway_metric_row_html(_state_primary_metrics, n=3)
     state_takeaway_card = render_prose_takeaway_html(
         title_html='PBJ Takeaway',
         prose_html=state_narrative,
+        primary_html=_state_primary_html,
         support_html=takeaway_support_html,
         outline_html=state_outline_inset,
         extra_html=f'{state_hprd_modal}{state_standard_modal}',
@@ -22870,26 +23248,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         f'<h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span>'
         f'<span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>'
     )
-    _state_spark_series = _load_state_hprd_spark_series(state_code, raw_quarter, n=4)
-    _state_metrics_html = (
-        render_page_metric_html('Providers', facility_count_display, icon='building')
-        + render_page_metric_html('Residents', total_residents_display, icon='users')
-        + render_hprd_spark_metric_html(
-            total_hprd_val,
-            quarter,
-            _state_spark_series,
-            label='Total HPRD',
-            info_html=state_hprd_trigger,
-        )
-    )
     _state_summary = render_page_overview_html(
         eyebrow=_pbj_snapshot_eyebrow(quarter),
         title_html=_state_h1,
         controls_html=_page_header_switcher_html('state'),
-        metrics_html=_state_metrics_html,
+        metrics_html='',
         takeaway_html=state_takeaway_card,
         show_brand=False,
-        metrics_class='pbj-page-metrics--state',
     )
     # State page content: overview, chart, Explore hub, premium CTA, methodology utility
     content = f"""

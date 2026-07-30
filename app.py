@@ -10532,7 +10532,6 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   column-gap: 0.75rem;
-  row-gap: 0.12rem;
   align-items: start;
   margin: 0.55rem 0 0;
   padding: 0.5rem 0.6rem;
@@ -10545,7 +10544,6 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
 }}
 .pbj-entity-hr-insight__badge {{
   grid-column: 1;
-  grid-row: 1 / span 2;
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
@@ -10568,17 +10566,14 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   grid-column: 2;
   min-width: 0;
 }}
-.pbj-entity-hr-insight__line {{
-  display: block;
+.pbj-entity-hr-insight__text {{
   margin: 0;
   font-size: inherit;
   line-height: 1.4;
   color: inherit;
+  text-wrap: pretty;
 }}
-.pbj-entity-hr-insight__line + .pbj-entity-hr-insight__line {{
-  margin-top: 0.12rem;
-}}
-.pbj-entity-hr-insight__line strong {{ color: #E6EBF3; font-weight: 700; }}
+.pbj-entity-hr-insight__text strong {{ color: #E6EBF3; font-weight: 700; }}
 .pbj-page-summary-meta .pbj-meta-sep {{
   color: var(--pbj-ov-muted, #9DA9BC); margin: 0 0.05rem;
 }}
@@ -12191,14 +12186,12 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     column-gap: 0.55rem;
-    row-gap: 0.1rem;
     margin-top: 0.45rem;
     width: 100%;
     box-sizing: border-box;
   }}
   .pbj-entity-hr-insight__badge {{
     grid-column: 1;
-    grid-row: 1 / span 2;
     margin: 0;
     align-self: start;
   }}
@@ -19327,15 +19320,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
                 )
             else:
                 _hr_line2 = f"Total fines: <strong>{fines_phrase}</strong>."
+        _hr_body = _hr_line1 + (f' {_hr_line2}' if _hr_line2 else '')
         _hr_copy = (
             f'<div class="pbj-entity-hr-insight__copy">'
-            f'<p class="pbj-entity-hr-insight__line">{_hr_line1}</p>'
-            + (
-                f'<p class="pbj-entity-hr-insight__line">{_hr_line2}</p>'
-                if _hr_line2
-                else ''
-            )
-            + '</div>'
+            f'<p class="pbj-entity-hr-insight__text">{_hr_body}</p>'
+            f'</div>'
         )
         _hr_insight = (
             f'<div class="pbj-entity-hr-insight">{_hr_badge}{_hr_copy}</div>'

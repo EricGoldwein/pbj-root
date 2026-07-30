@@ -19,7 +19,8 @@ import re
 
 _VALID = frozenset({'off', 'dashboards', 'page', 'all'})
 
-_PUBLIC_AI_LAUNCH_STATES = frozenset({'CT', 'NY'})
+# Paused sitewide — was CT+NY. Re-add codes when public PBJAI returns.
+_PUBLIC_AI_LAUNCH_STATES = frozenset()
 
 _STATE_NAME_ALIASES: dict[str, str] = {
     'ct': 'CT',
@@ -115,7 +116,11 @@ def should_show_public_ai_tools(
     state: str | None = None,
     state_label: str | None = None,
 ) -> bool:
-    """Facility AI buttons, CSV handoff, and Claude/ChatGPT launchers (CT + NY public launch)."""
+    """Facility AI buttons, CSV handoff, and Claude/ChatGPT launchers.
+
+    Currently off for all states (beta badge → Full/Brief). Restore by putting
+    CT/NY back in ``_PUBLIC_AI_LAUNCH_STATES`` and setting ``PBJ_AI_SUPPORT``.
+    """
     if not pbj_ai_dashboards_enabled():
         return False
     return is_public_ai_launch_state_facility(

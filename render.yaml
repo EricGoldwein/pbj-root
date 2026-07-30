@@ -33,9 +33,9 @@ services:
       - key: PBJ_SITEMAP_CACHE_TTL
         value: "3600"
       # Leave PBJ_GUNICORN_MAX_REQUESTS unset (0) — worker recycle with 1 worker drops /healthz probes briefly.
-      # CT + NY facility pages only — not /pbj-ai-support, not other states
+      # Public PBJAI helpers paused (was dashboards for CT+NY)
       - key: PBJ_AI_SUPPORT
-        value: "dashboards"
+        value: "off"
       - key: PBJ_SKIP_BUILD_PROVIDER_INDEXES
         value: "1"
       # NY staffing report is public; token preview URLs 301 to /insights/ny-minimum-staffing

@@ -871,9 +871,10 @@ def _takeaway_abuse_flag_badge_html() -> str:
     tip = 'Cited for Abuse by CMS'
     esc_tip = html.escape(tip, quote=True)
     return (
-        f'<span class="pbj-takeaway-flag-badge pbj-risk-badge-with-info" style="{TAKEAWAY_BADGE_ABUSE_STYLE}">'
+        f'<span class="pbj-takeaway-flag-badge pbj-risk-badge-with-info" style="{TAKEAWAY_BADGE_ABUSE_STYLE}" '
+        f'title="{esc_tip}">'
         f'Abuse'
-        f'<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+        f'<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap pbj-badge-mobile-hide">'
         f'<button type="button" class="pbj-risk-badge-info" aria-label="{esc_tip}">i</button>'
         f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(tip)}</span>'
         f'</span></span>'
@@ -7440,6 +7441,8 @@ def _provider_info_scan_usecols(header_cols) -> list[str]:
         'reported_rn_hrs_per_resident_per_day', 'reported_na_hrs_per_resident_per_day',
         'reported_lpn_hrs_per_resident_per_day',
         'overall_rating', 'staffing_rating', 'qm_rating',
+        'staffing_rating_footnote', 'Staffing Rating Footnote',
+        'reported_staffing_footnote', 'Reported Staffing Footnote',
         'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
         'certified_beds', 'number_of_certified_beds', 'Number of Certified Beds',
         'avg_residents_per_day', 'urban', 'Urban', 'URBAN', 'processing_date',
@@ -7491,6 +7494,14 @@ def _provider_metrics_from_csv_row(row: dict) -> dict:
         'overall_rating': row.get('overall_rating'),
         'staffing_rating': row.get('staffing_rating'),
         'qm_rating': row.get('qm_rating'),
+        'staffing_rating_footnote': (
+            row.get('staffing_rating_footnote')
+            or row.get('Staffing Rating Footnote')
+        ),
+        'reported_staffing_footnote': (
+            row.get('reported_staffing_footnote')
+            or row.get('Reported Staffing Footnote')
+        ),
         'nursing_case_mix_index': row.get('nursing_case_mix_index'),
         'nursing_case_mix_index_ratio': row.get('nursing_case_mix_index_ratio'),
         'certified_beds': row.get('certified_beds') or row.get('number_of_certified_beds'),
@@ -7722,6 +7733,8 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                 'nursing_case_mix_index', 'nursing_case_mix_index_ratio',
                 'certified_beds', 'number_of_certified_beds', 'Number of Certified Beds',
                 'overall_rating', 'staffing_rating', 'qm_rating', 'quality_measure_rating',
+                'staffing_rating_footnote', 'Staffing Rating Footnote',
+                'reported_staffing_footnote', 'Reported Staffing Footnote',
                 'health_inspection_rating', 'health_inspection',
                 'sff_status', 'Special Focus Status',
                 'abuse_icon', 'Abuse Icon', 'has_abuse_icon',
@@ -7821,6 +7834,12 @@ def load_provider_info(ccn_only=None, ccn_set=None):
                         'overall_rating': row.get('overall_rating'),
                         'staffing_rating': row.get('staffing_rating'),
                         'qm_rating': _row_val(row, 'qm_rating', 'quality_measure_rating', 'Quality Measure Rating'),
+                        'staffing_rating_footnote': _row_val(
+                            row, 'staffing_rating_footnote', 'Staffing Rating Footnote'
+                        ),
+                        'reported_staffing_footnote': _row_val(
+                            row, 'reported_staffing_footnote', 'Reported Staffing Footnote'
+                        ),
                         'health_inspection_rating': _row_val(
                             row, 'health_inspection_rating', 'health_inspection', 'Health Inspection Rating'
                         ),
@@ -8402,8 +8421,11 @@ def get_provider_info_for_quarter(ccn, raw_quarter):
     key = (str(ccn).strip().zfill(6), str(raw_quarter).strip())
     if _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE:
         hit = _LOAD_PROVIDER_INFO_BY_QUARTER_CACHE.get(key)
-        if hit:
+        if hit and (
+            'staffing_rating_footnote' in hit or 'reported_staffing_footnote' in hit
+        ):
             return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
+        # Stale cache rows predate footnote columns — fall through to CSV scan.
     hit = _scan_provider_row_for_ccn_quarter(key[0], key[1])
     return _enrich_provider_quarter_row_from_combined(key[0], key[1], hit)
 
@@ -12356,14 +12378,25 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     width: 0.92rem; height: 0.92rem; min-width: 0.92rem; min-height: 0.92rem;
     flex-shrink: 0;
   }}
+  /* Keep takeaway title + flags on one row; tighten chips; hide 1★ (in CMS ratings). */
+  .pbj-takeaway-top {{
+    flex-wrap: nowrap; align-items: center;
+  }}
+  .pbj-takeaway-top-main {{
+    flex: 1 1 auto; min-width: 0; max-width: 100%;
+  }}
   .pbj-takeaway-top-flags {{
-    max-width: min(100%, 11.5rem);
+    flex: 0 1 auto; max-width: min(48%, 11.5rem); margin-left: auto;
+    margin-top: 0; justify-content: flex-end;
   }}
   .pbj-takeaway-top-flags .pbj-takeaway-priority-flags {{
-    gap: 0.22rem 0.3rem;
+    gap: 0.18rem 0.28rem; justify-content: flex-end; flex-wrap: wrap;
+  }}
+  .pbj-takeaway-top-flags .pbj-takeaway-star-flag {{
+    display: none !important;
   }}
   .pbj-takeaway-top-flags .pbj-takeaway-flag-badge {{
-    font-size: 0.62rem;
+    font-size: 0.58rem; line-height: 1.15; padding: 2px 6px !important;
   }}
   /* n2/n4/default: stack on mobile. n3 stays 3-across (must win over base .pbj-takeaway-support). */
   .pbj-takeaway-support:not(.pbj-takeaway-support--n3),
@@ -17045,10 +17078,13 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         county = (str(facility_df.iloc[0].get('COUNTY_NAME') or '')).strip() or '—'
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     canonical_slug = get_canonical_slug(state_code) if state_code else ''
-    # Use canonical latest quarter so we match state/entity pages. If facility PBJ rows do not
-    # include canonical quarter, still prefer canonical quarter when provider-info has a match.
+    # Prefer facility PBJ for the site canonical quarter. If this facility has no PBJ row for
+    # that quarter, keep labels on the facility's latest PBJ quarter — never force the canonical
+    # label from a Provider Info stub (AUDIT_DATA_ACCURACY §0; see CCN 395717).
     canonical_q = get_canonical_latest_quarter()
+    canonical_display = format_quarter_display(canonical_q) if canonical_q else ''
     pi_quarter = None
+    pbj_lags_canonical = False
     if canonical_q is not None and not facility_df.empty and 'CY_Qtr' in facility_df.columns:
         match = facility_df[facility_df['CY_Qtr'].astype(str) == str(canonical_q)]
         if not match.empty:
@@ -17057,16 +17093,17 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         else:
             latest = facility_df.sort_values('CY_Qtr', ascending=False).iloc[0]
             raw_quarter = latest.get('CY_Qtr', '') if latest is not None else ''
-            # If provider_info has canonical quarter, use that for the narrative card.
-            # (Charts still reflect available PBJ longitudinal quarters in facility_df.)
-            _t_pi = time.perf_counter()
-            pi_quarter = get_provider_info_for_quarter(prov, canonical_q)
-            _psec('provider_info_quarter', _t_pi)
-            if pi_quarter:
-                raw_quarter = canonical_q
+            if raw_quarter and str(raw_quarter) != str(canonical_q):
+                pbj_lags_canonical = True
     else:
         latest = facility_df.sort_values('CY_Qtr', ascending=False).iloc[0] if not facility_df.empty else None
         raw_quarter = latest.get('CY_Qtr', '') if latest is not None else ''
+        if (
+            canonical_q is not None
+            and raw_quarter
+            and str(raw_quarter) != str(canonical_q)
+        ):
+            pbj_lags_canonical = True
     quarter_display = format_quarter_display(raw_quarter)
     def get_val(key, default=None):
         if latest is None:
@@ -17111,11 +17148,53 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     pi_case_mix = pi_quarter if isinstance(pi_quarter, dict) else {}
     if raw_quarter and not pi_case_mix:
         pi_case_mix = _enrich_provider_quarter_row_from_combined(prov, raw_quarter, {})
+    _pi_case_mix_processing_date = None
     if isinstance(pi_case_mix, dict):
+        _pi_case_mix_processing_date = pi_case_mix.get('_processing_date')
         pi_case_mix = {k: v for k, v in pi_case_mix.items() if k != '_processing_date'}
     pi_header = pi_quarter or pi or provider_info_row or {}
+    _pi_header_processing_date = None
     if isinstance(pi_header, dict):
+        _pi_header_processing_date = pi_header.get('_processing_date')
         pi_header = {k: v for k, v in pi_header.items() if k != '_processing_date'}
+    # Stars: prefer the most recent Provider Info ratings when present (even if PBJ lags).
+    # Fall back to PBJ-matched quarter only when latest ratings are missing.
+    _ratings_pi = provider_info_row or pi_header or {}
+    _ratings_as_of_q = canonical_q if canonical_q is not None else None
+    _ratings_as_of_date = _pi_header_processing_date
+    _latest_has_stars = (
+        _provider_metric_present((_ratings_pi or {}).get('overall_rating'))
+        or _provider_metric_present((_ratings_pi or {}).get('staffing_rating'))
+    )
+    if (
+        not _latest_has_stars
+        and pbj_lags_canonical
+        and isinstance(pi_case_mix, dict)
+    ):
+        _match_has_stars = (
+            _provider_metric_present(pi_case_mix.get('overall_rating'))
+            or _provider_metric_present(pi_case_mix.get('staffing_rating'))
+        )
+        if _match_has_stars:
+            _ratings_pi = pi_case_mix
+            _ratings_as_of_q = raw_quarter
+            _ratings_as_of_date = _pi_case_mix_processing_date
+    elif not _latest_has_stars and not pbj_lags_canonical and raw_quarter:
+        _ratings_as_of_q = raw_quarter
+    _ratings_as_of_label = ''
+    _ratings_as_of_cand = ''
+    if _ratings_as_of_q:
+        _ratings_as_of_cand = format_quarter_display(_ratings_as_of_q) or ''
+    if not _ratings_as_of_cand and _ratings_as_of_date:
+        try:
+            _dt = pd.to_datetime(_ratings_as_of_date, errors='coerce')
+            if _dt is not None and not pd.isna(_dt):
+                _ratings_as_of_cand = _dt.strftime('%b %Y')
+        except Exception:
+            _ratings_as_of_cand = ''
+    # Annotate when ratings period differs from the PBJ quarter shown on the page.
+    if _ratings_as_of_cand and _ratings_as_of_cand != str(quarter_display or ''):
+        _ratings_as_of_label = _ratings_as_of_cand
     def _safe(v):
         if v is None or (isinstance(v, float) and pd.isna(v)):
             return None
@@ -17255,7 +17334,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     is_sff = sff_entry is not None
     is_sff_candidate = is_sff and (str(sff_entry.get('category') or '').strip() == 'Candidate')
     priority_flags_html, priority_covered = _takeaway_priority_flag_badges_html(
-        provider_info_row or {},
+        _ratings_pi or provider_info_row or {},
         ccn=prov,
         is_sff=is_sff,
         is_sff_candidate=is_sff_candidate,
@@ -17285,8 +17364,8 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         quote=True
     )
     # CMS star ratings (1-5): show as "Overall: ★★★" (amber stars; red at 1 star)
-    _overall_raw = (provider_info_row or {}).get('overall_rating')
-    _staffing_raw = (provider_info_row or {}).get('staffing_rating')
+    _overall_raw = (_ratings_pi or {}).get('overall_rating')
+    _staffing_raw = (_ratings_pi or {}).get('staffing_rating')
     _overall_n = _rating_star_count(_overall_raw)
     _staff_n = _rating_star_count(_staffing_raw)
     overall_star_icons = _star_icons_from_rating(_overall_raw)
@@ -17325,6 +17404,35 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             narrative = narrative.rstrip('.') + '. It ranks ' + state_pct_phrase + '.'
         else:
             narrative = narrative.rstrip('.') + ' and ' + state_pct_phrase + '.'
+    if pbj_lags_canonical and canonical_display and quarter_display:
+        _cms_no_staffing_submit = False
+        if canonical_q:
+            _t_fn = time.perf_counter()
+            _pi_canon = get_provider_info_for_quarter(prov, canonical_q)
+            _psec('provider_info_quarter_footnote', _t_fn)
+            if isinstance(_pi_canon, dict):
+                for _fk in ('staffing_rating_footnote', 'reported_staffing_footnote'):
+                    _raw_fn = _pi_canon.get(_fk)
+                    if _raw_fn is None or (isinstance(_raw_fn, float) and pd.isna(_raw_fn)):
+                        continue
+                    _fv = str(_raw_fn).strip()
+                    if _fv.lower() in ('nan', 'none', ''):
+                        continue
+                    if _fv.endswith('.0'):
+                        _fv = _fv[:-2]
+                    if _fv == '23':
+                        _cms_no_staffing_submit = True
+                        break
+        _cd = html.escape(str(canonical_display))
+        if _cms_no_staffing_submit:
+            _lag_bit = (
+                f'. Note: CMS reports this facility did not submit staffing data for {_cd}.'
+            )
+        else:
+            _lag_bit = (
+                f'. Note: This facility has no staffing data for {_cd}.'
+            )
+        narrative = narrative.rstrip('.') + _lag_bit
     yoy_line = ''
     if facility_df is not None and not facility_df.empty and raw_quarter and reported_total is not None:
         try:
@@ -17722,11 +17830,15 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             _ratings_fallback = render_page_metric_html(
                 'RN HPRD', _fac_rn_val, accent='teal', icon='pulse'
             )
+    _fac_ratings_label = 'CMS ratings'
+    if _ratings_as_of_label:
+        _fac_ratings_label = f'CMS ratings · {_ratings_as_of_label}'
     _fac_primary_metrics += render_ratings_metric_html(
         overall_html=_ratings_overall,
         staffing_html=_ratings_staffing,
         fallback_html=_ratings_fallback,
         help_html=_ratings_chip,
+        label=_fac_ratings_label,
     )
     _fac_primary_html = render_takeaway_metric_row_html(_fac_primary_metrics, n=3)
     pbj_takeaway_card = render_prose_takeaway_html(
@@ -17905,7 +18017,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             else _provider_owners_subtitle_btn
         )
     _fac_ccn = (
-        f'<span class="pbj-page-summary-ccn">CMS {html.escape(str(prov))}</span>'
+        f'<span class="pbj-page-summary-ccn">CCN {html.escape(str(prov))}</span>'
         if prov
         else ''
     )

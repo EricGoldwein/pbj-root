@@ -7,12 +7,14 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 035146,Life Care Center Of Paradise Valley,4065 East Bell Road,Phoenix,AZ,85032,602-867-0212,10/10/2024,10
 035255,Palm Valley Post Acute,13575 West Mcdowell Road,Goodyear,AZ,85395,623-536-9911,05/04/2026,18
 056078,Alta View Post Acute,831 S Lake Street,Los Angeles,CA,90057,213-380-9175,09/16/2024,31
+555565,Artesia Palms Care Center,11900 E. Artesia Blvd.,Artesia,CA,90701,562-865-0271,06/29/2026,50
 555776,Gridley Post Acute,246 Spruce Street,Gridley,CA,95948,530-846-5671,04/15/2024,23
 056435,Hyde Park Healthcare Center,6520 West Blvd.,Los Angeles,CA,90043,323-753-1354,09/12/2024,33
 555772,Joshua Tree Post Acute,8515 Cholla Ave,Yucca Valley,CA,92284,760-853-4760,10/10/2024,23
 055656,Oakwood Healthcare Center,375 Cohasset Rd,Chico,CA,95926,530-343-5595,11/19/2025,13
 055412,Vacaville Ranch Post Acute,101 S Orchard Ave,Vacaville,CA,95688,707-448-6458,01/30/2025,31
 065232,Atlas Post Acute,2611 Jones Ave,Pueblo,CO,81004,719-564-1735,01/30/2025,23
+065327,Juniper Village - The Spearly Center,2205 W 29th Ave,Denver,CO,80211,303-458-1112,07/08/2026,17
 085010,Milford Center,700 Marvel Road,Milford,DE,19963,302-422-3303,04/16/2026,8
 085012,Regency Healthcare & Rehab Center,801 N. Broom Street,Wilmington,DE,19806,302-654-8400,07/18/2025,35
 106074,Aviata At Kissimmee Gardens,1120 W Donegan Ave,Kissimmee,FL,34741,407-847-2854,07/25/2024,22
@@ -22,15 +24,14 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 105140,The Bristol Care Center,1818 E Fletcher Ave,Tampa,FL,33612,813-971-2383,11/25/2025,12
 115654,Harmony Health And Rehabilitation,176 Lincoln Ave,Fitzgerald,GA,31750,229-423-5621,03/05/2024,11
 115685,Heardmont Health And Rehabilitation,1043 Longstreet Road,Elberton,GA,30635,706-283-5429,01/08/2026,11
+115585,Legacy Transitional Care & Rehabilitation,460 Auburn Avenue N.E.,Atlanta,GA,30312,404-523-1613,06/11/2026,35
 115561,Tucker Park Crossing Of Journey Llc,4608 Lawrenceville Highway,Tucker,GA,30084,770-491-9444,02/07/2025,11
 125007,Hale Makua - Kahului,472 Kaulana Street,Kahului,HI,96732,808-877-2761,05/28/2026,22
 125056,Hale Makua - Wailuku,1540 Lower Main Street,Wailuku,HI,96793,808-243-1722,07/09/2024,19
-165478,Arbor Court,701 East Mapleleaf Drive,Mount Pleasant,IA,52641,319-385-1400,05/01/2025,26
+165478,Woodland Health And Rehabilitation,701 East Mapleleaf Drive,Mount Pleasant,IA,52641,319-385-1400,05/01/2025,26
 135146,Cascadia Of Boise,6000 W Denton St,Boise,ID,83704,208-629-4383,09/20/2024,15
-135135,Life Care Center Of Post Falls,460 North Garden Plaza Court,Post Falls,ID,83854,208-777-0318,06/01/2023,13
 135116,Royal Plaza Health And Rehabilitation Of Cascadia,2870 Juniper Drive,Lewiston,ID,83501,208-746-2855,06/02/2025,8
 145180,Aperion Care Chicago Heights,490 West 16th Place,Chicago Heights,IL,60411,708-481-4444,02/24/2025,39
-145333,West Suburban Nursing & Rehab Center,311 Edgewater Drive,Bloomingdale,IL,60108,630-894-7400,06/27/2023,16
 155156,Aperion Care Arbors Michigan City,1101 E Coolspring Ave,Michigan City,IN,46360,219-874-5211,03/03/2026,24
 155826,Evergreen Crossing And The Lofts,5404 Georgetown Road,Indianapolis,IN,46254,317-291-5404,02/15/2024,26
 155222,Kokomo Healthcare Center,429 W Lincoln Rd,Kokomo,IN,46902,765-453-5600,11/25/2024,14
@@ -38,6 +39,7 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 155426,Signature Healthcare Of Terre Haute,3500 Maple Ave,Terre Haute,IN,47804,812-238-1555,05/01/2026,10
 155086,Woodland Manor,343 S Nappanee St,Elkhart,IN,46514,574-295-0096,01/30/2026,16
 175335,Advena Living Of Cherryvale,1001 W Main Street,Cherryvale,KS,67335,620-336-2102,03/21/2024,11
+175298,Riverbend Post Acute Rehabilitation,7850 Freeman Avenue,Kansas City,KS,66112,913-334-3666,07/09/2026,16
 185262,Madison Health And Rehabilitation Center,131 Meadowlark Drive,Richmond,KY,40475,859-623-3564,12/05/2024,21
 195177,Lakeshore Manor Nursing & Rehab,1400 Lindberg Drive,Slidell,LA,70458,985-641-4985,01/28/2026,26
 195454,"Winnfield Nursing And Rehabilitation Center, Llc",915 1st Street,Winnfield,LA,71483,318-628-3533,11/03/2023,20
@@ -58,6 +60,7 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 275120,Billings Rehabilitation And Nursing Llc,600 S 27th St,Billings,MT,59101,406-259-8000,04/22/2026,21
 345420,Alamance Health Care Center,1987 Hilton Road,Burlington,NC,27217,336-226-0848,06/03/2024,21
 345229,Peak Resources- Shelby,726 South Battleground Ave,Grover,NC,28073,704-482-5396,12/19/2023,25
+345529,Perry Creek Health And Rehabilitation Center,5201 Clarks Fork Drive Nw,Raleigh,NC,27616,919-872-7033,06/08/2026,15
 355093,Good Samaritan Society - Bottineau,725 E 10th St,Bottineau,ND,58318,701-228-3796,04/15/2026,24
 355031,"Minot Health And Rehab, Llc",600 S Main St,Minot,ND,58701,701-852-1255,07/18/2023,25
 355024,The Meadows On University,1315 S University Dr,Fargo,ND,58103,701-237-3030,04/03/2024,9
@@ -68,7 +71,7 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 315390,Cranford Park Care,600 Lincoln Park East,Cranford,NJ,07016,908-276-7100,08/22/2024,18
 315205,Majestic Center For Rehab & Sub-Acute Care,Two Cooper Plaza,Camden,NJ,08103,856-342-7600,02/18/2026,13
 315280,Silver Healthcare Center,1417 Brace Road,Cherry Hill,NJ,08034,856-795-3131,07/28/2025,33
-325131,Spanish Trails Rehabilitation Suites,1610 N Renaissance Blvd Ne,Albuquerque,NM,87107,505-600-4800,06/05/2025,24
+325131,Spanish Trails Wellness & Rehabilitation,1610 N Renaissance Blvd Ne,Albuquerque,NM,87107,505-600-4800,06/05/2025,24
 295000,Pershing General Hospital Snf,855 6th Street,Lovelock,NV,89419,775-273-2621,05/22/2025,31
 335338,Bishop Rehabilitation And Nursing Center,918 James Street,Syracuse,NY,13203,315-474-1561,09/10/2025,42
 335565,The Grand Rehabilitation And Nursing At Barnwell,3230 Church Street,Valatie,NY,12184,518-758-6222,11/16/2023,20
@@ -102,7 +105,7 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 455565,Avir At Town Creek,1816 Tile Factory Rd,Palestine,TX,75801,903-729-2261,09/11/2025,21
 675799,Brenham Nursing And Rehabilitation Center,400 E Sayles St,Brenham,TX,77833,979-836-9770,11/15/2023,29
 676045,Brentwood Terrace Healthcare And Rehabilitation,2885 Stillhouse Road,Paris,TX,75460,903-784-4111,07/01/2025,11
-675817,Ft Worth Southwest Nursing Center,5300 Alta Mesa Blvd,Fort Worth,TX,76133,817-346-1800,02/21/2024,16
+675817,Ft. Worth Southwest Nursing Center,5300 Alta Mesa Blvd,Fort Worth,TX,76133,817-346-1800,02/21/2024,16
 455725,Oakmont Healthcare And Rehabilitation Of Humble,8450 Will Clayton Pkwy,Humble,TX,77338,281-446-8484,03/30/2026,9
 675371,Riverview Nursing & Rehabilitation,1102 River Rd,Boerne,TX,78006,830-249-2799,04/07/2025,14
 465117,South Ogden Post-Acute (Cascades At South Ogden),5540 South 1050 East,Ogden,UT,84405,801-479-8455,11/25/2025,30
@@ -111,10 +114,11 @@ Provider Number,Facility Name,Address,City,State,Zip,Phone Number,Date of Gradua
 475014,Premier Rehab And Healthcare At Burlington,300 Pearl Street,Burlington,VT,05401,802-658-4200,10/09/2023,23
 505296,Avalon Healthcare Bellingham,3121 Squalicum Parkway,Bellingham,WA,98225,360-734-6760,03/20/2024,25
 505491,Everett Center,1919 112th Street Southwest,Everett,WA,98204,425-513-1600,03/06/2026,23
+525074,Madison Health And Rehabilitation Center,110 Belmont Rd.,Madison,WI,53714,608-249-7391,06/01/2026,22
 525409,Pine View Care Center,400 County Rd R,Black River Falls,WI,54615,715-284-5396,07/31/2024,53
 525108,Resolve At West Allis Respiratory And Rehab,9047 W Greenfield Ave,West Allis,WI,53214,414-453-9290,01/10/2025,43
+525262,Rock River Nursing & Rehab,430 Wilcox St,Fort Atkinson,WI,53538,920-563-5533,06/15/2026,17
 515086,Beckley Healthcare Center,100 Heartland Drive,Beckley,WV,25801,304-256-1650,02/18/2026,14
-515186,Bluestone Health And Rehabilitation,1600 Bland Street,Bluefield,WV,24701,304-327-2485,06/09/2023,21
 515169,Valley Center,1000 Lincoln Drive,South Charleston,WV,25309,304-768-4400,11/18/2024,17
 535026,Big Horn Rehabilitation And Care Center,1851 Big Horn Ave,Sheridan,WY,82801,307-674-4416,03/05/2025,20
 535025,Polaris Rehabilitation And Care Center,2700 E 12th Street,Cheyenne,WY,82001,307-634-7986,07/10/2023,21

@@ -150,6 +150,11 @@ def build_sqlite_from_csv(*, out_path: Path) -> None:
                 chunksize=CHUNK,
             )
         ):
+            # Store normalized 10-digit PACs so SQLite lookups match ccn/org indexes.
+            if ENROLLMENT_PAC_COL in chunk.columns:
+                chunk[ENROLLMENT_PAC_COL] = chunk[ENROLLMENT_PAC_COL].map(normalize_associate_id)
+            if OWNER_PAC_COL in chunk.columns:
+                chunk[OWNER_PAC_COL] = chunk[OWNER_PAC_COL].map(normalize_associate_id)
             chunk.to_sql(TABLE, conn, if_exists="append", index=False)
             for _, row in chunk.iterrows():
                 _write_org_keys(org_map, row)

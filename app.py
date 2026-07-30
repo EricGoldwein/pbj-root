@@ -10443,6 +10443,7 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-hprd-spark {{
   flex: 0 0 auto; width: 6.75rem; height: 2.2rem; display: block;
   margin: 0; margin-left: 0 !important; margin-right: 0;
+  overflow: hidden;
 }}
 .pbj-hprd-spark-sr {{
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
@@ -12136,7 +12137,7 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     gap: 0.28rem; width: max-content; max-width: 100%;
     align-self: flex-start;
   }}
-  .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; }}
+  .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; overflow: hidden; }}
   .pbj-page-overview .pbj-takeaway,
   .pbj-takeaway.pbj-takeaway--in-overview {{
     margin-top: 0.7rem; padding: 0.8rem 0.85rem;
@@ -18436,7 +18437,8 @@ def _hprd_spark_polyline_svg(
     """Straight-line 4-point sparkline SVG (no smoothing / interpolation)."""
     if len(values) < 2:
         return ''
-    pad_x, pad_y = 5.0, 4.0
+    # Slight inset so end dots do not clip the viewBox edge (tiny bleed).
+    pad_x, pad_y = 5.5, 4.5
     inner_w = width - (2 * pad_x)
     inner_h = height - (2 * pad_y)
     vmin, vmax = min(values), max(values)

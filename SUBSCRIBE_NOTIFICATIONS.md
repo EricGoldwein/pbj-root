@@ -102,14 +102,19 @@ sqlite3 instance/subscribers.db "SELECT email, source, created_at FROM subscribe
 
 You can also open `instance/subscribers.db` in any SQLite viewer (e.g. DB Browser for SQLite, or the SQLite extension in VS Code) and run the same queries.
 
-**In-app list (HTML or JSON):** Set env **`ADMIN_VIEW_KEY`** to a secret string (e.g. a long random password). Then visit:
+**In-app list (HTML, JSON, or CSV):** Set env **`ADMIN_VIEW_KEY`** (or `PBJ_ADMIN_KEY`). Then either:
 
-**`https://yoursite.com/admin/subscribers?key=YOUR_SECRET`**
+1. **Browser:** sign in at **`https://yoursite.com/admin/audience/login`** (key is never placed in the URL), or
+2. **API:** use header auth — `Authorization: Bearer YOUR_SECRET` or `X-PBJ-Admin-Key: YOUR_SECRET`
 
-- In a browser you get an HTML table of subscribers.
-- With `Accept: application/json` you get JSON: `[{ "email", "source", "created_at" }, ...]`.
+```powershell
+curl.exe -s -H "Authorization: Bearer YOUR_SECRET" -H "Accept: application/json" https://yoursite.com/admin/audience
+curl.exe -s -H "Authorization: Bearer YOUR_SECRET" -H "Accept: text/csv" https://yoursite.com/admin/audience -o audience.csv
+```
 
-If the key is missing or wrong, the route returns 403. If you see "No subscribers yet" on production, set **`SUBSCRIBERS_DB_PATH`** to a path on a persistent disk (see above).
+Legacy **`/admin/subscribers?key=`** is **rejected** (403). Authenticated requests to `/admin/subscribers` redirect to `/admin/audience`.
+
+If the key is missing or wrong, routes return 403 or redirect to login. If you see "No subscribers yet" on production, set **`SUBSCRIBERS_DB_PATH`** to a path on a persistent disk (see above).
 
 **Contact form:** Submissions are only sent by email (to `SUBSCRIBE_NOTIFY_TO`). There is no in-app list of contact messages; check your email.
 
@@ -121,4 +126,4 @@ If the key is missing or wrong, the route returns 403. If you see "No subscriber
 |----------|--------|
 | Will I get emails to egoldwein@gmail.com and eric@320insight.com? | Yes, **if** `SUBSCRIBE_NOTIFY_SMTP_HOST` (and auth if needed) is set. `SUBSCRIBE_NOTIFY_TO` defaults to those two addresses. |
 | Do I need another setting for notifications? | You need the SMTP env vars above. No other app setting is required. |
-| Where do I see the subscriber list? | Visit `/admin/subscribers?key=ADMIN_VIEW_KEY` (HTML or JSON). On Render, set `SUBSCRIBERS_DB_PATH` to a persistent disk path or the list resets on deploy. |
+| Where do I see the subscriber list? | Sign in at `/admin/audience/login` or use `/admin/audience` with header auth. On Render, set `SUBSCRIBERS_DB_PATH` to a persistent disk path or the list resets on deploy. |

@@ -43,6 +43,10 @@ from pbj_ai_config import (
     pbj_ai_zip_download_enabled,
 )
 from premium_redirect_routes import register_premium_routes
+from audience import register_audience_routes
+from audience.admin_auth import admin_noindex_headers, verify_admin_request
+from audience.inject import audience_assets_footer, audience_assets_head, audience_provider_mount, audience_state_mount
+from audience.service import normalize_email, signup as audience_signup
 from pbj_cross_links import (
     cross_links_for_entity,
     cross_links_for_facility,
@@ -54,6 +58,7 @@ from public_route_context import public_route_context_json_script_tag
 from site_public_config import (
     PBJ_PUBLIC_SEARCH_JS_VERSION,
     PBJ_SITE_UNIVERSAL_JS_VERSION,
+    PBJ_AUDIENCE_JS_VERSION,
     PUBLIC_SITE_ORIGIN,
     ROBOTS_TXT,
     SECURITY_HEADER_VALUES,
@@ -693,6 +698,9 @@ def api_state_high_risk_table(state_code):
         limit = min(100, max(1, int(request.args.get('limit') or 10)))
     except (TypeError, ValueError):
         limit = 10
+    row_style = (request.args.get('style') or 'full').strip().lower()
+    if row_style not in ('full', 'compact'):
+        row_style = 'full'
 
     cy_qtr = (request.args.get('quarter') or '').strip() or get_canonical_latest_quarter() or ''
     buckets = _high_risk_buckets_for_state_page(st, cy_qtr)
@@ -700,7 +708,14 @@ def api_state_high_risk_table(state_code):
         f for f in (load_sff_facilities() or []) if (f.get('state') or '').upper() == st
     ]
     payload = _high_risk_table_api_payload(
-        st, category, offset, limit, buckets, sff_facilities=sff_facilities, cy_qtr=cy_qtr,
+        st,
+        category,
+        offset,
+        limit,
+        buckets,
+        sff_facilities=sff_facilities,
+        cy_qtr=cy_qtr,
+        row_style=row_style,
     )
     if payload is None:
         return jsonify({'error': 'no data'}), 404
@@ -1728,7 +1743,29 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
         html_content = inject_public_html_cms_urls(html_content)
     except ImportError:
         pass
+    # Inject PBJ coverage years from national_quarterly_metrics.csv (e.g. 2017-2026).
+    if '__PBJ_DATA_RANGE' in html_content:
+        try:
+            _dr = str(get_dynamic_dates().get('data_range') or '').strip() or f'2017-{datetime.now().year}'
+        except Exception:
+            _dr = f'2017-{datetime.now().year}'
+        html_content = html_content.replace('__PBJ_DATA_RANGE_NDASH__', _dr.replace('-', '&ndash;'))
+        html_content = html_content.replace('__PBJ_DATA_RANGE__', _dr)
     html_content = inject_public_site_verification_meta(html_content)
+    if filename == 'index.html':
+        if 'pbj-route-context' not in html_content:
+            html_content = html_content.replace(
+                '</head>',
+                public_route_context_json_script_tag('/') + audience_assets_head() + '</head>',
+                1,
+            )
+        if 'pbj-audience.js' not in html_content:
+            html_content = re.sub(
+                r'(<script src="/pbj-site-universal\.js[^"]*"[^>]*></script>)',
+                r'\1\n  ' + audience_assets_footer(),
+                html_content,
+                count=1,
+            )
     if filename == NY_STAFFING_REPORT_HTML:
         html_content = inject_google_analytics_head(html_content)
     resp = make_response(html_content)
@@ -1957,106 +1994,57 @@ def _subscribe_source_label() -> str:
 
 @app.route('/subscribe', methods=['POST'])
 def subscribe():
-    """Accept email for PBJ320 updates. Stored in DB only; no public list. CSRF required."""
+    """Legacy subscribe endpoint — forwards to audience system (PBJ320 Insights default)."""
     if HAS_CSRF and validate_csrf is not None:
         try:
             validate_csrf(request.form.get('csrf_token'))
         except Exception:
             return _subscribe_finish('csrf')
     raw = request.form.get('email')
-    if not raw or not isinstance(raw, str):
-        return _subscribe_finish('invalid')
-    email = raw.strip().lower()
-    if not email or len(email) > 255:
-        return _subscribe_finish('invalid')
-    if not _EMAIL_RE.match(email):
+    email = normalize_email(raw)
+    if not email:
         return _subscribe_finish('invalid')
     source = _subscribe_source_label()
-    _init_subscribers_db()
-    conn = _subscribers_conn()
+    cta_variant = 'footer_modal' if source == 'footer_modal' else 'homepage_insights'
+    if source == 'footer':
+        cta_variant = 'footer_modal'
     try:
-        for attempt in range(2):
-            try:
-                conn.execute(
-                    'INSERT INTO subscribers (email, source) VALUES (?, ?)',
-                    (email, source)
-                )
-                conn.commit()
-                break
-            except sqlite3.OperationalError as e:
-                if 'locked' in str(e).lower() and attempt == 0:
-                    time.sleep(0.25)
-                    continue
-                raise
-        threading.Thread(
-            target=_send_subscribe_notification,
-            args=(email, source),
-            daemon=True,
-        ).start()
+        result = audience_signup(
+            email,
+            cta_variant=cta_variant,
+            context={
+                'sourceUrl': request.url,
+                'pageType': 'legacy_form',
+                'referrer': request.referrer or '',
+            },
+            preferences=['pbj320_insights'],
+        )
+        subs = result.get('subscriptions') or []
+        if subs and all(s.get('result') == 'already_active' for s in subs):
+            return _subscribe_finish('already')
         return _subscribe_finish('subscribed')
-    except sqlite3.IntegrityError:
-        return _subscribe_finish('already')
     except Exception as e:
         if app.debug:
             raise
         import logging
         logging.getLogger(__name__).warning('Subscribe failed: %s', e, exc_info=True)
         return _subscribe_finish('error')
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
 
 
 @app.route('/admin/subscribers')
 def admin_subscribers():
-    """List newsletter signups (email, source, created_at). Requires ?key=ADMIN_VIEW_KEY env.
-    Returns HTML table in browser, JSON if Accept is application/json."""
-    admin_key = os.environ.get('ADMIN_VIEW_KEY', '').strip()
-    if not admin_key or request.args.get('key') != admin_key:
-        return jsonify({'error': 'Unauthorized'}), 403
-    _init_subscribers_db()
-    conn = _subscribers_conn()
-    try:
-        conn.row_factory = sqlite3.Row
-        rows = conn.execute(
-            'SELECT email, source, created_at FROM subscribers ORDER BY created_at DESC'
-        ).fetchall()
-        data = [{'email': r['email'], 'source': r['source'] or '', 'created_at': r['created_at'] or ''} for r in rows]
-        # Browser: return HTML table; API: return JSON
-        accept = request.headers.get('Accept', '') or ''
-        if 'application/json' in accept and 'text/html' not in accept:
-            return jsonify(data)
-        # HTML page
-        rows_html = ''.join(
-            f'<tr><td>{html.escape(r["email"])}</td><td>{html.escape(r["source"])}</td><td>{r["created_at"] or ""}</td></tr>'
-            for r in data
-        )
-        html_page = f'''<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>Subscribers</title>
-<style>body {{ font-family: system-ui, sans-serif; margin: 2rem; background: #0f172a; color: #e2e8f0; }}
-table {{ border-collapse: collapse; }}
-th, td {{ border: 1px solid #334155; padding: 0.5rem 1rem; text-align: left; }}
-th {{ background: #1e293b; color: #818cf8; }}</style>
-</head>
-<body>
-<h1>Newsletter subscribers</h1>
-<p>{len(data)} signup(s)</p>
-<table><thead><tr><th>Email</th><th>Source</th><th>Created</th></tr></thead>
-<tbody>{rows_html or '<tr><td colspan="3">No subscribers yet.</td></tr>'}</tbody>
-</table>
-</body>
-</html>'''
-        return make_response(html_page, 200, {'Content-Type': 'text/html; charset=utf-8'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    finally:
-        try:
-            conn.close()
-        except Exception:
-            pass
+    """Legacy admin URL — redirects to /admin/audience. Query-string keys are never accepted."""
+    if request.args.get('key'):
+        resp = make_response(jsonify({'error': 'Unauthorized'}), 403)
+        resp.headers.update(admin_noindex_headers())
+        return resp
+    if not verify_admin_request(request):
+        resp = redirect('/admin/audience/login')
+        resp.headers.update(admin_noindex_headers())
+        return resp
+    resp = redirect('/admin/audience')
+    resp.headers.update(admin_noindex_headers())
+    return resp
 
 
 def _contact_redirect(path_fragment, param_value):
@@ -2788,7 +2776,7 @@ def download_sff_posting_pdf(filename):
 # Report page: same-origin JSON/CSV via GET /report?p=… (report.html relies on this)
 # ---------------------------------------------------------------------------
 # GET /report?p=pi prefers newest ProviderInfoNorm_* with populated urban (see _preferred_provider_norm_snapshot_path).
-_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_06.csv')
+_REPORT_PINNED_PROVIDER_NORM_REL = os.path.join('provider_info', 'ProviderInfoNorm_2026_07.csv')
 _HIGH_RISK_BY_STATE_CACHE_KEY = None
 _HIGH_RISK_BY_STATE_CACHE_VAL = None
 _HIGH_RISK_BY_STATE_CACHE_AT = 0.0
@@ -3916,7 +3904,8 @@ NEWSLETTER_PBJ_KEYWORDS = (
 
 INSIGHTS_NATIVE_DIR = os.path.join(APP_ROOT, 'insights_posts')
 
-_INSIGHTS_NATIVE_PAGE_TEMPLATE = """
+_INSIGHTS_NATIVE_PAGE_TEMPLATE = (
+    """
 <!doctype html>
 <html lang="en" class="pbj-insights-article">
 <head>
@@ -3948,6 +3937,10 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
   gtag('config', 'G-NDPVY6TWBK');
   </script>
   <link rel="stylesheet" href="/insights-theme.css?v=29">
+  """
+    + audience_assets_head()
+    + """
+  {{ route_context_tag|safe }}
   {{ article_json_ld|safe }}
   <style>
     * { box-sizing: border-box; }
@@ -4299,14 +4292,15 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
       {{ related_html|safe }}
     </article>
   </main>
-  <aside class="subscribe-cta-sticky" aria-label="Substack subscription prompt">
-    <div class="subscribe-cta-inner">
-      <p class="subscribe-cta-copy">Want the story behind the data? Subscribe to our Substack.</p>
-      <a class="subscribe-cta-link" href="https://320insight.substack.com/" target="_blank" rel="noopener">Subscribe</a>
-    </div>
+  <aside class="subscribe-cta-sticky" aria-label="PBJ320 Insights signup">
+    <div id="pbj-audience-insights"></div>
   </aside>
   <footer class="footer" id="site-footer"></footer>
-  <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
+  <script src="/pbj-site-universal.js?v="""
+    + PBJ_SITE_UNIVERSAL_JS_VERSION
+    + '"></script>\n  '
+    + audience_assets_footer()
+    + """
   <script>
     (function () {
       document.querySelectorAll('.insight-prompt-copy').forEach(function (btn) {
@@ -4344,6 +4338,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = """
 </body>
 </html>
 """
+)
 
 
 def _strip_html_fragment(raw: str, max_len: int = 480) -> str:
@@ -5993,6 +5988,10 @@ def insights_article(slug):
         cover_image=preview_img,
         cover_caption=cover_caption,
         cover_alt=cover_alt,
+        route_context_tag=public_route_context_json_script_tag(
+            f'/insights/{slug_clean}',
+            overrides={'kind': 'insights', 'pageType': 'insights_article'},
+        ),
     )
 
 
@@ -6097,6 +6096,16 @@ def serve_substack():
 def serve_pbj_site_universal():
     """Single source for contact number and footer; injects into #site-footer on static pages."""
     return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript'))
+
+
+@app.route('/pbj-audience.js')
+def serve_pbj_audience_js():
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-audience.js', mimetype='application/javascript'))
+
+
+@app.route('/pbj-audience.css')
+def serve_pbj_audience_css():
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-audience.css', mimetype='text/css'))
 
 
 @app.route('/public-search.js')
@@ -8234,9 +8243,10 @@ def _scan_combined_provider_fields_for_ccn_quarter(
     *,
     want_cmi: bool = True,
     want_beds: bool = True,
+    want_case_mix_hprd: bool = True,
 ) -> dict:
     """Targeted combined-CSV scan for quarter fields missing from snapshot provider files."""
-    if not HAS_PANDAS or (not want_cmi and not want_beds):
+    if not HAS_PANDAS or (not want_cmi and not want_beds and not want_case_mix_hprd):
         return {}
     path = _provider_combined_csv_path()
     if not path:
@@ -8245,6 +8255,12 @@ def _scan_combined_provider_fields_for_ccn_quarter(
     q = str(raw_quarter or '').strip()
     if len(ccn) != 6 or not q:
         return {}
+    _cm_hprd_keys = (
+        'case_mix_total_nurse_hrs_per_resident_per_day',
+        'case_mix_rn_hrs_per_resident_per_day',
+        'case_mix_lpn_hrs_per_resident_per_day',
+        'case_mix_na_hrs_per_resident_per_day',
+    )
     try:
         header_cols = set(pd.read_csv(path, nrows=0).columns)
         usecols = _provider_info_scan_usecols(header_cols)
@@ -8257,6 +8273,10 @@ def _scan_combined_provider_fields_for_ccn_quarter(
                     score += 2
                 if _provider_metric_present(row.get('nursing_case_mix_index_ratio')):
                     score += 1
+            if want_case_mix_hprd and _provider_metric_present(
+                row.get('case_mix_total_nurse_hrs_per_resident_per_day')
+            ):
+                score += 2
             if want_beds and _provider_certified_beds(row) is not None:
                 score += 2
             row_dt = pd.to_datetime(row.get('processing_date'), errors='coerce')
@@ -8304,6 +8324,10 @@ def _scan_combined_provider_fields_for_ccn_quarter(
                 out['nursing_case_mix_index'] = best.get('nursing_case_mix_index')
             if _provider_metric_present(best.get('nursing_case_mix_index_ratio')):
                 out['nursing_case_mix_index_ratio'] = best.get('nursing_case_mix_index_ratio')
+        if want_case_mix_hprd:
+            for key in _cm_hprd_keys:
+                if _provider_metric_present(best.get(key)):
+                    out[key] = best.get(key)
         if want_beds:
             beds = _provider_certified_beds(best)
             if beds is not None:
@@ -8317,18 +8341,36 @@ def _scan_combined_provider_fields_for_ccn_quarter(
 def _enrich_provider_quarter_row_from_combined(ccn: str, raw_quarter: str, row: dict | None) -> dict:
     """Fill missing quarter fields from combined CSV without loading the national index."""
     out = dict(row or {})
+    _cm_hprd_keys = (
+        'case_mix_total_nurse_hrs_per_resident_per_day',
+        'case_mix_rn_hrs_per_resident_per_day',
+        'case_mix_lpn_hrs_per_resident_per_day',
+        'case_mix_na_hrs_per_resident_per_day',
+    )
     need_cmi = (
         not _provider_metric_present(out.get('nursing_case_mix_index'))
         and not _provider_metric_present(out.get('nursing_case_mix_index_ratio'))
     )
+    need_case_mix_hprd = not _provider_metric_present(
+        out.get('case_mix_total_nurse_hrs_per_resident_per_day')
+    )
     need_beds = _provider_certified_beds(out) is None
-    if not need_cmi and not need_beds:
+    if not need_cmi and not need_beds and not need_case_mix_hprd:
         return out
     extra = _scan_combined_provider_fields_for_ccn_quarter(
-        ccn, raw_quarter, want_cmi=need_cmi, want_beds=need_beds
+        ccn,
+        raw_quarter,
+        want_cmi=need_cmi,
+        want_beds=need_beds,
+        want_case_mix_hprd=need_case_mix_hprd,
     )
     filled_cmi = False
-    for key in ('nursing_case_mix_index', 'nursing_case_mix_index_ratio', 'certified_beds'):
+    for key in (
+        'nursing_case_mix_index',
+        'nursing_case_mix_index_ratio',
+        'certified_beds',
+        *_cm_hprd_keys,
+    ):
         if not _provider_metric_present(out.get(key)) and _provider_metric_present(extra.get(key)):
             out[key] = extra.get(key)
             if key in ('nursing_case_mix_index', 'nursing_case_mix_index_ratio'):
@@ -8932,8 +8974,8 @@ def _render_hprd_means_modal(hprd_label: str, body_html: str, uid: str) -> str:
         f'</div></div>'
         f'<script>(function(){{'
         f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
-        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");}}'
-        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");}});'
+        f'if(!b||!m)return;function x(){{m.setAttribute("aria-hidden","true");if(b.hasAttribute("aria-expanded"))b.setAttribute("aria-expanded","false");}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();m.setAttribute("aria-hidden","false");if(b.hasAttribute("aria-expanded"))b.setAttribute("aria-expanded","true");}});'
         f'if(c)c.addEventListener("click",x);m.addEventListener("click",function(e){{if(e.target===m)x();}});'
         f'document.addEventListener("keydown",function(e){{if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")x();}});'
         f'}})();</script>'
@@ -8983,23 +9025,33 @@ def render_hprd_badge_with_info(
     return badge, _render_hprd_means_modal(hprd_label, body_html, uid)
 
 
-def render_hprd_means_explainer(hprd_display, body_html, uid='default'):
-    """Trigger button + modal for “What X.XX HPRD means”. Returns (trigger_html, modal_html)."""
+def render_hprd_means_explainer(hprd_display, body_html, uid='default', *, compact=False):
+    """Trigger + modal for “What X.XX HPRD means”.
+
+    compact=True → small ? chip for the Total HPRD metric label (preferred in overview).
+    """
     if not body_html or not hprd_display or str(hprd_display).strip() in ('', '—', 'N/A'):
         return '', ''
     hprd_label = html.escape(str(hprd_display).strip())
     mid = f'pbjHprdMeansModal-{uid}'
     bid = f'pbjHprdMeansBtn-{uid}'
-    cid = f'pbjHprdMeansClose-{uid}'
     title = f'What does {hprd_label} HPRD mean?'
-    trigger = (
-        f'<button type="button" class="pbj-hprd-means-trigger" id="{bid}" '
-        f'aria-haspopup="dialog" aria-controls="{mid}" '
-        f'aria-label="{html.escape(title, quote=True)}">'
-        f'<span class="pbj-hprd-means-text">What does '
-        f'<span class="pbj-hprd-means-val">{hprd_label}</span> HPRD mean?</span>'
-        f'</button>'
-    )
+    aria = html.escape(title, quote=True)
+    if compact:
+        trigger = (
+            f'<button type="button" class="pbj-info-chip pbj-hprd-means-chip" id="{bid}" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" aria-expanded="false" '
+            f'aria-label="{aria}" title="{aria}">?</button>'
+        )
+    else:
+        trigger = (
+            f'<button type="button" class="pbj-hprd-means-trigger" id="{bid}" '
+            f'aria-haspopup="dialog" aria-controls="{mid}" '
+            f'aria-label="{aria}">'
+            f'<span class="pbj-hprd-means-text">What does '
+            f'<span class="pbj-hprd-means-val">{hprd_label}</span> HPRD mean?</span>'
+            f'</button>'
+        )
     return trigger, _render_hprd_means_modal(hprd_label, body_html, uid)
 
 
@@ -9138,7 +9190,7 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
         _route_path,
         overrides=route_context_overrides,
     )
-    _combined_extra_head = _route_context_tag + (extra_head or '')
+    _combined_extra_head = _route_context_tag + audience_assets_head() + (extra_head or '')
     og_image = f'{base}/og-image-1200x630.png'
     robots_line = ''
     if robots_meta:
@@ -9237,8 +9289,28 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-inline-link {{ color: #93c5fd; font-weight: 600; text-decoration: underline; text-underline-offset: 0.12em; }}
 .pbj-inline-link:hover {{ color: #bfdbfe; }}
 .pbj-page-bottom-stack {{ display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; }}
+.pbj-page-bottom-stack--explore {{ gap: 1.35rem; margin-top: 1.75rem; }}
+.pbj-page-bottom-stack--facility {{ gap: 1.15rem; margin-top: 1.65rem; }}
 .pbj-page-bottom-stack a.custom-report-cta {{ margin: 0; max-width: none; width: 100%; }}
+.pbj-page-bottom-stack .pbj-provider-premium-bridge {{ margin: 0; }}
 .pbj-page-bottom-details {{ margin: 0; width: 100%; max-width: none; }}
+.pbj-details-ownership--provider {{
+  border-color: rgba(148, 163, 184, 0.28);
+  box-shadow: 0 2px 12px rgba(2, 6, 23, 0.22);
+}}
+.pbj-details-ownership--provider > summary {{
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}}
+.pbj-ownership-summary-label {{
+  font-weight: 650;
+  color: #e2e8f0;
+}}
+.pbj-ownership-summary-meta {{
+  font-weight: 500;
+  font-size: 0.78rem;
+  color: rgba(148, 163, 184, 0.92);
+}}
 .pbj-details.pbj-state-staffing-table {{ margin-bottom: 0; }}
 .pbj-details.pbj-state-staffing-table + .pbj-page-bottom-stack {{ margin-top: 0.75rem; }}
 .pbj-state-staffing-table .pbj-table-wrap table th,
@@ -9255,6 +9327,558 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 }}
 .pbj-state-staffing-table .pbj-table-wrap table tbody tr:nth-child(odd) td {{
   background: rgba(15, 23, 42, 0.35);
+}}
+.pbj-state-explore {{
+  margin: 0;
+  padding: 0;
+}}
+.pbj-state-explore__head {{
+  margin: 0 0 0.7rem;
+}}
+.pbj-state-explore__title {{
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: #e2e8f0;
+}}
+.pbj-state-explore__cards {{
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.45rem;
+}}
+@media (min-width: 720px) {{
+  .pbj-state-explore__cards {{
+    grid-template-columns: 1fr 1fr;
+    gap: 0.55rem;
+  }}
+}}
+.pbj-explore-card {{
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  color: #e2e8f0;
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(2, 6, 23, 0.22);
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  font: inherit;
+}}
+.pbj-explore-card:hover {{
+  border-color: rgba(45, 212, 191, 0.5);
+  background: rgba(15, 23, 42, 0.92);
+}}
+.pbj-explore-card:focus-visible {{
+  outline: 2px solid rgba(45, 212, 191, 0.75);
+  outline-offset: 2px;
+}}
+.pbj-explore-card.is-active,
+.pbj-explore-card[aria-selected="true"] {{
+  border-color: rgba(45, 212, 191, 0.78);
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.22) 0%, rgba(15, 23, 42, 0.94) 55%);
+  box-shadow: 0 0 0 1px rgba(45, 212, 191, 0.28), 0 4px 16px rgba(2, 6, 23, 0.3);
+}}
+.pbj-explore-card__icon {{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  color: #5eead4;
+  background: rgba(45, 212, 191, 0.12);
+  border: 1px solid rgba(45, 212, 191, 0.32);
+}}
+.pbj-explore-card__text {{
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}}
+.pbj-explore-card__title {{
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.25;
+}}
+.pbj-explore-card__support {{
+  font-size: 0.76rem;
+  color: rgba(203, 213, 225, 0.92);
+  line-height: 1.3;
+}}
+.pbj-explore-card__secondary {{
+  font-size: 0.7rem;
+  color: #5eead4;
+  line-height: 1.3;
+}}
+.pbj-explore-card__chevron {{
+  flex: 0 0 auto;
+  color: rgba(148, 163, 184, 0.8);
+  font-size: 1.2rem;
+  line-height: 1;
+}}
+.pbj-explore-card.is-active .pbj-explore-card__chevron {{
+  color: #5eead4;
+}}
+.pbj-state-explore__detail {{
+  margin-top: 0.7rem;
+}}
+.pbj-explore-panel {{
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.7);
+  padding: 0.8rem 0.85rem 0.9rem;
+  box-shadow: 0 2px 14px rgba(2, 6, 23, 0.24);
+}}
+.pbj-explore-panel__header {{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}}
+.pbj-explore-panel__title {{
+  margin: 0 0 0.15rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}}
+.pbj-explore-panel__help {{
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(203, 213, 225, 0.9);
+  line-height: 1.35;
+}}
+.pbj-explore-panel__view-all {{
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #5eead4;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  white-space: nowrap;
+}}
+.pbj-explore-panel__view-all:hover {{
+  color: #99f6e4;
+}}
+.pbj-explore-hr-preview-table {{
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}}
+.pbj-explore-hr-preview-table th,
+.pbj-explore-hr-preview-table td {{
+  padding: 0.4rem 0.35rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.22);
+  text-align: left;
+  vertical-align: middle;
+}}
+.pbj-explore-hr-preview-table th {{
+  color: #94a3b8;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}}
+.pbj-explore-hr-preview-table th.num,
+.pbj-explore-hr-preview-table td.num {{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}}
+.pbj-explore-hr-preview-facility a {{
+  color: #a5f3fc;
+  font-weight: 650;
+  text-decoration: none;
+}}
+.pbj-explore-hr-preview-facility a:hover {{
+  color: #cffafe;
+  text-decoration: underline;
+}}
+.pbj-explore-hr-preview-city-mobile {{
+  display: none;
+}}
+.pbj-explore-hr-preview-city,
+.pbj-explore-hr-preview-hprd {{
+  color: rgba(226, 232, 240, 0.88);
+  white-space: nowrap;
+}}
+.pbj-explore-hr-head {{
+  margin-bottom: 0.55rem;
+}}
+.pbj-explore-hr-head .pbj-explore-panel__title {{
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}}
+.pbj-explore-hr-info {{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.55);
+  color: #cbd5e1;
+  font: 650 0.65rem/1 inherit;
+  cursor: help;
+}}
+.pbj-explore-hr-info:hover,
+.pbj-explore-hr-info:focus-visible {{
+  color: #f8fafc;
+  border-color: #5eead4;
+  outline: none;
+}}
+.pbj-high-risk-help-wrap--inline {{
+  position: relative;
+  display: inline-flex;
+}}
+.pbj-high-risk-help-wrap--inline .pbj-high-risk-tooltip {{
+  left: 0;
+  bottom: auto;
+  top: calc(100% + 0.35rem);
+  transform: none;
+  min-width: 16rem;
+  max-width: min(22rem, 80vw);
+}}
+.pbj-explore-hr-head .pbj-high-risk-help-wrap--inline:hover .pbj-high-risk-tooltip,
+.pbj-explore-hr-head .pbj-high-risk-help-wrap--inline:focus-within .pbj-high-risk-tooltip {{
+  opacity: 1;
+}}
+.state-hr-tabs--compact {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.22rem;
+  margin: 0 0 0.55rem;
+}}
+.state-hr-tabs--compact .state-hr-tab-btn {{
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 232, 240, 0.88);
+  border: 1px solid rgba(94, 234, 212, 0.28);
+  border-radius: 6px;
+  cursor: pointer;
+}}
+.state-hr-tabs--compact .state-hr-tab-btn[aria-selected="true"] {{
+  background: rgba(45, 212, 191, 0.22);
+  border-color: rgba(94, 234, 212, 0.55);
+  color: #ecfeff;
+  font-weight: 650;
+}}
+.pbj-explore-hr-preview-ratings .owner-ratings-stack {{
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.04rem;
+  line-height: 1.1;
+}}
+.pbj-explore-hr-preview-ratings .owner-rating-row {{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+}}
+.pbj-explore-hr-preview-ratings .owner-rating-k {{
+  color: #94a3b8;
+  font-weight: 650;
+  min-width: 1.35rem;
+}}
+.pbj-explore-hr-preview-ratings .owner-rating-stars {{
+  letter-spacing: 0.02em;
+  color: #fbbf24;
+  font-size: 0.72rem;
+}}
+.pbj-explore-hr-preview-ratings .owner-rating-stars-on--low {{
+  color: #f87171;
+}}
+.pbj-explore-hr-preview-ratings .owner-rating-none {{
+  color: #64748b;
+}}
+.pbj-explore-hr-preview-flags .state-hr-flags {{
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+  max-width: 7.5rem;
+}}
+.pbj-explore-hr-preview-flags .state-hr-badge {{
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.62rem;
+  font-weight: 650;
+  padding: 0.06rem 0.28rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  line-height: 1.15;
+}}
+.pbj-explore-hr-preview-flags .state-hr-badge--sff {{
+  background: rgba(220, 38, 38, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}}
+.pbj-explore-hr-preview-flags .state-hr-badge--sffc {{
+  background: rgba(234, 88, 12, 0.18);
+  color: #fdba74;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+}}
+.pbj-explore-hr-preview-flags .state-hr-badge--abuse {{
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}}
+.pbj-explore-hr-preview-flags .state-hr-badge--1ovr,
+.pbj-explore-hr-preview-flags .state-hr-badge--1stf {{
+  background: rgba(45, 212, 191, 0.12);
+  color: #99f6e4;
+  border: 1px solid rgba(94, 234, 212, 0.35);
+}}
+.pbj-explore-hr-footer {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+  margin-top: 0.45rem;
+  font-size: 0.78rem;
+  color: rgba(203, 213, 225, 0.9);
+}}
+.pbj-explore-hr-more-btn {{
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #5eead4;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}}
+.pbj-explore-hr-more-btn:hover {{
+  color: #99f6e4;
+}}
+.pbj-explore-hr-more-btn[disabled] {{
+  opacity: 0.55;
+  cursor: wait;
+}}
+.pbj-state-premium-cta {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem 0.9rem;
+  margin: 0.15rem 0 0;
+  padding: 0.85rem 0.95rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.18) 0%, rgba(15, 23, 42, 0.96) 52%, rgba(15, 23, 42, 0.98) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.48);
+  border-left: 4px solid #f59e0b;
+  box-shadow: 0 4px 18px rgba(2, 6, 23, 0.32);
+}}
+.pbj-state-premium-cta__top {{
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  flex: 1 1 14rem;
+  min-width: 0;
+}}
+.pbj-state-premium-cta__icon {{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.42);
+}}
+.pbj-state-premium-cta__icon img {{
+  display: block;
+  width: 24px;
+  height: 24px;
+}}
+.pbj-state-premium-cta__copy {{
+  flex: 1 1 auto;
+  min-width: 0;
+}}
+.pbj-state-premium-cta__title {{
+  margin: 0 0 0.15rem;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #fde68a;
+  line-height: 1.25;
+}}
+.pbj-state-premium-cta__body {{
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: rgba(226, 232, 240, 0.92);
+}}
+.pbj-state-premium-cta__btn {{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.4rem;
+  padding: 0.5rem 0.95rem;
+  border-radius: 8px;
+  background: #f59e0b;
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 0.86rem;
+  text-decoration: none;
+  border: 1px solid #d97706;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.28);
+}}
+.pbj-state-premium-cta__btn:hover {{
+  background: #fbbf24;
+  color: #0f172a;
+  border-color: #f59e0b;
+}}
+.pbj-state-premium-cta__btn:focus-visible {{
+  outline: 2px solid #fde68a;
+  outline-offset: 2px;
+}}
+@media (max-width: 640px) {{
+  .pbj-page-bottom-stack--explore {{
+    gap: 0.9rem;
+    margin-top: 1.25rem;
+  }}
+  .pbj-state-explore__head {{
+    margin-bottom: 0.55rem;
+  }}
+  .pbj-explore-card {{
+    padding: 0.62rem 0.7rem;
+    min-height: 0;
+    gap: 0.55rem;
+  }}
+  .pbj-explore-card__icon {{
+    width: 1.85rem;
+    height: 1.85rem;
+  }}
+  .pbj-explore-panel {{
+    padding: 0.7rem 0.72rem 0.8rem;
+  }}
+  .pbj-state-premium-cta {{
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.55rem;
+    padding: 0.7rem 0.75rem;
+  }}
+  .pbj-state-premium-cta__top {{
+    align-items: center;
+    gap: 0.55rem;
+  }}
+  .pbj-state-premium-cta__title {{
+    font-size: 0.92rem;
+    margin-bottom: 0.1rem;
+  }}
+  .pbj-state-premium-cta__body {{
+    font-size: 0.78rem;
+    line-height: 1.3;
+  }}
+  .pbj-state-premium-cta__btn {{
+    width: 100%;
+    min-height: 2.35rem;
+  }}
+}}
+.pbj-methodology-utility {{
+  margin: 0.1rem 0 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.52);
+  overflow: hidden;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}}
+.pbj-methodology-utility:hover {{
+  border-color: rgba(45, 212, 191, 0.4);
+  background: rgba(15, 23, 42, 0.7);
+}}
+.pbj-methodology-utility__summary {{
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  padding: 0.7rem 0.85rem;
+  color: rgba(226, 232, 240, 0.92);
+}}
+.pbj-methodology-utility__summary::-webkit-details-marker {{ display: none; }}
+.pbj-methodology-utility__summary:focus-visible {{
+  outline: 2px solid rgba(45, 212, 191, 0.7);
+  outline-offset: -2px;
+}}
+.pbj-methodology-utility__lead {{
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 7px;
+  color: #5eead4;
+  background: rgba(45, 212, 191, 0.1);
+  border: 1px solid rgba(45, 212, 191, 0.28);
+}}
+.pbj-methodology-utility__copy {{
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}}
+.pbj-methodology-utility__label {{
+  color: #e2e8f0;
+  font-size: 0.86rem;
+  font-weight: 650;
+  line-height: 1.25;
+}}
+.pbj-methodology-utility__sub {{
+  color: rgba(148, 163, 184, 0.95);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}}
+.pbj-methodology-utility__chevron {{
+  margin-left: auto;
+  color: #5eead4;
+  font-size: 1.1rem;
+  transition: transform 0.15s ease;
+}}
+.pbj-methodology-utility[open] {{
+  border-color: rgba(45, 212, 191, 0.42);
+}}
+.pbj-methodology-utility[open] .pbj-methodology-utility__chevron {{
+  transform: rotate(90deg);
+}}
+.pbj-methodology-utility .pbj-details-content {{
+  padding: 0 0.85rem 0.85rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}}
+@media (max-width: 640px) {{
+  .pbj-methodology-utility__summary {{
+    padding: 0.62rem 0.72rem;
+    gap: 0.55rem;
+  }}
+  .pbj-page-bottom-stack--facility {{
+    gap: 0.9rem;
+  }}
 }}
 .pbj-staffing-cmp-wrap {{ max-width: 100%; }}
 .pbj-staffing-cmp-table {{
@@ -9622,7 +10246,383 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
 .pbj-metric-card .label {{ font-size: 0.72em; color: #94a3b8; margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 600; }}
 .pbj-metric-card .value {{ font-size: 1.25rem; font-weight: 700; color: #e2e8f0; }}
 .pbj-metric-card .delta {{ font-size: 0.8em; color: #94a3b8; margin-top: 2px; }}
-.pbj-chart-container {{ margin: 20px 0; border: 1px solid rgba(100, 116, 139, 0.52); border-radius: 8px; padding: 20px; background: #0f172a; box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35), 0 0 20px -12px rgba(129, 140, 248, 0.1); }}
+/* Page overview: layered navy surfaces (page #0B0F17 / overview #121826 / elevated #181F2E) */
+.pbj-content-box:has(> .pbj-page-overview),
+.pbj-content-box:has(> .pbj-page-summary) {{
+  padding: 1.05rem 1.25rem 1.35rem;
+}}
+.pbj-page-overview {{
+  --pbj-ov-page: #0B0F17;
+  --pbj-ov-surface: #121826;
+  --pbj-ov-elevated: #181F2E;
+  --pbj-ov-border: #2A3448;
+  --pbj-ov-text: #E6EBF3;
+  --pbj-ov-muted: #9DA9BC;
+  display: block; height: auto; min-height: 0; margin: 0 0 1.65rem; padding: 1.25rem 1.4rem;
+  border-radius: 14px;
+  background: var(--pbj-ov-surface);
+  border: 1px solid var(--pbj-ov-border);
+  box-shadow: 0 12px 28px -18px rgba(2, 6, 23, 0.75);
+}}
+.pbj-page-summary {{
+  display: block; height: auto; min-height: 0; margin: 0; padding: 0; border: none; background: transparent;
+}}
+.pbj-page-summary-top {{
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 1rem;
+  row-gap: 0.35rem;
+  margin: 0 0 0.7rem;
+  height: auto;
+  min-height: 0;
+}}
+.pbj-page-summary-identity {{
+  grid-column: 1;
+  min-width: 0;
+  height: auto;
+  min-height: 0;
+  text-align: left;
+}}
+.pbj-page-eyebrow-row {{
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin: 0 0 0.2rem;
+}}
+.pbj-page-eyebrow-bar {{
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem;
+  width: 100%; margin: 0 0 0.28rem;
+}}
+.pbj-page-eyebrow-bar .pbj-page-eyebrow-row {{
+  margin: 0; flex: 1 1 auto; min-width: 0;
+}}
+.pbj-page-eyebrow-bar .pbj-page-summary-ccn {{
+  flex: 0 0 auto; margin-left: auto;
+}}
+.pbj-page-summary-flags {{
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem;
+  margin: 0.35rem 0 0;
+}}
+.pbj-page-eyebrow {{
+  display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 0;
+  margin: 0; font-size: 0.72rem; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #7B879C; line-height: 1.25;
+}}
+.pbj-page-eyebrow-label {{ color: #7B879C; }}
+.pbj-page-summary-identity h1 {{
+  margin: 0; font-size: clamp(1.5rem, 2.6vw, 2.05rem); line-height: 1.18; color: #818cf8; font-weight: 700;
+  letter-spacing: -0.01em;
+}}
+.pbj-page-summary-meta {{
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.2rem 0.45rem;
+  margin: 0.22rem 0 0; font-size: 0.84rem; line-height: 1.35; color: var(--pbj-ov-muted, #9DA9BC);
+}}
+.pbj-page-summary-meta .pbj-meta-part {{
+  display: inline; min-width: 0;
+}}
+.pbj-page-summary-meta .pbj-meta-entity {{
+  display: inline; min-width: 0; max-width: min(100%, 22rem);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  vertical-align: bottom;
+}}
+.pbj-page-summary-meta .pbj-provider-owners-btn-wrap {{
+  display: inline-flex; margin-left: 0; vertical-align: middle; flex-shrink: 0;
+}}
+.pbj-page-summary-meta .pbj-meta-owners-sep {{
+  display: none;
+}}
+.pbj-page-summary-meta .pbj-provider-owners-btn-wrap::before {{
+  content: none;
+}}
+.pbj-page-summary-controls {{
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: min(17.5rem, 100%);
+  max-width: 17.5rem;
+  margin-left: 0;
+  align-self: start;
+  justify-self: end;
+  height: auto;
+  min-height: 0;
+}}
+.pbj-page-summary-controls .pbj-page-header-switcher {{
+  display: block; flex: none; width: 100%; max-width: none; margin-left: 0;
+}}
+.pbj-page-summary-aside {{
+  grid-column: 2;
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end;
+  gap: 0.35rem; width: auto; max-width: 22rem; margin-left: 0; text-align: right;
+  height: auto; min-height: 0; justify-self: end;
+}}
+.pbj-page-summary-aside .pbj-takeaway-priority-flags {{
+  justify-content: flex-end;
+}}
+.pbj-page-summary-ccn {{
+  display: inline-block; padding: 0.18rem 0.45rem; border-radius: 5px; font-size: 0.68rem;
+  font-weight: 600; font-variant-numeric: tabular-nums; color: var(--pbj-ov-muted, #9DA9BC);
+  background: var(--pbj-ov-elevated, #181F2E); border: 1px solid var(--pbj-ov-border, #2A3448);
+  letter-spacing: 0.02em; white-space: nowrap;
+}}
+.pbj-page-metrics {{
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem; margin: 0 0 0; height: auto; min-height: 0; align-items: stretch;
+}}
+.pbj-metric {{
+  display: flex; flex-direction: column; gap: 0.22rem; min-width: 0; height: auto; min-height: 0;
+  padding: 0.8rem 0.85rem; border-radius: 10px;
+  background: var(--pbj-ov-elevated, #181F2E); border: 1px solid var(--pbj-ov-border, #2A3448);
+}}
+.pbj-metric__label {{
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.28rem 0.35rem;
+  font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: #94a3b8; line-height: 1.2;
+}}
+.pbj-metric__icon {{
+  width: 0.9rem; height: 0.9rem; color: #64748b; flex-shrink: 0; opacity: 0.95;
+}}
+.pbj-metric__label-text {{ min-width: 0; }}
+.pbj-metric__label .pbj-metric__quarter {{
+  letter-spacing: 0.04em; font-weight: 600; text-transform: none; color: #94a3b8;
+}}
+.pbj-metric__label .pbj-info-chip {{
+  text-transform: none; letter-spacing: 0; margin-left: 0.05rem;
+}}
+.pbj-metric__value {{
+  font-size: 1.32rem; font-weight: 700; color: var(--pbj-ov-text, #E6EBF3); font-variant-numeric: tabular-nums;
+  line-height: 1.15; word-break: break-word;
+}}
+.pbj-metric__hint {{
+  font-size: 0.7rem; color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.25; font-variant-numeric: tabular-nums;
+}}
+.pbj-metric--hprd {{
+  border-color: rgba(251, 146, 60, 0.22);
+}}
+.pbj-metric--hprd .pbj-metric__value {{ color: #fb923c; font-size: 1.65rem; letter-spacing: -0.02em; }}
+.pbj-metric--teal .pbj-metric__value {{ color: #5eead4; }}
+.pbj-metric--spark {{
+  min-width: 0;
+}}
+.pbj-metric--spark .pbj-metric__body {{
+  display: inline-flex; align-items: center; justify-content: flex-start;
+  gap: 0.35rem; width: max-content; max-width: 100%;
+  align-self: flex-start; margin-top: 0.08rem;
+}}
+.pbj-metric--spark .pbj-metric__primary {{
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0.08rem;
+  min-width: 0; flex: 0 0 auto; width: auto;
+}}
+.pbj-metric--spark .pbj-metric__primary .pbj-metric__value {{
+  flex: 0 0 auto;
+}}
+.pbj-metric--spark .pbj-metric__secondary {{
+  margin-top: 0; flex: 0 0 auto;
+}}
+.pbj-metric > .pbj-metric__primary {{
+  display: flex; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0.45rem 0.55rem;
+}}
+.pbj-metric__quarter {{
+  display: inline-block; font-size: 0.78rem; font-weight: 600; color: var(--pbj-ov-muted, #9DA9BC);
+  line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums;
+}}
+.pbj-hprd-spark {{
+  flex: 0 0 auto; width: 6.75rem; height: 2.2rem; display: block;
+  margin: 0; margin-left: 0 !important; margin-right: 0;
+}}
+.pbj-hprd-spark-sr {{
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}}
+.pbj-takeaway.pbj-content-box {{
+  margin: 0.65rem 0 0.85rem; padding: 0.85rem 0.95rem; border-radius: 12px;
+}}
+.pbj-page-overview .pbj-takeaway,
+.pbj-takeaway.pbj-takeaway--in-overview {{
+  margin: 0.95rem 0 0; padding: 1.1rem 1.2rem; border-radius: 12px;
+  background: var(--pbj-ov-elevated, #181F2E);
+  border: 1px solid var(--pbj-ov-border, #2A3448) !important;
+  box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+}}
+.pbj-page-overview .pbj-takeaway:hover,
+.pbj-takeaway.pbj-takeaway--in-overview:hover {{
+  border-color: rgba(129, 140, 248, 0.28) !important; box-shadow: none;
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-top {{ margin-bottom: 0.4rem; gap: 0.65rem; }}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-avatar {{ width: 36px; height: 36px; border-width: 1.5px; }}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-header {{
+  font-size: 1.05rem; font-weight: 700; color: #818cf8; letter-spacing: -0.01em;
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative {{
+  max-width: none; width: 100%; font-size: 0.92rem; line-height: 1.55; color: rgba(230, 235, 243, 0.92);
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative strong {{
+  color: #E6EBF3; font-weight: 700;
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative .pbj-high-risk-help-wrap {{
+  position: relative; display: inline; white-space: nowrap;
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative .pbj-high-risk-tooltip {{
+  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+  z-index: 40; visibility: hidden; opacity: 0; pointer-events: none;
+  white-space: normal;
+}}
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative .pbj-high-risk-help-wrap:hover .pbj-high-risk-tooltip,
+.pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative .pbj-high-risk-help-wrap:focus-within .pbj-high-risk-tooltip {{
+  visibility: visible; opacity: 1;
+}}
+.pbj-takeaway-support {{
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0; margin: 0.7rem 0 0; border-top: 1px solid var(--pbj-ov-border, #2A3448);
+}}
+.pbj-takeaway-support--n3 {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }}
+.pbj-takeaway-support--n2 {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }}
+.pbj-takeaway-support__item {{
+  padding: 0.55rem 0.75rem 0.35rem; min-width: 0; overflow: visible;
+  border-right: 1px solid var(--pbj-ov-border, #2A3448);
+}}
+.pbj-takeaway-support__item:last-child {{ border-right: 0; }}
+.pbj-takeaway-support__item--benchmark {{ background: transparent; }}
+.pbj-takeaway-support__item--span {{
+  grid-column: 1 / -1;
+  border-right: 0;
+  border-top: 1px solid var(--pbj-ov-border, #2A3448);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem;
+  padding-top: 0.55rem;
+}}
+.pbj-takeaway-support__item--span .pbj-takeaway-support__label {{ margin-bottom: 0; }}
+.pbj-takeaway-support__item--span .pbj-takeaway-support__value {{
+  display: inline; font-size: 1.05rem;
+}}
+.pbj-takeaway-support__item--span .pbj-takeaway-support__hint {{
+  display: inline; margin-top: 0; margin-left: 0.15rem;
+}}
+.pbj-takeaway-support__label {{
+  display: inline-flex; align-items: center; gap: 0.3rem; margin-bottom: 0.2rem;
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.2;
+}}
+.pbj-takeaway-support__icon {{
+  width: 0.85rem; height: 0.85rem; color: #64748b; flex-shrink: 0; opacity: 0.95;
+}}
+.pbj-takeaway-support__label-text {{ min-width: 0; }}
+.pbj-takeaway-support__value {{
+  display: block; font-size: 1.05rem; font-weight: 700; color: #5eead4;
+  font-variant-numeric: tabular-nums; line-height: 1.25; overflow: visible;
+  border-bottom: 1px solid rgba(94, 234, 212, 0.28); padding-bottom: 0.08rem;
+  width: fit-content; max-width: 100%;
+}}
+.pbj-takeaway-support__hint {{
+  display: block; margin-top: 0.12rem; font-size: 0.66rem; line-height: 1.3;
+  color: var(--pbj-ov-muted, #9DA9BC);
+}}
+.pbj-takeaway-support__hint--unit {{}}
+.pbj-takeaway-support__value .pbj-state-min-badge {{
+  margin: 0; font-size: 0.8rem; border-radius: 999px; padding: 0.18rem 0.55rem;
+  max-width: 100%; white-space: nowrap; overflow: visible;
+}}
+button.pbj-info-chip {{
+  appearance: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 1rem; height: 1rem; padding: 0; border-radius: 999px; cursor: pointer;
+  font: inherit; font-size: 0.62rem; font-weight: 700; line-height: 1; color: #a5b4fc;
+  background: rgba(49, 46, 129, 0.35); border: 1px solid rgba(129, 140, 248, 0.4);
+}}
+button.pbj-info-chip:hover {{ background: rgba(67, 56, 202, 0.5); color: #eef2ff; }}
+button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8); outline-offset: 2px; }}
+.pbj-takeaway-caveat {{
+  margin: 0.28rem 0 0; font-size: 0.7rem; line-height: 1.3; color: rgba(148, 163, 184, 0.78);
+}}
+.pbj-entity-hr-insight {{
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.75rem;
+  row-gap: 0.12rem;
+  align-items: start;
+  margin: 0.55rem 0 0;
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  background: rgba(251, 191, 36, 0.06);
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: rgba(230, 235, 243, 0.9);
+}}
+.pbj-entity-hr-insight__badge {{
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  margin: 0;
+  padding: 0.22rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.32);
+  white-space: nowrap;
+  align-self: start;
+}}
+.pbj-entity-hr-insight__badge .pbj-entity-hr-insight__icon {{
+  width: 0.85rem; height: 0.85rem; flex-shrink: 0; opacity: 0.95;
+}}
+.pbj-entity-hr-insight__copy {{
+  grid-column: 2;
+  min-width: 0;
+}}
+.pbj-entity-hr-insight__line {{
+  display: block;
+  margin: 0;
+  font-size: inherit;
+  line-height: 1.4;
+  color: inherit;
+}}
+.pbj-entity-hr-insight__line + .pbj-entity-hr-insight__line {{
+  margin-top: 0.12rem;
+}}
+.pbj-entity-hr-insight__line strong {{ color: #E6EBF3; font-weight: 700; }}
+.pbj-page-summary-meta .pbj-meta-sep {{
+  color: var(--pbj-ov-muted, #9DA9BC); margin: 0 0.05rem;
+}}
+.pbj-metric--ratings .pbj-metric__label {{
+  font-size: 0.72rem; letter-spacing: 0.05em;
+}}
+.pbj-metric--ratings .pbj-metric__ratings-row {{
+  display: flex; flex-direction: column; gap: 0.02rem; margin-top: 0.08rem;
+}}
+.pbj-metric--ratings .pbj-metric__rating-block {{
+  display: block; min-width: 0; line-height: 1.05;
+}}
+.pbj-metric--ratings .pbj-metric__rating-line {{
+  display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.28rem 0.35rem; min-width: 0;
+}}
+.pbj-metric--ratings .pbj-metric__rating-kind {{
+  font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em; text-transform: none;
+  color: var(--pbj-ov-muted, #9DA9BC); line-height: 1.2; white-space: nowrap;
+}}
+.pbj-metric--ratings .pbj-metric__rating-stars,
+.pbj-metric--ratings .pbj-metric__rating-stars--overall,
+.pbj-metric--ratings .pbj-metric__rating-stars--staffing,
+.pbj-metric--ratings .pbj-metric__rating-stars--health {{
+  font-size: 0.95rem; line-height: 1; opacity: 1; white-space: nowrap;
+}}
+.pbj-metric__secondary {{
+  display: block; margin-top: 0.12rem; font-size: 0.72rem; color: var(--pbj-ov-muted, #9DA9BC);
+  font-variant-numeric: tabular-nums; line-height: 1.3; flex: 1 0 100%;
+}}
+.pbj-takeaway .pbj-takeaway-narrative {{
+  margin: 0.3rem 0 0; font-size: 0.94rem; line-height: 1.5; color: var(--pbj-ov-text, #E6EBF3);
+}}
+.pbj-takeaway .pbj-takeaway-narrative + .pbj-takeaway-narrative {{ margin-top: 0.35rem; }}
+#state-outline-wrap.pbj-state-outline-compact {{
+  width: 52px; height: 52px; opacity: 0.1; top: 0.2rem; right: 0.1rem;
+}}
+.pbj-page-overview + .pbj-chart-container,
+.pbj-page-overview ~ .pbj-chart-container {{
+  margin-top: 0.45rem;
+}}
+.pbj-page-overview {{
+  margin-bottom: 1.65rem;
+}}
+.pbj-chart-container {{ margin: 20px 0; border: 1px solid rgba(42, 52, 72, 0.95); border-radius: 8px; padding: 20px; background: #0B0F17; box-shadow: none; }}
 .pbj-chart-wrapper {{ height: 260px; position: relative; width: 100%; }}
 .pbj-chart-container.pbj-casemix-card {{ margin: 20px 0; padding: 0.55rem 0.65rem 0.5rem; background: #0f172a; border: 1px solid rgba(148, 163, 184, 0.58); border-radius: 8px; box-shadow: 0 0 0 1px rgba(51, 65, 85, 0.45), 0 0 20px -12px rgba(129, 140, 248, 0.1); width: 100%; box-sizing: border-box; }}
 .pbj-casemix-card-head {{ margin-bottom: 0.35rem; }}
@@ -9888,6 +10888,23 @@ button.pbj-staffing-role-tab.is-active {{ color: #e2e8f0; background: rgba(99, 1
 }}
 .pbj-chart-foot-row .pbj-chart-anomaly-foot:empty {{ display: none; margin: 0; padding: 0; }}
 .pbj-aide-note-short {{ display: none; }}
+@media (max-width: 1100px) and (min-width: 769px) {{
+  .pbj-takeaway-support--n4 {{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}
+  .pbj-takeaway-support--n3 {{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }}
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(2n),
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(2n) {{ border-right: 0; }}
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(n+3),
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(n+3) {{
+    border-top: 1px solid var(--pbj-ov-border, #2A3448);
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(3):not(.pbj-takeaway-support__item--span) {{
+    grid-column: 1 / -1;
+  }}
+}}
 @media (max-width: 768px) {{
   .pbj-chart-foot-row {{ flex-direction: column; align-items: stretch; gap: 0.25rem; }}
   .pbj-chart-foot-row .pbj-chart-anomaly-foot {{ text-align: left; }}
@@ -10167,7 +11184,9 @@ button.pbj-takeaway-share-btn:hover {{
   vertical-align: baseline;
 }}
 button.pbj-inline-modal-link,
-.pbj-takeaway-narrative button.pbj-inline-modal-link {{
+a.pbj-inline-modal-link,
+.pbj-takeaway-narrative button.pbj-inline-modal-link,
+.pbj-takeaway-narrative a.pbj-inline-modal-link {{
   display: inline;
   margin: 0;
   padding: 0;
@@ -10176,18 +11195,27 @@ button.pbj-inline-modal-link,
   font: inherit;
   font-size: inherit;
   font-weight: 600;
+  line-height: inherit;
   color: rgba(199, 210, 254, 0.95);
   text-decoration: underline;
   text-underline-offset: 0.12em;
   cursor: pointer;
   white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
   vertical-align: baseline;
+  max-width: 100%;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }}
 button.pbj-inline-modal-link:hover,
-button.pbj-inline-modal-link:focus-visible {{
+button.pbj-inline-modal-link:focus-visible,
+a.pbj-inline-modal-link:hover,
+a.pbj-inline-modal-link:focus-visible {{
   color: #e0e7ff;
 }}
-button.pbj-inline-modal-link:focus-visible {{
+button.pbj-inline-modal-link:focus-visible,
+a.pbj-inline-modal-link:focus-visible {{
   outline: 2px solid rgba(129, 140, 248, 0.65);
   outline-offset: 2px;
   border-radius: 2px;
@@ -10984,21 +12012,22 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
 .pbj-state-title .pbj-state-title-mobile {{ display: none !important; }}
 .pbj-page-title-row {{ display: flex; align-items: center; justify-content: space-between; gap: 0.75rem 1.25rem; flex-wrap: wrap; margin-bottom: 0.35rem; }}
 .pbj-page-title-row h1 {{ flex: 1 1 auto; min-width: 0; margin: 0; line-height: 1.2; }}
-.pbj-page-header-switcher {{ display: none; flex: 0 1 20rem; width: 100%; max-width: 22rem; position: relative; margin-left: auto; align-self: center; }}
-@media (min-width: 769px) {{
-  .pbj-page-header-switcher {{ display: block; }}
-}}
+.pbj-page-header-switcher {{ display: block; flex: 0 1 16rem; width: 100%; max-width: 17.5rem; position: relative; margin-left: auto; align-self: flex-start; }}
 .pbj-page-header-switcher-input-wrap {{
-  display: flex; align-items: center; gap: 0.45rem; padding: 0.5rem 0.65rem; border-radius: 8px;
-  border: 1px solid rgba(129, 140, 248, 0.35); background: rgba(15, 23, 42, 0.88);
-  min-height: 2.35rem; box-sizing: border-box;
+  display: flex; align-items: center; gap: 0.4rem; padding: 0.38rem 0.55rem; border-radius: 8px;
+  border: 1px solid rgba(42, 52, 72, 0.95); background: rgba(11, 15, 23, 0.55);
+  min-height: 2.05rem; box-sizing: border-box;
+  transition: border-color 0.15s ease, background 0.15s ease;
 }}
-.pbj-page-header-switcher-icon {{ color: rgba(148, 163, 184, 0.95); display: inline-flex; flex-shrink: 0; }}
+.pbj-page-header-switcher-input-wrap:focus-within {{
+  border-color: rgba(129, 140, 248, 0.45); background: rgba(15, 23, 42, 0.88);
+}}
+.pbj-page-header-switcher-icon {{ color: rgba(148, 163, 184, 0.85); display: inline-flex; flex-shrink: 0; }}
 .pbj-page-header-switcher-input {{
-  flex: 1; min-width: 0; border: 0; background: transparent; color: #e2e8f0; font-size: 0.875rem;
+  flex: 1; min-width: 0; border: 0; background: transparent; color: #e2e8f0; font-size: 0.84rem;
   font-family: inherit; outline: none;
 }}
-.pbj-page-header-switcher-input::placeholder {{ color: rgba(148, 163, 184, 0.75); }}
+.pbj-page-header-switcher-input::placeholder {{ color: rgba(148, 163, 184, 0.7); }}
 .pbj-page-header-switcher-results {{
   display: none; position: absolute; top: calc(100% + 4px); right: 0; left: 0; z-index: 1200;
   margin: 0; padding: 0.25rem 0; list-style: none; max-height: 16rem; overflow-y: auto;
@@ -11028,6 +12057,159 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
 }}
 .pbj-page-header-switcher-empty {{
   display: block; padding: 0.65rem 0.75rem; color: rgba(148, 163, 184, 0.95); font-size: 0.85rem;
+}}
+@media (max-width: 768px) {{
+  .pbj-content-box:has(> .pbj-page-overview),
+  .pbj-content-box:has(> .pbj-page-summary) {{ padding: 0.7rem 0.75rem 0.95rem; }}
+  .pbj-page-overview {{
+    height: auto; min-height: 0; margin: 0 0 1.35rem; padding: 0.75rem 0.8rem;
+  }}
+  .pbj-page-summary-top {{
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 0.35rem;
+  }}
+  .pbj-page-summary-identity {{
+    grid-column: 1; min-width: 0; order: 1;
+  }}
+  .pbj-page-summary-controls {{
+    grid-column: 1; grid-row: auto; width: 100%; max-width: none;
+    justify-self: stretch; order: 2; margin-top: 0.1rem;
+  }}
+  .pbj-page-summary-controls .pbj-page-header-switcher {{ max-width: none; width: 100%; }}
+  .pbj-page-eyebrow-row {{
+    margin: 0 0 0.12rem; gap: 0.3rem 0.45rem;
+  }}
+  .pbj-page-summary-aside {{
+    display: none;
+  }}
+  .pbj-page-summary-flags {{
+    margin-top: 0.28rem; gap: 0.25rem;
+  }}
+  .pbj-page-summary-identity h1 {{
+    font-size: clamp(1.28rem, 5.4vw, 1.65rem);
+  }}
+  .pbj-page-summary-meta {{
+    margin-top: 0.18rem; font-size: 0.78rem; gap: 0.15rem 0.4rem;
+  }}
+  .pbj-page-summary-meta .pbj-meta-entity {{
+    max-width: min(100%, 14.5rem);
+  }}
+  .pbj-page-summary-meta .pbj-provider-owners-btn-wrap {{
+    display: inline-flex; margin: 0; vertical-align: middle;
+  }}
+  .pbj-takeaway-support__hint--unit {{
+    display: none !important;
+  }}
+  .pbj-page-metrics {{
+    grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; height: auto; min-height: 0;
+  }}
+  /* State Total HPRD is last card → full row. Facility spark is first → stays 1/2 beside Residents. */
+  .pbj-page-metrics > .pbj-metric--spark:last-child,
+  .pbj-page-metrics--state > .pbj-metric--spark,
+  .pbj-page-metrics--state > .pbj-metric--hprd:last-child {{
+    grid-column: 1 / -1 !important;
+    width: 100%;
+    max-width: none;
+  }}
+  .pbj-metric--spark {{ min-width: 0; }}
+  .pbj-metric {{ padding: 0.55rem 0.6rem; height: auto; min-height: 0; gap: 0.15rem; }}
+  .pbj-metric__value {{ font-size: 1.02rem; }}
+  .pbj-metric--hprd .pbj-metric__value {{ font-size: 1.28rem; }}
+  .pbj-metric--spark .pbj-metric__body {{
+    gap: 0.28rem; width: max-content; max-width: 100%;
+    align-self: flex-start;
+  }}
+  .pbj-hprd-spark {{ width: 5.25rem; height: 1.75rem; margin-left: 0 !important; }}
+  .pbj-page-overview .pbj-takeaway,
+  .pbj-takeaway.pbj-takeaway--in-overview {{
+    margin-top: 0.7rem; padding: 0.8rem 0.85rem;
+  }}
+  .pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-avatar {{ width: 32px; height: 32px; }}
+  .pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-header {{ font-size: 0.95rem; }}
+  .pbj-takeaway.pbj-takeaway--prose .pbj-takeaway-narrative {{
+    max-width: none; font-size: 0.88rem; line-height: 1.5;
+  }}
+  .pbj-takeaway.pbj-content-box {{ margin: 0.45rem 0 0.6rem; padding: 0.65rem 0.7rem; }}
+  /* n2/n4/default: stack on mobile. n3 stays 3-across (must win over base .pbj-takeaway-support). */
+  .pbj-takeaway-support:not(.pbj-takeaway-support--n3),
+  .pbj-takeaway-support--n4 {{
+    grid-template-columns: 1fr; gap: 0.35rem; border-top: none; margin-top: 0.55rem; padding-top: 0;
+  }}
+  .pbj-takeaway-support:not(.pbj-takeaway-support--n3) .pbj-takeaway-support__item,
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item,
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(2n),
+  .pbj-takeaway-support--n4 .pbj-takeaway-support__item:nth-child(n+3) {{
+    padding: 0.42rem 0.5rem; border-right: 0;
+    border: 1px solid var(--pbj-ov-border, #2A3448); border-radius: 8px;
+    background: rgba(11, 15, 23, 0.35);
+  }}
+  .pbj-takeaway-support--n3 {{
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0; border-top: 1px solid var(--pbj-ov-border, #2A3448);
+    margin-top: 0.5rem; padding-top: 0;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item,
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(2n),
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:nth-child(n+3) {{
+    padding: 0.4rem 0.35rem 0.28rem; border: none;
+    border-right: 1px solid var(--pbj-ov-border, #2A3448);
+    border-radius: 0; background: transparent;
+  }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__item:last-child {{ border-right: 0; }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__label {{ font-size: 0.52rem; }}
+  .pbj-takeaway-support--n3 .pbj-takeaway-support__value {{
+    font-size: 0.88rem; border-bottom-color: rgba(94, 234, 212, 0.22);
+  }}
+  .pbj-takeaway-support__item--span {{
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.55rem;
+  }}
+  .pbj-metric--ratings {{
+    grid-column: 1 / -1;
+  }}
+  .pbj-metric--ratings .pbj-metric__label {{
+    font-size: 0.78rem;
+  }}
+  .pbj-metric--ratings .pbj-metric__ratings-row {{
+    flex-direction: row; flex-wrap: wrap; gap: 0.2rem 0.75rem; align-items: center;
+  }}
+  .pbj-metric--ratings .pbj-metric__rating-block {{
+    display: inline-flex; flex: 0 1 auto;
+  }}
+  .pbj-metric--ratings .pbj-metric__rating-kind {{
+    font-size: 0.72rem;
+  }}
+  .pbj-metric--ratings .pbj-metric__rating-stars,
+  .pbj-metric--ratings .pbj-metric__rating-stars--overall,
+  .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
+  .pbj-metric--ratings .pbj-metric__rating-stars--health {{
+    font-size: 0.88rem;
+  }}
+  .pbj-takeaway-caveat {{
+    margin: 0.28rem 0 0; font-size: 0.66rem; line-height: 1.3; color: rgba(148, 163, 184, 0.72);
+  }}
+  .pbj-entity-hr-insight {{
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.55rem;
+    row-gap: 0.1rem;
+    margin-top: 0.45rem;
+    width: 100%;
+    box-sizing: border-box;
+  }}
+  .pbj-entity-hr-insight__badge {{
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    margin: 0;
+    align-self: start;
+  }}
+  .pbj-entity-hr-insight__copy {{
+    grid-column: 2;
+    min-width: 0;
+  }}
+  .pbj-page-summary-meta .pbj-meta-sep {{
+    color: var(--pbj-ov-muted, #9DA9BC); margin: 0 0.05rem;
+  }}
+  #state-outline-wrap.pbj-state-outline-compact {{ width: 42px; height: 42px; opacity: 0.08; }}
 }}
 .pbj-cta-premium {{ margin-top: 1.5rem; padding: 1rem 1.25rem; background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(30, 41, 59, 0.6); border-radius: 10px; font-size: 0.95rem; color: #e2e8f0; }}
 .pbj-cta-premium a {{ color: #818cf8; font-weight: 600; transition: color 0.2s ease; }}
@@ -11520,6 +12702,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     </div>
   </div>
   <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
+  ''' + audience_assets_footer() + '''
   <script>
   (function(){
     var overlay = document.getElementById('contact-overlay');
@@ -12186,12 +13369,16 @@ Thank you,"""
     )
 
 
-def render_methodology_block():
+def render_methodology_block(*, variant: str = 'default'):
     """Collapsible Methodology on facility/state/entity pages — brief; full defs on /data-sources."""
-    return '''<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">
-<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>
-<div class="pbj-details-content">
-<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public files (2017–2025), plus Provider Information and chain data where shown. State staffing context via MACPAC (2022). <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
+    try:
+        data_range = str(get_dynamic_dates().get('data_range') or '').strip() or f'2017-{datetime.now().year}'
+    except Exception:
+        data_range = f'2017-{datetime.now().year}'
+    # Display with en-dash (2017–2026); data_range from CSV is hyphenated.
+    data_range_display = data_range.replace('-', '\u2013')
+    body = f'''<div class="pbj-details-content">
+<p style="margin: 0 0 0.6rem 0; font-size: 0.9rem; color: rgba(226,232,240,0.9);">Staffing from CMS Payroll-Based Journal (PBJ) public files ({data_range_display}), plus Provider Information and chain data where shown. State staffing context via MACPAC (2022). <a href="/data-sources#methodology">Methodology</a> · <a href="/phoebe">PBJ explained</a>.</p>
 <p style="margin: 0 0 0.35rem 0; font-weight: 600; font-size: 0.9rem; color: #818cf8;">Metrics</p>
 <ul style="font-size: 0.875rem; color: rgba(226,232,240,0.88); margin: 0 0 0.75rem 0;">
 <li><strong><a href="/what-is-hprd">Hours Per Resident Day (HPRD)</a>:</strong> Total staff hours ÷ average residents. Example: 350 hours for 100 residents = 3.5 HPRD.</li>
@@ -12204,8 +13391,48 @@ def render_methodology_block():
 <p style="margin: 0 0 0.75rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">The PBJ Dashboard pulls directly from CMS data and is carefully vetted for accuracy. Still, sometimes a bug sneaks into the jelly. That could mean: a systemic CMS data reporting issue (e.g., Q2 2017 contract staffing, missing data in 2020 due to COVID) or there could be a coding error on our part. If you spot something that looks off, please <a href="#" class="pbj-contact-trigger" data-topic="Data issue or possible bug (please describe what looks wrong and where)." data-subject-type="data_issue" style="color: #818cf8;" role="button">let me know via the contact form</a> so I can set things right.</p>
 <p style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Trend charts omit quarters with implausible submitted HPRD (total/direct below 0.25; RN, LPN, and aide use role floors and neighbor-quarter rules). <a href="/data-sources#trend-exclusions">Full criteria</a>.</p>
 <p style="margin: 0; font-size: 0.875rem; color: rgba(226,232,240,0.88);">Rankings, within-state percentiles, CMS flags (including abuse icon): <a href="/data-sources#methodology">How metrics are calculated</a>.</p>
+</div>'''
+    if variant == 'utility':
+        return (
+            '<details class="pbj-methodology-utility pbj-details-methodology">'
+            '<summary class="pbj-methodology-utility__summary">'
+            '<span class="pbj-methodology-utility__lead" aria-hidden="true">'
+            '<svg class="pbj-methodology-utility__icon" viewBox="0 0 24 24" width="16" height="16" fill="none" '
+            'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+            '<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 8h.01"/></svg>'
+            '</span>'
+            '<span class="pbj-methodology-utility__copy">'
+            '<span class="pbj-methodology-utility__label">How these figures are calculated</span>'
+            '<span class="pbj-methodology-utility__sub">Methods, definitions, and data sources</span>'
+            '</span>'
+            '<span class="pbj-methodology-utility__chevron" aria-hidden="true">›</span>'
+            f'</summary>{body}</details>'
+        )
+    return (
+        '<details class="pbj-details pbj-details-methodology pbj-page-bottom-details">'
+        '<summary><span class="pbj-details-icon" aria-hidden="true">▼</span> Methodology</summary>'
+        f'{body}</details>'
+    )
+
+
+def render_state_premium_cta(state_name: str, page_url: str = '') -> str:
+    """State-page premium conversion card — distinct from Explore destination cards."""
+    topic = f"I'm interested in PBJ320's premium dashboard for {state_name} nursing home staffing"
+    topic_attr = html.escape(topic, quote=True)
+    return f'''
+<div class="pbj-state-premium-cta" data-state-premium-cta="1">
+  <div class="pbj-state-premium-cta__top">
+    <div class="pbj-state-premium-cta__icon" aria-hidden="true">
+      <img src="/pbj_favicon.png" alt="" width="24" height="24" decoding="async">
+    </div>
+    <div class="pbj-state-premium-cta__copy">
+      <h3 class="pbj-state-premium-cta__title">Need daily staffing records?</h3>
+      <p class="pbj-state-premium-cta__body">Daily PBJ data, employee rosters, and facility-level analysis.</p>
+    </div>
+  </div>
+  <a href="#" class="pbj-state-premium-cta__btn pbj-contact-trigger" data-topic="{topic_attr}" data-subject-type="premium_dashboard_request" aria-label="Open contact form to view PBJ320 Premium Dashboard">View Premium Dashboard</a>
 </div>
-</details>'''
+'''.strip()
 
 
 _CCN_ALLOWED_RE = _re.compile(r'^[A-Z0-9]{1,6}$')
@@ -13495,6 +14722,11 @@ def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
         st = (state_code or '').strip().upper()[:2]
         label = f'{st} Min. ~{macpac_info["line_value"]:.2f}'
     label_esc = html.escape(label)
+    # Compact numeric for support-row density; keep full label on aria/modal.
+    try:
+        min_val = f'{float(macpac_info["line_value"]):.2f}'
+    except (TypeError, ValueError):
+        min_val = label_esc
     st = (state_code or '').strip().upper()[:2]
     macpac_url = 'https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/'
     if st == 'NY':
@@ -13512,10 +14744,12 @@ def render_state_min_badge_explainer(state_code, macpac_info, uid='state-min'):
     mid = f'pbjStateMinModal-{uid}'
     bid = f'pbjStateMinBtn-{uid}'
     cid = f'pbjStateMinClose-{uid}'
+    # Visible on mobile too (support-row value). Do not use pbj-badge-mobile-hide.
     badge = (
-        f'<button type="button" class="pbj-state-min-badge pbj-badge-mobile-hide" id="{bid}" '
+        f'<button type="button" class="pbj-state-min-badge" id="{bid}" '
         f'aria-haspopup="dialog" aria-controls="{mid}" '
-        f'aria-label="{html.escape(label + " — details", quote=True)}">{label_esc}</button>'
+        f'aria-label="{html.escape(label + " — details", quote=True)}">'
+        f'{html.escape(min_val)}</button>'
     )
     modal = (
         f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
@@ -13881,7 +15115,7 @@ def _provider_charts_html(chart_data, facility_name='', casemix_title=''):
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
 ''' + chart_block('Total Staffing', 'chartTotalHprd', total_staffing_footer) + '''
 <!-- pbj-casemix-ui:14 -->
-<div class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="14-split-7">
+<div id="facility-casemix" class="pbj-chart-container pbj-casemix-card" data-pbj-casemix-ui="14-split-7">
 <div class="pbj-casemix-card-head">
   <div class="pbj-casemix-section-header">
     <h2 class="pbj-casemix-section-title">''' + html.escape(str(casemix_title or 'CMS Case-Mix')) + '''</h2>
@@ -15240,14 +16474,19 @@ def _owner_info_inline_btn(
     *,
     aria_label: str | None = None,
 ) -> str:
-    """Inline narrative trigger for shared owner-info-modal (entity-style)."""
+    """Inline narrative trigger for shared owner-info-modal (entity-style).
+
+    Uses an anchor (not <button>) so the label can wrap mid-phrase on narrow screens.
+    """
     al = aria_label or f'View {title}'
+    parts = [html.escape(p) for p in str(label or '').split() if p]
+    label_html = ' <wbr>'.join(parts) if parts else ''
     return (
-        f'<button type="button" class="pbj-inline-modal-link" data-owner-info '
+        f'<a href="#pbj-owner-info" class="pbj-inline-modal-link" data-owner-info '
         f'data-info-format="html" '
         f'data-info-title="{html.escape(title, quote=True)}" '
         f'data-info-body="{html.escape(body_html, quote=True)}" '
-        f'aria-label="{html.escape(al, quote=True)}">{label}</button>'
+        f'role="button" aria-label="{html.escape(al, quote=True)}">{label_html}</a>'
     )
 
 
@@ -15363,9 +16602,9 @@ def _provider_staffing_compliance_warning(
                 'state_abbr': state_abbr,
                 'threshold_display': th_s,
                 'sentence': (
-                    f'{n} of {total} reported PBJ days below {state_abbr} direct care standard (3.50 HPRD)'
+                    f'{max(0, total - n)} of {total} reported PBJ days meeting {state_abbr} direct care standard (3.50 HPRD)'
                     if st == 'NY'
-                    else f'{n} of {total} reported PBJ days below {state_abbr} staffing threshold'
+                    else f'{max(0, total - n)} of {total} reported PBJ days meeting {state_abbr} staffing threshold'
                 ),
             })
 
@@ -15424,6 +16663,7 @@ def _provider_staffing_compliance_warning(
         st_abbr_esc = html.escape(str(top.get('state_abbr') or 'state'))
         n_show = int(top.get('n') or 0)
         total_show = int(top.get('total') or 0)
+        n_meeting = max(0, total_show - n_show)
         th_raw = str(top.get('threshold_display') or '—').strip()
         th_disp = html.escape(th_raw)
         st_u = str(top.get('state_abbr') or '').strip().upper()
@@ -15437,12 +16677,15 @@ def _provider_staffing_compliance_warning(
             )
         q_part = f' in {q_label}' if q_label else ''
         if ny_direct_care:
-            min_phrase = 'NY direct care standard (3.50 HPRD)'
-            modal_title = 'Days below NY direct care standard'
+            min_phrase = 'NY direct care standard'
+            min_threshold_tail = ' (3.50 HPRD)'
+            modal_title = 'Days meeting NY direct care standard'
             modal_body = (
-                f'<p><strong>{n_show} of {total_show}</strong> reported days had NY-mapped direct care HPRD '
-                f'below 3.50 (RN, LPN, CNA, nurse aide trainee, and medication aide hours &#247; census; '
-                f'excludes DON and nursing administrator).</p>'
+                f'<p><strong>{n_meeting} of {total_show}</strong> reported days met the NY-mapped direct care '
+                f'HPRD of 3.50 '
+                f'(<strong>{n_show} of {total_show}</strong> were below). '
+                f'NY-mapped direct care = RN, LPN, CNA, nurse aide trainee, and medication aide hours &#247; census; '
+                f'excludes DON and nursing administrator.</p>'
                 f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against N.Y. Public Health Law '
                 f'&#167; 2895-b minimum direct-care staffing (3.50 HPRD total component). '
                 f'PBJ320&#8217;s PBJ role mapping is informative&#8212;not an enforcement determination. '
@@ -15452,15 +16695,18 @@ def _provider_staffing_compliance_warning(
             )
         else:
             min_phrase = (
-                f'{st_abbr_esc} staffing minimum (~{th_disp} HPRD)'
+                f'{st_abbr_esc} staffing minimum'
                 if st_u
-                else f'staffing minimum (~{th_disp} HPRD)'
+                else 'staffing minimum'
             )
-            modal_title = f'Days below {st_abbr_esc} staffing minimum'
+            min_threshold_tail = f' (~{th_disp} HPRD)'
+            modal_title = f'Days meeting {st_abbr_esc} staffing minimum'
             th_body = html.escape(th_raw, quote=False)
             modal_body = (
-                f'<p><strong>{n_show} of {total_show}</strong> reported days had total nursing HPRD '
-                f'below {th_body} (RN, LPN, CNA, aide, MedAide, and admin/DON hours &#247; census).</p>'
+                f'<p><strong>{n_meeting} of {total_show}</strong> reported days met total nursing HPRD '
+                f'of {th_body} '
+                f'(<strong>{n_show} of {total_show}</strong> were below). '
+                f'Total nursing = RN, LPN, CNA, aide, MedAide, and admin/DON hours &#247; census.</p>'
                 f'<p>{q_label} &#183; CMS PBJ daily staffing. Screened against MACPAC&#8217;s {th_body} HPRD '
                 f'{st_abbr_esc} benchmark&#8212;not a legal finding. '
                 f'<a href="/data-sources#pbj-daily-staffing">Methodology</a>.</p>'
@@ -15469,11 +16715,11 @@ def _provider_staffing_compliance_warning(
             modal_title,
             modal_body,
             min_phrase,
-            aria_label=f'View {min_phrase} details',
+            aria_label=f'View {min_phrase}{min_threshold_tail} details',
         )
         suffix_html = (
-            f' <strong>Compliance note:</strong> {n_show} of {total_show} reported PBJ days below '
-            f'{min_btn}{q_part}.{flags_note}'
+            f' <strong>Compliance:</strong> {n_meeting} of {total_show} reported PBJ days meeting '
+            f'{min_btn}{min_threshold_tail}{q_part}.{flags_note}'
         )
     else:
         modal_title = 'PBJ daily staffing'
@@ -15492,7 +16738,7 @@ def _provider_staffing_compliance_warning(
             aria_label='View PBJ daily staffing details',
         )
         suffix_html = (
-            f' <strong>Compliance note:</strong> {html.escape(sentence, quote=False)} {details_btn}'
+            f' <strong>Compliance:</strong> {html.escape(sentence, quote=False)} {details_btn}'
         )
     return {'narrative_suffix': suffix_html, 'modal_html': ''}
 
@@ -15694,25 +16940,36 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         if _cmi_note:
             _rcm_cd['cmiSourceNote'] = str(_cmi_note).strip()
     _t_pct = time.perf_counter()
+    # Missing HPRD must not coerce to 0 (would fabricate bottom-percentile claims).
     state_percentile_total, _ = get_facility_state_percentile(
-        prov, state_code, raw_quarter, reported_total or 0, reported_rn
+        prov, state_code, raw_quarter, reported_total, reported_rn
     )
     _psec('state_percentile', _t_pct)
     _casemix_title = f'CMS Case-Mix ({html.escape(str(quarter_display))})' if quarter_display else 'CMS Case-Mix'
     _t_ch_html = time.perf_counter()
     chart_section = _provider_charts_html(chart_data, facility_name=facility_name, casemix_title=_casemix_title)
     _psec('charts', _t_ch_html)
-    hprd_val = format_metric_value(reported_total or get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
+    hprd_val = format_metric_value(reported_total if reported_total is not None else get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     casemix_str = format_metric_value(case_mix_total, 'Total_Nurse_HPRD') if case_mix_total is not None else '—'
-    above_below_state = _classify(reported_total or 0, None)
-    above_below_casemix = _classify(reported_total or 0, case_mix_total)
+    if reported_total is None:
+        above_below_state = 'compared to'
+        above_below_casemix = 'compared to'
+    else:
+        above_below_state = _classify(reported_total, None)
+        above_below_casemix = _classify(reported_total, case_mix_total)
     _fn_esc = html.escape(facility_name, quote=False)
-    narrative = (
-        f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. '
-        f'This level is {above_below_casemix} the CMS case-mix benchmark ({casemix_str} HPRD).'
-    )
-    if case_mix_total is None:
-        narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
+    if reported_total is None:
+        narrative = (
+            f'<strong>{_fn_esc}</strong> does not have a reported total nurse HPRD for {quarter_display}. '
+            f'Staffing comparisons and within-state percentile are unavailable for this quarter.'
+        )
+    else:
+        narrative = (
+            f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. '
+            f'This level is {above_below_casemix} the CMS case-mix benchmark ({casemix_str} HPRD).'
+        )
+        if case_mix_total is None:
+            narrative = f'<strong>{_fn_esc}</strong> reported <strong>{hprd_val} HPRD</strong> in {quarter_display}. CMS Case-Mix (acuity) is not reported for this quarter.'
     compliance_narrative_suffix = ''
     if raw_quarter:
         _t_sc = time.perf_counter()
@@ -15811,7 +17068,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                     prev_hprd = prior_row.iloc[0].get('Total_Nurse_HPRD')
                     if prev_hprd is not None and not (isinstance(prev_hprd, float) and pd.isna(prev_hprd)) and float(prev_hprd) != 0:
                         prev_hprd = float(prev_hprd)
-                        yoy_change = (reported_total or 0) - prev_hprd
+                        yoy_change = reported_total - prev_hprd
                         yoy_pct = 100 * yoy_change / prev_hprd
                         sign = '' if yoy_change >= 0 else '−'
                         yoy_line = f'<div class="pbj-percentile">Year-over-year change (Total Nurse HPRD): {sign}{round_half_up(abs(yoy_change), 2):.2f} ({sign}{abs(yoy_pct):.0f}%)</div>'
@@ -15847,7 +17104,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
                     prev_hprd = prior_row.iloc[0].get('Total_Nurse_HPRD')
                     if prev_hprd is not None and not (isinstance(prev_hprd, float) and pd.isna(prev_hprd)) and float(prev_hprd) != 0:
                         prev_hprd = float(prev_hprd)
-                        yoy_change = (reported_total or 0) - prev_hprd
+                        yoy_change = reported_total - prev_hprd
                         yoy_pct = 100 * yoy_change / prev_hprd
                         if yoy_change > 0:
                             yoy_sentence = f' Compared to the same quarter last year, staffing has increased by {abs(yoy_pct):.0f}%.'
@@ -15867,14 +17124,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     _fac_hprd_body = build_hprd_floor_analogy_body(
         reported_total, reported_na, facility_name, census=census_int
     )
-    _facility_hprd_badge, facility_hprd_modal = render_hprd_badge_with_info(
+    _facility_hprd_info, facility_hprd_modal = render_hprd_means_explainer(
         hprd_val,
-        badge_span,
-        total_hprd_badge_title,
         _fac_hprd_body,
         uid=f'fac-{prov}',
-        display_text=f'{hprd_val} HPRD',
-        display_text_desktop=total_direct_badge,
+        compact=True,
     )
     _takeaway_title_span = takeaway_title_name_html(facility_name, 'facility')
     _facility_page_url = f'{base_url}/provider/{prov}'
@@ -16116,23 +17370,59 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         state_label=state_name or state_code or '',
     )
     _facility_actions = ''
-    pbj_takeaway_card = f'''
-<div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
-<div class="pbj-takeaway-top">
-{PBJ_TAKEAWAY_AVATAR_HTML}
-<div class="pbj-takeaway-top-main">
-<div class="pbj-takeaway-header">PBJ Takeaway{_takeaway_title_span}</div>
-{PBJ_TAKEAWAY_BRAND_PILL_HTML}
-</div>
-</div>
-<div class="pbj-takeaway-badges" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0.5rem 0 0.4rem 0;">{priority_flags_html}{_facility_hprd_badge}{casemix_badge_html}<span class="pbj-badge-mobile-hide" style="{badge_span}" title="{residents_badge_title}">{residents_str}</span>{staffing_badge_html}<span class="pbj-overall-badge">{overall_badge_html}</span></div>
-{percentile_line}
-<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.35rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{narrative}{compliance_narrative_suffix}</p>
-{_facility_ai_helper}
-{_facility_actions}
-{facility_hprd_modal}
-{_provider_info_modal_html}
-</div>'''
+    _ratings_chip, _ratings_info_modal = render_ratings_info_control_html(uid=f'fac-{prov}')
+    _fac_rn_val = format_metric_value(reported_rn, 'RN_HPRD') if reported_rn is not None else 'N/A'
+    _fac_na_val = (
+        format_metric_value(reported_na, 'Nurse_Assistant_HPRD')
+        if reported_na is not None else None
+    )
+    _casemix_chip, _casemix_info_modal = render_casemix_info_control_html(uid=f'fac-{prov}')
+    _fac_support_items = []
+    if case_mix_total is not None and casemix_str and casemix_str != '—':
+        _fac_support_items.append({
+            'label': 'Case-mix',
+            'value_html': html.escape(casemix_str),
+            'label_suffix_html': _casemix_chip,
+            'hint': 'CMS acuity',
+            'icon': 'activity',
+        })
+    if reported_rn is not None and _fac_rn_val != 'N/A':
+        _fac_support_items.append({
+            'label': 'RN HPRD',
+            'value_html': html.escape(_fac_rn_val),
+            'hint': 'hours per resident day',
+            'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
+            'icon': 'pulse',
+        })
+    if _fac_na_val and _fac_na_val not in ('—', 'N/A'):
+        _fac_support_items.append({
+            'label': 'Nurse aide HPRD',
+            'value_html': html.escape(_fac_na_val),
+            'hint': 'hours per resident day',
+            'hint_class': 'pbj-support-hint--unit pbj-takeaway-support__hint--unit',
+            'icon': 'users',
+        })
+    _fac_support_html = render_takeaway_support_figures_html(_fac_support_items)
+    _fac_prose = f'<p class="pbj-takeaway-narrative">{narrative}'
+    if (compliance_narrative_suffix or '').strip():
+        _comp = compliance_narrative_suffix.strip()
+        for old in (
+            '<strong>Compliance note:</strong>',
+            '<strong>Compliance:</strong>',
+        ):
+            _comp = _comp.replace(old, '').strip()
+        if _comp:
+            _fac_prose += f' <strong>Compliance:</strong> {_comp}'
+    _fac_prose += '</p>'
+    pbj_takeaway_card = render_prose_takeaway_html(
+        title_html='PBJ Takeaway',
+        prose_html=_fac_prose,
+        support_html=_fac_support_html,
+        extra_html=(
+            f'{_facility_ai_helper}{_facility_actions}'
+            f'{facility_hprd_modal}{_casemix_info_modal}{_ratings_info_modal}{_provider_info_modal_html}'
+        ),
+    )
     page_title = provider_page_title(
         facility_name, city=city, state_name=state_name, state_code=state_code
     )
@@ -16280,22 +17570,96 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         state_slug=canonical_slug,
         is_sff=is_sff,
     )
+    _fac_meta_parts = []
+    if _city_state.strip():
+        _fac_meta_parts.append(f'<span class="pbj-meta-part">{_city_state}</span>')
+    if ownership_short and ownership_short.strip():
+        _fac_meta_parts.append(
+            f'<span class="pbj-meta-part">{html.escape(ownership_short)}</span>'
+        )
+    if entity_id and entity_name:
+        _fac_meta_parts.append(f'<span class="pbj-meta-entity">{entity_link}</span>')
+    _fac_meta_html = '<span class="pbj-meta-sep" aria-hidden="true">·</span>'.join(_fac_meta_parts)
+    # Owners control sits in the same compact meta row (gap via flex, not a forced new line).
+    if _provider_owners_subtitle_btn:
+        _fac_meta_html = (
+            f'{_fac_meta_html}{_provider_owners_subtitle_btn}'
+            if _fac_meta_html
+            else _provider_owners_subtitle_btn
+        )
+    _fac_spark_series = _facility_hprd_spark_series_from_df(facility_df, n=4)
+    _fac_hprd_secondary = ''
+    if direct_hprd_val and direct_hprd_val not in ('—', 'N/A', ''):
+        _fac_hprd_secondary = f'{html.escape(str(direct_hprd_val))} direct'
+    _fac_metrics_html = render_hprd_spark_metric_html(
+        hprd_val,
+        quarter_display,
+        _fac_spark_series,
+        label='Total HPRD',
+        secondary_html=_fac_hprd_secondary,
+        info_html=_facility_hprd_info,
+    )
+    _fac_metrics_html += render_page_metric_html(
+        'Residents',
+        f'{census_int:,}' if census_int else '—',
+        hint='Avg daily census' if census_int else 'Not reported',
+        icon='users',
+    )
+    _ratings_overall = (
+        _badge_star_span_html(overall_star_icons, _overall_n)
+        if overall_star_icons != '—'
+        else ''
+    )
+    _ratings_staffing = (
+        _badge_star_span_html(staffing_star_icons, _staff_n)
+        if staffing_star_icons != '—'
+        else ''
+    )
+    _ratings_fallback = ''
+    if not _ratings_overall and not _ratings_staffing:
+        if contract_pct and contract_pct != 'N/A':
+            _ratings_fallback = render_page_metric_html(
+                'Contract staff', f'{contract_pct}%', icon='percent'
+            )
+        elif reported_rn is not None and _fac_rn_val != 'N/A':
+            _ratings_fallback = render_page_metric_html(
+                'RN HPRD', _fac_rn_val, accent='teal', icon='pulse'
+            )
+    _fac_metrics_html += render_ratings_metric_html(
+        overall_html=_ratings_overall,
+        staffing_html=_ratings_staffing,
+        fallback_html=_ratings_fallback,
+        help_html=_ratings_chip,
+    )
+    _fac_ccn = (
+        f'<span class="pbj-page-summary-ccn">CMS {html.escape(str(prov))}</span>'
+        if prov
+        else ''
+    )
+    _fac_overview = render_page_overview_html(
+        eyebrow=_pbj_snapshot_eyebrow(quarter_display),
+        title_html=f'<h1>{html.escape(facility_name)}</h1>',
+        meta_html=_fac_meta_html,
+        ccn_html=_fac_ccn,
+        flags_html=priority_flags_html or '',
+        metrics_html=_fac_metrics_html,
+        takeaway_html=pbj_takeaway_card,
+        show_brand=False,
+    )
     inner = f"""
-<h1>{facility_name}</h1>
-<p class="pbj-subtitle"><span class="pbj-subtitle-desktop">{subtitle_one_line}</span><span class="pbj-subtitle-mobile">{subtitle_mobile}</span></p>
+{_fac_overview}
 {_provider_owners_subtitle_modal}
 {provider_intro_html}
 
-{pbj_takeaway_card}
-
 {chart_section}
 
-<div class="pbj-page-bottom-stack">
-{custom_report_cta_html}
+<div class="pbj-page-bottom-stack pbj-page-bottom-stack--facility">
 {_provider_ownership_chow_block}
-{render_methodology_block()}
-</div>
+{custom_report_cta_html}
 {_facility_premium_cta_html}
+{render_methodology_block(variant='utility')}
+</div>
+{audience_provider_mount(facility_name)}
 
 <div class="pbj-page-footer">
 <p class="pbj-page-footer-crumb"><a href="/">Home</a> &middot; <a href="/state/{canonical_slug}">{state_name}</a>{' &middot; ' + entity_breadcrumb_link if entity_breadcrumb_link else ''}</p>
@@ -16898,11 +18262,11 @@ def _chain_val(row, *keys, default=None):
     return default
 
 
-PBJ_PAGE_SWITCHER_JS_VERSION = '4'
+PBJ_PAGE_SWITCHER_JS_VERSION = '5'
 
 
 def _page_header_switcher_html(mode: str) -> str:
-    """Desktop-only inline search for entity or state pages."""
+    """Inline search for entity or state pages (desktop and mobile)."""
     if mode not in ('entity', 'state'):
         return ''
     label = 'Jump to another chain' if mode == 'entity' else 'Jump to another state'
@@ -16931,6 +18295,664 @@ def _page_title_row(title_inner_html: str, *, switcher_mode: str | None = None) 
 
 def _page_switcher_script_tag() -> str:
     return f'<script src="/pbj-page-switcher.js?v={PBJ_PAGE_SWITCHER_JS_VERSION}"></script>'
+
+
+# Compact line icons for overview metrics / takeaway support (semantic, restrained).
+_PBJ_OV_ICON_PATHS: dict[str, str] = {
+    # Facility / building (Providers, Facilities, Portfolio)
+    'building': (
+        '<path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/>'
+        '<path d="M9 21v-6h6v6"/><path d="M9 10h.01"/><path d="M15 10h.01"/>'
+    ),
+    # Group / people (Residents)
+    'users': (
+        '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>'
+        '<circle cx="9" cy="7" r="4"/>'
+        '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>'
+    ),
+    # Ranking / bar chart (National rank)
+    'rank': (
+        '<path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/>'
+    ),
+    # Heart pulse / care (RN HPRD)
+    'pulse': (
+        '<path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2'
+        'A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>'
+        '<path d="M3.22 12H9l1.5-3 2 6 1.5-3h4.78"/>'
+    ),
+    # Shield / policy (State minimum)
+    'shield': (
+        '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/>'
+    ),
+    # Activity / acuity (Case-mix)
+    'activity': (
+        '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>'
+    ),
+    # Map pin-ish / states footprint
+    'map': (
+        '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>'
+        '<circle cx="12" cy="10" r="3"/>'
+    ),
+    # Star outline (CMS ratings)
+    'star': (
+        '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 '
+        '7 14.14l-5-4.87 6.91-1.01L12 2z"/>'
+    ),
+    # Percent / contract share
+    'percent': (
+        '<circle cx="9" cy="9" r="2"/><circle cx="15" cy="15" r="2"/>'
+        '<path d="m17 7-10 10"/>'
+    ),
+    # Bar compare (state / peer average)
+    'compare': (
+        '<path d="M3 3v18h18"/><path d="M7 16v-5"/><path d="M12 16V8"/><path d="M17 16v-3"/>'
+    ),
+}
+
+
+def _pbj_overview_icon_html(kind: str | None, *, cls: str = 'pbj-metric__icon') -> str:
+    """Small inline SVG for overview labels; empty string if unknown/absent."""
+    key = str(kind or '').strip().lower()
+    paths = _PBJ_OV_ICON_PATHS.get(key)
+    if not paths:
+        return ''
+    return (
+        f'<svg class="{html.escape(cls, quote=True)}" xmlns="http://www.w3.org/2000/svg" '
+        f'width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+        f'stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" '
+        f'aria-hidden="true" focusable="false">{paths}</svg>'
+    )
+
+
+def render_page_metric_html(
+    label: str,
+    value,
+    *,
+    hint: str | None = None,
+    accent: str | None = None,
+    extra_class: str = '',
+    value_html: str | None = None,
+    icon: str | None = None,
+) -> str:
+    """Compact outlined metric block for page summary / takeaway grids."""
+    classes = ['pbj-metric']
+    if accent == 'hprd':
+        classes.append('pbj-metric--hprd')
+    elif accent == 'teal':
+        classes.append('pbj-metric--teal')
+    if extra_class:
+        classes.append(extra_class.strip())
+    label_esc = html.escape(str(label or ''))
+    # Lead HPRD cards use sparkline (not a large leading icon).
+    icon_html = '' if accent == 'hprd' else _pbj_overview_icon_html(icon)
+    if value_html is None:
+        value_html = html.escape(str(value if value is not None else '—'))
+    hint_html = (
+        f'<span class="pbj-metric__hint">{html.escape(str(hint))}</span>'
+        if hint
+        else ''
+    )
+    return (
+        f'<div class="{" ".join(classes)}">'
+        f'<span class="pbj-metric__label">{icon_html}'
+        f'<span class="pbj-metric__label-text">{label_esc}</span></span>'
+        f'<span class="pbj-metric__value">{value_html}</span>'
+        f'{hint_html}'
+        f'</div>'
+    )
+
+
+def _hprd_spark_polyline_svg(
+    values: list[float],
+    *,
+    width: float = 96.0,
+    height: float = 32.0,
+) -> str:
+    """Straight-line 4-point sparkline SVG (no smoothing / interpolation)."""
+    if len(values) < 2:
+        return ''
+    pad_x, pad_y = 5.0, 4.0
+    inner_w = width - (2 * pad_x)
+    inner_h = height - (2 * pad_y)
+    vmin, vmax = min(values), max(values)
+    span = vmax - vmin
+    n = len(values)
+    pts: list[tuple[float, float]] = []
+    for i, v in enumerate(values):
+        x = pad_x + (inner_w * i / (n - 1)) if n > 1 else (width / 2)
+        if span <= 0:
+            y = pad_y + (inner_h / 2)
+        else:
+            y = pad_y + inner_h - (((v - vmin) / span) * inner_h)
+        pts.append((x, y))
+    stroke = '#5eead4'
+    current = '#fb923c'
+    poly = ' '.join(f'{x:.1f},{y:.1f}' for x, y in pts)
+    dots: list[str] = []
+    for i, (x, y) in enumerate(pts):
+        is_last = i == (n - 1)
+        fill = current if is_last else stroke
+        r = 2.35 if is_last else 1.7
+        opacity = 1.0 if is_last else 0.82
+        dots.append(
+            f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{r:.2f}" fill="{fill}" opacity="{opacity:.2f}"/>'
+        )
+    return (
+        f'<svg class="pbj-hprd-spark" width="{width:.0f}" height="{height:.0f}" '
+        f'viewBox="0 0 {width:.0f} {height:.0f}" aria-hidden="true" focusable="false">'
+        f'<polyline fill="none" stroke="{stroke}" stroke-opacity="0.55" stroke-width="1.35" '
+        f'stroke-linecap="round" stroke-linejoin="round" points="{poly}"/>'
+        f'{"".join(dots)}</svg>'
+    )
+
+
+def render_hprd_spark_metric_html(
+    current_display: str,
+    quarter_display: str,
+    series: list[tuple[str, float]] | None,
+    *,
+    label: str = 'Total HPRD',
+    secondary_html: str = '',
+    info_html: str = '',
+) -> str:
+    """Header HPRD metric with optional 4-quarter sparkline.
+
+    Layout: label (+ optional ?) · large value · secondary detail · spark.
+    Quarter lives in the page eyebrow (PBJ320 Snapshot), not beside the value.
+    """
+    pairs: list[tuple[str, float]] = []
+    for item in series or []:
+        if not item or len(item) < 2:
+            continue
+        q, v = item[0], item[1]
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            continue
+        if fv != fv:
+            continue
+        pairs.append((str(q), fv))
+    value_esc = html.escape(str(current_display or '—'))
+    label_esc = html.escape(str(label or 'Total HPRD'))
+    info = (info_html or '').strip()
+    # No large leading icon — sparkline is the visual cue; info chip stays inline.
+    label_html = (
+        f'<span class="pbj-metric__label">'
+        f'<span class="pbj-metric__label-text">{label_esc}</span>{info}</span>'
+    )
+    secondary = (secondary_html or '').strip()
+    secondary_block = f'<span class="pbj-metric__secondary">{secondary}</span>' if secondary else ''
+    if len(pairs) >= 4:
+        pairs = pairs[-4:]
+        values = [p[1] for p in pairs]
+        spark = _hprd_spark_polyline_svg(values)
+        sr_parts = []
+        for q, v in pairs:
+            try:
+                from pbj_format import format_quarter_display as _fq
+                q_disp = _fq(q)
+            except Exception:
+                q_disp = format_quarter(q)
+            sr_parts.append(f'{q_disp}: {v:.2f}')
+        aria = html.escape(
+            f'{label} {current_display} in {quarter_display or "latest quarter"}. '
+            f'Four-quarter series: {"; ".join(sr_parts)}.',
+            quote=True,
+        )
+        sr_list = ''.join(f'<li>{html.escape(p)}</li>' for p in sr_parts)
+        return (
+            f'<div class="pbj-metric pbj-metric--hprd pbj-metric--spark">'
+            f'{label_html}'
+            f'<div class="pbj-metric__body" role="img" aria-label="{aria}">'
+            f'<div class="pbj-metric__primary">'
+            f'<span class="pbj-metric__value">{value_esc}</span>'
+            f'{secondary_block}'
+            f'</div>'
+            f'{spark}'
+            f'</div>'
+            f'<ul class="pbj-hprd-spark-sr">{sr_list}</ul>'
+            f'</div>'
+        )
+    return (
+        f'<div class="pbj-metric pbj-metric--hprd">'
+        f'{label_html}'
+        f'<div class="pbj-metric__primary">'
+        f'<span class="pbj-metric__value">{value_esc}</span>'
+        f'{secondary_block}'
+        f'</div>'
+        f'</div>'
+    )
+
+
+def _pbj_snapshot_eyebrow(quarter_display: str = '') -> str:
+    """Shared overview eyebrow: PBJ320 Snapshot (Q1 2026)."""
+    q = str(quarter_display or '').strip()
+    return f'PBJ320 Snapshot ({q})' if q else 'PBJ320 Snapshot'
+
+
+def render_page_summary_html(
+    *,
+    eyebrow: str,
+    title_html: str,
+    meta_html: str = '',
+    controls_html: str = '',
+    aside_html: str = '',
+    status_html: str = '',
+    metrics_html: str = '',
+    ccn_html: str = '',
+    flags_html: str = '',
+    show_brand: bool = False,
+    metrics_class: str = '',
+) -> str:
+    """Shared page identity + metrics shell (inner half of page overview).
+
+    Left column: Snapshot eyebrow, then title (and meta/flags). Right column:
+    search/controls (or CCN/aside), aligned to the top of that two-row block.
+    """
+    eyebrow_esc = html.escape(str(eyebrow or ''))
+    _ = show_brand  # retained for callers; unused (brand is in the snapshot eyebrow)
+    eyebrow_inner = (
+        f'<div class="pbj-page-eyebrow-row">'
+        f'<span class="pbj-page-eyebrow">'
+        f'<span class="pbj-page-eyebrow-label">{eyebrow_esc}</span></span>'
+        f'</div>'
+    )
+    ccn = (ccn_html or '').strip()
+    eyebrow_block = (
+        f'<div class="pbj-page-eyebrow-bar">{eyebrow_inner}{ccn}</div>'
+        if ccn
+        else eyebrow_inner
+    )
+    meta_block = (
+        f'<div class="pbj-page-summary-meta">{meta_html}</div>' if (meta_html or '').strip() else ''
+    )
+    flags = (flags_html or '').strip() or (status_html or '').strip()
+    flags_block = (
+        f'<div class="pbj-page-summary-flags">{flags}</div>' if flags else ''
+    )
+    right = ''
+    if (controls_html or '').strip():
+        right = f'<div class="pbj-page-summary-controls">{controls_html}</div>'
+    elif (aside_html or '').strip():
+        right = f'<div class="pbj-page-summary-aside">{aside_html.strip()}</div>'
+    metrics_extra = f' {html.escape(str(metrics_class).strip())}' if (metrics_class or '').strip() else ''
+    metrics_block = (
+        f'<div class="pbj-page-metrics{metrics_extra}">{metrics_html}</div>'
+        if (metrics_html or '').strip()
+        else ''
+    )
+    return (
+        f'<header class="pbj-page-summary">'
+        f'<div class="pbj-page-summary-top">'
+        f'<div class="pbj-page-summary-identity">'
+        f'{eyebrow_block}'
+        f'{title_html}'
+        f'{meta_block}'
+        f'{flags_block}'
+        f'</div>'
+        f'{right}'
+        f'</div>'
+        f'{metrics_block}'
+        f'</header>'
+    )
+
+
+def render_page_overview_html(
+    *,
+    eyebrow: str,
+    title_html: str,
+    meta_html: str = '',
+    controls_html: str = '',
+    aside_html: str = '',
+    status_html: str = '',
+    metrics_html: str = '',
+    takeaway_html: str = '',
+    ccn_html: str = '',
+    flags_html: str = '',
+    show_brand: bool = False,
+    metrics_class: str = '',
+) -> str:
+    """One outer overview card: snapshot metrics + nested PBJ takeaway."""
+    summary = render_page_summary_html(
+        eyebrow=eyebrow,
+        title_html=title_html,
+        meta_html=meta_html,
+        controls_html=controls_html,
+        aside_html=aside_html,
+        status_html=status_html,
+        metrics_html=metrics_html,
+        ccn_html=ccn_html,
+        flags_html=flags_html,
+        show_brand=show_brand,
+        metrics_class=metrics_class,
+    )
+    takeaway = (takeaway_html or '').strip()
+    if not takeaway:
+        return f'<section class="pbj-page-overview">{summary}</section>'
+    # Separation via takeaway elevated surface + margin (no hairline divider)
+    return (
+        f'<section class="pbj-page-overview">'
+        f'{summary}'
+        f'{takeaway}'
+        f'</section>'
+    )
+
+
+def render_ratings_metric_html(
+    *,
+    overall_html: str = '',
+    staffing_html: str = '',
+    health_html: str = '',
+    fallback_html: str = '',
+    help_html: str = '',
+    label: str = 'CMS ratings',
+) -> str:
+    """Combined CMS ratings region: Overall / Staffing / Health on compact same-font rows."""
+    blocks = []
+    if (overall_html or '').strip():
+        blocks.append(
+            '<div class="pbj-metric__rating-block pbj-metric__rating-block--overall">'
+            '<span class="pbj-metric__rating-line">'
+            '<span class="pbj-metric__rating-kind">Overall:</span>'
+            f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--overall">{overall_html}</span>'
+            '</span></div>'
+        )
+    if (staffing_html or '').strip():
+        blocks.append(
+            '<div class="pbj-metric__rating-block pbj-metric__rating-block--staffing">'
+            '<span class="pbj-metric__rating-line">'
+            '<span class="pbj-metric__rating-kind">Staffing:</span>'
+            f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--staffing">{staffing_html}</span>'
+            '</span></div>'
+        )
+    if (health_html or '').strip():
+        blocks.append(
+            '<div class="pbj-metric__rating-block pbj-metric__rating-block--health">'
+            '<span class="pbj-metric__rating-line">'
+            '<span class="pbj-metric__rating-kind">Health Inspection:</span>'
+            f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--health">{health_html}</span>'
+            '</span></div>'
+        )
+    if not blocks and (fallback_html or '').strip():
+        return fallback_html
+    if not blocks:
+        return ''
+    help_bit = (help_html or '').strip()
+    icon_html = _pbj_overview_icon_html('star')
+    label_esc = html.escape(str(label or 'CMS ratings'))
+    return (
+        '<div class="pbj-metric pbj-metric--ratings">'
+        f'<span class="pbj-metric__label">{icon_html}'
+        f'<span class="pbj-metric__label-text">{label_esc}</span>{help_bit}</span>'
+        f'<div class="pbj-metric__ratings-row">{"".join(blocks)}</div>'
+        '</div>'
+    )
+
+
+def render_ratings_info_control_html(uid: str = 'ratings-help') -> tuple[str, str]:
+    """Accessible ratings methodology chip + modal."""
+    mid = f'pbjRatingsInfoModal-{uid}'
+    bid = f'pbjRatingsInfoBtn-{uid}'
+    cid = f'pbjRatingsInfoClose-{uid}'
+    desc_id = f'{mid}-desc'
+    body = (
+        f'<p id="{desc_id}">The overall rating is CMS’s composite Five-Star Quality Rating for nursing homes. '
+        f'The CMS staffing rating is the staffing component of that system. '
+        f'A red staffing flag elsewhere on this page (when shown) is a separate CMS designation and should not be '
+        f'confused with the staffing star rating. Ratings follow CMS methodology and reporting periods; they are not real-time.</p>'
+        f'<p><a href="/data-sources#methodology">How metrics are calculated</a></p>'
+    )
+    chip = (
+        f'<button type="button" class="pbj-info-chip" id="{bid}" '
+        f'aria-haspopup="dialog" aria-controls="{mid}" aria-expanded="false" '
+        f'aria-label="About CMS star ratings">i</button>'
+    )
+    modal = (
+        f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" '
+        f'aria-labelledby="{mid}Title" aria-describedby="{desc_id}">'
+        f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
+        f'<h3 id="{mid}Title">CMS star ratings</h3>'
+        f'<div class="pbj-casemix-aux-body">{body}</div>'
+        f'</div></div>'
+        f'<script>(function(){{'
+        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
+        f'if(!b||!m)return;'
+        f'function openM(){{m.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");}}'
+        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");b.focus();}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();'
+        f'if(m.getAttribute("aria-hidden")==="false")closeM();else openM();}});'
+        f'if(c)c.addEventListener("click",closeM);'
+        f'm.addEventListener("click",function(e){{if(e.target===m)closeM();}});'
+        f'document.addEventListener("keydown",function(e){{'
+        f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
+        f'}})();</script>'
+    )
+    return chip, modal
+
+
+def render_takeaway_support_figures_html(items: list[dict] | None) -> str:
+    """Divider-based supporting figures (label / value / optional hint; not metric cards)."""
+    rows = []
+    for item in (items or [])[:4]:
+        if not item:
+            continue
+        label = str(item.get('label') or '').strip()
+        value_html = (item.get('value_html') or '').strip()
+        if not label or not value_html:
+            continue
+        label_suffix = (item.get('label_suffix_html') or '').strip()
+        icon_html = _pbj_overview_icon_html(
+            item.get('icon'), cls='pbj-takeaway-support__icon'
+        )
+        hint = str(item.get('hint') or '').strip()
+        hint_cls = 'pbj-takeaway-support__hint'
+        extra_hint_cls = str(item.get('hint_class') or '').strip()
+        if extra_hint_cls:
+            hint_cls = f'{hint_cls} {extra_hint_cls}'
+        hint_html = (
+            f'<span class="{hint_cls}">{html.escape(hint)}</span>'
+            if hint
+            else ''
+        )
+        cls = 'pbj-takeaway-support__item'
+        if item.get('benchmark'):
+            cls += ' pbj-takeaway-support__item--benchmark'
+        if item.get('span'):
+            cls += ' pbj-takeaway-support__item--span'
+        rows.append(
+            f'<div class="{cls}">'
+            f'<span class="pbj-takeaway-support__label">{icon_html}'
+            f'<span class="pbj-takeaway-support__label-text">{html.escape(label)}</span>'
+            f'{label_suffix}</span>'
+            f'<span class="pbj-takeaway-support__value">{value_html}</span>'
+            f'{hint_html}'
+            f'</div>'
+        )
+    if not rows:
+        return ''
+    n = len(rows)
+    n_cls = f' pbj-takeaway-support--n{n}' if n in (2, 3, 4) else ''
+    return f'<div class="pbj-takeaway-support{n_cls}">{"".join(rows)}</div>'
+
+
+def render_casemix_info_control_html(uid: str = 'takeaway-casemix') -> tuple[str, str]:
+    """Accessible case-mix info chip + modal; links to on-page case-mix section when present."""
+    mid = f'pbjCaseMixInfoModal-{uid}'
+    bid = f'pbjCaseMixInfoBtn-{uid}'
+    cid = f'pbjCaseMixInfoClose-{uid}'
+    desc_id = f'{mid}-desc'
+    body = (
+        f'<p id="{desc_id}">Case-mix estimates the amount of nurse staffing residents are expected '
+        f'to need based on their clinical acuity. It is a comparison benchmark, not a legal staffing minimum.</p>'
+        f'<p><a href="#facility-casemix">View case-mix detail on this page</a></p>'
+    )
+    chip = (
+        f'<button type="button" class="pbj-info-chip" id="{bid}" '
+        f'aria-haspopup="dialog" aria-controls="{mid}" aria-expanded="false" '
+        f'aria-label="What is case-mix?">i</button>'
+    )
+    modal = (
+        f'<div class="pbj-casemix-modal pbj-hprd-means-modal" id="{mid}" aria-hidden="true">'
+        f'<div class="pbj-casemix-modal-card" role="dialog" aria-modal="true" '
+        f'aria-labelledby="{mid}Title" aria-describedby="{desc_id}">'
+        f'<button type="button" class="pbj-casemix-modal-close" id="{cid}" aria-label="Close">&times;</button>'
+        f'<h3 id="{mid}Title">Case-mix</h3>'
+        f'<div class="pbj-casemix-aux-body">{body}</div>'
+        f'</div></div>'
+        f'<script>(function(){{'
+        f'var b=document.getElementById("{bid}");var m=document.getElementById("{mid}");var c=document.getElementById("{cid}");'
+        f'if(!b||!m)return;'
+        f'function openM(){{m.setAttribute("aria-hidden","false");b.setAttribute("aria-expanded","true");}}'
+        f'function closeM(){{m.setAttribute("aria-hidden","true");b.setAttribute("aria-expanded","false");b.focus();}}'
+        f'b.addEventListener("click",function(e){{e.preventDefault();e.stopPropagation();'
+        f'if(m.getAttribute("aria-hidden")==="false")closeM();else openM();}});'
+        f'if(c)c.addEventListener("click",closeM);'
+        f'm.addEventListener("click",function(e){{if(e.target===m)closeM();}});'
+        f'document.addEventListener("keydown",function(e){{'
+        f'if(e.key==="Escape"&&m.getAttribute("aria-hidden")==="false")closeM();}});'
+        f'}})();</script>'
+    )
+    return chip, modal
+
+
+def render_prose_takeaway_html(
+    *,
+    title_html: str,
+    prose_html: str,
+    support_html: str = '',
+    caveat_html: str = '',
+    extra_html: str = '',
+    outline_html: str = '',
+) -> str:
+    """Prose-first Phoebe J takeaway (no brand pill, no metric-card grid)."""
+    caveat = (
+        f'<p class="pbj-takeaway-caveat">{caveat_html}</p>'
+        if (caveat_html or '').strip()
+        else ''
+    )
+    style_attr = ' style="position: relative;"' if (outline_html or '').strip() else ''
+    return (
+        f'<div id="pbj-takeaway" class="pbj-takeaway pbj-takeaway--in-overview pbj-takeaway--prose"{style_attr}>'
+        f'{outline_html or ""}'
+        f'<div class="pbj-takeaway-top">'
+        f'{PBJ_TAKEAWAY_AVATAR_HTML}'
+        f'<div class="pbj-takeaway-top-main">'
+        f'<div class="pbj-takeaway-header">{title_html}</div>'
+        f'</div></div>'
+        f'{prose_html}'
+        f'{support_html or ""}'
+        f'{caveat}'
+        f'{extra_html or ""}'
+        f'</div>'
+    )
+
+
+def _load_state_hprd_spark_series(
+    state_code: str,
+    raw_quarter: str | None,
+    *,
+    n: int = 4,
+) -> list[tuple[str, float]]:
+    """Latest ``n`` (CY_Qtr, Total_Nurse_HPRD) pairs for a state; empty if incomplete."""
+    code = (state_code or '').strip().upper()[:2]
+    qtr = str(raw_quarter or '').strip()
+    if not code or not qtr:
+        return []
+    quarters = _latest_n_cy_qtrs(qtr, n)
+    if len(quarters) != n:
+        return []
+    try:
+        state_data = load_csv_data('state_quarterly_metrics.csv')
+        if state_data is None:
+            return []
+        by_q: dict[str, float] = {}
+        if HAS_PANDAS and isinstance(state_data, pd.DataFrame):
+            if state_data.empty or 'Total_Nurse_HPRD' not in state_data.columns:
+                return []
+            df = state_data.copy()
+            df['STATE'] = df['STATE'].astype(str).str.strip().str.upper()
+            df['CY_Qtr'] = df['CY_Qtr'].astype(str).str.strip()
+            sub = df[(df['STATE'] == code) & (df['CY_Qtr'].isin(quarters))]
+            if sub.empty:
+                return []
+            for _, row in sub.iterrows():
+                q = str(row.get('CY_Qtr') or '').strip()
+                v = row.get('Total_Nurse_HPRD')
+                if not q or v is None or (isinstance(v, float) and pd.isna(v)):
+                    continue
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if fv != fv:
+                    continue
+                by_q[q] = fv
+        elif isinstance(state_data, list):
+            qset = set(quarters)
+            for row in state_data:
+                if not isinstance(row, dict):
+                    continue
+                if str(row.get('STATE') or '').strip().upper()[:2] != code:
+                    continue
+                q = str(row.get('CY_Qtr') or '').strip()
+                if q not in qset:
+                    continue
+                v = row.get('Total_Nurse_HPRD')
+                if v is None or v == '' or (isinstance(v, float) and pd.isna(v)):
+                    continue
+                try:
+                    fv = float(v)
+                except (TypeError, ValueError):
+                    continue
+                if fv != fv:
+                    continue
+                by_q[q] = fv
+        else:
+            return []
+        out: list[tuple[str, float]] = []
+        for q in quarters:
+            if q not in by_q:
+                return []
+            out.append((q, by_q[q]))
+        return out if len(out) == n else []
+    except Exception:
+        return []
+
+def _facility_hprd_spark_series_from_df(
+    facility_df,
+    *,
+    n: int = 4,
+) -> list[tuple[str, float]]:
+    """Latest ``n`` facility Total_Nurse_HPRD quarters when all values are present."""
+    if facility_df is None or not HAS_PANDAS:
+        return []
+    try:
+        if not isinstance(facility_df, pd.DataFrame) or facility_df.empty:
+            return []
+        if 'CY_Qtr' not in facility_df.columns or 'Total_Nurse_HPRD' not in facility_df.columns:
+            return []
+        df = facility_df.copy()
+        df['CY_Qtr'] = df['CY_Qtr'].astype(str).str.strip()
+        df = df.sort_values('CY_Qtr')
+        pairs: list[tuple[str, float]] = []
+        for _, row in df.iterrows():
+            q = str(row.get('CY_Qtr') or '').strip()
+            v = row.get('Total_Nurse_HPRD')
+            if not q or v is None or (isinstance(v, float) and pd.isna(v)):
+                continue
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            if fv != fv:
+                continue
+            pairs.append((q, fv))
+        if len(pairs) < n:
+            return []
+        return pairs[-n:]
+    except Exception:
+        return []
 
 
 def render_entity_states_badge_html(
@@ -17087,18 +19109,11 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         _p_value = ""
         if avg_total is not None:
             _p_value = f" Average total nurse HPRD this quarter: <strong>{format_metric_value(avg_total, 'Total_Nurse_HPRD')}</strong>."
-        pbj_takeaway_ownership = f'''
-<div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
-<div class="pbj-takeaway-top">
-{PBJ_TAKEAWAY_AVATAR_HTML}
-<div class="pbj-takeaway-top-main">
-<div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-{PBJ_TAKEAWAY_BRAND_PILL_HTML}
-</div>
-</div>
-<div class="pbj-takeaway-badges-row" style="display:flex;flex-wrap:wrap;align-items:center;margin:0.5rem 0 0.25rem 0;">{_scope}</div>
-<p style="margin: 0.5rem 0 0; font-size: 0.95rem; color: rgba(226,232,240,0.95);">{_p_ops}{_p_value}</p>
-</div>'''
+        # No Facilities/States/Avg HPRD support row — already in top snapshot cards.
+        pbj_takeaway_ownership = render_prose_takeaway_html(
+            title_html='PBJ Takeaway',
+            prose_html=f'<p class="pbj-takeaway-narrative">{_p_ops}{_p_value}</p>',
+        )
     if not chain_row and _entity_ps:
         try:
             from ownership.portfolio_display import synthetic_chain_row_from_portfolio
@@ -17220,83 +19235,119 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         tier3_parts.append(f'Avg. Staffing rating: {(f"{staff_rating:.1f}" if staff_rating is not None else "—")}')
         tier3_html = ''.join(f'<span style="{_badge_neutral}">{t}</span>' for t in tier3_parts)
 
-        # Paragraph 1 — Scale & Model (neutral)
+        # Single full-width takeaway paragraph (scale + staffing); no mid-sentence tooltip walls.
         chain_esc = html.escape(entity_name or 'This chain')
-        p1_simple = f"<strong>{chain_esc}</strong> operates <strong>{n_fac:,}</strong> nursing home{'s' if n_fac != 1 else ''} across <strong>{n_st}</strong> state{'s' if n_st != 1 else ''}"
+        prose = (
+            f"<strong>{chain_esc}</strong> operates <strong>{n_fac:,}</strong> nursing home"
+            f"{'s' if n_fac != 1 else ''} across <strong>{n_st}</strong> state"
+            f"{'s' if n_st != 1 else ''}"
+        )
         if fp_pct is not None:
             if fp_pct == 100:
-                p1_simple += ", all classified as for-profit. "
+                prose += ", all classified as for-profit. "
             else:
-                p1_simple += f", with <strong>{fp_pct}%</strong> classified as for-profit. "
+                prose += f", with <strong>{fp_pct}%</strong> classified as for-profit. "
         else:
-            p1_simple += ". "
+            prose += ". "
         if overall_rating is not None:
-            p1_simple += f"Its average CMS overall rating is <strong>{overall_rating:.1f} stars</strong>."
+            prose += (
+                f"Its average CMS overall rating is <strong>{overall_rating:.1f} stars</strong>. "
+            )
         else:
-            p1_simple += "CMS overall rating is not available for this chain."
-
-        # Paragraph 2 — Staffing pattern vs national
-        _entity_hprd_link = ''
+            prose += "CMS overall rating is not available for this chain. "
         if hprd_for_narrative is not None:
-            try:
-                from ownership.portfolio_display import entity_takeaway_hprd_help_span_html
-
-                _entity_hprd_link = entity_takeaway_hprd_help_span_html(
-                    float(hprd_for_narrative),
-                    entity_name=entity_name or 'This chain',
-                    weighted_hprd=_entity_ps.get('wmean_hprd'),
-                )
-            except Exception:
-                _entity_hprd_link = f"<strong>{hprd_for_narrative:.2f}</strong>"
-            p2 = (
+            _hprd_tip = html.escape(
+                f"Average total nurse HPRD among {entity_name or 'this chain'} nursing homes"
+                + (
+                    f". Weighted average {float(_entity_ps.get('wmean_hprd')):.2f} HPRD "
+                    f"weights each facility's census."
+                    if _entity_ps.get('wmean_hprd') is not None
+                    else "."
+                ),
+                quote=True,
+            )
+            prose += (
                 f"Across the portfolio, facilities report an average of "
-                f"{_entity_hprd_link or f'<strong>{hprd_for_narrative:.2f}</strong>'} total nurse HPRD"
+                f"<strong title=\"{_hprd_tip}\">{hprd_for_narrative:.2f}</strong> total nurse HPRD"
             )
             if rn_for_narrative is not None:
-                p2 += f", including <strong>{rn_for_narrative:.2f}</strong> RN hours"
+                prose += f", including <strong>{rn_for_narrative:.2f}</strong> RN hours"
             if national_hprd is not None:
                 if hprd_for_narrative < national_hprd * 0.97:
-                    p2 += f", below the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
+                    prose += (
+                        f", below the national ratio of "
+                        f"<strong>{national_hprd:.2f} HPRD</strong>."
+                    )
                 elif hprd_for_narrative > national_hprd * 1.03:
-                    p2 += f", above the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
+                    prose += (
+                        f", above the national ratio of "
+                        f"<strong>{national_hprd:.2f} HPRD</strong>."
+                    )
                 else:
-                    p2 += f", near the national ratio of <strong>{national_hprd:.2f} HPRD</strong>."
+                    prose += (
+                        f", near the national ratio of "
+                        f"<strong>{national_hprd:.2f} HPRD</strong>."
+                    )
             else:
-                p2 += "."
+                prose += "."
         else:
-            p2 = "Staffing averages are not available for this chain for the latest quarter."
+            prose += "Staffing averages are not available for this chain for the latest quarter."
 
-        # Paragraph 3 — High-risk % (search_index logic) + fines; no turnover (factual: PBJ320 criteria, not editorial)
-        high_risk_span = (
-            '<span class="pbj-high-risk-help-wrap"><span class="pbj-high-risk-help">high-risk</span>'
-            '<span class="pbj-high-risk-tooltip" role="tooltip">' + html.escape(HIGH_RISK_CRITERIA_TOOLTIP) + '</span></span>'
+        # Scannable PBJ320 high-risk insight (flag badge + criteria tooltip) + optional fines.
+        _hr_tip = html.escape(HIGH_RISK_CRITERIA_TOOLTIP, quote=True)
+        _hr_badge = (
+            '<span class="pbj-entity-hr-insight__badge pbj-risk-badge-with-info" '
+            f'title="{_hr_tip}">'
+            '<svg class="pbj-entity-hr-insight__icon" xmlns="http://www.w3.org/2000/svg" '
+            'width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+            'stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+            '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>'
+            '<line x1="4" x2="4" y1="22" y2="15"/></svg>'
+            'PBJ320 high-risk'
+            '<span class="pbj-high-risk-help-wrap pbj-risk-badge-info-wrap">'
+            '<button type="button" class="pbj-risk-badge-info" aria-label="PBJ320 high-risk criteria">i</button>'
+            f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(HIGH_RISK_CRITERIA_TOOLTIP)}</span>'
+            '</span></span>'
         )
-        p3 = f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities are flagged as {high_risk_span}. "
+        _hr_line1 = (
+            f"<strong>{pct_high_risk}%</strong> of {chain_esc} facilities meet "
+            f"PBJ320 high-risk criteria."
+        )
+        _hr_line2 = ''
         if fines_dollars is not None and fines_dollars > 0:
-            fines_phrase = f"${fines_dollars/1e6:.1f} million" if fines_dollars >= 1e6 else f"${fines_dollars:,.0f}"
+            fines_phrase = (
+                f"${fines_dollars/1e6:.1f} million"
+                if fines_dollars >= 1e6
+                else f"${fines_dollars:,.0f}"
+            )
             if total_fines_count is not None and total_fines_count > 0:
-                p3 += f"CMS reports a total of <strong>{int(total_fines_count):,} fines</strong> (<strong>{fines_phrase}</strong>) for the chain's nursing homes."
+                _hr_line2 = (
+                    f"CMS reports a total of <strong>{int(total_fines_count):,} fines</strong> "
+                    f"(<strong>{fines_phrase}</strong>) for the chain's nursing homes."
+                )
             else:
-                p3 += f"Total fines: <strong>{fines_phrase}</strong>."
-        else:
-            p3 = p3.rstrip()
-            if not p3.endswith("."):
-                p3 += "."
+                _hr_line2 = f"Total fines: <strong>{fines_phrase}</strong>."
+        _hr_copy = (
+            f'<div class="pbj-entity-hr-insight__copy">'
+            f'<p class="pbj-entity-hr-insight__line">{_hr_line1}</p>'
+            + (
+                f'<p class="pbj-entity-hr-insight__line">{_hr_line2}</p>'
+                if _hr_line2
+                else ''
+            )
+            + '</div>'
+        )
+        _hr_insight = (
+            f'<div class="pbj-entity-hr-insight">{_hr_badge}{_hr_copy}</div>'
+        )
 
-        pbj_takeaway_ownership = f'''
-<div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem;">
-<div class="pbj-takeaway-top">
-{PBJ_TAKEAWAY_AVATAR_HTML}
-<div class="pbj-takeaway-top-main">
-<div class="pbj-takeaway-header">PBJ Takeaway{_entity_takeaway_title_span}</div>
-{PBJ_TAKEAWAY_BRAND_PILL_HTML}
-</div>
-</div>
-<div class="pbj-takeaway-badges-row" style="display:flex;flex-wrap:wrap;align-items:center;margin:0.5rem 0 0.25rem 0;">{tier1_badges}</div>
-<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p1_simple}</p>
-<p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0.25rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p2}</p>
-<p class="pbj-takeaway-narrative" style="margin: 0.25rem 0 0 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">{p3}</p>
-</div>'''
+        # No Facilities/States/Avg HPRD support row or averages caveat —
+        # those metrics already appear in the top snapshot cards.
+        pbj_takeaway_ownership = render_prose_takeaway_html(
+            title_html='PBJ Takeaway',
+            prose_html=f'<p class="pbj-takeaway-narrative">{prose}</p>',
+            extra_html=_hr_insight,
+        )
 
         one_star_count = None
         try:
@@ -17594,12 +19645,106 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         has_sff=_entity_has_sff,
     )
 
+    _ent_hprd = None
+    if _entity_chain_hprd_for_portfolio is not None:
+        _ent_hprd = _entity_chain_hprd_for_portfolio
+    elif _entity_ps.get('wmean_hprd') is not None:
+        _ent_hprd = _entity_ps.get('wmean_hprd')
+    elif avg_total is not None:
+        _ent_hprd = avg_total
+    _ent_residents = total_residents
+    if not _ent_residents and _entity_ps.get('census_total'):
+        _ent_residents = int(_entity_ps.get('census_total') or 0)
+    _ent_beds = _entity_ps.get('beds_total')
+    # Grouped portfolio metrics (no sparkline / no longitudinal implication)
+    _ent_scale_value = f'{n:,} facilities'
+    if num_states:
+        _ent_scale_value += f' · {num_states:,} states'
+    _ent_metrics_html = render_page_metric_html(
+        'Portfolio',
+        _ent_scale_value,
+        hint=(
+            f'{_ent_residents:,} residents' if _ent_residents else (
+                f'{int(_ent_beds):,} beds' if _ent_beds else None
+            )
+        ),
+        icon='building',
+    )
+    if _ent_hprd is not None:
+        _staff_hint = None
+        if avg_rn is not None:
+            _staff_hint = f'RN {format_metric_value(avg_rn, "RN_HPRD")}'
+        _ent_metrics_html += render_page_metric_html(
+            'Avg total HPRD',
+            format_metric_value(_ent_hprd, 'Total_Nurse_HPRD'),
+            accent='hprd',
+            hint=_staff_hint,
+        )
+    elif avg_rn is not None:
+        _ent_metrics_html += render_page_metric_html(
+            'Avg RN HPRD',
+            format_metric_value(avg_rn, 'RN_HPRD'),
+            accent='teal',
+            icon='pulse',
+        )
+    _ent_rating_val = None
+    _ent_staff_rating = None
+    _ent_health_rating = None
+    if chain_row is not None:
+        try:
+            _raw_ovr = None
+            if hasattr(chain_row, 'get'):
+                _raw_ovr = chain_row.get('Average overall 5-star rating')
+                _raw_staff = chain_row.get('Average staffing rating')
+                _raw_health = chain_row.get('Average health inspection rating')
+            else:
+                _raw_staff = None
+                _raw_health = None
+            if _raw_ovr is not None and not (isinstance(_raw_ovr, float) and _raw_ovr != _raw_ovr):
+                _ent_rating_val = float(_raw_ovr)
+            if _raw_staff is not None and not (isinstance(_raw_staff, float) and _raw_staff != _raw_staff):
+                _ent_staff_rating = float(_raw_staff)
+            if _raw_health is not None and not (isinstance(_raw_health, float) and _raw_health != _raw_health):
+                _ent_health_rating = float(_raw_health)
+        except (TypeError, ValueError):
+            pass
+    _ent_ratings_info_modal = ''
+    if _ent_rating_val is not None or _ent_staff_rating is not None:
+        _ent_ratings_chip, _ent_ratings_info_modal = render_ratings_info_control_html(
+            uid=f'ent-{entity_id}'
+        )
+        _ent_metrics_html += render_ratings_metric_html(
+            overall_html=(
+                _fractional_stars_html(_ent_rating_val) if _ent_rating_val is not None else ''
+            ),
+            staffing_html=(
+                _fractional_stars_html(_ent_staff_rating) if _ent_staff_rating is not None else ''
+            ),
+            help_html=_ent_ratings_chip,
+            label='CMS Ratings',
+        )
+    elif avg_contract is not None:
+        _ent_metrics_html += render_page_metric_html(
+            'Contract staff',
+            f'{format_metric_value(avg_contract, "Contract_Percentage")}%',
+            icon='percent',
+        )
+    if _ent_ratings_info_modal:
+        pbj_takeaway_ownership = f'{pbj_takeaway_ownership}{_ent_ratings_info_modal}'
+    _entity_summary = render_page_overview_html(
+        eyebrow=_pbj_snapshot_eyebrow(quarter_display),
+        title_html=f'<h1>{html.escape(entity_name)}</h1>',
+        controls_html=_page_header_switcher_html('entity'),
+        metrics_html=_ent_metrics_html,
+        takeaway_html=pbj_takeaway_ownership,
+        show_brand=False,
+    )
+
     inner = f"""
-{_page_title_row(f'<h1>{html.escape(entity_name)}</h1>', switcher_mode='entity')}
+{_entity_summary}
 {_page_switcher_script_tag()}
 {_entity_page_modal_html}
 {entity_intro_html}
-{pbj_takeaway_ownership}
 {entity_portfolio_html}
 {high_risk_html}
 
@@ -17616,11 +19761,9 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
 {table_script}
 
 {_entity_cross_links}
-{render_methodology_block()}
-
 {custom_report_cta_html}
-
 {_entity_ownership_tools}
+{render_methodology_block(variant='utility')}
 
 <div class="pbj-page-footer" style="margin-top: 1.75rem; padding-top: 0.5rem; border-top: 1px solid rgba(129,140,248,0.15);">
 {_entity_sources_footer}
@@ -18345,7 +20488,7 @@ def generate_us_chart_html():
     data_js = json.dumps(hprd_data)
     
     # Calculate end year from quarters
-    end_year = quarters[-1].split(' ')[1] if quarters else "2025"
+    end_year = quarters[-1].split(' ')[1] if quarters else str(datetime.now().year)
     start_year = quarters[0].split(' ')[1] if quarters else "2017"
     
     chart_html = f"""
@@ -18825,6 +20968,78 @@ def _high_risk_facility_row_html(
     )
 
 
+def _high_risk_explore_compact_row_html(
+    fac: dict,
+    sff_by_ccn: dict[str, dict] | None = None,
+) -> str:
+    """Compact Explore-style high-risk row: Facility / City / CMS / flags / HPRD."""
+    from ownership.display_format import cms_ratings_stack_html
+
+    try:
+        from pbj_format import format_metric_value as _fmt_hprd
+    except ImportError:
+        def _fmt_hprd(value, metric_key, default='—'):
+            try:
+                if value is None or str(value).strip() == '':
+                    return default
+                r = round_half_up(float(value), 2)
+                return f'{r:.2f}' if r is not None else default
+            except (TypeError, ValueError):
+                return default
+
+    ccn = str(fac.get('ccn') or '').strip().zfill(6)
+    name = capitalize_facility_name(fac.get('name') or 'Unknown')
+    city_raw = (fac.get('city') or '').strip()
+    city = capitalize_city_name(city_raw) if city_raw else '—'
+    flags = _state_hr_risk_flags_cell_html(fac, ccn, sff_by_ccn or {})
+    hprd_raw = fac.get('total_nurse_hprd')
+    hprd = (
+        _fmt_hprd(hprd_raw, 'Total_Nurse_HPRD', '—')
+        if hprd_raw is not None and str(hprd_raw).strip()
+        else '—'
+    )
+    # Preview-efficient CMS column: Overall + Staffing only (not full 4-row stack).
+    ratings = cms_ratings_stack_html(
+        fac.get('overall_rating'),
+        fac.get('staffing_rating'),
+        include_qm=False,
+        include_health=False,
+    )
+    href = f'/provider/{html.escape(ccn)}' if ccn.isdigit() else '#'
+    return (
+        f'<tr class="pbj-explore-hr-preview-row">'
+        f'<td class="pbj-explore-hr-preview-facility" data-label="Facility">'
+        f'<a href="{href}">{html.escape(name)}</a>'
+        f'<span class="pbj-explore-hr-preview-city-mobile">{html.escape(city)}</span>'
+        f'</td>'
+        f'<td class="pbj-explore-hr-preview-city" data-label="City">{html.escape(city)}</td>'
+        f'<td class="pbj-explore-hr-preview-ratings" data-label="CMS ratings">{ratings}</td>'
+        f'<td class="pbj-explore-hr-preview-flags" data-label="Risk flags">{flags}</td>'
+        f'<td class="pbj-explore-hr-preview-hprd num" data-label="Total HPRD">'
+        f'{html.escape(str(hprd))}</td></tr>'
+    )
+
+
+def _state_hr_explore_preview_rows_html(
+    high_risk_buckets: dict | None,
+    *,
+    limit: int = 5,
+    category: str = 'all',
+) -> tuple[str, int]:
+    """Compact SSR preview rows for Explore high-risk panel."""
+    buckets = _high_risk_prepare_buckets(high_risk_buckets)
+    facilities = list(buckets.get(category) or buckets.get('all') or [])
+    facilities.sort(key=lambda f: (str(f.get('name') or '')).lower())
+    total = len(facilities)
+    if total <= 0:
+        return '', 0
+    rows = ''.join(
+        _high_risk_explore_compact_row_html(fac)
+        for fac in facilities[: max(1, int(limit))]
+    )
+    return rows, total
+
+
 def _high_risk_table_api_payload(
     state_code: str,
     category: str,
@@ -18834,6 +21049,7 @@ def _high_risk_table_api_payload(
     *,
     sff_facilities: list | None = None,
     cy_qtr: str | None = None,
+    row_style: str = 'full',
 ) -> dict | None:
     buckets = _high_risk_prepare_buckets(high_risk_buckets)
     lst = list(buckets.get(category) or [])
@@ -18849,24 +21065,30 @@ def _high_risk_table_api_payload(
             'limit': limit,
             'rows_html': '',
             'has_more': False,
+            'style': row_style,
         }
     if total == 0:
         return None
     page = lst[offset: offset + limit]
-    ccns = {
-        str(f.get('ccn') or '').strip().zfill(6)
-        for f in page
-        if str(f.get('ccn') or '').strip().isdigit()
-    }
-    provider_info = load_provider_info(ccn_set=ccns) if ccns else {}
     sff_by_ccn = _high_risk_sff_by_ccn(sff_facilities)
-    sparklines = _high_risk_sparklines_for_ccns(ccns, cy_qtr or '')
-    rows_html = ''.join(
-        _high_risk_facility_row_html(
-            fac, provider_info, sff_by_ccn, sparklines=sparklines,
+    if row_style == 'compact':
+        rows_html = ''.join(
+            _high_risk_explore_compact_row_html(fac, sff_by_ccn) for fac in page
         )
-        for fac in page
-    )
+    else:
+        ccns = {
+            str(f.get('ccn') or '').strip().zfill(6)
+            for f in page
+            if str(f.get('ccn') or '').strip().isdigit()
+        }
+        provider_info = load_provider_info(ccn_set=ccns) if ccns else {}
+        sparklines = _high_risk_sparklines_for_ccns(ccns, cy_qtr or '')
+        rows_html = ''.join(
+            _high_risk_facility_row_html(
+                fac, provider_info, sff_by_ccn, sparklines=sparklines,
+            )
+            for fac in page
+        )
     return {
         'state': state_code,
         'category': category,
@@ -18876,6 +21098,7 @@ def _high_risk_table_api_payload(
         'limit': limit,
         'rows_html': rows_html,
         'has_more': (offset + limit) < total,
+        'style': row_style,
     }
 
 
@@ -18886,6 +21109,7 @@ def _render_state_pbj_high_risk_section_lazy(
     *,
     raw_quarter: str | None = None,
     footer_html: str = '',
+    as_details: bool = True,
 ) -> str:
     """High-risk summary + lazy-loaded table (counts SSR; rows via /api/state/XX/high-risk-table)."""
     counts, total = _high_risk_tab_counts(high_risk_buckets)
@@ -18897,14 +21121,89 @@ def _render_state_pbj_high_risk_section_lazy(
     tab_id_prefix = 'state-hr-tab-'
     panel_id_prefix = 'state-hr-panel-'
     first_selected = 'all'
+    name_esc = html.escape(state_name)
+    initial_n = 5
+
+    if not as_details:
+        preview_rows, preview_total = _state_hr_explore_preview_rows_html(
+            high_risk_buckets, limit=initial_n, category='all',
+        )
+        shown = min(initial_n, preview_total)
+        has_more = preview_total > shown
+        tabs_html = ''
+        for cat_key, tab_label, _desc in _HIGH_RISK_TAB_DEFS:
+            count = counts.get(cat_key, 0)
+            selected = cat_key == first_selected
+            aria_val = 'true' if selected else 'false'
+            tabs_html += (
+                f'<button type="button" role="tab" class="state-hr-tab-btn" '
+                f'id="{tab_id_prefix}{cat_key}" data-category="{cat_key}" '
+                f'aria-selected="{aria_val}">{tab_label} ({count})</button>'
+            )
+        foot = (footer_html or '').strip()
+        foot_html = f'<div class="state-hr-section-foot">{foot}</div>' if foot else ''
+        more_btn = (
+            f'<button type="button" class="pbj-explore-hr-more-btn" data-explore-hr-more="1">'
+            f'Show more</button>'
+            if has_more
+            else ''
+        )
+        showing = (
+            f'<span class="pbj-explore-hr-showing">Showing {shown:,} of {preview_total:,}</span>'
+            if preview_total
+            else ''
+        )
+        return f'''
+    <div class="state-high-risk-details pbj-explore-hr-root" data-state-high-risk="1"
+         data-state-code="{html.escape(st)}" data-quarter="{q}" data-style="compact"
+         data-explore-panel-content="high-risk" data-offset="{shown}" data-total="{preview_total}"
+         data-category="all">
+      <div class="pbj-explore-hr-head">
+        <div class="pbj-explore-hr-head-text">
+          <h3 class="pbj-explore-panel__title">High-risk facilities in {name_esc}
+            <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--inline">
+              <button type="button" class="pbj-explore-hr-info" aria-label="What counts as high-risk">i</button>
+              <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span>
+            </span>
+          </h3>
+          <p class="pbj-explore-panel__help">{preview_total:,} facilities flagged for staffing or quality concerns.</p>
+        </div>
+      </div>
+      <div class="state-hr-tabs state-hr-tabs--compact" role="tablist" aria-label="High-risk categories">
+        {tabs_html}
+      </div>
+      <div class="pbj-table-wrap pbj-explore-hr-table-wrap">
+        <table class="pbj-explore-hr-preview-table">
+          <thead><tr>
+            <th scope="col">Facility</th>
+            <th scope="col">City</th>
+            <th scope="col">CMS ratings</th>
+            <th scope="col">Risk flags</th>
+            <th scope="col" class="num">Total HPRD</th>
+          </tr></thead>
+          <tbody class="state-hr-tbody pbj-explore-hr-tbody" data-category="all" data-loaded="1">
+            {preview_rows or '<tr><td colspan="5">No facilities in this category.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
+      <div class="pbj-explore-hr-footer">
+        {showing}
+        {more_btn}
+      </div>
+      {foot_html}
+      {_STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT}
+    </div>
+    '''.strip()
+
+    # Legacy accordion path (details wrapper + full lazy table).
     section = f'''
     <details class="pbj-details pbj-page-bottom-details state-high-risk-details" data-state-high-risk="1" data-state-code="{html.escape(st)}" data-quarter="{q}">
     <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> PBJ320 High-Risk ({total:,})</summary>
-    <div class="pbj-details-content">
+    <div class="pbj-details-content state-hr-inner">
     <p class="pbj-subtitle" style="color: rgba(226,232,240,0.95); margin: 0 0 0.75rem 0;">
       <span class="pbj-high-risk-help-wrap pbj-high-risk-help-wrap--below"><span class="pbj-high-risk-help">PBJ320 high-risk</span>
       <span class="pbj-high-risk-tooltip" role="tooltip">{tooltip}</span></span>
-      nursing homes in {html.escape(state_name)} ({total:,} facilities).
+      nursing homes in {name_esc} ({total:,} facilities).
     </p>
     <div class="state-hr-tabs" role="tablist" style="display:flex; flex-wrap:wrap; gap:0.25rem; margin-bottom:0.5rem;">
     '''
@@ -18957,10 +21256,203 @@ def _render_state_pbj_high_risk_section_lazy(
     section += _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT
     if (footer_html or '').strip():
         section += f'<div class="state-hr-section-foot">{(footer_html or "").strip()}</div>'
-    section += '''
-    </div></details>'''
+    section += '</div></details>'
     return section
 
+
+_STATE_HIGH_RISK_EXPLORE_STYLES_AND_SCRIPT = '''
+    <style>
+    .pbj-explore-hr-root .state-hr-sffc-short { display: none; }
+    @media (max-width: 640px) {
+      .state-hr-tabs--compact {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.2rem;
+      }
+      .state-hr-tabs--compact .state-hr-tab-btn {
+        font-size: 0.66rem;
+        padding: 0.28rem 0.3rem;
+        white-space: normal;
+        text-align: center;
+      }
+      .pbj-explore-hr-preview-table thead { display: none; }
+      .pbj-explore-hr-preview-table,
+      .pbj-explore-hr-preview-table tbody { display: block; width: 100%; }
+      .pbj-explore-hr-preview-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+          "facility hprd"
+          "ratings flags";
+        gap: 0.14rem 0.5rem;
+        margin: 0 0 0.4rem;
+        padding: 0.42rem 0.5rem;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.45);
+      }
+      .pbj-explore-hr-preview-row td {
+        border: 0;
+        padding: 0;
+        display: block;
+      }
+      .pbj-explore-hr-preview-facility { grid-area: facility; min-width: 0; }
+      .pbj-explore-hr-preview-facility a {
+        display: block;
+        font-size: 0.84rem;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .pbj-explore-hr-preview-city { display: none; }
+      .pbj-explore-hr-preview-city-mobile {
+        display: block;
+        margin-top: 0.06rem;
+        font-size: 0.7rem;
+        color: rgba(148, 163, 184, 0.95);
+        line-height: 1.2;
+      }
+      .pbj-explore-hr-preview-hprd {
+        grid-area: hprd;
+        text-align: right;
+        font-size: 0.76rem;
+        font-weight: 650;
+        color: #e2e8f0;
+        align-self: start;
+      }
+      .pbj-explore-hr-preview-ratings {
+        grid-area: ratings;
+        align-self: center;
+      }
+      .pbj-explore-hr-preview-ratings .owner-ratings-stack {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.2rem 0.45rem;
+      }
+      .pbj-explore-hr-preview-flags {
+        grid-area: flags;
+        justify-self: end;
+        align-self: center;
+      }
+      .pbj-explore-hr-preview-flags .state-hr-flags { max-width: none; }
+      .pbj-explore-hr-preview-flags .state-hr-sffc-long { display: none; }
+      .pbj-explore-hr-preview-flags .state-hr-sffc-short { display: inline; }
+    }
+    @media (min-width: 641px) {
+      .pbj-explore-hr-preview-city-mobile { display: none; }
+    }
+    </style>
+    <script>
+    (function(){
+      var root = document.querySelector('.pbj-explore-hr-root[data-style="compact"]');
+      if (!root) return;
+      var stateCode = (root.getAttribute("data-state-code") || "").toUpperCase();
+      var quarter = root.getAttribute("data-quarter") || "";
+      var pageSize = 20;
+      var tbody = root.querySelector(".pbj-explore-hr-tbody");
+      var showing = root.querySelector(".pbj-explore-hr-showing");
+      var moreBtn = root.querySelector("[data-explore-hr-more]");
+      var footer = root.querySelector(".pbj-explore-hr-footer");
+      var loading = false;
+      function currentCat() {
+        return root.getAttribute("data-category") || "all";
+      }
+      function currentOffset() {
+        return parseInt(root.getAttribute("data-offset") || "0", 10) || 0;
+      }
+      function updateFooter(shown, total, hasMore) {
+        if (showing) {
+          if (total <= 0) {
+            showing.textContent = "No facilities in this category.";
+          } else {
+            showing.textContent = "Showing " + shown.toLocaleString()
+              + " of " + total.toLocaleString();
+          }
+        }
+        if (!moreBtn && footer && hasMore) {
+          moreBtn = document.createElement("button");
+          moreBtn.type = "button";
+          moreBtn.className = "pbj-explore-hr-more-btn";
+          moreBtn.setAttribute("data-explore-hr-more", "1");
+          moreBtn.textContent = "Show more";
+          footer.appendChild(moreBtn);
+        }
+        if (moreBtn) {
+          moreBtn.style.display = hasMore ? "" : "none";
+          moreBtn.disabled = false;
+          moreBtn.textContent = "Show more";
+        }
+      }
+      function loadRows(offset, append) {
+        if (!tbody || !stateCode || loading) return;
+        loading = true;
+        if (moreBtn) {
+          moreBtn.disabled = true;
+          moreBtn.textContent = "Loading…";
+        }
+        if (!append) {
+          tbody.innerHTML = '<tr class="state-hr-loading"><td colspan="5">Loading facilities…</td></tr>';
+        }
+        var cat = currentCat();
+        var url = "/api/state/" + encodeURIComponent(stateCode) + "/high-risk-table?category="
+          + encodeURIComponent(cat) + "&offset=" + offset + "&limit=" + pageSize
+          + "&style=compact"
+          + (quarter ? "&quarter=" + encodeURIComponent(quarter) : "");
+        fetch(url).then(function(r){
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        }).then(function(data){
+          loading = false;
+          if (!data || data.error) throw new Error("empty");
+          var total = parseInt(data.total || 0, 10) || 0;
+          root.setAttribute("data-total", String(total));
+          if (!data.rows_html) {
+            tbody.innerHTML = '<tr><td colspan="5">No facilities in this category.</td></tr>';
+            root.setAttribute("data-offset", "0");
+            updateFooter(0, total, false);
+            return;
+          }
+          if (append) {
+            tbody.insertAdjacentHTML("beforeend", data.rows_html);
+          } else {
+            tbody.innerHTML = data.rows_html;
+          }
+          var shown = Math.min(offset + pageSize, total);
+          root.setAttribute("data-offset", String(shown));
+          updateFooter(shown, total, !!data.has_more);
+        }).catch(function(){
+          loading = false;
+          if (!append) {
+            tbody.innerHTML = '<tr><td colspan="5">Could not load facilities. Try refreshing.</td></tr>';
+          }
+          if (moreBtn) {
+            moreBtn.disabled = false;
+            moreBtn.textContent = "Show more";
+          }
+        });
+      }
+      root.querySelectorAll(".state-hr-tabs--compact .state-hr-tab-btn").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          var cat = btn.getAttribute("data-category") || "all";
+          root.querySelectorAll(".state-hr-tabs--compact .state-hr-tab-btn").forEach(function(t){
+            t.setAttribute("aria-selected", "false");
+          });
+          btn.setAttribute("aria-selected", "true");
+          root.setAttribute("data-category", cat);
+          root.setAttribute("data-offset", "0");
+          if (tbody) tbody.setAttribute("data-category", cat);
+          loadRows(0, false);
+        });
+      });
+      root.addEventListener("click", function(ev){
+        var btn = ev.target && ev.target.closest ? ev.target.closest("[data-explore-hr-more]") : null;
+        if (!btn) return;
+        loadRows(currentOffset(), true);
+      });
+    })();
+    </script>
+    '''
 
 _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
     <style>
@@ -19007,7 +21499,7 @@ _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
     </style>
     <script>
     (function(){
-      var root = document.querySelector(".state-high-risk-details[data-state-high-risk]");
+      var root = document.querySelector("details.state-high-risk-details[data-state-high-risk]");
       if (!root) return;
       var stateCode = (root.getAttribute("data-state-code") || "").toUpperCase();
       var quarter = root.getAttribute("data-quarter") || "";
@@ -19093,7 +21585,6 @@ _STATE_HIGH_RISK_LAZY_STYLES_AND_SCRIPT = '''
     })();
     </script>
     '''
-
 
 def _render_state_pbj_high_risk_section(
     state_name: str,
@@ -19620,6 +22111,185 @@ def render_state_staffing_comparison_table(
     )
 
 
+_EXPLORE_CARD_ICONS = {
+    'staffing': (
+        '<svg class="pbj-explore-card__svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" '
+        'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 15v-4"/><path d="M12 15V8"/><path d="M16 15v-6"/></svg>'
+    ),
+    'high-risk': (
+        '<svg class="pbj-explore-card__svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" '
+        'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M12 3l9 16H3L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>'
+    ),
+    'owners': (
+        '<svg class="pbj-explore-card__svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" '
+        'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M9 21v-6h6v6"/></svg>'
+    ),
+    'chow': (
+        '<svg class="pbj-explore-card__svg" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" '
+        'stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M4 12h10"/><path d="M12 8l4 4-4 4"/><path d="M20 6v12"/></svg>'
+    ),
+}
+
+
+def _explore_card_html(
+    *,
+    key: str,
+    title: str,
+    support: str,
+    secondary: str,
+    selected: bool,
+) -> str:
+    icon = _EXPLORE_CARD_ICONS.get(key, '')
+    sel = 'true' if selected else 'false'
+    active_cls = ' is-active' if selected else ''
+    return (
+        f'<button type="button" class="pbj-explore-card{active_cls}" role="tab" '
+        f'id="pbj-explore-tab-{html.escape(key)}" aria-controls="pbj-explore-panel-{html.escape(key)}" '
+        f'aria-selected="{sel}" data-explore-key="{html.escape(key)}">'
+        f'<span class="pbj-explore-card__icon" aria-hidden="true">{icon}</span>'
+        f'<span class="pbj-explore-card__text">'
+        f'<span class="pbj-explore-card__title">{html.escape(title)}</span>'
+        f'<span class="pbj-explore-card__support">{html.escape(support)}</span>'
+        f'<span class="pbj-explore-card__secondary">{html.escape(secondary)}</span>'
+        f'</span>'
+        f'<span class="pbj-explore-card__chevron" aria-hidden="true">›</span>'
+        f'</button>'
+    )
+
+
+def _render_state_explore_hub(
+    *,
+    state_name: str,
+    state_code: str,
+    staffing_table_html: str,
+    high_risk_html: str,
+    high_risk_count: int,
+    owners_html: str,
+    owners_count: int,
+    chow_html: str,
+    chow_count: int,
+) -> str:
+    """Explore [State] destination cards + one shared detail panel."""
+    cards: list[tuple[str, str, str, str, str]] = []
+
+    # Reading order: default-active card first (high-risk), then staffing, owners, CHOW.
+    if (high_risk_html or '').strip() and high_risk_count > 0:
+        cards.append((
+            'high-risk',
+            'High-risk facilities',
+            f'{high_risk_count:,} facilities',
+            'Browse flagged facilities',
+            high_risk_html,
+        ))
+    if (staffing_table_html or '').strip():
+        staffing_panel = (
+            f'<div class="pbj-explore-panel__header">'
+            f'<div class="pbj-explore-panel__header-text">'
+            f'<h3 class="pbj-explore-panel__title">Staffing snapshot</h3>'
+            f'<p class="pbj-explore-panel__help">Latest state staffing metrics for {html.escape(state_name)}.</p>'
+            f'</div></div>'
+            f'<div class="pbj-state-staffing-table pbj-explore-staffing-body">{staffing_table_html}</div>'
+        )
+        cards.append((
+            'staffing',
+            'Staffing snapshot',
+            'Latest state staffing metrics',
+            'Compare HPRD and ranks',
+            staffing_panel,
+        ))
+    if (owners_html or '').strip() and owners_count > 0:
+        owners_panel = (
+            f'<div class="pbj-explore-panel__header">'
+            f'<div class="pbj-explore-panel__header-text">'
+            f'<h3 class="pbj-explore-panel__title">Ownership groups in {html.escape(state_name)}</h3>'
+            f'<p class="pbj-explore-panel__help">Largest organizations linked to facilities in CMS owner data.</p>'
+            f'</div></div>{owners_html}'
+        )
+        cards.append((
+            'owners',
+            'Ownership groups',
+            f'{owners_count:,} largest groups',
+            'Explore ownership presence',
+            owners_panel,
+        ))
+    if (chow_html or '').strip() and chow_count > 0:
+        chow_panel = (
+            f'<div class="pbj-explore-panel__header">'
+            f'<div class="pbj-explore-panel__header-text">'
+            f'<h3 class="pbj-explore-panel__title">Ownership changes in {html.escape(state_name)}</h3>'
+            f'<p class="pbj-explore-panel__help">Recent CMS change-of-ownership activity.</p>'
+            f'</div></div>{chow_html}'
+        )
+        cards.append((
+            'chow',
+            'Ownership changes',
+            f'{chow_count:,} recent changes',
+            'View recent operator changes',
+            chow_panel,
+        ))
+    if not cards:
+        return ''
+
+    default_key = 'high-risk' if any(c[0] == 'high-risk' for c in cards) else cards[0][0]
+    name_esc = html.escape(state_name)
+    card_bits = []
+    panel_bits = []
+    for key, title, support, secondary, panel_html in cards:
+        selected = key == default_key
+        card_bits.append(_explore_card_html(
+            key=key, title=title, support=support, secondary=secondary, selected=selected,
+        ))
+        hidden = '' if selected else ' hidden'
+        panel_bits.append(
+            f'<div class="pbj-explore-panel" role="tabpanel" id="pbj-explore-panel-{html.escape(key)}" '
+            f'aria-labelledby="pbj-explore-tab-{html.escape(key)}" data-explore-panel="{html.escape(key)}"{hidden}>'
+            f'{panel_html}</div>'
+        )
+
+    return f'''
+<section class="pbj-state-explore" data-state-explore="1" aria-label="Explore {name_esc}">
+  <div class="pbj-state-explore__head">
+    <h2 class="pbj-state-explore__title">Explore {name_esc}</h2>
+  </div>
+  <div class="pbj-state-explore__cards" role="tablist" aria-label="{name_esc} data destinations">
+    {''.join(card_bits)}
+  </div>
+  <div class="pbj-state-explore__detail">
+    {''.join(panel_bits)}
+  </div>
+</section>
+<script>
+(function(){{
+  var root = document.querySelector("[data-state-explore]");
+  if (!root) return;
+  var tabs = root.querySelectorAll(".pbj-explore-card");
+  var panels = root.querySelectorAll(".pbj-explore-panel");
+  function activate(key) {{
+    tabs.forEach(function(tab) {{
+      var on = tab.getAttribute("data-explore-key") === key;
+      tab.setAttribute("aria-selected", on ? "true" : "false");
+      tab.classList.toggle("is-active", on);
+    }});
+    panels.forEach(function(panel) {{
+      var on = panel.getAttribute("data-explore-panel") === key;
+      if (on) panel.removeAttribute("hidden");
+      else panel.setAttribute("hidden", "");
+    }});
+  }}
+  tabs.forEach(function(tab) {{
+    tab.addEventListener("click", function() {{
+      activate(tab.getAttribute("data-explore-key") || "");
+    }});
+  }});
+}})();
+</script>
+'''.strip()
+
+
 def generate_state_page_html(state_name, state_code, state_data, macpac_standard, region_info, quarter, rank_total=None, rank_rn=None, total_states=None, sff_facilities=None, raw_quarter=None, contact_info=None, high_risk_buckets=None, state_rankings_df=None):
     """Generate state page content. Returns (content, page_title, seo_description, canonical_url) for use with get_pbj_site_layout (state page is separate from PBJpedia)."""
     try:
@@ -19905,12 +22575,15 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             f'{html.escape(_st_abbr)} Special Focus Facilities</a></p>'
         )
     # PBJ320 High-Risk: counts SSR; facility rows lazy-loaded via /api/state/XX/high-risk-table
+    _hr_counts, _hr_total = _high_risk_tab_counts(high_risk_buckets)
+    del _hr_counts
     sff_section = _render_state_pbj_high_risk_section_lazy(
         state_name,
         state_code,
         high_risk_buckets,
         raw_quarter=raw_quarter,
         footer_html=_sff_footer,
+        as_details=False,
     )
     
     # Ranking info removed - already shown in overview table
@@ -19956,12 +22629,12 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
     elif False and macpac_standard is None:  # contact section removed per user request
         contact_section = ""
     
-    # CustomReportCTA for state page
+    # CustomReportCTA for state page — premium card below Explore hub
     _state_page_url = f"{_public_site_origin()}/state/{_canonical_slug}"
     _region_str = ''
     if region_info is not None and hasattr(region_info, 'get'):
         _region_str = str(region_info.get('CMS_Region_Number', '') or region_info.get('Region_Number', '') or '')
-    cta_section = render_custom_report_cta('state', _state_page_url, state_name=state_name, region=_region_str)
+    cta_section = render_state_premium_cta(state_name, _state_page_url)
     
     total_hprd_val = format_metric_value(get_val('Total_Nurse_HPRD'), 'Total_Nurse_HPRD', 'N/A')
     cur_hprd = None
@@ -20031,7 +22704,7 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
                 )
                 + '.'
             )
-        state_narrative = '<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">' + ''.join(parts) + '</p>'
+        state_narrative = '<p class="pbj-takeaway-narrative">' + ''.join(parts) + '</p>'
     else:
         _rank_alt = (
             state_rank_link_html(
@@ -20042,13 +22715,13 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         )
         _state_possessive = f"{html.escape(state_name)}'s"
         state_narrative = (
-            f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
+            f'<p class="pbj-takeaway-narrative">'
             f'In {quarter}, <strong>{_state_possessive}</strong> statewide staffing ratio is '
             f'<strong>{total_hprd_val} HPRD</strong>.'
             f'{_rank_alt}.</p>'
             if _rank_alt
             else
-            f'<p class="pbj-takeaway-narrative" style="margin: 0.5rem 0; font-size: 0.9375rem; line-height: 1.5; color: rgba(226,232,240,0.92);">'
+            f'<p class="pbj-takeaway-narrative">'
             f'In {quarter}, <strong>{_state_possessive}</strong> statewide staffing ratio is '
             f'<strong>{total_hprd_val} HPRD</strong>.</p>'
         )
@@ -20056,43 +22729,38 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         cur_hprd, state_na_hprd, state_name, census=avg_facility_census, context='state'
     )
     state_hprd_trigger, state_hprd_modal = render_hprd_means_explainer(
-        total_hprd_val, _state_hprd_body, uid='state'
+        total_hprd_val, _state_hprd_body, uid='state', compact=True,
     )
-    # Badge order: HPRD (rank), RN HPRD, contract %, then state min
+    # Supporting figures: rank / RN / contract; state min as benchmark when available
     rn_hprd_val = format_metric_value(get_val('RN_HPRD'), 'RN_HPRD', 'N/A')
-    _bs = 'padding: 2px 8px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; color: #e4e4e7; background: rgba(39,39,42,0.65); border: 1px solid #3f3f46; transition: all 0.2s ease; white-space: nowrap;'
-    state_total_hprd_badge_title = html.escape(
-        'Average total nurse staffing hours per resident day (HPRD) for this state, including rank among states.',
-        quote=True
-    )
-    state_rn_hprd_badge_title = html.escape(
-        'Average registered nurse (RN) staffing hours per resident day (HPRD) for this state.',
-        quote=True
-    )
-    state_contract_badge_title = html.escape(
-        'Share of reported nursing hours delivered by contract staff in this state.',
-        quote=True
-    )
-    _hprd_desktop = f'{total_hprd_val} HPRD (rank: {rank_total_nurse or "—"})'
-    _hprd_mobile = (
-        f'{total_hprd_val} HPRD · Rk {rank_total_nurse}'
-        if rank_total_nurse
-        else f'{total_hprd_val} HPRD'
-    )
-    badges_line = (
-        f'<span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;">'
-        f'<span class="pbj-hprd-rank-desktop-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_desktop}</span>'
-        f'<span class="pbj-hprd-rank-mobile-only" style="{_bs}" title="{state_total_hprd_badge_title}">{_hprd_mobile}</span>'
-        f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_rn_hprd_badge_title}">{rn_hprd_val} RN HPRD</span>'
-        f'<span class="pbj-badge-mobile-hide" style="{_bs}" title="{state_contract_badge_title}">{format_metric_value(get_val("Contract_Percentage"), "Contract_Percentage", "N/A")}% contract</span>'
-        f'{state_standard_badge}'
-        f'</span>'
-    )
-    # State outline: D3 + TopoJSON (will be placed inside PBJ takeaway card)
+    _state_contract = format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')
+    _rank_value = f'#{rank_total_nurse}' if rank_total_nurse else '—'
+    if rank_total_nurse and total_states:
+        _rank_value = f'#{rank_total_nurse} of {total_states}'
+    _state_support_items = [
+        {'label': 'National rank', 'value_html': html.escape(_rank_value), 'icon': 'rank'},
+        {'label': 'RN HPRD', 'value_html': html.escape(rn_hprd_val), 'icon': 'pulse'},
+        {
+            'label': 'Contract staff',
+            'value_html': html.escape(
+                f'{_state_contract}%' if _state_contract != 'N/A' else 'N/A'
+            ),
+            'icon': 'percent',
+        },
+    ]
+    if state_standard_badge:
+        _state_support_items[2] = {
+            'label': 'State minimum',
+            'value_html': state_standard_badge,
+            'benchmark': True,
+            'icon': 'shield',
+        }
+    takeaway_support_html = render_takeaway_support_figures_html(_state_support_items)
+    # State outline: D3 + TopoJSON (decorative; inside Phoebe section)
     state_code_esc = html.escape(state_code, quote=True)
     state_name_esc = html.escape(state_name, quote=True)
     state_outline_inset = f'''
-    <div id="state-outline-wrap" style="position:absolute;top:0.5rem;right:0.5rem;width:120px;height:120px;opacity:0.2;pointer-events:none;z-index:0;" data-state-code="{state_code_esc}" data-state-name="{state_name_esc}" aria-hidden="true">
+    <div id="state-outline-wrap" class="pbj-state-outline-compact" style="position:absolute;top:0.4rem;right:0.4rem;pointer-events:none;z-index:0;" data-state-code="{state_code_esc}" data-state-name="{state_name_esc}" aria-hidden="true">
       <svg id="state-outline-svg" width="100%" height="100%" viewBox="0 0 400 400" style="overflow:visible;"></svg>
     </div>
     <script>
@@ -20137,60 +22805,77 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
         if rank_total_nurse and total_states else None
     )
     _na_state = format_metric_value(get_val('Nurse_Assistant_HPRD'), 'Nurse_Assistant_HPRD', 'N/A')
-    _state_contract = format_metric_value(get_val('Contract_Percentage'), 'Contract_Percentage', 'N/A')
     _lpn_state = format_metric_value(get_val('LPN_HPRD'), 'LPN_HPRD', 'N/A')
-    _state_actions = render_takeaway_actions_row(state_hprd_trigger, '', '')
-    state_takeaway_card = f'''
-<div id="pbj-takeaway" class="pbj-content-box pbj-takeaway" style="margin: 1rem 0; padding: 1rem; position: relative;">
-{state_outline_inset}
-<div class="pbj-takeaway-top">
-{PBJ_TAKEAWAY_AVATAR_HTML}
-<div class="pbj-takeaway-top-main">
-<div class="pbj-takeaway-header">PBJ Takeaway<span class="pbj-takeaway-title-name">: {html.escape(state_name)}</span></div>
-{PBJ_TAKEAWAY_BRAND_PILL_HTML}
-</div>
-</div>
-<p style="margin: 0.5rem 0 0.5rem 0;">{badges_line}</p>
-{state_narrative}
-{_state_actions}
-{state_hprd_modal}
-{state_standard_modal}
-</div>'''
+    state_takeaway_card = render_prose_takeaway_html(
+        title_html='PBJ Takeaway',
+        prose_html=state_narrative,
+        support_html=takeaway_support_html,
+        outline_html=state_outline_inset,
+        extra_html=f'{state_hprd_modal}{state_standard_modal}',
+    )
     try:
         from ownership.page_integrations import (
-            render_state_chow_block,
-            render_state_top_owners_block,
+            state_chow_panel_data,
+            state_top_owners_panel_data,
         )
-        _state_top_owners_line = render_state_top_owners_block(state_code, state_name)
-        _state_chow_line = render_state_chow_block(state_code, state_name)
+        _owners_data = state_top_owners_panel_data(state_code, state_name)
+        _chow_data = state_chow_panel_data(state_code, state_name)
+        _state_top_owners_html = (_owners_data or {}).get('html') or ''
+        _state_top_owners_count = int((_owners_data or {}).get('count') or 0)
+        _state_chow_html = (_chow_data or {}).get('html') or ''
+        _state_chow_count = int((_chow_data or {}).get('count') or 0)
     except Exception:
-        _state_top_owners_line = ''
-        _state_chow_line = ''
+        _state_top_owners_html = ''
+        _state_top_owners_count = 0
+        _state_chow_html = ''
+        _state_chow_count = 0
+    _state_explore_hub = _render_state_explore_hub(
+        state_name=state_name,
+        state_code=state_code,
+        staffing_table_html=_staffing_comparison_table,
+        high_risk_html=sff_section,
+        high_risk_count=_hr_total,
+        owners_html=_state_top_owners_html,
+        owners_count=_state_top_owners_count,
+        chow_html=_state_chow_html,
+        chow_count=_state_chow_count,
+    )
     _state_ownership_index_cross_link = ''
     _state_h1 = (
         f'<h1 class="pbj-state-title"><span class="pbj-state-title-full">{state_name} PBJ Nursing Home Staffing</span>'
         f'<span class="pbj-state-title-mobile">{state_name} PBJ Staffing</span></h1>'
     )
-    _state_title_block = _page_title_row(_state_h1, switcher_mode='state') + _page_switcher_script_tag()
-    # State page content: H1, subtitle (context first), Phoebe takeaway (with state outline inside), chart, collapsible table, SFF, Explore, CTA, contact
+    _state_spark_series = _load_state_hprd_spark_series(state_code, raw_quarter, n=4)
+    _state_metrics_html = (
+        render_page_metric_html('Providers', facility_count_display, icon='building')
+        + render_page_metric_html('Residents', total_residents_display, icon='users')
+        + render_hprd_spark_metric_html(
+            total_hprd_val,
+            quarter,
+            _state_spark_series,
+            label='Total HPRD',
+            info_html=state_hprd_trigger,
+        )
+    )
+    _state_summary = render_page_overview_html(
+        eyebrow=_pbj_snapshot_eyebrow(quarter),
+        title_html=_state_h1,
+        controls_html=_page_header_switcher_html('state'),
+        metrics_html=_state_metrics_html,
+        takeaway_html=state_takeaway_card,
+        show_brand=False,
+        metrics_class='pbj-page-metrics--state',
+    )
+    # State page content: overview, chart, Explore hub, premium CTA, methodology utility
     content = f"""
-    {_state_title_block}
-    <p class="pbj-subtitle pbj-subtitle-state">{facility_count_display} providers • {total_residents_display} residents • {total_hprd_val} HPRD</p>
+    {_state_summary}
+    {_page_switcher_script_tag()}
     {_state_ownership_index_cross_link}
-    {state_takeaway_card}
     {chart_html}
-    <details class="pbj-details pbj-state-staffing-table">
-    <summary><span class="pbj-details-icon" aria-hidden="true">▼</span> {html.escape((state_code or '').strip().upper()[:2] or state_name)} Staffing Stats</summary>
-    <div class="pbj-details-content">
-    {_staffing_comparison_table}
-    </div>
-    </details>
-    <div class="pbj-page-bottom-stack">
-    {sff_section}
-    {_state_top_owners_line}
-    {_state_chow_line}
-    {render_methodology_block()}
+    <div class="pbj-page-bottom-stack pbj-page-bottom-stack--explore">
+    {_state_explore_hub}
     {cta_section}
+    {render_methodology_block(variant='utility')}
     </div>
     </div>
     """
@@ -22278,7 +24963,7 @@ def generate_state_page(state_code):
             'stateSlug': get_canonical_slug(state_code),
         },
     )
-    html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + layout['content_close']
+    html_content = layout['head'] + layout['nav'] + layout['content_open'] + content + audience_state_mount() + layout['content_close']
     if HAS_CSRF and generate_csrf:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
@@ -23621,8 +26306,8 @@ def data_files(path):
     if path_normalized.endswith('.csv'):
         filename = os.path.basename(path_normalized)
         allowed_csv = {
-            'facility_quarterly_metrics.csv', 'state_quarterly_metrics.csv', 'national_quarterly_metrics.csv',
-            'cms_region_quarterly_metrics.csv', 'cms_region_state_mapping.csv', 'provider_info_combined.csv',
+            'state_quarterly_metrics.csv', 'national_quarterly_metrics.csv',
+            'cms_region_quarterly_metrics.csv', 'cms_region_state_mapping.csv',
         }
         if filename in allowed_csv:
             # Try multiple locations so /data/X.csv works wherever CSVs are deployed (root or data/)
@@ -23943,6 +26628,9 @@ _BLOCKED_PUBLIC_FILENAMES = {
     'provider_info_combined.csv',
     'provider_info_combined_latest.csv',
     'provider_info_combined_latest-old.csv',
+    'facility_quarterly_metrics.csv',
+    'facility_quarterly_metrics_latest.csv',
+    'facility_quarterly_metrics.csv.gz',
     'data-sources.html',
     'privacy.html',
     'terms.html',
@@ -24098,6 +26786,14 @@ def _rewrite_site_script_versions(response):
 
 # Premium marketing page + assets — register after other /<slug> routes so /premium is not treated as a state.
 register_premium_routes(app, APP_ROOT)
+register_audience_routes(app, validate_csrf_fn=validate_csrf if HAS_CSRF else None)
+
+try:
+    from preview_catalog_routes import register_preview_catalog_routes
+
+    register_preview_catalog_routes(app, APP_ROOT)
+except ImportError:
+    pass
 
 _log_mem("app_startup")
 

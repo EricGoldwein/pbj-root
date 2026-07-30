@@ -1,0 +1,17 @@
+{
+  "2026-04-01": {
+    "confidence_tier": "exact_direct_match",
+    "lookup_file": "release_2026-04-01_lookup.json",
+    "pairing_status": "exact_release_date_match"
+  },
+  "2026-05-01": {
+    "confidence_tier": "exact_direct_match",
+    "lookup_file": "release_2026-05-01_lookup.json",
+    "pairing_status": "exact_release_date_match"
+  },
+  "2026-07-17": {
+    "lookup_file": "release_2026-07-17_lookup.json",
+    "pairing_status": "exact_release_date_match",
+    "confidence_tier": "exact_direct_match"
+  }
+}

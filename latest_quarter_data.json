@@ -1,298 +1,298 @@
 {
-  "quarter": "2025Q4",
-  "quarter_display": "Q4 2025",
-  "national_hprd": 3.762,
+  "quarter": "2026Q1",
+  "quarter_display": "Q1 2026",
+  "national_hprd": 3.746,
   "highest_state": {
     "name": "Alaska",
-    "hprd": 5.799
+    "hprd": 5.728
   },
   "lowest_state": {
     "name": "Illinois",
-    "hprd": 3.299
+    "hprd": 3.264
   },
   "top_5_states": [
     {
       "name": "Alaska",
-      "hprd": 5.799
+      "hprd": 5.728
     },
     {
       "name": "Oregon",
-      "hprd": 4.998
-    },
-    {
-      "name": "North Dakota",
-      "hprd": 4.592
+      "hprd": 4.915
     },
     {
       "name": "Hawaii",
-      "hprd": 4.469
+      "hprd": 4.635
     },
     {
-      "name": "California",
-      "hprd": 4.366
+      "name": "North Dakota",
+      "hprd": 4.569
+    },
+    {
+      "name": "District of Columbia",
+      "hprd": 4.435
     }
   ],
   "state_data": {
     "Alaska": {
-      "hprd": 5.799,
+      "hprd": 5.728,
       "name": "Alaska",
-      "residents": 570
+      "residents": 656
     },
     "Alabama": {
-      "hprd": 3.925,
+      "hprd": 3.88,
       "name": "Alabama",
-      "residents": 22152
+      "residents": 21926
     },
     "Arkansas": {
-      "hprd": 4.098,
+      "hprd": 4.048,
       "name": "Arkansas",
-      "residents": 17256
+      "residents": 16892
     },
     "Arizona": {
-      "hprd": 3.991,
+      "hprd": 3.874,
       "name": "Arizona",
-      "residents": 11917
+      "residents": 12256
     },
     "California": {
-      "hprd": 4.366,
+      "hprd": 4.365,
       "name": "California",
-      "residents": 94844
+      "residents": 101161
     },
     "Colorado": {
-      "hprd": 3.537,
+      "hprd": 3.586,
       "name": "Colorado",
-      "residents": 15248
+      "residents": 15668
     },
     "Connecticut": {
-      "hprd": 3.736,
+      "hprd": 3.662,
       "name": "Connecticut",
-      "residents": 20045
+      "residents": 19698
     },
     "District of Columbia": {
-      "hprd": 4.332,
+      "hprd": 4.435,
       "name": "District of Columbia",
-      "residents": 2082
+      "residents": 2030
     },
     "Delaware": {
-      "hprd": 4.133,
+      "hprd": 4.05,
       "name": "Delaware",
-      "residents": 3963
+      "residents": 3847
     },
     "Florida": {
-      "hprd": 3.786,
+      "hprd": 3.764,
       "name": "Florida",
-      "residents": 75857
+      "residents": 74940
     },
     "Georgia": {
-      "hprd": 3.526,
+      "hprd": 3.495,
       "name": "Georgia",
-      "residents": 31853
+      "residents": 31544
     },
     "Hawaii": {
-      "hprd": 4.469,
+      "hprd": 4.635,
       "name": "Hawaii",
-      "residents": 3522
+      "residents": 3450
     },
     "Iowa": {
       "hprd": 3.801,
       "name": "Iowa",
-      "residents": 20530
+      "residents": 20234
     },
     "Idaho": {
-      "hprd": 3.917,
+      "hprd": 3.897,
       "name": "Idaho",
-      "residents": 4492
+      "residents": 4537
     },
     "Illinois": {
-      "hprd": 3.299,
+      "hprd": 3.264,
       "name": "Illinois",
-      "residents": 63537
+      "residents": 62809
     },
     "Indiana": {
-      "hprd": 3.644,
+      "hprd": 3.627,
       "name": "Indiana",
-      "residents": 37018
+      "residents": 36762
     },
     "Kansas": {
-      "hprd": 4.011,
+      "hprd": 4.006,
       "name": "Kansas",
-      "residents": 14967
+      "residents": 14936
     },
     "Kentucky": {
-      "hprd": 3.886,
+      "hprd": 3.853,
       "name": "Kentucky",
-      "residents": 22126
+      "residents": 21692
     },
     "Louisiana": {
-      "hprd": 3.708,
+      "hprd": 3.644,
       "name": "Louisiana",
-      "residents": 23891
+      "residents": 23567
     },
     "Massachusetts": {
-      "hprd": 3.812,
+      "hprd": 3.788,
       "name": "Massachusetts",
-      "residents": 33865
+      "residents": 33475
     },
     "Maryland": {
-      "hprd": 3.759,
+      "hprd": 3.727,
       "name": "Maryland",
-      "residents": 23364
+      "residents": 23257
     },
     "Maine": {
-      "hprd": 4.336,
+      "hprd": 4.355,
       "name": "Maine",
-      "residents": 4859
+      "residents": 5089
     },
     "Michigan": {
-      "hprd": 3.957,
+      "hprd": 3.946,
       "name": "Michigan",
-      "residents": 36422
+      "residents": 36011
     },
     "Minnesota": {
-      "hprd": 4.17,
+      "hprd": 4.19,
       "name": "Minnesota",
-      "residents": 20227
+      "residents": 20284
     },
     "Missouri": {
-      "hprd": 3.362,
+      "hprd": 3.339,
       "name": "Missouri",
-      "residents": 35658
+      "residents": 34951
     },
     "Mississippi": {
-      "hprd": 4.099,
+      "hprd": 4.09,
       "name": "Mississippi",
-      "residents": 14799
+      "residents": 14709
     },
     "Montana": {
-      "hprd": 3.779,
+      "hprd": 3.915,
       "name": "Montana",
-      "residents": 3367
+      "residents": 3399
     },
     "North Carolina": {
-      "hprd": 3.641,
+      "hprd": 3.652,
       "name": "North Carolina",
-      "residents": 36277
+      "residents": 35901
     },
     "North Dakota": {
-      "hprd": 4.592,
+      "hprd": 4.569,
       "name": "North Dakota",
-      "residents": 4519
+      "residents": 4495
     },
     "Nebraska": {
-      "hprd": 4.09,
+      "hprd": 4.012,
       "name": "Nebraska",
-      "residents": 9713
+      "residents": 9690
     },
     "New Hampshire": {
-      "hprd": 3.852,
+      "hprd": 3.851,
       "name": "New Hampshire",
-      "residents": 5976
+      "residents": 5929
     },
     "New Jersey": {
-      "hprd": 3.715,
+      "hprd": 3.68,
       "name": "New Jersey",
-      "residents": 42607
+      "residents": 42500
     },
     "New Mexico": {
-      "hprd": 3.553,
+      "hprd": 3.518,
       "name": "New Mexico",
-      "residents": 5727
+      "residents": 5771
     },
     "Nevada": {
-      "hprd": 3.902,
+      "hprd": 3.88,
       "name": "Nevada",
-      "residents": 6156
+      "residents": 6166
     },
     "New York": {
-      "hprd": 3.587,
+      "hprd": 3.549,
       "name": "New York",
-      "residents": 99606
+      "residents": 98717
     },
     "Ohio": {
-      "hprd": 3.681,
+      "hprd": 3.639,
       "name": "Ohio",
-      "residents": 68859
+      "residents": 67570
     },
     "Oklahoma": {
-      "hprd": 3.81,
+      "hprd": 3.789,
       "name": "Oklahoma",
-      "residents": 16936
+      "residents": 16573
     },
     "Oregon": {
-      "hprd": 4.998,
+      "hprd": 4.915,
       "name": "Oregon",
-      "residents": 7360
+      "residents": 7376
     },
     "Pennsylvania": {
-      "hprd": 3.71,
+      "hprd": 3.685,
       "name": "Pennsylvania",
-      "residents": 68681
+      "residents": 67659
     },
     "Puerto Rico": {
-      "hprd": 3.536,
+      "hprd": 3.473,
       "name": "Puerto Rico",
-      "residents": 203
+      "residents": 236
     },
     "Rhode Island": {
-      "hprd": 3.683,
+      "hprd": 3.674,
       "name": "Rhode Island",
-      "residents": 7028
+      "residents": 6889
     },
     "South Carolina": {
-      "hprd": 3.623,
+      "hprd": 3.616,
       "name": "South Carolina",
-      "residents": 17175
+      "residents": 17182
     },
     "South Dakota": {
-      "hprd": 3.799,
+      "hprd": 3.762,
       "name": "South Dakota",
-      "residents": 4996
+      "residents": 4812
     },
     "Tennessee": {
-      "hprd": 3.765,
+      "hprd": 3.753,
       "name": "Tennessee",
-      "residents": 25365
+      "residents": 25379
     },
     "Texas": {
-      "hprd": 3.336,
+      "hprd": 3.334,
       "name": "Texas",
-      "residents": 89027
+      "residents": 88185
     },
     "Utah": {
-      "hprd": 3.791,
+      "hprd": 3.91,
       "name": "Utah",
-      "residents": 5921
+      "residents": 5911
     },
     "Virginia": {
-      "hprd": 3.571,
+      "hprd": 3.577,
       "name": "Virginia",
-      "residents": 29113
+      "residents": 28576
     },
     "Vermont": {
-      "hprd": 4.16,
+      "hprd": 4.254,
       "name": "Vermont",
-      "residents": 2545
+      "residents": 2444
     },
     "Washington": {
-      "hprd": 4.211,
+      "hprd": 4.212,
       "name": "Washington",
-      "residents": 14117
+      "residents": 14327
     },
     "Wisconsin": {
-      "hprd": 4.165,
+      "hprd": 4.185,
       "name": "Wisconsin",
-      "residents": 17853
+      "residents": 17659
     },
     "West Virginia": {
-      "hprd": 3.559,
+      "hprd": 3.56,
       "name": "West Virginia",
-      "residents": 9777
+      "residents": 9644
     },
     "Wyoming": {
-      "hprd": 3.608,
+      "hprd": 3.611,
       "name": "Wyoming",
-      "residents": 2003
+      "residents": 1983
     }
   },
-  "total_quarters": 36
+  "total_quarters": 37
 }

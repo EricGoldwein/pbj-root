@@ -578,7 +578,20 @@
   }
 
   function ensureSubscribeModal() {
-    if (document.getElementById('pbj-subscribe-overlay')) return;
+    var existing = document.getElementById('pbj-subscribe-overlay');
+    if (existing) {
+      if (!document.getElementById('pbj-subscribe-modal-mount')) {
+        var dialog = existing.querySelector('.pbj-subscribe-popup');
+        var form = document.getElementById('pbj-subscribe-popup-form');
+        if (dialog) {
+          var mount = document.createElement('div');
+          mount.id = 'pbj-subscribe-modal-mount';
+          if (form && form.parentNode === dialog) dialog.insertBefore(mount, form);
+          else dialog.appendChild(mount);
+        }
+      }
+      return;
+    }
     var overlay = document.createElement('div');
     overlay.id = 'pbj-subscribe-overlay';
     overlay.className = 'pbj-subscribe-overlay';
@@ -587,6 +600,7 @@
       '<div class="pbj-subscribe-popup" role="dialog" aria-modal="true" aria-labelledby="pbj-subscribe-popup-title">' +
       '<button type="button" class="pbj-subscribe-popup__close" aria-label="Close">&times;</button>' +
       '<h2 id="pbj-subscribe-popup-title" class="pbj-subscribe-popup__title">Get staffing data updates</h2>' +
+      '<div id="pbj-subscribe-modal-mount"></div>' +
       '<form id="pbj-subscribe-popup-form" class="pbj-subscribe-popup__form" action="/subscribe" method="POST" novalidate>' +
       '<input type="hidden" name="csrf_token" id="pbj-subscribe-csrf" value="">' +
       '<input type="hidden" name="source" value="footer_modal">' +
@@ -604,6 +618,7 @@
     return {
       overlay: document.getElementById('pbj-subscribe-overlay'),
       dialog: document.querySelector('#pbj-subscribe-overlay .pbj-subscribe-popup'),
+      mount: document.getElementById('pbj-subscribe-modal-mount'),
       form: document.getElementById('pbj-subscribe-popup-form'),
       csrf: document.getElementById('pbj-subscribe-csrf'),
       email: document.getElementById('pbj-subscribe-email'),
@@ -694,29 +709,72 @@
     document.documentElement.style.overflow = '';
   }
 
+  function isValidSubscribeEmail(email) {
+    if (window.PBJAudience && typeof window.PBJAudience.isValidEmail === 'function') {
+      return window.PBJAudience.isValidEmail(email);
+    }
+    return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(String(email || '').trim());
+  }
+
   function openSubscribeModal() {
     ensureSubscribeModal();
     var el = subscribeModalEls();
     if (!el.overlay || !el.dialog) return;
-    resetSubscribeModalForm();
-    loadSubscribeCsrf().then(function () {
+
+    var usedAudience = false;
+    if (window.PBJAudience &&
+        typeof window.PBJAudience.mountEmailUpdatesModal === 'function' &&
+        el.mount) {
+      if (typeof window.PBJAudience.markManualEmailUpdatesModalOpened === 'function') {
+        window.PBJAudience.markManualEmailUpdatesModalOpened();
+      }
+      if (el.form) el.form.hidden = true;
+      if (el.success) {
+        el.success.hidden = true;
+        el.success.textContent = '';
+      }
+      if (el.error) {
+        el.error.hidden = true;
+        el.error.textContent = '';
+      }
+      window.PBJAudience.mountEmailUpdatesModal(el.mount);
+      usedAudience = true;
+    } else {
+      if (el.mount) el.mount.innerHTML = '';
+      resetSubscribeModalForm();
+      if (el.form) el.form.hidden = false;
+    }
+
+    var showModal = function () {
       el.overlay.setAttribute('aria-hidden', 'false');
       document.documentElement.style.overflow = 'hidden';
-      if (el.email) {
+      var focusEl = usedAudience
+        ? el.dialog.querySelector('.pbj-audience__input')
+        : el.email;
+      if (focusEl) {
         try {
-          el.email.focus();
+          focusEl.focus();
         } catch (err) {}
       }
-    });
+    };
+
+    if (usedAudience) {
+      showModal();
+      return;
+    }
+    loadSubscribeCsrf().then(showModal);
   }
 
   function submitSubscribeModal(ev) {
     if (ev && ev.preventDefault) ev.preventDefault();
     var el = subscribeModalEls();
-    if (!el.form || !el.email) return;
+    if (!el.form || !el.email || el.form.hidden) return;
     var email = (el.email.value || '').trim();
-    if (!email) {
+    if (!isValidSubscribeEmail(email)) {
       showSubscribeModalStatus('invalid');
+      try {
+        el.email.focus();
+      } catch (err) {}
       return;
     }
     if (el.submit) {
@@ -1150,15 +1208,21 @@
 
 /* ===== public-search.js (bundled; edit public-search.js then re-bundle) ===== */
 /**
- * PBJ320 facility switcher — desktop anchored popover, mobile expanded header mode.
+ * PBJ320 facility switcher - desktop anchored popover, mobile full-screen search.
  * Data source: /search_index.json (facility rows in .f).
+ * Search fields (verified from facilityBaseScore): name (n), CCN (c), city (y), state (s).
+ * Recent facilities: browser-local only via localStorage (pbj320:recent-facilities:v1).
  */
 (function () {
   'use strict';
 
   var INDEX_CACHE_KEY = 'pbj-public-search-index-v1';
+  var RECENT_STORAGE_KEY = 'pbj320:recent-facilities:v1';
+  var RECENT_MAX = 8;
   var PLACEHOLDER = 'Find a nursing home';
+  var EMPTY_HINT = 'Search by nursing home name, city, state, or CMS ID.';
   var DESKTOP_MIN = 769;
+  var DESKTOP_PANEL_WIDTH = 470;
   var RESULT_LIMIT = 8;
   var MAX_BOOST_STATE_IN_RESULTS = 3;
   var OWNERSHIP_SLUGS = { ny: 'NY', ct: 'CT', fl: 'FL', nj: 'NJ', id: 'ID' };
@@ -1233,8 +1297,99 @@
     searchIndex: { f: [] },
     indexReady: false,
     indexLoading: false,
-    indexError: false
+    indexError: false,
+    indexLoadPromise: null
   };
+
+  /**
+   * Browser-local recent facilities store.
+   * Swap this helper later for an account-backed history provider with the same API.
+   */
+  function createLocalRecentFacilitiesStore(options) {
+    var key = (options && options.key) || RECENT_STORAGE_KEY;
+    var maxItems = (options && options.maxItems) || RECENT_MAX;
+
+    function readRaw() {
+      try {
+        if (!window.localStorage) return [];
+        var raw = window.localStorage.getItem(key);
+        if (!raw) return [];
+        var parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function normalizeItem(item) {
+      if (!item || typeof item !== 'object') return null;
+      var url = String(item.url || '').trim();
+      var name = String(item.name || '').trim();
+      if (!url || !name) return null;
+      var id = String(item.id || '').trim();
+      if (!id) {
+        var m = url.match(/\/provider\/(\d{6})\b/);
+        id = m ? m[1] : url;
+      }
+      return {
+        id: id,
+        name: name,
+        url: url,
+        meta: String(item.meta || '').trim()
+      };
+    }
+
+    function writeAll(items) {
+      try {
+        if (!window.localStorage) return false;
+        window.localStorage.setItem(key, JSON.stringify(items));
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    return {
+      list: function () {
+        var out = [];
+        var seen = {};
+        var raw = readRaw();
+        for (var i = 0; i < raw.length; i++) {
+          var item = normalizeItem(raw[i]);
+          if (!item || seen[item.id]) continue;
+          seen[item.id] = true;
+          out.push(item);
+          if (out.length >= maxItems) break;
+        }
+        return out;
+      },
+      add: function (item) {
+        var next = normalizeItem(item);
+        if (!next) return this.list();
+        var current = this.list().filter(function (row) {
+          return row.id !== next.id;
+        });
+        current.unshift(next);
+        if (current.length > maxItems) current = current.slice(0, maxItems);
+        writeAll(current);
+        return current;
+      },
+      clear: function () {
+        try {
+          if (window.localStorage) window.localStorage.removeItem(key);
+        } catch (e) {
+          /* ignore */
+        }
+        return [];
+      }
+    };
+  }
+
+  var recentStore = createLocalRecentFacilitiesStore({
+    key: RECENT_STORAGE_KEY,
+    maxItems: RECENT_MAX
+  });
 
   function isMobileViewport() {
     return window.matchMedia('(max-width: ' + (DESKTOP_MIN - 1) + 'px)').matches;
@@ -1277,6 +1432,22 @@
     return String(str || '')
       .toLowerCase()
       .indexOf(String(q).toLowerCase()) !== -1;
+  }
+
+  function isDigitOnlyQuery(q) {
+    return /^\d+$/.test(String(q || '').trim());
+  }
+
+  /** Prefer exact/prefix CCN hits; digit queries ignore mid-string CCN matches. */
+  function ccnMatchScore(ccn, q) {
+    var c = String(ccn || '').toLowerCase();
+    var query = String(q || '').trim().toLowerCase();
+    if (!c || !query) return 0;
+    if (c === query) return 200;
+    if (c.indexOf(query) === 0) return 160;
+    if (isDigitOnlyQuery(query)) return 0;
+    if (c.indexOf(query) !== -1) return 40;
+    return 0;
   }
 
   function isMeaningfulQuery(q) {
@@ -1386,16 +1557,20 @@
     style.textContent = [
       '.pbj-public-search-overlay{position:fixed;inset:0;z-index:10031;display:none;box-sizing:border-box;}',
       '.pbj-public-search-overlay[data-open="true"]{display:block;}',
-      '.pbj-public-search-panel{box-sizing:border-box;display:flex;flex-direction:column;background:#0a0f1a;overflow:hidden;}',
+      '.pbj-public-search-panel{box-sizing:border-box;display:flex;flex-direction:column;background:#0a0f1a;overflow:hidden;height:auto;}',
       '.pbj-public-search-mobile-top{display:none;align-items:center;justify-content:space-between;gap:0.5rem;height:60px;min-height:60px;padding:0 ' + gutter + ';padding-top:env(safe-area-inset-top,0);border-bottom:1px solid rgba(71,85,105,0.45);flex-shrink:0;}',
       '.pbj-public-search-mobile-brand{display:flex;align-items:center;min-width:0;color:#eef2f7;font-size:1.2rem;font-weight:700;text-decoration:none;}',
       '.pbj-public-search-mobile-brand img{width:32px;height:32px;margin-right:8px;flex-shrink:0;}',
       '.pbj-public-search-input-row{display:flex;align-items:center;gap:0.5rem;padding:0.75rem;flex-shrink:0;}',
       '.pbj-public-search-input-wrap{position:relative;flex:1;min-width:0;display:flex;align-items:center;}',
       '.pbj-public-search-input-icon{position:absolute;left:0.7rem;color:rgba(148,163,184,0.9);pointer-events:none;display:flex;}',
-      '.pbj-public-search-input{width:100%;padding:0.65rem 0.75rem 0.65rem 2.35rem;font-size:16px;line-height:1.35;border-radius:10px;border:1px solid rgba(100,116,139,0.55);background:rgba(15,23,42,0.92);color:#f8fafc;box-sizing:border-box;}',
+      '.pbj-public-search-input{width:100%;padding:0.65rem 2.4rem 0.65rem 2.35rem;font-size:16px;line-height:1.35;border-radius:10px;border:1px solid rgba(100,116,139,0.55);background:rgba(15,23,42,0.92);color:#f8fafc;box-sizing:border-box;}',
       '.pbj-public-search-input::placeholder{color:rgba(148,163,184,0.75);}',
       '.pbj-public-search-input:focus{outline:none;border-color:#818cf8;box-shadow:0 0 0 3px rgba(99,102,241,0.25);}',
+      '.pbj-public-search-clear-query{position:absolute;right:0.35rem;width:32px;height:32px;padding:0;border:none;border-radius:6px;background:transparent;color:rgba(148,163,184,0.95);font-size:1.25rem;line-height:1;cursor:pointer;display:none;align-items:center;justify-content:center;}',
+      '.pbj-public-search-clear-query[data-visible="true"]{display:inline-flex;}',
+      '.pbj-public-search-clear-query:hover{background:rgba(51,65,85,0.55);color:#e2e8f0;}',
+      '.pbj-public-search-clear-query:focus-visible{outline:2px solid #818cf8;outline-offset:1px;}',
       '.pbj-public-search-close{flex-shrink:0;width:44px;height:44px;padding:0;border:none;border-radius:8px;background:transparent;color:rgba(226,232,240,0.9);font-size:1.65rem;line-height:1;cursor:pointer;}',
       '.pbj-public-search-close:hover{background:rgba(51,65,85,0.55);}',
       '.pbj-public-search-close:focus-visible{outline:2px solid #818cf8;outline-offset:2px;}',
@@ -1407,23 +1582,31 @@
       '.pbj-public-search-result-btn[aria-selected="true"]{background:rgba(51,65,85,0.85);outline:2px solid #818cf8;outline-offset:-2px;}',
       '.pbj-public-search-result-title{font-weight:600;font-size:0.95rem;line-height:1.3;color:#f1f5f9;}',
       '.pbj-public-search-result-meta{font-size:0.8rem;line-height:1.35;color:rgba(148,163,184,0.95);margin-top:0.15rem;}',
-      '.pbj-public-search-empty{padding:1.25rem 0.75rem;text-align:left;}',
+      '.pbj-public-search-section{padding:0.5rem 0.75rem 0.15rem;}',
+      '.pbj-public-search-section-row{display:flex;align-items:center;justify-content:space-between;gap:0.75rem;}',
+      '.pbj-public-search-section-label{margin:0;font-size:0.72rem;font-weight:600;letter-spacing:0.04em;text-transform:uppercase;color:rgba(148,163,184,0.9);}',
+      '.pbj-public-search-clear-recent{border:none;background:transparent;color:rgba(148,163,184,0.95);font:inherit;font-size:0.78rem;padding:0.2rem 0.35rem;border-radius:6px;cursor:pointer;flex-shrink:0;}',
+      '.pbj-public-search-clear-recent:hover{color:#e2e8f0;background:rgba(51,65,85,0.45);}',
+      '.pbj-public-search-clear-recent:focus-visible{outline:2px solid #818cf8;outline-offset:1px;}',
+      '.pbj-public-search-empty{padding:1rem 0.75rem 1.15rem;text-align:left;}',
       '.pbj-public-search-empty-title{margin:0;font-size:0.95rem;font-weight:600;color:#e2e8f0;}',
       '.pbj-public-search-empty-hint{margin:0.35rem 0 0;font-size:0.85rem;line-height:1.4;color:rgba(148,163,184,0.95);}',
+      '.pbj-public-search-loading{padding:1rem 0.75rem;font-size:0.85rem;color:rgba(148,163,184,0.95);}',
       '.pbj-public-search-error{padding:1.25rem 0.75rem;font-size:0.88rem;color:rgba(148,163,184,0.95);}',
+      '.pbj-public-search-sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}',
       'body.pbj-mobile-search-open{overflow:hidden;}',
       'body.pbj-mobile-search-open .navbar{visibility:hidden;pointer-events:none;}',
       '@media (min-width:' + DESKTOP_MIN + 'px){',
       '.pbj-public-search-overlay{background:transparent;}',
-      '.pbj-public-search-panel{position:fixed;background:#0f172a;width:min(480px,calc(100vw - 24px));min-width:min(420px,calc(100vw - 24px));max-width:520px;border:1px solid rgba(148,163,184,0.28);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.38);max-height:min(calc(100vh - 24px),520px);}',
+      '.pbj-public-search-panel{position:fixed;background:#0f172a;width:' + DESKTOP_PANEL_WIDTH + 'px;max-width:min(500px,calc(100vw - 24px));min-width:min(440px,calc(100vw - 24px));border:1px solid rgba(148,163,184,0.28);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.38);max-height:min(calc(100vh - 24px),560px);}',
       '.pbj-public-search-input-row{border-bottom:1px solid rgba(71,85,105,0.45);}',
       '.pbj-public-search-close--mobile{display:none;}',
-      '.pbj-public-search-body{max-height:22rem;}',
+      '.pbj-public-search-body{max-height:min(22rem,calc(100vh - 9rem));}',
       '}',
       '@media (max-width:' + (DESKTOP_MIN - 1) + 'px){',
       '.pbj-public-search-overlay{background:#0a0f1a;}',
       '.pbj-public-search-overlay[data-open="true"]{display:flex;flex-direction:column;}',
-      '.pbj-public-search-panel{width:100%;max-width:100vw;height:100%;max-height:100dvh;border:0;border-radius:0;box-shadow:none;}',
+      '.pbj-public-search-panel{width:100%;max-width:100vw;height:100%;max-height:100dvh;min-height:100dvh;border:0;border-radius:0;box-shadow:none;}',
       '.pbj-public-search-mobile-top{display:flex;}',
       '.pbj-public-search-input-row{padding:0.75rem ' + gutter + ';border-bottom:1px solid rgba(71,85,105,0.45);}',
       '.pbj-public-search-close--desktop{display:none;}',
@@ -1448,6 +1631,21 @@
     dst.setAttribute('href', src.getAttribute('href') || '/');
   }
 
+  function syncClearQueryVisibility() {
+    var input = document.getElementById('pbj-public-search-input');
+    var clearBtn = document.getElementById('pbj-public-search-clear-query');
+    if (!input || !clearBtn) return;
+    var hasText = !!(input.value || '').length;
+    clearBtn.setAttribute('data-visible', hasText ? 'true' : 'false');
+    clearBtn.hidden = !hasText;
+  }
+
+  function announceStatus(message) {
+    var el = document.getElementById('pbj-public-search-status');
+    if (!el) return;
+    el.textContent = message || '';
+  }
+
   function ensureOverlay() {
     injectStyles();
     var overlay = document.getElementById('pbj-public-search-overlay');
@@ -1469,11 +1667,13 @@
       '<span class="pbj-public-search-input-icon">' +
       searchIconSvg() +
       '</span>' +
-      '<input type="text" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" />' +
+      '<input type="text" id="pbj-public-search-input" class="pbj-public-search-input" autocomplete="off" spellcheck="false" inputmode="search" enterkeyhint="search" role="combobox" aria-autocomplete="list" aria-controls="pbj-public-search-results" aria-expanded="false" aria-activedescendant="" />' +
+      '<button type="button" id="pbj-public-search-clear-query" class="pbj-public-search-clear-query" aria-label="Clear search query" hidden data-visible="false">&times;</button>' +
       '</div>' +
       '<button type="button" class="pbj-public-search-close pbj-public-search-close--desktop" aria-label="Close search">&times;</button>' +
       '</div>' +
-      '<div class="pbj-public-search-body">' +
+      '<div class="pbj-public-search-body" id="pbj-public-search-body">' +
+      '<div id="pbj-public-search-status" class="pbj-public-search-sr-only" aria-live="polite" aria-atomic="true"></div>' +
       '<ul class="pbj-public-search-results" id="pbj-public-search-results" role="listbox" aria-label="Search results"></ul>' +
       '</div>' +
       '</div>';
@@ -1487,22 +1687,43 @@
     var input = document.getElementById('pbj-public-search-input');
     if (input) {
       input.addEventListener('input', function () {
+        syncClearQueryVisibility();
         renderSearchResults(input.value);
       });
       input.addEventListener('keydown', onInputKeydown);
     }
+    var clearQueryBtn = document.getElementById('pbj-public-search-clear-query');
+    if (clearQueryBtn) {
+      clearQueryBtn.addEventListener('click', function () {
+        if (!input) return;
+        input.value = '';
+        syncClearQueryVisibility();
+        renderSearchResults('');
+        input.focus();
+      });
+    }
     overlay.addEventListener('click', function (e) {
-      if (!isMobileViewport() && panel && !panel.contains(e.target)) {
+      if (!isMobileViewport() && e.target === overlay) {
         closePublicSearch();
       }
     });
     var results = document.getElementById('pbj-public-search-results');
     if (results) {
       results.addEventListener('click', function (e) {
+        var clearRecent = e.target.closest('.pbj-public-search-clear-recent');
+        if (clearRecent) {
+          e.preventDefault();
+          e.stopPropagation();
+          recentStore.clear();
+          renderSearchResults((input && input.value) || '');
+          if (input) input.focus();
+          announceStatus('Recent nursing homes cleared');
+          return;
+        }
         var btn = e.target.closest('.pbj-public-search-result-btn');
         if (btn && btn.getAttribute('data-url')) {
           e.preventDefault();
-          navigateTo(btn.getAttribute('data-url'));
+          selectFacilityFromButton(btn);
         }
       });
     }
@@ -1514,14 +1735,17 @@
     if (!panel || !trigger || isMobileViewport()) return;
     var rect = trigger.getBoundingClientRect();
     var viewportPad = 12;
-    var panelWidth = Math.min(520, Math.max(420, Math.min(480, window.innerWidth - viewportPad * 2)));
+    var panelWidth = Math.min(
+      500,
+      Math.max(440, Math.min(DESKTOP_PANEL_WIDTH, window.innerWidth - viewportPad * 2))
+    );
     var left = rect.right - panelWidth;
     if (left < viewportPad) left = viewportPad;
     if (left + panelWidth > window.innerWidth - viewportPad) {
       left = window.innerWidth - panelWidth - viewportPad;
     }
     var top = rect.bottom + 8;
-    var maxHeight = Math.min(window.innerHeight - viewportPad * 2, 520);
+    var maxHeight = Math.min(window.innerHeight - viewportPad * 2, 560);
     if (top + maxHeight > window.innerHeight - viewportPad) {
       top = Math.max(viewportPad, rect.top - maxHeight - 8);
     }
@@ -1572,7 +1796,7 @@
     var panel = document.getElementById('pbj-public-search-panel');
     if (!panel) return [];
     return panel.querySelectorAll(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      'button:not([disabled]):not([hidden]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
     );
   }
 
@@ -1651,8 +1875,7 @@
   }
 
   function facilityBaseScore(row, q) {
-    var score = 0;
-    if (matchQuery(row.c, q)) score += 140;
+    var score = ccnMatchScore(row.c, q);
     if (matchQuery(row.n, q)) score += 100;
     if (matchQuery(row.y, q)) score += 35;
     if (matchQuery(row.s, q)) score += 20;
@@ -1730,6 +1953,7 @@
       var cityState = (r.y ? titleCaseCity(r.y) + ', ' : '') + (r.s || '');
       var meta = cityState ? cityState + ' · CCN ' + r.c : 'CCN ' + r.c;
       items.push({
+        id: String(r.c || ''),
         title: titleCase(r.n || ''),
         meta: meta,
         url: '/provider/' + encodeURIComponent(r.c)
@@ -1738,12 +1962,48 @@
     return items;
   }
 
-  function renderNoResults() {
+  function renderIdleEmpty() {
+    return (
+      '<li class="pbj-public-search-empty" role="presentation">' +
+      '<p class="pbj-public-search-empty-hint">' +
+      escapeHtml(EMPTY_HINT) +
+      '</p>' +
+      '</li>'
+    );
+  }
+
+  function renderRecentSection(items) {
+    var html =
+      '<li class="pbj-public-search-section" role="presentation">' +
+      '<div class="pbj-public-search-section-row">' +
+      '<p class="pbj-public-search-section-label">Recent nursing homes</p>' +
+      '<button type="button" class="pbj-public-search-clear-recent">Clear recent</button>' +
+      '</div></li>';
+    for (var i = 0; i < items.length; i++) {
+      html += renderResultButton(items[i], i, true);
+    }
+    return html;
+  }
+
+  function renderNoResults(query) {
+    var q = String(query || '').trim();
+    var hint =
+      'No nursing homes found for \u2018' +
+      q +
+      '.\u2019 Check the nursing home name or spelling.';
     return (
       '<li class="pbj-public-search-empty" role="presentation">' +
       '<p class="pbj-public-search-empty-title">No nursing homes found</p>' +
-      '<p class="pbj-public-search-empty-hint">Try the facility name or CMS ID.</p>' +
+      '<p class="pbj-public-search-empty-hint">' +
+      escapeHtml(hint) +
+      '</p>' +
       '</li>'
+    );
+  }
+
+  function renderLoading() {
+    return (
+      '<li class="pbj-public-search-loading" role="presentation">Searching\u2026</li>'
     );
   }
 
@@ -1753,18 +2013,29 @@
     );
   }
 
-  function renderResultButton(item, index) {
+  function renderResultButton(item, index, isRecent) {
+    var optionId = 'pbj-public-search-option-' + index;
     return (
       '<li class="pbj-public-search-result" role="presentation">' +
-      '<button type="button" class="pbj-public-search-result-btn" role="option" data-url="' +
+      '<button type="button" class="pbj-public-search-result-btn" role="option" id="' +
+      optionId +
+      '" data-url="' +
       escapeHtml(item.url) +
+      '" data-id="' +
+      escapeHtml(item.id || '') +
+      '" data-name="' +
+      escapeHtml(item.title || item.name || '') +
+      '" data-meta="' +
+      escapeHtml(item.meta || '') +
       '" data-index="' +
       index +
       '" aria-selected="' +
       (index === activeResultIndex ? 'true' : 'false') +
-      '">' +
+      '"' +
+      (isRecent ? ' data-recent="true"' : '') +
+      '>' +
       '<div class="pbj-public-search-result-title">' +
-      escapeHtml(item.title) +
+      escapeHtml(item.title || item.name || '') +
       '</div>' +
       (item.meta
         ? '<div class="pbj-public-search-result-meta">' + escapeHtml(item.meta) + '</div>'
@@ -1773,8 +2044,14 @@
     );
   }
 
-  function renderSearchResults(query) {
+  function setInputExpanded(expanded) {
     var input = document.getElementById('pbj-public-search-input');
+    if (!input) return;
+    input.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (!expanded) input.setAttribute('aria-activedescendant', '');
+  }
+
+  function renderSearchResults(query) {
     var resultsEl = document.getElementById('pbj-public-search-results');
     if (!resultsEl || !state.payload) return;
 
@@ -1783,37 +2060,66 @@
     activeResultIndex = -1;
 
     if (!isMeaningfulQuery(q)) {
-      resultsEl.innerHTML = '';
-      if (input) input.setAttribute('aria-expanded', 'false');
+      var recent = recentStore.list();
+      if (recent.length) {
+        var recentItems = recent.map(function (row) {
+          return {
+            id: row.id,
+            title: row.name,
+            name: row.name,
+            meta: row.meta,
+            url: row.url
+          };
+        });
+        resultsEl.innerHTML = renderRecentSection(recentItems);
+        setInputExpanded(true);
+        announceStatus(
+          recentItems.length === 1
+            ? '1 recent nursing home'
+            : recentItems.length + ' recent nursing homes'
+        );
+      } else {
+        resultsEl.innerHTML = renderIdleEmpty();
+        setInputExpanded(false);
+        announceStatus('');
+      }
       return;
     }
 
-    if (!state.indexReady) {
-      resultsEl.innerHTML = '';
-      if (input) input.setAttribute('aria-expanded', 'false');
+    if (state.indexLoading || !state.indexReady) {
+      resultsEl.innerHTML = renderLoading();
+      setInputExpanded(false);
+      announceStatus('Searching');
       return;
     }
 
     if (state.indexError) {
       resultsEl.innerHTML = renderIndexError();
-      if (input) input.setAttribute('aria-expanded', 'false');
+      setInputExpanded(false);
+      announceStatus('Search is temporarily unavailable');
       return;
     }
 
     var items = buildFacilityResults(q, cfg, RESULT_LIMIT);
 
     if (!items.length) {
-      resultsEl.innerHTML = renderNoResults();
-      if (input) input.setAttribute('aria-expanded', 'false');
+      resultsEl.innerHTML = renderNoResults(q);
+      setInputExpanded(false);
+      announceStatus('No nursing homes found for ' + q);
       return;
     }
 
     var html = '';
     for (var i = 0; i < items.length; i++) {
-      html += renderResultButton(items[i], i);
+      html += renderResultButton(items[i], i, false);
     }
     resultsEl.innerHTML = html;
-    if (input) input.setAttribute('aria-expanded', 'true');
+    setInputExpanded(true);
+    announceStatus(
+      items.length === 1
+        ? '1 nursing home found'
+        : items.length + ' nursing homes found'
+    );
   }
 
   function resultButtons() {
@@ -1826,6 +2132,7 @@
 
   function setActiveResult(index) {
     var buttons = resultButtons();
+    var input = document.getElementById('pbj-public-search-input');
     if (!buttons.length) return;
     if (index < 0) index = buttons.length - 1;
     if (index >= buttons.length) index = 0;
@@ -1833,7 +2140,13 @@
     buttons.forEach(function (btn, i) {
       btn.setAttribute('aria-selected', i === index ? 'true' : 'false');
     });
-    buttons[index].focus();
+    if (input) {
+      input.setAttribute('aria-activedescendant', buttons[index].id || '');
+      input.focus();
+    }
+    if (typeof buttons[index].scrollIntoView === 'function') {
+      buttons[index].scrollIntoView({ block: 'nearest' });
+    }
   }
 
   function onInputKeydown(e) {
@@ -1849,12 +2162,25 @@
     } else if (e.key === 'Enter') {
       if (activeResultIndex >= 0 && buttons[activeResultIndex]) {
         e.preventDefault();
-        navigateTo(buttons[activeResultIndex].getAttribute('data-url'));
+        selectFacilityFromButton(buttons[activeResultIndex]);
       } else if (buttons.length) {
         e.preventDefault();
-        navigateTo(buttons[0].getAttribute('data-url'));
+        selectFacilityFromButton(buttons[0]);
       }
     }
+  }
+
+  function selectFacilityFromButton(btn) {
+    if (!btn) return;
+    var url = btn.getAttribute('data-url');
+    if (!url) return;
+    recentStore.add({
+      id: btn.getAttribute('data-id') || '',
+      name: btn.getAttribute('data-name') || '',
+      url: url,
+      meta: btn.getAttribute('data-meta') || ''
+    });
+    navigateTo(url);
   }
 
   function navigateTo(url) {
@@ -1897,7 +2223,12 @@
     overlay.setAttribute('aria-hidden', 'false');
     if (openTrigger) openTrigger.setAttribute('aria-expanded', 'true');
 
+    input.value = '';
+    syncClearQueryVisibility();
+    renderSearchResults('');
+
     loadSearchIndex().then(function () {
+      if (overlay.getAttribute('data-open') !== 'true') return;
       renderSearchResults(input.value);
     });
 
@@ -1908,7 +2239,12 @@
     trapHandler = onTrapKey;
     document.addEventListener('keydown', trapHandler);
     resizeHandler = function () {
-      if (overlay.getAttribute('data-open') === 'true' && !isMobileViewport()) {
+      if (overlay.getAttribute('data-open') !== 'true') return;
+      if (isMobileViewport()) {
+        lockBackgroundScroll();
+        clearDesktopPopoverPosition();
+      } else {
+        unlockBackgroundScroll();
         positionDesktopPopover(openTrigger);
       }
     };
@@ -1918,17 +2254,23 @@
   function closePublicSearch() {
     var overlay = document.getElementById('pbj-public-search-overlay');
     var input = document.getElementById('pbj-public-search-input');
+    var trigger = openTrigger;
     if (!overlay) return;
     overlay.setAttribute('data-open', 'false');
     overlay.setAttribute('aria-hidden', 'true');
     unlockBackgroundScroll();
     clearDesktopPopoverPosition();
-    if (input) input.value = '';
+    if (input) {
+      input.value = '';
+      input.setAttribute('aria-activedescendant', '');
+    }
+    syncClearQueryVisibility();
     var resultsEl = document.getElementById('pbj-public-search-results');
     if (resultsEl) resultsEl.innerHTML = '';
-    if (openTrigger) {
-      openTrigger.setAttribute('aria-expanded', 'false');
-      openTrigger.focus();
+    announceStatus('');
+    if (trigger) {
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.focus();
     }
     openTrigger = null;
     activeResultIndex = -1;
@@ -1959,4 +2301,3 @@
     }
   }
 })();
-

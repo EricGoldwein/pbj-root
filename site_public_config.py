@@ -349,10 +349,13 @@ def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None =
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '55'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '65'
 
 # Bump when public-search.js changes (global header search overlay).
-PBJ_PUBLIC_SEARCH_JS_VERSION = '1'
+PBJ_PUBLIC_SEARCH_JS_VERSION = '4'
+
+# Bump when pbj-audience.js or pbj-audience.css changes.
+PBJ_AUDIENCE_JS_VERSION = '12'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 

@@ -285,7 +285,7 @@ def entity_takeaway_hprd_help_span_html(
     entity_name: str,
     weighted_hprd: float | None = None,
 ) -> str:
-    """Dotted-underline HPRD in entity takeaway — hover tooltip like high-risk help."""
+    """Emphasized HPRD in entity takeaway — native title tip (no in-flow tooltip wall)."""
     val = f"{narrative_hprd:.2f}"
     entity_esc = html.escape(entity_name or "this chain")
     if weighted_hprd is not None:
@@ -297,10 +297,8 @@ def entity_takeaway_hprd_help_span_html(
     else:
         tip = f"Average total nurse HPRD among {entity_esc} nursing homes."
     return (
-        f'<span class="pbj-high-risk-help-wrap">'
-        f'<span class="pbj-high-risk-help">{html.escape(val)}</span>'
-        f'<span class="pbj-high-risk-tooltip" role="tooltip">{html.escape(tip)}</span>'
-        f"</span>"
+        f'<strong class="pbj-high-risk-help" title="{html.escape(tip, quote=True)}">'
+        f"{html.escape(val)}</strong>"
     )
 
 

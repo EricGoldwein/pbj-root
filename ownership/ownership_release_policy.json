@@ -1,0 +1,37 @@
+{
+  "active_release_date": "2026-07-17",
+  "active_release_handoff": {
+    "staged_provenance_relative_path": "ownership/_handoff/staged_active_release.json",
+    "inbound_sources": [
+      {
+        "source_id": "cms_download",
+        "kind": "repo_relative",
+        "repo_role": "pbjapp_repo",
+        "relative_path": "ownership/SNF_All_Owners_2026.07.17.csv"
+      }
+    ]
+  },
+  "releases": {
+    "2026-04-01": {
+      "ownership_source_filename": "SNF_All_Owners_2026.04.01.csv",
+      "bridge_lookup_filename": "release_2026-04-01_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
+      "status": "historical_supported"
+    },
+    "2026-05-01": {
+      "ownership_source_filename": "SNF_All_Owners_May_2026.csv",
+      "ownership_source_sha256": "701d6484e5f0cb567de4fcbfb0279d2d5f319ff0fe0f745ad73fab02119db493",
+      "bridge_lookup_filename": "release_2026-05-01_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
+      "status": "historical_supported"
+    },
+    "2026-07-17": {
+      "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
+      "ownership_source_sha256": "b0f57a17e2d1eabe818ed574736ce9fe43345a9105768d54339abcaa5cd2a530",
+      "bridge_lookup_filename": "release_2026-07-17_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
+      "status": "active",
+      "notes": "Enrollment CCN bridge temporarily reused from 2026-05-01 until SNF_Enrollments_2026.07.17.csv is ingested"
+    }
+  }
+}

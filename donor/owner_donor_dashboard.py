@@ -234,7 +234,7 @@ def load_data():
                 owners_df = pd.read_parquet(owners_source)
             else:
                 owners_df = pd.read_csv(owners_source, dtype=str, low_memory=False)
-            print(f"✓ Loaded {len(owners_df)} owners from database (FAST)")
+            print(f"[OK] Loaded {len(owners_df)} owners from database (FAST)")
             if 'owner_type' in owners_df.columns:
                 individuals = len(owners_df[owners_df['owner_type'] == 'INDIVIDUAL'])
                 orgs = len(owners_df[owners_df['owner_type'] == 'ORGANIZATION'])
@@ -243,16 +243,16 @@ def load_data():
             
             # Warn if database seems incomplete (likely filtered)
             if len(owners_df) < 1000:
-                print(f"\n⚠ WARNING: Only {len(owners_df)} owners loaded. This database appears incomplete.")
+                print(f"\n[WARN] Only {len(owners_df)} owners loaded. This database appears incomplete.")
                 print("  It was likely created with a filter (e.g., FILTER_STATE=DE or FILTER_LIMIT).")
                 print("  To load ALL owners from the full 250k dataset, run:")
                 print("    python donor/owner_donor.py MODE=extract")
                 print("  (Make sure FILTER_STATE and FILTER_LIMIT are not set)")
         except Exception as e:
-            print(f"✗ Error loading owners database: {e}")
+            print(f"[ERR] Error loading owners database: {e}")
             owners_df = pd.DataFrame()
     else:
-        print(f"⚠ Owners database not found: {OWNERS_DB}")
+        print(f"[WARN] Owners database not found: {OWNERS_DB}")
         print("  Run 'python donor/owner_donor.py MODE=extract' to create it")
         owners_df = pd.DataFrame()
     
@@ -264,12 +264,12 @@ def load_data():
         try:
             print(f"Loading pre-processed donations database: {DONATIONS_DB}")
             donations_df = pd.read_csv(DONATIONS_DB, dtype=str, low_memory=False)
-            print(f"✓ Loaded {len(donations_df)} donation records (FAST - pre-processed)")
+            print(f"[OK] Loaded {len(donations_df)} donation records (FAST - pre-processed)")
         except Exception as e:
-            print(f"✗ Error loading donations: {e}")
+            print(f"[ERR] Error loading donations: {e}")
             donations_df = pd.DataFrame()
     else:
-        print(f"⚠ Donations database not found: {DONATIONS_DB}")
+        print(f"[WARN] Donations database not found: {DONATIONS_DB}")
         print("  (Optional) Run 'python donor/owner_donor.py MODE=query' to pre-process donations")
         print("  Or use 'Query FEC API (Live)' button to query on-demand")
         donations_df = pd.DataFrame()
@@ -278,9 +278,9 @@ def load_data():
     if OWNERSHIP_NORM.exists():
         try:
             ownership_df = pd.read_csv(OWNERSHIP_NORM, dtype=str, low_memory=False)
-            print(f"✓ Loaded {len(ownership_df)} ownership records for facility details")
+            print(f"[OK] Loaded {len(ownership_df)} ownership records for facility details")
         except Exception as e:
-            print(f"✗ Error loading ownership: {e}")
+            print(f"[ERR] Error loading ownership: {e}")
             ownership_df = pd.DataFrame()
     else:
         ownership_df = pd.DataFrame()
@@ -288,7 +288,7 @@ def load_data():
     # Warn if owners database seems incomplete
     if owners_df is not None and not owners_df.empty:
         if len(owners_df) < 1000:
-            print(f"\n⚠ WARNING: Only {len(owners_df)} owners loaded. This seems incomplete.")
+            print(f"\n[WARN] Only {len(owners_df)} owners loaded. This seems incomplete.")
             print("  The owners database was likely created with a filter (e.g., FILTER_STATE=DE or FILTER_LIMIT).")
             print("  To load all owners, run: python donor/owner_donor.py MODE=extract (without filters)")
     
@@ -322,14 +322,14 @@ def load_data():
             provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False, 
                                           usecols=usecols_list,  # type: ignore
                                           nrows=None)
-            print(f"✓ Loaded {len(provider_info_df)} provider records")
+            print(f"[OK] Loaded {len(provider_info_df)} provider records")
         except Exception as e:
-            print(f"✗ Error loading provider info (trying full load): {e}")
+            print(f"[ERR] Error loading provider info (trying full load): {e}")
             try:
                 provider_info_df = pd.read_csv(PROVIDER_INFO, dtype=str, low_memory=False)
-                print(f"✓ Loaded {len(provider_info_df)} provider records (full)")
+                print(f"[OK] Loaded {len(provider_info_df)} provider records (full)")
             except Exception as e2:
-                print(f"✗ Error loading provider info: {e2}")
+                print(f"[ERR] Error loading provider info: {e2}")
                 provider_info_df = pd.DataFrame()
     
     # Load latest provider info with Legal Business Name (for facility matching)
@@ -339,12 +339,12 @@ def load_data():
         try:
             print(f"Loading latest provider info with Legal Business Name: {provider_latest_path}")
             provider_info_latest_df = pd.read_csv(provider_latest_path, dtype=str, low_memory=False)
-            print(f"✓ Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
+            print(f"[OK] Loaded {len(provider_info_latest_df)} provider records (with Legal Business Name)")
         except Exception as e:
-            print(f"✗ Error loading latest provider info: {e}")
+            print(f"[ERR] Error loading latest provider info: {e}")
             provider_info_latest_df = pd.DataFrame()
     else:
-        print(f"⚠ Latest provider info not found: {provider_latest_path}")
+        print(f"[WARN] Latest provider info not found: {provider_latest_path}")
         provider_info_latest_df = pd.DataFrame()
     
     # Load pre-computed facility name mapping (if exists - speeds up matching)
@@ -353,12 +353,12 @@ def load_data():
         try:
             print(f"Loading facility name mapping: {FACILITY_NAME_MAPPING}")
             facility_name_mapping_df = pd.read_csv(FACILITY_NAME_MAPPING, dtype=str, low_memory=False)
-            print(f"✓ Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
+            print(f"[OK] Loaded {len(facility_name_mapping_df)} facility name mappings (FAST)")
         except Exception as e:
-            print(f"✗ Error loading facility name mapping: {e}")
+            print(f"[ERR] Error loading facility name mapping: {e}")
             facility_name_mapping_df = pd.DataFrame()
     else:
-        print(f"⚠ Facility name mapping not found: {FACILITY_NAME_MAPPING}")
+        print(f"[WARN] Facility name mapping not found: {FACILITY_NAME_MAPPING}")
         print("  Run 'python donor/create_facility_name_mapping.py' to create it (speeds up matching)")
         facility_name_mapping_df = pd.DataFrame()
     
@@ -480,10 +480,11 @@ def autocomplete():
             })
         return jsonify({'suggestions': suggestions})
     except Exception as e:
-        print(f"Error in autocomplete: {e}")
+        # Soft-fail: never 500 autocomplete when optional donations enrichment/data is missing.
+        print(f"[WARN] Error in autocomplete (returning empty): {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'suggestions': []})
 
 
 @app.route('/api/search')

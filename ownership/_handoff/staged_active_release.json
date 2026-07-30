@@ -1,0 +1,9 @@
+{
+  "action": "staged",
+  "handoff_source_path": "C:\\Users\\egold\\PycharmProjects\\pbj-root\\ownership\\SNF_All_Owners_2026.07.17.csv",
+  "ownership_release_date": "2026-07-17",
+  "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
+  "ownership_source_sha256": "b0f57a17e2d1eabe818ed574736ce9fe43345a9105768d54339abcaa5cd2a530",
+  "staged_at_utc": "2026-07-29T15:22:00+00:00",
+  "staged_path": "C:\\Users\\egold\\PycharmProjects\\pbj-root\\ownership\\SNF_All_Owners_2026.07.17.csv"
+}

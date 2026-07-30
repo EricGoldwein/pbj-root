@@ -13,6 +13,13 @@ import type {
 
 const DEV = typeof import.meta !== 'undefined' && import.meta.env?.DEV;
 
+/** Parse optional numeric CSV/JSON fields; missing/invalid stay undefined (never coerce to 0). */
+function parseOptionalNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = typeof value === 'number' ? value : parseFloat(String(value));
+  return Number.isFinite(n) ? n : undefined;
+}
+
 /** Get origin for API calls (same origin in browser) */
 function getApiBase(): string {
   if (typeof window !== 'undefined' && window.location?.origin) return window.location.origin;
@@ -172,15 +179,15 @@ export function _parseStateRow(row: any): StateQuarterlyRow {
     Total_RN_Care_Hours: parseFloat(row.Total_RN_Care_Hours) || 0,
     Total_Nurse_Assistant_Hours: parseFloat(row.Total_Nurse_Assistant_Hours) || 0,
     Total_Contract_Hours: parseFloat(row.Total_Contract_Hours) || 0,
-    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-    RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-    RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-    Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-    Direct_Care_Percentage: parseFloat(row.Direct_Care_Percentage) || 0,
-    Total_RN_Percentage: parseFloat(row.Total_RN_Percentage) || 0,
-    Nurse_Aide_Percentage: parseFloat(row.Nurse_Aide_Percentage) || 0,
+    Total_Nurse_HPRD: parseOptionalNumber(row.Total_Nurse_HPRD) as number,
+    RN_HPRD: parseOptionalNumber(row.RN_HPRD) as number,
+    Nurse_Care_HPRD: parseOptionalNumber(row.Nurse_Care_HPRD) as number,
+    RN_Care_HPRD: parseOptionalNumber(row.RN_Care_HPRD) as number,
+    Nurse_Assistant_HPRD: parseOptionalNumber(row.Nurse_Assistant_HPRD) as number,
+    Contract_Percentage: parseOptionalNumber(row.Contract_Percentage) as number,
+    Direct_Care_Percentage: parseOptionalNumber(row.Direct_Care_Percentage) as number,
+    Total_RN_Percentage: parseOptionalNumber(row.Total_RN_Percentage) as number,
+    Nurse_Aide_Percentage: parseOptionalNumber(row.Nurse_Aide_Percentage) as number,
   };
 }
 
@@ -199,15 +206,15 @@ export function _parseRegionRow(row: any): RegionQuarterlyRow {
     Total_RN_Care_Hours: parseFloat(row.Total_RN_Care_Hours) || 0,
     Total_Nurse_Assistant_Hours: parseFloat(row.Total_Nurse_Assistant_Hours) || 0,
     Total_Contract_Hours: parseFloat(row.Total_Contract_Hours) || 0,
-    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-    RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-    RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-    Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
-    Direct_Care_Percentage: parseFloat(row.Direct_Care_Percentage) || 0,
-    Total_RN_Percentage: parseFloat(row.Total_RN_Percentage) || 0,
-    Nurse_Aide_Percentage: parseFloat(row.Nurse_Aide_Percentage) || 0,
+    Total_Nurse_HPRD: parseOptionalNumber(row.Total_Nurse_HPRD) as number,
+    RN_HPRD: parseOptionalNumber(row.RN_HPRD) as number,
+    Nurse_Care_HPRD: parseOptionalNumber(row.Nurse_Care_HPRD) as number,
+    RN_Care_HPRD: parseOptionalNumber(row.RN_Care_HPRD) as number,
+    Nurse_Assistant_HPRD: parseOptionalNumber(row.Nurse_Assistant_HPRD) as number,
+    Contract_Percentage: parseOptionalNumber(row.Contract_Percentage) as number,
+    Direct_Care_Percentage: parseOptionalNumber(row.Direct_Care_Percentage) as number,
+    Total_RN_Percentage: parseOptionalNumber(row.Total_RN_Percentage) as number,
+    Nurse_Aide_Percentage: parseOptionalNumber(row.Nurse_Aide_Percentage) as number,
   };
 }
 
@@ -225,25 +232,26 @@ export function _parseNationalRow(row: any): NationalQuarterlyRow {
     Total_RN_Care_Hours: parseFloat(row.Total_RN_Care_Hours) || 0,
     Total_Nurse_Assistant_Hours: parseFloat(row.Total_Nurse_Assistant_Hours) || 0,
     Total_Contract_Hours: parseFloat(row.Total_Contract_Hours) || 0,
-    Total_Nurse_HPRD: parseFloat(row.Total_Nurse_HPRD) || 0,
-    RN_HPRD: parseFloat(row.RN_HPRD) || 0,
-    Nurse_Care_HPRD: parseFloat(row.Nurse_Care_HPRD) || 0,
-    RN_Care_HPRD: parseFloat(row.RN_Care_HPRD) || 0,
-    Nurse_Assistant_HPRD: parseFloat(row.Nurse_Assistant_HPRD) || 0,
-    Contract_Percentage: parseFloat(row.Contract_Percentage) || 0,
+    Total_Nurse_HPRD: parseOptionalNumber(row.Total_Nurse_HPRD) as number,
+    RN_HPRD: parseOptionalNumber(row.RN_HPRD) as number,
+    Nurse_Care_HPRD: parseOptionalNumber(row.Nurse_Care_HPRD) as number,
+    RN_Care_HPRD: parseOptionalNumber(row.RN_Care_HPRD) as number,
+    Nurse_Assistant_HPRD: parseOptionalNumber(row.Nurse_Assistant_HPRD) as number,
+    Contract_Percentage: parseOptionalNumber(row.Contract_Percentage) as number,
   };
 }
 
 export function _parseFacilityRow(row: any): FacilityLiteRow {
-  // Parse numeric fields - handle both facility_quarterly_metrics and legacy facility_lite column names
-  const totalHPRD = parseFloat(String(row.Total_Nurse_HPRD || row['Total_Nurse_HPRD'] || 0)) || 0;
-  const directCareHPRD = parseFloat(String(row.Nurse_Care_HPRD || row['Nurse_Care_HPRD'] || 0)) || 0;
-  const rnHPRD = parseFloat(String(row.Total_RN_HPRD || row['Total_RN_HPRD'] || row.RN_HPRD || row['RN_HPRD'] || 0)) || 0;
-  
-  // Log potential misalignment during parsing (only for specific problematic CCNs for debugging)
+  // Missing HPRD/census must stay undefined — never coerce to 0.
+  const totalHPRD = parseOptionalNumber(row.Total_Nurse_HPRD ?? row['Total_Nurse_HPRD']);
+  const directCareHPRD = parseOptionalNumber(row.Nurse_Care_HPRD ?? row['Nurse_Care_HPRD']);
+  const rnHPRD = parseOptionalNumber(
+    row.Total_RN_HPRD ?? row['Total_RN_HPRD'] ?? row.RN_HPRD ?? row['RN_HPRD']
+  );
+
   const provNum = String(row.PROVNUM || row['PROVNUM'] || '').trim();
   if (provNum && ['265379', '675595', '195454', '205077', '355031', '305051'].includes(provNum)) {
-    if (totalHPRD === 0 && (directCareHPRD > 0.5 || rnHPRD > 0.5)) {
+    if (totalHPRD === undefined && ((directCareHPRD ?? 0) > 0.5 || (rnHPRD ?? 0) > 0.5)) {
       console.warn(`[Parse Warning] CCN=${provNum} may have shifted columns during CSV parsing:`, {
         Total_Nurse_HPRD: row.Total_Nurse_HPRD,
         Nurse_Care_HPRD: row.Nurse_Care_HPRD,
@@ -252,15 +260,19 @@ export function _parseFacilityRow(row: any): FacilityLiteRow {
       });
     }
   }
-  
+
   return {
     ...row,
-    Total_Nurse_HPRD: totalHPRD,
-    Nurse_Care_HPRD: directCareHPRD,
-    Total_RN_HPRD: rnHPRD,
-    Direct_Care_RN_HPRD: parseFloat(String(row.Direct_Care_RN_HPRD || row['Direct_Care_RN_HPRD'] || row.RN_Care_HPRD || row['RN_Care_HPRD'] || 0)) || 0,
-    Contract_Percentage: parseFloat(String(row.Contract_Percentage || row['Contract_Percentage'] || 0)) || 0,
-    Census: parseFloat(String(row.Census || row['Census'] || row.avg_daily_census || row['avg_daily_census'] || 0)) || 0,
+    Total_Nurse_HPRD: totalHPRD as number,
+    Nurse_Care_HPRD: directCareHPRD as number,
+    Total_RN_HPRD: rnHPRD as number,
+    Direct_Care_RN_HPRD: parseOptionalNumber(
+      row.Direct_Care_RN_HPRD ?? row['Direct_Care_RN_HPRD'] ?? row.RN_Care_HPRD ?? row['RN_Care_HPRD']
+    ) as number,
+    Contract_Percentage: parseOptionalNumber(row.Contract_Percentage ?? row['Contract_Percentage']) as number,
+    Census: parseOptionalNumber(
+      row.Census ?? row['Census'] ?? row.avg_daily_census ?? row['avg_daily_census']
+    ) as number,
   };
 }
 

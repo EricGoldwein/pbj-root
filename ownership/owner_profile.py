@@ -162,13 +162,29 @@ def _sqlite_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     return {str(k): row[k] for k in row.keys()}
 
 
+def _sqlite_pac_lookup_values(pac: str) -> tuple[str, ...]:
+    """Match normalized 10-digit PACs against raw CMS CSV values (often missing a leading 0)."""
+    pac = normalize_associate_id(pac)
+    if len(pac) != 10:
+        return ()
+    vals = {pac}
+    stripped = pac.lstrip("0") or "0"
+    if stripped != pac:
+        vals.add(stripped)
+    return tuple(vals)
+
+
 def _sqlite_pac_in_column(pac: str, column: str) -> bool:
     conn = _sqlite_conn()
     if not conn:
         return False
+    variants = _sqlite_pac_lookup_values(pac)
+    if not variants:
+        return False
+    placeholders = ", ".join("?" for _ in variants)
     row = conn.execute(
-        f'SELECT 1 FROM "{_OWNERS_TABLE}" WHERE "{column}" = ? LIMIT 1',
-        (pac,),
+        f'SELECT 1 FROM "{_OWNERS_TABLE}" WHERE "{column}" IN ({placeholders}) LIMIT 1',
+        variants,
     ).fetchone()
     return row is not None
 
@@ -479,18 +495,22 @@ def _fetch_rows_for_pac(pac: str) -> tuple[tuple[dict[str, Any], ...], tuple[dic
     conn = _sqlite_conn()
     if conn:
         try:
+            variants = _sqlite_pac_lookup_values(pac)
+            if not variants:
+                return (), ()
+            placeholders = ", ".join("?" for _ in variants)
             enrollment_rows = [
                 _sqlite_row_to_dict(r)
                 for r in conn.execute(
-                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" = ?',
-                    (pac,),
+                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" IN ({placeholders})',
+                    variants,
                 )
             ]
             owner_rows = [
                 _sqlite_row_to_dict(r)
                 for r in conn.execute(
-                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{OWNER_PAC_COL}" = ?',
-                    (pac,),
+                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{OWNER_PAC_COL}" IN ({placeholders})',
+                    variants,
                 )
             ]
             return tuple(enrollment_rows), tuple(owner_rows)

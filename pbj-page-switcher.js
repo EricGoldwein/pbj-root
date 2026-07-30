@@ -1,12 +1,11 @@
 /**
- * Desktop inline entity/state switcher on /entity and /state pages.
+ * Inline entity/state switcher on /entity and /state pages (desktop and mobile).
  * Rows: title on line 1; meta on line 2 (entity NH count, or state HPRD + NH count).
  */
 (function () {
   'use strict';
 
-  var INDEX_KEY = 'pbj-page-switcher-index-v4';
-  var DESKTOP_MIN = 769;
+  var INDEX_KEY = 'pbj-page-switcher-index-v5';
   var SMALL_WORDS = /^(of|at|and|the|for|in|or|on|to|a|an)$/i;
 
   function escapeHtml(s) {
@@ -333,9 +332,6 @@
   }
 
   function init() {
-    if (window.matchMedia('(max-width: ' + (DESKTOP_MIN - 1) + 'px)').matches) {
-      return;
-    }
     var roots = document.querySelectorAll('.pbj-page-header-switcher[data-mode]');
     if (!roots.length) return;
     loadIndex().then(function (index) {

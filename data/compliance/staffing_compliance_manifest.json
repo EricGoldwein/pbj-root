@@ -2,7 +2,7 @@
   "bundle_schema_version": 1,
   "summary_schema_version": 1,
   "config_schema_version": 2,
-  "built_at": "2026-05-29T01:50:30Z",
+  "built_at": "2026-07-29T16:16:38Z",
   "config_path": "staffing_compliance_thresholds.json",
   "states_with_thresholds": [
     "CT",
@@ -16,17 +16,19 @@
     "CY2025Q1",
     "CY2025Q2",
     "CY2025Q3",
-    "CY2025Q4"
+    "CY2025Q4",
+    "CY2026Q1"
   ],
   "quarters_in_bundle": [
     "CY2025Q1",
     "CY2025Q2",
     "CY2025Q3",
-    "CY2025Q4"
+    "CY2025Q4",
+    "CY2026Q1"
   ],
-  "row_count": 57937,
-  "facility_count": 14685,
-  "flagged_day_rows": 188639,
+  "row_count": 72424,
+  "facility_count": 14698,
+  "flagged_day_rows": 234282,
   "summary_columns": [
     "ccn",
     "facility_name",
@@ -68,7 +70,7 @@
     "state_filter": "",
     "summary_csv": {
       "path": "staffing_compliance_summary.csv",
-      "mtime": 1780019449.9430342
+      "mtime": 1785341801.448596
     }
   }
 }

@@ -1139,6 +1139,18 @@
       outline: none;
       border-color: var(--pbj-accent);
       box-shadow: 0 0 0 3px var(--pbj-accent-soft);
+      background: var(--pbj-field);
+      color: #f8fafc;
+    }
+    .hero-email-cta input[type="email"]:-webkit-autofill,
+    .hero-email-cta input[type="email"]:-webkit-autofill:hover,
+    .hero-email-cta input[type="email"]:-webkit-autofill:focus,
+    .hero-email-cta input[type="email"]:-webkit-autofill:active {
+      -webkit-text-fill-color: #f8fafc;
+      -webkit-box-shadow: 0 0 0 1000px var(--pbj-field) inset;
+      box-shadow: 0 0 0 1000px var(--pbj-field) inset;
+      caret-color: #f8fafc;
+      transition: background-color 5000s ease-in-out 0s;
     }
     .hero-email-cta button.hero-subscribe-submit {
       padding: 10px 14px;
@@ -1171,39 +1183,6 @@
       outline: 2px solid #818cf8;
       outline-offset: 2px;
     }
-    .hero-email-cta-privacy {
-      font-size: 0.6rem;
-      color: rgba(226, 232, 240, 0.5);
-      margin: 4px 0 0 0;
-      line-height: 1.35;
-      width: 100%;
-      max-width: min(42rem, 100%);
-    }
-    .hero-email-cta-success {
-      font-size: 0.75rem;
-      color: rgba(148, 163, 184, 0.88);
-      margin: 0;
-      font-weight: 400;
-      padding: 4px 0;
-      background: transparent;
-      border: none;
-    }
-    .hero-email-cta.is-success {
-      border: none;
-      background: transparent;
-      padding: 0;
-      max-width: none;
-    }
-    .hero-email-cta.is-success .hero-email-cta-success {
-      margin: 0;
-    }
-    .hero-email-cta-error {
-      font-size: 0.75rem;
-      color: rgba(248, 113, 113, 0.95);
-      margin: 2px 0 0 0;
-      width: 100%;
-      max-width: min(42rem, 100%);
-    }
     @media (max-width: 768px) {
       .hero-email-cta input[type="email"] {
         font-size: 1rem;
@@ -1216,7 +1195,7 @@
     .home-subscribe-band {
       max-width: 820px;
       margin: 0 auto;
-      padding: clamp(28px, 5vw, 40px) clamp(16px, 4vw, 24px) clamp(20px, 4vw, 32px);
+      padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 24px) clamp(16px, 3vw, 24px);
       text-align: center;
       box-sizing: border-box;
       scroll-margin-top: 5rem;
@@ -1228,6 +1207,18 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: rgba(226, 232, 240, 0.55);
+      line-height: 1.35;
+    }
+    .home-subscribe-band-title__short {
+      display: none;
+    }
+    @media (max-width: 639px) {
+      .home-subscribe-band-title__full {
+        display: none;
+      }
+      .home-subscribe-band-title__short {
+        display: inline;
+      }
     }
     .home-subscribe-band .hero-email-cta {
       margin: 0 auto;
@@ -2350,18 +2341,12 @@
 
   </main>
 
-  <section class="home-subscribe-band" id="updates" aria-label="Email updates">
-    <h2 class="home-subscribe-band-title">Get staffing data updates</h2>
-    <div class="hero-email-cta" aria-label="Subscribe to email updates">
-      <form action="/subscribe" method="POST" aria-label="Subscribe for staffing data email updates" id="hero-subscribe-form">
-        <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
-        <label for="hero-email-input" class="sr-only">Email address</label>
-        <input type="email" id="hero-email-input" name="email" placeholder="Enter your email" required autocomplete="email">
-        <button type="submit" class="hero-subscribe-submit" aria-label="Subscribe for staffing data updates">Subscribe</button>
-      </form>
-      <p class="hero-email-cta-success" id="hero-subscribe-success" role="status" aria-live="polite" hidden>You're subscribed.</p>
-      <p class="hero-email-cta-error" id="hero-subscribe-error" role="alert" aria-live="polite" hidden></p>
-    </div>
+  <section class="home-subscribe-band" id="updates" aria-label="PBJ320 updates and insights">
+    <h2 id="pbj-home-subscribe-title" class="home-subscribe-band-title">
+      <span class="home-subscribe-band-title__full">Get PBJ320 Staffing Data Updates</span>
+      <span class="home-subscribe-band-title__short">Get PBJ320 Updates</span>
+    </h2>
+    <div id="pbj-audience-home"></div>
   </section>
 
   <div class="hero-premium-cta hero-premium-cta--after-subscribe">
@@ -2423,63 +2408,19 @@
     })();
   </script>
   <script>
-    // Subscribe success/error from URL params (after POST /subscribe redirect)
+    // Deep-link scroll to homepage subscribe band (#updates)
     (function() {
+      if (window.location.hash !== '#updates') return;
       function scrollToUpdates() {
         var el = document.getElementById('updates');
-        if (!el) return;
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-      if (window.location.hash === '#updates') {
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', scrollToUpdates);
-        } else {
-          scrollToUpdates();
-        }
-        window.addEventListener('load', scrollToUpdates);
-      }
-      var params = new URLSearchParams(window.location.search);
-      var successEl = document.getElementById('hero-subscribe-success');
-      var errorEl = document.getElementById('hero-subscribe-error');
-      var formEl = document.getElementById('hero-subscribe-form');
-      if (formEl) {
-        formEl.addEventListener('submit', function() {
-          var btn = formEl.querySelector('button[type="submit"]');
-          if (btn && !btn.disabled) {
-            btn.disabled = true;
-            btn.setAttribute('aria-busy', 'true');
-            btn.textContent = 'Subscribing…';
-          }
-        });
-      }
-      var sub = params.get('subscribed');
-      if ((sub === '1' || sub === 'already') && successEl) {
-        successEl.textContent = sub === 'already'
-          ? 'That email is already on the staffing updates list.'
-          : "You're subscribed. We'll email you when we publish staffing updates.";
-        successEl.hidden = false;
-        if (formEl) formEl.style.display = 'none';
-        var privacy = document.querySelector('.hero-email-cta-privacy');
-        if (privacy) privacy.style.display = 'none';
-        var cta = document.querySelector('.hero-email-cta');
-        if (cta) cta.classList.add('is-success');
-      }
-      var err = params.get('subscribe_error');
-      if (err && errorEl) {
-        errorEl.hidden = false;
-        if (err === 'invalid') {
-          errorEl.textContent = 'Please enter a valid email address.';
-        } else if (err === 'csrf') {
-          errorEl.textContent = 'Your session expired. Refresh this page and try again.';
-        } else if (err === 'duplicate') {
-          errorEl.textContent = 'That email is already on the staffing updates list.';
-        } else {
-          errorEl.textContent = 'Something went wrong. Try again later.';
-        }
-      }
-      if ((sub === '1' || sub === 'already') || params.get('subscribe_error')) {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', scrollToUpdates);
+      } else {
         scrollToUpdates();
       }
+      window.addEventListener('load', scrollToUpdates);
     })();
   </script>
   <script>

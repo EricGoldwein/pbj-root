@@ -2960,9 +2960,17 @@
     }
 
     .tooltip .report-tooltip-spark {
+      display: inline-flex;
+      vertical-align: middle;
+      margin-left: 0.35rem;
+      margin-top: 0;
+    }
+    .tooltip .report-tooltip-metric-row {
       display: flex;
-      justify-content: center;
-      margin-top: 4px;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.15rem 0.35rem;
+      line-height: 1.25;
     }
     }
 
@@ -6964,7 +6972,12 @@ __REPORT_SSR_TABLE_ROWS__
       if (window.innerWidth <= 768) return '';
       const ok = reportTrendSeriesOk(series);
       if (!ok) return '';
-      return `<div class="report-tooltip-spark">${reportTrendSparkSvg(ok)}</div>`;
+      return `<span class="report-tooltip-spark">${reportTrendSparkSvg(ok)}</span>`;
+    }
+
+    function reportMapExploreHint(stateName) {
+      const name = String(stateName || '').trim() || 'state';
+      return `View ${name} staffing page`;
     }
 
     function mapTooltipTrendSeries(stateName, metric) {
@@ -7895,10 +7908,9 @@ __REPORT_SSR_TABLE_ROWS__
               
               tooltip.html(`
                 <strong>${stateName}</strong><br/>
-                ${metricLabel}: ${formattedValue} (Rank: ${rank})<br/>
-                ${mapTrendHtmlEarly}
+                <span class="report-tooltip-metric-row">${metricLabel}: ${formattedValue}${mapTrendHtmlEarly}<span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank})</span></span><br/>
                 <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-                <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
+                <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
               `)
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 28) + 'px');
@@ -8001,7 +8013,7 @@ __REPORT_SSR_TABLE_ROWS__
               <div style="font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; white-space: nowrap;">
                 <strong style="font-size: 0.75rem; line-height: 1; margin: 0; padding: 0; display: block; color: #93c5fd;">${stateName}</strong>
                 <span style="line-height: 1; margin: 0; padding: 0; display: block; color: rgba(255, 255, 255, 0.85);">${metricLabel}: ${formattedValue} <span style="font-size: 0.6rem; color: rgba(255, 255, 255, 0.6);">(${rank} of ${totalStates})</span></span>
-                <a href="/state/${getStateSlug(stateName)}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; display: block; margin-top: 2px;">View PBJ Dashboard</a>
+                <a href="/state/${getStateSlug(stateName)}" style="color: #60a5fa; text-decoration: underline; font-size: 0.7rem; line-height: 1; margin: 0; padding: 0; display: block; margin-top: 2px;">${reportMapExploreHint(stateName)}</a>
               </div>
             `)
               .style('left', leftPos + 'px')
@@ -8340,9 +8352,9 @@ __REPORT_SSR_TABLE_ROWS__
             // Case-mix removed from desktop hover tooltips
             tooltipContent = `
               <strong>${stateName}</strong><br/>
-              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
+              <span class="report-tooltip-metric-row">${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span></span><br/>
               <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
+              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
             `;
           } else {
             // When showing reported value, primary is the reported value
@@ -8365,10 +8377,9 @@ __REPORT_SSR_TABLE_ROWS__
             const mapTrendHtml = reportTooltipTrendHtml(mapTooltipTrendSeries(stateName, currentMetric));
             tooltipContent = `
               <strong>${stateName}</strong><br/>
-              ${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span><br/>
-              ${mapTrendHtml}
+              <span class="report-tooltip-metric-row">${primaryLabel}${modeSuffix}: ${primaryValue}${mapTrendHtml}<span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span></span><br/>
               <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">Click to Explore ${stateName}'s PBJ Dashboard</em>
+              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
             `;
           }
           

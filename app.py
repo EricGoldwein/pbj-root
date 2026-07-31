@@ -5556,28 +5556,83 @@ def _breadcrumb_list_json_ld(items: list, *, page_url: str = '') -> str:
     return _json_ld_script({'@context': 'https://schema.org', '@type': 'BreadcrumbList', 'itemListElement': elements})
 
 
+_STATE_JSON_LD_FACILITY_LIST_CACHE: dict[tuple[str, str, int], list] = {}
+_STATE_JSON_LD_FACILITY_LIST_CACHE_AT = 0.0
+_STATE_JSON_LD_FACILITY_LIST_TTL = 900.0
+
+
 def _state_facility_list_for_json_ld(state_code: str, quarter: str, limit: int = 10) -> list:
-    if not HAS_PANDAS or not state_code or not quarter:
+    """Top facilities by HPRD for state JSON-LD — must not load the full facility CSV into memory."""
+    global _STATE_JSON_LD_FACILITY_LIST_CACHE, _STATE_JSON_LD_FACILITY_LIST_CACHE_AT
+    import heapq
+
+    if not state_code or not quarter:
         return []
-    fq = load_csv_data('facility_quarterly_metrics.csv')
-    if fq is None or not isinstance(fq, pd.DataFrame) or fq.empty:
+    st = str(state_code).strip().upper()[:2]
+    q = str(quarter).strip()
+    lim = max(1, min(int(limit or 10), 25))
+    cache_key = (st, q, lim)
+    now = time.time()
+    if (
+        (now - _STATE_JSON_LD_FACILITY_LIST_CACHE_AT) < _STATE_JSON_LD_FACILITY_LIST_TTL
+        and cache_key in _STATE_JSON_LD_FACILITY_LIST_CACHE
+    ):
+        return list(_STATE_JSON_LD_FACILITY_LIST_CACHE[cache_key])
+
+    path = _facility_quarterly_csv_path()
+    if not path or not os.path.isfile(path):
         return []
-    sub = fq[
-        (fq['CY_Qtr'].astype(str) == str(quarter))
-        & (fq['STATE'].astype(str).str.strip().str.upper() == str(state_code).strip().upper())
-    ]
-    if sub.empty:
+    pdm = get_pd()
+    if pdm is None:
         return []
-    sub = sub.sort_values('Total_Nurse_HPRD', ascending=False).head(limit)
-    base = _public_site_origin()
-    out = []
-    for _, row in sub.iterrows():
-        ccn = normalize_ccn(row.get('PROVNUM') or '')
-        if not ccn:
-            continue
-        name = (str(row.get('PROVNAME') or '')).strip() or f'Provider {ccn}'
-        out.append((name, f'{base}/provider/{ccn}'))
-    return out
+
+    # Min-heap of (hprd, ccn, name) — keep only top `lim` while streaming.
+    heap: list[tuple[float, str, str]] = []
+    try:
+        usecols = ['STATE', 'PROVNUM', 'CY_Qtr', 'Total_Nurse_HPRD']
+        try:
+            head = pdm.read_csv(path, nrows=0)
+            if 'PROVNAME' in list(head.columns):
+                usecols.append('PROVNAME')
+        except Exception:
+            pass
+        for chunk in pdm.read_csv(path, usecols=usecols, low_memory=False, chunksize=200000):
+            if chunk.empty:
+                continue
+            chunk = chunk[
+                (chunk['CY_Qtr'].astype(str).str.strip() == q)
+                & (chunk['STATE'].astype(str).str.strip().str.upper().str[:2] == st)
+            ]
+            if chunk.empty:
+                continue
+            for row in chunk.itertuples(index=False):
+                try:
+                    hprd = float(getattr(row, 'Total_Nurse_HPRD'))
+                except (TypeError, ValueError):
+                    continue
+                if hprd != hprd:  # NaN
+                    continue
+                ccn = normalize_ccn(getattr(row, 'PROVNUM', '') or '')
+                if not ccn:
+                    continue
+                name = str(getattr(row, 'PROVNAME', '') or '').strip() or f'Provider {ccn}'
+                item = (hprd, ccn, name)
+                if len(heap) < lim:
+                    heapq.heappush(heap, item)
+                elif hprd > heap[0][0]:
+                    heapq.heapreplace(heap, item)
+        if not heap:
+            return []
+        ranked = sorted(heap, key=lambda t: t[0], reverse=True)
+        base = _public_site_origin()
+        out = [(name, f'{base}/provider/{ccn}') for _h, ccn, name in ranked]
+    except Exception as e:
+        print(f'[state_page] json-ld facility list failed for {st}/{q}: {e}', flush=True)
+        return []
+
+    _STATE_JSON_LD_FACILITY_LIST_CACHE[cache_key] = list(out)
+    _STATE_JSON_LD_FACILITY_LIST_CACHE_AT = now
+    return list(out)
 
 
 def _provider_json_ld_facility_flags(
@@ -20444,13 +20499,13 @@ def _ensure_state_facility_counts_for_quarter(raw_quarter: str) -> dict[str, int
         mtime = 0
     build_key = (path, mtime)
     now = time.time()
-    if (
-        isinstance(_STATE_FACILITY_COUNTS_BY_QUARTER, dict)
-        and _STATE_FACILITY_COUNTS_BUILD_KEY == build_key
-        and q in _STATE_FACILITY_COUNTS_BY_QUARTER
-        and (now - _STATE_FACILITY_COUNTS_AT) < _STATE_FACILITY_COUNTS_TTL
-    ):
-        return _STATE_FACILITY_COUNTS_BY_QUARTER.get(q) or {}
+    # Prefer deploy-hydrated / in-process counts. Do not rescan ~180MB CSV just because
+    # source mtime drifted from the bundle fingerprint (common on local + Render copies).
+    if isinstance(_STATE_FACILITY_COUNTS_BY_QUARTER, dict) and q in _STATE_FACILITY_COUNTS_BY_QUARTER:
+        fresh = (now - _STATE_FACILITY_COUNTS_AT) < _STATE_FACILITY_COUNTS_TTL
+        same_source = _STATE_FACILITY_COUNTS_BUILD_KEY == build_key
+        if fresh or same_source or _STATE_PAGE_AGGREGATES_HYDRATE_OK:
+            return _STATE_FACILITY_COUNTS_BY_QUARTER.get(q) or {}
     pdm = get_pd()
     if pdm is None:
         return {}
@@ -20464,11 +20519,14 @@ def _ensure_state_facility_counts_for_quarter(raw_quarter: str) -> dict[str, int
             chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == q]
             if chunk.empty:
                 continue
-            for _, row in chunk.iterrows():
-                st = str(row.get('STATE') or '').strip().upper()[:2]
-                prov = str(row.get('PROVNUM') or '').strip().replace('.0', '').zfill(6)
-                if len(st) != 2 or len(prov) != 6:
-                    continue
+            st_s = chunk['STATE'].astype(str).str.strip().str.upper().str[:2]
+            prov_s = (
+                chunk['PROVNUM'].astype(str).str.strip().str.replace(r'\.0$', '', regex=True).str.zfill(6)
+            )
+            ok = (st_s.str.len() == 2) & (prov_s.str.len() == 6)
+            if not bool(ok.any()):
+                continue
+            for st, prov in zip(st_s[ok].tolist(), prov_s[ok].tolist()):
                 by_state.setdefault(st, set()).add(prov)
     except Exception as e:
         print(f"Error streaming state facility counts from {path}: {e}")
@@ -22849,13 +22907,20 @@ def generate_state_page_html(state_name, state_code, state_data, macpac_standard
             state_code, _macpac_info, uid='state'
         )
 
-    # Get basics: prefer facility count from facility_quarterly for this same quarter; fall back to state_quarterly (same quarter). Never show 0 when both missing; no synthetic data.
-    _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
+    # Facility count: prefer hydrated/facility_quarterly cache, then state_quarterly row.
+    # Never trigger a cold full-CSV scan when state_quarterly already has facility_count.
     _fallback = get_val('facility_count', None)
     try:
         _fallback_num = None if _fallback is None or _fallback == '' or str(_fallback).strip() == '' else int(float(_fallback))
     except (TypeError, ValueError):
         _fallback_num = None
+    _fcount = None
+    _counts_ready = (
+        isinstance(_STATE_FACILITY_COUNTS_BY_QUARTER, dict)
+        and str(raw_quarter or '').strip() in (_STATE_FACILITY_COUNTS_BY_QUARTER or {})
+    )
+    if _counts_ready or _fallback_num is None:
+        _fcount = get_state_facility_count_from_facility_quarterly(state_code, raw_quarter)
     if _fcount is not None:
         facility_count = int(_fcount)
         facility_count_display = f"{facility_count:,}"
@@ -25331,10 +25396,12 @@ def pbjpedia_state_page(state_identifier):
 def generate_state_page(state_code):
     """Generate state page with all data - used by both canonical and legacy routes"""
     _log_mem("generate_state_page_start")
+    _t_page = time.perf_counter()
     if not HAS_PANDAS:
         return "Pandas not available. Dynamic state pages require pandas.", 503
 
     _hydrate_state_page_aggregates_from_disk()
+    _t_after_hydrate = time.perf_counter()
 
     state_name = STATE_CODE_TO_NAME.get(state_code, state_code)
     
@@ -25393,6 +25460,7 @@ def generate_state_page(state_code):
     state_sff = [f for f in sff_facilities if f.get('state', '').upper() == state_code]
 
     state_high_risk_buckets = _high_risk_buckets_for_state_page(state_code, latest_quarter)
+    _t_after_hr = time.perf_counter()
     
     # Rankings use same canonical quarter; exclude PR (51 = 50 states + DC)
     _rank_df = state_df[state_df['STATE'].astype(str).str.strip().str.upper().isin(STATES_FOR_RANKING)]
@@ -25424,17 +25492,20 @@ def generate_state_page(state_code):
     contact_info = state_contacts.get(state_code, None)
     
     # Generate state page content (state has its own page; PBJpedia is separate)
+    _t_before_html = time.perf_counter()
     content, page_title, seo_description, canonical_url = generate_state_page_html(
         state_name, state_code, latest_data, macpac_standard, region_info,
         formatted_quarter, state_rank_total, state_rank_rn, total_states,
         state_sff, latest_quarter, contact_info, high_risk_buckets=state_high_risk_buckets,
         state_rankings_df=latest_all_states,
     )
+    _t_after_html = time.perf_counter()
     try:
         from pbj_format import format_metric_value as _fmt_metric
         state_hprd_display = _fmt_metric(latest_data.get('Total_Nurse_HPRD'), 'Total_Nurse_HPRD')
     except Exception:
         state_hprd_display = str(latest_data.get('Total_Nurse_HPRD') or '')
+    _t_before_jsonld = time.perf_counter()
     state_json_ld = _state_page_json_ld_scripts(
         state_name=state_name,
         state_code=state_code,
@@ -25444,6 +25515,7 @@ def generate_state_page(state_code):
         quarter_display=formatted_quarter,
         total_hprd=state_hprd_display,
     )
+    _t_after_jsonld = time.perf_counter()
     state_extra_head = state_json_ld
     if 'state-high-risk-details' in content or 'pbj-details-top-owners' in content:
         state_extra_head += (
@@ -25471,10 +25543,27 @@ def generate_state_page(state_code):
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
     _log_mem("generate_state_page_end")
+    _total_ms = round((time.perf_counter() - _t_page) * 1000, 1)
+    _hydrate_ms = round((_t_after_hydrate - _t_page) * 1000, 1)
+    _hr_ms = round((_t_after_hr - _t_after_hydrate) * 1000, 1)
+    _html_ms = round((_t_after_html - _t_before_html) * 1000, 1)
+    _jsonld_ms = round((_t_after_jsonld - _t_before_jsonld) * 1000, 1)
+    _layout_ms = round((time.perf_counter() - _t_after_jsonld) * 1000, 1)
+    print(
+        f'[state_page] {state_code} total_ms={_total_ms} hydrate_ms={_hydrate_ms} '
+        f'hr_ms={_hr_ms} html_ms={_html_ms} jsonld_ms={_jsonld_ms} layout_ms={_layout_ms} '
+        f'aggregates={"hydrated" if _STATE_PAGE_AGGREGATES_HYDRATE_OK else "live_fallback"}',
+        flush=True,
+    )
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
         'Cache-Control': _public_quarterly_html_cache_control(),
         'X-PBJ-State-Aggregates': 'hydrated' if _STATE_PAGE_AGGREGATES_HYDRATE_OK else 'live_fallback',
+        'X-PBJ-State-Ms': str(_total_ms),
+        'X-PBJ-State-Timing': (
+            f'hydrate={_hydrate_ms};hr={_hr_ms};html={_html_ms};'
+            f'jsonld={_jsonld_ms};layout={_layout_ms}'
+        ),
     }
 
 @app.route('/pbjpedia/region/<region_number>')

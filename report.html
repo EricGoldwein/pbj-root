@@ -1042,7 +1042,7 @@
       }
     }
     
-    /* Show desktop Risk List button on desktop */
+    /* Show desktop Risk List button on desktop/tablet shell (tablet keeps prior look) */
     @media (min-width: 601px) {
       .desktop-risk-list-button {
         display: inline-block;
@@ -1075,6 +1075,66 @@
         color: rgba(255,255,255,0.5) !important;
         cursor: not-allowed !important;
         box-shadow: none !important;
+      }
+    }
+
+    /* Desktop-only View Risk List polish (tablet/mobile unchanged) */
+    @media (min-width: 769px) {
+      .desktop-risk-list-button {
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 5px !important;
+        margin-top: 4px;
+        box-sizing: border-box !important;
+        min-width: 108px !important;
+        background: #8f2f35 !important;
+        color: rgba(255, 255, 255, 0.95) !important;
+        border: 1px solid rgba(140, 70, 76, 0.95) !important;
+        padding: 3px 8px !important;
+        border-radius: 3px !important;
+        font-size: 0.65rem !important;
+        font-weight: 500 !important;
+        line-height: 1.2 !important;
+        letter-spacing: 0.01em !important;
+        cursor: pointer !important;
+        transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18) !important;
+        transform: none !important;
+      }
+
+      .desktop-risk-list-button::after {
+        content: '\203A';
+        font-size: 0.85em;
+        line-height: 1;
+        opacity: 0.9;
+        transform: translateY(-0.5px);
+      }
+      
+      .desktop-risk-list-button:hover {
+        background: #a33a41 !important;
+        border-color: rgba(170, 95, 100, 0.95) !important;
+        color: #fff !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18) !important;
+        transform: none !important;
+      }
+      
+      .desktop-risk-list-button:active {
+        background: #7a282e !important;
+        border-color: rgba(120, 60, 66, 0.95) !important;
+        transform: none !important;
+      }
+      
+      .desktop-risk-list-button:disabled {
+        background: rgba(255,255,255,0.2) !important;
+        color: rgba(255,255,255,0.5) !important;
+        border-color: transparent !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+      }
+
+      .desktop-risk-list-button:disabled::after {
+        opacity: 0.45;
       }
     }
     
@@ -1301,6 +1361,228 @@
       margin: 0;
       font-size: 1.5rem;
       font-weight: 700;
+    }
+
+    .modal-category-nav {
+      display: none;
+    }
+
+    .modal-metrics-note {
+      display: none;
+    }
+
+    /* Desktop-only high-risk modal polish (mobile/tablet unchanged) */
+    @media (min-width: 769px) {
+      .modal-header {
+        padding: 12px 44px 10px 20px;
+        align-items: flex-start;
+      }
+
+      .modal-header h3 {
+        font-size: 1.22rem;
+        line-height: 1.25;
+        font-weight: 700;
+      }
+
+      .modal-header h3 .modal-header-sub {
+        font-size: 0.66rem;
+        font-weight: 400;
+        color: rgba(255,255,255,0.7);
+        margin-top: 2px;
+        display: block;
+        line-height: 1.35;
+      }
+
+      .modal-close {
+        top: 10px;
+        right: 10px;
+        width: 32px;
+        height: 32px;
+        font-size: 1.35rem;
+      }
+
+      .modal-category-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        padding: 8px 22px;
+        background: rgba(15, 23, 42, 0.55);
+        border-bottom: 1px solid rgba(148, 163, 184, 0.16);
+        flex-shrink: 0;
+      }
+
+      .modal-cat-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 0;
+        padding: 2px 0;
+        border: none;
+        background: transparent;
+        color: rgba(148, 163, 184, 0.92);
+        font-size: 0.72rem;
+        font-weight: 500;
+        line-height: 1.2;
+        cursor: default;
+        font-family: inherit;
+      }
+
+      .modal-cat-tab.is-action {
+        cursor: pointer;
+      }
+
+      .modal-cat-tab.is-action:hover {
+        color: rgba(226, 232, 240, 0.95);
+      }
+
+      .modal-cat-tab.is-active {
+        color: #f87171;
+      }
+
+      .modal-cat-tab .modal-cat-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 1.15rem;
+        padding: 0 5px;
+        height: 1.15rem;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.18);
+        color: inherit;
+        font-size: 0.65rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .modal-cat-tab.is-active .modal-cat-count {
+        background: rgba(248, 113, 113, 0.22);
+      }
+
+      .modal-body {
+        padding: 18px 22px 20px;
+      }
+
+      .sff-section {
+        margin-bottom: 18px;
+      }
+
+      .sff-section h4 {
+        font-size: 1.05rem;
+        margin: 0 0 8px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+        gap: 8px;
+      }
+
+      .sff-list li {
+        padding: 10px 14px;
+        margin-bottom: 7px;
+        background: rgba(30, 41, 59, 0.72);
+        border: 1px solid rgba(148, 163, 184, 0.12);
+        border-left: 4px solid #dc2626;
+      }
+
+      .sff-list li:hover {
+        background: rgba(36, 48, 68, 0.88);
+        transform: none;
+      }
+
+      .sff-facility-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+        line-height: 1.3;
+        color: #f8fafc;
+        overflow-wrap: anywhere;
+      }
+
+      .sff-facility-ratings {
+        margin-top: 4px;
+        font-size: 0.82rem;
+        color: rgba(226, 232, 240, 0.78);
+        line-height: 1.35;
+      }
+
+      .sff-facility-metrics {
+        margin-top: 3px;
+        font-size: 0.82rem;
+        color: rgba(255,255,255,0.68);
+        line-height: 1.35;
+        white-space: normal;
+      }
+
+      .sff-facility-actions {
+        margin-top: 8px;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px 14px;
+      }
+
+      .sff-list .sff-pbj-btn {
+        display: inline-block;
+        padding: 6px 12px;
+        background: #1d4ed8;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        text-align: center;
+        font-weight: 600;
+        max-width: 200px;
+        width: auto;
+        transform: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+
+      .sff-list .sff-pbj-btn:hover {
+        background: #1e40af;
+        color: #ffffff !important;
+        text-decoration: none !important;
+        filter: none;
+      }
+
+      .sff-list .sff-cms-link {
+        display: inline;
+        font-size: 0.75rem;
+        font-style: normal;
+        font-weight: 400;
+        color: rgba(255,255,255,0.72) !important;
+        text-decoration: underline;
+        transform: none;
+      }
+
+      .sff-list .sff-cms-link:hover {
+        color: rgba(255,255,255,0.92) !important;
+        text-decoration: underline;
+      }
+
+      .modal-metrics-note {
+        display: block;
+        margin: 12px 0 0;
+        padding-top: 10px;
+        border-top: 1px solid rgba(148, 163, 184, 0.14);
+        font-size: 0.72rem;
+        line-height: 1.45;
+        color: rgba(148, 163, 184, 0.78);
+        font-style: normal;
+      }
+
+      .modal-metrics-note .sff-modal-footer-link {
+        color: #93c5fd;
+        text-decoration: underline;
+        font-weight: 500;
+      }
+
+      .modal-metrics-note .sff-modal-footer-link:hover {
+        color: #bfdbfe;
+      }
+
+      .modal-metrics-note .modal-metrics-sep {
+        margin: 0 0.35em;
+        color: rgba(148, 163, 184, 0.55);
+      }
     }
     
     .modal-close {
@@ -1547,13 +1829,13 @@
       position: absolute;
       background: rgba(15, 23, 42, 0.98);
       color: #ffffff;
-      padding: 14px 18px;
+      padding: 12px 16px;
       border-radius: 8px;
       pointer-events: none;
       font-size: 0.9rem;
       z-index: 1000;
       box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      line-height: 1.6;
+      line-height: 1.35;
       font-weight: 500;
       border: 1px solid rgba(255,255,255,0.1);
     }
@@ -1569,6 +1851,69 @@
     .tooltip em {
       color: rgba(255,255,255,0.7);
       font-weight: 400;
+    }
+
+    .tooltip .report-map-tooltip {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      line-height: 1.3;
+    }
+
+    .tooltip .report-tooltip-title {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0.35rem 0.55rem;
+      margin: 0 0 1px;
+    }
+
+    .tooltip .report-map-tooltip strong {
+      display: inline;
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.2;
+    }
+
+    .tooltip .report-tooltip-rank {
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.62);
+      line-height: 1.2;
+    }
+
+    .tooltip .report-tooltip-metric-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.15rem 0.35rem;
+      line-height: 1.25;
+      margin: 0;
+    }
+
+    .tooltip .report-tooltip-spark {
+      display: inline-flex;
+      vertical-align: middle;
+      margin-left: 0.2rem;
+      margin-top: 0;
+    }
+
+    .tooltip .report-tooltip-meta {
+      margin: 0;
+      font-size: 0.82rem;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.75);
+      line-height: 1.25;
+    }
+
+    .tooltip .report-tooltip-cta {
+      margin: 1px 0 0;
+      font-size: 0.75rem;
+      line-height: 1.25;
+    }
+
+    .tooltip .report-tooltip-cta em {
+      font-style: italic;
     }
     
     /* Mobile tooltip - much smaller */
@@ -2965,13 +3310,6 @@
       margin-left: 0.35rem;
       margin-top: 0;
     }
-    .tooltip .report-tooltip-metric-row {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 0.15rem 0.35rem;
-      line-height: 1.25;
-    }
     }
 
     @media (max-width: 768px) {
@@ -4199,6 +4537,11 @@
         min-width: 0;
         padding-right: 0;
       }
+
+      .modal-category-nav,
+      .modal-metrics-note {
+        display: none !important;
+      }
       
       .modal-close {
         width: 36px;
@@ -4815,6 +5158,7 @@ __REPORT_SSR_TABLE_ROWS__
         <h3 id="modalStateName">State SFF & Candidates</h3>
         <button class="modal-close" id="modalClose">&times;</button>
       </div>
+      <nav class="modal-category-nav" id="modalCategoryNav" aria-label="High-risk categories" hidden></nav>
       <div class="modal-body" id="modalBody">
         <!-- Content will be populated by JavaScript -->
       </div>
@@ -6977,7 +7321,18 @@ __REPORT_SSR_TABLE_ROWS__
 
     function reportMapExploreHint(stateName) {
       const name = String(stateName || '').trim() || 'state';
-      return `View ${name} staffing page`;
+      return `Click to view ${name} PBJ320 page`;
+    }
+
+    function reportMapTooltipDesktopHtml(stateName, metricRowHtml, rankLabel, facilities, residents) {
+      return `
+        <div class="report-map-tooltip">
+          <div class="report-tooltip-title"><strong>${stateName}</strong><span class="report-tooltip-rank">${rankLabel}</span></div>
+          <div class="report-tooltip-metric-row">${metricRowHtml}</div>
+          <div class="report-tooltip-meta">${Number(facilities || 0).toLocaleString()} nursing homes (${Number(residents || 0).toLocaleString()} residents)</div>
+          <div class="report-tooltip-cta"><em>${reportMapExploreHint(stateName)}</em></div>
+        </div>
+      `;
     }
 
     function mapTooltipTrendSeries(stateName, metric) {
@@ -7385,10 +7740,13 @@ __REPORT_SSR_TABLE_ROWS__
       });
     }
     
-    function cmsStarIconsHtml(val) {
+    function cmsStarIconsHtml(val, opts) {
       const n = parseInt(val, 10);
       if (!(n >= 1 && n <= 5)) return '';
-      const icons = '\u2605'.repeat(n);
+      const showEmpty = !!(opts && opts.showEmpty);
+      const icons = showEmpty
+        ? ('\u2605'.repeat(n) + '\u2606'.repeat(5 - n))
+        : '\u2605'.repeat(n);
       const cls = n === 1 ? 'pbj-rating-stars pbj-rating-stars--low' : 'pbj-rating-stars';
       return `<span class="${cls}">${icons}</span>`;
     }
@@ -7426,24 +7784,94 @@ __REPORT_SSR_TABLE_ROWS__
       return st ? ` (${city}, ${st})` : ` (${city})`;
     }
 
-    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '') {
+    function countOneStarStaffing(lists) {
+      const seen = new Set();
+      let n = 0;
+      (lists || []).forEach(list => {
+        (list || []).forEach(f => {
+          const key = f && f.ccn ? String(f.ccn) : '';
+          if (!key || seen.has(key)) return;
+          seen.add(key);
+          if (parseInt(f.staffing_rating, 10) === 1) n += 1;
+        });
+      });
+      return n;
+    }
+
+    function renderModalCategoryNav(counts) {
+      const nav = document.getElementById('modalCategoryNav');
+      if (!nav) return;
+      const tabs = [
+        { key: 'abuse', label: 'Abuse', count: counts.abuse || 0, target: 'hr-section-abuse' },
+        { key: 'overall', label: '1\u2605 Overall', count: counts.overall || 0, target: 'hr-section-overall' },
+        { key: 'staffing', label: '1\u2605 Staffing', count: counts.staffing || 0, target: '' },
+        { key: 'sff', label: 'SFF / Candidate', count: counts.sff || 0, target: counts.sffTarget || '' }
+      ];
+      const firstActive = tabs.find(t => t.target && t.count > 0) || tabs.find(t => t.count > 0) || tabs[0];
+      nav.innerHTML = tabs.map(t => {
+        const canScroll = !!(t.target && t.count > 0);
+        const active = firstActive && t.key === firstActive.key ? ' is-active' : '';
+        const action = canScroll ? ' is-action' : '';
+        const tag = canScroll ? 'button' : 'span';
+        const typeAttr = canScroll ? ' type="button"' : '';
+        const dataAttr = canScroll ? ` data-hr-target="${t.target}"` : '';
+        return `<${tag} class="modal-cat-tab${active}${action}"${typeAttr}${dataAttr}>${t.label} <span class="modal-cat-count">${t.count}</span></${tag}>`;
+      }).join('');
+      nav.hidden = false;
+      nav.querySelectorAll('.modal-cat-tab.is-action').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = this.getAttribute('data-hr-target');
+          const body = document.getElementById('modalBody');
+          const el = id && body ? body.querySelector('#' + id) : null;
+          if (!el || !body) return;
+          nav.querySelectorAll('.modal-cat-tab').forEach(t => t.classList.remove('is-active'));
+          this.classList.add('is-active');
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    }
+
+    function clearModalCategoryNav() {
+      const nav = document.getElementById('modalCategoryNav');
+      if (!nav) return;
+      nav.innerHTML = '';
+      nav.hidden = true;
+    }
+
+    function renderFacilityItem(f, showMultipleCriteria = false, currentCategory = '', stateAbbrForModal = '', desktopPolish = false) {
       const displayName = capitalizeFacilityName(f.name || 'Unknown provider');
       const city = facilityCityLabel(f, stateAbbrForModal);
-      const overallStars = cmsStarIconsHtml(f.overall_rating);
-      const staffingStars = cmsStarIconsHtml(f.staffing_rating);
+      const overallStars = cmsStarIconsHtml(f.overall_rating, { showEmpty: desktopPolish });
+      const staffingStars = cmsStarIconsHtml(f.staffing_rating, { showEmpty: desktopPolish });
+      const ratingSep = desktopPolish ? ' \u00B7 ' : ' \u2022 ';
       const overallRating = overallStars ? `Overall: ${overallStars}` : '';
       const staffingRating = staffingStars ? `Staffing: ${staffingStars}` : '';
-      const ratings = [overallRating, staffingRating].filter(r => r).join(' • ');
+      const ratings = [overallRating, staffingRating].filter(r => r).join(ratingSep);
       let staffingText = '';
       
       if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined && f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
         const ratio = f.case_mix_total_hprd > 0 ? (f.total_nurse_hprd / f.case_mix_total_hprd * 100).toFixed(0) : '0';
-        // Use raw values directly - no rounding before display, just format to 2 decimals
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${(Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2)}, ${ratio}% of Case-Mix (${(Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2)})</div>`;
+        const hprd = (Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2);
+        const cm = (Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2);
+        if (desktopPolish) {
+          staffingText = `<div class="ccn sff-facility-metrics">HPRD: ${hprd} \u00B7 ${ratio}% of case-mix (${cm})</div>`;
+        } else {
+          staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7); white-space: nowrap;">HPRD: ${hprd}, ${ratio}% of Case-Mix (${cm})</div>`;
+        }
       } else if (f.total_nurse_hprd !== null && f.total_nurse_hprd !== undefined) {
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${(Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2)}</div>`;
+        const hprd = (Math.round(f.total_nurse_hprd * 100) / 100).toFixed(2);
+        if (desktopPolish) {
+          staffingText = `<div class="ccn sff-facility-metrics">Total HPRD: ${hprd}</div>`;
+        } else {
+          staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Total HPRD: ${hprd}</div>`;
+        }
       } else if (f.case_mix_total_hprd !== null && f.case_mix_total_hprd !== undefined) {
-        staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Case Mix: ${(Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2)}</div>`;
+        const cm = (Math.round(f.case_mix_total_hprd * 100) / 100).toFixed(2);
+        if (desktopPolish) {
+          staffingText = `<div class="ccn sff-facility-metrics">Case Mix: ${cm}</div>`;
+        } else {
+          staffingText = `<div class="ccn" style="margin-top: 2px; font-size: 0.85em; color: rgba(255,255,255,0.7);">Case Mix: ${cm}</div>`;
+        }
       }
       
       let multipleCriteriaNote = '';
@@ -7458,7 +7886,7 @@ __REPORT_SSR_TABLE_ROWS__
             if (cat === 'oneStarOverall') return '1-Star Overall';
             return cat;
           }).join(', ');
-          multipleCriteriaNote = `<div class="ccn" style="margin-top: 2px; font-size: 0.75em; color: #fbbf24; font-style: italic;">Also meets: ${categoryNames}</div>`;
+          multipleCriteriaNote = `<div class="ccn" style="margin-top: 2px; font-size: 0.75em; color: #fbbf24; font-style: italic;">Other PBJ320 Flags: ${categoryNames}</div>`;
         }
       }
       
@@ -7466,6 +7894,21 @@ __REPORT_SSR_TABLE_ROWS__
       const stateAbbr = f.state || '';
       const pbjLink = `/provider/${ccn}`;
       const cmsLink = `https://www.medicare.gov/care-compare/details/nursing-home/${ccn}/view-all/?state=${stateAbbr}`;
+
+      if (desktopPolish) {
+        return `
+        <li>
+          <div class="sff-facility-name">${escapeHtml(displayName)}${escapeHtml(city)}</div>
+          ${ratings ? `<div class="ccn sff-facility-ratings">${ratings}</div>` : ''}
+          ${multipleCriteriaNote}
+          ${staffingText}
+          <div class="sff-facility-actions">
+            <a href="${pbjLink}" target="_blank" class="sff-pbj-btn">PBJ320 Dashboard</a>
+            <a href="${cmsLink}" target="_blank" class="sff-cms-link">View on CMS Care Compare \u2197</a>
+          </div>
+        </li>
+      `;
+      }
       
       return `
         <li>
@@ -7504,33 +7947,39 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
+      const desktopPolish = !isMobile;
       if (isMobile) {
+        clearModalCategoryNav();
         modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${stateName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       } else {
-        modalStateName.innerHTML = `${stateName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
+        modalStateName.innerHTML = `${stateName} \u00B7 High-Risk Facilities<br/><span class="modal-header-sub">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
       const shownCCNs = new Set();
       
       let html = '';
+      let uniqueSFF = [];
+      let uniqueCandidates = [];
+      let uniqueAbuse = [];
+      let uniqueOneStarOverall = [];
       
       // SFFs first
       if (sff.length > 0) {
-        const uniqueSFF = sff.filter(f => {
+        uniqueSFF = sff.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-sff">
             <h4>
               <span class="badge">SFF</span>
               <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
               <span class="mobile-text">${uniqueSFF.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff')).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', stateAbbr || '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -7538,20 +7987,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Candidates second
       if (candidates.length > 0) {
-        const uniqueCandidates = candidates.filter(f => {
+        uniqueCandidates = candidates.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-candidate">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
               <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
               <span class="mobile-text">${uniqueCandidates.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate')).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', stateAbbr || '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -7559,20 +8008,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Abuse third
       if (abuse.length > 0) {
-        const uniqueAbuse = abuse.filter(f => {
+        uniqueAbuse = abuse.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-abuse">
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
               <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
               <span class="mobile-text">${uniqueAbuse.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse')).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', stateAbbr || '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -7580,20 +8029,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // 1-Star Overall fourth
       if (oneStarOverall.length > 0) {
-        const uniqueOneStarOverall = oneStarOverall.filter(f => {
+        uniqueOneStarOverall = oneStarOverall.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-overall">
             <h4>
               <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
               <span class="mobile-text">${uniqueOneStarOverall.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall')).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', stateAbbr || '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -7604,11 +8053,27 @@ __REPORT_SSR_TABLE_ROWS__
       }
       const stateSlug = getStateSlug(stateName);
       const sffHref = stateAbbr ? `/sff/${String(stateAbbr).toLowerCase()}` : '';
-      if (sffHref) {
+      if (desktopPolish) {
+        const sffLink = sffHref
+          ? `<a href="${sffHref}" class="sff-modal-footer-link">View ${escapeHtml(stateName)} Special Focus Facilities</a>`
+          : '';
+        const metrics = '<span class="modal-metrics-text">Metrics reflect the most recent available CMS and PBJ data.</span>';
+        html += `<p class="modal-metrics-note">${sffLink}${sffLink ? '<span class="modal-metrics-sep" aria-hidden="true">·</span>' : ''}${metrics}</p>`;
+      } else if (sffHref) {
         html += `<p class="sff-modal-footer" style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid rgba(129,140,248,0.25); font-size: 0.85rem;"><a href="${sffHref}" style="color: #93c5fd; text-decoration: underline;">Special Focus Facilities</a></p>`;
       }
       
       modalBody.innerHTML = html;
+      if (desktopPolish) {
+        const sffTarget = uniqueSFF.length ? 'hr-section-sff' : (uniqueCandidates.length ? 'hr-section-candidate' : '');
+        renderModalCategoryNav({
+          abuse: uniqueAbuse.length,
+          overall: uniqueOneStarOverall.length,
+          staffing: countOneStarStaffing([sff, candidates, abuse, oneStarOverall]),
+          sff: uniqueSFF.length + uniqueCandidates.length,
+          sffTarget: sffTarget
+        });
+      }
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
     }
@@ -7617,6 +8082,7 @@ __REPORT_SSR_TABLE_ROWS__
       const modal = document.getElementById('sffModal');
       modal.classList.remove('active');
       document.body.style.overflow = '';
+      clearModalCategoryNav();
     }
     
     // Modal event listeners
@@ -7906,12 +8372,13 @@ __REPORT_SSR_TABLE_ROWS__
                 .duration(200)
                 .style('opacity', 0.95);
               
-              tooltip.html(`
-                <strong>${stateName}</strong><br/>
-                <span class="report-tooltip-metric-row">${metricLabel}: ${formattedValue}${mapTrendHtmlEarly}<span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank})</span></span><br/>
-                <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-                <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
-              `)
+              tooltip.html(reportMapTooltipDesktopHtml(
+                stateName,
+                `${metricLabel}: ${formattedValue}${mapTrendHtmlEarly}`,
+                `Rank ${rank}`,
+                facilities,
+                residents
+              ))
                 .style('left', (event.pageX + 10) + 'px')
                 .style('top', (event.pageY - 28) + 'px');
             }
@@ -8350,12 +8817,13 @@ __REPORT_SSR_TABLE_ROWS__
             primaryValue = (Math.round(ratio * 100) / 100).toFixed(2);
             
             // Case-mix removed from desktop hover tooltips
-            tooltipContent = `
-              <strong>${stateName}</strong><br/>
-              <span class="report-tooltip-metric-row">${primaryLabel}${modeSuffix}: ${primaryValue} <span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span></span><br/>
-              <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
-            `;
+            tooltipContent = reportMapTooltipDesktopHtml(
+              stateName,
+              `${primaryLabel}${modeSuffix}: ${primaryValue}`,
+              `Rank ${rank} of ${totalStates}`,
+              facilities,
+              residents
+            );
           } else {
             // When showing reported value, primary is the reported value
             primaryLabel = metricLabels[currentMetric] || currentMetric;
@@ -8375,12 +8843,13 @@ __REPORT_SSR_TABLE_ROWS__
             }
             
             const mapTrendHtml = reportTooltipTrendHtml(mapTooltipTrendSeries(stateName, currentMetric));
-            tooltipContent = `
-              <strong>${stateName}</strong><br/>
-              <span class="report-tooltip-metric-row">${primaryLabel}${modeSuffix}: ${primaryValue}${mapTrendHtml}<span style="color: rgba(255,255,255,0.6); font-weight: 500;">(Rank: ${rank} of ${totalStates})</span></span><br/>
-              <span style="font-size: 0.85rem; color: rgba(255,255,255,0.75); font-weight: 400;">${facilities.toLocaleString()} nursing homes (${residents.toLocaleString()} residents)</span><br/>
-              <em style="font-size: 0.75rem; color: rgba(255,255,255,0.7);">${reportMapExploreHint(stateName)}</em>
-            `;
+            tooltipContent = reportMapTooltipDesktopHtml(
+              stateName,
+              `${primaryLabel}${modeSuffix}: ${primaryValue}${mapTrendHtml}`,
+              `Rank ${rank} of ${totalStates}`,
+              facilities,
+              residents
+            );
           }
           
           tooltip.transition()
@@ -8474,33 +8943,39 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Set header with mobile-specific format
       const isMobile = window.innerWidth <= 768;
+      const desktopPolish = !isMobile;
       if (isMobile) {
+        clearModalCategoryNav();
         modalStateName.innerHTML = `<span class="modal-state-name-mobile" style="display: block; color: #f87171; font-size: 1.1rem; font-weight: 700; line-height: 1.2; margin-bottom: 4px;">${displayRegionName}</span><span class="modal-subtitle-mobile" style="display: block; font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.85); line-height: 1.2; white-space: nowrap;">High-Risk Nursing Homes (${totalCount})</span><span class="modal-description-mobile" style="font-size: 0.65rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.3; white-space: nowrap;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       } else {
-        modalStateName.innerHTML = `${displayRegionName} - High-Risk Facilities<br/><span style="font-size: 0.7rem; font-weight: normal; color: rgba(255,255,255,0.7); margin-top: 4px; display: block; line-height: 1.4;">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
+        modalStateName.innerHTML = `${displayRegionName} \u00B7 High-Risk Facilities<br/><span class="modal-header-sub">SFF/Candidate, abuse, 1-star overall, and 1-star staffing.</span>`;
       }
       
       // Track which facilities we've already shown to avoid duplicates
       const shownCCNs = new Set();
       
       let html = '';
+      let uniqueSFF = [];
+      let uniqueCandidates = [];
+      let uniqueAbuse = [];
+      let uniqueOneStarOverall = [];
       
       // SFFs first
       if (sff.length > 0) {
-        const uniqueSFF = sff.filter(f => {
+        uniqueSFF = sff.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-sff">
             <h4>
               <span class="badge">SFF</span>
               <span class="desktop-text">Special Focus Facilities (${uniqueSFF.length})</span>
               <span class="mobile-text">${uniqueSFF.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', '')).join('')}
+              ${uniqueSFF.map(f => renderFacilityItem(f, true, 'sff', '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -8508,20 +8983,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Candidates second
       if (candidates.length > 0) {
-        const uniqueCandidates = candidates.filter(f => {
+        uniqueCandidates = candidates.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-candidate">
             <h4>
               <span class="badge candidate">SFF Candidate</span>
               <span class="desktop-text" style="white-space: nowrap;">Special Focus Facility Candidates (${uniqueCandidates.length})</span>
               <span class="mobile-text">${uniqueCandidates.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', '')).join('')}
+              ${uniqueCandidates.map(f => renderFacilityItem(f, true, 'candidate', '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -8529,20 +9004,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // Abuse third
       if (abuse.length > 0) {
-        const uniqueAbuse = abuse.filter(f => {
+        uniqueAbuse = abuse.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-abuse">
             <h4>
               <span class="badge" style="background: #dc2626;">Abuse</span>
               <span class="desktop-text">Facilities with Abuse Icon (${uniqueAbuse.length})</span>
               <span class="mobile-text">${uniqueAbuse.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', '')).join('')}
+              ${uniqueAbuse.map(f => renderFacilityItem(f, true, 'abuse', '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -8550,20 +9025,20 @@ __REPORT_SSR_TABLE_ROWS__
       
       // 1-Star Overall fourth
       if (oneStarOverall.length > 0) {
-        const uniqueOneStarOverall = oneStarOverall.filter(f => {
+        uniqueOneStarOverall = oneStarOverall.filter(f => {
           if (shownCCNs.has(f.ccn)) return false;
           shownCCNs.add(f.ccn);
           return true;
         }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         html += `
-          <div class="sff-section">
+          <div class="sff-section" id="hr-section-overall">
             <h4>
               <span class="badge" style="background: #f87171;">1\u2605 Overall</span>
               <span class="desktop-text" style="white-space: nowrap;">Facilities with 1-Star Overall Rating (${uniqueOneStarOverall.length})</span>
               <span class="mobile-text">${uniqueOneStarOverall.length} NHs</span>
             </h4>
             <ul class="sff-list">
-              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', '')).join('')}
+              ${uniqueOneStarOverall.map(f => renderFacilityItem(f, true, 'oneStarOverall', '', desktopPolish)).join('')}
             </ul>
           </div>
         `;
@@ -8572,8 +9047,21 @@ __REPORT_SSR_TABLE_ROWS__
       if (html === '') {
         html = '<div class="no-sff">No high-risk facilities in this region.</div>';
       }
+      if (desktopPolish) {
+        html += `<p class="modal-metrics-note"><span class="modal-metrics-text">Metrics reflect the most recent available CMS and PBJ data.</span></p>`;
+      }
       
       modalBody.innerHTML = html;
+      if (desktopPolish) {
+        const sffTarget = uniqueSFF.length ? 'hr-section-sff' : (uniqueCandidates.length ? 'hr-section-candidate' : '');
+        renderModalCategoryNav({
+          abuse: uniqueAbuse.length,
+          overall: uniqueOneStarOverall.length,
+          staffing: countOneStarStaffing([sff, candidates, abuse, oneStarOverall]),
+          sff: uniqueSFF.length + uniqueCandidates.length,
+          sffTarget: sffTarget
+        });
+      }
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
     }

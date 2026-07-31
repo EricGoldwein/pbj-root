@@ -49,6 +49,9 @@ def main() -> int:
     else:
         high_risk_by_state = {}
 
+    print('[build_state_page_aggregates] computing JSON-LD top facilities (one CSV pass)...', flush=True)
+    jsonld_top = app_mod._compute_jsonld_top_facilities_for_quarter(q, limit=10)
+
     fq_path = app_mod._facility_quarterly_csv_path()
     provider_paths = app_mod._resolved_provider_info_paths()
     provider_path = provider_paths[0] if provider_paths else None
@@ -79,6 +82,7 @@ def main() -> int:
         },
         'staffing_comparison_by_quarter': {str(q): staffing_comparison},
         'high_risk_by_quarter': {str(q): high_risk_by_state},
+        'jsonld_top_facilities_by_quarter': {str(q): jsonld_top},
     }
 
     out_path = spa.write_bundle(str(REPO), bundle)
@@ -93,10 +97,11 @@ def main() -> int:
     n_states_fc = len(facility_counts or {})
     n_states_cm = len(case_mix_medians or {})
     n_states_hr = len(high_risk_by_state or {})
+    n_states_jsonld = len(jsonld_top or {})
     print(
         f'[build_state_page_aggregates] wrote {out_path} '
         f'({n_states_fc} states facility counts, {n_states_cm} case-mix, '
-        f'{n_states_hr} high-risk, {bundle_bytes:,} bytes) in {elapsed:.1f}s',
+        f'{n_states_hr} high-risk, {n_states_jsonld} jsonld-top, {bundle_bytes:,} bytes) in {elapsed:.1f}s',
         flush=True,
     )
     ok, reason, _details = spa.validate_bundle_sources(str(REPO), bundle)

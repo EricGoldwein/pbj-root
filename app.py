@@ -289,8 +289,9 @@ if not (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')):
 else:
     # Render: keep rendered provider HTML longer under bot traffic (override via env if needed).
     os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_TTL', '900')
-    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '150')
-    os.environ.setdefault('PBJ_FACILITY_QUARTERLY_LRU', '64')
+    os.environ.setdefault('PBJ_PROVIDER_PAGE_CACHE_MAX', '400')
+    os.environ.setdefault('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140')
+    os.environ.setdefault('PBJ_FACILITY_QUARTERLY_LRU', '128')
     # GPTBot etc.: rate-limit; cache MISS on /provider does not cold-render (see PBJ_AI_PROVIDER_CACHE_ONLY).
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_LIMIT', '4')
     os.environ.setdefault('PBJ_AI_CRAWLER_RATE_WINDOW', '60')
@@ -5559,11 +5560,81 @@ def _breadcrumb_list_json_ld(items: list, *, page_url: str = '') -> str:
 _STATE_JSON_LD_FACILITY_LIST_CACHE: dict[tuple[str, str, int], list] = {}
 _STATE_JSON_LD_FACILITY_LIST_CACHE_AT = 0.0
 _STATE_JSON_LD_FACILITY_LIST_TTL = 900.0
+# Deploy-built top facilities for JSON-LD: {quarter: {ST: [[name, ccn], ...]}}
+_STATE_JSONLD_TOP_FACILITIES_BY_QUARTER = None
+
+
+def _compute_jsonld_top_facilities_for_quarter(quarter: str, limit: int = 10) -> dict:
+    """One CSV stream: top facilities by Total_Nurse_HPRD per state (for state JSON-LD).
+
+    Returns {STATE: [[provider_name, ccn], ...]} sorted by HPRD desc. Safe for deploy build.
+    """
+    import heapq
+
+    q = str(quarter or '').strip()
+    lim = max(1, min(int(limit or 10), 25))
+    if not q:
+        return {}
+    path = _facility_quarterly_csv_path()
+    if not path or not os.path.isfile(path):
+        return {}
+    pdm = get_pd()
+    if pdm is None:
+        return {}
+
+    heaps: dict[str, list] = {}
+    try:
+        usecols = ['STATE', 'PROVNUM', 'CY_Qtr', 'Total_Nurse_HPRD']
+        try:
+            head = pdm.read_csv(path, nrows=0)
+            if 'PROVNAME' in list(head.columns):
+                usecols.append('PROVNAME')
+        except Exception:
+            pass
+        for chunk in pdm.read_csv(path, usecols=usecols, low_memory=False, chunksize=200000):
+            if chunk.empty:
+                continue
+            chunk = chunk[chunk['CY_Qtr'].astype(str).str.strip() == q]
+            if chunk.empty:
+                continue
+            for row in chunk.itertuples(index=False):
+                try:
+                    hprd = float(getattr(row, 'Total_Nurse_HPRD'))
+                except (TypeError, ValueError):
+                    continue
+                if hprd != hprd:  # NaN
+                    continue
+                st = str(getattr(row, 'STATE', '') or '').strip().upper()[:2]
+                if len(st) != 2:
+                    continue
+                ccn = normalize_ccn(getattr(row, 'PROVNUM', '') or '')
+                if not ccn:
+                    continue
+                name = str(getattr(row, 'PROVNAME', '') or '').strip() or f'Provider {ccn}'
+                item = (hprd, ccn, name)
+                heap = heaps.get(st)
+                if heap is None:
+                    heaps[st] = [item]
+                    continue
+                if len(heap) < lim:
+                    heapq.heappush(heap, item)
+                elif hprd > heap[0][0]:
+                    heapq.heapreplace(heap, item)
+    except Exception as e:
+        print(f'[state_page] jsonld top-facilities build failed for {q}: {e}', flush=True)
+        return {}
+
+    out: dict[str, list] = {}
+    for st, heap in heaps.items():
+        ranked = sorted(heap, key=lambda t: t[0], reverse=True)
+        out[st] = [[name, ccn] for _h, ccn, name in ranked]
+    return out
 
 
 def _state_facility_list_for_json_ld(state_code: str, quarter: str, limit: int = 10) -> list:
-    """Top facilities by HPRD for state JSON-LD — must not load the full facility CSV into memory."""
+    """Top facilities by HPRD for state JSON-LD — prefer deploy aggregates; never load full CSV into memory."""
     global _STATE_JSON_LD_FACILITY_LIST_CACHE, _STATE_JSON_LD_FACILITY_LIST_CACHE_AT
+    global _STATE_JSONLD_TOP_FACILITIES_BY_QUARTER
     import heapq
 
     if not state_code or not quarter:
@@ -5578,6 +5649,28 @@ def _state_facility_list_for_json_ld(state_code: str, quarter: str, limit: int =
         and cache_key in _STATE_JSON_LD_FACILITY_LIST_CACHE
     ):
         return list(_STATE_JSON_LD_FACILITY_LIST_CACHE[cache_key])
+
+    # Prefer deploy-built list (hydrated from data/state_page_aggregates.json.gz).
+    pre_root = _STATE_JSONLD_TOP_FACILITIES_BY_QUARTER
+    if isinstance(pre_root, dict):
+        pre_q = pre_root.get(q) or {}
+        if isinstance(pre_q, dict):
+            rows = pre_q.get(st) or []
+            if isinstance(rows, list) and rows:
+                base = _public_site_origin()
+                out = []
+                for item in rows[:lim]:
+                    if not isinstance(item, (list, tuple)) or len(item) < 2:
+                        continue
+                    name = str(item[0] or '').strip() or f'Provider {item[1]}'
+                    ccn = normalize_ccn(item[1] or '')
+                    if not ccn:
+                        continue
+                    out.append((name, f'{base}/provider/{ccn}'))
+                if out:
+                    _STATE_JSON_LD_FACILITY_LIST_CACHE[cache_key] = list(out)
+                    _STATE_JSON_LD_FACILITY_LIST_CACHE_AT = now
+                    return list(out)
 
     path = _facility_quarterly_csv_path()
     if not path or not os.path.isfile(path):
@@ -7995,6 +8088,7 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
     global _RURAL_SHARE_BY_QUARTER_CACHE, _RURAL_SHARE_BY_QUARTER_AT
     global _HIGH_RISK_BY_STATE_CACHE_KEY, _HIGH_RISK_BY_STATE_CACHE_VAL, _HIGH_RISK_BY_STATE_CACHE_AT
     global _STAFFING_COMPARISON_BY_QUARTER
+    global _STATE_JSONLD_TOP_FACILITIES_BY_QUARTER
 
     if _STATE_PAGE_AGGREGATES_HYDRATE_ATTEMPTED:
         return _STATE_PAGE_AGGREGATES_HYDRATE_OK
@@ -8077,6 +8171,27 @@ def _hydrate_state_page_aggregates_from_disk() -> bool:
         _HIGH_RISK_BY_STATE_CACHE_KEY = (prov_abs, prov_mtime, '__cms_snapshot__')
         _HIGH_RISK_BY_STATE_CACHE_VAL = (hr_all[q], eff)
         _HIGH_RISK_BY_STATE_CACHE_AT = now
+
+    jsonld_all = bundle.get('jsonld_top_facilities_by_quarter') or {}
+    if isinstance(jsonld_all, dict) and isinstance(jsonld_all.get(q), dict):
+        normalized = {}
+        for kq, by_state in jsonld_all.items():
+            if not isinstance(by_state, dict):
+                continue
+            st_map = {}
+            for st, rows in by_state.items():
+                if not isinstance(rows, list):
+                    continue
+                clean = []
+                for item in rows:
+                    if isinstance(item, (list, tuple)) and len(item) >= 2:
+                        clean.append([str(item[0] or ''), str(item[1] or '')])
+                if clean:
+                    st_map[str(st).strip().upper()[:2]] = clean
+            if st_map:
+                normalized[str(kq)] = st_map
+        if normalized:
+            _STATE_JSONLD_TOP_FACILITIES_BY_QUARTER = normalized
 
     _STATE_PAGE_AGGREGATES_HYDRATE_OK = True
     _STATE_PAGE_AGGREGATES_STATUS = {
@@ -24741,8 +24856,8 @@ def pbjpedia_index():
 
 # Per-CCN provider page HTML cache (TTL overridable for prod vs local tuning)
 _PROVIDER_PAGE_CACHE = {}
-_PROVIDER_PAGE_CACHE_MAX = 150
-_PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '50'))
+_PROVIDER_PAGE_CACHE_MAX = 400
+_PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '50'))
 _PROVIDER_COLD_RENDER_SEM = None
 
 

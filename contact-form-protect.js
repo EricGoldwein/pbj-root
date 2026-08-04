@@ -7,7 +7,7 @@
 
   function forms() {
     return document.querySelectorAll(
-      'form#contact-form, form#pbj-contact-popup-form, form#contact-popup-form, form#contact-popup-form-static'
+      'form#contact-form, form#pbj-contact-popup-form, form#contact-popup-form, form#contact-popup-form-static, form.press-contact-form'
     );
   }
 

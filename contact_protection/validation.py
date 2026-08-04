@@ -1,16 +1,21 @@
-"""Server-side validation / normalization for contact form fields."""
+"""Server-side field validation for the contact form."""
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Tuple
 
-from contact_protection import config
+from contact_protection.config import (
+    EMAIL_MAX_LEN,
+    MESSAGE_MAX_LEN,
+    MESSAGE_MIN_LEN,
+    NAME_MAX_LEN,
+    NAME_MIN_LEN,
+)
 
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
-_CONTROL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
-_HEADER_INJECTION_RE = re.compile(r'[\r\n]')
+_CTRL_RE = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
+_HEADER_INJECT_RE = re.compile(r'[\r\n]')
 
 
 @dataclass(frozen=True)
@@ -20,86 +25,66 @@ class ValidatedContact:
     message: str
     is_press: bool
     subject_type: str
-    honeypot: str
+    next_url: str
 
 
-@dataclass(frozen=True)
-class ValidationFailure:
-    code: str = 'validation_failed'
+def sanitize_header_value(value: str, max_len: int = 200) -> str:
+    return re.sub(r'[\r\n]+', ' ', (value or '')).strip()[:max_len]
 
 
-def _strip_controls(value: str) -> str:
-    return _CONTROL_RE.sub('', value)
-
-
-def _reject_header_injection(value: str) -> bool:
-    return bool(_HEADER_INJECTION_RE.search(value or ''))
-
-
-def parse_press(raw: Any) -> Tuple[Optional[bool], bool]:
-    if raw is None:
-        return False, True
-    s = str(raw).strip().lower()
-    if s in config.VALID_PRESS_FALSE:
-        return False, True
-    if s in config.VALID_PRESS_VALUES:
-        return True, True
-    return None, False
-
-
-def validate_content_type(content_type: Optional[str]) -> bool:
-    if not content_type:
+def parse_press(raw) -> bool | None:
+    if raw is None or raw == '':
         return False
-    ct = content_type.split(';', 1)[0].strip().lower()
-    return ct in config.ALLOWED_CONTENT_TYPES
-
-
-def validate_body_size(content_length: Optional[int]) -> bool:
-    if content_length is None:
+    value = str(raw).strip().lower()
+    if value in ('1', 'on', 'yes', 'true'):
         return True
-    try:
-        return int(content_length) <= config.MAX_BODY_BYTES
-    except (TypeError, ValueError):
+    if value in ('0', 'off', 'no', 'false'):
         return False
+    return None
 
 
-def validate_submission(form: Mapping[str, Any]) -> Tuple[Optional[ValidatedContact], Optional[ValidationFailure]]:
-    honeypot = _strip_controls(str(form.get(config.HONEYPOT_FIELD) or '')).strip()
+def validate_contact_fields(form) -> tuple[ValidatedContact | None, str]:
+    name = (form.get('name') or '').strip()
+    email = (form.get('email') or '').strip().lower()
+    message = (form.get('message') or '').strip()
+    is_press = parse_press(form.get('press'))
+    if is_press is None:
+        return None, 'validation_failed'
 
-    name_raw = str(form.get('name') or '')
-    email_raw = str(form.get('email') or '')
-    message_raw = str(form.get('message') or '')
-    subject_type_raw = str(form.get('subject_type') or '')
+    if len(name) < NAME_MIN_LEN or len(name) > NAME_MAX_LEN:
+        return None, 'validation_failed'
+    if _HEADER_INJECT_RE.search(name) or _CTRL_RE.search(name):
+        return None, 'validation_failed'
 
-    if _reject_header_injection(name_raw) or _reject_header_injection(email_raw):
-        return None, ValidationFailure()
-    if _reject_header_injection(subject_type_raw):
-        return None, ValidationFailure()
+    if not email or len(email) > EMAIL_MAX_LEN or not _EMAIL_RE.match(email):
+        return None, 'validation_failed'
+    if _HEADER_INJECT_RE.search(email) or _CTRL_RE.search(email):
+        return None, 'validation_failed'
 
-    name = _strip_controls(name_raw).strip()
-    email = _strip_controls(email_raw).strip().lower()
-    message = _strip_controls(message_raw).strip()
-    subject_type = _strip_controls(subject_type_raw).strip().lower()[: config.SUBJECT_TYPE_MAX]
+    if len(message) < MESSAGE_MIN_LEN or len(message) > MESSAGE_MAX_LEN:
+        return None, 'validation_failed'
+    if _CTRL_RE.search(message) or '\x00' in message:
+        return None, 'validation_failed'
 
-    if len(name) < config.NAME_MIN or len(name) > config.NAME_MAX:
-        return None, ValidationFailure()
-    if not email or len(email) > config.EMAIL_MAX or not _EMAIL_RE.match(email):
-        return None, ValidationFailure()
-    if len(message) < config.MESSAGE_MIN or len(message) > config.MESSAGE_MAX:
-        return None, ValidationFailure()
+    subject_type = (form.get('subject_type') or '').strip().lower()[:64]
+    if subject_type and (
+        _HEADER_INJECT_RE.search(subject_type) or not re.match(r'^[a-z0-9_]+$', subject_type)
+    ):
+        return None, 'validation_failed'
 
-    is_press, press_ok = parse_press(form.get('press'))
-    if not press_ok or is_press is None:
-        return None, ValidationFailure()
+    next_url = (form.get('next') or '').strip()
+    if not next_url.startswith('/') or next_url.startswith('//') or _HEADER_INJECT_RE.search(next_url):
+        next_url = '/'
+    next_url = next_url[:500]
 
     return (
         ValidatedContact(
             name=name,
             email=email,
-            message=message,
-            is_press=is_press,
+            message=message.replace('\r\n', '\n').replace('\r', '\n'),
+            is_press=bool(is_press),
             subject_type=subject_type,
-            honeypot=honeypot,
+            next_url=next_url,
         ),
-        None,
+        '',
     )

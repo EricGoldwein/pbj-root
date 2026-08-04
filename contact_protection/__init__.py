@@ -1,57 +1,50 @@
-"""PBJ320 contact-form spam protection (Turnstile, honeypot, rate limits, spam score)."""
+"""PBJ320 contact / request form spam protections.
+
+Primary defenses: Turnstile, honeypot, durable SQLite rate limits, validation.
+Secondary: conservative spam scoring. Media/press is metadata only — never a trust signal.
+"""
+
+from __future__ import annotations
 
 from contact_protection.config import (
     HONEYPOT_FIELD,
+    MAX_REQUEST_BODY_BYTES,
     TURNSTILE_ACTION,
-    TURNSTILE_TEST_SECRET_KEY,
     TURNSTILE_TEST_SECRET_PASS,
     TURNSTILE_TEST_SITE_KEY,
-    is_production_environment,
     public_site_key,
+    turnstile_required,
     turnstile_site_key,
 )
-from contact_protection.email_build import build_contact_email_parts, build_mime_message, sanitize_header_value
-from contact_protection.html_inject import (
-    CONTACT_PROTECT_JS_VERSION,
-    contact_protect_assets_html,
-    honeypot_field_html,
-    inject_contact_form_tokens,
-    turnstile_widget_html,
-)
-from contact_protection.pipeline import ProcessResult, process_contact_submission
-from contact_protection.spam import SpamAssessment, score_submission
+from contact_protection.email_build import build_contact_email_parts
+from contact_protection.html_inject import inject_contact_form_tokens
+from contact_protection.pipeline import ContactDecision, process_contact_submission
+from contact_protection.spam import score_submission
 from contact_protection.store import (
     aggregate_reason_counts,
     init_store,
-    outcome_counts_for_day,
     reset_store_for_tests,
+    set_store_path_for_tests,
 )
-from contact_protection.validation import ValidatedContact
+from contact_protection.validation import sanitize_header_value
 
 __all__ = [
-    'CONTACT_PROTECT_JS_VERSION',
+    'ContactDecision',
     'HONEYPOT_FIELD',
-    'ProcessResult',
-    'SpamAssessment',
+    'MAX_REQUEST_BODY_BYTES',
     'TURNSTILE_ACTION',
-    'TURNSTILE_TEST_SECRET_KEY',
     'TURNSTILE_TEST_SECRET_PASS',
     'TURNSTILE_TEST_SITE_KEY',
-    'ValidatedContact',
     'aggregate_reason_counts',
     'build_contact_email_parts',
-    'build_mime_message',
-    'contact_protect_assets_html',
-    'honeypot_field_html',
     'init_store',
     'inject_contact_form_tokens',
-    'is_production_environment',
-    'outcome_counts_for_day',
     'process_contact_submission',
     'public_site_key',
     'reset_store_for_tests',
     'sanitize_header_value',
     'score_submission',
+    'set_store_path_for_tests',
+    'turnstile_required',
     'turnstile_site_key',
-    'turnstile_widget_html',
 ]

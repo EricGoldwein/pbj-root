@@ -3,32 +3,27 @@
 from __future__ import annotations
 
 import html
-import re
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
+
+from contact_protection.validation import sanitize_header_value
 
 
-def _safe_header_fragment(value: str) -> str:
-    return re.sub(r'[\r\n]+', ' ', (value or '')).strip()[:200]
-
-
-def contact_subject(*, sender_name: str, is_press: bool, subject_type: str = '') -> str:
-    name = _safe_header_fragment(sender_name) or 'Unknown'
-    st = (subject_type or '').strip().lower()
-    if st == 'data_issue':
-        return 'PBJ320 Data Issue'
-    if is_press:
-        return f'PRESS REQUEST: {name}'
-    return f'PBJ320 Request: {name}'
-
-
-def build_contact_bodies(
+def build_contact_email_parts(
     *,
     sender_name: str,
     sender_email: str,
     message_body: str,
     is_press: bool,
-) -> tuple[str, str]:
+    subject_type: str = '',
+) -> tuple[str, str, str]:
+    name = sanitize_header_value(sender_name) or 'Unknown'
+    st = (subject_type or '').strip().lower()
+    if st == 'data_issue':
+        subject = 'PBJ320 Data Issue'
+    elif is_press:
+        subject = f'PRESS REQUEST: {name}'
+    else:
+        subject = f'PBJ320 Request: {name}'
+
     media = 'Yes' if is_press else 'No'
     plain = '\n'.join(
         [
@@ -53,23 +48,4 @@ def build_contact_bodies(
         f'<p>{esc_msg}</p>'
         '</body></html>'
     )
-    return plain, html_body
-
-
-def build_contact_mime(
-    *,
-    from_addr: str,
-    to_list: list[str],
-    reply_to: str,
-    subject: str,
-    plain: str,
-    html_body: str,
-) -> MIMEMultipart:
-    msg = MIMEMultipart('alternative')
-    msg['Subject'] = _safe_header_fragment(subject)
-    msg['From'] = _safe_header_fragment(from_addr)
-    msg['To'] = ', '.join(_safe_header_fragment(a) for a in to_list)
-    msg['Reply-To'] = _safe_header_fragment(reply_to)
-    msg.attach(MIMEText(plain, 'plain', 'utf-8'))
-    msg.attach(MIMEText(html_body, 'html', 'utf-8'))
-    return msg
+    return subject, plain, html_body

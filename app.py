@@ -2282,6 +2282,12 @@ def data_sources_page():
     return _serve_public_html('data-sources.html')
 
 
+@app.route('/state-standards')
+@app.route('/state-standards/')
+def state_standards_page():
+    return _serve_public_html('state-standards.html')
+
+
 @app.route('/privacy')
 @app.route('/privacy/')
 def privacy_page():
@@ -2372,6 +2378,23 @@ def insights():
 def insights_theme_css():
     """Shared palette for /insights hub and native /insights/<slug> articles."""
     return _static_cache_headers(send_from_directory(APP_ROOT, 'insights-theme.css', mimetype='text/css'))
+
+
+@app.route('/insights-rankings.js')
+def insights_rankings_js():
+    """Sortable rankings table + map carousel/lightbox for rankings Insights post."""
+    return _static_cache_headers(
+        send_from_directory(APP_ROOT, 'insights-rankings.js', mimetype='application/javascript')
+    )
+
+
+@app.route('/insights-search-embed.js')
+def insights_search_embed_js():
+    """Opens sitewide public-search overlay from Insights article search trigger."""
+    return _static_cache_headers(
+        send_from_directory(APP_ROOT, 'insights-search-embed.js', mimetype='application/javascript')
+    )
+
 
 
 @app.route('/insights/trends')
@@ -3938,7 +3961,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
   gtag('js', new Date());
   gtag('config', 'G-NDPVY6TWBK');
   </script>
-  <link rel="stylesheet" href="/insights-theme.css?v=29">
+  <link rel="stylesheet" href="/insights-theme.css?v=53">
   """
     + audience_assets_head()
     + """
@@ -3954,7 +3977,29 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
       line-height: 1.62;
     }
     .navbar { position: sticky; top: 0; z-index: 1000; }
-    .nav-container { width: min(100%, var(--insights-content-max, 720px)); max-width: var(--insights-content-max, 720px); margin-inline: auto; padding-inline: var(--insights-gutter, clamp(1rem, 3vw, 2rem)); box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; }
+    .nav-brand a { display: flex; align-items: center; gap: 0; color: inherit; text-decoration: none; font-weight: 700; }
+    .nav-brand img { width: 32px; height: 32px; margin-right: 8px; object-fit: contain; }
+    .nav-menu { display: flex; gap: 30px; align-items: center; }
+    .nav-link { text-decoration: none; font-weight: 500; color: rgba(255,255,255,0.88); }
+    .nav-toggle { display: none; flex-direction: column; justify-content: center; gap: 4px; min-width: 44px; min-height: 44px; cursor: pointer; background: transparent; border: 0; padding: 0; }
+    .nav-toggle span { display: block; width: 25px; height: 3px; background: #e2e8f0; border-radius: 1px; }
+    @media (max-width: 768px) {
+      .nav-toggle { display: flex; }
+      .nav-menu {
+        position: fixed; top: 60px; left: -100%; width: 100%; max-width: 100vw;
+        height: calc(100vh - 60px); flex-direction: column; gap: 0; align-items: stretch;
+        justify-content: flex-start; padding: 0; margin: 0;
+        background: rgba(10,15,26,0.98); border-top: 1px solid rgba(71,85,105,0.45);
+        z-index: 1001; pointer-events: none;
+      }
+      .nav-menu.active { left: 0; pointer-events: auto; }
+      .nav-menu .nav-link {
+        display: block; padding: 18px 24px; border-bottom: 1px solid rgba(30,41,59,0.55);
+        text-align: left; font-size: 1rem;
+      }
+    }
+
+    .nav-container { width: min(100%, 1200px); max-width: 1200px; margin-inline: auto; padding-inline: clamp(12px, 4vw, 20px); box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; height: 60px; }
     .brand { color: #ffffff; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
     .brand img { height: 28px; width: auto; }
     .nav-links { display: flex; align-items: center; gap: 30px; }
@@ -4258,17 +4303,21 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
 <body>
   <nav class="navbar" aria-label="Main">
     <div class="nav-container">
-      <a class="brand" href="/">
-        <img src="/pbj_favicon.png" alt="PBJ320">
-        <span><span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span></span>
-      </a>
-      <div class="nav-links">
-        <a href="/about">About</a>
-        <a href="/report">Report</a>
-        <a href="/insights" class="active" aria-current="page">Insights</a>
-        <a href="/phoebe">PBJ Explained</a>
-        <a href="/owner">FEC Contributions</a>
-        <a href="/premium">Premium</a>
+      <div class="nav-brand">
+        <a href="/">
+          <img src="/pbj_favicon.png" alt="" width="32" height="32" decoding="async">
+          <span><span class="pbj-brand-pbj">PBJ</span><span class="pbj-brand-320">320</span></span>
+        </a>
+      </div>
+      <div class="nav-menu" id="navMenu">
+        <a href="/about" class="nav-link">About</a>
+        <a href="/report" class="nav-link">Report</a>
+        <a href="/insights" class="nav-link active" aria-current="page">Insights</a>
+        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/premium" class="nav-link">Premium</a>
+      </div>
+      <div class="nav-toggle" id="navToggle" role="button" tabindex="0" aria-label="Open menu" aria-expanded="false" aria-controls="navMenu">
+        <span></span><span></span><span></span>
       </div>
     </div>
   </nav>
@@ -4582,29 +4631,57 @@ _INSIGHTS_ALLOWED_TAGS = {
     'code', 'pre', 'h2', 'h3', 'h4', 'hr', 'br',
     'table', 'thead', 'tbody', 'tr', 'th', 'td',
     'img', 'figure', 'figcaption',
-    'details', 'summary', 'div', 'span', 'aside', 'button',
+    'details', 'summary', 'div', 'span', 'aside', 'button', 'section', 'nav',
+    'label', 'input',
+    'svg', 'polyline', 'circle',
 }
 _INSIGHTS_ALLOWED_ATTRS = {
     'a': {'href', 'title', 'class', 'target', 'rel'},
-    'th': {'colspan', 'rowspan'},
-    'td': {'colspan', 'rowspan'},
+    'th': {'colspan', 'rowspan', 'scope', 'class'},
+    'td': {'colspan', 'rowspan', 'class', 'data-sort', 'data-abbr'},
+    'tr': {'class', 'hidden'},
+    'table': {'class', 'id'},
+    'thead': {'class'},
+    'tbody': {'class'},
     'img': {'src', 'alt', 'width', 'height', 'loading', 'class', 'decoding'},
-    'figure': {'class'},
+    'hr': {'class'},
+    'figure': {'class', 'id', 'role', 'hidden', 'aria-labelledby', 'aria-hidden', 'data-slide'},
     'figcaption': {'class'},
     'blockquote': {'class'},
     'details': {'class', 'id'},
     'summary': {'class'},
-    'div': {'class', 'role', 'id', 'data-audience'},
-    'span': {'class', 'aria-hidden'},
+    'div': {
+        'class', 'role', 'id', 'data-audience', 'data-quarter', 'data-panel',
+        'data-insight-map-slider',
+        'tabindex', 'aria-label', 'aria-labelledby', 'aria-hidden', 'hidden',
+    },
+    'section': {'class', 'id', 'role', 'aria-labelledby', 'aria-label'},
+    'nav': {'class', 'id', 'role', 'aria-label'},
+    'span': {'class', 'aria-hidden', 'title'},
     'aside': {'class', 'role'},
     'p': {'class'},
     'pre': {'class', 'id'},
-    'button': {'type', 'class', 'data-copy-target', 'aria-label'},
+    'button': {
+        'type', 'class', 'data-copy-target', 'aria-label', 'aria-pressed',
+        'aria-selected', 'aria-controls', 'aria-expanded', 'aria-haspopup',
+        'role', 'id',
+        'data-col', 'data-default', 'data-metric', 'data-map-slide',
+        'data-map-src', 'data-map-title', 'data-insight-map-slider', 'title',
+    },
+    'label': {'class', 'for'},
+    'input': {
+        'type', 'class', 'id', 'name', 'placeholder', 'autocomplete', 'enterkeyhint',
+        'aria-label', 'aria-controls', 'aria-expanded', 'aria-haspopup',
+        'value', 'title',
+    },
     'ul': {'class'},
-    'ol': {'class'},
+    'ol': {'class', 'start'},
     'li': {'class'},
-    'h2': {'class'},
+    'h2': {'class', 'id'},
     'h3': {'class'},
+    'svg': {'class', 'viewbox', 'width', 'height', 'aria-hidden', 'role'},
+    'polyline': {'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'points'},
+    'circle': {'cx', 'cy', 'r', 'fill'},
 }
 _INSIGHTS_BLOCKED_TAGS = {'script', 'style', 'iframe', 'object', 'embed'}
 
@@ -4662,6 +4739,22 @@ class _InsightsHTMLSanitizer(HTMLParser):
             if t == 'button' and k == 'data-copy-target':
                 v = re.sub(r'[^a-zA-Z0-9_-]', '', v or '')
                 if not v:
+                    continue
+            if t == 'button' and k == 'data-map-title':
+                v = re.sub(r'[<>"\']', '', v or '')[:120]
+                if not v:
+                    continue
+            if t == 'button' and k == 'data-map-src':
+                v = _sanitize_nav_or_external_url(v, allow_relative=True)
+                if not v or not v.startswith('/') or '..' in v:
+                    continue
+            if t == 'button' and k == 'data-default':
+                v = (v or '').lower()
+                if v not in ('asc', 'desc'):
+                    continue
+            if t == 'button' and k == 'data-col':
+                v = re.sub(r'[^0-9]', '', v or '')
+                if v == '':
                     continue
             if t == 'img' and k == 'src':
                 v = _sanitize_nav_or_external_url(v, allow_relative=True)
@@ -5628,6 +5721,11 @@ def _compute_jsonld_top_facilities_for_quarter(quarter: str, limit: int = 10) ->
     for st, heap in heaps.items():
         ranked = sorted(heap, key=lambda t: t[0], reverse=True)
         out[st] = [[name, ccn] for _h, ccn, name in ranked]
+    if 'insight-rankings' in out or 'insight-map-carousel' in out or 'insight-map-slider' in out:
+        out += (
+            '<script src="/insights-rankings.js?v=8" defer></script>'
+        )
+
     return out
 
 
@@ -6053,10 +6151,14 @@ def _related_native_insights_html(current_slug: str, post: dict, base_url: str, 
         u = html.escape(o.get('url') or f'/insights/{o.get("slug") or ""}', quote=True)
         d = html.escape(_format_insights_hub_date(o.get('date') or o.get('sort_date') or ''))
         lis.append(f'<li><a href="{u}">{t}</a><span class="related-meta">{d}</span></li>')
+    sff_li = (
+        '<li><a href="/sff">U.S. Special Focus Facilities (July 2026)</a>'
+        '<span class="related-meta">CMS SFF program</span></li>'
+    )
     return (
-        '<aside class="related-insights" aria-label="Related on-site insights">'
-        '<h2 class="related-insights-title">More on-site insights</h2><ul>'
-        + ''.join(lis) + '</ul></aside>'
+        '<aside class="related-insights" aria-label="More from PBJ320">'
+        '<h2 class="related-insights-title">More from PBJ320</h2><ul>'
+        + sff_li + ''.join(lis) + '</ul></aside>'
     )
 
 
@@ -27224,7 +27326,7 @@ def static_files(filename):
         'pbj-ai-support', 'report', 'report.html', 'sitemap.xml', 'robots.txt', 'pbj-wrapped',
         'wrapped', 'sff', 'data', 'pbjpedia', 'owner', 'owners', 'owners.html', 'downloads',
         'premium', 'contact', 'corrections',
-        'data-sources', 'privacy', 'terms',
+        'data-sources', 'privacy', 'terms', 'state-standards',
         'chow', 'chow.html',
     ]:
         from flask import abort

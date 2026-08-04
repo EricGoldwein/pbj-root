@@ -3,7 +3,7 @@ slug: 2026-us-nursing-home-staffing-rankings
 title: "Q1 2026 U.S. Nursing Home Staffing Data"
 description: "PBJ320 nursing home report: facility staffing, state trends, chain data"
 published: true
-hideFromHub: true
+hideFromHub: false
 date: 2026-08-04
 author: Eric Goldwein
 previewImage: /insights-rankings-state-hprd-tilemap-q1-2026.svg
@@ -57,16 +57,7 @@ referenceUrl: "https://320insight.substack.com/p/2025-us-nursing-home-staffing-r
 
 <p>In Q1 2026, CMS reported PBJ data for <strong>14,487</strong> facilities with a nationwide ratio of <strong>3.75 Total Nurse hours per resident day (HPRD)</strong>, including <strong>0.62 RN</strong> and <strong>2.26 nurse aide</strong> HPRD.</p>
 
-<p>This page shows how states have fared, not just vs. each other, but vs. themselves over time.</p>
-
-<nav class="insight-explore" aria-label="Explore PBJ320">
-  <div class="insight-intro__actions">
-    <a class="insight-cta insight-cta--primary" href="/">Explore PBJ320</a>
-    <a class="insight-cta insight-cta--secondary" href="/sff">Special Focus Facilities</a>
-    <span class="insight-explore__sep" aria-hidden="true">&#183;</span>
-    <a class="insight-cta insight-cta--secondary" href="/phoebe">What is PBJ?</a>
-  </div>
-</nav>
+<p>This page shows how states have fared, not just vs. each other, but vs. themselves over time. <strong><a href="/">Head to PBJ320</a></strong> to dive deeper into facility, state, and entity-level data, and <a href="/sff">click here</a> to see the list of Special Focus Facilities.</p>
 
 <hr class="insight-section-rule" />
 

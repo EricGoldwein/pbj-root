@@ -3961,7 +3961,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
   gtag('js', new Date());
   gtag('config', 'G-NDPVY6TWBK');
   </script>
-  <link rel="stylesheet" href="/insights-theme.css?v=53">
+  <link rel="stylesheet" href="/insights-theme.css?v=54">
   """
     + audience_assets_head()
     + """
@@ -4920,6 +4920,11 @@ def _load_native_insights_markdown_posts() -> list:
             'preview_image': (front.get('previewImage') or '').strip() or '/insights-native-preview.svg',
             'cover_caption': (front.get('coverCaption') or front.get('cover_caption') or '').strip(),
             'cover_alt': (front.get('coverAlt') or front.get('cover_alt') or '').strip(),
+            'show_cover': (
+                True if str(front.get('showCover') or front.get('show_cover') or '').strip().lower() in ('1', 'true', 'yes')
+                else False if str(front.get('showCover') or front.get('show_cover') or '').strip().lower() in ('0', 'false', 'no')
+                else None
+            ),
             'read_time': (front.get('readTime') or front.get('read_time') or '').strip(),
             'tags': _parse_tags_field(front.get('tags')),
             'reference_title': (front.get('referenceTitle') or '').strip(),
@@ -5258,7 +5263,12 @@ def _render_native_content(post: dict) -> str:
     rendered = rendered.replace('[PBJ_CHARTS]', chart_embed_html)
     niche = _render_niche_insight_sections(post)
     # Source → facility evidence → narrative and charts (readability for reporting readers).
-    return (niche.get('reference') or '') + (niche.get('evidence') or '') + rendered
+    out = (niche.get('reference') or '') + (niche.get('evidence') or '') + rendered
+    if 'insight-rankings' in out or 'insight-map-carousel' in out or 'insight-map-slider' in out:
+        out += '<script src="/insights-rankings.js?v=9" defer></script>'
+    if 'insight-search' in out:
+        out += '<script src="/insights-search-embed.js?v=5" defer></script>'
+    return out
 
 
 def _format_insight_display_date(raw_date: str) -> str:
@@ -5721,11 +5731,6 @@ def _compute_jsonld_top_facilities_for_quarter(quarter: str, limit: int = 10) ->
     for st, heap in heaps.items():
         ranked = sorted(heap, key=lambda t: t[0], reverse=True)
         out[st] = [[name, ccn] for _h, ccn, name in ranked]
-    if 'insight-rankings' in out or 'insight-map-carousel' in out or 'insight-map-slider' in out:
-        out += (
-            '<script src="/insights-rankings.js?v=8" defer></script>'
-        )
-
     return out
 
 
@@ -6116,6 +6121,8 @@ def _render_explainer_page(slug: str):
 
 def _related_native_insights_html(current_slug: str, post: dict, base_url: str, limit: int = 3) -> str:
     slug = (current_slug or '').strip()
+    # Not live yet / do not surface in onsite related rails.
+    related_exclude_slugs = {'use-pbj-data-with-ai'}
     my_tags = set(post.get('tags') or []) if isinstance(post.get('tags'), list) else set()
     scored = []
     for other in _get_native_insights_posts():
@@ -6124,7 +6131,7 @@ def _related_native_insights_html(current_slug: str, post: dict, base_url: str, 
         if not _insights_post_is_published(other) or bool(other.get('hide_from_hub')):
             continue
         os_slug = (other.get('slug') or '').strip()
-        if not os_slug or os_slug == slug:
+        if not os_slug or os_slug == slug or os_slug in related_exclude_slugs:
             continue
         ot = set(other.get('tags') or []) if isinstance(other.get('tags'), list) else set()
         score = len(my_tags & ot) if my_tags else 0
@@ -6132,12 +6139,14 @@ def _related_native_insights_html(current_slug: str, post: dict, base_url: str, 
     scored.sort(key=lambda x: (x[0], x[1] or ''), reverse=True)
     picked = [x[2] for x in scored[:limit]]
     if len(picked) < limit:
-        seen = {slug} | {((p.get('slug') or '').strip()) for p in picked}
+        seen = {slug} | {((p.get('slug') or '').strip()) for p in picked} | set(related_exclude_slugs)
         for other in _get_native_insights_posts():
             if not isinstance(other, dict):
                 continue
+            if not _insights_post_is_published(other) or bool(other.get('hide_from_hub')):
+                continue
             os_slug = (other.get('slug') or '').strip()
-            if not os_slug or os_slug in seen:
+            if not os_slug or os_slug in seen or os_slug in related_exclude_slugs:
                 continue
             picked.append(other)
             seen.add(os_slug)
@@ -6209,9 +6218,14 @@ def insights_article(slug):
     related_html = _related_native_insights_html(slug_clean, post, base, limit=3)
     preview_img = (post.get('preview_image') or '/insights-native-preview.svg').strip()
     cover_caption = (post.get('cover_caption') or '').strip()
-    show_cover = bool(cover_caption) or (
-        preview_img and 'insights-native-preview' not in preview_img
-    )
+    if post.get('show_cover') is False:
+        show_cover = False
+    elif post.get('show_cover') is True:
+        show_cover = True
+    else:
+        show_cover = bool(cover_caption) or (
+            preview_img and 'insights-native-preview' not in preview_img
+        )
     cover_alt = (post.get('cover_alt') or post.get('coverAlt') or '').strip()
     if not cover_alt:
         cover_alt = f'Cover illustration: {(post.get("title") or "PBJ320 insight")[:120]}'

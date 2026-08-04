@@ -50,9 +50,10 @@
   function footerSignoffHtml() {
     var y = new Date().getFullYear();
     var legalStyle = 'color:rgba(203,213,225,0.78);text-decoration:none;';
+    // Match 320insight.com footer legal line: "© YEAR 320 Consulting LLC"
     return (
-      '<p class="footer-signoff"><span class="footer-signoff-line">\u00a9 ' + y + ', ' +
-      '<a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting</a> · ' +
+      '<p class="footer-signoff"><span class="footer-signoff-line">\u00a9 ' + y + ' ' +
+      '<a href="https://www.320insight.com/" target="_blank" rel="noopener noreferrer" class="footer-signoff-brand">320 Consulting LLC</a> · ' +
       '<a href="/terms" class="footer-signoff-link" style="' + legalStyle + '">Terms</a> · ' +
       '<a href="/privacy" class="footer-signoff-link" style="' + legalStyle + '">Privacy</a> · ' +
       '<a href="/contact" class="footer-signoff-link" style="' + legalStyle + '">Contact</a></span></p>'

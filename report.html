@@ -5230,16 +5230,21 @@ __REPORT_SSR_TABLE_ROWS__
           <input type="hidden" name="csrf_token" id="contact-csrf-token" value="">
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-name-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Name <span style="color:#f87171">*</span></label>
-            <input type="text" id="popup-name-static" name="name" required autocomplete="name" maxlength="200" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+            <input type="text" id="popup-name-static" name="name" required autocomplete="name" maxlength="100" minlength="2" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
           </div>
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-email-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Email <span style="color:#f87171">*</span></label>
-            <input type="email" id="popup-email-static" name="email" required autocomplete="email" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
+            <input type="email" id="popup-email-static" name="email" required autocomplete="email" maxlength="254" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:44px; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;">
           </div>
           <div class="f-group" style="margin-bottom:1rem;">
             <label for="popup-message-static" style="display:block; font-weight:500; color:#cbd5e1; margin-bottom:0.3rem; font-size:0.9rem;">Message <span style="color:#f87171">*</span></label>
-            <textarea id="popup-message-static" name="message" required placeholder="Facility or topic and your request…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
+            <textarea id="popup-message-static" name="message" required minlength="10" maxlength="5000" placeholder="Facility or topic and your request…" style="width:100%; padding:0.6rem 0.75rem; border:1px solid rgba(96,165,250,0.35); border-radius:8px; font:inherit; font-size:1rem; min-height:100px; resize:vertical; box-sizing:border-box; background:rgba(15,23,42,0.6); color:#e2e8f0;"></textarea>
           </div>
+          <div class="pbj-hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+            <label for="popup-company-website-static">Company website</label>
+            <input type="text" name="company_website" id="popup-company-website-static" value="" tabindex="-1" autocomplete="off">
+          </div>
+          <div class="cf-turnstile pbj-turnstile" data-sitekey="__TURNSTILE_SITE_KEY_PLACEHOLDER__" data-action="pbj_request" data-appearance="interaction-only"></div>
           <div class="f-row-submit" style="display:flex; align-items:center; justify-content:center; gap:1rem; flex-wrap:wrap; margin-top:0.75rem;">
             <label class="cb-wrap" style="display:flex; align-items:center; gap:0.5rem; cursor:pointer;">
               <input type="checkbox" id="popup-press-static" name="press" value="yes" aria-label="I am media" style="width:1.25rem; height:1.25rem;">
@@ -5252,6 +5257,8 @@ __REPORT_SSR_TABLE_ROWS__
     </div>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/contact-form-protect.js?v=1" defer></script>
   <script src="/pbj-site-universal.js?v=49"></script>
   <script>
     (function() {

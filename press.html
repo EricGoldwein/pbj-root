@@ -455,20 +455,25 @@
       <h2 id="press-contact-title">Request expert comment or PBJ data context</h2>
       <button type="button" class="press-contact-close" aria-label="Close">&times;</button>
       <form action="/contact" method="POST" class="press-contact-form">
-        <input type="hidden" name="csrf_token" id="press-csrf" value="">
+        <input type="hidden" name="csrf_token" id="press-csrf" value="__CSRF_TOKEN_PLACEHOLDER__">
         <input type="hidden" name="next" value="/press">
         <div class="f-group">
           <label for="press-name">Name <span style="color:#f87171">*</span></label>
-          <input type="text" id="press-name" name="name" required autocomplete="name" maxlength="200">
+          <input type="text" id="press-name" name="name" required autocomplete="name" maxlength="100" minlength="2">
         </div>
         <div class="f-group">
           <label for="press-email">Email <span style="color:#f87171">*</span></label>
-          <input type="email" id="press-email" name="email" required autocomplete="email">
+          <input type="email" id="press-email" name="email" required autocomplete="email" maxlength="254">
         </div>
         <div class="f-group">
           <label for="press-message">Message <span style="color:#f87171">*</span></label>
-          <textarea id="press-message" name="message" required placeholder="Facility/CCN, state, owner if known, story angle, deadline, and whether you need a quote, background, verification, or custom analysis"></textarea>
+          <textarea id="press-message" name="message" required minlength="10" maxlength="5000" placeholder="Facility/CCN, state, owner if known, story angle, deadline, and whether you need a quote, background, verification, or custom analysis"></textarea>
         </div>
+        <div class="pbj-hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+          <label for="press-company-website">Company website</label>
+          <input type="text" name="company_website" id="press-company-website" value="" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="cf-turnstile pbj-turnstile" data-sitekey="__TURNSTILE_SITE_KEY_PLACEHOLDER__" data-action="pbj_request" data-appearance="interaction-only"></div>
         <div class="f-row-submit">
           <label class="cb-wrap">
             <input type="checkbox" name="press" id="press-media-checkbox" value="yes" checked>
@@ -482,6 +487,8 @@
 
   <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/contact-form-protect.js?v=1" defer></script>
   <script src="/pbj-site-universal.js?v=32"></script>
   <script>
     (function() {
@@ -533,7 +540,15 @@
         if (history.replaceState) history.replaceState({}, '', '/press');
         setTimeout(function() { toast.remove(); }, 4000);
       }
-      if (params.get('contact_error') === '1') {
+      if (params.get('contact_error') === 'retry') {
+        var retry = document.createElement('div');
+        retry.setAttribute('role', 'alert');
+        retry.textContent = "We couldn't verify your request right now. Please try again in a moment.";
+        retry.style.cssText = 'position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:rgba(30,41,59,0.95);color:#fca5a5;padding:0.875rem 1.5rem;border-radius:12px;font-size:0.9375rem;font-weight:500;z-index:10001;';
+        document.body.appendChild(retry);
+        if (history.replaceState) history.replaceState({}, '', '/press');
+        setTimeout(function() { retry.remove(); }, 6000);
+      } else if (params.get('contact_error') === '1') {
         var err = document.createElement('div');
         err.setAttribute('role', 'alert');
         err.textContent = "Something went wrong. Please try again or email directly.";

@@ -250,9 +250,24 @@
     startAuto();
   }
 
+  function internalMapsUnlocked() {
+    try {
+      return new URLSearchParams(window.location.search).get('internal') === '1';
+    } catch (err) {
+      return false;
+    }
+  }
+
   function boot() {
     document.querySelectorAll('.insight-rankings').forEach(initRoot);
-    document.querySelectorAll('[data-insight-map-slider], .insight-map-slider').forEach(initMapSlider);
+    document.querySelectorAll('[data-insight-map-slider], .insight-map-slider').forEach(function (root) {
+      // Public post hides the bottom HPRD/census/contract carousel; keep markup for internal use.
+      if (root.getAttribute('data-pbj-internal') === '1') {
+        if (!internalMapsUnlocked()) return;
+        root.hidden = false;
+      }
+      initMapSlider(root);
+    });
   }
 
   if (document.readyState === 'loading') {

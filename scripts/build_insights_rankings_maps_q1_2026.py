@@ -97,6 +97,14 @@ def build_state_tilemap(
         return _clamp((v - vmin) / (vmax - vmin), 0.0, 1.0)
 
     def fmt_val(v: float) -> str:
+        # Compact labels for statewide totals (e.g. NY ~98.7k) so tiles stay readable.
+        if value_fmt == "compact0":
+            iv = abs(float(v))
+            if iv >= 10000:
+                return f"{v / 1000:.0f}k"
+            if iv >= 1000:
+                return f"{v / 1000:.1f}k".rstrip("0").rstrip(".")
+            return f"{v:.0f}"
         if value_fmt.endswith("d") or value_fmt == ".0f":
             return f"{v:.0f}"
         return format(v, value_fmt)
@@ -209,17 +217,19 @@ def main() -> None:
         legend="Total Nurse HPRD",
         value_fmt=".2f",
     )
+    # Statewide total avg daily census (sum of facility MDS census), not per-facility avg.
+    # Verified from: state_quarterly_metrics.csv MDScensus (CY_Qtr=2026Q1); AK≈656, NY≈98717.
     census_by_abbr = {
-        str(r["STATE"]): float(r["avg_daily_census"])
+        str(r["STATE"]): float(r["MDScensus"])
         for _, r in state_q.iterrows()
-        if pd.notna(r.get("avg_daily_census"))
+        if pd.notna(r.get("MDScensus"))
     }
     build_state_tilemap(
         census_by_abbr,
         ROOT / "insights-rankings-state-census-tilemap-q1-2026.svg",
-        title="Q1 2026 U.S. state average daily census",
-        legend="Avg daily census",
-        value_fmt=".0f",
+        title="Q1 2026 U.S. state total average daily census",
+        legend="Total avg daily census",
+        value_fmt="compact0",
     )
     # Verified from: state_quarterly_metrics.csv Contract_Percentage (CY_Qtr=2026Q1)
     contract_by_abbr = {

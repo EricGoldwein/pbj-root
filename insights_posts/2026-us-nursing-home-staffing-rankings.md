@@ -158,7 +158,8 @@ referenceUrl: "https://320insight.substack.com/p/2025-us-nursing-home-staffing-r
 </div>
 </div>
 
-<div class="insight-map-slider" id="insight-map-carousel" data-insight-map-slider="1">
+<!-- Internal map carousel: kept in markup for LinkedIn/drafts; public page hides it. Unlock: ?internal=1 -->
+<div class="insight-map-slider" id="insight-map-carousel" data-insight-map-slider="1" data-pbj-internal="1" hidden>
   <div class="insight-map-slider__viewport">
     <div class="insight-map-slider__track">
       <figure class="insight-map-slider__slide">
@@ -172,12 +173,12 @@ referenceUrl: "https://320insight.substack.com/p/2025-us-nursing-home-staffing-r
       </figure>
 
       <figure class="insight-map-slider__slide">
-        <button type="button" class="insight-map-slider__open" data-map-src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=1" data-map-title="PBJ by state: Avg daily census (Q1 2026)" aria-label="Enlarge PBJ by state: Avg daily census (Q1 2026) map">
+        <button type="button" class="insight-map-slider__open" data-map-src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=2" data-map-title="PBJ by state: Total avg daily census (Q1 2026)" aria-label="Enlarge PBJ by state: Total avg daily census (Q1 2026) map">
           <span class="insight-map-slider__caption">
             <span class="insight-map-slider__title">PBJ by state</span>
-            <span class="insight-map-slider__metric">Avg daily census (Q1 2026)</span>
+            <span class="insight-map-slider__metric">Total avg daily census (Q1 2026)</span>
           </span>
-          <img src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=1" alt="Q1 2026 U.S. states shaded by average daily census." width="860" height="560" loading="lazy" decoding="async" />
+          <img src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=2" alt="Q1 2026 U.S. states shaded by total average daily census." width="860" height="560" loading="lazy" decoding="async" />
         </button>
       </figure>
 

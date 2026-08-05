@@ -95,8 +95,8 @@ GLANCE_CLOSE = """
 
 """
 
-# Horizontal map slider below the table. Click opens an in-page lightbox
-# (not /report). Caption sits above the chart (same navy band); dots + autoscroll.
+# Horizontal map slider below the table (internal-only: hidden publicly; unlock with ?internal=1).
+# Click opens an in-page lightbox (not /report). Caption sits above the chart; dots + autoscroll.
 MAP_QUARTER = "Q1 2026"
 
 
@@ -115,11 +115,12 @@ def _map_slide(*, src: str, metric: str, alt: str) -> str:
 
 
 MAP_BLOCK = f"""
-<div class="insight-map-slider" id="insight-map-carousel" data-insight-map-slider="1">
+<!-- Internal map carousel: kept in markup for LinkedIn/drafts; public page hides it. Unlock: ?internal=1 -->
+<div class="insight-map-slider" id="insight-map-carousel" data-insight-map-slider="1" data-pbj-internal="1" hidden>
   <div class="insight-map-slider__viewport">
     <div class="insight-map-slider__track">
 {_map_slide(src="/insights-rankings-state-hprd-tilemap-q1-2026.svg?v=3", metric="Total Nurse HPRD", alt=f"{MAP_QUARTER} U.S. states shaded by Total Nurse HPRD.")}
-{_map_slide(src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=1", metric="Avg daily census", alt=f"{MAP_QUARTER} U.S. states shaded by average daily census.")}
+{_map_slide(src="/insights-rankings-state-census-tilemap-q1-2026.svg?v=2", metric="Total avg daily census", alt=f"{MAP_QUARTER} U.S. states shaded by total average daily census.")}
 {_map_slide(src="/insights-rankings-state-contract-tilemap-q1-2026.svg?v=1", metric="Contract staff %", alt=f"{MAP_QUARTER} U.S. states shaded by contract staffing percentage.")}
     </div>
   </div>

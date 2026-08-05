@@ -5265,7 +5265,7 @@ def _render_native_content(post: dict) -> str:
     # Source → facility evidence → narrative and charts (readability for reporting readers).
     out = (niche.get('reference') or '') + (niche.get('evidence') or '') + rendered
     if 'insight-rankings' in out or 'insight-map-carousel' in out or 'insight-map-slider' in out:
-        out += '<script src="/insights-rankings.js?v=9" defer></script>'
+        out += '<script src="/insights-rankings.js?v=10" defer></script>'
     if 'insight-search' in out:
         out += '<script src="/insights-search-embed.js?v=5" defer></script>'
     return out

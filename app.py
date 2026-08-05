@@ -3966,7 +3966,7 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
   gtag('js', new Date());
   gtag('config', 'G-NDPVY6TWBK');
   </script>
-  <link rel="stylesheet" href="/insights-theme.css?v=54">
+  <link rel="stylesheet" href="/insights-theme.css?v=55">
   """
     + audience_assets_head()
     + """

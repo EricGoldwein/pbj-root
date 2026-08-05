@@ -26,6 +26,7 @@ hideFromHub: false
 date: {PUBLISH_DATE}
 author: Eric Goldwein
 previewImage: /insights-rankings-state-hprd-tilemap-q1-2026.svg
+ogImage: /insights-rankings-state-hprd-tilemap-q1-2026-og.png
 showCover: false
 readTime: 5 min read
 category: pbj

@@ -3944,6 +3944,11 @@ _INSIGHTS_NATIVE_PAGE_TEMPLATE = (
   <meta property="og:description" content="{{ og_description|e }}">
   <meta property="og:url" content="{{ og_url|e }}">
   <meta property="og:image" content="{{ og_image|e }}">
+  <meta property="og:image:secure_url" content="{{ og_image|e }}">
+  <meta property="og:image:type" content="{{ og_image_type|e }}">
+  {% if og_image_width %}<meta property="og:image:width" content="{{ og_image_width }}">{% endif %}
+  {% if og_image_height %}<meta property="og:image:height" content="{{ og_image_height }}">{% endif %}
+  {% if og_image_alt %}<meta property="og:image:alt" content="{{ og_image_alt|e }}">{% endif %}
   <meta property="og:site_name" content="PBJ320">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ (title ~ ' | PBJ320 Insights')|e }}">
@@ -4918,6 +4923,7 @@ def _load_native_insights_markdown_posts() -> list:
             'author': (front.get('author') or '').strip(),
             'source': 'native-markdown',
             'preview_image': (front.get('previewImage') or '').strip() or '/insights-native-preview.svg',
+            'og_image': (front.get('ogImage') or front.get('og_image') or '').strip(),
             'cover_caption': (front.get('coverCaption') or front.get('cover_caption') or '').strip(),
             'cover_alt': (front.get('coverAlt') or front.get('cover_alt') or '').strip(),
             'show_cover': (
@@ -5408,6 +5414,43 @@ def _absolute_public_url(base: str, path: str) -> str:
     return f'{base}{p}'
 
 
+def _insights_social_og_image_path(preview_image: str, og_image: str | None = None) -> str:
+    """Raster OG path for crawlers; keep SVG preview_image for in-page / hub cards."""
+    explicit = (og_image or '').strip()
+    if explicit:
+        return explicit
+    preview = (preview_image or '').strip() or '/insights-native-preview.svg'
+    if preview.lower().endswith('.svg'):
+        png_candidate = f'{preview[:-4]}-og.png'
+        if os.path.isfile(os.path.join(APP_ROOT, png_candidate.lstrip('/'))):
+            return png_candidate
+    return preview
+
+
+def _insights_og_image_meta(image_path: str) -> tuple[int | None, int | None, str]:
+    path = (image_path or '').strip()
+    lower = path.lower()
+    if lower.endswith('.png'):
+        full = os.path.join(APP_ROOT, path.lstrip('/'))
+        if os.path.isfile(full):
+            try:
+                from PIL import Image
+
+                with Image.open(full) as im:
+                    w, h = im.size
+                    return int(w), int(h), 'image/png'
+            except Exception:
+                pass
+        if lower.endswith('-og.png') or 'og-image-1200x630' in lower:
+            return 1200, 630, 'image/png'
+        return None, None, 'image/png'
+    if lower.endswith(('.jpg', '.jpeg')):
+        return None, None, 'image/jpeg'
+    if lower.endswith('.webp'):
+        return None, None, 'image/webp'
+    return None, None, 'image/png'
+
+
 def _format_insights_hub_date(raw) -> str:
     if not raw:
         return ''
@@ -5605,7 +5648,11 @@ def _insights_native_article_json_ld(
 ) -> str:
     title = post.get('title') or 'PBJ320 Insight'
     desc = (post.get('description') or '').strip() or 'PBJ320 native insight.'
-    img = _absolute_public_url(base_url, post.get('preview_image') or '/insights-native-preview.svg')
+    social_path = _insights_social_og_image_path(
+        post.get('preview_image') or '/insights-native-preview.svg',
+        post.get('og_image'),
+    )
+    img = _absolute_public_url(base_url, social_path)
     doc: dict = {
         '@context': 'https://schema.org',
         '@type': 'NewsArticle',
@@ -6211,8 +6258,14 @@ def insights_article(slug):
     base = _public_site_origin()
     slug_clean = (post.get('slug') or slug or '').strip()
     page_url = f'{base}/insights/{slug_clean}'
-    og_image = _absolute_public_url(base, post.get('preview_image') or '/insights-native-preview.svg')
+    preview_default = post.get('preview_image') or '/insights-native-preview.svg'
+    social_og_path = _insights_social_og_image_path(preview_default, post.get('og_image'))
+    og_image = _absolute_public_url(base, social_og_path)
+    og_image_width, og_image_height, og_image_type = _insights_og_image_meta(social_og_path)
     desc_plain = (post.get('description') or 'PBJ320 native insight.').strip()
+    cover_alt = (post.get('cover_alt') or post.get('coverAlt') or '').strip()
+    if not cover_alt:
+        cover_alt = f'Cover illustration: {(post.get("title") or "PBJ320 insight")[:120]}'
     iso_pub = _insight_datetime_iso(str(date_raw)) if date_raw else None
     iso_mod = _insight_datetime_iso(updated_raw) if updated_raw else iso_pub
     author_name = (post.get('author') or '').strip() or 'PBJ320'
@@ -6235,9 +6288,6 @@ def insights_article(slug):
         show_cover = bool(cover_caption) or (
             preview_img and 'insights-native-preview' not in preview_img
         )
-    cover_alt = (post.get('cover_alt') or post.get('coverAlt') or '').strip()
-    if not cover_alt:
-        cover_alt = f'Cover illustration: {(post.get("title") or "PBJ320 insight")[:120]}'
     return render_template_string(
         _INSIGHTS_NATIVE_PAGE_TEMPLATE,
         title=(post.get('title') or 'PBJ320 Insight'),
@@ -6251,6 +6301,10 @@ def insights_article(slug):
         canonical_url=page_url,
         og_url=page_url,
         og_image=og_image,
+        og_image_width=og_image_width or '',
+        og_image_height=og_image_height or '',
+        og_image_type=og_image_type,
+        og_image_alt=cover_alt,
         og_description=desc_plain[:300],
         article_json_ld=article_json_ld,
         author_name=author_name,

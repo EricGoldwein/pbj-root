@@ -185,12 +185,18 @@
         if (words <= 32) return '6 min read';
         return '8 min read';
       }
+      function isPodcastPost(p) {
+        if (p.is_podcast) return true;
+        if (p.podcast_enclosure_url) return true;
+        var desc = String(p.description || '').trim().toLowerCase();
+        return desc.indexOf('listen now') === 0;
+      }
       function inferIndustryTag(p) {
         if (p.hub_tag) return String(p.hub_tag).trim();
+        if (isPodcastPost(p)) return 'Interview';
         var allowed = ['Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS', 'State Trends', 'Cost Reports', 'Interview', 'Report'];
         var ext = String(p.external_url || p.url || '').toLowerCase();
         var slug = String(p.slug || '').toLowerCase();
-        if (ext.indexOf('ironman-mike-wasserman') !== -1 || ext.indexOf('mike-wasserman-nursing-homes') !== -1) return 'Interview';
         if (ext.indexOf('ny-minimum-staffing') !== -1 || slug === 'ny-minimum-staffing') return 'Report';
         if (ext.indexOf('the-other-3000-days-at-seagate') !== -1) return 'PBJ Deep Dive';
         var raw = p.tags;
@@ -206,14 +212,6 @@
         if (/state|states|national|trend|quarter|q[1-4]/.test(combined)) return 'State Trends';
         return 'PBJ Deep Dive';
       }
-      function isPodcastPost(p) {
-        if (p.is_podcast) return true;
-        if (p.podcast_enclosure_url) return true;
-        var desc = String(p.description || '').trim().toLowerCase();
-        if (desc.indexOf('listen now') === 0) return true;
-        var ext = String(p.external_url || p.url || '').toLowerCase();
-        return ext.indexOf('ironman-mike-wasserman') !== -1 || ext.indexOf('mike-wasserman-nursing-homes') !== -1;
-      }
       function externalAction(p) {
         if (isPodcastPost(p)) {
           return { label: 'Listen', aria: 'Listen to this episode on Substack (new tab)' };
@@ -221,11 +219,9 @@
         return { label: 'Read', aria: 'Read this article on Substack (new tab)' };
       }
       function hubImage(p) {
-        var ext = String(p.external_url || p.url || '').toLowerCase();
-        if (ext.indexOf('ironman-mike-wasserman') !== -1 || ext.indexOf('mike-wasserman-nursing-homes') !== -1) {
-          return '/insights-interview-podcast.png';
-        }
-        return p.image_url || p.preview_image || '/insights-native-preview.svg';
+        if (p.image_url || p.preview_image) return p.image_url || p.preview_image;
+        if (isPodcastPost(p)) return '/insights-interview-podcast.png';
+        return '/insights-native-preview.svg';
       }
       function renderCard(p) {
         var title = esc(p.title);

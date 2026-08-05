@@ -3924,6 +3924,7 @@ NEWSLETTER_PBJ_KEYWORDS = (
     'long-term care',
     'long term care',
     'nursing facility',
+    'nursing home',
     'nursing homes',
 )
 
@@ -4422,6 +4423,14 @@ def _strip_html_fragment(raw: str, max_len: int = 480) -> str:
     return text + '…'
 
 
+def _first_html_img_src(raw: str) -> str:
+    """First <img src> from an HTML fragment (e.g. RSS content:encoded)."""
+    if not raw or not isinstance(raw, str):
+        return ''
+    m = re.search(r'<img[^>]+src=["\']([^"\']+)["\']', raw, flags=re.IGNORECASE)
+    return (m.group(1) or '').strip() if m else ''
+
+
 def _elem_text(el) -> str:
     """Get all text content of an element (including nested). Safe for None."""
     if el is None:
@@ -4448,7 +4457,8 @@ def _is_pbj_related_post(row: dict) -> bool:
     categories = row.get('categories') or []
     if isinstance(categories, list):
         haystack_parts.extend(c for c in categories if isinstance(c, str))
-    haystack = ' '.join(haystack_parts).lower()
+    # Hyphens → spaces so slug URLs like nursing-home-data match "nursing home".
+    haystack = ' '.join(haystack_parts).lower().replace('-', ' ')
     return any(keyword in haystack for keyword in NEWSLETTER_PBJ_KEYWORDS)
 
 
@@ -4516,6 +4526,9 @@ def _parse_rss_item(item_el) -> dict | None:
         return None
     if encoded_full and len(encoded_full) > len(description or ''):
         description = _strip_html_fragment(encoded_full)
+    # Podcast episodes often have only an audio enclosure; cover art is in content:encoded.
+    if not image_url and encoded_full:
+        image_url = _first_html_img_src(encoded_full)
     is_podcast = bool(podcast_enclosure_url) or description.lower().startswith('listen now')
     return {
         'title': title,
@@ -5488,12 +5501,7 @@ def _enrich_insights_hub_post(post: dict) -> dict:
     if not isinstance(post, dict):
         return post
     key = _insights_post_lookup_key(post)
-    if 'ironman-mike-wasserman' in key or 'mike-wasserman-nursing-homes' in key:
-        post['hub_tag'] = 'Interview'
-        post['is_podcast'] = True
-        post['image_url'] = '/insights-interview-podcast.png'
-        post['preview_image'] = '/insights-interview-podcast.png'
-    elif 'ny-minimum-staffing' in key:
+    if 'ny-minimum-staffing' in key:
         post['hub_tag'] = 'Report'
     elif '2026-us-nursing-home-staffing-rankings' in key:
         # Explicit hub chip; do not infer "CMS" from body copy mentioning CMS PBJ.
@@ -5501,6 +5509,12 @@ def _enrich_insights_hub_post(post: dict) -> dict:
     desc = str(post.get('description') or '').strip().lower()
     if desc.startswith('listen now') or post.get('podcast_enclosure_url'):
         post['is_podcast'] = True
+    if post.get('is_podcast'):
+        post['hub_tag'] = 'Interview'
+        # Prefer Substack episode art from RSS; local artwork only if missing.
+        if not (post.get('image_url') or post.get('preview_image')):
+            post['image_url'] = '/insights-interview-podcast.png'
+            post['preview_image'] = '/insights-interview-podcast.png'
     return post
 
 
@@ -5508,6 +5522,8 @@ def _infer_insights_industry_tag(post: dict) -> str:
     hub_tag = str(post.get('hub_tag') or '').strip()
     if hub_tag:
         return hub_tag
+    if post.get('is_podcast') or post.get('podcast_enclosure_url'):
+        return 'Interview'
     allowed = {
         'Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS',
         'State Trends', 'Interview', 'Report',
@@ -5516,8 +5532,6 @@ def _infer_insights_industry_tag(post: dict) -> str:
     preferred = ('PBJ Trends', 'PBJ Deep Dive', 'State Trends', 'Owners', '90-Day CNA', 'Interview', 'Report', 'CMS')
     ext_url = str(post.get('external_url') or post.get('url') or '').lower()
     slug_key = str(post.get('slug') or '').lower()
-    if 'ironman-mike-wasserman' in ext_url or 'mike-wasserman-nursing-homes' in ext_url:
-        return 'Interview'
     if 'ny-minimum-staffing' in ext_url or slug_key == 'ny-minimum-staffing':
         return 'Report'
     if 'the-other-3000-days-at-seagate' in ext_url:
@@ -5578,8 +5592,8 @@ def _render_insights_hub_card_html(post: dict) -> str:
             f'<div class="card-body"><div class="tag-row"><span class="card-tag">{tag}</span></div>'
             f'<h2><a href="{native_url}">{title}</a></h2><p class="meta">{meta_line}</p>'
             + (f'<p class="desc">{desc}</p>' if desc else '')
-            + f'<div class="card-actions"><a class="read-action" href="{native_url}" aria-label="View this PBJ320 insight">'
-            f'<img src="/pbj_favicon.png" alt="" width="20" height="20">View</a></div></div></article></li>'
+            + f'<div class="card-actions"><a class="read-action" href="{native_url}" aria-label="Read this PBJ320 insight">'
+            f'<img src="/pbj_favicon.png" alt="" width="20" height="20">Read</a></div></div></article></li>'
         )
     ext_url = html.escape(post.get('external_url') or post.get('url') or '#', quote=True)
     action_label, action_aria = _insights_external_action_label(post)

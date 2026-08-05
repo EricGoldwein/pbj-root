@@ -250,6 +250,17 @@ def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[
     if snap is None:
         notes.append("Skipped entity-count check: no NH_ProviderInfo snapshot found.")
         return
+    # search_index is built from the current release (often Norm month). Tracked NH may lag
+    # (Jul NH gitignored) — comparing Jul index to Mar NH falsely fails CI.
+    nh_rank = _parse_provider_filename(snap)
+    _, _, newest_any = _latest_provider_months()
+    newest_rank = _parse_provider_filename(newest_any) if newest_any else None
+    if nh_rank and newest_rank and nh_rank < newest_rank:
+        notes.append(
+            f"Skipped entity-count check: newest NH in git is {snap.name}, but release month is "
+            f"{newest_any.name if newest_any else 'newer'} (paired NH gitignored on CI)."
+        )
+        return
     if not search_index_path.exists():
         errors.append("search_index.json missing (cannot validate entity counts).")
         return

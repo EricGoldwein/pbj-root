@@ -6350,6 +6350,16 @@ def _static_cache_headers(resp, max_age=None, *, immutable=None):
     if immutable is None:
         immutable = max_age >= 86400
     if resp is not None and hasattr(resp, 'headers'):
+        # send_file/send_from_directory populate response.cache_control; Werkzeug can
+        # regenerate Cache-Control from that object and ignore a bare header assignment.
+        try:
+            cc = resp.cache_control
+            cc.clear()
+            cc.public = True
+            cc.max_age = int(max_age)
+            cc.immutable = bool(immutable)
+        except Exception:
+            pass
         if immutable:
             resp.headers['Cache-Control'] = f'public, max-age={max_age}, immutable'
         else:

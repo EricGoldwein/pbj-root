@@ -219,9 +219,8 @@
         return { label: 'Read', aria: 'Read this article on Substack (new tab)' };
       }
       function hubImage(p) {
-        if (p.image_url || p.preview_image) return p.image_url || p.preview_image;
         if (isPodcastPost(p)) return '/insights-interview-podcast.png';
-        return '/insights-native-preview.svg';
+        return p.image_url || p.preview_image || '/insights-native-preview.svg';
       }
       function renderCard(p) {
         var title = esc(p.title);

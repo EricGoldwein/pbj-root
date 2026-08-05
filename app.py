@@ -4526,10 +4526,11 @@ def _parse_rss_item(item_el) -> dict | None:
         return None
     if encoded_full and len(encoded_full) > len(description or ''):
         description = _strip_html_fragment(encoded_full)
-    # Podcast episodes often have only an audio enclosure; cover art is in content:encoded.
-    if not image_url and encoded_full:
-        image_url = _first_html_img_src(encoded_full)
     is_podcast = bool(podcast_enclosure_url) or description.lower().startswith('listen now')
+    # Do not scrape content:encoded <img> for podcasts — body often leads with sponsor ads
+    # (e.g. Dog of Day), not episode artwork. Hub uses /insights-interview-podcast.png.
+    if not image_url and encoded_full and not is_podcast:
+        image_url = _first_html_img_src(encoded_full)
     return {
         'title': title,
         'url': link,
@@ -5511,10 +5512,9 @@ def _enrich_insights_hub_post(post: dict) -> dict:
         post['is_podcast'] = True
     if post.get('is_podcast'):
         post['hub_tag'] = 'Interview'
-        # Prefer Substack episode art from RSS; local artwork only if missing.
-        if not (post.get('image_url') or post.get('preview_image')):
-            post['image_url'] = '/insights-interview-podcast.png'
-            post['preview_image'] = '/insights-interview-podcast.png'
+        # Shared The 320 podcast artwork (same as Ironman episode hub card).
+        post['image_url'] = '/insights-interview-podcast.png'
+        post['preview_image'] = '/insights-interview-podcast.png'
     return post
 
 

@@ -1,0 +1,34 @@
+---
+description: Insights/social OG images — raster only, verify before ship, no year-long immutable on mutable paths
+globs: insights_posts/**,**/build_insights*og*,**/assemble_rankings_insights_post.py,insights-theme.css
+alwaysApply: false
+---
+
+# Insights / social OG image ships
+
+**Incident:** LinkedIn showed no preview because `og:image` pointed at SVG; then a “fix” shipped a blank 4KB PNG (Playwright `file://` img never loaded). Prod also served root PNGs with `max-age=31536000, immutable`, so a bad OG URL could stick for a year.
+
+## Hard rules
+
+1. **Never** put `.svg` in `ogImage` / social `og:image`. LinkedIn ignores SVG. Keep SVG for in-page charts; raster PNG/JPEG/WebP for crawlers.
+2. **Rasterize proof before commit** (any one failure = do not ship):
+   - File size **≥ 40KB** for a 1200×630 map-style OG (blank renders were ~3–5KB)
+   - Open/inspect: not a solid navy/white rectangle; tilemap colors visible
+   - `og:image` absolute **https** URL, `og:image:type` = `image/png` (or jpeg/webp)
+3. **Playwright:** inline SVG markup into HTML. Do **not** `<img src="file://…">` under `set_content` — it silently blanks.
+4. **URL change when replacing a previously cached OG** at the same path: bump `?v=` on `ogImage` or rename the file. In-place overwrite is not enough if CDN/browser got `immutable`.
+5. **Cache:** root/social OG PNGs must **not** use year-long `immutable`. Prefer short `max-age` + non-immutable (or fingerprinted filenames).
+
+## Scope discipline (how Eric prompts)
+
+- “Fix LinkedIn OG / push” = **raster + meta + verify + push**. Do not pile chart title/CSS/branding unless asked in the same message.
+- If the prompt adds branding (“title X + PBJ320”), bake into the **PNG header band** and optionally the same in-page head row — still one ship, but finish raster proof first.
+- Dirty tree: selective `git add` of OG/post/script only; surgical `app.py` via backup → `git checkout HEAD -- app.py` → one-line/hunk edit → commit → restore WIP. Prefer that over worktree for tiny cache/meta fixes.
+
+## Done checklist
+
+- [ ] Local PNG size/colors verified
+- [ ] Staged set is only OG-related files
+- [ ] Push completed (`origin/master` includes commit)
+- [ ] Prod `Content-Length` matches real PNG (not the old blank)
+- [ ] Tell user to refresh LinkedIn [Post Inspector](https://www.linkedin.com/post-inspector/) on the insight URL

@@ -5429,9 +5429,11 @@ def _insights_social_og_image_path(preview_image: str, og_image: str | None = No
 
 def _insights_og_image_meta(image_path: str) -> tuple[int | None, int | None, str]:
     path = (image_path or '').strip()
-    lower = path.lower()
+    # Allow cache-bust query on ogImage frontmatter (e.g. foo-og.png?v=2).
+    path_no_q = path.split('?', 1)[0]
+    lower = path_no_q.lower()
     if lower.endswith('.png'):
-        full = os.path.join(APP_ROOT, path.lstrip('/'))
+        full = os.path.join(APP_ROOT, path_no_q.lstrip('/'))
         if os.path.isfile(full):
             try:
                 from PIL import Image
@@ -27466,7 +27468,11 @@ def static_files(filename):
         response = send_from_directory(APP_ROOT, filename, mimetype=mimetype)
         if filename.endswith('.ico') or 'favicon' in filename.lower() or filename == 'apple-touch-icon.png':
             return _favicon_cache_headers(response)
-        return _static_cache_headers(response)
+        # Root images are rewritten in place (OG/social, tilemaps). Year-long immutable
+        # locks crawlers/CDNs onto blank or stale bytes after a same-path replace.
+        if filename.endswith('-og.png') or 'og-image' in filename.lower():
+            return _static_cache_headers(response, max_age=3600, immutable=False)
+        return _static_cache_headers(response, max_age=86400, immutable=False)
     # Handle CSS
     elif filename.endswith('.css'):
         css_path = os.path.join(APP_ROOT, filename)

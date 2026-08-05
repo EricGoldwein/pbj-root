@@ -26,6 +26,18 @@ Run `git status -sb` and `git diff --stat`. If the working tree is dirty with **
 - If a follow-up item appears (e.g. sparkline after state UI), treat it as a **separate** clean commit — do not pile it into the same dirty diff.
 - Prefer small CSS/markup deltas. Do not “improve” adjacent layout unless asked.
 
+## Tiny `app.py` hunk on a dirty tree (preferred over worktree)
+
+When the ship needs **one** `app.py` line/hunk (CSS `?v=` bump, cache header, meta) and the file is full of unrelated WIP:
+
+1. `Copy-Item app.py _scratch\app.py.wip_backup_*`
+2. `git checkout HEAD -- app.py`
+3. Apply only the required hunk; `git add -- app.py`; confirm `git diff --cached` is that hunk alone
+4. Commit (and push if asked)
+5. `Copy-Item _scratch\app.py.wip_backup_* app.py` to restore WIP
+
+Use a **worktree** when the edit is multi-file / multi-hunk in `app.py`, or when pre-push needs isolation from local experiments. Do not open a worktree for a one-line cache bust.
+
 ## Before commit / push
 
 - `git diff` the staged set. If anything unrelated is present → **STOP**, unstage, isolate. Do not `git add app.py` when the file mixes WIP.

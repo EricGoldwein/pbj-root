@@ -80,11 +80,14 @@ Only after (1)–(4) fail, suggest hard refresh, restart `python app.py`, or `PB
 
 - **Do not commit** unless the user explicitly asks.
 - **Do not push** unless the user explicitly asks.
+- **Simple ship prompts** (“fix X and push”): prove the artifact first (file size / live HTML marker / API field), then selective commit + push. Do not spend the first half-hour on worktree theater when selective `git add` or the tiny-`app.py`-backup path in `pbj320-clean-hotfix` suffices.
+- **Binary / OG / image ships:** verify bytes on disk before commit (see `pbj320-insights-og-social`). A “successful” raster script that wrote a blank PNG is a failed ship.
 - For **non-trivial** edits, and **always** for route/data/API/template/performance work, state **files to touch** and classify each as:
   - **requested** — directly in the user ask
   - **necessary dependency** — required for the fix to work (e.g. cache version bump with `pbj-site-universal.js`)
   - **optional / out of scope** — defer unless user approves
 - If the fix expands beyond the original ask, **stop and explain why** before editing further.
+- **Dirty-tree hotfixes:** follow `.cursor/rules/pbj320-clean-hotfix.mdc`. Never land shippable UI/copy on top of unrelated `app.py` WIP; stash or clean branch first, then push an isolated commit.
 
 ## 6. Performance proof
 

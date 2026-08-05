@@ -113,3 +113,27 @@ zip_to_quarter_mapping.csv
 nursing_homes_including_rehab_services_*.zip
 ownership/*.zip
 
+# ---------------------------------------------------------------------------
+# Local agent / QA scrap (root-only). Keeps git status readable; never ship these.
+# ---------------------------------------------------------------------------
+/_smoke_*
+/_patch_*
+/_audit_*
+/_tmp_*
+/_parse_*
+/_check_*
+/_bump_*
+/_verify_*
+/_dow_*.png
+/_app_*_backup.py
+/_wip_aside/
+/_wt_*/
+/_scratch/
+/artifacts/
+/audit_artifacts/
+/Asssets/
+*.pre_lpn_*.csv
+*.pre_medians_*.csv
+*.pre_dedupe_*.csv
+*.pre_unify_*.csv
+

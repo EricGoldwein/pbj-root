@@ -112,12 +112,21 @@ _data_load_lock = threading.Lock()
 
 
 def _get_latest_provider_info_path() -> tuple[Path, None]:
-    """Newest NH_ProviderInfo_*.csv by mtime (Legal Business Name matching)."""
+    """Newest NH_ProviderInfo_*.csv by release month in the filename (not mtime)."""
     provider_dir = BASE_DIR / "provider_info"
     files = [p for p in provider_dir.glob("NH_ProviderInfo_*.csv") if p.is_file()]
-    if files:
+    if not files:
+        return PROVIDER_INFO_LATEST, None
+    try:
+        from utils.date_utils import _parse_provider_filename
+
+        def _rank(path: Path):
+            parsed = _parse_provider_filename(path)
+            return parsed if parsed else (0, 0)
+
+        return max(files, key=_rank), None
+    except Exception:
         return max(files, key=lambda p: p.stat().st_mtime), None
-    return PROVIDER_INFO_LATEST, None
 
 
 def _get_latest_ownership_raw_path() -> tuple[Path, None]:

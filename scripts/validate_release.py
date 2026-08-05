@@ -102,21 +102,47 @@ def _latest_provider_snapshot_file() -> Optional[Path]:
 
 
 def _latest_ownership_month_and_file() -> Tuple[Optional[str], Optional[Path]]:
+    """Newest ownership snapshot by filename date (not mtime — CI checkout mtimes lie)."""
     ownership_dir = REPO_ROOT / "ownership"
-    files = list(ownership_dir.glob("SNF_All_Owners*.csv")) + list(ownership_dir.glob("SNF_All_Owners*.parquet"))
+    files = [
+        p
+        for p in ownership_dir.glob("SNF_All_Owners*.csv")
+        if p.is_file() and "facility_" not in p.name.lower()
+    ]
+    files += [p for p in ownership_dir.glob("SNF_All_Owners*.parquet") if p.is_file()]
     if not files:
         return None, None
-    latest_file = max(files, key=lambda p: p.stat().st_mtime)
-    dated = []
-    for p in files:
-        parsed = _parse_ownership_filename(p)
-        if parsed:
-            y, mo = parsed
-            dated.append((y, mo))
-    if not dated:
+
+    def _rank(path: Path) -> Tuple[int, int, int]:
+        parsed = _parse_ownership_filename(path)
+        if not parsed:
+            return (0, 0, 0)
+        y, mo = parsed
+        day = 1
+        m_iso = re.search(r"(\d{4})[._-](\d{1,2})[._-](\d{1,2})", path.stem.lower())
+        if m_iso:
+            day = int(m_iso.group(3))
+        return (y, mo, day)
+
+    latest_file = max(files, key=_rank)
+    ranked = _rank(latest_file)
+    if ranked == (0, 0, 0):
         return None, latest_file
-    y, mo = sorted(set(dated), reverse=True)[0]
-    return _format_month_year(y, mo), latest_file
+    return _format_month_year(ranked[0], ranked[1]), latest_file
+
+
+def _newest_nh_provider_info_path() -> Optional[Path]:
+    """Newest tracked/deployable NH_ProviderInfo_*.csv by filename month (not mtime)."""
+    provider_dir = REPO_ROOT / "provider_info"
+    files = [p for p in provider_dir.glob("NH_ProviderInfo_*.csv") if p.is_file()]
+    if not files:
+        return None
+
+    def _rank(path: Path) -> Tuple[int, int]:
+        parsed = _parse_provider_filename(path)
+        return parsed if parsed else (0, 0)
+
+    return max(files, key=_rank)
 
 
 def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
@@ -151,7 +177,7 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
         if str(displayed.get(key) or "") != str(file_dates.get(key) or ""):
             errors.append(f"drift between app.get_dynamic_dates and utils.date_utils for {key}")
 
-    # Owner dashboard selected files should point to current latest files by mtime.
+    # Owner dashboard uses NH_* only (Legal Business Name). Compare to newest NH, not Norm.
     import donor.owner_donor_dashboard as owner_dash  # pylint: disable=import-error
 
     selected_provider_file = None
@@ -165,14 +191,19 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
     if selected_ownership_file is None and hasattr(owner_dash, "OWNERSHIP_RAW"):
         selected_ownership_file = owner_dash.OWNERSHIP_RAW
 
-    if inferred_provider_file and selected_provider_file and selected_provider_file.resolve() != inferred_provider_file.resolve():
-        errors.append(
-            "owner dashboard provider snapshot path is not latest by mtime: "
-            f"selected={selected_provider_file.name}, latest={inferred_provider_file.name}"
-        )
+    newest_nh = _newest_nh_provider_info_path()
+    if newest_nh and selected_provider_file and selected_provider_file.resolve() != newest_nh.resolve():
+        # Owner dash picks NH by mtime; require it match newest NH by filename month.
+        selected_rank = _parse_provider_filename(selected_provider_file)
+        newest_rank = _parse_provider_filename(newest_nh)
+        if selected_rank != newest_rank:
+            errors.append(
+                "owner dashboard provider snapshot is not newest NH by release month: "
+                f"selected={selected_provider_file.name}, newest_nh={newest_nh.name}"
+            )
     if inferred_ownership_file and selected_ownership_file and selected_ownership_file.resolve() != inferred_ownership_file.resolve():
         errors.append(
-            "owner dashboard ownership snapshot path is not latest by mtime: "
+            "owner dashboard ownership snapshot path is not newest by filename date: "
             f"selected={selected_ownership_file.name}, latest={inferred_ownership_file.name}"
         )
 
@@ -182,6 +213,10 @@ def _check_displayed_source_months(errors: List[str], notes: List[str]) -> None:
         f"provider_previous={displayed.get('provider_info_previous')}, "
         f"ownership_latest={displayed.get('affiliated_entity_latest')}"
     )
+    if inferred_provider_file:
+        notes.append(f"Newest provider snapshot for dates={inferred_provider_file.name}")
+    if newest_nh:
+        notes.append(f"Newest NH snapshot for owners dash={newest_nh.name}")
 
 
 def _check_api_dates_consistency(errors: List[str], notes: List[str]) -> None:
@@ -208,8 +243,9 @@ def _check_api_dates_consistency(errors: List[str], notes: List[str]) -> None:
 
 
 def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[str]) -> None:
-    """Ensure search_index entity counts align to latest provider snapshot roster."""
-    snap = _latest_provider_snapshot_file()
+    """Ensure search_index entity counts align to latest NH provider snapshot roster."""
+    # Prefer NH schema (Chain ID / CCN). Norm is used for dates when NH is gitignored.
+    snap = _newest_nh_provider_info_path() or _latest_provider_snapshot_file()
     search_index_path = REPO_ROOT / "search_index.json"
     if snap is None:
         notes.append("Skipped entity-count check: no NH_ProviderInfo snapshot found.")
@@ -229,7 +265,10 @@ def _check_entity_counts_against_latest_snapshot(errors: List[str], notes: List[
         errors.append(f"could not read latest provider snapshot {snap.name}: {exc}")
         return
     if "Chain ID" not in df.columns or "CMS Certification Number (CCN)" not in df.columns:
-        errors.append(f"latest provider snapshot missing expected columns: {snap.name}")
+        notes.append(
+            f"Skipped entity-count check: {snap.name} lacks NH Chain ID/CCN columns "
+            "(Norm-only checkout is expected when paired NH is gitignored)."
+        )
         return
 
     # chain_id -> unique ccn count

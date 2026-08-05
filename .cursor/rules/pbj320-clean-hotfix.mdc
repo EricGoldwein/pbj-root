@@ -1,0 +1,44 @@
+---
+description: Clean-tree hotfixes — never mix small UI/copy ships with unrelated WIP in app.py
+alwaysApply: true
+---
+
+# Clean hotfix / no mixed-WIP ships
+
+**Incident this prevents:** small post-deploy UI/copy asks turning into stash/rebase/isolation theater because edits were made in an already-dirty `app.py` that also held unfinished owners/geo/premium/spark experiments.
+
+## Before any edit (mandatory gate)
+
+Run `git status -sb` and `git diff --stat`. If the working tree is dirty with **unrelated** WIP (especially `app.py` hunks outside the ask):
+
+1. **Stop.** Do not edit on top of that mess for a shippable polish/hotfix.
+2. Tell the user the tree is dirty and which unrelated areas are present (1–3 bullets).
+3. Use a **clean path** (prefer in this order):
+   - **worktree** from `origin/master` (e.g. `git worktree add _wt_hotfix origin/master`) — best when the main tree is heavily dirty
+   - `git stash push -m "wip-before-hotfix"` (tracked only; avoid `-u` unless needed), edit on clean `origin/master`, commit/push when asked, then `git stash pop`
+   - **or** branch from clean `origin/master` (e.g. `hotfix/ui-…`), edit there only
+4. Never “just patch” dirty `app.py` and hope to isolate later.
+5. Do not leave `_smoke_*` / `_patch_*` / `_tmp_*` at repo root; they are gitignored — prefer `_scratch/` if you must keep them.
+
+## During the ask
+
+- Touch **only** files/hunks required for the user ask. No drive-by owners/geo/premium/spark/API work.
+- If a follow-up item appears (e.g. sparkline after state UI), treat it as a **separate** clean commit — do not pile it into the same dirty diff.
+- Prefer small CSS/markup deltas. Do not “improve” adjacent layout unless asked.
+
+## Before commit / push
+
+- `git diff` the staged set. If anything unrelated is present → **STOP**, unstage, isolate. Do not `git add app.py` when the file mixes WIP.
+- Never `git add -A` in this repo’s usual dirty state.
+- Ship only the requested polish unless the user explicitly expands scope.
+
+## After ship
+
+Restore stashed WIP if you stashed. Confirm `origin/master` has the hotfix and local WIP is back without re-including the already-shipped hunks as confusion.
+
+## Anti-patterns (forbidden)
+
+- Editing polish into a mega-dirty `app.py`, then discovering push needs surgical isolation
+- Rebasing/stashing mid-hotfix as the primary workflow because the tree started dirty
+- Multitask agents each editing the same dirty `app.py` without a clean base
+- Bundling “while we’re here” route/API WIP into a UI polish push

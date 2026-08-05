@@ -122,10 +122,11 @@ def main() -> int:
     notes.append(f"release_key={release_key or 'n/a'}")
 
     if nh_local is None:
-        errors.append(
-            f"paired NH snapshot missing in pbj-root for {norm.name} "
-            f"(run PBJapp: python scripts/sync_to_pbj_root.py provider-release "
-            f"--release-key {release_key} --force)"
+        # Newest NH is often gitignored (Render uses Norm + self-check). Do not hard-fail
+        # the push gate when Norm validates; require NH only when present locally / in PBJapp sync.
+        notes.append(
+            f"paired NH not in pbj-root for {norm.name} "
+            "(expected when NH is gitignored; Norm self-check is the deploy gate)"
         )
     else:
         notes.append(f"paired_nh_local={nh_local.name}")
@@ -164,9 +165,14 @@ def main() -> int:
             )
             nh_pbjapp = pbjapp / "provider_info" / f"NH_ProviderInfo_{month_names[month]}{year}.csv"
             if nh_pbjapp.is_file():
-                errors.append(
+                # Soft note on CI; hard fail only for local developer machines with PBJapp sibling.
+                msg = (
                     f"PBJapp has {nh_pbjapp.name} but pbj-root does not — sync did not copy NH for backfill"
                 )
+                if os.environ.get("GITHUB_ACTIONS"):
+                    notes.append(msg + " (CI note; NH may be intentionally untracked)")
+                else:
+                    errors.append(msg)
     else:
         notes.append("PBJapp sibling not found (set PBJAPP_ROOT to cross-check handoff)")
 

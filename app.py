@@ -4927,6 +4927,7 @@ def _load_native_insights_markdown_posts() -> list:
             ),
             'read_time': (front.get('readTime') or front.get('read_time') or '').strip(),
             'tags': _parse_tags_field(front.get('tags')),
+            'hub_tag': (front.get('hubTag') or front.get('hub_tag') or '').strip(),
             'reference_title': (front.get('referenceTitle') or '').strip(),
             'reference_url': (front.get('referenceUrl') or '').strip(),
             'targetEntity': target_entity,
@@ -5449,6 +5450,9 @@ def _enrich_insights_hub_post(post: dict) -> dict:
         post['preview_image'] = '/insights-interview-podcast.png'
     elif 'ny-minimum-staffing' in key:
         post['hub_tag'] = 'Report'
+    elif '2026-us-nursing-home-staffing-rankings' in key:
+        # Explicit hub chip; do not infer "CMS" from body copy mentioning CMS PBJ.
+        post['hub_tag'] = post.get('hub_tag') or 'PBJ Trends'
     desc = str(post.get('description') or '').strip().lower()
     if desc.startswith('listen now') or post.get('podcast_enclosure_url'):
         post['is_podcast'] = True
@@ -5463,6 +5467,8 @@ def _infer_insights_industry_tag(post: dict) -> str:
         'Owners', 'PBJ Deep Dive', 'PBJ Trends', '90-Day CNA', 'CMS',
         'State Trends', 'Interview', 'Report',
     }
+    # Prefer explicit industry chips over incidental keywords like "CMS" in SEO tags.
+    preferred = ('PBJ Trends', 'PBJ Deep Dive', 'State Trends', 'Owners', '90-Day CNA', 'Interview', 'Report', 'CMS')
     ext_url = str(post.get('external_url') or post.get('url') or '').lower()
     slug_key = str(post.get('slug') or '').lower()
     if 'ironman-mike-wasserman' in ext_url or 'mike-wasserman-nursing-homes' in ext_url:
@@ -5474,9 +5480,10 @@ def _infer_insights_industry_tag(post: dict) -> str:
     tags = post.get('tags') or []
     if isinstance(tags, str):
         tags = [t.strip() for t in tags.split(',') if t.strip()]
-    for t in tags:
-        if str(t).strip() in allowed:
-            return str(t).strip()
+    tag_set = {str(t).strip() for t in tags if str(t).strip()}
+    for name in preferred:
+        if name in tag_set and name in allowed:
+            return name
     cats = post.get('categories') or []
     cat_str = ' '.join(str(c) for c in cats) if isinstance(cats, list) else ''
     combined = f'{post.get("title") or ""} {post.get("description") or ""} {cat_str}'.lower()
@@ -5484,9 +5491,11 @@ def _infer_insights_industry_tag(post: dict) -> str:
         return 'Owners'
     if re.search(r'cna|nurse assistant|90-day|90 day', combined):
         return '90-Day CNA'
+    if re.search(r'\btrend|quarter|q[1-4]|state rankings|staffing data\b', combined):
+        return 'PBJ Trends'
     if re.search(r'cms|star|care compare', combined):
         return 'CMS'
-    if re.search(r'state|states|national|trend|quarter|q[1-4]', combined):
+    if re.search(r'state|states|national', combined):
         return 'State Trends'
     return 'PBJ Deep Dive'
 

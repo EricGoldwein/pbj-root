@@ -10,7 +10,8 @@ previewImage: /insights-rankings-state-hprd-tilemap-q1-2026.svg
 showCover: false
 readTime: 5 min read
 category: pbj
-tags: PBJ, HPRD, state rankings, CMS, nursing home staffing, Q1 2026
+hubTag: PBJ Trends
+tags: PBJ Trends, HPRD, state rankings, nursing home staffing, Q1 2026
 referenceTitle: "Why Staffing HPRD is the Batting Average of Nursing Homes"
 referenceUrl: "https://320insight.substack.com/p/2025-us-nursing-home-staffing-rankings"
 ---

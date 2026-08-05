@@ -2566,6 +2566,20 @@ html.pbj-insights-article .article-body > ul.insight-intro__list {
   font-size: clamp(1.28rem, 2.6vw, 1.48rem) !important;
   font-weight: 400;
   color: #0a0f1a;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.insight-data-section__brand {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0 0 0.15rem;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: clamp(0.78rem, 1.6vw, 0.92rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 .insight-data-section__sub {
   margin: 0.35rem 0 0;
@@ -2925,7 +2939,11 @@ html.pbj-insights-article .article-body .insight-rankings {
     overflow-x: hidden;
   }
   .insight-data-section__head {
-    align-items: flex-start;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+  }
+  .insight-data-section__title {
+    font-size: clamp(1.05rem, 4.6vw, 1.28rem) !important;
   }
   .insight-rankings__toolbar {
     flex-wrap: wrap;

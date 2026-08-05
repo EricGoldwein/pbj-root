@@ -446,11 +446,10 @@ def main() -> None:
 
     table_html = f"""<div class="insight-data-section" id="state-rankings">
   <div class="insight-data-section__head">
-    <h2 class="insight-data-section__title">Nursing Home State Staffing Trends, Q1 2026</h2>
-    <span class="insight-data-section__brand">PBJ320</span>
+    <h2 class="insight-data-section__title">State staffing rankings, Q1 2026</h2>
   </div>
   <aside class="insight-note insight-note--inline" role="note">
-    <p class="insight-note__body"><strong>Note:</strong> State staffing data is thin without context. Statewide HPRD should be used in context of other metrics including demographics, geography, and policy. For more, read “<a href="https://320insight.substack.com/p/2025-us-nursing-home-staffing-rankings">Why staffing HPRD is the batting average of nursing homes</a>”.</p>
+    <p class="insight-note__body"><strong>Note:</strong> State staffing data should be viewed in context of other metrics including demographics, geography, and policy. For more, read “<a href="https://320insight.substack.com/p/2025-us-nursing-home-staffing-rankings">Why staffing HPRD is the batting average of nursing homes</a>”.</p>
   </aside>
   <div class="insight-rankings" id="insight-rankings-q1-2026" data-quarter="2026Q1">
   <div class="insight-rankings__toolbar">

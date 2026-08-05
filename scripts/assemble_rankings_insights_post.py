@@ -26,7 +26,7 @@ hideFromHub: false
 date: {PUBLISH_DATE}
 author: Eric Goldwein
 previewImage: /insights-rankings-state-hprd-tilemap-q1-2026.svg
-ogImage: /insights-rankings-state-hprd-tilemap-q1-2026-og.png?v=2
+ogImage: /insights-rankings-state-hprd-tilemap-q1-2026-og.png?v=3
 showCover: false
 readTime: 5 min read
 category: pbj
@@ -80,7 +80,7 @@ INTRO = f"""
 
 <p>In Q1 2026, CMS reported PBJ data for <strong>{NATIONAL_FACILITIES}</strong> facilities with a nationwide ratio of <strong>{NATIONAL_TOTAL_HPRD} Total Nurse hours per resident day (HPRD)</strong>, including <strong>{NATIONAL_RN_HPRD} RN</strong> and <strong>{NATIONAL_AIDE_HPRD} nurse aide</strong> HPRD.</p>
 
-<p>This page shows how states have fared, not just vs. each other, but vs. themselves over time. <strong><a href="/">Head to PBJ320</a></strong> to dive deeper into facility, state, and entity-level data, and <a href="/sff">click here</a> to see the list of Special Focus Facilities.</p>
+<p>This page shows how states have fared, not just vs. each other, but vs. themselves over time. <strong><a href="/">Head to PBJ320</a></strong> to dive deeper into facility, state, and entity-level data, and check out the <a href="/sff">Special Focus Facilities list here</a>.</p>
 
 <hr class="insight-section-rule" />
 
@@ -88,7 +88,10 @@ INTRO = f"""
 
 GLANCE_OPEN = """
 <section class="insight-glance" aria-labelledby="insight-glance-title">
-  <h2 id="insight-glance-title" class="insight-data-section__title">State staffing picture, Q1 2026</h2>
+  <div class="insight-data-section__head">
+    <h2 id="insight-glance-title" class="insight-data-section__title">Nursing Home PBJ State Staffing Trends, Q1 2026</h2>
+    <span class="insight-data-section__brand" title="PBJ320">PBJ320</span>
+  </div>
 
 """
 

@@ -1,0 +1,41 @@
+﻿# pbj-root — keep agent context on runtime + docs, not local dumps
+
+# Secrets
+.env
+.env.*
+*.env
+donor/.env
+
+# Large / deploy-built data (also gitignored)
+data/provider_indexes/*.sqlite
+data/provider_indexes/*.pkl
+facility_quarterly_metrics.csv
+*.pre_lpn_*.csv
+*.pre_medians_*.csv
+
+# Local agent / QA scrap
+_scratch/
+_smoke_*
+_patch_*
+_tmp_*
+_audit_*
+_parse_*
+_verify_*
+_wt_*/
+_wip_aside/
+artifacts/
+audit_artifacts/
+Asssets/
+
+# Caches / venvs
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+pbj-wrapped/node_modules/
+pbj-wrapped/dist/
+
+# Heavy media / one-offs
+*.mp4
+_prod.zip

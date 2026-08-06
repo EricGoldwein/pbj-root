@@ -18,6 +18,10 @@ Each page displays 7 sections of data-driven insights in a clean, factual, edito
 - `/wrapped/2025/{state-name}` - State data (full name, e.g., `pennsylvania`) - redirects to 2-letter code
 - `/wrapped/2025/region{1-10}` - CMS region data (e.g., `region1`, `region2`)
 
+## Portfolio structure
+
+**Wrapped slideshow product is parked** (will return later). This folder still matters because Flask serves **SFF + some JSON** from `public/` (and may still expose `/wrapped` via `dist`). See repo root `AGENTS.md`, `FOLDER_STRUCTURE_CANON.md`, and `docs/AUTHORITY_LADDER.md`. Slide order authority if revived: `SLIDE_ORDER_AND_STYLE.md`.
+
 ## Setup
 
 1. Install dependencies:

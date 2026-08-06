@@ -129,6 +129,7 @@ ownership/*.zip
 /_wip_aside/
 /_wt_*/
 /_scratch/
+!/_scratch/README.md
 /artifacts/
 /audit_artifacts/
 /Asssets/

@@ -173,13 +173,14 @@
 
 ---
 
-## STEP 4 — EXECUTION (PENDING APPROVAL)
+## STEP 4 — EXECUTION (PARTIAL — 2026-08-06)
 
-**DO NOT execute until plan is approved internally.**
+**Status:** Additive pass approved via “do all that” (portfolio structure wins). **No deletes.**
 
-When approved:
-1. Create `ARCHITECTURE.md` with merged content from DEPLOY_AND_RUN, RENDER_DEPLOY, ROUTING_BREAKDOWN.
-2. Create `_archive_notes.md` with verbatim content from archived files, section headers, and top comment: "NON-AUTHORITATIVE — retained for history".
-3. Merge pbj-wrapped SETUP, QUICK_START, SPEED_UP, COPY_DATA_FILES into pbj-wrapped/README.md.
-4. Do NOT delete original files unless explicitly instructed.
-5. Do NOT change wording or infer meaning.
+Done:
+1. Created `ARCHITECTURE.md` (index merging deploy/routing pointers; originals retained).
+2. Created `docs/archive/README.md` (NON-AUTHORITATIVE index; originals retained in place).
+3. Created `docs/AUTHORITY_LADDER.md`, `AGENTS.md`, expanded `FOLDER_STRUCTURE_CANON.md`.
+4. Shared agent ops: `.cursor/rules/320-shared-agent-ops.mdc` + `docs/PROMPT_PREAMBLE_PACK.md`.
+5. pbj-wrapped SETUP/QUICK_START merges — **deferred** (Wrapped product parked; `public/` still live for SFF).
+6. Tier-3 bodies moved to `docs/archive/bodies/` with root stubs (2026-08-06). Donor discovery MD left in place.

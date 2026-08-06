@@ -1,0 +1,45 @@
+---
+description: Shared 320/PBJ/Dog agent ops — verify-first, scratch quarantine, selective ship, cross-env honesty
+alwaysApply: true
+---
+
+# 320 shared agent ops kit
+
+Portable across pbj-root, PBJapp, 320website, Dog-of-the-day. Product-specific rules still win on conflict for that domain.
+
+## 1. Read the passport first
+
+- Open `AGENTS.md` (prompt preamble) and `FOLDER_STRUCTURE_CANON.md` (four layers).
+- Respect `docs/AUTHORITY_LADDER.md` when present: Tier-1 contract/code > Tier-2 living docs > Tier-3 archive notes.
+
+## 2. Verify before claim
+
+- Do not infer repo state from memory. Inspect serving file, route, schema, or command output.
+- For schema/route/API claims, record one-line **Verified from:** (path, header list, or command).
+- PowerShell-first on Windows: no bash `&&`, heredocs, or `export`. Use `;` chains and `$env:VAR = ...`.
+
+## 3. Scratch quarantine
+
+- New smoke/patch/tmp/probe files go under `_scratch/` (or the env’s documented scratch dir).
+- Do not invent new root-level `_smoke_*` dumps when `_scratch/` exists.
+- Never treat scratch as deploy input.
+
+## 4. Ship bar
+
+- No commit / push / delete unless the user explicitly asks.
+- Selective `git add -- <paths>` only — never `git add -A` by default.
+- Dirty trees are normal; do not stash/worktree theater for small polish (see env clean-hotfix rules if present).
+- Ask before bulk moves or overwriting existing tracked files.
+
+## 5. Cross-environment honesty
+
+- If the task needs another repo and it is not in this workspace, say so. Do not invent paths.
+- Shared brand/metric truth: prefer contracts (`pbj-contract/`) and living docs over chat memory.
+
+## 6. Prompt pattern (default)
+
+When the user asks for wins/proposals without “implement”:
+
+1. Inspect folders + authority ladder briefly.
+2. Propose only; do not edit until asked.
+3. Prefer zero-risk structural or additive docs/rules over behavior changes.

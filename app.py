@@ -1727,6 +1727,15 @@ def _rewrite_universal_js_version(html_content: str) -> str:
     )
 
 
+def _inject_turnstile_site_key(html_content: str) -> str:
+    try:
+        from contact_protection import inject_contact_form_tokens
+
+        return inject_contact_form_tokens(html_content)
+    except ImportError:
+        return html_content.replace('__TURNSTILE_SITE_KEY_PLACEHOLDER__', '')
+
+
 def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     """Serve a root-level public HTML file with optional CSRF token injection."""
     path = os.path.join(APP_ROOT, filename)
@@ -1738,6 +1747,7 @@ def _serve_public_html(filename: str, *, inject_csrf: bool = False):
     if inject_csrf:
         token = generate_csrf() if (HAS_CSRF and generate_csrf) else ''
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', token)
+    html_content = _inject_turnstile_site_key(html_content)
     html_content = _rewrite_universal_js_version(html_content)
     try:
         from site_public_config import inject_public_html_cms_urls
@@ -1894,13 +1904,27 @@ def _send_subscribe_notification(email_address, source='homepage'):
         logging.getLogger(__name__).warning('Subscribe notification email failed: %s', e)
 
 
-def _send_contact_email(sender_email, sender_name, message_body, is_press=False):
+def _send_contact_email(sender_email, sender_name, message_body, is_press=False, subject_type=''):
     """Send contact form submission. Uses same SMTP and recipient list as subscribe (SUBSCRIBE_NOTIFY_TO)."""
+    from email.message import EmailMessage
+
+    from contact_protection import build_contact_email_parts, sanitize_header_value
+
     to_list = os.environ.get('SUBSCRIBE_NOTIFY_TO', 'egoldwein@gmail.com,eric@320insight.com').strip().split(',')
     to_list = [a.strip() for a in to_list if a.strip()]
     if not to_list:
         to_list = ['egoldwein@gmail.com']
     host = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_HOST', '').strip()
+    st = (subject_type or '').strip().lower()
+    if not st and request.form:
+        st = (request.form.get('subject_type') or '').strip().lower()
+    subject, plain_body, html_body = build_contact_email_parts(
+        sender_name=sender_name,
+        sender_email=sender_email,
+        message_body=message_body,
+        is_press=is_press,
+        subject_type=st,
+    )
     if not host:
         # No SMTP configured (e.g. local/server without env). Log so you can test the flow; on Render with SMTP set, real email is sent.
         print('[PBJ320 contact] SMTP not configured. Submission logged only:')
@@ -1911,23 +1935,13 @@ def _send_contact_email(sender_email, sender_name, message_body, is_press=False)
     user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
     password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
     from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
-    subject_type = (request.form.get('subject_type') or '').strip().lower() if request.form else ''
-    if subject_type == 'data_issue':
-        subject = 'PBJ320 Data Issue'
-    elif is_press:
-        subject = f"PRESS REQUEST: {sender_name}"
-    else:
-        subject = f"PBJ320 Request: {sender_name}"
-    lines = [
-        f"Name: {sender_name}",
-        f"Email: {sender_email}",
-        f"Media: {'Yes' if is_press else 'No'}",
-        "",
-        "Message:",
-        message_body,
-    ]
-    body = "\n".join(lines)
-    msg = f"Subject: {subject}\r\nFrom: {from_addr}\r\nTo: {', '.join(to_list)}\r\nReply-To: {sender_email}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}"
+    msg = EmailMessage()
+    msg['Subject'] = subject
+    msg['From'] = from_addr
+    msg['To'] = ', '.join(to_list)
+    msg['Reply-To'] = sanitize_header_value(sender_email, max_len=254)
+    msg.set_content(plain_body)
+    msg.add_alternative(html_body, subtype='html')
     try:
         import smtplib
         with smtplib.SMTP(host, port, timeout=10) as s:
@@ -1935,7 +1949,7 @@ def _send_contact_email(sender_email, sender_name, message_body, is_press=False)
                 s.starttls()
             if user and password:
                 s.login(user, password)
-            s.sendmail(from_addr, to_list, msg.encode('utf-8'))
+            s.send_message(msg)
         return True
     except Exception as e:
         print(f'Contact form email failed: {e}')
@@ -2069,17 +2083,37 @@ def contact():
                 validate_csrf(request.form.get('csrf_token'))
             except Exception:
                 return _contact_redirect(next_url, 'contact_error=1')
-        email = (request.form.get('email') or '').strip().lower()
-        message = (request.form.get('message') or '').strip()
-        name = (request.form.get('name') or '').strip()[:200]
-        is_press = request.form.get('press') in ('1', 'on', 'yes', 'true')
-        if not name:
-            return redirect('/contact?error=invalid')
-        if not email or not _EMAIL_RE.match(email) or len(email) > 255:
-            return redirect('/contact?error=invalid')
-        if not message or len(message) > 10000:
-            return redirect('/contact?error=invalid')
-        if _send_contact_email(email, name, message, is_press=is_press):
+
+        from contact_protection import process_contact_submission
+
+        decision = process_contact_submission(
+            form=request.form,
+            content_type=request.content_type,
+            content_length=request.content_length,
+            client_ip=_client_ip_for_rate_limit(),
+            turnstile_token=request.form.get('cf-turnstile-response'),
+        )
+        if decision.outcome == 'rate_limited':
+            return make_response(
+                ('Too many requests. Please try again later.', 429, {'Content-Type': 'text/plain; charset=utf-8'})
+            )
+        if decision.outcome == 'retry':
+            return _contact_redirect(next_url, 'contact_error=retry')
+        if decision.outcome == 'reject':
+            return _contact_redirect(next_url, 'contact_error=1')
+        if decision.outcome == 'soft_drop':
+            # Honeypot / high-confidence spam: identical success UX; no email.
+            return _contact_redirect(next_url, 'contact_sent=1')
+        validated = decision.validated
+        if validated is None:
+            return _contact_redirect(next_url, 'contact_error=1')
+        if _send_contact_email(
+            validated.email,
+            validated.name,
+            validated.message,
+            is_press=validated.is_press,
+            subject_type=validated.subject_type,
+        ):
             return _contact_redirect(next_url, 'contact_sent=1')
         return _contact_redirect(next_url, 'contact_error=1')
     return _serve_public_html('contact.html', inject_csrf=True)
@@ -3808,6 +3842,7 @@ def _serve_report_page_html():
     with open(path, encoding='utf-8', errors='replace') as f:
         page_html = f.read()
     page_html = _inject_report_ssr_html(page_html)
+    page_html = _inject_turnstile_site_key(page_html)
     page_html = _rewrite_universal_js_version(page_html)
     resp = make_response(page_html)
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
@@ -3872,7 +3907,7 @@ def report_embed_pi():
 @app.route('/press')
 @app.route('/press/')
 def press():
-    return _serve_public_html('press.html')
+    return _serve_public_html('press.html', inject_csrf=True)
 
 
 @app.route('/attorneys')
@@ -6450,6 +6485,12 @@ def serve_substack():
 def serve_pbj_site_universal():
     """Single source for contact number and footer; injects into #site-footer on static pages."""
     return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript'))
+
+
+@app.route('/contact-form-protect.js')
+@app.route('/contact-form-protect.js/')
+def serve_contact_form_protect_js():
+    return _static_cache_headers(send_from_directory(APP_ROOT, 'contact-form-protect.js', mimetype='application/javascript'))
 
 
 @app.route('/pbj-audience.js')
@@ -13353,16 +13394,21 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
         <input type="hidden" name="subject_type" id="pbj-contact-subject-type" value="">
         <div class="f-group">
           <label for="pbj-popup-name">Name <span style="color:#f87171">*</span></label>
-          <input type="text" id="pbj-popup-name" name="name" required autocomplete="name" maxlength="200">
+          <input type="text" id="pbj-popup-name" name="name" required autocomplete="name" maxlength="100" minlength="2">
         </div>
         <div class="f-group">
           <label for="pbj-popup-email">Email <span style="color:#f87171">*</span></label>
-          <input type="email" id="pbj-popup-email" name="email" required autocomplete="email">
+          <input type="email" id="pbj-popup-email" name="email" required autocomplete="email" maxlength="254">
         </div>
         <div class="f-group">
           <label for="pbj-popup-message">Message <span style="color:#f87171">*</span></label>
-          <textarea id="pbj-popup-message" name="message" required placeholder="Facility or topic and your request…"></textarea>
+          <textarea id="pbj-popup-message" name="message" required minlength="10" maxlength="5000" placeholder="Facility or topic and your request…"></textarea>
         </div>
+        <div class="pbj-hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+          <label for="pbj-popup-company-website">Company website</label>
+          <input type="text" name="company_website" id="pbj-popup-company-website" value="" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="cf-turnstile pbj-turnstile" data-sitekey="__TURNSTILE_SITE_KEY_PLACEHOLDER__" data-action="pbj_request" data-appearance="interaction-only"></div>
         <div class="f-group f-row-submit">
           <label class="cb-wrap" for="pbj-popup-press">
             <input type="checkbox" id="pbj-popup-press" name="press" value="yes" aria-label="I am media">
@@ -13376,6 +13422,8 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       </form>
     </div>
   </div>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/contact-form-protect.js?v=1" defer></script>
   <script src="/pbj-site-universal.js?v=''' + PBJ_SITE_UNIVERSAL_JS_VERSION + '''"></script>
   ''' + audience_assets_footer() + '''
   <script>
@@ -13452,6 +13500,15 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
       document.body.appendChild(errToast);
       if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
       setTimeout(function() { errToast.remove(); }, 6000);
+    }
+    if (new URLSearchParams(window.location.search).get('contact_error') === 'retry') {
+      var retryToast = document.createElement('div');
+      retryToast.className = 'contact-toast error';
+      retryToast.setAttribute('role', 'alert');
+      retryToast.textContent = "We couldn't verify your request right now. Please try again in a moment.";
+      document.body.appendChild(retryToast);
+      if (history.replaceState) history.replaceState({}, '', window.location.pathname || '/');
+      setTimeout(function() { retryToast.remove(); }, 6000);
     }
   })();
   </script>
@@ -18432,6 +18489,7 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    html_content = _inject_turnstile_site_key(html_content)
     _psec('html_build', _t_html)
     return html_content
 
@@ -20568,6 +20626,7 @@ def generate_entity_page_html(entity_id, entity_name, facilities, chain_row=None
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    html_content = _inject_turnstile_site_key(html_content)
     return html_content
 
 _SFF_CACHE = None
@@ -24047,6 +24106,7 @@ def generate_usa_page():
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    html_content = _inject_turnstile_site_key(html_content)
     _log_mem('generate_usa_page_end')
     return html_content, 200, {
         'Content-Type': 'text/html; charset=utf-8',
@@ -25862,6 +25922,7 @@ def generate_state_page(state_code):
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', generate_csrf())
     else:
         html_content = html_content.replace('__CSRF_TOKEN_PLACEHOLDER__', '')
+    html_content = _inject_turnstile_site_key(html_content)
     _log_mem("generate_state_page_end")
     _total_ms = round((time.perf_counter() - _t_page) * 1000, 1)
     _hydrate_ms = round((_t_after_hydrate - _t_page) * 1000, 1)

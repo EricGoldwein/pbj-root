@@ -174,22 +174,28 @@
 
       <div id="contact-success" class="message success" role="status" style="display: none;">Message sent. We’ll be in touch.</div>
       <div id="contact-error" class="message error" role="alert" style="display: none;">Something went wrong. Please try again.</div>
+      <div id="contact-error-retry" class="message error" role="alert" style="display: none;">We couldn’t verify your request right now. Please try again in a moment.</div>
 
       <form action="/contact" method="POST" id="contact-form">
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
         <input type="hidden" name="next" value="/contact">
         <div class="form-group">
           <label for="contact-name">Name <span style="color: #f87171;">*</span></label>
-          <input type="text" id="contact-name" name="name" required autocomplete="name" maxlength="200" aria-required="true">
+          <input type="text" id="contact-name" name="name" required autocomplete="name" maxlength="100" minlength="2" aria-required="true">
         </div>
         <div class="form-group">
           <label for="contact-email">Email <span style="color: #f87171;">*</span></label>
-          <input type="email" id="contact-email" name="email" required autocomplete="email" aria-required="true">
+          <input type="email" id="contact-email" name="email" required autocomplete="email" maxlength="254" aria-required="true">
         </div>
         <div class="form-group">
           <label for="contact-message">Message <span style="color: #f87171;">*</span></label>
-          <textarea id="contact-message" name="message" required placeholder="e.g. Facility or topic you’re asking about, and your request…" aria-required="true"></textarea>
+          <textarea id="contact-message" name="message" required minlength="10" maxlength="5000" placeholder="e.g. Facility or topic you’re asking about, and your request…" aria-required="true"></textarea>
         </div>
+        <div class="pbj-hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+          <label for="contact-company-website">Company website</label>
+          <input type="text" name="company_website" id="contact-company-website" value="" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="cf-turnstile pbj-turnstile" data-sitekey="__TURNSTILE_SITE_KEY_PLACEHOLDER__" data-action="pbj_request" data-appearance="interaction-only"></div>
         <div class="form-row-submit">
           <label class="checkbox-wrap" for="contact-press">
             <input type="checkbox" id="contact-press" name="press" value="yes" aria-label="I am media">
@@ -203,18 +209,24 @@
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"></footer>
 
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/contact-form-protect.js?v=1" defer></script>
   <script src="/pbj-site-universal.js?v=32"></script>
   <script>
     (function() {
       var params = new URLSearchParams(window.location.search);
       var successEl = document.getElementById('contact-success');
       var errorEl = document.getElementById('contact-error');
+      var retryEl = document.getElementById('contact-error-retry');
       var formEl = document.getElementById('contact-form');
       if ((params.get('contact_sent') === '1' || params.get('sent') === '1') && successEl) {
         successEl.style.display = 'block';
         if (formEl) formEl.style.display = 'none';
       }
-      if ((params.get('contact_error') === '1' || params.get('error')) && errorEl) {
+      var err = params.get('contact_error') || params.get('error');
+      if (err === 'retry' && retryEl) {
+        retryEl.style.display = 'block';
+      } else if (err && errorEl) {
         errorEl.style.display = 'block';
       }
       var messageInput = document.getElementById('contact-message');

@@ -2962,11 +2962,19 @@ button.owner-flag:hover {
   color: #cbd5e1;
   font-weight: 600;
   white-space: nowrap;
+  font-size: 0.62rem;
+  line-height: 1.25;
+  max-width: 100%;
+}
+
+.owner-m-card--facility-compact .owner-rating-staff-label-short {
+  display: none;
 }
 
 .owner-m-card--facility-compact .owner-rating-glyph {
   color: #fbbf24;
-  font-size: 0.62rem;
+  font-size: 0.54rem;
+  letter-spacing: -0.04em;
 }
 
 .owner-m-card--facility-compact .owner-m-card__stats-row--secondary .owner-flag {
@@ -3008,6 +3016,18 @@ button.owner-flag:hover {
 @media (max-width: 699px) {
   .owner-mobile-card-list--facilities {
     gap: 0.28rem;
+  }
+
+  .owner-m-card--facility-compact .owner-rating-staff-label-long {
+    display: none;
+  }
+
+  .owner-m-card--facility-compact .owner-rating-staff-label-short {
+    display: inline;
+  }
+
+  .owner-m-card--facility-compact .owner-m-card__stats-row--secondary {
+    flex-wrap: wrap;
   }
 
   .owner-facilities-mobile-toolbar {

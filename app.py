@@ -11451,6 +11451,18 @@ button.pbj-staffing-role-tab.is-active {{ color: #e2e8f0; background: rgba(99, 1
   .pbj-takeaway-support--n3 {{
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-kind {{
+    font-size: 0.62rem;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--overall,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--health {{
+    font-size: 0.78rem; letter-spacing: -0.03em;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-rating-stars {{
+    letter-spacing: -0.03em;
+  }}
 }}
 @media (max-width: 768px) {{
   .pbj-chart-foot-row {{ flex-direction: column; align-items: stretch; gap: 0.25rem; }}
@@ -12731,22 +12743,33 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings {{
     grid-column: auto;
+    min-width: 0;
+    overflow: visible;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
     font-size: 0.5rem !important; flex-wrap: nowrap !important; gap: 0.12rem 0.14rem;
   }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label .pbj-info-chip {{
+    display: none !important;
+  }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
     flex-direction: column; flex-wrap: nowrap; gap: 0; align-items: flex-start;
-    margin-top: 0;
+    margin-top: 0; min-width: 0; max-width: 100%;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-line {{
+    gap: 0.12rem 0.16rem; max-width: 100%;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-kind {{
-    font-size: 0.62rem; line-height: 1;
+    font-size: 0.52rem; line-height: 1;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--overall,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--health {{
-    font-size: 0.78rem; line-height: 1;
+    font-size: 0.62rem; line-height: 1; letter-spacing: -0.05em;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-rating-stars {{
+    letter-spacing: -0.05em;
   }}
   .pbj-takeaway-metrics button.pbj-info-chip,
   .pbj-takeaway-support button.pbj-info-chip {{
@@ -18207,7 +18230,10 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             )
     _fac_ratings_label = 'CMS ratings'
     if _ratings_as_of_label:
-        _fac_ratings_label = f'CMS ratings · {_ratings_as_of_label}'
+        _as_of_esc = html.escape(str(_ratings_as_of_label))
+        _fac_ratings_label = (
+            f'CMS ratings<span class="pbj-badge-mobile-hide"> · {_as_of_esc}</span>'
+        )
     _fac_primary_metrics += render_ratings_metric_html(
         overall_html=_ratings_overall,
         staffing_html=_ratings_staffing,
@@ -19399,6 +19425,20 @@ def render_page_overview_html(
     )
 
 
+def _ratings_metric_kind_label_html(kind: str) -> str:
+    """Overall / Staffing row labels; mobile uses shorter Staff: for staffing."""
+    if kind == 'staffing':
+        return (
+            '<span class="pbj-metric__rating-kind">'
+            '<span class="pbj-badge-mobile-hide">Staffing:</span>'
+            '<span class="pbj-badge-mobile-only">Staff:</span>'
+            '</span>'
+        )
+    if kind == 'overall':
+        return '<span class="pbj-metric__rating-kind">Overall:</span>'
+    return '<span class="pbj-metric__rating-kind">Health Inspection:</span>'
+
+
 def render_ratings_metric_html(
     *,
     overall_html: str = '',
@@ -19414,7 +19454,7 @@ def render_ratings_metric_html(
         blocks.append(
             '<div class="pbj-metric__rating-block pbj-metric__rating-block--overall">'
             '<span class="pbj-metric__rating-line">'
-            '<span class="pbj-metric__rating-kind">Overall:</span>'
+            f'{_ratings_metric_kind_label_html("overall")}'
             f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--overall">{overall_html}</span>'
             '</span></div>'
         )
@@ -19422,7 +19462,7 @@ def render_ratings_metric_html(
         blocks.append(
             '<div class="pbj-metric__rating-block pbj-metric__rating-block--staffing">'
             '<span class="pbj-metric__rating-line">'
-            '<span class="pbj-metric__rating-kind">Staffing:</span>'
+            f'{_ratings_metric_kind_label_html("staffing")}'
             f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--staffing">{staffing_html}</span>'
             '</span></div>'
         )
@@ -19430,7 +19470,7 @@ def render_ratings_metric_html(
         blocks.append(
             '<div class="pbj-metric__rating-block pbj-metric__rating-block--health">'
             '<span class="pbj-metric__rating-line">'
-            '<span class="pbj-metric__rating-kind">Health Inspection:</span>'
+            f'{_ratings_metric_kind_label_html("health")}'
             f'<span class="pbj-metric__rating-stars pbj-metric__rating-stars--health">{health_html}</span>'
             '</span></div>'
         )

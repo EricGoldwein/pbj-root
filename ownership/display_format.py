@@ -212,16 +212,24 @@ def cms_ratings_compact_html(
     *,
     verified: bool = True,
 ) -> str:
-    """One-line mobile summary: Ovr 3★ · Stf 2★ (numeric, no star rows)."""
+    """One-line mobile summary: Overall 3★ · Staff 2★ (numeric glyph, not star rows)."""
     if not verified:
         return ""
     ovr = format_cms_star_rating(overall)
     stf = format_cms_star_rating(staffing)
     bits: list[str] = []
     if ovr != "—":
-        bits.append(f'Ovr {ovr}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>')
+        bits.append(
+            'Overall '
+            f'{ovr}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>'
+        )
     if stf != "—":
-        bits.append(f'Stf {stf}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>')
+        bits.append(
+            '<span class="owner-rating-staff-label">'
+            '<span class="owner-rating-staff-label-long">Staffing </span>'
+            '<span class="owner-rating-staff-label-short">Staff </span>'
+            f'</span>{stf}<span class="owner-rating-glyph" aria-hidden="true">\u2605</span>'
+        )
     if not bits:
         return ""
     sep = '<span class="owner-m-card__sep" aria-hidden="true"> · </span>'

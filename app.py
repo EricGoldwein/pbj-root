@@ -11453,29 +11453,12 @@ button.pbj-staffing-role-tab.is-active {{ color: #e2e8f0; background: rgba(99, 1
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-kind {{
     font-size: 0.62rem;
-    justify-self: end;
-    text-align: right;
-  }}
-  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
-    display: grid;
-    grid-template-columns: max-content minmax(0, 1fr);
-    column-gap: 0.14rem;
-    row-gap: 0;
-    align-items: center;
-    margin-top: 0;
-    min-width: 0;
-    max-width: 100%;
-  }}
-  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-block,
-  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-line {{
-    display: contents;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--overall,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--staffing,
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__rating-stars--health {{
     font-size: 0.78rem; letter-spacing: -0.03em;
-    justify-self: start;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-rating-stars {{
     letter-spacing: -0.03em;

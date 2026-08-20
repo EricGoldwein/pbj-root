@@ -479,12 +479,34 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     elif method in ("name_exact", "fuzzy") and ccn:
         out["pbj_suggested"] = True
 
-    metric_start, metric_end, _q, _src = _canonical_metric_period()
-    from ownership.relationship_period import attribution_status_for_facility
-
-    out["attribution_status"] = attribution_status_for_facility(
-        out, metric_start=metric_start, metric_end=metric_end
+    # Per-metric attribution: PBJ HPRD uses the facility/Norm PBJ quarter;
+    # Care Compare stars are facility context only (not owner-period performance).
+    from ownership.relationship_period import (
+        attribution_status_for_facility,
+        parse_pbj_quarter_bounds,
     )
+
+    q_label = str(out.get("metric_quarter") or "").strip()
+    bounds = parse_pbj_quarter_bounds(q_label) if q_label else None
+    if bounds is None:
+        metric_start, metric_end, q_label, _src = _canonical_metric_period()
+    else:
+        metric_start, metric_end = bounds
+    out["pbj_metric_quarter"] = q_label
+    out["hprd_attribution_status"] = attribution_status_for_facility(
+        out,
+        metric_start=metric_start,
+        metric_end=metric_end,
+        metric_kind="pbj_hprd",
+    )
+    out["rating_attribution_status"] = attribution_status_for_facility(
+        out,
+        metric_start=metric_start,
+        metric_end=metric_end,
+        metric_kind="overall_rating",
+    )
+    # Legacy key: HPRD timing gate only (ratings no longer ride this flag).
+    out["attribution_status"] = out["hprd_attribution_status"]
     return out
 
 
@@ -613,45 +635,48 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
         if not f.get("pbj_matched"):
             continue
 
-        # Temporal attribution: exclude facilities whose association clearly
-        # begins after the metric period. Preserve facility-level fields; only
-        # gate owner-level HPRD/rating aggregates.
-        if str(f.get("attribution_status") or "") == "exclude":
+        # Owner-attributed HPRD only: association timing + ownership_interest.
+        # Care Compare ratings stay on facility rows / distribution context and
+        # are NOT treated as contemporaneous owner performance means.
+        hprd_status = str(
+            f.get("hprd_attribution_status") or f.get("attribution_status") or ""
+        )
+        if hprd_status == "exclude":
             n_attribution_excluded += 1
-            continue
-
-        weight = _portfolio_metric_weight(f)
-        if weight is None:
-            n_missing_resident_weight += 1
-
-        h = _parse_float(f.get("hprd"))
-        if h is None:
-            n_missing_hprd += 1
-        elif not is_plausible_portfolio_hprd(h):
-            n_hprd_outlier_excluded += 1
+        elif hprd_status == "supported":
+            weight = _portfolio_metric_weight(f)
+            if weight is None:
+                n_missing_resident_weight += 1
+            h = _parse_float(f.get("hprd"))
+            if h is None:
+                n_missing_hprd += 1
+            elif not is_plausible_portfolio_hprd(h):
+                n_hprd_outlier_excluded += 1
+            else:
+                hprd_unweighted.append(h)
+                if weight is not None:
+                    hprd_weighted.append((h, weight))
         else:
-            hprd_unweighted.append(h)
-            if weight is not None:
-                hprd_weighted.append((h, weight))
+            # uncertain / facility_context / missing — skip owner HPRD mean
+            if _parse_float(f.get("hprd")) is None:
+                n_missing_hprd += 1
 
+        # Ratings: facility-context distributions only (not owner-period means).
+        # Keep star histograms for portfolio UI context; do not require timing gate.
         ovr = _parse_float(f.get("overall_rating"))
         if ovr is None:
             n_missing_overall_rating += 1
         elif not is_plausible_overall_rating(ovr):
             n_rating_outlier_excluded += 1
         else:
-            overall_unweighted.append(ovr)
-            if weight is not None:
-                overall_weighted.append((ovr, weight))
+            # Unweighted facility-context distribution only — leave weighted
+            # overall mean unset unless explicitly re-enabled later.
             star_bucket = int(round(ovr))
             if 1 <= star_bucket <= 5:
                 overall_star_counts[star_bucket] = overall_star_counts.get(star_bucket, 0) + 1
 
         stf = _parse_float(f.get("staffing_rating"))
         if stf is not None and is_plausible_overall_rating(stf):
-            staffing_unweighted.append(stf)
-            if weight is not None:
-                staffing_weighted.append((stf, weight))
             stf_bucket = int(round(stf))
             if 1 <= stf_bucket <= 5:
                 staffing_star_counts[stf_bucket] = staffing_star_counts.get(stf_bucket, 0) + 1
@@ -715,8 +740,14 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
         "pct_low_staffing_rating": pct_low_staffing,
-        "mean_staffing_rating": mean_staffing,
-        "umean_staffing_rating": umean_staffing,
+        # Care Compare means intentionally omitted as owner-period performance;
+        # star_counts remain facility-context distributions.
+        "mean_overall_rating": None,
+        "umean_overall_rating": None,
+        "mean_staffing_rating": None,
+        "umean_staffing_rating": None,
+        "ratings_attribution": "facility_context_only",
+        "hprd_attribution": "pbj_quarter_plus_cms_association_timing",
         "overall_star_counts": overall_star_counts,
         "staffing_star_counts": staffing_star_counts,
         "n_with_overall_for_dist": sum(overall_star_counts.values()),

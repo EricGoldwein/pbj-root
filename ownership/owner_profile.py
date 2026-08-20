@@ -1413,15 +1413,18 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
             continue
         seen.add(key)
         ccn, match_method = _resolve_ccn_with_method(fac_name)
-        from ownership.role_classification import normalize_role_code
+        from ownership.role_classification import classify_owner_record, normalize_role_code
 
+        role_info = classify_owner_record(row)
         facilities.append(
             {
                 "facility_name": fac_name,
                 "state": _facility_state_for_row(row, ccn or ""),
                 "city": _clean(row.get("CITY - OWNER")),
                 "role": format_role_text(_clean(row.get("ROLE TEXT - OWNER"))),
-                "role_code": normalize_role_code(row.get("ROLE CODE - OWNER")),
+                "role_code": role_info.get("role_code")
+                or normalize_role_code(row.get("ROLE CODE - OWNER")),
+                "role_category": role_info.get("role_category") or "",
                 "association_date": _clean(row.get("ASSOCIATION DATE - OWNER")),
                 "pct": _pct_from_row(row),
                 "enrollment_id": _clean(row.get("ENROLLMENT ID")),

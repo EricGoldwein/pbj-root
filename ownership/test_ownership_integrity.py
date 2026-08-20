@@ -217,6 +217,46 @@ class TemporalAttributionTests(unittest.TestCase):
             "uncertain",
         )
 
+    def test_hprd_requires_ownership_interest(self) -> None:
+        bounds = parse_pbj_quarter_bounds("Q1 2026")
+        assert bounds is not None
+        start, end = bounds
+        self.assertEqual(
+            relationship_supported_for_period(
+                "01/01/2025",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="ownership_interest",
+            ),
+            "supported",
+        )
+        self.assertEqual(
+            relationship_supported_for_period(
+                "01/01/2025",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="control_or_management",
+            ),
+            "uncertain",
+        )
+
+    def test_care_compare_ratings_are_facility_context(self) -> None:
+        bounds = parse_pbj_quarter_bounds("Q1 2026")
+        assert bounds is not None
+        start, end = bounds
+        self.assertEqual(
+            relationship_supported_for_period(
+                "01/01/2020",
+                start,
+                end,
+                metric_kind="overall_rating",
+                relationship_kind="ownership_interest",
+            ),
+            "facility_context",
+        )
+
 
 class ChowNamespaceTests(unittest.TestCase):
     def test_namespace_not_silently_converted(self) -> None:

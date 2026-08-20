@@ -20,6 +20,7 @@ class OwnerIndexabilityTests(unittest.TestCase):
     def test_suppress_blank_name(self):
         self.assertTrue(is_suppress_owner_name(""))
         self.assertTrue(is_suppress_owner_name("Unknown"))
+        self.assertTrue(is_suppress_owner_name("Unknown party"))
 
     def test_index_two_active_facilities(self):
         profile = {

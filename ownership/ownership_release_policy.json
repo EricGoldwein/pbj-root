@@ -23,7 +23,9 @@
       "ownership_source_sha256": "701d6484e5f0cb567de4fcbfb0279d2d5f319ff0fe0f745ad73fab02119db493",
       "bridge_lookup_filename": "release_2026-05-01_lookup.json",
       "bridge_pairing_status": "exact_release_date_match",
-      "status": "historical_supported"
+      "status": "historical_supported",
+      "enrollment_source_filename": "SNF_Enrollments_2026.05.01.csv",
+      "enrollment_release_date": "2026-05-01"
     },
     "2026-07-17": {
       "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
@@ -31,7 +33,15 @@
       "bridge_lookup_filename": "release_2026-07-17_lookup.json",
       "bridge_pairing_status": "exact_release_date_match",
       "status": "active",
-      "notes": "Enrollment CCN bridge temporarily reused from 2026-05-01 until SNF_Enrollments_2026.07.17.csv is ingested"
+      "enrollment_source_filename": "SNF_Enrollments_2026.07.17.csv",
+      "enrollment_source_sha256": "6ad13e7f19a839a6927d04db625f86f9dcbd6b5343e80f2ffae9314e94f4a841",
+      "enrollment_release_date": "2026-07-17",
+      "allow_enrollment_date_mismatch": false,
+      "provider_info_source_filename": "ProviderInfoNorm_2026_07.csv",
+      "pbj_period": "Q1 2026",
+      "chow_source": "chow_index.json",
+      "build_timestamp": "2026-08-20T13:30:00Z",
+      "notes": "July ownership paired to July enrollments (exact_release_date_match). Canonical provider-info hot path is ProviderInfoNorm_2026_07.csv. Older enrollment pairing requires explicit allow_enrollment_date_mismatch=true."
     }
   }
 }

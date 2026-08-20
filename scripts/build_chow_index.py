@@ -25,8 +25,11 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 DEFAULT_ZIP = REPO_ROOT / "ownership" / "Skilled Nursing Facility Change of Ownership.zip"
 DEFAULT_OUT = REPO_ROOT / "chow_index.json"
 DEFAULT_CHOW_DIR = REPO_ROOT / "data" / "chow"
@@ -259,13 +262,24 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
         buyer_owner_url = owner_url_for_associate(buyer_assoc, buyer_org) or owner_search_url(buyer_org)
         seller_owner_url = owner_url_for_associate(seller_assoc, seller_org) or owner_search_url(seller_org)
         try:
-            from ownership.owner_profile import associate_id_kind_label
+            from ownership.owner_profile import (
+                associate_id_kind_label,
+                associate_id_namespace,
+            )
 
             buyer_assoc_kind = associate_id_kind_label(buyer_assoc) if buyer_assoc else ""
             seller_assoc_kind = associate_id_kind_label(seller_assoc) if seller_assoc else ""
-        except Exception:
+            buyer_assoc_ns = associate_id_namespace(buyer_assoc) if buyer_assoc else "unknown"
+            seller_assoc_ns = associate_id_namespace(seller_assoc) if seller_assoc else "unknown"
+        except Exception as _assoc_ns_err:
+            # Fail soft per row, but surface once so silent all-unknown rebuilds are visible.
+            if not getattr(build_records, "_assoc_ns_warned", False):
+                print(f"[build_chow_index] associate namespace lookup failed: {_assoc_ns_err}", flush=True)
+                build_records._assoc_ns_warned = True  # type: ignore[attr-defined]
             buyer_assoc_kind = ""
             seller_assoc_kind = ""
+            buyer_assoc_ns = "unknown"
+            seller_assoc_ns = "unknown"
 
         pattern_tags = detect_pattern_tags(
             buyer_org,
@@ -307,6 +321,8 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
                 "seller_owner_url": seller_owner_url,
                 "buyer_associate_kind": buyer_assoc_kind,
                 "seller_associate_kind": seller_assoc_kind,
+                "buyer_associate_id_namespace": buyer_assoc_ns,
+                "seller_associate_id_namespace": seller_assoc_ns,
                 "pattern_tags": pattern_tags,
             }
         )

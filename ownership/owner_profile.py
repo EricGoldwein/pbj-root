@@ -644,6 +644,22 @@ def _owner_control_pac_set() -> frozenset[str]:
     return frozenset(pacs)
 
 
+def associate_id_namespace(associate_id: str) -> str:
+    """
+    Explicit PAC namespace for CHOW / cross-surface identity.
+
+    enrollment_pac | owner_control_pac | both | unknown
+    Does not invent equity ownership from enrollment PAC alone.
+    """
+    kind = classify_associate_id(associate_id)
+    return {
+        "enrollment": "enrollment_pac",
+        "owner_control": "owner_control_pac",
+        "both": "both",
+        "none": "unknown",
+    }.get(kind, "unknown")
+
+
 def associate_id_kind_label(associate_id: str) -> str:
     pac = normalize_associate_id(associate_id)
     if len(pac) != 10:
@@ -919,6 +935,7 @@ def _snf_coowners_on_shared_enrollments(
             sql = (
                 f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" IN ({placeholders})'
             )
+            ownership_hit: dict[str, bool] = {}
             for row in conn.execute(sql, target_pacs):
                 d = _sqlite_row_to_dict(row)
                 en_pac = normalize_associate_id(d.get(ENROLLMENT_PAC_COL))
@@ -928,8 +945,20 @@ def _snf_coowners_on_shared_enrollments(
                 shared.setdefault(ow_pac, set()).add(en_pac)
                 if ow_pac not in names:
                     names[ow_pac] = _owner_display_name(d)
+                if not ownership_hit.get(ow_pac):
+                    from ownership.role_classification import (
+                        CATEGORY_OWNERSHIP,
+                        classify_owner_record,
+                    )
+
+                    info = classify_owner_record(d)
+                    if info.get("role_category") == CATEGORY_OWNERSHIP or info.get(
+                        "is_ownership_interest"
+                    ):
+                        ownership_hit[ow_pac] = True
         except Exception:
             shared = {}
+            ownership_hit = {}
         if shared:
             coowners: list[dict[str, Any]] = []
             for ow_pac, en_set in shared.items():
@@ -938,6 +967,7 @@ def _snf_coowners_on_shared_enrollments(
                         "associate_id": ow_pac,
                         "name": names.get(ow_pac) or ow_pac,
                         "count": len(en_set),
+                        "shared_ownership_interest": bool(ownership_hit.get(ow_pac)),
                         "profile_url": associate_profile_url(
                             ow_pac, names.get(ow_pac) or ""
                         ),
@@ -951,6 +981,7 @@ def _snf_coowners_on_shared_enrollments(
         return []
     shared = {}
     names = {}
+    ownership_hit: dict[str, bool] = {}
     try:
         header = pd.read_csv(
             str(path), dtype=str, encoding="latin-1", low_memory=False, nrows=0
@@ -964,24 +995,36 @@ def _snf_coowners_on_shared_enrollments(
                 "FIRST NAME - OWNER",
                 "MIDDLE NAME - OWNER",
                 "LAST NAME - OWNER",
+                "ROLE CODE - OWNER",
+                "ROLE TEXT - OWNER",
+                "PERCENTAGE OWNERSHIP",
             )
             if c in header
         )
         if ENROLLMENT_PAC_COL not in cols or OWNER_PAC_COL not in cols:
             return []
+        from ownership.role_classification import CATEGORY_OWNERSHIP, classify_owner_record
+
         for chunk in _read_owners_csv_chunks(usecols=cols, chunksize=150_000):
             en_norm = chunk[ENROLLMENT_PAC_COL].astype(str).apply(normalize_associate_id)
             mask = en_norm.isin(target_pacs)
             if not bool(mask.any()):
                 continue
             for _, row in chunk.loc[mask].iterrows():
+                d = _row_to_dict(row)
                 en_pac = normalize_associate_id(row.get(ENROLLMENT_PAC_COL))
                 ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
                 if len(en_pac) != 10 or len(ow_pac) != 10 or ow_pac == exclude:
                     continue
                 shared.setdefault(ow_pac, set()).add(en_pac)
                 if ow_pac not in names:
-                    names[ow_pac] = _owner_display_name(_row_to_dict(row))
+                    names[ow_pac] = _owner_display_name(d)
+                if not ownership_hit.get(ow_pac):
+                    info = classify_owner_record(d)
+                    if info.get("role_category") == CATEGORY_OWNERSHIP or info.get(
+                        "is_ownership_interest"
+                    ):
+                        ownership_hit[ow_pac] = True
     except Exception:
         return []
 
@@ -992,6 +1035,7 @@ def _snf_coowners_on_shared_enrollments(
                 "associate_id": ow_pac,
                 "name": names.get(ow_pac) or ow_pac,
                 "count": len(en_set),
+                "shared_ownership_interest": bool(ownership_hit.get(ow_pac)),
                 "profile_url": associate_profile_url(ow_pac, names.get(ow_pac) or ""),
             }
         )
@@ -1020,6 +1064,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             "count": 0,
             "snf_shared": 0,
             "chow_count": 0,
+            "shared_ownership_interest": False,
             "sources": set(),
             "profile_url": "",
         }
@@ -1041,6 +1086,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         profile_url: str = "",
         *,
         weight: int = 1,
+        shared_ownership_interest: bool = False,
     ) -> None:
         key = _key(associate_id, name)
         if not key:
@@ -1052,6 +1098,8 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             row["chow_count"] += w
         elif source == _SOURCE_SNF:
             row["snf_shared"] += w
+        if shared_ownership_interest:
+            row["shared_ownership_interest"] = True
         row["sources"].add(source)
         oid = normalize_associate_id(associate_id)
         if len(oid) == 10:
@@ -1094,6 +1142,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 _SOURCE_SNF,
                 str(co.get("profile_url") or ""),
                 weight=int(co.get("count") or 1),
+                shared_ownership_interest=bool(co.get("shared_ownership_interest")),
             )
     if kind in ("owner_control", "chow_only"):
         for party in profile.get("control_parties") or []:
@@ -1102,6 +1151,10 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 str(party.get("name") or ""),
                 _SOURCE_SNF,
                 str(party.get("profile_url") or ""),
+                shared_ownership_interest=bool(
+                    party.get("is_ownership_interest")
+                    or party.get("role_category") == "ownership_interest"
+                ),
             )
 
     out: list[dict[str, Any]] = []
@@ -1116,6 +1169,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 "count": row["count"],
                 "snf_shared": int(row.get("snf_shared") or 0),
                 "chow_count": int(row.get("chow_count") or 0),
+                "shared_ownership_interest": bool(row.get("shared_ownership_interest")),
                 "sources": sources,
                 "source_label": " · ".join(sources),
                 "profile_url": row["profile_url"],

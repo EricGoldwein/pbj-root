@@ -16,6 +16,8 @@ import pandas as pd
 
 _REPO = Path(__file__).resolve().parent.parent
 
+_NORM_FILENAME_RE = re.compile(r"ProviderInfoNorm_(\d{4})_(\d{2})", re.IGNORECASE)
+
 # CMS PBJ quarterly aberrant-staffing limits (facility-quarter aggregate). See
 # PBJPedia methodology / ownership/PORTFOLIO_METRICS.md.
 PORTFOLIO_HPRD_MIN = 1.5
@@ -87,7 +89,6 @@ def _provider_info_csv_paths() -> list[Path]:
         [
             _REPO / "provider_info_combined_latest.csv",
             _REPO / "provider_info_norm.csv",
-            _REPO / "provider_info_combined.csv",
         ]
     )
     return paths
@@ -98,36 +99,85 @@ def _is_historical_provider_info_dump(path: Path) -> bool:
     return path.name.lower() == "provider_info_combined.csv"
 
 
+def provider_info_source_sort_key(path: Path) -> tuple:
+    """
+    Recency key for provider-info snapshots.
+
+    Newest ProviderInfoNorm_YYYY_MM wins over combined_latest / undated files.
+    Historical provider_info_combined.csv is never preferred on the hot path.
+    """
+    name = path.name
+    if _is_historical_provider_info_dump(path):
+        return (0, 0, 0, name)
+    m = _NORM_FILENAME_RE.search(name)
+    if m:
+        return (2, int(m.group(1)), int(m.group(2)), name)
+    low = name.lower()
+    if low == "provider_info_combined_latest.csv":
+        return (1, 0, 0, name)
+    if low == "provider_info_norm.csv":
+        return (1, 0, 0, name)
+    return (0, 0, 0, name)
+
+
+def newest_provider_info_norm_path() -> Path | None:
+    provider_dir = _REPO / "provider_info"
+    if not provider_dir.is_dir():
+        return None
+    norms = sorted(
+        provider_dir.glob("ProviderInfoNorm_*.csv"),
+        key=provider_info_source_sort_key,
+        reverse=True,
+    )
+    return norms[0] if norms else None
+
+
 def ownership_provider_info_paths() -> list[Path]:
     """
     Provider-info files for ownership enrichment / CCN crosswalks (hot path).
 
-    Prefer the deploy snapshot + newest monthly Norm. Skip the historical
-    ``provider_info_combined.csv`` dump when any slim snapshot exists — scanning
-    that file alone dominated owner-page cold starts (~90s+ locally).
+    Canonical source is the newest ``ProviderInfoNorm_*.csv`` (by filename date).
+    ``provider_info_combined_latest.csv`` may follow only as a blank-fill fallback
+    when Norm is missing columns. Historical ``provider_info_combined.csv`` is
+    never on the hot path.
     """
     seen: set[Path] = set()
     ordered: list[Path] = []
 
     def _add(path: Path) -> None:
-        if path.is_file() and path not in seen:
+        if path.is_file() and path not in seen and not _is_historical_provider_info_dump(path):
             ordered.append(path)
             seen.add(path)
 
-    latest = _REPO / "provider_info_combined_latest.csv"
-    _add(latest)
-    provider_dir = _REPO / "provider_info"
-    if provider_dir.is_dir():
-        for path in sorted(provider_dir.glob("ProviderInfoNorm_*.csv"), reverse=True)[:1]:
-            _add(path)
-    _add(_REPO / "provider_info_norm.csv")
+    # Policy-configured Norm first when present and on disk.
+    try:
+        from ownership.ownership_release_policy import (
+            active_release_date,
+            load_policy,
+            resolve_release_entry,
+        )
 
-    if ordered:
-        return ordered
+        pol = load_policy(_REPO)
+        entry = resolve_release_entry(pol, active_release_date(pol))
+        if entry.provider_info_source_filename:
+            configured = _REPO / "provider_info" / entry.provider_info_source_filename
+            if not configured.is_file():
+                configured = _REPO / entry.provider_info_source_filename
+            _add(configured)
+    except Exception:
+        pass
 
-    # Last resort: any available path including historical dump.
-    for path in _provider_info_csv_paths():
+    newest_norm = newest_provider_info_norm_path()
+    if newest_norm is not None:
+        _add(newest_norm)
+
+    # Slim fallbacks only (blank-fill). Do not scan older Norm months or historical dump.
+    for path in (
+        _REPO / "provider_info_combined_latest.csv",
+        _REPO / "provider_info_norm.csv",
+    ):
         _add(path)
+
     return ordered
 
 
@@ -135,20 +185,9 @@ def provider_info_crosswalk_paths() -> list[Path]:
     """
     Provider files for ownership CCN / legal-name crosswalks.
 
-    Combined snapshots are first: monthly ProviderInfoNorm exports (e.g. from PBJapp)
-    may omit legal_business_name even when the column exists.
+    Prefer newest Norm over combined_latest (Norm is canonical for July release).
     """
-    seen: set[Path] = set()
-    ordered: list[Path] = []
-    for path in ownership_provider_info_paths():
-        if "combined" in path.name.lower() and path.is_file() and path not in seen:
-            ordered.append(path)
-            seen.add(path)
-    for path in ownership_provider_info_paths():
-        if path.is_file() and path not in seen:
-            ordered.append(path)
-            seen.add(path)
-    return ordered
+    return ownership_provider_info_paths()
 
 
 def _provider_info_col_map(header: list[str]) -> dict[str, str | None]:
@@ -206,6 +245,11 @@ def _provider_info_col_map(header: list[str]) -> dict[str, str | None]:
         ),
         "latitude": next((c for c in header if c.lower() == "latitude"), None),
         "longitude": next((c for c in header if c.lower() == "longitude"), None),
+        "processing_date": next(
+            (c for c in header if c.lower() in ("processing_date", "processing date")),
+            None,
+        ),
+        "quarter": next((c for c in header if c.lower() == "quarter"), None),
     }
 
 
@@ -242,16 +286,22 @@ def _provider_info_row_dict(row: pd.Series, col_map: dict[str, str | None]) -> d
         "zip_code": _cell("zip_code"),
         "latitude": _cell("latitude"),
         "longitude": _cell("longitude"),
+        "processing_date": _cell("processing_date"),
+        "quarter": _cell("quarter"),
     }
 
 
 def _merge_provider_lookup_row(
-    base: dict[str, str], incoming: dict[str, str]
+    primary: dict[str, str], secondary: dict[str, str]
 ) -> dict[str, str]:
-    """Merge two provider-info rows; non-empty incoming values win."""
-    merged = dict(base)
-    for key, val in incoming.items():
-        if val:
+    """
+    Prefer primary (newer) values; fill only blank keys from secondary (older).
+
+    Prevents an older combined snapshot from overwriting newer Norm fields.
+    """
+    merged = dict(primary)
+    for key, val in secondary.items():
+        if val and not merged.get(key):
             merged[key] = val
     return merged
 
@@ -296,21 +346,86 @@ def _provider_info_rows_from_path(path: Path) -> dict[str, dict[str, str]]:
 
 
 @lru_cache(maxsize=1)
+def _canonical_metric_period() -> tuple:
+    """
+    Metric period bounds from the canonical Norm snapshot (quarter / processing_date).
+
+    Returns (metric_start, metric_end, quarter_label, source_filename) or Nones.
+    """
+    from ownership.relationship_period import parse_pbj_quarter_bounds, parse_association_start
+
+    paths = ownership_provider_info_paths()
+    if not paths:
+        return (None, None, "", "")
+    canonical = paths[0]
+    # Prefer policy pbj_period when present.
+    quarter_label = ""
+    try:
+        from ownership.ownership_release_policy import (
+            active_release_date,
+            load_policy,
+            resolve_release_entry,
+        )
+
+        entry = resolve_release_entry(load_policy(_REPO), active_release_date(load_policy(_REPO)))
+        quarter_label = entry.pbj_period or ""
+    except Exception:
+        quarter_label = ""
+
+    bounds = parse_pbj_quarter_bounds(quarter_label) if quarter_label else None
+    if bounds is None:
+        # Sample quarter from the canonical file.
+        try:
+            header = pd.read_csv(canonical, nrows=0).columns.tolist()
+            qcol = next((c for c in header if c.lower() == "quarter"), None)
+            pcol = next(
+                (c for c in header if c.lower() in ("processing_date", "processing date")),
+                None,
+            )
+            usecols = [c for c in (qcol, pcol) if c]
+            if usecols:
+                sample = pd.read_csv(
+                    canonical, usecols=usecols, dtype=str, nrows=200, encoding="latin-1"
+                )
+                if qcol:
+                    for raw in sample[qcol].dropna().astype(str):
+                        bounds = parse_pbj_quarter_bounds(raw)
+                        if bounds:
+                            quarter_label = str(raw).strip()
+                            break
+                if bounds is None and pcol:
+                    dates = []
+                    for raw in sample[pcol].dropna().astype(str):
+                        d = parse_association_start(raw)
+                        if d:
+                            dates.append(d)
+                    if dates:
+                        # processing_date alone is release stamp; treat as single-day uncertain end.
+                        end = max(dates)
+                        bounds = (end, end)
+        except Exception:
+            bounds = None
+    if not bounds:
+        return (None, None, quarter_label, canonical.name)
+    return (bounds[0], bounds[1], quarter_label, canonical.name)
+
+
+@lru_cache(maxsize=1)
 def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
     """
     Provider-info row per CCN for ownership portfolio enrichment.
 
-    Uses ``ownership_provider_info_paths()`` (latest snapshot + newest Norm).
-    Newer files overwrite non-empty fields. Does not scan the historical
-    multi-quarter ``provider_info_combined.csv`` when a slim snapshot exists.
+    Uses ``ownership_provider_info_paths()`` (newest Norm first). Paths are
+    newest→oldest; older files only fill blanks. Historical
+    ``provider_info_combined.csv`` is never scanned on this hot path.
     """
     paths = ownership_provider_info_paths()
     if not paths:
         return {}
 
     merged: dict[str, dict[str, str]] = {}
-    # Paths are newest-first; reverse so newer rows win on merge.
-    for path in reversed(paths):
+    # Newest first: establish Norm values, then fill blanks from older slim sources.
+    for path in paths:
         for ccn, row in _provider_info_rows_from_path(path).items():
             if ccn in merged:
                 merged[ccn] = _merge_provider_lookup_row(merged[ccn], row)
@@ -357,8 +472,19 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
             out["sff"] = pi["sff_status"]
         out["has_abuse"] = _parse_abuse_flag(pi.get("abuse_icon"))
         out["pbj_matched"] = True
+        if pi.get("quarter"):
+            out.setdefault("metric_quarter", pi["quarter"])
+        if pi.get("processing_date"):
+            out.setdefault("metric_processing_date", pi["processing_date"])
     elif method in ("name_exact", "fuzzy") and ccn:
         out["pbj_suggested"] = True
+
+    metric_start, metric_end, _q, _src = _canonical_metric_period()
+    from ownership.relationship_period import attribution_status_for_facility
+
+    out["attribution_status"] = attribution_status_for_facility(
+        out, metric_start=metric_start, metric_end=metric_end
+    )
     return out
 
 
@@ -465,6 +591,7 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
     n_hprd_outlier_excluded = 0
     n_rating_outlier_excluded = 0
     n_missing_resident_weight = 0
+    n_attribution_excluded = 0
     for f in enriched:
         if f.get("pbj_matched"):
             pbj_matched += 1
@@ -484,6 +611,13 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
             low_staff += 1
 
         if not f.get("pbj_matched"):
+            continue
+
+        # Temporal attribution: exclude facilities whose association clearly
+        # begins after the metric period. Preserve facility-level fields; only
+        # gate owner-level HPRD/rating aggregates.
+        if str(f.get("attribution_status") or "") == "exclude":
+            n_attribution_excluded += 1
             continue
 
         weight = _portfolio_metric_weight(f)
@@ -577,6 +711,7 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
         "n_hprd_outlier_excluded": n_hprd_outlier_excluded,
         "n_rating_outlier_excluded": n_rating_outlier_excluded,
         "n_missing_resident_weight": n_missing_resident_weight,
+        "n_attribution_excluded": n_attribution_excluded,
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
         "pct_low_staffing_rating": pct_low_staffing,

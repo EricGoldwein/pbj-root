@@ -44,8 +44,13 @@ class TestNameSearchMatches(unittest.TestCase):
         self.assertEqual(name_search_rank("Brian Foley", "Brian Foley"), 0)
         self.assertEqual(name_search_rank("Foley", "Brian J. Foley"), 1)
         self.assertEqual(name_search_rank("Brian F", "Brian Foley"), 2)
-        self.assertEqual(name_search_rank("Brian Foley", "Brian J. Foley"), 3)
+        self.assertEqual(name_search_rank("Brian Foley", "Brian J. Foley"), 2)
         self.assertEqual(name_search_rank("health care", "ACME HEALTH CARE LLC"), 4)
+        # Substring-inside-token is weakest (not a surname hit).
+        self.assertEqual(name_search_rank("Landa", "Arlanda Jewel Williams"), 5)
+        self.assertEqual(name_search_rank("Landa", "Benjamin Landa"), 1)
+        self.assertEqual(name_search_rank("Hancock", "Mark D Hancock"), 1)
+        self.assertNotEqual(name_search_rank("Hancock", "MISSION POINT OF HANCOCK"), 1)
 
     def test_tokens_in_order(self) -> None:
         self.assertTrue(

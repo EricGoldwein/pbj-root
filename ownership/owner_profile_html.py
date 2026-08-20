@@ -37,11 +37,11 @@ from ownership.portfolio_display import (
 from ownership.sff_display import sff_flag_explainer_tuple
 
 PREVIEW_CONTROL_PARTIES = 25
-PREVIEW_FACILITIES = 25
+PREVIEW_FACILITIES = 15
 FACILITIES_FILTER_MIN = 12
-FACILITIES_MOBILE_PREVIEW = 15
+FACILITIES_MOBILE_PREVIEW = 12
 FACILITIES_MOBILE_FILTER_MIN = 8
-FACILITIES_DESKTOP_PREVIEW = 25
+FACILITIES_DESKTOP_PREVIEW = 15
 
 _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     "sff": sff_flag_explainer_tuple("sff"),
@@ -986,30 +986,36 @@ def _owner_profile_header_html(
     en_label: str,
     ow_label: str,
 ) -> str:
-    from ownership.publication_taxonomy import ownership_pct_headline, segment_for_profile
-
-    page_help = _info_button(
-        "PBJ320 Ownership",
-        _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label),
-        label="?",
-        cls="owner-info-btn owner-info-btn--section owner-page-help",
+    from ownership.publication_taxonomy import (
+        ownership_pct_headline,
+        publication_role_label,
+        segment_for_profile,
     )
+
+    _ = segment_for_profile(profile)
+    role = publication_role_label(profile)
     pct_chip, pct_help = ownership_pct_headline(profile)
-    pct_help_btn = (
-        _info_button("Ownership percentage", pct_help, label="?", cls="owner-info-btn")
-        if pct_chip and pct_help
+    # One descriptor line: role (+ optional OI %) with a single ⓘ.
+    desc_text = role
+    if pct_chip:
+        desc_text = f"{role} · {pct_chip}" if role else pct_chip
+    help_body = _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label)
+    if pct_help:
+        help_body = f"{pct_help}\n\n{help_body}"
+    help_title = "Ownership percentage" if pct_chip else "PBJ320 Ownership"
+    role_help = (
+        _info_button(help_title, help_body, label="?", cls="owner-info-btn owner-info-btn--role")
+        if desc_text
         else ""
     )
-
-    chips: list[str] = []
-    desc = str(profile.get("publication_descriptor") or "").strip()
-    if desc:
-        chips.append(
-            f'<span class="owner-meta-chip owner-meta-chip--role">{html.escape(desc)}</span>'
-            f"{pct_help_btn}"
+    descriptor_row = ""
+    if desc_text:
+        descriptor_row = (
+            f'<div class="owner-profile-descriptor-row">'
+            f'<span class="owner-profile-descriptor">{html.escape(desc_text)}</span>'
+            f"{role_help}</div>"
         )
-    if owner_type:
-        chips.append(f'<span class="owner-meta-chip">{owner_type}</span>')
+
     pac_label = "PAC"
     if kind == "owner_control":
         pac_label = ow_label or "Owner PAC"
@@ -1017,47 +1023,36 @@ def _owner_profile_header_html(
         pac_label = en_label or "Enrollment PAC"
     elif kind == "both":
         pac_label = "PAC"
+
+    meta_bits: list[str] = []
+    if owner_type:
+        meta_bits.append(html.escape(owner_type))
     if pac:
-        chips.append(
-            f'<span class="owner-meta-chip"><span class="owner-meta-k">{html.escape(pac_label)}</span> '
-            f'<span class="owner-meta-v">{pac}</span></span>'
-        )
+        meta_bits.append(f"{html.escape(pac_label)} {pac}")
     enrollment_ids = profile.get("enrollment_ids") or []
-    if enrollment_ids:
+    if enrollment_ids and kind in ("enrollment", "both"):
         ids = ", ".join(html.escape(e) for e in enrollment_ids[:2])
         if len(enrollment_ids) > 2:
             ids += f" (+{len(enrollment_ids) - 2})"
-        chips.append(
-            f'<span class="owner-meta-chip"><span class="owner-meta-k">Enrollment ID</span> '
-            f'<span class="owner-meta-v">{ids}</span></span>'
-        )
+        meta_bits.append(f"Enrollment ID {ids}")
+    # States: prefer plain text count; keep interactive trigger when multi-state.
     if states_meta:
-        chips.append(states_meta)
-    chips.append(page_help)
+        meta_bits.append(states_meta)
+
+    meta_inner = ' <span class="owner-meta-sep" aria-hidden="true">·</span> '.join(meta_bits)
     meta_row = (
-        f'<div class="owner-profile-meta-row owner-profile-meta-row--compact">{"".join(chips)}</div>'
-        if chips
-        else ""
+        f'<div class="owner-profile-meta-line">{meta_inner}</div>' if meta_inner else ""
     )
+
     back_link = _owner_index_back_link_html(profile)
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
-    # segment unused but keeps import side-effects stable for tests that patch taxonomy
-    _ = segment_for_profile(profile)
     return f"""
-      <header class="owner-profile-header owner-profile-header--branded owner-profile-header--compact">
+      <header class="owner-profile-header owner-profile-header--compact">
         {back_html}
-        <div class="owner-profile-header-top owner-profile-header-top--stack">
-          <div class="owner-profile-brand" aria-label="PBJ320 Ownership">
-            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="22" height="22" decoding="async">
-            <span class="owner-profile-brand-lockup">
-              <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
-              <span class="owner-profile-brand-suffix">Ownership</span>
-            </span>
-          </div>
-          <div class="owner-profile-header-identity">
-            <h1 class="owner-profile-name">{name}</h1>
-            {meta_row}
-          </div>
+        <div class="owner-profile-header-identity">
+          <h1 class="owner-profile-name">{name}</h1>
+          {descriptor_row}
+          {meta_row}
         </div>
       </header>"""
 

@@ -58,13 +58,15 @@ def snapshot_metric_card_html(
         if (sublabel or "").strip()
         else ""
     )
+    # Label + ⓘ on one row; value + optional denominator below (aligned cards).
     return (
         f'<div class="owner-snapshot-card{tone_cls}">'
+        f'<div class="owner-snapshot-label-row">'
         f'<div class="owner-snapshot-label">{html.escape(label)}</div>'
-        f'<div class="owner-snapshot-value-row">'
-        f'<div class="owner-snapshot-value"{value_attrs}>{value}</div>'
         f"{info_button_html(help_title, help_body)}"
-        f"</div>{sub_html}</div>"
+        f"</div>"
+        f'<div class="owner-snapshot-value"{value_attrs}>{value}</div>'
+        f"{sub_html}</div>"
     )
 
 
@@ -183,7 +185,10 @@ def portfolio_distribution_tabs_html(
 
 
 def portfolio_distribution_html(
-    ps: dict[str, Any], *, id_prefix: str = "ownerDist"
+    ps: dict[str, Any],
+    *,
+    id_prefix: str = "ownerDist",
+    include_state_fallback: bool = False,
 ) -> str:
     # Care Compare stars are facility context, not owner-period performance.
     overall_title = "CMS ratings for linked facilities (overall)"
@@ -218,10 +223,12 @@ def portfolio_distribution_html(
             ps.get("staffing_star_counts") or {},
             title=staffing_title,
         )
-    return portfolio_state_distribution_html(
-        list(ps.get("by_state") or []),
-        int(ps.get("n_facilities") or 0),
-    )
+    if include_state_fallback:
+        return portfolio_state_distribution_html(
+            list(ps.get("by_state") or []),
+            int(ps.get("n_facilities") or 0),
+        )
+    return ""
 
 
 def _owner_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:
@@ -565,11 +572,16 @@ def portfolio_snapshot_section_html(
     else:
         grid_cols = "owner-portfolio-grid--3"
 
-    dist_html = portfolio_distribution_html(ps, id_prefix=dist_prefix)
+    dist_html = portfolio_distribution_html(
+        ps,
+        id_prefix=dist_prefix,
+        include_state_fallback=(context == "entity"),
+    )
     if context == "owner" and dist_html.strip():
+        # Open by default; ratings only (state breakdown stays on "N states").
         dist_html = (
-            '<details class="owner-collapsible owner-collapsible--dist">'
-            "<summary>Star &amp; state distribution</summary>"
+            '<details class="owner-collapsible owner-collapsible--dist" open>'
+            "<summary>CMS ratings</summary>"
             f"{dist_html}</details>"
         )
     roster_note = ""

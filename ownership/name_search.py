@@ -18,6 +18,70 @@ def normalize_search_tokens(name: str) -> list[str]:
     return [t for t in s.split() if t]
 
 
+_ORG_MARKERS = frozenset(
+    {
+        "llc",
+        "inc",
+        "corp",
+        "ltd",
+        "lp",
+        "llp",
+        "co",
+        "company",
+        "holdings",
+        "group",
+        "trust",
+        "estate",
+        "partners",
+        "partnership",
+        "foundation",
+        "associates",
+        "management",
+        "services",
+        "opco",
+        "propco",
+        "snf",
+        "nursing",
+        "health",
+        "healthcare",
+        "care",
+        "center",
+        "centre",
+        "facility",
+        "facilities",
+        "homes",
+        "home",
+        "rehab",
+        "rehabilitation",
+        "hospital",
+        "medical",
+        "properties",
+        "investments",
+        "capital",
+        "fund",
+        "funds",
+        "realty",
+    }
+)
+
+
+def looks_like_person_name(name: str) -> bool:
+    """Heuristic: multi-token name without common org tokens → person for surname rank."""
+    raw = str(name or "").strip()
+    tokens = normalize_search_tokens(raw)
+    if len(tokens) < 2:
+        return False
+    # ALL-CAPS multi-token CMS org strings are not people.
+    letters = [c for c in raw if c.isalpha()]
+    if len(tokens) >= 3 and letters and all(c.isupper() for c in letters):
+        return False
+    if any(t in _ORG_MARKERS for t in tokens):
+        return False
+    if tokens[0] in {"estate", "trust"}:
+        return False
+    return True
+
+
 def tokens_match_in_order(query_tokens: list[str], record_tokens: list[str]) -> bool:
     """
     True when every query token appears in record_tokens in order.
@@ -75,10 +139,11 @@ def name_search_rank(query: str, record_name: str) -> int | None:
     Lower rank is better. None if no match.
 
     0 = exact normalized full-name match
-    1 = exact last-name / person match (single-token query == last token)
-    2 = prefix full-name
-    3 = org/name prefix (leading token / near-prefix)
-    4 = broader contains / ordered-token match
+    1 = exact surname match for a person (single-token query == last token)
+    2 = full-name prefix (record starts with query)
+    3 = exact organization / leading-token match
+    4 = ordered token match (e.g. first+last with middle initial)
+    5 = broader contains (substring inside a longer token/name)
     """
     if not name_search_matches(query, record_name):
         return None
@@ -89,15 +154,38 @@ def name_search_rank(query: str, record_name: str) -> int | None:
 
     if qnorm == rnorm or (q_tokens and r_tokens and q_tokens == r_tokens):
         return 0
-    # Single-token query equals the person's last token (e.g. "Hancock" → "Mark Hancock").
-    if len(q_tokens) == 1 and len(r_tokens) >= 2 and q_tokens[0] == r_tokens[-1]:
+
+    # Exact surname for a person — not orgs; last token must equal query.
+    if (
+        len(q_tokens) == 1
+        and len(r_tokens) >= 2
+        and q_tokens[0] == r_tokens[-1]
+        and looks_like_person_name(record_name)
+    ):
         return 1
+
     if rnorm.startswith(qnorm):
         return 2
+
+    # Multi-token query matches person with extras (Brian Foley → Brian J. Foley)
+    if (
+        len(q_tokens) >= 2
+        and looks_like_person_name(record_name)
+        and tokens_match_in_order(q_tokens, r_tokens)
+    ):
+        return 2 if r_tokens[0] == q_tokens[0] else 4
+
+    # Org / leading token
     if q_tokens and r_tokens and q_tokens[0] == r_tokens[0]:
         if tokens_match_in_order(q_tokens, r_tokens):
             return 3
         return 3
-    if len(qnorm) >= 2 and qnorm in rnorm[: max(len(qnorm) + 4, 8)]:
-        return 3
-    return 4
+
+    if tokens_match_in_order(q_tokens, r_tokens):
+        # Single token equals an interior token (org or weak person)
+        if len(q_tokens) == 1 and q_tokens[0] in r_tokens and q_tokens[0] != r_tokens[-1]:
+            return 5  # e.g. LANDA inside ARLANDA tokens? actually arlanda is one token
+        return 4
+
+    # Substring contains only (LANDA ⊂ ARLANDA)
+    return 5

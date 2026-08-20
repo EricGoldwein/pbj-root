@@ -232,14 +232,9 @@ def ownership_pct_headline(profile: dict[str, Any] | None) -> tuple[str, str]:
     return f"up to {max_tok}", help_body + " When percentages vary, the headline shows the maximum."
 
 
-def publication_descriptor(profile: dict[str, Any] | None) -> str:
+def publication_role_label(profile: dict[str, Any] | None) -> str:
+    """Short taxonomy label only (no ownership %); used as the visible descriptor base."""
     seg = segment_for_profile(profile)
-    base = _DESCRIPTOR.get(seg, _DESCRIPTOR["other_or_unclassified"])
-    if seg in ("ownership_interest_only", "mixed_ownership_plus_other") and profile:
-        pct_chip, _help = ownership_pct_headline(profile)
-        if pct_chip:
-            return f"{base} · {pct_chip}"
-    # CHOW: short buyer/seller chip when unambiguous
     if seg == "chow_enrollment_party" and profile:
         roles = {
             str(r.get("chow_role") or r.get("role") or "").strip().lower()
@@ -249,6 +244,17 @@ def publication_descriptor(profile: dict[str, Any] | None) -> str:
             return "CHOW buyer"
         if "seller" in roles and "buyer" not in roles:
             return "CHOW seller"
+    return _DESCRIPTOR.get(seg, _DESCRIPTOR["other_or_unclassified"])
+
+
+def publication_descriptor(profile: dict[str, Any] | None) -> str:
+    """Visible descriptor: role label, plus compact OI % when applicable."""
+    base = publication_role_label(profile)
+    seg = segment_for_profile(profile)
+    if seg in ("ownership_interest_only", "mixed_ownership_plus_other") and profile:
+        pct_chip, _help = ownership_pct_headline(profile)
+        if pct_chip:
+            return f"{base} · {pct_chip}"
     return base
 
 

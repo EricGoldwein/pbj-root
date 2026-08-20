@@ -1777,17 +1777,25 @@ def search_public_owner_profiles(
     if len(qnorm) < 2 and len(normalize_search_tokens(q)) < 1:
         return []
 
-    scored: list[tuple[int, int, str, str]] = []
+    scored: list[tuple[int, int, int, str, str]] = []
     for pac, name, key, states in catalog:
         if not _in_state(states):
             continue
         rank = name_search_rank(q, name)
         if rank is None:
             continue
-        scored.append((rank, len(name), pac, name))
-    scored.sort(key=lambda x: (x[0], x[1], x[3].lower()))
+        # Tie-break: more linked facilities first (deterministic relevance), then shorter name.
+        scored.append((rank, 0, len(name), pac, name))
+
+    # Batch facility counts for tie-break among scored hits (sqlite indexability).
+    fac_counts = _pac_facility_counts([pac for _, _, _, pac, _ in scored])
+    scored = [
+        (rank, -(int(fac_counts.get(pac) or 0)), namelen, pac, name)
+        for rank, _, namelen, pac, name in scored
+    ]
+    scored.sort(key=lambda x: (x[0], x[1], x[2], x[4].lower()))
     out: list[dict[str, str]] = []
-    for _, _, pac, name in scored[: max(1, limit)]:
+    for _, _, _, pac, name in scored[: max(1, limit)]:
         out.append(
             {
                 "associate_id": pac,
@@ -1796,3 +1804,32 @@ def search_public_owner_profiles(
             }
         )
     return out
+
+
+@lru_cache(maxsize=1)
+def _pac_facility_count_table() -> dict[str, int]:
+    """PAC → facility_count from pac_indexability (empty if DB missing)."""
+    conn = _sqlite_conn()
+    if not conn:
+        return {}
+    out: dict[str, int] = {}
+    try:
+        for row in conn.execute("SELECT pac, facility_count FROM pac_indexability"):
+            pac = normalize_associate_id(str(row["pac"] or ""))
+            if len(pac) != 10:
+                continue
+            try:
+                n = int(row["facility_count"] or 0)
+            except (TypeError, ValueError):
+                n = 0
+            out[pac] = n
+    except Exception:
+        return {}
+    return out
+
+
+def _pac_facility_counts(pacs: list[str]) -> dict[str, int]:
+    table = _pac_facility_count_table()
+    if not table:
+        return {}
+    return {p: int(table.get(p) or 0) for p in pacs}

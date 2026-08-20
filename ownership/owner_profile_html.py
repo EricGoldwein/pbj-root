@@ -37,10 +37,11 @@ from ownership.portfolio_display import (
 from ownership.sff_display import sff_flag_explainer_tuple
 
 PREVIEW_CONTROL_PARTIES = 25
-PREVIEW_FACILITIES = 50
+PREVIEW_FACILITIES = 25
 FACILITIES_FILTER_MIN = 12
-FACILITIES_MOBILE_PREVIEW = 20
+FACILITIES_MOBILE_PREVIEW = 15
 FACILITIES_MOBILE_FILTER_MIN = 8
+FACILITIES_DESKTOP_PREVIEW = 25
 
 _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     "sff": sff_flag_explainer_tuple("sff"),
@@ -667,8 +668,14 @@ def _associate_mobile_card(r: dict[str, Any], *, n_facilities: int) -> str:
     )
 
 
-def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, str]:
-    """Return (body_html, page_title, meta_desc, canonical_path_suffix)."""
+def render_owner_profile_body(
+    profile: dict[str, Any], *, include_heavy: bool = False
+) -> tuple[str, str, str, str]:
+    """Return (body_html, page_title, meta_desc, canonical_path_suffix).
+
+    When include_heavy is False (default), skip associates / dual-PAC / FEC blocks and
+    paginate the facilities table for a faster first paint.
+    """
     kind = profile.get("profile_kind") or "owner_control"
     name = html.escape(format_org_display(profile.get("display_name") or "Organization"))
     pac = html.escape(profile.get("associate_id") or "")
@@ -689,11 +696,37 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
     preview_banner = _internal_preview_banner_html(profile)
     portfolio_html = _portfolio_snapshot_html(profile)
     owners_primary_html = _owners_primary_section_html(profile, kind, ow_label)
+    # Full facility table only when explicitly requested (?full=1).
+    fac_for_table = facilities if include_heavy else facilities
     facilities_html = _facilities_sections_html(
-        profile, kind, facilities, ow_label, skip_control_parties=bool(owners_primary_html)
+        profile,
+        kind,
+        fac_for_table,
+        ow_label,
+        skip_control_parties=bool(owners_primary_html),
+        force_full_table=include_heavy,
     )
-    associates_html = _related_associates_html(profile)
-    owner_section_html = _owner_dual_section_html(profile, kind)
+
+    deferred_html = ""
+    if include_heavy:
+        associates_html = _related_associates_html(profile)
+        owner_section_html = _owner_dual_section_html(profile, kind)
+        fec_html = render_owner_fec_contributions_section(profile)
+        deferred_bits: list[str] = []
+        if associates_html.strip():
+            deferred_bits.append(associates_html)
+        if owner_section_html.strip():
+            deferred_bits.append(owner_section_html)
+        if fec_html.strip():
+            deferred_bits.append(fec_html)
+        if deferred_bits:
+            deferred_html = "".join(deferred_bits)
+    else:
+        deferred_html = (
+            '<p class="owner-below-fold-link pbj-meta-line">'
+            '<a href="?full=1">Load related parties, dual-PAC detail &amp; contributions</a>'
+            "</p>"
+        )
 
     header_html = _owner_profile_header_html(
         profile,
@@ -716,9 +749,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {portfolio_html}
       {owners_primary_html}
       {facilities_html}
-      {associates_html}
-      {owner_section_html}
-      {render_owner_fec_contributions_section(profile)}
+      {deferred_html}
       </div>
     """
     return body, page_title, meta_desc, owner_profile_canonical_path(profile) or f"/owners/{pac}"
@@ -849,27 +880,9 @@ def _internal_preview_banner_html(profile: dict[str, Any]) -> str:
 
 
 def _kind_banner(kind: str, is_chow_only: bool) -> str:
-    if kind == "enrollment":
-        text = (
-            "<strong>Enrollment entity.</strong> CMS facility enrollment PAC with linked "
-            "owners, facilities, and any ownership transactions in CMS data."
-        )
-    elif kind == "both":
-        text = (
-            "<strong>Enrollment and owner PAC.</strong> This number appears as both "
-            "the facility enrollment and an owner/control party in CMS data."
-        )
-    elif is_chow_only:
-        text = (
-            "<strong>Ownership profile.</strong> Listed in CMS ownership-change records; "
-            "may not appear in the current CMS owner data enrollment or owner PAC file."
-        )
-    elif kind == "owner_control":
-        return ""
-    else:
-        return ""
-    return f'<div class="owner-scope-note" role="status">{text}</div>'
-
+    # Compact descriptors live in the header; keep long CMS copy behind ⓘ help only.
+    del kind, is_chow_only
+    return ""
 
 
 def _snf_owners_source_line(profile: dict[str, Any]) -> str:
@@ -893,11 +906,12 @@ def _owner_page_help_body(
             f"Owner/control party with {n} linked nursing homes in {snf_src}."
         ),
         "enrollment": (
-            f"CMS enrollment entity with {n} linked facilities, owners, and control parties "
-            f"in {snf_src}."
+            "Enrollment entity: CMS facility enrollment PAC with linked owners, facilities, "
+            f"and any ownership transactions in CMS data ({n} linked facilities in {snf_src})."
         ),
         "both": (
-            f"Enrollment and owner/control PAC with {n} linked facilities in {snf_src}."
+            "Enrollment and owner PAC: this number appears as both the facility enrollment "
+            f"and an owner/control party in CMS data ({n} linked facilities in {snf_src})."
         ),
         "chow_only": (
             f"Party in CMS ownership-change records with {n} linked facility references; "
@@ -972,49 +986,69 @@ def _owner_profile_header_html(
     en_label: str,
     ow_label: str,
 ) -> str:
+    from ownership.publication_taxonomy import ownership_pct_headline, segment_for_profile
+
     page_help = _info_button(
         "PBJ320 Ownership",
         _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label),
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-page-help",
     )
-    pac_meta = _pac_meta_html(
-        profile,
-        kind,
-        pac,
-        html.escape(en_label),
-        html.escape(ow_label),
-        page_help=page_help,
+    pct_chip, pct_help = ownership_pct_headline(profile)
+    pct_help_btn = (
+        _info_button("Ownership percentage", pct_help, label="?", cls="owner-info-btn")
+        if pct_chip and pct_help
+        else ""
     )
-    meta_parts: list[str] = []
+
+    chips: list[str] = []
+    desc = str(profile.get("publication_descriptor") or "").strip()
+    if desc:
+        chips.append(
+            f'<span class="owner-meta-chip owner-meta-chip--role">{html.escape(desc)}</span>'
+            f"{pct_help_btn}"
+        )
     if owner_type:
-        meta_parts.append(f'<span class="owner-profile-type">{owner_type}</span>')
+        chips.append(f'<span class="owner-meta-chip">{owner_type}</span>')
+    pac_label = "PAC"
+    if kind == "owner_control":
+        pac_label = ow_label or "Owner PAC"
+    elif kind == "enrollment":
+        pac_label = en_label or "Enrollment PAC"
+    elif kind == "both":
+        pac_label = "PAC"
+    if pac:
+        chips.append(
+            f'<span class="owner-meta-chip"><span class="owner-meta-k">{html.escape(pac_label)}</span> '
+            f'<span class="owner-meta-v">{pac}</span></span>'
+        )
+    enrollment_ids = profile.get("enrollment_ids") or []
+    if enrollment_ids:
+        ids = ", ".join(html.escape(e) for e in enrollment_ids[:2])
+        if len(enrollment_ids) > 2:
+            ids += f" (+{len(enrollment_ids) - 2})"
+        chips.append(
+            f'<span class="owner-meta-chip"><span class="owner-meta-k">Enrollment ID</span> '
+            f'<span class="owner-meta-v">{ids}</span></span>'
+        )
     if states_meta:
-        meta_parts.append(states_meta)
+        chips.append(states_meta)
+    chips.append(page_help)
     meta_row = (
-        f'<div class="owner-profile-meta-row">{"".join(meta_parts)}</div>'
-        if meta_parts
+        f'<div class="owner-profile-meta-row owner-profile-meta-row--compact">{"".join(chips)}</div>'
+        if chips
         else ""
     )
     back_link = _owner_index_back_link_html(profile)
-    header_actions = ""
-    if pac_meta:
-        header_actions = (
-            f'<div class="owner-profile-header-aside">'
-            f'<div class="owner-profile-header-actions">{pac_meta}</div>'
-            "</div>"
-        )
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
-    desc = str(profile.get("publication_descriptor") or "").strip()
-    descriptor_html = (
-        f'<p class="owner-profile-descriptor">{html.escape(desc)}</p>' if desc else ""
-    )
+    # segment unused but keeps import side-effects stable for tests that patch taxonomy
+    _ = segment_for_profile(profile)
     return f"""
-      <header class="owner-profile-header owner-profile-header--branded">
+      <header class="owner-profile-header owner-profile-header--branded owner-profile-header--compact">
         {back_html}
-        <div class="owner-profile-header-top">
+        <div class="owner-profile-header-top owner-profile-header-top--stack">
           <div class="owner-profile-brand" aria-label="PBJ320 Ownership">
-            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
+            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="22" height="22" decoding="async">
             <span class="owner-profile-brand-lockup">
               <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
               <span class="owner-profile-brand-suffix">Ownership</span>
@@ -1022,10 +1056,8 @@ def _owner_profile_header_html(
           </div>
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
-            {descriptor_html}
             {meta_row}
           </div>
-          {header_actions}
         </div>
       </header>"""
 
@@ -1450,7 +1482,11 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
 
 
 def _owner_facilities_table_html(
-    fac_list: list[dict[str, Any]], profile: dict[str, Any], *, pac: str = ""
+    fac_list: list[dict[str, Any]],
+    profile: dict[str, Any],
+    *,
+    pac: str = "",
+    force_full_table: bool = False,
 ) -> str:
     n = len(fac_list)
     if n == 0:
@@ -1527,8 +1563,11 @@ def _owner_facilities_table_html(
         f'<h2 class="section-header owner-facilities-heading">{title}</h2>'
         f"{filter_html}</div>"
     )
-    owner_rows = _facilities_owner_rows(fac_list)
-    mobile_cards = [_facility_mobile_card(f) for f in fac_list]
+    preview_n = len(fac_list) if force_full_table else min(FACILITIES_DESKTOP_PREVIEW, n)
+    fac_slice = fac_list if force_full_table else fac_list[:preview_n]
+    owner_rows = _facilities_owner_rows(fac_slice)
+    mobile_cards = [_facility_mobile_card(f) for f in fac_slice]
+    rest_count = 0 if force_full_table else max(0, n - preview_n)
     mobile_list = (
         f'<ul class="owner-mobile-card-list owner-mobile-card-list--facilities{list_extra_class}" '
         f'role="list" id="ownerFacilitiesMobileList" data-preview="{FACILITIES_MOBILE_PREVIEW}">'
@@ -1536,13 +1575,25 @@ def _owner_facilities_table_html(
         + "</ul>"
         + show_more_btn
     )
-    desktop = (
-        '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll">'
-        '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
-        f"<thead><tr>{thead}</tr></thead><tbody>"
-        + "".join(owner_rows)
-        + "</tbody></table></div>"
-    )
+
+    def _desk(rows: list[str]) -> str:
+        return (
+            '<div class="chow-table-scroll chow-table-scroll--touch owner-facilities-scroll">'
+            '<table class="chow-table owner-facilities-table chow-table--compact-sm" id="ownerFacilitiesTable">'
+            f"<thead><tr>{thead}</tr></thead><tbody>"
+            + "".join(rows)
+            + "</tbody></table></div>"
+        )
+
+    if rest_count:
+        desktop = (
+            _desk(owner_rows)
+            + f'<p class="owner-table-footer">Showing {preview_n} of {n} facilities · '
+            f'<a class="owner-full-table-link" href="?full=1#ownerFacilitiesPortfolio">'
+            f"Load all {n}</a></p>"
+        )
+    else:
+        desktop = _desk(owner_rows)
     dual = _owner_table_dual(
         desktop_html=desktop,
         mobile_html=mobile_toolbar + mobile_list,
@@ -1683,11 +1734,15 @@ def _facilities_sections_html(
     ow_label: str,
     *,
     skip_control_parties: bool = False,
+    force_full_table: bool = False,
 ) -> str:
     owner_primary_both = kind == "both" and profile.get("both_primary") == "owner_control"
     if kind == "owner_control" or owner_primary_both:
         html_out = _owner_facilities_table_html(
-            facilities, profile, pac=str(profile.get("associate_id") or "")
+            facilities,
+            profile,
+            pac=str(profile.get("associate_id") or ""),
+            force_full_table=force_full_table,
         )
         if owner_primary_both and not skip_control_parties:
             cps = profile.get("control_parties") or []
@@ -1705,6 +1760,7 @@ def _facilities_sections_html(
                 facilities,
                 profile,
                 pac=str(profile.get("associate_id") or ""),
+                force_full_table=force_full_table,
             )
         else:
             thead_en = (
@@ -1714,7 +1770,7 @@ def _facilities_sections_html(
                 "Linked facilities",
                 thead_en,
                 _facilities_enrollment_rows(facilities),
-                PREVIEW_FACILITIES,
+                PREVIEW_FACILITIES if not force_full_table else max(len(facilities), 1),
                 "enrollments",
                 mobile_cards=[_enrollment_facility_mobile_card(f) for f in facilities],
                 mobile_list_class="owner-mobile-card-list--facilities",

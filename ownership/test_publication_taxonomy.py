@@ -33,8 +33,22 @@ class PublicationTaxonomyTests(unittest.TestCase):
         }
         self.assertEqual(classify_publication_segment(profile), "ownership_interest_only")
         self.assertIn("Ownership Interest", publication_title_suffix(profile))
-        self.assertIn("25%", publication_descriptor(profile))
-        self.assertIn("ownership interest", facility_section_label(profile).lower())
+        self.assertEqual(publication_descriptor(profile), "Ownership interest · 25%")
+        self.assertIn("ownership-interest", facility_section_label(profile).lower())
+
+    def test_mixed_oi_pct_uses_up_to_when_varying(self) -> None:
+        profile = {
+            "display_name": "Vary Pct LLC",
+            "facilities": [
+                {"role_category": "ownership_interest", "pct": "10"},
+                {"role_category": "ownership_interest", "pct": "48.5"},
+                {"role_category": "operational_control"},
+            ],
+        }
+        desc = publication_descriptor(profile)
+        self.assertIn("Mixed CMS roles", desc)
+        self.assertIn("up to 48.5%", desc)
+        self.assertNotIn("CMS-reported ownership interest:", desc)
 
     def test_mixed_facility_section_not_ownership_only(self) -> None:
         profile = {
@@ -46,8 +60,8 @@ class PublicationTaxonomyTests(unittest.TestCase):
         }
         self.assertEqual(classify_publication_segment(profile), "mixed_ownership_plus_other")
         label = facility_section_label(profile).lower()
-        self.assertIn("cms relationships", label)
-        self.assertNotIn("ownership interest", label)
+        self.assertEqual(label, "linked facilities")
+        self.assertNotIn("ownership-interest", label)
 
     def test_control_no_ownership(self) -> None:
         profile = {
@@ -95,7 +109,7 @@ class PublicationTaxonomyTests(unittest.TestCase):
         self.assertEqual(out["publication_segment"], "mixed_ownership_plus_other")
         self.assertEqual(out["publication_segment_source"], "store")
         self.assertEqual(segment_for_profile(out), "mixed_ownership_plus_other")
-        self.assertIn("CMS relationships", out["facility_section_label"])
+        self.assertIn("Linked facilities", out["facility_section_label"])
         # Title/meta helpers must consume attached segment, not re-derive.
         self.assertIn("Ownership Interest", publication_title_suffix(out))
 

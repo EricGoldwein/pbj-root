@@ -6688,9 +6688,23 @@ if csrf_protect:
 
 def generate_owner_profile_html(profile, *, robots_meta=None):
     """Public CMS profile at /owners/<pac>/<slug> — enrollment, owner/control, or CHOW fallback."""
+    from flask import request
+
     from ownership.owner_profile_html import render_owner_profile_body
 
-    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(profile)
+    include_heavy = False
+    try:
+        include_heavy = str(request.args.get("full") or "").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "all",
+        )
+    except Exception:
+        include_heavy = False
+    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(
+        profile, include_heavy=include_heavy
+    )
     base = _public_site_origin()
     canon = base + canon_suffix
     display_name = str(profile.get('display_name') or 'Organization').strip()

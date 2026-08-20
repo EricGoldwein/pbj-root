@@ -97,7 +97,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         html = portfolio_snapshot_section_html(ps, context="owner")
         self.assertIn("2 qualifying facilities", html)
         self.assertIn("owner-snapshot-sublabel", html)
-        self.assertIn("Total Facilities", html)
+        self.assertIn("Linked facilities", html)
         self.assertNotIn("4 qualifying", html)
         self.assertIn(
             "Owner-level PBJ staffing metrics use only qualifying facilities",
@@ -125,7 +125,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 0)
         self.assertIsNone(ps.get("wmean_hprd"))
         html = portfolio_snapshot_section_html(ps, context="owner")
-        self.assertNotIn("Weighted total nurse HPRD", html)
+        self.assertNotIn("Weighted nurse HPRD", html)
         self.assertNotIn("qualifying facilit", html)
 
     def test_mitchell_274_reconciles_to_two_supported_hprd(self) -> None:
@@ -157,7 +157,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         body, *_ = render_owner_profile_body(profile)
         self.assertIn("2 qualifying facilities", body)
         self.assertIn("owner-snapshot-sublabel", body)
-        self.assertIn("Weighted total nurse HPRD", body)
+        self.assertIn("Weighted nurse HPRD", body)
         self.assertIn(
             "Owner-level PBJ staffing metrics use only qualifying facilities",
             body,
@@ -212,7 +212,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         ps = profile.get("portfolio_summary") or {}
         self.assertEqual(int(ps.get("n_hprd_supported_facilities") or 0), 0)
         body, title, *_ = render_owner_profile_body(profile)
-        self.assertNotIn("Weighted total nurse HPRD", body)
+        self.assertNotIn("Weighted nurse HPRD", body)
         self.assertNotIn("owner-snapshot-sublabel", body)
         self.assertNotIn("Nursing Home Ownership Interest", title)
 

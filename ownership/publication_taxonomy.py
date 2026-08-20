@@ -43,27 +43,27 @@ _TITLE_SUFFIX: dict[str, str] = {
 }
 
 _DESCRIPTOR: dict[str, str] = {
-    "ownership_interest_only": "CMS ownership interest",
-    "mixed_ownership_plus_other": "CMS ownership interest (also holds other disclosed roles)",
-    "control_managerial_no_ownership": "CMS managing/control party",
-    "governance_only": "CMS officer/director",
-    "administrative_enrollment_style": "CMS enrollment associate",
-    "financial_only": "CMS financial interest",
-    "other_or_unclassified": "CMS-disclosed associate",
-    "chow_enrollment_party": "CMS CHOW transaction party — enrollment-associated",
-    "unknown_placeholder": "CMS-disclosed associate",
+    "ownership_interest_only": "Ownership interest",
+    "mixed_ownership_plus_other": "Mixed CMS roles",
+    "control_managerial_no_ownership": "Managing / control",
+    "governance_only": "Officer / director",
+    "administrative_enrollment_style": "Enrollment entity",
+    "financial_only": "Financial interest",
+    "other_or_unclassified": "CMS associate",
+    "chow_enrollment_party": "CHOW party",
+    "unknown_placeholder": "CMS associate",
 }
 
 _FACILITY_SECTION: dict[str, str] = {
-    "ownership_interest_only": "Facilities with reported ownership interest",
-    # Mixed: roles vary per row — do not imply every row is ownership-interest-only.
-    "mixed_ownership_plus_other": "Facilities with reported CMS relationships",
-    "control_managerial_no_ownership": "Facilities associated in CMS records",
-    "governance_only": "Facilities associated in CMS records",
+    "ownership_interest_only": "Ownership-interest facilities",
+    # Mixed/control/enrollment: do not imply every row is ownership-interest-only.
+    "mixed_ownership_plus_other": "Linked facilities",
+    "control_managerial_no_ownership": "Linked facilities",
+    "governance_only": "Linked facilities",
     "administrative_enrollment_style": "Linked facilities",
-    "financial_only": "Facilities associated in CMS records",
+    "financial_only": "Linked facilities",
     "other_or_unclassified": "Linked facilities",
-    "chow_enrollment_party": "Facilities in CMS CHOW filings",
+    "chow_enrollment_party": "Linked facilities",
     "unknown_placeholder": "Linked facilities",
 }
 
@@ -183,23 +183,72 @@ def has_ownership_interest(profile: dict[str, Any] | None) -> bool:
     return seg in ("ownership_interest_only", "mixed_ownership_plus_other")
 
 
+def _normalize_pct_token(raw: str) -> str:
+    s = str(raw or "").strip()
+    if not s or s in ("—", "-", "n/a", "N/A", "nan"):
+        return ""
+    if s.endswith("%"):
+        s = s[:-1].strip()
+    try:
+        val = float(s.replace(",", ""))
+    except ValueError:
+        return str(raw).strip()
+    if abs(val - round(val)) < 1e-9:
+        return f"{int(round(val))}%"
+    text = f"{val:.4f}".rstrip("0").rstrip(".")
+    return f"{text}%"
+
+
+def ownership_pct_headline(profile: dict[str, Any] | None) -> tuple[str, str]:
+    """Compact OI % chip: ('48.5%', help) uniform, ('up to 48.5%', help) vary, or ('', '')."""
+    if not profile or not has_ownership_interest(profile):
+        return "", ""
+    values: list[float] = []
+    display_tokens: list[str] = []
+    for fac in list(profile.get("facilities") or []):
+        if str(fac.get("role_category") or "") != _CATEGORY_OWNERSHIP:
+            continue
+        token = _normalize_pct_token(str(fac.get("pct") or ""))
+        if not token:
+            continue
+        display_tokens.append(token)
+        try:
+            values.append(float(token.rstrip("%").replace(",", "")))
+        except ValueError:
+            continue
+    ow = profile.get("owner_control_section")
+    if not values and isinstance(ow, dict):
+        return ownership_pct_headline(ow)
+    if not values:
+        return "", ""
+    unique = {round(v, 4) for v in values}
+    max_tok = _normalize_pct_token(str(max(values)))
+    help_body = (
+        "CMS-reported ownership-interest percentages on individual facility rows. "
+        "Values can differ by facility; this line summarizes those row-level figures only."
+    )
+    if len(unique) == 1:
+        return display_tokens[0], help_body
+    return f"up to {max_tok}", help_body + " When percentages vary, the headline shows the maximum."
+
+
 def publication_descriptor(profile: dict[str, Any] | None) -> str:
     seg = segment_for_profile(profile)
     base = _DESCRIPTOR.get(seg, _DESCRIPTOR["other_or_unclassified"])
     if seg in ("ownership_interest_only", "mixed_ownership_plus_other") and profile:
-        pct = _primary_ownership_pct(profile)
-        if pct:
-            return f"CMS-reported ownership interest: {pct}"
-    # CHOW: preserve buyer/seller when present on transactions
+        pct_chip, _help = ownership_pct_headline(profile)
+        if pct_chip:
+            return f"{base} · {pct_chip}"
+    # CHOW: short buyer/seller chip when unambiguous
     if seg == "chow_enrollment_party" and profile:
         roles = {
             str(r.get("chow_role") or r.get("role") or "").strip().lower()
             for r in (profile.get("chow_transactions") or [])
         }
         if "buyer" in roles and "seller" not in roles:
-            return "CMS CHOW buyer — enrollment-associated party"
+            return "CHOW buyer"
         if "seller" in roles and "buyer" not in roles:
-            return "CMS CHOW seller — enrollment-associated party"
+            return "CHOW seller"
     return base
 
 
@@ -258,23 +307,11 @@ def meta_relationship_phrase(profile: dict[str, Any] | None) -> str:
 
 
 def _primary_ownership_pct(profile: dict[str, Any]) -> str:
-    """First non-blank ownership % on an ownership_interest facility row."""
-    for fac in profile.get("facilities") or []:
-        if str(fac.get("role_category") or "") != _CATEGORY_OWNERSHIP:
-            continue
-        pct = str(fac.get("pct") or "").strip()
-        if pct and pct not in ("—", "-", "n/a", "N/A", "nan"):
-            if not pct.endswith("%"):
-                try:
-                    float(pct.replace(",", ""))
-                    return f"{pct}%"
-                except ValueError:
-                    return pct
-            return pct
-    ow = profile.get("owner_control_section")
-    if isinstance(ow, dict):
-        return _primary_ownership_pct(ow)
-    return ""
+    """Uniform OI % or empty when percentages vary / missing (legacy helper)."""
+    chip, _help = ownership_pct_headline(profile)
+    if chip.startswith("up to "):
+        return ""
+    return chip
 
 
 def attach_publication_taxonomy(profile: dict[str, Any]) -> dict[str, Any]:

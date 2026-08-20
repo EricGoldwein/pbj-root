@@ -482,9 +482,13 @@ def portfolio_snapshot_section_html(
             )
         cards.append(
             snapshot_metric_card_html(
-                "Total Facilities",
+                "Linked facilities"
+                if not uses_ownership_portfolio_language
+                else "Ownership-interest facilities",
                 str(n),
-                "Total Facilities",
+                "Linked facilities"
+                if not uses_ownership_portfolio_language
+                else "Ownership-interest facilities",
                 fac_help,
                 tone="accent",
                 value_title="Distinct CMS-linked facilities nationwide",
@@ -512,9 +516,9 @@ def portfolio_snapshot_section_html(
             )
         if wmean is not None:
             hprd_label = (
-                "Weighted total nurse HPRD"
+                "Weighted nurse HPRD"
                 if n_hprd >= 2 or (n_hprd == 0 and n >= 2)
-                else "Total nurse HPRD"
+                else "Nurse HPRD"
             )
             cards.append(
                 snapshot_metric_card_html(
@@ -528,9 +532,9 @@ def portfolio_snapshot_section_html(
             )
         elif umean is not None:
             hprd_label = (
-                "Avg total nurse HPRD"
+                "Avg nurse HPRD"
                 if n_hprd >= 2 or (n_hprd == 0 and n >= 2)
-                else "Total nurse HPRD"
+                else "Nurse HPRD"
             )
             cards.append(
                 snapshot_metric_card_html(
@@ -562,6 +566,12 @@ def portfolio_snapshot_section_html(
         grid_cols = "owner-portfolio-grid--3"
 
     dist_html = portfolio_distribution_html(ps, id_prefix=dist_prefix)
+    if context == "owner" and dist_html.strip():
+        dist_html = (
+            '<details class="owner-collapsible owner-collapsible--dist">'
+            "<summary>Star &amp; state distribution</summary>"
+            f"{dist_html}</details>"
+        )
     roster_note = ""
     if context == "entity" and n < PORTFOLIO_STAR_DIST_MIN:
         roster_note = (
@@ -602,10 +612,10 @@ def entity_portfolio_block_html(
 
 def owner_portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     ps = profile.get("portfolio_summary") or {}
+    seg = str(profile.get("publication_segment") or "").strip()
+    oi_only = seg == "ownership_interest_only"
     return portfolio_snapshot_section_html(
         ps,
         context="owner",
-        uses_ownership_portfolio_language=bool(
-            profile.get("uses_ownership_portfolio_language")
-        ),
+        uses_ownership_portfolio_language=oi_only,
     )

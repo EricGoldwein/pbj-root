@@ -26,11 +26,15 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn('href="/owners" class="nav-link">Owners</a>', app)
         self.assertIn('data-pbj-nav-version="owners-v2"', app)
 
-    def test_homepage_owners_search_tab_present(self) -> None:
+    def test_homepage_search_tabs_exclude_owners(self) -> None:
         html = (_ROOT / "index.html").read_text(encoding="utf-8")
-        self.assertIn('id="searchTabOwners"', html)
-        self.assertIn("/owners/api/cms-search", html)
-        self.assertIn("setMode('owners')", html)
+        # Homepage search stays Provider / Chain / State; Owners is navbar-only.
+        self.assertNotIn('id="searchTabOwners"', html)
+        self.assertIn('id="searchTabFacility"', html)
+        self.assertIn('id="searchTabChain"', html)
+        self.assertIn('id="searchTabState"', html)
+        self.assertNotIn("/owners/api/cms-search", html)
+        self.assertNotIn("setMode('owners')", html)
 
 
 class FailedAdpStubTests(unittest.TestCase):

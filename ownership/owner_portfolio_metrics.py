@@ -747,7 +747,15 @@ def _rollup_portfolio_metrics(enriched: list[dict[str, Any]]) -> dict[str, Any]:
         "mean_staffing_rating": None,
         "umean_staffing_rating": None,
         "ratings_attribution": "facility_context_only",
-        "hprd_attribution": "pbj_quarter_plus_cms_association_timing",
+        "hprd_attribution": "pbj_quarter_full_period_ownership_interest_only",
+        "n_hprd_supported_facilities": len(hprd_unweighted),
+        "hprd_eligible_label": (
+            f"PBJ HPRD across {len(hprd_unweighted)} facilit"
+            f"{'y' if len(hprd_unweighted) == 1 else 'ies'} with supported "
+            "ownership-period overlap"
+            if hprd_unweighted
+            else "No facilities with supported ownership-period HPRD overlap"
+        ),
         "overall_star_counts": overall_star_counts,
         "staffing_star_counts": staffing_star_counts,
         "n_with_overall_for_dist": sum(overall_star_counts.values()),

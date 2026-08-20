@@ -20,6 +20,7 @@ from ownership.state_owner_index import (
     STATE_INDEX_META,
     format_index_owner_name,
     format_portfolio_facility_count,
+    filter_ownership_interest_portfolio_rows,
     list_state_owner_index_rows,
     state_index_layout_meta,
     state_owner_index_is_draft,
@@ -44,11 +45,11 @@ _CMS_PBJ_URL = "https://data.cms.gov/quality-of-care/payroll-based-journal-daily
 _FEC_URL = "https://fec.gov/"
 
 _LARGEST_PORTFOLIOS_TITLE: dict[str, tuple[str, str]] = {
-    "NY": ("Largest NY portfolios", "Largest New York portfolios"),
-    "CT": ("Largest CT portfolios", "Largest Connecticut portfolios"),
-    "FL": ("Largest FL portfolios", "Largest Florida portfolios"),
-    "NJ": ("Largest NJ portfolios", "Largest New Jersey portfolios"),
-    "ID": ("Largest ID portfolios", "Largest Idaho portfolios"),
+    "NY": ("Largest NY ownership-interest portfolios", "Largest New York ownership-interest portfolios"),
+    "CT": ("Largest CT ownership-interest portfolios", "Largest Connecticut ownership-interest portfolios"),
+    "FL": ("Largest FL ownership-interest portfolios", "Largest Florida ownership-interest portfolios"),
+    "NJ": ("Largest NJ ownership-interest portfolios", "Largest New Jersey ownership-interest portfolios"),
+    "ID": ("Largest ID ownership-interest portfolios", "Largest Idaho ownership-interest portfolios"),
 }
 
 
@@ -304,7 +305,7 @@ def _render_try_chip_link(chip: dict[str, str]) -> str:
 def _render_panel_tabs(state_code: str) -> str:
     """Mobile tab switcher (portfolios vs recent CHOW); hidden on wide desktop."""
     st = (state_code or "").strip().upper()[:2]
-    short, _long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest portfolios", "Largest portfolios"))
+    short, _long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest ownership-interest portfolios", "Largest ownership-interest portfolios"))
     portfolios_label = html.escape(short)
     return (
         '<div class="owners-state-panel-tabs" role="tablist" '
@@ -324,7 +325,7 @@ def _render_panel_tabs(state_code: str) -> str:
 def _render_largest_portfolios_title(state_code: str) -> str:
     """Short state abbrev in panel header; full state name when layout has room."""
     st = (state_code or "").strip().upper()[:2]
-    short, long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest portfolios", "Largest portfolios"))
+    short, long = _LARGEST_PORTFOLIOS_TITLE.get(st, ("Largest ownership-interest portfolios", "Largest ownership-interest portfolios"))
     return (
         '<h2 id="ownersStateTopHeading" class="owners-state-panel-title">'
         f'<span class="owners-state-panel-title-short">{html.escape(short)}</span>'
@@ -334,14 +335,14 @@ def _render_largest_portfolios_title(state_code: str) -> str:
 
 
 def _render_state_h1(h1: str) -> str:
-    """Two-line mobile stack: '{state} Nursing Home' / 'Ownership Search' (one line on desktop)."""
-    suffix = " Ownership Search"
+    """Two-line mobile stack: '{state} Nursing Home' / 'Ownership & Control Search'."""
+    suffix = " Ownership & Control Search"
     if h1.endswith(suffix):
         primary = html.escape(h1[: -len(suffix)])
         return (
             '<h1 class="owners-state-h1 owners-state-h1--split">'
             f'<span class="owners-state-h1-primary">{primary}</span>'
-            '<span class="owners-state-h1-secondary">Ownership Search</span>'
+            '<span class="owners-state-h1-secondary">Ownership &amp; Control Search</span>'
             "</h1>"
         )
     return f'<h1 class="owners-state-h1">{html.escape(h1)}</h1>'
@@ -390,7 +391,11 @@ def _render_top_orgs(rows: list[dict[str, Any]], *, state_code: str, state_name:
         name = html.escape(format_index_owner_name(str(row.get("name") or "—")))
         raw_url = str(row.get("profile_url") or f"/owners/{row.get('associate_id') or ''}")
         url = html.escape(_owner_profile_href(raw_url, state_code=st))
-        count_lbl = format_portfolio_facility_count(st, row)
+        oi_n = int(row.get("facility_count_rank") or row.get("facility_count_ownership_interest") or 0)
+        if oi_n > 0:
+            count_lbl = f"{oi_n} ownership-interest"
+        else:
+            count_lbl = format_portfolio_facility_count(st, row)
         in_n = int(row.get("facility_count") or 0)
         total_n = int(row.get("facility_count_total") or in_n)
         if total_n > in_n:
@@ -491,8 +496,10 @@ def render_state_owner_index_body(
     subtitle = layout["subtitle"]
     canon = layout["canonical_path"]
 
-    try_pool_rows, index_total = list_state_owner_index_rows(st, limit=_TRY_POOL_LIMIT, offset=0)
-    top_rows, _ = list_state_owner_index_rows(st, limit=default_browse_limit, offset=0)
+    all_index_rows, index_total = list_state_owner_index_rows(st, limit=None, offset=0)
+    oi_rows = filter_ownership_interest_portfolio_rows(all_index_rows)
+    try_pool_rows = oi_rows[:_TRY_POOL_LIMIT]
+    top_rows = oi_rows[:default_browse_limit]
     page_ctx = state_owner_page_context(st)
     top_html = _render_top_orgs(top_rows, state_code=st, state_name=state_name)
     try_search_html = _render_try_search_hints(try_pool_rows, state_slug=state_slug, state_code=st)

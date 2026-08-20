@@ -257,6 +257,15 @@ def classify_owner_profile(profile: dict[str, Any] | None) -> tuple[OwnerIndexCl
     meta["flags"] = flags
 
     if active_n >= 2:
+        from ownership.publication_taxonomy import classify_publication_segment
+
+        seg = classify_publication_segment(profile)
+        if seg == "administrative_enrollment_style":
+            indexable = [f for f in flags if f in INDEXABLE_CONTEXT_FLAGS]
+            strong = [f for f in indexable if f not in ("operator_grouping",)]
+            n_fac = int((profile.get("portfolio_summary") or {}).get("n_facilities") or active_n)
+            if not strong and n_fac < 3:
+                return "noindex_follow", "thin_administrative_enrollment", meta
         return "index", "two_or_more_active_facilities", meta
 
     if active_n == 1:

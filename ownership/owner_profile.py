@@ -586,7 +586,7 @@ def associate_profile_url(associate_id: str, org_name: str = "") -> str:
             return f"/owners/{pac}/{owner_display_slug(name)}"
         return f"/owners/{pac}"
     if (org_name or "").strip() or (associate_id or "").strip():
-        return "/owner"
+        return "/owners"
     return ""
 
 
@@ -1209,8 +1209,9 @@ def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
         ow["facilities"] = enrich_facilities(ow["facilities"])
         ow["portfolio_summary"] = build_portfolio_summary(ow["facilities"])
     from ownership.owner_facility_map import attach_facility_map_context
+    from ownership.publication_taxonomy import attach_publication_taxonomy
 
-    return attach_facility_map_context(profile)
+    return attach_publication_taxonomy(attach_facility_map_context(profile))
 
 
 def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:

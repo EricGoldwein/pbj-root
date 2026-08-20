@@ -22,9 +22,15 @@ What the field **does not** establish:
 - That Care Compare star ratings or other survey-era metrics are contemporaneous
   with that association.
 
-Therefore ``relationship_supported_for_period`` / timing helpers only answer:
-"Did CMS report that this association began on or before the metric period end?"
-They never claim full-period ownership or equity.
+## PBJ quarterly HPRD attribution
+
+Full-period ``supported`` requires:
+- relationship_kind == ownership_interest, AND
+- association_date on or before the **start** of the PBJ quarter.
+
+Association after quarter end → ``exclude``.
+Association mid-quarter (after start, on/before end) → ``uncertain`` until a
+national daily PBJ windowed HPRD loader exists (see PARTIAL_PERIOD_HPRD_*).
 """
 from __future__ import annotations
 
@@ -32,19 +38,27 @@ import re
 from datetime import date, datetime
 from typing import Any, Literal
 
-# Timing vs a measurement window (association-date only).
+# National daily PBJ is not wired into ownership portfolio rollups. Mid-quarter
+# associations therefore cannot compute Σhours/Σcensus for [assoc, QE] safely.
+PARTIAL_PERIOD_HPRD_SUPPORTED = False
+PARTIAL_PERIOD_HPRD_NOTE = (
+    "Partial-period HPRD (association_date→quarter_end) requires a national "
+    "day-level PBJ hours/census index. Ownership rollups currently use quarterly "
+    "HPRD only; mid-quarter associations are uncertain, not manufactured means."
+)
+
 AssociationTiming = Literal[
-    "association_began_on_or_before_period_end",
+    "association_began_on_or_before_period_start",
+    "association_began_during_period",
     "association_began_after_period_end",
     "association_date_missing",
     "metric_period_unknown",
 ]
 
-# Whether a metric may be rolled into an *owner-attributed performance* aggregate.
 MetricAttributionMode = Literal[
-    "owner_performance_candidate",  # may enter owner means if timing + role allow
-    "facility_context_only",  # show on facility row; do not owner-attribute
-    "unsupported",  # do not treat as owner performance
+    "owner_performance_candidate",
+    "facility_context_only",
+    "unsupported",
 ]
 
 RelationshipKind = Literal[
@@ -59,17 +73,17 @@ RelationshipKind = Literal[
 ]
 
 AttributionStatus = Literal[
-    "supported",  # legacy alias: timing ok for candidate metrics
-    "exclude",  # association clearly after period
-    "uncertain",  # missing date / unknown period
-    "facility_context",  # metric retained on facility only
+    "supported",  # full-period owner-attributable (ownership_interest + assoc ≤ Q start)
+    "partial_period_supported",  # reserved; not emitted while PARTIAL_PERIOD_HPRD_SUPPORTED is False
+    "exclude",
+    "uncertain",
+    "facility_context",
 ]
 
 _QUARTER_RE = re.compile(r"Q\s*([1-4])\s*[/\-]?\s*(\d{4})", re.IGNORECASE)
 _QUARTER_ENDS = {1: (3, 31), 2: (6, 30), 3: (9, 30), 4: (12, 31)}
 _QUARTER_STARTS = {1: (1, 1), 2: (4, 1), 3: (7, 1), 4: (10, 1)}
 
-# Role categories from ownership.role_classification → relationship kind.
 _ROLE_TO_KIND = {
     "ownership_interest": "ownership_interest",
     "operational_control": "control_or_management",
@@ -129,16 +143,6 @@ def relationship_kind_from_role_category(role_category: Any) -> RelationshipKind
 
 
 def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
-    """
-    Which metrics may be owner-attributed with a period join.
-
-    - ``pbj_hprd`` / ``pbj_nurse_hprd``: PBJ quarter staffing hours — candidate
-      when association timing and an ownership_interest (or explicit control
-      policy) allow.
-    - ``care_compare_rating_*``: Care Compare stars are survey/inspection era
-      composites — facility context only (not contemporaneous owner performance).
-    - ``census`` / ``beds``: structural facility descriptors — facility context.
-    """
     kind = str(metric_kind or "").strip().lower()
     if kind in ("pbj_hprd", "pbj_nurse_hprd", "hprd", "reported_total_nurse_hprd"):
         return "owner_performance_candidate"
@@ -155,6 +159,26 @@ def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
     return "unsupported"
 
 
+def _resolve_period_bounds(
+    metric_start: Any, metric_end: Any
+) -> tuple[date | None, date | None]:
+    start = metric_start if isinstance(metric_start, date) else None
+    end = metric_end if isinstance(metric_end, date) else None
+    if start is None and metric_start is not None:
+        bounds = parse_pbj_quarter_bounds(metric_start)
+        if bounds:
+            start, end = bounds
+        else:
+            start = parse_association_start(metric_start)
+    if end is None and metric_end is not None:
+        end = parse_association_start(metric_end)
+    if end is None and start is None and metric_start is not None:
+        bounds = parse_pbj_quarter_bounds(metric_start)
+        if bounds:
+            start, end = bounds
+    return start, end
+
+
 def association_timing_vs_period(
     association_start: Any,
     metric_start: Any,
@@ -163,8 +187,7 @@ def association_timing_vs_period(
     """
     Compare PECOS association start to a metric window.
 
-    ``association_began_on_or_before_period_end`` only means CMS reported the
-    association started on/before the period end — not full-period ownership.
+    Distinguishes full-period (assoc ≤ start) from mid-period (start < assoc ≤ end).
     """
     assoc = (
         association_start
@@ -174,19 +197,19 @@ def association_timing_vs_period(
     if assoc is None:
         return "association_date_missing"
 
-    end = metric_end if isinstance(metric_end, date) else None
-    if end is None and metric_end is not None:
-        end = parse_association_start(metric_end)
-    if end is None and metric_start is not None:
-        bounds = parse_pbj_quarter_bounds(metric_start)
-        if bounds:
-            _, end = bounds
+    start, end = _resolve_period_bounds(metric_start, metric_end)
     if end is None:
         return "metric_period_unknown"
+    if start is None:
+        if assoc > end:
+            return "association_began_after_period_end"
+        return "association_began_during_period"
 
     if assoc > end:
         return "association_began_after_period_end"
-    return "association_began_on_or_before_period_end"
+    if assoc > start:
+        return "association_began_during_period"
+    return "association_began_on_or_before_period_start"
 
 
 def relationship_supported_for_period(
@@ -198,12 +221,15 @@ def relationship_supported_for_period(
     metric_kind: str | None = None,
 ) -> AttributionStatus:
     """
-    Legacy-compatible gate for owner aggregates.
+    Gate for owner aggregates.
 
-    Prefer calling with ``metric_kind`` + ``relationship_kind``:
-    - Care Compare ratings → ``facility_context`` (never owner performance means)
-    - PBJ HPRD → timing gate; ``exclude`` only when association start > period end
-    - Without metric_kind, preserves prior timing-only behavior for tests
+    PBJ HPRD + ownership_interest:
+      assoc ≤ quarter start → supported (full-period)
+      start < assoc ≤ end → uncertain (partial daily HPRD not available)
+      assoc > end → exclude
+
+    Care Compare ratings → facility_context.
+    Control/governance/financial → uncertain for HPRD means (any timing).
     """
     mode = metric_attribution_mode(metric_kind or "")
     if metric_kind and mode == "facility_context_only":
@@ -217,18 +243,23 @@ def relationship_supported_for_period(
     if timing in ("association_date_missing", "metric_period_unknown"):
         return "uncertain"
 
-    # Timing OK. Equity-interest preferred for owner HPRD means; control/other
-    # remain uncertain for *performance* attribution (facility metrics still shown).
     kind = str(relationship_kind or "").strip() or "other_or_unknown"
     if metric_kind and mode == "owner_performance_candidate":
-        if kind == "ownership_interest":
+        if kind != "ownership_interest":
+            return "uncertain"
+        if timing == "association_began_on_or_before_period_start":
             return "supported"
-        if kind in ("control_or_management", "governance", "financial"):
-            # Present in CMS association; do not claim as ownership-period HPRD.
+        if timing == "association_began_during_period":
+            if PARTIAL_PERIOD_HPRD_SUPPORTED:
+                return "partial_period_supported"
             return "uncertain"
         return "uncertain"
 
-    # Timing-only legacy path (no metric_kind): map to supported/uncertain/exclude.
+    # Timing-only legacy path (no metric_kind): require full-period for "supported".
+    if timing == "association_began_on_or_before_period_start":
+        return "supported"
+    if timing == "association_began_during_period":
+        return "uncertain"
     return "supported"
 
 
@@ -254,7 +285,6 @@ def attribution_status_for_facility(
     )
 
 
-# Back-compat alias used in earlier remediation docs.
 CMS_ASSOCIATION_DATE_DEFINITION = (
     "Date on which the owner became associated with the Skilled Nursing Facility "
     "(CMS SNF All Owners data dictionary). PECOS association start for an "

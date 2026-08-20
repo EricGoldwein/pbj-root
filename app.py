@@ -6684,8 +6684,10 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
         page_url=canon,
         facility_count=n_fac,
         meta_description=meta_desc,
+        profile=profile,
     )
     og_owner = f'{base}/og-owner-pbj320.png'
+    og_alt_suffix = str(profile.get('publication_title_suffix') or 'CMS nursing home associate')
     layout = get_pbj_site_layout(
         page_title,
         meta_desc,
@@ -6694,7 +6696,7 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
         og_image_url=og_owner,
         og_image_width=1200,
         og_image_height=630,
-        og_image_alt=f'{display_name} — nursing home ownership on PBJ320',
+        og_image_alt=f'{display_name} — {og_alt_suffix} on PBJ320',
         extra_head=owner_json_ld + (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
@@ -6800,7 +6802,7 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
 @fec_owner_bp.route('/', defaults={'path': ''})
 @fec_owner_bp.route('/<path:path>')
 def fec_owner_proxy(path):
-    """Proxy FEC contributions dashboard at /owner/ (lazy-loaded on first request)."""
+    """FEC API under /owner/api/*; standalone FEC UI redirects to /owners (embedded on profiles)."""
     try:
         owner_app = get_owner_app()
     except Exception:
@@ -6820,19 +6822,7 @@ def fec_owner_proxy(path):
             headers=list(request.headers)
         ):
             return owner_app.full_dispatch_request()
-    elif path == '':
-        if request.args.get('owner'):
-            return redirect('/owner', code=302)
-        with owner_app.test_request_context('/', method=request.method):
-            return owner_app.full_dispatch_request()
-    else:
-        with owner_app.test_request_context(f'/{path}',
-                                             method=request.method,
-                                             query_string=request.query_string.decode(),
-                                             data=request.get_data(),
-                                             content_type=request.content_type,
-                                             headers=list(request.headers)):
-            return owner_app.full_dispatch_request()
+    return redirect('/owners', code=302)
 
 app.register_blueprint(fec_owner_bp)
 
@@ -6886,7 +6876,6 @@ def _owners_cms_index_html():
       <p class="owners-hub-aside">
         Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
         <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
-        <a href="/owner">Political contributions (FEC)</a> is a separate tool.
       </p>
     </div>
     '''
@@ -7011,9 +7000,7 @@ def owners_cms_search_api():
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():
-    """CMS ownership index (NY + CT + FL). FEC contributions search is at /owner/."""
-    if request.args.get('owner'):
-        return redirect('/owner', code=302)
+    """CMS ownership index (NY + CT + FL + national hub)."""
     resp = make_response(_owners_cms_index_html())
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'public, max-age=300'
@@ -7079,16 +7066,17 @@ def top_redirect():
 @app.route('/owners-test')
 @app.route('/owners-test/')
 def owners_test_redirect():
-    """Legacy alias — FEC tool at /owner/test."""
-    return redirect('/owner/test', code=302)
+    """Legacy alias — national ownership hub."""
+    return redirect('/owners', code=302)
 
 @app.route('/ownership', defaults={'path': ''})
 @app.route('/ownership/', defaults={'path': ''})
 @app.route('/ownership/<path:path>')
 def ownership_alias(path=''):
+    """Legacy /ownership URLs → national CMS ownership hub."""
     if path:
-        return redirect(f'/owner/{path}', code=301)
-    return redirect('/owner', code=301)
+        return redirect(f'/owners/{path}', code=301)
+    return redirect('/owners', code=301)
 
 def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
     raw = (post.get('updated') or post.get('date') or post.get('sort_date') or '').strip()
@@ -13409,11 +13397,12 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           <span><span style="color:#e2e8f0;">PBJ</span><span style="color:#818cf8;">320</span></span>
         </a>
       </div>
-      <div class="nav-menu" id="navMenu">
+      <div class="nav-menu" id="navMenu" data-pbj-nav-version="owners-v2">
         <a href="/about" class="nav-link">About</a>
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
-        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Owners</a>
+        <a href="/phoebe" class="nav-link nav-link--phoebe-mobile">PBJ Explained</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
@@ -25051,7 +25040,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">FEC Contributions</a>
+                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Owners</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>
@@ -27116,7 +27105,7 @@ def pbjpedia_page(page):
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">FEC Contributions</a>
+                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Owners</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>

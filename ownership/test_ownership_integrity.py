@@ -198,29 +198,12 @@ class NullPctNotInferredEquityTests(unittest.TestCase):
 
 
 class TemporalAttributionTests(unittest.TestCase):
-    def test_metric_before_assoc_excluded(self) -> None:
+    def test_assoc_before_quarter_start_supported(self) -> None:
         bounds = parse_pbj_quarter_bounds("Q1 2026")
         assert bounds is not None
         start, end = bounds
         self.assertEqual(start, date(2026, 1, 1))
         self.assertEqual(end, date(2026, 3, 31))
-        self.assertEqual(
-            relationship_supported_for_period("04/15/2026", start, end),
-            "exclude",
-        )
-        self.assertEqual(
-            relationship_supported_for_period("01/01/2025", start, end),
-            "supported",
-        )
-        self.assertEqual(
-            relationship_supported_for_period("", start, end),
-            "uncertain",
-        )
-
-    def test_hprd_requires_ownership_interest(self) -> None:
-        bounds = parse_pbj_quarter_bounds("Q1 2026")
-        assert bounds is not None
-        start, end = bounds
         self.assertEqual(
             relationship_supported_for_period(
                 "01/01/2025",
@@ -231,21 +214,75 @@ class TemporalAttributionTests(unittest.TestCase):
             ),
             "supported",
         )
+
+    def test_assoc_on_quarter_start_supported(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
         self.assertEqual(
             relationship_supported_for_period(
-                "01/01/2025",
+                "01/01/2026",
                 start,
                 end,
                 metric_kind="pbj_hprd",
-                relationship_kind="control_or_management",
+                relationship_kind="ownership_interest",
+            ),
+            "supported",
+        )
+
+    def test_assoc_mid_quarter_uncertain_without_daily(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "02/15/2026",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="ownership_interest",
             ),
             "uncertain",
         )
 
+    def test_assoc_on_quarter_end_uncertain(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "03/31/2026",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="ownership_interest",
+            ),
+            "uncertain",
+        )
+
+    def test_assoc_after_quarter_end_excluded(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "04/15/2026",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="ownership_interest",
+            ),
+            "exclude",
+        )
+
+    def test_control_role_uncertain_regardless_of_timing(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        for assoc in ("01/01/2020", "01/01/2026", "02/15/2026", "04/01/2026"):
+            self.assertEqual(
+                relationship_supported_for_period(
+                    assoc,
+                    start,
+                    end,
+                    metric_kind="pbj_hprd",
+                    relationship_kind="control_or_management",
+                ),
+                "uncertain" if assoc != "04/01/2026" else "exclude",
+            )
+
     def test_care_compare_ratings_are_facility_context(self) -> None:
-        bounds = parse_pbj_quarter_bounds("Q1 2026")
-        assert bounds is not None
-        start, end = bounds
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
         self.assertEqual(
             relationship_supported_for_period(
                 "01/01/2020",
@@ -255,6 +292,19 @@ class TemporalAttributionTests(unittest.TestCase):
                 relationship_kind="ownership_interest",
             ),
             "facility_context",
+        )
+
+    def test_missing_association_uncertain(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="ownership_interest",
+            ),
+            "uncertain",
         )
 
 

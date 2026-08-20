@@ -119,21 +119,21 @@ def _parse_ymd(val: Any) -> tuple[int, int, int] | None:
 
 
 def _fmt_since_long(val: Any) -> str:
-    """e.g. Since Feb. 2020"""
+    """e.g. Associated in CMS since Feb. 2020"""
     parts = _parse_ymd(val)
     if not parts:
         return ""
     y, mo, _d = parts
-    return f"Since {_MONTH_ABBR[mo - 1]} {y}"
+    return f"Associated in CMS since {_MONTH_ABBR[mo - 1]} {y}"
 
 
 def _fmt_since_short(val: Any) -> str:
-    """e.g. Since 2/20 (month/year for narrow columns)"""
+    """e.g. CMS assoc. 2/20 (month/year for narrow columns)"""
     parts = _parse_ymd(val)
     if not parts:
         return ""
     y, mo, _d = parts
-    return f"Since {mo}/{y % 100:02d}"
+    return f"CMS assoc. {mo}/{y % 100:02d}"
 
 
 def _role_since_html(val: Any) -> str:
@@ -1005,6 +1005,10 @@ def _owner_profile_header_html(
             "</div>"
         )
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
+    desc = str(profile.get("publication_descriptor") or "").strip()
+    descriptor_html = (
+        f'<p class="owner-profile-descriptor">{html.escape(desc)}</p>' if desc else ""
+    )
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         {back_html}
@@ -1018,6 +1022,7 @@ def _owner_profile_header_html(
           </div>
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
+            {descriptor_html}
             {meta_row}
           </div>
           {header_actions}
@@ -1040,10 +1045,13 @@ def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -
 def _associate_source_label(r: dict[str, Any]) -> str:
     bits: list[str] = []
     if int(r.get("snf_shared") or 0):
-        bits.append("Ownership")
+        if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
+            bits.append("Shared ownership interest")
+        else:
+            bits.append("Co-enrollee / shared facility association")
     if int(r.get("chow_count") or 0):
-        bits.append("CMS ownership change")
-    return " · ".join(bits)
+        bits.append("CHOW transaction party")
+    return " · ".join(bits) if bits else "Related CMS association"
 
 
 def _related_associates_html(profile: dict[str, Any]) -> str:
@@ -1074,14 +1082,17 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
 
     n_show = len(trs)
     associates_help = _info_button(
-        "Associated Owners",
+        "Related CMS associates",
         (
-            "Parties that appear repeatedly with this owner on CMS records.\n\n"
-            "Ownership: co-owners on the same nursing home enrollments in "
-            "CMS owner data (shared enrollment PACs).\n\n"
-            "Ownership events: buyer or seller counterparties on CMS-reported ownership "
-            "change filings involving this party.\n\n"
-            "Sources: CMS owner data; CMS ownership-change (CHOW) filings."
+            "Parties that appear with this PAC on CMS records.\n\n"
+            "Shared ownership interest: co-disclosed ownership-interest parties on "
+            "the same nursing home enrollments.\n\n"
+            "Co-enrollee / shared facility association: appear together on CMS "
+            "enrollment or owner rows without implying affiliate, partner, parent, "
+            "or subsidiary status.\n\n"
+            "CHOW transaction party: buyer or seller counterparties on CMS-reported "
+            "ownership-change filings.\n\n"
+            "Sources: CMS SNF All Owners; CMS CHOW filings."
         ),
         label="?",
         cls="owner-info-btn owner-info-btn--section owner-associates-info",
@@ -1103,12 +1114,12 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
     return (
         '<div class="owner-associates-block">'
         f'<div class="owner-associates-head">'
-        f'<span class="owner-associates-head-label">Associated Owners · {n_show}</span>'
+        f'<span class="owner-associates-head-label">Related CMS associates · {n_show}</span>'
         f"{associates_help}"
         f"</div>"
         '<details class="owner-collapsible owner-associates-collapsible">'
         f'<summary class="owner-associates-summary">'
-        f'<span class="owner-associates-summary-label">Show associated owners</span>'
+        f'<span class="owner-associates-summary-label">Show related CMS associates</span>'
         f"</summary>"
         f"{dual}"
         "</details>"
@@ -1214,9 +1225,14 @@ def _flag_explainer_button(kind: str, label: str, css_class: str) -> str:
 
 
 def _facilities_portfolio_title(profile: dict[str, Any]) -> str:
+    label = str(profile.get("facility_section_label") or "").strip()
+    if label:
+        return html.escape(label)
     raw = str(profile.get("display_name") or "").strip()
-    name = html.escape(format_org_display(raw) if raw else "Portfolio")
-    return f"{name} Portfolio"
+    name = html.escape(format_org_display(raw) if raw else "Linked facilities")
+    if profile.get("uses_ownership_portfolio_language"):
+        return f"{name} — facilities with reported ownership interest"
+    return f"{name} — linked facilities"
 
 
 def _facility_flags_cell(

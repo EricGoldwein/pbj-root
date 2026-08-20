@@ -57,15 +57,15 @@ STATE_OWNER_INDEX_STATES: frozenset[str] = (
     OWNERSHIP_PUBLIC_STATES | STATE_OWNER_INDEX_DRAFT_STATES
 )
 
-_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership Search"
+_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership & Control Search"
 
 
 def state_index_subtitle(state_name: str) -> str:
     """Hero subhead for all public state ownership index pages."""
     name = (state_name or "").strip()
     return (
-        f"Explore {name} nursing home ownership groups, facility portfolios, "
-        "and staffing patterns using public CMS data."
+        f"Explore CMS-disclosed ownership interests, managing/control parties, "
+        f"facility associations, and ownership changes in {name}."
     )
 
 
@@ -82,9 +82,9 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "new-york",
         "h1": state_index_h1("New York"),
         "subtitle": state_index_subtitle("New York"),
-        "title": "New York Nursing Home Ownership Search | PBJ320",
+        "title": "New York Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": (
-            "Search New York nursing home owners, PAC IDs, affiliated facilities, "
+            "Search New York CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "New York nursing home ownership search",
@@ -95,9 +95,9 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "connecticut",
         "h1": state_index_h1("Connecticut"),
         "subtitle": state_index_subtitle("Connecticut"),
-        "title": "Connecticut Nursing Home Ownership Search | PBJ320",
+        "title": "Connecticut Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": (
-            "Search Connecticut nursing home owners, PAC IDs, affiliated facilities, "
+            "Search Connecticut CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "Connecticut nursing home ownership search",
@@ -108,9 +108,9 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "florida",
         "h1": state_index_h1("Florida"),
         "subtitle": state_index_subtitle("Florida"),
-        "title": "Florida Nursing Home Ownership Search | PBJ320",
+        "title": "Florida Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": (
-            "Search Florida nursing home owners, PAC IDs, affiliated facilities, "
+            "Search Florida CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "Florida nursing home ownership search",
@@ -121,9 +121,9 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "new-jersey",
         "h1": state_index_h1("New Jersey"),
         "subtitle": state_index_subtitle("New Jersey"),
-        "title": "New Jersey Nursing Home Ownership Search | PBJ320",
+        "title": "New Jersey Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": (
-            "Search New Jersey nursing home owners, PAC IDs, affiliated facilities, "
+            "Search New Jersey CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "hub_link_label": "New Jersey nursing home ownership search",
@@ -134,7 +134,7 @@ STATE_INDEX_META: dict[str, dict[str, str]] = {
         "state_page_slug": "idaho",
         "h1": state_index_h1("Idaho"),
         "subtitle": state_index_subtitle("Idaho"),
-        "title": "Idaho Nursing Home Ownership Search | PBJ320",
+        "title": "Idaho Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": (
             "Search Idaho nursing home owners, PAC IDs, affiliated facilities, "
             "and staffing context using public CMS ownership and PBJ staffing data."
@@ -151,7 +151,7 @@ def state_index_layout_meta(state_code: str) -> dict[str, str]:
     state_name = meta.get("name") or st
     slug = meta.get("slug") or st.lower()
     return {
-        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership Search | PBJ320",
+        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": meta.get("meta_description")
         or (
             f"Search {state_name} nursing home owners, PAC IDs, affiliated facilities, "
@@ -243,6 +243,29 @@ def _load_state_owner_index_artifact() -> dict[str, list[dict[str, Any]]] | None
         return out
     except Exception:
         return None
+
+
+
+
+def filter_ownership_interest_portfolio_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rank PACs by distinct facilities with ownership_interest (exclude control-only)."""
+    out: list[dict[str, Any]] = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        oi = int(row.get("facility_count_ownership_interest") or 0)
+        if oi <= 0:
+            continue
+        merged = dict(row)
+        merged["facility_count_rank"] = oi
+        out.append(merged)
+    out.sort(
+        key=lambda r: (
+            -int(r.get("facility_count_rank") or 0),
+            str(r.get("name") or "").lower(),
+        )
+    )
+    return out
 
 
 def list_state_owner_index_rows(

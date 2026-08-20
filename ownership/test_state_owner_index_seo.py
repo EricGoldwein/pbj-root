@@ -34,16 +34,16 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("PAC IDs", ny["meta_description"])
         self.assertEqual(ny["subtitle"], state_index_subtitle("New York"))
         self.assertEqual(ct["subtitle"], state_index_subtitle("Connecticut"))
-        self.assertIn("ownership groups", ct["subtitle"])
+        self.assertIn("ownership interests", ct["subtitle"])
         self.assertNotIn("affiliated facilities", ct["subtitle"])
 
     def test_ct_index_matches_ny_template_markers(self):
         body, layout = render_state_owner_index_body("CT", get_canonical_slug=lambda s: "connecticut")
         self.assertIn(layout["subtitle"], body)
         self.assertIn("owners-state-hero-rail", body)
-        self.assertIn('owners-state-h1-secondary">Ownership Search</span>', body)
+        self.assertIn("Ownership &amp; Control Search", body)
         self.assertIn("owners-state-h1--split", body)
-        self.assertIn("Largest CT portfolios", body)
+        self.assertIn("Largest CT ownership-interest portfolios", body)
         self.assertIn("About this Connecticut ownership index", body)
         self.assertGreater(body.find("owners-state-method"), body.find("owners-state-panels"))
 
@@ -51,51 +51,43 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertEqual(state_index_canonical_path("NY"), "/owners/ny")
         self.assertEqual(state_index_canonical_path("CT"), "/owners/ct")
         self.assertEqual(state_index_canonical_path("FL"), "/owners/fl")
+        self.assertEqual(resolve_state_owner_index_slug("fl"), "FL")
 
     def test_fl_public_index_not_draft(self):
         self.assertFalse(state_owner_index_is_draft("FL"))
         body, layout = render_state_owner_index_body("FL", get_canonical_slug=lambda s: "florida")
         self.assertNotIn("owners-state-draft-banner", body)
-        self.assertIn("Largest FL portfolios", body)
+        self.assertIn("Largest FL ownership-interest portfolios", body)
         self.assertIn(layout["subtitle"], body)
 
     def test_nj_public_index_not_draft(self):
         self.assertFalse(state_owner_index_is_draft("NJ"))
         body, layout = render_state_owner_index_body("NJ", get_canonical_slug=lambda s: "new-jersey")
         self.assertNotIn("owners-state-draft-banner", body)
-        self.assertIn("Largest NJ portfolios", body)
+        self.assertIn("Largest NJ ownership-interest portfolios", body)
         self.assertIn(layout["subtitle"], body)
 
-    def test_sitemap_includes_public_state_pages(self):
+    def test_sitemap_includes_all_public_state_pages(self):
+        from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
+
         paths = {row[0] for row in public_owner_index_sitemap_paths()}
-        self.assertEqual(paths, {"/owners/ny", "/owners/nj", "/owners/ct", "/owners/fl"})
-        draft_paths = {f"/owners/{slug}" for slug in ("id",)}
-        self.assertFalse(draft_paths & paths)
+        expected = {state_index_canonical_path(code) for code in OWNERSHIP_PUBLIC_STATES}
+        self.assertEqual(paths, expected)
+        self.assertGreaterEqual(len(paths), 4)
         for path, _pri, changefreq, lastmod in public_owner_index_sitemap_paths():
             self.assertEqual(changefreq, "weekly")
             self.assertRegex(lastmod, r"^\d{4}-\d{2}-\d{2}$")
 
-    def test_draft_state_indexes_meta_and_slug(self):
-        cases = (
-            ("id", "ID", "Idaho", "idaho", "Largest ID portfolios"),
-        )
-        for slug, code, name, state_page_slug, portfolio_short in cases:
-            with self.subTest(slug=slug):
-                self.assertEqual(resolve_state_owner_index_slug(slug), code)
-                self.assertTrue(state_owner_index_is_draft(code))
+    def test_all_states_have_index_meta_and_slugs(self):
+        from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
+
+        for code in OWNERSHIP_PUBLIC_STATES:
+            with self.subTest(state=code):
+                self.assertIn(code, STATE_INDEX_META)
+                self.assertEqual(state_index_canonical_path(code), f"/owners/{code.lower()}")
                 layout = state_index_layout_meta(code)
-                self.assertEqual(layout["canonical_path"], f"/owners/{slug}")
-                self.assertIn(name, layout["page_title"])
-                self.assertIn(name, layout["h1"])
-                self.assertIn("Ownership Search", layout["h1"])
-                self.assertEqual(STATE_INDEX_META[code]["state_page_slug"], state_page_slug)
-                body, layout_out = render_state_owner_index_body(
-                    code, get_canonical_slug=lambda _s, sp=state_page_slug: sp
-                )
-                self.assertIn(layout_out["subtitle"], body)
-                self.assertIn("owners-state-draft-banner", body)
-                self.assertIn(portfolio_short, body)
-                self.assertIn(f"This {name} ownership index is not published", body)
+                self.assertIn(STATE_INDEX_META[code]["name"], layout["page_title"])
+                self.assertFalse(state_owner_index_is_draft(code))
 
     def test_render_has_one_h1_and_crawlable_intro(self):
         body, layout = render_state_owner_index_body("NY", get_canonical_slug=lambda s: "new-york")
@@ -106,8 +98,8 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertNotIn("owners indexed", body)
         self.assertIn("owners-state-index-stats", body)
         self.assertNotIn("PAC IDs", layout["subtitle"])
-        self.assertIn("ownership groups", layout["subtitle"])
-        self.assertIn("staffing patterns", layout["subtitle"])
+        self.assertIn("ownership interests", layout["subtitle"])
+        self.assertIn("managing/control parties", layout["subtitle"])
         self.assertGreater(body.find("owners-state-index-stats"), body.find("owners-state-crumb"))
         self.assertLess(body.find("owners-state-index-stats"), body.find("owners-state-h1"))
         self.assertNotIn("owners-state-below-search", body)
@@ -135,10 +127,10 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("payroll-based-journal-daily-nurse-staffing", body)
         self.assertIn('href="https://fec.gov/"', body)
         self.assertNotIn("owners-state-panel-footer", body)
-        self.assertIn("Largest NY portfolios", body)
-        self.assertIn("Largest New York portfolios", body)
+        self.assertIn("Largest NY ownership-interest portfolios", body)
+        self.assertIn("Largest New York ownership-interest portfolios", body)
         self.assertIn("Recent ownership changes", body)
-        self.assertIn('owners-state-h1-secondary">Ownership Search</span>', body)
+        self.assertIn("Ownership &amp; Control Search", body)
         self.assertIn("About this New York ownership index", body)
         self.assertIn("owners-state-method-trigger", body)
         self.assertIn("PBJ320 maps CMS nursing home ownership records", body)

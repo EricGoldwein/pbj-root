@@ -378,6 +378,7 @@ def portfolio_snapshot_section_html(
     *,
     context: str = "owner",
     chain_hprd: float | None = None,
+    uses_ownership_portfolio_language: bool = False,
 ) -> str:
     """Metric cards + star/state distribution. Empty when no facilities."""
     if not ps or not ps.get("n_facilities"):
@@ -452,7 +453,15 @@ def portfolio_snapshot_section_html(
     else:
         fac_help, ovr_help, hprd_help, stf_help = _owner_snapshot_help(ps)
         dist_prefix = "ownerDist"
-        aria = "Portfolio metrics"
+        aria = (
+            "Ownership-interest facility metrics"
+            if uses_ownership_portfolio_language
+            else "Linked-facility metrics"
+        )
+        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
+        hprd_eligible = str(ps.get("hprd_eligible_label") or "").strip()
+        if hprd_eligible:
+            hprd_help = f"{hprd_eligible}. {hprd_help}"
         cards.append(
             snapshot_metric_card_html(
                 "Total Facilities",
@@ -567,4 +576,10 @@ def entity_portfolio_block_html(
 
 def owner_portfolio_snapshot_html(profile: dict[str, Any]) -> str:
     ps = profile.get("portfolio_summary") or {}
-    return portfolio_snapshot_section_html(ps, context="owner")
+    return portfolio_snapshot_section_html(
+        ps,
+        context="owner",
+        uses_ownership_portfolio_language=bool(
+            profile.get("uses_ownership_portfolio_language")
+        ),
+    )

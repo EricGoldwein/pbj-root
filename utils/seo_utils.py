@@ -337,9 +337,13 @@ def _state_names_for_owner_profile(profile: dict[str, Any]) -> list[str]:
 
 def owner_page_title(display_name: str, profile: dict[str, Any] | None = None) -> str:
     """Browser tab title for /owners/<pac> (not the on-page H1)."""
-    del profile
     name = (display_name or 'Organization').strip()
-    return f'{name} Nursing Home Ownership | PBJ320'
+    suffix = 'CMS Nursing Home Associate'
+    if profile:
+        from ownership.publication_taxonomy import publication_title_suffix
+
+        suffix = publication_title_suffix(profile) or suffix
+    return f'{name} — {suffix} | PBJ320'
 
 
 def owner_page_meta_description(
@@ -350,9 +354,13 @@ def owner_page_meta_description(
     owner_type: str = '',
     profile: dict[str, Any] | None = None,
 ) -> str:
-    del profile
     name = (display_name or 'this organization').strip()
-    parts = [f'CMS ownership and facility links for {name} on PBJ320.']
+    rel = 'CMS-disclosed associate relationship'
+    if profile:
+        from ownership.publication_taxonomy import meta_relationship_phrase
+
+        rel = meta_relationship_phrase(profile) or rel
+    parts = [f'{rel} for {name} on PBJ320.']
     if facility_count > 0:
         n = facility_count
         parts.append(
@@ -369,7 +377,7 @@ def owner_page_meta_description(
             + '.'
         )
     if owner_type and owner_type not in ('—', '-', ''):
-        parts.append(f'CMS owner type: {owner_type.strip()}.')
+        parts.append(f'CMS party type: {owner_type.strip()}.')
     return ' '.join(parts)
 
 

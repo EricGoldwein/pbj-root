@@ -6131,11 +6131,27 @@ def _entity_page_json_ld_scripts(*, entity_name: str, entity_id: int, page_url: 
     return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
-def _owner_page_json_ld_scripts(*, display_name: str, page_url: str, facility_count: int, meta_description: str) -> str:
+def _owner_page_json_ld_scripts(
+    *,
+    display_name: str,
+    page_url: str,
+    facility_count: int,
+    meta_description: str,
+    profile: dict | None = None,
+) -> str:
     page_url = (page_url or '').strip()
     if page_url.startswith('/'):
         page_url = f'{_public_site_origin()}{page_url}'
     origin = _json_ld_origin_from_page_url(page_url)
+    if profile:
+        from ownership.owner_json_ld import render_owner_profile_json_ld_scripts
+
+        return render_owner_profile_json_ld_scripts(
+            profile=profile,
+            page_url=page_url,
+            meta_description=meta_description,
+            site_origin=origin,
+        )
     org = {
         '@context': 'https://schema.org',
         '@type': 'Organization',

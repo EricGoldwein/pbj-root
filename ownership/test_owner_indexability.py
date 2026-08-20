@@ -20,6 +20,7 @@ class OwnerIndexabilityTests(unittest.TestCase):
     def test_suppress_blank_name(self):
         self.assertTrue(is_suppress_owner_name(""))
         self.assertTrue(is_suppress_owner_name("Unknown"))
+        self.assertTrue(is_suppress_owner_name("Unknown party"))
 
     def test_index_two_active_facilities(self):
         profile = {
@@ -55,6 +56,34 @@ class OwnerIndexabilityTests(unittest.TestCase):
         cl, reason, _meta = classify_owner_profile(profile)
         self.assertEqual(cl, "noindex_follow")
         self.assertEqual(reason, "single_facility_no_context")
+
+    def test_operator_grouping_alone_does_not_index(self):
+        profile = {
+            "associate_id": "1234567890",
+            "display_name": "Acme Holdings LLC",
+            "states": ["CT"],
+            "facilities": [_fac()],
+            "profile_kind": "enrollment",
+            "portfolio_summary": {"n_facilities": 1, "n_states": 1},
+        }
+        flags = meaningful_context_flags(profile)
+        self.assertIn("operator_grouping", flags)
+        cl, reason, _meta = classify_owner_profile(profile)
+        self.assertEqual(cl, "noindex_follow")
+        self.assertIn("thin_context_only", reason)
+        self.assertIn("operator_grouping", reason)
+
+    def test_operator_grouping_plus_abuse_indexes(self):
+        profile = {
+            "associate_id": "1234567890",
+            "display_name": "Acme Holdings LLC",
+            "states": ["CT"],
+            "facilities": [_fac(has_abuse=True)],
+            "profile_kind": "enrollment",
+        }
+        cl, reason, _meta = classify_owner_profile(profile)
+        self.assertEqual(cl, "index")
+        self.assertIn("abuse", reason)
 
     def test_meaningful_chow_flag(self):
         profile = {

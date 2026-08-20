@@ -84,6 +84,18 @@ def chow_records_for_state(state_code: str, *, limit: int = 0) -> list[dict[str,
     return rows
 
 
+def chow_records_national(*, limit: int = 0) -> list[dict[str, Any]]:
+    """CHOW rows nationwide, newest effective date first.
+
+    Verified from: chow_index.json records[] sorted by effective_date.
+    """
+    rows = list(_load_index().get("records") or [])
+    rows.sort(key=lambda r: str(r.get("effective_date") or ""), reverse=True)
+    if limit and limit > 0:
+        return rows[:limit]
+    return rows
+
+
 def chow_record_by_id(chow_id: str, *, state_code: str | None = None) -> dict[str, Any] | None:
     """Single CHOW row by stable chow_id (optional state guard)."""
     cid = str(chow_id or "").strip()

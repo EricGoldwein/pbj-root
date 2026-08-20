@@ -73,19 +73,31 @@ def name_search_matches(query: str, record_name: str) -> bool:
 def name_search_rank(query: str, record_name: str) -> int | None:
     """
     Lower rank is better. None if no match.
-    0 = normalized prefix, 1 = token-aligned prefix, 2 = other token/substring match.
+
+    0 = exact normalized full-name match
+    1 = exact last-name / person match (single-token query == last token)
+    2 = prefix full-name
+    3 = org/name prefix (leading token / near-prefix)
+    4 = broader contains / ordered-token match
     """
     if not name_search_matches(query, record_name):
         return None
     qnorm = _norm_search_key(query)
     rnorm = _norm_search_key(record_name)
-    if rnorm.startswith(qnorm):
-        return 0
     q_tokens = normalize_search_tokens(query)
     r_tokens = normalize_search_tokens(record_name)
+
+    if qnorm == rnorm or (q_tokens and r_tokens and q_tokens == r_tokens):
+        return 0
+    # Single-token query equals the person's last token (e.g. "Hancock" → "Mark Hancock").
+    if len(q_tokens) == 1 and len(r_tokens) >= 2 and q_tokens[0] == r_tokens[-1]:
+        return 1
+    if rnorm.startswith(qnorm):
+        return 2
     if q_tokens and r_tokens and q_tokens[0] == r_tokens[0]:
         if tokens_match_in_order(q_tokens, r_tokens):
-            return 1
+            return 3
+        return 3
     if len(qnorm) >= 2 and qnorm in rnorm[: max(len(qnorm) + 4, 8)]:
-        return 1
-    return 2
+        return 3
+    return 4

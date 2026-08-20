@@ -561,14 +561,44 @@ def classify_associate_id(associate_id: str) -> str:
     return "none"
 
 
+def owner_display_slug(display_name: str | None) -> str:
+    """Human-readable URL slug from an owner/entity display name (descriptive only)."""
+    raw = format_org_display(str(display_name or "").strip()) or str(display_name or "").strip()
+    if not raw:
+        return "owner"
+    slug = re.sub(r"[^a-z0-9]+", "-", raw.lower())
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")
+    return slug or "owner"
+
+
 def associate_profile_url(associate_id: str, org_name: str = "") -> str:
-    """URL for a CMS associate ID (enrollment or owner/control profile at /owners/{pac})."""
+    """
+    Canonical CMS owner profile path.
+
+    Durable identity is the 10-digit PAC. When a display name is known, include the
+    descriptive slug: /owners/{pac}/{slug}. ID-only /owners/{pac} remains valid and
+    301-redirects to the current canonical slug at request time.
+    """
     pac = normalize_associate_id(associate_id)
     if len(pac) == 10:
+        name = (org_name or "").strip()
+        if name:
+            return f"/owners/{pac}/{owner_display_slug(name)}"
         return f"/owners/{pac}"
     if (org_name or "").strip() or (associate_id or "").strip():
-        return "/owner"
+        return "/owners"
     return ""
+
+
+def owner_profile_canonical_path(profile: dict[str, Any] | None) -> str:
+    """Canonical /owners/{pac}/{slug} path for a loaded profile dict."""
+    if not profile:
+        return ""
+    pac = normalize_associate_id(str(profile.get("associate_id") or ""))
+    if len(pac) != 10:
+        return ""
+    name = str(profile.get("display_name") or "").strip()
+    return associate_profile_url(pac, name)
 
 
 def _owner_pac_in_lookup(pac: str) -> bool:
@@ -612,6 +642,22 @@ def _owner_control_pac_set() -> frozenset[str]:
     except Exception:
         pass
     return frozenset(pacs)
+
+
+def associate_id_namespace(associate_id: str) -> str:
+    """
+    Explicit PAC namespace for CHOW / cross-surface identity.
+
+    enrollment_pac | owner_control_pac | both | unknown
+    Does not invent equity ownership from enrollment PAC alone.
+    """
+    kind = classify_associate_id(associate_id)
+    return {
+        "enrollment": "enrollment_pac",
+        "owner_control": "owner_control_pac",
+        "both": "both",
+        "none": "unknown",
+    }.get(kind, "unknown")
 
 
 def associate_id_kind_label(associate_id: str) -> str:
@@ -676,7 +722,7 @@ def _build_control_parties(enrollment_rows: Sequence[dict[str, Any]]) -> list[di
             "roles": roles_fmt or base.get("roles") or [],
             "pcts": pcts or base.get("pcts") or [],
             "association_dates": dates or base.get("association_dates") or [],
-            "profile_url": associate_profile_url(owner_pac),
+            "profile_url": associate_profile_url(owner_pac, _owner_display_name(first)),
             "is_owner_control_pac": _owner_pac_in_lookup(owner_pac),
         }
         return enrich_control_party(party)
@@ -796,7 +842,7 @@ def _ownership_lookup_from_enrollment_pac(
     return {
         "enrollment_pac": pac,
         "enrollment_name": enrollment_name,
-        "enrollment_profile_url": associate_profile_url(pac),
+        "enrollment_profile_url": associate_profile_url(pac, enrollment_name),
         "control_parties": parties,
         "matched_via": matched_via,
         **_ownership_source_fields(path),
@@ -889,6 +935,7 @@ def _snf_coowners_on_shared_enrollments(
             sql = (
                 f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "{ENROLLMENT_PAC_COL}" IN ({placeholders})'
             )
+            ownership_hit: dict[str, bool] = {}
             for row in conn.execute(sql, target_pacs):
                 d = _sqlite_row_to_dict(row)
                 en_pac = normalize_associate_id(d.get(ENROLLMENT_PAC_COL))
@@ -898,8 +945,20 @@ def _snf_coowners_on_shared_enrollments(
                 shared.setdefault(ow_pac, set()).add(en_pac)
                 if ow_pac not in names:
                     names[ow_pac] = _owner_display_name(d)
+                if not ownership_hit.get(ow_pac):
+                    from ownership.role_classification import (
+                        CATEGORY_OWNERSHIP,
+                        classify_owner_record,
+                    )
+
+                    info = classify_owner_record(d)
+                    if info.get("role_category") == CATEGORY_OWNERSHIP or info.get(
+                        "is_ownership_interest"
+                    ):
+                        ownership_hit[ow_pac] = True
         except Exception:
             shared = {}
+            ownership_hit = {}
         if shared:
             coowners: list[dict[str, Any]] = []
             for ow_pac, en_set in shared.items():
@@ -908,7 +967,10 @@ def _snf_coowners_on_shared_enrollments(
                         "associate_id": ow_pac,
                         "name": names.get(ow_pac) or ow_pac,
                         "count": len(en_set),
-                        "profile_url": associate_profile_url(ow_pac),
+                        "shared_ownership_interest": bool(ownership_hit.get(ow_pac)),
+                        "profile_url": associate_profile_url(
+                            ow_pac, names.get(ow_pac) or ""
+                        ),
                     }
                 )
             coowners.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
@@ -919,6 +981,7 @@ def _snf_coowners_on_shared_enrollments(
         return []
     shared = {}
     names = {}
+    ownership_hit: dict[str, bool] = {}
     try:
         header = pd.read_csv(
             str(path), dtype=str, encoding="latin-1", low_memory=False, nrows=0
@@ -932,24 +995,36 @@ def _snf_coowners_on_shared_enrollments(
                 "FIRST NAME - OWNER",
                 "MIDDLE NAME - OWNER",
                 "LAST NAME - OWNER",
+                "ROLE CODE - OWNER",
+                "ROLE TEXT - OWNER",
+                "PERCENTAGE OWNERSHIP",
             )
             if c in header
         )
         if ENROLLMENT_PAC_COL not in cols or OWNER_PAC_COL not in cols:
             return []
+        from ownership.role_classification import CATEGORY_OWNERSHIP, classify_owner_record
+
         for chunk in _read_owners_csv_chunks(usecols=cols, chunksize=150_000):
             en_norm = chunk[ENROLLMENT_PAC_COL].astype(str).apply(normalize_associate_id)
             mask = en_norm.isin(target_pacs)
             if not bool(mask.any()):
                 continue
             for _, row in chunk.loc[mask].iterrows():
+                d = _row_to_dict(row)
                 en_pac = normalize_associate_id(row.get(ENROLLMENT_PAC_COL))
                 ow_pac = normalize_associate_id(row.get(OWNER_PAC_COL))
                 if len(en_pac) != 10 or len(ow_pac) != 10 or ow_pac == exclude:
                     continue
                 shared.setdefault(ow_pac, set()).add(en_pac)
                 if ow_pac not in names:
-                    names[ow_pac] = _owner_display_name(_row_to_dict(row))
+                    names[ow_pac] = _owner_display_name(d)
+                if not ownership_hit.get(ow_pac):
+                    info = classify_owner_record(d)
+                    if info.get("role_category") == CATEGORY_OWNERSHIP or info.get(
+                        "is_ownership_interest"
+                    ):
+                        ownership_hit[ow_pac] = True
     except Exception:
         return []
 
@@ -960,7 +1035,8 @@ def _snf_coowners_on_shared_enrollments(
                 "associate_id": ow_pac,
                 "name": names.get(ow_pac) or ow_pac,
                 "count": len(en_set),
-                "profile_url": associate_profile_url(ow_pac),
+                "shared_ownership_interest": bool(ownership_hit.get(ow_pac)),
+                "profile_url": associate_profile_url(ow_pac, names.get(ow_pac) or ""),
             }
         )
     out.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
@@ -988,6 +1064,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             "count": 0,
             "snf_shared": 0,
             "chow_count": 0,
+            "shared_ownership_interest": False,
             "sources": set(),
             "profile_url": "",
         }
@@ -1009,6 +1086,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         profile_url: str = "",
         *,
         weight: int = 1,
+        shared_ownership_interest: bool = False,
     ) -> None:
         key = _key(associate_id, name)
         if not key:
@@ -1020,13 +1098,19 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
             row["chow_count"] += w
         elif source == _SOURCE_SNF:
             row["snf_shared"] += w
+        if shared_ownership_interest:
+            row["shared_ownership_interest"] = True
         row["sources"].add(source)
         oid = normalize_associate_id(associate_id)
         if len(oid) == 10:
             row["associate_id"] = oid
-            row["profile_url"] = profile_url or associate_profile_url(oid)
+            row["profile_url"] = profile_url or associate_profile_url(
+                oid, name or str(row.get("name") or "")
+            )
         if name and (not row["name"] or len(str(name)) > len(str(row["name"]))):
             row["name"] = format_org_display(name)
+            if len(oid) == 10:
+                row["profile_url"] = profile_url or associate_profile_url(oid, row["name"])
 
     for rec in profile.get("chow_transactions") or []:
         role = str(rec.get("chow_role") or "")
@@ -1058,6 +1142,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 _SOURCE_SNF,
                 str(co.get("profile_url") or ""),
                 weight=int(co.get("count") or 1),
+                shared_ownership_interest=bool(co.get("shared_ownership_interest")),
             )
     if kind in ("owner_control", "chow_only"):
         for party in profile.get("control_parties") or []:
@@ -1066,6 +1151,10 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 str(party.get("name") or ""),
                 _SOURCE_SNF,
                 str(party.get("profile_url") or ""),
+                shared_ownership_interest=bool(
+                    party.get("is_ownership_interest")
+                    or party.get("role_category") == "ownership_interest"
+                ),
             )
 
     out: list[dict[str, Any]] = []
@@ -1080,6 +1169,7 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
                 "count": row["count"],
                 "snf_shared": int(row.get("snf_shared") or 0),
                 "chow_count": int(row.get("chow_count") or 0),
+                "shared_ownership_interest": bool(row.get("shared_ownership_interest")),
                 "sources": sources,
                 "source_label": " · ".join(sources),
                 "profile_url": row["profile_url"],
@@ -1119,8 +1209,9 @@ def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
         ow["facilities"] = enrich_facilities(ow["facilities"])
         ow["portfolio_summary"] = build_portfolio_summary(ow["facilities"])
     from ownership.owner_facility_map import attach_facility_map_context
+    from ownership.publication_taxonomy import attach_publication_taxonomy
 
-    return attach_facility_map_context(profile)
+    return attach_publication_taxonomy(attach_facility_map_context(profile))
 
 
 def _facility_state_for_row(row: dict[str, Any], ccn: str) -> str:
@@ -1202,10 +1293,11 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
             return
         accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
         if ow_pac not in owner_meta:
+            disp = _owner_display_name(row)
             owner_meta[ow_pac] = {
                 "associate_id": ow_pac,
-                "name": _owner_display_name(row),
-                "profile_url": associate_profile_url(ow_pac),
+                "name": disp,
+                "profile_url": associate_profile_url(ow_pac, disp),
             }
 
     conn = _sqlite_conn()
@@ -1241,7 +1333,8 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
             {
                 "associate_id": pac,
                 "name": meta.get("name") or pac,
-                "profile_url": meta.get("profile_url") or associate_profile_url(pac),
+                "profile_url": meta.get("profile_url")
+                or associate_profile_url(pac, str(meta.get("name") or "")),
                 **counts,
             }
         )
@@ -1321,15 +1414,18 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
             continue
         seen.add(key)
         ccn, match_method = _resolve_ccn_with_method(fac_name)
-        from ownership.role_classification import normalize_role_code
+        from ownership.role_classification import classify_owner_record, normalize_role_code
 
+        role_info = classify_owner_record(row)
         facilities.append(
             {
                 "facility_name": fac_name,
                 "state": _facility_state_for_row(row, ccn or ""),
                 "city": _clean(row.get("CITY - OWNER")),
                 "role": format_role_text(_clean(row.get("ROLE TEXT - OWNER"))),
-                "role_code": normalize_role_code(row.get("ROLE CODE - OWNER")),
+                "role_code": role_info.get("role_code")
+                or normalize_role_code(row.get("ROLE CODE - OWNER")),
+                "role_category": role_info.get("role_category") or "",
                 "association_date": _clean(row.get("ASSOCIATION DATE - OWNER")),
                 "pct": _pct_from_row(row),
                 "enrollment_id": _clean(row.get("ENROLLMENT ID")),
@@ -1381,7 +1477,34 @@ def _build_both_profile(
 ) -> dict[str, Any]:
     en_profile = _build_enrollment_profile(pac, enrollment_rows)
     ow_profile = _build_owner_control_profile(pac, owner_rows)
+    n_en = len(en_profile.get("facilities") or [])
+    n_ow = len(ow_profile.get("facilities") or [])
+
+    # When owner/control portfolio dominates, make it primary so Total Facilities
+    # and the main table reflect ownership — not the thin enrollment side.
+    if n_ow >= n_en and n_ow > 0:
+        primary = ow_profile
+        primary["profile_kind"] = "both"
+        primary["both_primary"] = "owner_control"
+        primary["enrollment_section"] = {
+            "facilities": en_profile.get("facilities") or [],
+            "control_parties": en_profile.get("control_parties") or [],
+            "portfolio_summary": en_profile.get("portfolio_summary") or {},
+            "facility_count": en_profile.get("facility_count"),
+            "enrollment_ids": en_profile.get("enrollment_ids") or [],
+            "display_name": en_profile.get("display_name"),
+            "owner_type": en_profile.get("owner_type"),
+        }
+        if en_profile.get("control_parties"):
+            primary["control_parties"] = en_profile["control_parties"]
+            if en_profile.get("control_parties_summary"):
+                primary["control_parties_summary"] = en_profile["control_parties_summary"]
+        if en_profile.get("enrollment_ids"):
+            primary["enrollment_ids"] = en_profile["enrollment_ids"]
+        return _attach_portfolio_metrics(primary)
+
     en_profile["profile_kind"] = "both"
+    en_profile["both_primary"] = "enrollment"
     en_profile["owner_control_section"] = ow_profile
     return _attach_portfolio_metrics(en_profile)
 
@@ -1486,8 +1609,9 @@ _CT_OWNER_SEARCH_GZ = _OWNERSHIP_DIR / "ct_owner_search_catalog.json.gz"
 
 def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
     """
-    Searchable PACs for ownership profiles in public-launch states (Connecticut).
-    Prefer ct_owner_search_catalog.json.gz from scripts/build_snf_owners_index.py on deploy.
+    Searchable PACs for ownership profiles in public-gate states
+    (see OWNERSHIP_PUBLIC_STATES). Prefer ct_owner_search_catalog.json.gz from
+    scripts/build_snf_owners_index.py on deploy.
     """
     from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
 
@@ -1642,7 +1766,7 @@ def search_public_owner_profiles(
                     {
                         "associate_id": pac,
                         "name": name,
-                        "profile_url": associate_profile_url(pac),
+                        "profile_url": associate_profile_url(pac, name),
                     }
                 ]
         return []
@@ -1668,7 +1792,7 @@ def search_public_owner_profiles(
             {
                 "associate_id": pac,
                 "name": name,
-                "profile_url": associate_profile_url(pac),
+                "profile_url": associate_profile_url(pac, name),
             }
         )
     return out

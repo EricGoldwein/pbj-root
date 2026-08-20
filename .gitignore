@@ -138,3 +138,10 @@ ownership/*.zip
 *.pre_dedupe_*.csv
 *.pre_unify_*.csv
 
+
+# Nationwide owners canonical DB: rebuilt on Render (exceeds GitHub 100MB limit when committed)
+ownership/snf_owners_lookup.sqlite
+ownership/snf_owners_lookup.build.sqlite
+ownership/snf_owners_lookup.sqlite-wal
+ownership/snf_owners_lookup.sqlite-shm
+

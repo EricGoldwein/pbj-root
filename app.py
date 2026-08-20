@@ -6131,11 +6131,27 @@ def _entity_page_json_ld_scripts(*, entity_name: str, entity_id: int, page_url: 
     return '\n'.join([_json_ld_script(org), _breadcrumb_list_json_ld(crumbs, page_url=page_url)])
 
 
-def _owner_page_json_ld_scripts(*, display_name: str, page_url: str, facility_count: int, meta_description: str) -> str:
+def _owner_page_json_ld_scripts(
+    *,
+    display_name: str,
+    page_url: str,
+    facility_count: int,
+    meta_description: str,
+    profile: dict | None = None,
+) -> str:
     page_url = (page_url or '').strip()
     if page_url.startswith('/'):
         page_url = f'{_public_site_origin()}{page_url}'
     origin = _json_ld_origin_from_page_url(page_url)
+    if profile:
+        from ownership.owner_json_ld import render_owner_profile_json_ld_scripts
+
+        return render_owner_profile_json_ld_scripts(
+            profile=profile,
+            page_url=page_url,
+            meta_description=meta_description,
+            site_origin=origin,
+        )
     org = {
         '@context': 'https://schema.org',
         '@type': 'Organization',
@@ -6671,12 +6687,12 @@ if csrf_protect:
 
 
 def generate_owner_profile_html(profile, *, robots_meta=None):
-    """Public CMS profile at /owners/<pac> — enrollment, owner/control, or CHOW fallback."""
+    """Public CMS profile at /owners/<pac>/<slug> — enrollment, owner/control, or CHOW fallback."""
     from ownership.owner_profile_html import render_owner_profile_body
 
-    body, page_title, meta_desc, _canon_suffix = render_owner_profile_body(profile)
+    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(profile)
     base = _public_site_origin()
-    canon = base + _canon_suffix
+    canon = base + canon_suffix
     display_name = str(profile.get('display_name') or 'Organization').strip()
     n_fac = len(profile.get('facilities') or [])
     owner_json_ld = _owner_page_json_ld_scripts(
@@ -6684,12 +6700,19 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
         page_url=canon,
         facility_count=n_fac,
         meta_description=meta_desc,
+        profile=profile,
     )
+    og_owner = f'{base}/og-owner-pbj320.png'
+    og_alt_suffix = str(profile.get('publication_title_suffix') or 'CMS nursing home associate')
     layout = get_pbj_site_layout(
         page_title,
         meta_desc,
         canon,
         robots_meta=robots_meta,
+        og_image_url=og_owner,
+        og_image_width=1200,
+        og_image_height=630,
+        og_image_alt=f'{display_name} — {og_alt_suffix} on PBJ320',
         extra_head=owner_json_ld + (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
@@ -6701,15 +6724,44 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
-def cms_owner_profile_page(owner_id):
-    """CMS ownership profile by 10-digit PAC (Connecticut public launch only)."""
-    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+def cms_owner_profile_page(owner_id, requested_slug=None):
+    """CMS ownership profile by 10-digit PAC; optional slug is descriptive only."""
+    from ownership.owner_profile import (
+        associate_profile_url,
+        load_owner_profile_resolved,
+        normalize_associate_id,
+        owner_profile_canonical_path,
+    )
+    from ownership.owner_indexability import (
+        classification_for_pac,
+        load_owner_indexability_cache,
+        owner_robots_meta,
+    )
 
     pac = normalize_associate_id(owner_id)
     if len(pac) != 10 or not pac.isdigit():
         return redirect(f'/owner/{owner_id}', code=302)
     if not HAS_PANDAS:
         return 'Pandas not available. Owner pages require pandas.', 503
+
+    req_path = (request.path or '').rstrip('/') or '/'
+    qs = request.query_string.decode() if request.query_string else ''
+
+    # Fast 301 path: resolve slug from deploy indexability cache without loading
+    # the full profile / provider-info enrichment (avoids multi-second cold starts
+    # when the client only needs ID→canonical redirect).
+    cache_row = (load_owner_indexability_cache() or {}).get(pac) or {}
+    cache_class = str(cache_row.get('classification') or '').strip()
+    cache_name = str(cache_row.get('owner_name') or '').strip()
+    if cache_class == 'suppress':
+        from flask import abort
+        abort(404)
+    if cache_name and cache_class in ('index', 'noindex_follow'):
+        fast_canon = associate_profile_url(pac, cache_name)
+        if fast_canon and req_path != fast_canon.rstrip('/'):
+            target = f'{fast_canon}?{qs}' if qs else fast_canon
+            return redirect(target, code=301)
+
     try:
         profile = load_owner_profile_resolved(pac)
     except Exception as _owner_load_err:
@@ -6728,7 +6780,6 @@ def cms_owner_profile_page(owner_id):
     if not profile_is_visible(profile):
         from flask import abort
         abort(404)
-    from ownership.owner_indexability import classification_for_pac, owner_robots_meta
 
     index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
     if index_class == 'suppress':
@@ -6737,6 +6788,14 @@ def cms_owner_profile_page(owner_id):
     robots_meta = owner_robots_meta(index_class)
     if not profile_has_public_state(profile):
         robots_meta = 'noindex, follow'
+
+    canon_path = owner_profile_canonical_path(profile)
+    if canon_path and req_path != canon_path.rstrip('/'):
+        target = canon_path
+        if qs:
+            target = f'{target}?{qs}'
+        return redirect(target, code=301)
+
     try:
         html = generate_owner_profile_html(profile, robots_meta=robots_meta)
     except Exception as _owner_render_err:
@@ -6759,7 +6818,7 @@ def cms_owner_profile_page(owner_id):
 @fec_owner_bp.route('/', defaults={'path': ''})
 @fec_owner_bp.route('/<path:path>')
 def fec_owner_proxy(path):
-    """Proxy FEC contributions dashboard at /owner/ (lazy-loaded on first request)."""
+    """FEC API under /owner/api/*; standalone FEC UI redirects to /owners (embedded on profiles)."""
     try:
         owner_app = get_owner_app()
     except Exception:
@@ -6779,77 +6838,69 @@ def fec_owner_proxy(path):
             headers=list(request.headers)
         ):
             return owner_app.full_dispatch_request()
-    elif path == '':
-        if request.args.get('owner'):
-            return redirect('/owner', code=302)
-        with owner_app.test_request_context('/', method=request.method):
-            return owner_app.full_dispatch_request()
-    else:
-        with owner_app.test_request_context(f'/{path}',
-                                             method=request.method,
-                                             query_string=request.query_string.decode(),
-                                             data=request.get_data(),
-                                             content_type=request.content_type,
-                                             headers=list(request.headers)):
-            return owner_app.full_dispatch_request()
+    return redirect('/owners', code=302)
 
 app.register_blueprint(fec_owner_bp)
 
 
-def _owners_hub_index_json_ld() -> str:
+def _owners_hub_index_json_ld(*, page_title: str, meta_description: str) -> str:
     base = _public_site_origin()
     page_url = f'{base}/owners'
     return _explainer_page_json_ld_scripts(
-        page_title='Nursing Home Ownership Indexes | PBJ320',
+        page_title=page_title,
         page_url=page_url,
-        description=(
-            'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida '
-            'with PBJ320 staffing context.'
-        ),
+        description=meta_description,
         breadcrumb_name='Ownership',
     )
 
 
 def _owners_cms_index_html():
-    """Public ownership index — links to NY/CT/FL state browse pages (not a national database)."""
+    """Public ownership hub — nationwide CMS search + national portfolios/CHOW panels."""
+    from ownership.state_owner_index import resolve_state_owner_index_slug
+    from ownership.state_owner_index_html import render_owners_hub_index_body
+    from ownership.us_states import US_STATE_CODES
+
+    raw_st = (request.args.get('st') or request.args.get('state') or '').strip()
+    if raw_st:
+        state_code = None
+        if len(raw_st) == 2:
+            candidate = raw_st.upper()
+            state_code = candidate if candidate in US_STATE_CODES else None
+        else:
+            resolved = resolve_state_owner_index_slug(raw_st.lower())
+            state_code = resolved if resolved in US_STATE_CODES else None
+        if state_code:
+            return redirect(f'/owners/{state_code.lower()}', code=302)
+
+    body, layout_meta = render_owners_hub_index_body(
+        None,
+        get_canonical_slug=get_canonical_slug,
+    )
     layout = get_pbj_site_layout(
-        'Nursing Home Ownership Indexes | PBJ320',
-        'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida with PBJ320 '
-        'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
-        _public_site_origin() + '/owners',
+        layout_meta['page_title'],
+        layout_meta['meta_description'],
+        _public_site_origin() + layout_meta['canonical_path'],
         extra_head=(
-            _owners_hub_index_json_ld()
+            _owners_hub_index_json_ld(
+                page_title=layout_meta['page_title'],
+                meta_description=layout_meta['meta_description'],
+            )
+            + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
         route_context_overrides={'kind': 'ownership'},
     )
-    body = '''
-    <div class="owners-hub owners-hub-index">
-      <h1>Nursing home ownership indexes</h1>
-      <p class="owners-hub-lead">
-        PBJ320 links CMS SNF All Owners filings to Payroll-Based Journal (PBJ) staffing patterns at the
-        owner and facility level. These indexes help you find reported ownership-linked entities — not
-        ultimate beneficial ownership.
-      </p>
-      <p class="owners-state-unlock-note">
-        <strong>Available now:</strong> state ownership indexes for
-        <a href="/owners/ny">New York</a>, <a href="/owners/nj">New Jersey</a>,
-        <a href="/owners/ct">Connecticut</a>, and <a href="/owners/fl">Florida</a>.
-      </p>
-      <ul class="owners-hub-state-cards">
-        <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/nj"><span class="owners-hub-state-card-title">New Jersey</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-      </ul>
-      <p class="owners-hub-aside">
-        Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
-        <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
-        <a href="/owner">Political contributions (FEC)</a> is a separate tool.
-      </p>
-    </div>
-    '''
-    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+    hub_js_v = _static_asset_version('owners-hub.js')
+    script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
+    return (
+        layout['head']
+        + layout['nav']
+        + layout['content_open']
+        + body
+        + script
+        + layout['content_close']
+        + '</body></html>'
+    )
 
 
 def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_description: str, canonical_path: str) -> str:
@@ -6931,7 +6982,7 @@ def _owners_state_locked_html(state_name: str = ''):
     body = render_state_owner_index_locked_body(state_name)
     layout = get_pbj_site_layout(
         'Ownership index not available | PBJ320',
-        'Ownership index pages are currently available for New York, Connecticut, and Florida on PBJ320.',
+        'Ownership index pages are currently available for all 50 states and D.C. on PBJ320.',
         _public_site_origin() + '/owners',
         extra_head=f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">',
         robots_meta='noindex, follow',
@@ -6970,9 +7021,7 @@ def owners_cms_search_api():
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():
-    """CMS ownership index (NY + CT + FL). FEC contributions search is at /owner/."""
-    if request.args.get('owner'):
-        return redirect('/owner', code=302)
+    """CMS ownership index (NY + CT + FL + national hub)."""
     resp = make_response(_owners_cms_index_html())
     resp.headers['Content-Type'] = 'text/html; charset=utf-8'
     resp.headers['Cache-Control'] = 'public, max-age=300'
@@ -7004,10 +7053,13 @@ def owners_state_index_route():
 
 @app.route('/owners/<path:subpath>')
 def owners_legacy_router(subpath):
-    """/owners/<pac> CMS profiles; /owners/<state> indexes; other paths → FEC or locked-state message."""
-    segment = (subpath or '').strip().split('/')[0]
-    if segment.isdigit() and len(segment) == 10 and subpath.strip() == segment:
-        return cms_owner_profile_page(segment)
+    """/owners/<pac>[/<slug>] CMS profiles; /owners/<state> indexes; other paths → FEC or locked-state message."""
+    parts = [p for p in (subpath or '').strip('/').split('/') if p]
+    segment = parts[0] if parts else ''
+    if segment.isdigit() and len(segment) == 10:
+        # Durable ID; optional descriptive slug (wrong/missing slug → 301 to canonical).
+        requested_slug = parts[1] if len(parts) >= 2 else None
+        return cms_owner_profile_page(segment, requested_slug=requested_slug)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
     from ownership.state_owner_index import resolve_state_owner_index_slug
@@ -7035,16 +7087,17 @@ def top_redirect():
 @app.route('/owners-test')
 @app.route('/owners-test/')
 def owners_test_redirect():
-    """Legacy alias — FEC tool at /owner/test."""
-    return redirect('/owner/test', code=302)
+    """Legacy alias — national ownership hub."""
+    return redirect('/owners', code=302)
 
 @app.route('/ownership', defaults={'path': ''})
 @app.route('/ownership/', defaults={'path': ''})
 @app.route('/ownership/<path:path>')
 def ownership_alias(path=''):
+    """Legacy /ownership URLs → national CMS ownership hub."""
     if path:
-        return redirect(f'/owner/{path}', code=301)
-    return redirect('/owner', code=301)
+        return redirect(f'/owners/{path}', code=301)
+    return redirect('/owners', code=301)
 
 def _sitemap_lastmod_for_insight_post(post: dict, fallback: str) -> str:
     raw = (post.get('updated') or post.get('date') or post.get('sort_date') or '').strip()
@@ -9577,7 +9630,7 @@ def get_latest_provider_info_for_ccn(ccn):
     """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
     return _latest_provider_info_row_for_ccn(ccn)
 
-def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None, route_context_overrides=None):
+def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None, route_context_overrides=None, og_image_url=None, og_image_width=None, og_image_height=None, og_image_alt=None):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
     base = _public_site_origin()
     canon = canonical_url or base
@@ -9588,7 +9641,14 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
         overrides=route_context_overrides,
     )
     _combined_extra_head = _route_context_tag + audience_assets_head() + (extra_head or '')
-    og_image = f'{base}/og-image-1200x630.png'
+    og_image = (og_image_url or '').strip() or f'{base}/og-image-1200x630.png'
+    og_dim_tags = ''
+    if og_image_width:
+        og_dim_tags += f'<meta property="og:image:width" content="{html.escape(str(og_image_width), quote=True)}">\n'
+    if og_image_height:
+        og_dim_tags += f'<meta property="og:image:height" content="{html.escape(str(og_image_height), quote=True)}">\n'
+    if og_image_alt:
+        og_dim_tags += f'<meta property="og:image:alt" content="{html.escape(str(og_image_alt), quote=True)}">\n'
     robots_line = ''
     if robots_meta:
         robots_line = f'<meta name="robots" content="{html.escape(str(robots_meta), quote=True)}">\n'
@@ -9605,7 +9665,7 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
 <meta property="og:url" content="{canon}">
 <meta property="og:type" content="website">
 <meta property="og:image" content="{og_image}">
-<meta property="og:site_name" content="PBJ320">
+{og_dim_tags}<meta property="og:site_name" content="PBJ320">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{html.escape(page_title)}">
 <meta name="twitter:description" content="{html.escape(meta_description)}">
@@ -13358,11 +13418,12 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
           <span><span style="color:#e2e8f0;">PBJ</span><span style="color:#818cf8;">320</span></span>
         </a>
       </div>
-      <div class="nav-menu" id="navMenu">
+      <div class="nav-menu" id="navMenu" data-pbj-nav-version="owners-v2">
         <a href="/about" class="nav-link">About</a>
         <a href="/report" class="nav-link">Report</a>
         <a href="/insights" class="nav-link">Insights</a>
-        <a href="/phoebe" class="nav-link">PBJ Explained</a>
+        <a href="/owners" class="nav-link">Owners</a>
+        <a href="/phoebe" class="nav-link nav-link--phoebe-mobile">PBJ Explained</a>
         <a href="/premium" class="nav-link">Premium</a>
       </div>
       <div class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></div>
@@ -25000,7 +25061,7 @@ def generate_dynamic_pbjpedia_page(title, page_path, content, toc_html='', seo_d
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">FEC Contributions</a>
+                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Owners</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>
@@ -27065,7 +27126,7 @@ def pbjpedia_page(page):
                 <a href="/report" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Report</a>
                 <a href="/insights" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Insights</a>
                 <a href="/phoebe" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">PBJ Explained</a>
-                <a href="/owner" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">FEC Contributions</a>
+                <a href="/owners" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Owners</a>
                 <a href="/premium" class="nav-link" style="color:rgba(255,255,255,0.8);text-decoration:none;font-weight:500;">Premium</a>
             </div>
         </div>

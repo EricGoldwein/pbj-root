@@ -3,11 +3,11 @@
 Build chow_index.json for the public /chow Change of Ownership monitor.
 
 Reads CMS SNF CHOW CSV(s) from:
-  - ownership/Skilled Nursing Facility Change of Ownership.zip (default)
+  - ownership/Skilled Nursing Facility Change of Ownership.zip (default; Q2 2026 member SNF_CHOW_Q2_2026.csv when present)
   - data/chow/*.csv (e.g. CT_SNF_CHOW_Q1_2026.csv)
   - --csv path(s)
 
-Output: chow_index.json at repo root (meta, summary, records).
+Output: chow_index.json at repo root (meta incl. cms_release/coverage/source_sha256, summary, records).
 
 TODO: Join pre/post PBJ staffing (HPRD, RN, aide, weekend) by CCN around effective_date.
 TODO: Join citations/penalties and CMS all-owner control entities when ETL is ready.
@@ -25,8 +25,11 @@ from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from urllib.parse import quote
+import sys
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 DEFAULT_ZIP = REPO_ROOT / "ownership" / "Skilled Nursing Facility Change of Ownership.zip"
 DEFAULT_OUT = REPO_ROOT / "chow_index.json"
 DEFAULT_CHOW_DIR = REPO_ROOT / "data" / "chow"
@@ -259,13 +262,24 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
         buyer_owner_url = owner_url_for_associate(buyer_assoc, buyer_org) or owner_search_url(buyer_org)
         seller_owner_url = owner_url_for_associate(seller_assoc, seller_org) or owner_search_url(seller_org)
         try:
-            from ownership.owner_profile import associate_id_kind_label
+            from ownership.owner_profile import (
+                associate_id_kind_label,
+                associate_id_namespace,
+            )
 
             buyer_assoc_kind = associate_id_kind_label(buyer_assoc) if buyer_assoc else ""
             seller_assoc_kind = associate_id_kind_label(seller_assoc) if seller_assoc else ""
-        except Exception:
+            buyer_assoc_ns = associate_id_namespace(buyer_assoc) if buyer_assoc else "unknown"
+            seller_assoc_ns = associate_id_namespace(seller_assoc) if seller_assoc else "unknown"
+        except Exception as _assoc_ns_err:
+            # Fail soft per row, but surface once so silent all-unknown rebuilds are visible.
+            if not getattr(build_records, "_assoc_ns_warned", False):
+                print(f"[build_chow_index] associate namespace lookup failed: {_assoc_ns_err}", flush=True)
+                build_records._assoc_ns_warned = True  # type: ignore[attr-defined]
             buyer_assoc_kind = ""
             seller_assoc_kind = ""
+            buyer_assoc_ns = "unknown"
+            seller_assoc_ns = "unknown"
 
         pattern_tags = detect_pattern_tags(
             buyer_org,
@@ -307,6 +321,8 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
                 "seller_owner_url": seller_owner_url,
                 "buyer_associate_kind": buyer_assoc_kind,
                 "seller_associate_kind": seller_assoc_kind,
+                "buyer_associate_id_namespace": buyer_assoc_ns,
+                "seller_associate_id_namespace": seller_assoc_ns,
                 "pattern_tags": pattern_tags,
             }
         )
@@ -524,30 +540,80 @@ def _example_facilities(rows: list[dict], limit: int = 3) -> list[str]:
     return out
 
 
-def infer_meta(records: list[dict], sources: list[str], ct_only: bool) -> dict:
+def _detect_cms_chow_release(sources: list[str]) -> str:
+    """Infer CMS CHOW release label from source path/filename markers."""
+    blob = " ".join(sources).replace("\\", "/").lower()
+    if "2026-q2" in blob or "q2_2026" in blob or "chow_q2" in blob:
+        return "Q2 2026"
+    if "2026-q1" in blob or "q1_2026" in blob or "2026.04.01" in blob:
+        return "Q1 2026"
+    # Default CMS zip at ownership/… may be Q2 content without quarter in path.
+    return ""
+
+
+def _sha256_file(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def infer_meta(
+    records: list[dict],
+    sources: list[str],
+    ct_only: bool,
+    *,
+    source_paths: list[Path] | None = None,
+    release_hint: str = "",
+) -> dict:
     states = {r["state"] for r in records if r.get("state")}
-    if ct_only:
+    dates = [r["effective_date"] for r in records if r.get("effective_date")]
+    date_min = min(dates) if dates else ""
+    date_max = max(dates) if dates else ""
+
+    cms_release = (release_hint or "").strip() or _detect_cms_chow_release(sources)
+    if not cms_release:
+        # Coverage heuristic when zip path has no quarter marker.
+        if date_max >= "2026-01-01":
+            cms_release = "Q2 2026"
+        elif date_max >= "2025-10-01":
+            cms_release = "Q1 2026"
+        else:
+            cms_release = "unknown"
+
+    if ct_only or (len(states) <= 2 and states == {"CT"}):
         scope_note = (
-            "Currently showing Connecticut CHOW records from Q1 2026 CMS data."
+            f"Currently showing Connecticut CHOW records from CMS {cms_release} data."
         )
-        source_label = "Connecticut SNF CHOW (CMS Q1 2026 release)"
-    elif len(states) <= 2 and states == {"CT"}:
-        scope_note = (
-            "Currently showing Connecticut CHOW records from Q1 2026 CMS data."
-        )
-        source_label = "Connecticut SNF CHOW (CMS Q1 2026 release)"
+        source_label = f"Connecticut SNF CHOW (CMS {cms_release} release)"
         ct_only = True
     else:
         scope_note = (
-            "National skilled nursing facility CHOW records from the CMS Q1 2026 "
+            f"National skilled nursing facility CHOW records from the CMS {cms_release} "
             "Skilled Nursing Facility Change of Ownership release."
         )
-        source_label = "CMS SNF Change of Ownership (Q1 2026 release)"
+        source_label = f"CMS SNF Change of Ownership ({cms_release} release)"
+
+    source_hashes: dict[str, str] = {}
+    for p in source_paths or []:
+        try:
+            if p.is_file():
+                key = str(p.relative_to(REPO_ROOT)) if p.is_relative_to(REPO_ROOT) else str(p)
+                source_hashes[key.replace("\\", "/")] = _sha256_file(p)
+        except OSError:
+            continue
+
     return {
         "scope_note": scope_note,
         "is_ct_only": ct_only,
         "source_label": source_label,
+        "cms_release": cms_release,
+        "coverage_date_min": date_min,
+        "coverage_date_max": date_max,
+        "event_count": len(records),
         "sources": sources,
+        "source_sha256": source_hashes,
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
 
@@ -564,16 +630,19 @@ def main() -> None:
 
     raw_rows: list[dict] = []
     sources: list[str] = []
+    source_paths: list[Path] = []
 
     if args.chow_dir.is_dir():
         for p in sorted(args.chow_dir.glob("*.csv")):
             raw_rows.extend(load_rows_from_csv_paths([p]))
             sources.append(str(p.relative_to(REPO_ROOT)))
+            source_paths.append(p)
 
     for p in args.csv:
         if p.is_file():
             raw_rows.extend(load_rows_from_csv_paths([p]))
             sources.append(str(p))
+            source_paths.append(p)
 
     if not args.no_zip and args.zip.is_file():
         zip_rows = load_rows_from_zip(args.zip)
@@ -582,16 +651,52 @@ def main() -> None:
         else:
             raw_rows.extend(zip_rows)
         sources.append(str(args.zip.relative_to(REPO_ROOT)))
+        source_paths.append(args.zip)
 
     if not raw_rows:
         raise SystemExit("No CHOW rows loaded. Provide --zip, --csv, or data/chow/*.csv")
 
     records, summary = build_records(raw_rows)
-    meta = infer_meta(records, sources, args.ct_only)
+    # Canonical CMS zip members use SNF_CHOW_Q2_2026.csv; prefer explicit Q2 when present.
+    release_hint = ""
+    for p in source_paths:
+        name = p.name.lower()
+        if "q2" in name or (p.is_file() and p.suffix.lower() == ".zip"):
+            try:
+                if p.suffix.lower() == ".zip":
+                    with zipfile.ZipFile(p) as zf:
+                        members = " ".join(zf.namelist()).lower()
+                        if "q2_2026" in members or "2026-q2" in members:
+                            release_hint = "Q2 2026"
+                            break
+                        if "2026-q1" in members or "2026.04.01" in members:
+                            release_hint = "Q1 2026"
+                            break
+                elif "q2" in name:
+                    release_hint = "Q2 2026"
+                    break
+                elif "q1" in name:
+                    release_hint = "Q1 2026"
+                    break
+            except (OSError, zipfile.BadZipFile):
+                continue
+
+    meta = infer_meta(
+        records,
+        sources,
+        args.ct_only,
+        source_paths=source_paths,
+        release_hint=release_hint,
+    )
 
     payload = {"meta": meta, "summary": summary, "records": records}
     args.output.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
     print(f"Wrote {len(records)} records to {args.output}")
+    print(
+        f"meta cms_release={meta.get('cms_release')} "
+        f"coverage={meta.get('coverage_date_min')}..{meta.get('coverage_date_max')} "
+        f"sha256_keys={list((meta.get('source_sha256') or {}).keys())}"
+    )
 
 
 if __name__ == "__main__":

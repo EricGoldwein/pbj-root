@@ -423,6 +423,22 @@ def accumulate_facility_link(
     pac_buckets.setdefault(cat, set()).add(ccn_norm)
 
 
+def intersect_facility_link_buckets(
+    pac_buckets: dict[str, set[str]],
+    ccn_set: set[str],
+) -> dict[str, set[str]]:
+    """Restrict national role buckets to CCNs in ``ccn_set`` (e.g. one state's facilities)."""
+    allowed = set(ccn_set or set())
+    if not pac_buckets:
+        return {"any": set(allowed)}
+    out: dict[str, set[str]] = {}
+    for cat, ccns in pac_buckets.items():
+        out[cat] = {c for c in (ccns or set()) if c in allowed}
+    if "any" not in out:
+        out["any"] = set(allowed)
+    return out
+
+
 def facility_link_counts_from_buckets(
     pac_buckets: dict[str, set[str]],
 ) -> dict[str, int]:

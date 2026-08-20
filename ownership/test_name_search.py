@@ -39,6 +39,14 @@ class TestNameSearchMatches(unittest.TestCase):
     def test_rank_for_middle_initial_match(self) -> None:
         self.assertIsNotNone(name_search_rank("Brian Foley", "Brian J. Foley"))
 
+    def test_rank_priority_exact_lastname_and_prefix(self) -> None:
+        # Exact full name beats last-name-only and contains.
+        self.assertEqual(name_search_rank("Brian Foley", "Brian Foley"), 0)
+        self.assertEqual(name_search_rank("Foley", "Brian J. Foley"), 1)
+        self.assertEqual(name_search_rank("Brian F", "Brian Foley"), 2)
+        self.assertEqual(name_search_rank("Brian Foley", "Brian J. Foley"), 3)
+        self.assertEqual(name_search_rank("health care", "ACME HEALTH CARE LLC"), 4)
+
     def test_tokens_in_order(self) -> None:
         self.assertTrue(
             tokens_match_in_order(["brian", "foley"], ["brian", "j", "foley"])

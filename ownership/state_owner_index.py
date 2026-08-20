@@ -1,13 +1,14 @@
 """
-State-level CMS ownership index pages (/owners/ny, /owners/ct, /owners/fl, /owners/nj; draft ID).
+State-level CMS ownership index pages (/owners/<st> for each U.S. state + D.C.).
 
-Published: NY + CT + FL + NJ (ownership/beta_gate.OWNERSHIP_PUBLIC_STATES, sitemap, hub).
-Draft indexes: ID — routable locally, noindex, excluded from hub/sitemap until launch.
+Published: all states in ownership/beta_gate.OWNERSHIP_PUBLIC_STATES (hub, sitemap, CHOW feed).
+Optional draft slugs: ownership/state_owner_index_draft.py (preview-only, noindex).
 """
 from __future__ import annotations
 
 import calendar
 import gzip
+import html
 import json
 import re
 from datetime import datetime, timezone
@@ -17,6 +18,13 @@ from typing import Any
 
 from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES, ownership_public_enabled_for_state
 from ownership.display_format import format_org_display
+from ownership.us_states import (
+    US_STATE_CODE_TO_NAME,
+    US_STATE_CODES,
+    owner_index_slug,
+    public_owner_states_coverage_phrase,
+    state_page_slug,
+)
 from ownership.chow_lookup import CHOW_INDEX_PATH, _load_index as _load_chow_index
 from ownership.owner_profile import (
     associate_profile_url,
@@ -33,19 +41,20 @@ _LATEST_QUARTER_JSON = _REPO_ROOT / "latest_quarter_data.json"
 _STATE_METRICS_CSV = _REPO_ROOT / "state_quarterly_metrics.csv"
 _PROVIDER_INFO_CSV = _REPO_ROOT / "provider_info_combined_latest.csv"
 
-# Canonical URL slugs (lowercase) for published state index pages (hub + sitemap).
+# Canonical URL slugs (two-letter lowercase) for published state index pages.
 PUBLIC_OWNER_INDEX_SLUGS: dict[str, str] = {
-    "ny": "NY",
-    "ct": "CT",
-    "fl": "FL",
-    "nj": "NJ",
+    owner_index_slug(code): code for code in sorted(OWNERSHIP_PUBLIC_STATES)
 }
 
-# Draft state indexes: same UI as published pages, not linked from /owners hub or sitemap.
-STATE_OWNER_INDEX_DRAFT_STATES: frozenset[str] = frozenset({"ID"})
-DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {
-    "id": "ID",
-}
+# Draft state indexes (preview-only): see state_owner_index_draft.py when used.
+try:
+    from ownership.state_owner_index_draft import (  # noqa: PLC0415
+        DRAFT_OWNER_INDEX_SLUGS,
+        STATE_OWNER_INDEX_DRAFT_STATES,
+    )
+except ImportError:
+    STATE_OWNER_INDEX_DRAFT_STATES = frozenset()
+    DRAFT_OWNER_INDEX_SLUGS: dict[str, str] = {}
 
 # All routable /owners/<slug> state index pages (public + draft).
 STATE_OWNER_INDEX_SLUGS: dict[str, str] = {
@@ -53,19 +62,17 @@ STATE_OWNER_INDEX_SLUGS: dict[str, str] = {
     **DRAFT_OWNER_INDEX_SLUGS,
 }
 
-STATE_OWNER_INDEX_STATES: frozenset[str] = (
-    OWNERSHIP_PUBLIC_STATES | STATE_OWNER_INDEX_DRAFT_STATES
-)
+STATE_OWNER_INDEX_STATES: frozenset[str] = OWNERSHIP_PUBLIC_STATES | STATE_OWNER_INDEX_DRAFT_STATES
 
-_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership Search"
+_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership & Control Search"
 
 
 def state_index_subtitle(state_name: str) -> str:
     """Hero subhead for all public state ownership index pages."""
     name = (state_name or "").strip()
     return (
-        f"Explore {name} nursing home ownership groups, facility portfolios, "
-        "and staffing patterns using public CMS data."
+        f"Explore CMS-disclosed ownership interests, managing/control parties, "
+        f"facility associations, and ownership changes in {name}."
     )
 
 
@@ -75,72 +82,26 @@ def state_index_h1(state_name: str) -> str:
     return f"{name}{_STATE_INDEX_H1_SUFFIX}"
 
 
+def _build_state_index_meta_entry(state_code: str, state_name: str) -> dict[str, str]:
+    return {
+        "name": state_name,
+        "slug": owner_index_slug(state_code),
+        "state_page_slug": state_page_slug(state_code, state_name),
+        "h1": state_index_h1(state_name),
+        "subtitle": state_index_subtitle(state_name),
+        "title": f"{state_name} Nursing Home Ownership & Control Search | PBJ320",
+        "meta_description": (
+            f"Search {state_name} CMS ownership interests, managing/control parties, PAC IDs, "
+            "and staffing context using public CMS ownership and PBJ staffing data."
+        ),
+        "hub_link_label": f"{state_name} nursing home ownership search",
+    }
+
+
+# SEO + hub metadata for every published U.S. state / D.C. index page.
 STATE_INDEX_META: dict[str, dict[str, str]] = {
-    "NY": {
-        "name": "New York",
-        "slug": "ny",
-        "state_page_slug": "new-york",
-        "h1": state_index_h1("New York"),
-        "subtitle": state_index_subtitle("New York"),
-        "title": "New York Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search New York nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "New York nursing home ownership search",
-    },
-    "CT": {
-        "name": "Connecticut",
-        "slug": "ct",
-        "state_page_slug": "connecticut",
-        "h1": state_index_h1("Connecticut"),
-        "subtitle": state_index_subtitle("Connecticut"),
-        "title": "Connecticut Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search Connecticut nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "Connecticut nursing home ownership search",
-    },
-    "FL": {
-        "name": "Florida",
-        "slug": "fl",
-        "state_page_slug": "florida",
-        "h1": state_index_h1("Florida"),
-        "subtitle": state_index_subtitle("Florida"),
-        "title": "Florida Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search Florida nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "Florida nursing home ownership search",
-    },
-    "NJ": {
-        "name": "New Jersey",
-        "slug": "nj",
-        "state_page_slug": "new-jersey",
-        "h1": state_index_h1("New Jersey"),
-        "subtitle": state_index_subtitle("New Jersey"),
-        "title": "New Jersey Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search New Jersey nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "New Jersey nursing home ownership search",
-    },
-    "ID": {
-        "name": "Idaho",
-        "slug": "id",
-        "state_page_slug": "idaho",
-        "h1": state_index_h1("Idaho"),
-        "subtitle": state_index_subtitle("Idaho"),
-        "title": "Idaho Nursing Home Ownership Search | PBJ320",
-        "meta_description": (
-            "Search Idaho nursing home owners, PAC IDs, affiliated facilities, "
-            "and staffing context using public CMS ownership and PBJ staffing data."
-        ),
-        "hub_link_label": "Idaho nursing home ownership search",
-    },
+    code: _build_state_index_meta_entry(code, US_STATE_CODE_TO_NAME[code])
+    for code in sorted(US_STATE_CODES)
 }
 
 
@@ -151,10 +112,10 @@ def state_index_layout_meta(state_code: str) -> dict[str, str]:
     state_name = meta.get("name") or st
     slug = meta.get("slug") or st.lower()
     return {
-        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership Search | PBJ320",
+        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership & Control Search | PBJ320",
         "meta_description": meta.get("meta_description")
         or (
-            f"Search {state_name} nursing home owners, PAC IDs, affiliated facilities, "
+            f"Search {state_name} CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
         "canonical_path": state_index_canonical_path(st),
@@ -170,7 +131,7 @@ def state_index_layout_meta(state_code: str) -> dict[str, str]:
 def state_index_lastmod_iso(state_code: str) -> str:
     """YYYY-MM-DD for sitemap lastmod (index artifact mtime)."""
     st = (state_code or "").strip().upper()[:2]
-    if st not in STATE_INDEX_META:
+    if st not in US_STATE_CODES and st not in STATE_OWNER_INDEX_DRAFT_STATES:
         return ""
     if not _STATE_OWNER_INDEX_GZ.is_file():
         return ""
@@ -243,6 +204,35 @@ def _load_state_owner_index_artifact() -> dict[str, list[dict[str, Any]]] | None
         return out
     except Exception:
         return None
+
+
+
+
+def filter_ownership_interest_portfolio_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Rank PACs by ownership-interest facility count (exclude control-only).
+
+    For state index rows, ``facility_count_ownership_interest`` is in-state
+    (role buckets intersected with that state's CCN set at write time).
+    National hub rows use nationwide ownership-interest totals.
+    """
+    out: list[dict[str, Any]] = []
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        oi = int(row.get("facility_count_ownership_interest") or 0)
+        if oi <= 0:
+            continue
+        merged = dict(row)
+        # Ranking key is OI count; on state pages this is in-state after artifact rebuild.
+        merged["facility_count_rank"] = oi
+        out.append(merged)
+    out.sort(
+        key=lambda r: (
+            -int(r.get("facility_count_rank") or 0),
+            str(r.get("name") or "").lower(),
+        )
+    )
+    return out
 
 
 def list_state_owner_index_rows(
@@ -346,15 +336,81 @@ def format_index_owner_name(raw: str) -> str:
     return format_org_display(str(raw or "—"))
 
 
-def format_portfolio_facility_count(state_code: str, row: dict[str, Any]) -> str:
-    """In-state CMS-linked count plus nationwide total when the owner spans states."""
+def format_portfolio_facility_count(
+    state_code: str,
+    row: dict[str, Any],
+    *,
+    state_name: str | None = None,
+) -> str:
+    """In-state CMS-linked count plus nationwide total when the owner spans states.
+
+    Empty/national scope uses nationwide totals only (e.g. "89 total facilities").
+    When ``state_name`` is provided (state index UI), prefer the full place name
+    (e.g. "3 in Texas") over the two-letter code.
+    """
     st = (state_code or "").strip().upper()[:2]
+    place = (state_name or "").strip() or st
     in_n = int(row.get("facility_count") or 0)
     total_raw = row.get("facility_count_total")
     total_n = int(total_raw) if total_raw is not None else in_n
+    if not st:
+        n = total_n or in_n
+        return f"{n} total facilit{'y' if n == 1 else 'ies'}"
     if total_n > in_n:
-        return f"{in_n} in {st} · {total_n} total"
-    return f"{in_n} in {st}"
+        return f"{in_n} in {place} · {total_n} total"
+    return f"{in_n} in {place}"
+
+
+@lru_cache(maxsize=1)
+def _national_top_owner_rows_cached() -> tuple[tuple[Any, ...], ...]:
+    """Dedupe state-index rows by PAC; sum ownership-interest counts across states."""
+    artifact = _load_state_owner_index_artifact()
+    if not artifact:
+        return tuple()
+    best: dict[str, dict[str, Any]] = {}
+    for rows in artifact.values():
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            pac = str(row.get("associate_id") or "").strip()
+            if len(pac) != 10 or not pac.isdigit():
+                continue
+            total = int(row.get("facility_count_total") or row.get("facility_count") or 0)
+            oi = int(row.get("facility_count_ownership_interest") or 0)
+            prev = best.get(pac)
+            if prev is None:
+                merged = dict(row)
+                merged["facility_count"] = total
+                merged["facility_count_total"] = total
+                merged["facility_count_ownership_interest"] = oi
+                best[pac] = merged
+                continue
+            prev_total = int(prev.get("facility_count_total") or prev.get("facility_count") or 0)
+            prev["facility_count_ownership_interest"] = (
+                int(prev.get("facility_count_ownership_interest") or 0) + oi
+            )
+            if total > prev_total:
+                # Prefer the slice with the highest nationwide total for display fields.
+                for key, val in row.items():
+                    if key == "facility_count_ownership_interest":
+                        continue
+                    prev[key] = val
+                prev["facility_count"] = total
+                prev["facility_count_total"] = total
+    ranked = sorted(
+        best.values(),
+        key=lambda r: (-int(r.get("facility_count_total") or 0), str(r.get("name") or "").lower()),
+    )
+    return tuple(tuple(sorted(r.items())) for r in ranked)
+
+
+def list_national_top_owner_rows(*, limit: int | None = 5) -> list[dict[str, Any]]:
+    """Largest ownership portfolios nationwide (from state_owner_index totals)."""
+    cached = _national_top_owner_rows_cached()
+    rows = [dict(item) for item in cached]
+    if limit is None:
+        return rows
+    return rows[: max(1, int(limit))]
 
 
 def _parse_iso_date_label(raw: str) -> str:
@@ -522,7 +578,73 @@ def state_owner_page_context(state_code: str) -> dict[str, Any]:
 
 def locked_state_index_message(state_name: str = "") -> str:
     label = (state_name or "that state").strip()
+    coverage = public_owner_states_coverage_phrase()
     return (
-        f"Ownership index pages are currently available for New York and Connecticut only "
+        f"Ownership index pages are currently available for {coverage} "
         f"({label} is not published on this path yet)."
     )
+
+
+def public_owner_index_hub_entries() -> list[dict[str, str]]:
+    """Sorted hub cards / prose entries for published state ownership indexes."""
+    rows: list[dict[str, str]] = []
+    for slug, code in PUBLIC_OWNER_INDEX_SLUGS.items():
+        meta = STATE_INDEX_META.get(code) or {}
+        name = str(meta.get("name") or code).strip()
+        rows.append(
+            {
+                "state_code": code,
+                "slug": slug,
+                "name": name,
+                "path": state_index_canonical_path(code),
+                "hub_link_label": str(
+                    meta.get("hub_link_label") or f"{name} nursing home ownership search"
+                ),
+            }
+        )
+    rows.sort(key=lambda row: row["name"])
+    return rows
+
+
+def format_public_owner_states_prose(*, conjunction: str = "and") -> str:
+    """Human-readable coverage phrase for hub/SEO (not a 51-state name list)."""
+    _ = conjunction
+    return public_owner_states_coverage_phrase()
+
+
+def format_public_owner_states_links_html(*, class_name: str = "") -> str:
+    """Comma-separated anchor list for published state ownership indexes."""
+    cls = f' class="{class_name}"' if class_name else ""
+    parts = [
+        f'<a href="{html.escape(row["path"])}"{cls}>{html.escape(row["name"])}</a>'
+        for row in public_owner_index_hub_entries()
+    ]
+    return ", ".join(parts)
+
+
+def owners_hub_page_context() -> dict[str, str]:
+    """National /owners hub metadata (search catalog + CMS ownership freshness)."""
+    from ownership.owner_profile import snf_owners_csv_path, snf_owners_release_month_year
+
+    _owners_path = snf_owners_csv_path()
+    owners_ym = snf_owners_release_month_year(_owners_path)
+    owners_updated = _month_year_label(*owners_ym) if owners_ym else ""
+    catalog_n = 0
+    try:
+        from ownership.owner_profile import _public_owner_search_catalog  # noqa: PLC0415
+
+        catalog_n = len(_public_owner_search_catalog())
+    except Exception:
+        catalog_n = 0
+    state_counts: list[str] = []
+    artifact = _load_state_owner_index_artifact()
+    if artifact:
+        for row in public_owner_index_hub_entries():
+            code = row["state_code"]
+            state_counts.append(f"{code} {len(artifact.get(code) or []):,}")
+    return {
+        "owners_updated": owners_updated,
+        "catalog_entity_count": str(catalog_n),
+        "state_index_counts": ", ".join(state_counts),
+        "public_states_prose": format_public_owner_states_prose(),
+    }

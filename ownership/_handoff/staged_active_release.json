@@ -1,9 +1,12 @@
 {
   "action": "staged",
-  "handoff_source_path": "C:\\Users\\egold\\PycharmProjects\\pbj-root\\ownership\\SNF_All_Owners_2026.07.17.csv",
-  "ownership_release_date": "2026-07-17",
-  "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
-  "ownership_source_sha256": "b0f57a17e2d1eabe818ed574736ce9fe43345a9105768d54339abcaa5cd2a530",
-  "staged_at_utc": "2026-07-29T15:22:00+00:00",
-  "staged_path": "C:\\Users\\egold\\PycharmProjects\\pbj-root\\ownership\\SNF_All_Owners_2026.07.17.csv"
+  "ownership_release_date": "2026-07-31",
+  "ownership_source_filename": "SNF_All_Owners_2026.07.31.csv",
+  "ownership_source_sha256": "4346a8d44a06ab5214f8d23f86c23f2ddf88de6d14e339a1580aa95dc7c3f435",
+  "enrollment_source_filename": "SNF_Enrollments_2026.07.31.csv",
+  "enrollment_source_sha256": "387e0caf0f2e017c5c8bddfda4b4351182e85ea7fc355b8a003f2f06d2ff2527",
+  "handoff_source_path": "ownership/SNF_All_Owners_2026.07.31.csv",
+  "staged_path": "ownership/SNF_All_Owners_2026.07.31.csv",
+  "staged_at_utc": "2026-08-20T19:30:00+00:00",
+  "notes": "Aligned to active release in ownership_release_policy.json (CMS catalog month 2026-08; physical All Owners + Enrollments file date 2026-07-31). Supersedes prior July-17 staged handoff."
 }

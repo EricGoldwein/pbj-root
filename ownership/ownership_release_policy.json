@@ -1,5 +1,5 @@
 {
-  "active_release_date": "2026-07-17",
+  "active_release_date": "2026-07-31",
   "active_release_handoff": {
     "staged_provenance_relative_path": "ownership/_handoff/staged_active_release.json",
     "inbound_sources": [
@@ -7,7 +7,7 @@
         "source_id": "cms_download",
         "kind": "repo_relative",
         "repo_role": "pbjapp_repo",
-        "relative_path": "ownership/SNF_All_Owners_2026.07.17.csv"
+        "relative_path": "ownership/SNF_All_Owners_2026.07.31.csv"
       }
     ]
   },
@@ -23,15 +23,44 @@
       "ownership_source_sha256": "701d6484e5f0cb567de4fcbfb0279d2d5f319ff0fe0f745ad73fab02119db493",
       "bridge_lookup_filename": "release_2026-05-01_lookup.json",
       "bridge_pairing_status": "exact_release_date_match",
-      "status": "historical_supported"
+      "status": "historical_supported",
+      "enrollment_source_filename": "SNF_Enrollments_2026.05.01.csv",
+      "enrollment_release_date": "2026-05-01"
     },
     "2026-07-17": {
       "ownership_source_filename": "SNF_All_Owners_2026.07.17.csv",
       "ownership_source_sha256": "b0f57a17e2d1eabe818ed574736ce9fe43345a9105768d54339abcaa5cd2a530",
       "bridge_lookup_filename": "release_2026-07-17_lookup.json",
       "bridge_pairing_status": "exact_release_date_match",
+      "status": "historical_supported",
+      "enrollment_source_filename": "SNF_Enrollments_2026.07.17.csv",
+      "enrollment_source_sha256": "6ad13e7f19a839a6927d04db625f86f9dcbd6b5343e80f2ffae9314e94f4a841",
+      "enrollment_release_date": "2026-07-17",
+      "allow_enrollment_date_mismatch": false,
+      "provider_info_source_filename": "ProviderInfoNorm_2026_07.csv",
+      "pbj_period": "Q1 2026",
+      "chow_source": "chow_index.json",
+      "notes": "July nationwide catalog preserved as historical after August (2026-07-31) promotion."
+    },
+    "2026-07-31": {
+      "ownership_source_filename": "SNF_All_Owners_2026.07.31.csv",
+      "ownership_source_sha256": "4346a8d44a06ab5214f8d23f86c23f2ddf88de6d14e339a1580aa95dc7c3f435",
+      "ownership_source_file_date": "2026-07-31",
+      "release_month": "2026-08",
+      "bridge_lookup_filename": "release_2026-07-31_lookup.json",
+      "bridge_pairing_status": "exact_release_date_match",
       "status": "active",
-      "notes": "Enrollment CCN bridge temporarily reused from 2026-05-01 until SNF_Enrollments_2026.07.17.csv is ingested"
+      "enrollment_source_filename": "SNF_Enrollments_2026.07.31.csv",
+      "enrollment_source_sha256": "387e0caf0f2e017c5c8bddfda4b4351182e85ea7fc355b8a003f2f06d2ff2527",
+      "enrollment_release_date": "2026-07-31",
+      "allow_enrollment_date_mismatch": false,
+      "provider_info_source_filename": "ProviderInfoNorm_2026_07.csv",
+      "pbj_period": "Q1 2026",
+      "chow_source": "chow_index.json",
+      "adp_source_filename": "SNF_Owners_ADP_Association_2026.07.31.csv",
+      "chain_source_filename": "Nursing_Home_Chain_Performance_Measures_Jul_2026.csv",
+      "build_timestamp": "2026-08-20T18:15:00Z",
+      "notes": "CMS catalog month 2026-08. Physical All Owners + Enrollments file date 2026-07-31 (exact_release_date_match). Verified from data.cms.gov data.json distributions labeled 2026-08-01 pointing at *_2026.07.31.csv. ProviderInfoNorm remains July 2026 until a newer Norm snapshot is validated."
     }
   }
 }

@@ -25,6 +25,15 @@ class OwnershipReleaseEntry:
     bridge_pairing_status: str
     status: str
     ownership_source_sha256: str = ""
+    enrollment_source_filename: str = ""
+    enrollment_source_sha256: str = ""
+    enrollment_release_date: str = ""
+    allow_enrollment_date_mismatch: bool = False
+    provider_info_source_filename: str = ""
+    pbj_period: str = ""
+    chow_source: str = ""
+    build_timestamp: str = ""
+    notes: str = ""
 
     @classmethod
     def from_dict(cls, release_date: str, raw: dict[str, Any]) -> OwnershipReleaseEntry:
@@ -35,6 +44,15 @@ class OwnershipReleaseEntry:
             bridge_pairing_status=str(raw.get("bridge_pairing_status") or "").strip(),
             status=str(raw.get("status") or "").strip(),
             ownership_source_sha256=str(raw.get("ownership_source_sha256") or "").strip(),
+            enrollment_source_filename=str(raw.get("enrollment_source_filename") or "").strip(),
+            enrollment_source_sha256=str(raw.get("enrollment_source_sha256") or "").strip(),
+            enrollment_release_date=str(raw.get("enrollment_release_date") or "").strip(),
+            allow_enrollment_date_mismatch=bool(raw.get("allow_enrollment_date_mismatch")),
+            provider_info_source_filename=str(raw.get("provider_info_source_filename") or "").strip(),
+            pbj_period=str(raw.get("pbj_period") or "").strip(),
+            chow_source=str(raw.get("chow_source") or "").strip(),
+            build_timestamp=str(raw.get("build_timestamp") or "").strip(),
+            notes=str(raw.get("notes") or "").strip(),
         )
 
 
@@ -161,6 +179,7 @@ def resolve_bridge_lookup_path(
         raise OwnershipReleasePolicyError(
             f"Bridge lookup pairing_status mismatch for {release}"
         )
+    validate_enrollment_bridge_pairing(entry, payload)
     index_path = root / BRIDGE_SUBDIR / "lookup_index.json"
     if index_path.is_file():
         index = json.loads(index_path.read_text(encoding="utf-8"))
@@ -171,6 +190,38 @@ def resolve_bridge_lookup_path(
                     f"lookup_index.json disagrees with policy for {release}"
                 )
     return path
+
+
+def validate_enrollment_bridge_pairing(
+    entry: OwnershipReleaseEntry,
+    bridge_payload: dict[str, Any],
+) -> None:
+    """
+    Fail closed when bridge enrollment_release_date silently lags ownership release.
+
+    Override requires explicit ``allow_enrollment_date_mismatch: true`` on the release
+    entry (documented temporary exception only).
+    """
+    bridge_enroll = str(bridge_payload.get("enrollment_release_date") or "").strip()
+    expected = entry.enrollment_release_date or entry.release_date
+    if not bridge_enroll:
+        raise OwnershipReleasePolicyError(
+            f"Release {entry.release_date} bridge lookup missing enrollment_release_date"
+        )
+    if bridge_enroll == entry.release_date:
+        return
+    if bridge_enroll == expected and entry.allow_enrollment_date_mismatch:
+        return
+    if entry.allow_enrollment_date_mismatch and bridge_enroll == entry.enrollment_release_date:
+        return
+    if entry.allow_enrollment_date_mismatch:
+        # Documented override: bridge may use an older enrollment map.
+        return
+    raise OwnershipReleasePolicyError(
+        f"Release {entry.release_date} enrollment_release_date mismatch: "
+        f"bridge has {bridge_enroll!r}, ownership release is {entry.release_date!r}. "
+        "Set allow_enrollment_date_mismatch=true only with an explicit documented override."
+    )
 
 
 def filtered_lookup_index_entry(entry: OwnershipReleaseEntry) -> dict[str, dict[str, str]]:
@@ -232,9 +283,24 @@ def active_release_metadata(root: Path) -> dict[str, str]:
     release = active_release_date(policy)
     entry = resolve_release_entry(policy, release)
     path = resolve_ownership_source_path(root, release, policy=policy)
-    return {
+    meta = {
         "ownership_release_date": release,
         "source_file": path.name,
         "bridge_lookup_filename": entry.bridge_lookup_filename,
         "bridge_pairing_status": entry.bridge_pairing_status,
     }
+    if entry.enrollment_source_filename:
+        meta["enrollment_source_filename"] = entry.enrollment_source_filename
+    if entry.enrollment_release_date:
+        meta["enrollment_release_date"] = entry.enrollment_release_date
+    if entry.provider_info_source_filename:
+        meta["provider_info_source_filename"] = entry.provider_info_source_filename
+    if entry.pbj_period:
+        meta["pbj_period"] = entry.pbj_period
+    if entry.chow_source:
+        meta["chow_source"] = entry.chow_source
+    if entry.build_timestamp:
+        meta["build_timestamp"] = entry.build_timestamp
+    if entry.allow_enrollment_date_mismatch:
+        meta["allow_enrollment_date_mismatch"] = "true"
+    return meta

@@ -622,7 +622,7 @@ def _party_meta_lines_html(party: dict[str, Any]) -> tuple[str, str]:
     if role_full and role_full != "—":
         desk_bits.append(role_full)
     if since != "—":
-        desk_bits.append(f"Since {since}")
+        desk_bits.append(f"Associated in CMS since {since}")
     desktop = (
         f'<span class="chow-party-meta-line chow-party-meta-line--desktop">'
         f"{sep.join(desk_bits) if desk_bits else '—'}"
@@ -639,7 +639,7 @@ def _party_meta_lines_html(party: dict[str, Any]) -> tuple[str, str]:
     if role_m and pct_m:
         mob_bits.append(role_m)
     if since != "—":
-        mob_bits.append(f"Since {since}")
+        mob_bits.append(f"Associated in CMS since {since}")
     mobile = (
         f'<span class="chow-party-meta-line chow-party-meta-line--mobile">'
         f"{sep.join(mob_bits) if mob_bits else '—'}"

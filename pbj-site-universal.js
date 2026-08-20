@@ -271,7 +271,6 @@
       if (!href || href.charAt(0) === '#') continue;
       var linkPath = href.replace(/\/$/, '') || '/';
       var match = path === linkPath;
-      if (!match && linkPath === '/owner' && (path === '/owner' || path.indexOf('/owner/') === 0)) match = true;
       if (!match && linkPath === '/owners' && (path === '/owners' || path.indexOf('/owners/') === 0)) match = true;
       if (!match && linkPath === '/owners-test' && (path === '/owners-test' || path.indexOf('/owners-test/') === 0)) match = true;
       if (!match && linkPath === '/insights' && path.indexOf('/insights') === 0) match = true;
@@ -287,15 +286,78 @@
         a.setAttribute('aria-current', 'page');
       }
     }
+    var ownersDd = document.querySelector('[data-pbj-owners-nav]');
+    if (ownersDd && ownersRouteActive(path)) {
+      ownersDd.classList.add('is-route-active');
+      var trig = ownersDd.querySelector('.nav-owners-trigger');
+      if (trig) {
+        trig.classList.add('active');
+        trig.setAttribute('aria-current', 'page');
+      }
+    }
   }
 
   var SITE_NAV_ITEMS = [
     ['/about', 'About'],
     ['/report', 'Report'],
     ['/insights', 'Insights'],
-    ['/phoebe', 'PBJ Explained'],
+    ['/owners', 'Owners'],
+    ['/phoebe', 'PBJ Explained', 'phoebe-mobile'],
     ['/premium', 'Premium']
   ];
+
+  var _ownersStateIndexCache = null;
+
+  function loadOwnersStateIndex(callback) {
+    if (_ownersStateIndexCache) {
+      callback(_ownersStateIndexCache);
+      return;
+    }
+    var embedded = document.getElementById('pbj-owners-state-index');
+    if (embedded && embedded.textContent) {
+      try {
+        _ownersStateIndexCache = JSON.parse(embedded.textContent);
+        callback(_ownersStateIndexCache);
+        return;
+      } catch (e) { /* fetch fallback */ }
+    }
+    fetch('/static/owners-state-index.json', { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .then(function (rows) {
+        _ownersStateIndexCache = Array.isArray(rows) ? rows : [];
+        callback(_ownersStateIndexCache);
+      })
+      .catch(function () { callback([]); });
+  }
+
+  function populateOwnersStateSelect(selectEl, rows) {
+    if (!selectEl || selectEl.getAttribute('data-pbj-states-loaded')) return;
+    var html = '<option value="">Choose a state\u2026</option>';
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i] || {};
+      if (!row.path) continue;
+      html += '<option value="' + String(row.path).replace(/"/g, '&quot;') + '">' +
+        String(row.name || row.code || '').replace(/</g, '&lt;') + '</option>';
+    }
+    selectEl.innerHTML = html;
+    selectEl.setAttribute('data-pbj-states-loaded', '1');
+  }
+
+  function ownersNavDropdownHtml(active) {
+    /* Legacy name: Owners is a plain /owners link (no dropdown / no FEC). */
+    return (
+      '<a href="/owners" class="nav-link' + (active ? ' active' : '') + '"' +
+      (active ? ' aria-current="page"' : '') + '>Owners</a>'
+    );
+  }
+
+  function bindOwnersNavDropdown(scope) {
+    /* Dropdown removed — no-op kept for call-site compatibility. */
+  }
+
+  function ownersRouteActive(path) {
+    return path.indexOf('/owners') === 0;
+  }
 
   function navPathActive(path, href) {
     var linkPath = href.replace(/\/$/, '') || '/';
@@ -306,24 +368,19 @@
     if (linkPath === '/phoebe' && path.indexOf('/phoebe') === 0) return true;
     if (linkPath === '/about' && path.indexOf('/about') === 0) return true;
     if (linkPath === '/premium' && path.indexOf('/premium') === 0) return true;
+    if (linkPath === '/owners' && ownersRouteActive(path)) return true;
     return false;
   }
 
   function navMenuMatchesPreset(menu) {
-    var links = menu.querySelectorAll('a[href]');
-    if (links.length !== SITE_NAV_ITEMS.length) return false;
-    for (var i = 0; i < SITE_NAV_ITEMS.length; i++) {
-      if (links[i].getAttribute('href') !== SITE_NAV_ITEMS[i][0]) return false;
-      if ((links[i].textContent || '').trim() !== SITE_NAV_ITEMS[i][1]) return false;
-    }
-    return true;
+    return menu.getAttribute('data-pbj-nav-version') === 'owners-v2';
   }
 
-  /** Same top nav on every static page (no FEC / Contact shortcuts). */
+  /** Same top nav on every static page (Owners → /owners; no FEC nav). */
   function normalizeSiteNavbar() {
     var menu = document.querySelector('.navbar .nav-menu') || document.querySelector('.navbar .nav-links');
     if (!menu) return;
-    if (navMenuMatchesPreset(menu)) {
+    if (navMenuMatchesPreset(menu) && menu.querySelector('a.nav-link[href="/owners"]') && !menu.querySelector('[data-pbj-owners-nav]')) {
       markActiveNavLink();
       return;
     }
@@ -335,14 +392,20 @@
     for (var i = 0; i < SITE_NAV_ITEMS.length; i++) {
       var href = SITE_NAV_ITEMS[i][0];
       var label = SITE_NAV_ITEMS[i][1];
+      var extraClass = SITE_NAV_ITEMS[i][2] || '';
       var active = navPathActive(path, href);
+      var className = useNavLink ? 'nav-link' : '';
+      if (active) className += (className ? ' ' : '') + (useNavLink ? 'active' : '');
+      if (extraClass === 'phoebe-mobile') className += (className ? ' ' : '') + 'nav-link--phoebe-mobile';
       if (useNavLink) {
-        html += '<a href="' + href + '" class="nav-link' + (active ? ' active' : '') + '">' + label + '</a>';
+        html += '<a href="' + href + '" class="' + className + '"' +
+          (active ? ' aria-current="page"' : '') + '>' + label + '</a>';
       } else {
-        html += '<a href="' + href + '"' + (active ? ' class="active" aria-current="page"' : '') + '">' + label + '</a>';
+        html += '<a href="' + href + '"' + (active ? ' class="active" aria-current="page"' : '') + '>' + label + '</a>';
       }
     }
     menu.innerHTML = html;
+    menu.setAttribute('data-pbj-nav-version', 'owners-v2');
   }
 
   function bindMobileNavToggle() {
@@ -415,6 +478,8 @@
       '@media (min-width:769px){',
       '  .navbar .nav-menu{position:static !important;flex-direction:row !important;height:auto !important;min-height:0 !important;background:transparent !important;border:0 !important;padding:0 !important;margin:0 !important;}',
       '  .navbar .nav-link{padding:8px 0 !important;min-height:0 !important;border:0 !important;display:inline-block !important;}',
+      '  .navbar .nav-link--phoebe-mobile{display:none!important;}',
+      '  .navbar .nav-owners-dropdown .nav-owners-trigger{border:0!important;border-bottom:0!important;}',
       '}',
       '.navbar .nav-link:hover{color:#93c5fd !important;}',
       '.navbar .nav-link.active{color:#60a5fa !important;font-weight:600 !important;}',

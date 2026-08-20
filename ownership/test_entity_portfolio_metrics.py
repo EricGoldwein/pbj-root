@@ -62,6 +62,9 @@ class TestEntityPortfolioMetrics(unittest.TestCase):
         self.assertGreaterEqual(ps["n_with_overall_for_dist"], PORTFOLIO_STAR_DIST_MIN)
         html = portfolio_distribution_html(ps, id_prefix="entityDist")
         self.assertIn("owner-dist-card", html)
+        self.assertIn("CMS ratings for linked facilities (overall)", html)
+        self.assertIn("CMS ratings for linked facilities (staffing)", html)
+        self.assertNotIn("Overall CMS star rating", html)
 
     def test_entity_block_includes_snapshot(self) -> None:
         facilities = [self._fac()]

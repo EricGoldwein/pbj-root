@@ -17,12 +17,67 @@ OwnerIndexClass = Literal["index", "noindex_follow", "suppress"]
 _OWNER_INDEX_CACHE_GZ = Path(__file__).resolve().parent / "owner_indexability_cache.json.gz"
 _AUDIT_DEFAULT_CSV = Path(__file__).resolve().parent / "owner_indexability_audit.csv"
 
+# Exact placeholder tokens (case-insensitive after normalize).
+SUPPRESS_OWNER_NAME_EXACT: frozenset[str] = frozenset(
+    {
+        "unknown",
+        "unknown party",
+        "unknown parties",
+        "unknown owner",
+        "unknown owners",
+        "n/a",
+        "na",
+        "none",
+        "null",
+        "nil",
+        "organization",
+        "org",
+        "test",
+        "tbd",
+        "placeholder",
+        "not available",
+        "not applicable",
+        "—",
+        "-",
+        ".",
+        "",
+    }
+)
 _PLACEHOLDER_NAME_RE = re.compile(
-    r"^(unknown|organization|org|n/?a|none|null|test|tbd|—|-|\.)$",
+    r"^(?:"
+    r"unknown(\s+party|\s+parties|\s+owner|\s+owners)?"
+    r"|organization|org"
+    r"|n/?a|none|null|nil"
+    r"|test|tbd|placeholder"
+    r"|not\s+(?:available|applicable)"
+    r"|—|-|\."
+    r")$",
     re.IGNORECASE,
 )
 _CHOW_RECENT_YEARS = 3
 _CCN_ALLOWED_RE = re.compile(r"^[A-Z0-9]{1,6}$")
+
+# Flags that alone do NOT justify indexing a thin single-facility page.
+THIN_CONTEXT_ONLY_FLAGS: frozenset[str] = frozenset(
+    {
+        "network",  # legacy / gated — bare co-enrollment must not index
+        "operator_grouping",  # enrollment/operator role alone is thin admin signal
+    }
+)
+# Meaningful single-facility index signals (co-enrollment / operator_grouping alone excluded).
+INDEXABLE_CONTEXT_FLAGS: frozenset[str] = frozenset(
+    {
+        "abuse",
+        "sff",
+        "sffc",
+        "recent_chow",
+        "multi_state",
+        "portfolio",
+        "shared_ownership_interest",
+        "affiliated",
+        "enforcement",
+    }
+)
 
 
 def _clean_name(val: Any) -> str:
@@ -33,6 +88,9 @@ def is_suppress_owner_name(name: str) -> bool:
     """True when display name is blank, placeholder, or too ambiguous to publish."""
     s = _clean_name(name)
     if not s or len(s) < 2:
+        return True
+    low = s.casefold()
+    if low in SUPPRESS_OWNER_NAME_EXACT:
         return True
     if _PLACEHOLDER_NAME_RE.match(s):
         return True
@@ -135,8 +193,11 @@ def meaningful_context_flags(profile: dict[str, Any]) -> list[str]:
     if int(ps.get("n_facilities") or len(facilities) or 0) >= 2:
         flags.append("portfolio")
 
-    if profile.get("related_associates"):
-        flags.append("network")
+    # Do NOT treat bare related_associates / co-enrollment as indexable "network".
+    # shared_ownership_interest only when a related associate shares ownership_interest.
+    related = profile.get("related_associates") or []
+    if any(bool(r.get("shared_ownership_interest") or r.get("is_ownership_interest")) for r in related):
+        flags.append("shared_ownership_interest")
 
     if profile.get("control_parties"):
         flags.append("affiliated")
@@ -196,11 +257,23 @@ def classify_owner_profile(profile: dict[str, Any] | None) -> tuple[OwnerIndexCl
     meta["flags"] = flags
 
     if active_n >= 2:
+        from ownership.publication_taxonomy import classify_publication_segment
+
+        seg = classify_publication_segment(profile)
+        if seg == "administrative_enrollment_style":
+            strong = [f for f in flags if f in INDEXABLE_CONTEXT_FLAGS]
+            n_fac = int((profile.get("portfolio_summary") or {}).get("n_facilities") or active_n)
+            if not strong and n_fac < 3:
+                return "noindex_follow", "thin_administrative_enrollment", meta
         return "index", "two_or_more_active_facilities", meta
 
     if active_n == 1:
-        if flags:
-            return "index", f"single_facility_with_context:{','.join(flags[:3])}", meta
+        indexable = [f for f in flags if f in INDEXABLE_CONTEXT_FLAGS]
+        if indexable:
+            return "index", f"single_facility_with_context:{','.join(indexable[:3])}", meta
+        thin_only = [f for f in flags if f in THIN_CONTEXT_ONLY_FLAGS]
+        if thin_only:
+            return "noindex_follow", f"thin_context_only:{','.join(thin_only[:3])}", meta
         return "noindex_follow", "single_facility_no_context", meta
 
     # No active roster facilities
@@ -310,10 +383,68 @@ def refresh_owner_indexability_cache(
     *,
     audit_csv: Path | None = None,
     log: bool = True,
+    force_profile_scan: bool = False,
 ) -> tuple[list[dict[str, Any]], dict[str, int]]:
     """
-    Scan public CT/NY catalog PACs, classify each resolved profile, write cache + CSV.
+    Classify public PACs for sitemap/index policy.
+
+    Prefer ownership.canonical_store materialization (no per-PAC full profiles).
+    Legacy profile-scan path remains behind force_profile_scan=True for parity checks.
     """
+    if not force_profile_scan:
+        try:
+            from ownership.canonical_store import (
+                PAC_IDX_TABLE,
+                connect,
+                materialize_canonical_store,
+            )
+
+            conn = connect()
+            try:
+                has_table = conn.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+                    (PAC_IDX_TABLE,),
+                ).fetchone()
+            finally:
+                conn.close()
+            if not has_table:
+                materialize_canonical_store()
+            conn = connect()
+            try:
+                rows = []
+                for r in conn.execute(
+                    f'SELECT pac, classification, reason, flags, owner_name, '
+                    f'facility_count, active_facility_count FROM "{PAC_IDX_TABLE}"'
+                ):
+                    rows.append(
+                        {
+                            "associate_id": r["pac"],
+                            "classification": r["classification"],
+                            "reason": r["reason"] or "",
+                            "flags": [f for f in str(r["flags"] or "").split(",") if f],
+                            "owner_name": r["owner_name"] or "",
+                            "facility_count": r["facility_count"] or 0,
+                            "active_facility_count": r["active_facility_count"] or 0,
+                        }
+                    )
+            finally:
+                conn.close()
+            _write_owner_indexability_cache(rows)
+            csv_path = write_owner_indexability_audit_csv(rows, audit_csv)
+            if log:
+                log_owner_indexability_summary(rows)
+                print(
+                    f"[owner_indexability] canonical store path; audit CSV: {csv_path}",
+                    flush=True,
+                )
+            return rows, summarize_owner_indexability_rows(rows)
+        except Exception as exc:
+            print(
+                f"[owner_indexability] canonical path failed ({exc}); "
+                "falling back to profile scan",
+                flush=True,
+            )
+
     from ownership.owner_profile import (
         load_owner_profile_resolved,
         normalize_associate_id,
@@ -365,7 +496,10 @@ def public_owner_associate_ids_for_sitemap(*, cache_only: bool = False) -> list[
         return sorted(
             pac
             for pac, row in cache.items()
-            if str(row.get("classification") or "") == "index" and len(pac) == 10
+            if str(row.get("classification") or "") == "index"
+            and len(pac) == 10
+            # Re-check suppress even if cache is stale.
+            and not is_suppress_owner_name(str(row.get("owner_name") or ""))
         )
     if cache_only:
         return []
@@ -401,8 +535,12 @@ def classification_for_pac(pac: str, profile: dict[str, Any] | None) -> tuple[Ow
         if cl not in ("index", "noindex_follow", "suppress"):
             cl = "suppress"
         reason = str(row.get("reason") or "")
+        owner_name = str(row.get("owner_name") or "")
+        if is_suppress_owner_name(owner_name):
+            cl = "suppress"
+            reason = "bad_or_blank_name"
         meta = {
-            "owner_name": row.get("owner_name") or "",
+            "owner_name": owner_name,
             "associate_id": pac_n,
             "facility_count": row.get("facility_count") or 0,
             "active_facility_count": row.get("active_facility_count") or 0,

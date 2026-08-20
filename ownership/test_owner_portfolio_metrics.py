@@ -12,7 +12,7 @@ if str(_ROOT) not in sys.path:
 from ownership.owner_portfolio_metrics import (  # noqa: E402
     PORTFOLIO_HPRD_MAX,
     PORTFOLIO_HPRD_MIN,
-    build_portfolio_summary,
+    _rollup_portfolio_metrics,
     is_plausible_overall_rating,
     is_plausible_portfolio_hprd,
 )
@@ -34,7 +34,15 @@ def _fac(
         "census": census,
         "beds": beds,
         "pbj_matched": matched,
+        # Owner rollup only averages HPRD when ownership-period attribution is supported.
+        "hprd_attribution_status": "supported" if matched else "uncertain",
+        "role_category": "ownership_interest",
     }
+
+
+def _summary(rows: list[dict]) -> dict:
+    """Rollup without enrich_facilities (fixtures already carry attribution)."""
+    return _rollup_portfolio_metrics(rows, context="owner")
 
 
 class PortfolioPlausibilityTests(unittest.TestCase):
@@ -52,7 +60,7 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertFalse(is_plausible_overall_rating(6.0))
 
     def test_excludes_low_hprd_outlier(self) -> None:
-        ps = build_portfolio_summary(
+        ps = _summary(
             [
                 _fac(hprd="3.0", census="100"),
                 _fac(hprd="0.4", census="100"),
@@ -63,19 +71,19 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertAlmostEqual(ps["umean_hprd"], 3.0)
 
     def test_excludes_high_hprd_outlier(self) -> None:
-        ps = build_portfolio_summary([_fac(hprd="3.0"), _fac(hprd="13.0")])
+        ps = _summary([_fac(hprd="3.0"), _fac(hprd="13.0")])
         self.assertEqual(ps["n_hprd_outlier_excluded"], 1)
         self.assertAlmostEqual(ps["wmean_hprd"], 3.0)
 
     def test_missing_hprd_counted_not_averaged(self) -> None:
-        ps = build_portfolio_summary([_fac(hprd="3.0"), _fac(hprd=None)])
+        ps = _summary([_fac(hprd="3.0"), _fac(hprd=None)])
         self.assertEqual(ps["n_missing_hprd"], 1)
         self.assertAlmostEqual(ps["wmean_hprd"], 3.0)
 
     def test_star_distribution_counts(self) -> None:
         low_stf = _fac(overall="3", matched=True)
         low_stf["staffing_rating"] = "2"
-        ps = build_portfolio_summary(
+        ps = _summary(
             [
                 _fac(overall="5", matched=True),
                 _fac(overall="3", matched=True),
@@ -93,20 +101,18 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         from ownership.owner_profile_html import _portfolio_distribution_html
 
         self.assertEqual(PORTFOLIO_STAR_DIST_MIN, 5)
-        ps_small = build_portfolio_summary(
+        ps_small = _summary(
             [_fac(overall="5", matched=True), _fac(overall="3", matched=True)]
         )
         self.assertNotIn("owner-dist-card", _portfolio_distribution_html(ps_small))
-        ps_large = build_portfolio_summary(
-            [_fac(overall="5", matched=True) for _ in range(5)]
-        )
+        ps_large = _summary([_fac(overall="5", matched=True) for _ in range(5)])
         self.assertIn("owner-dist-card", _portfolio_distribution_html(ps_large))
         from ownership.owner_profile_html import _portfolio_state_distribution
 
         self.assertEqual("", _portfolio_state_distribution([("NY", 1)], 1))
 
     def test_unmatched_facility_excluded_from_means(self) -> None:
-        ps = build_portfolio_summary(
+        ps = _summary(
             [
                 _fac(hprd="3.0", matched=True),
                 _fac(hprd="1.0", matched=False),
@@ -115,7 +121,7 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertAlmostEqual(ps["wmean_hprd"], 3.0)
 
     def test_no_weight_fallback_to_one(self) -> None:
-        ps = build_portfolio_summary(
+        ps = _summary(
             [
                 _fac(hprd="4.0", census="200", beds=None),
                 _fac(hprd="2.0", census=None, beds=None),
@@ -126,14 +132,17 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertAlmostEqual(ps["umean_hprd"], 3.0)
 
     def test_rating_outlier_excluded(self) -> None:
-        ps = build_portfolio_summary(
+        ps = _summary(
             [
                 _fac(overall="3"),
                 _fac(overall="9"),
             ]
         )
         self.assertEqual(ps["n_rating_outlier_excluded"], 1)
-        self.assertEqual(ps["mean_overall_rating"], 3.0)
+        # Owner pages do not expose Care Compare means as owner-period performance.
+        self.assertIsNone(ps["mean_overall_rating"])
+        self.assertEqual(ps["overall_star_counts"].get(3), 1)
+        self.assertEqual(ps["n_with_overall_for_dist"], 1)
 
 
 if __name__ == "__main__":

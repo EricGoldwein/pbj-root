@@ -99,21 +99,22 @@ def promote_build_db() -> bool:
 
 
 def build_derived_indexes(*, db_path: Path | None = None) -> None:
-    """Gzip state indexes + search catalog from an existing SQLite owners DB."""
+    """Materialize canonical current-state tables + gzip artifacts from SQLite."""
     db = db_path or DB_PATH
     if not db.is_file():
         print(f"[build_snf_owners_index] Skip derived indexes: missing {db.name}")
         sys.exit(1)
-    print(f"[build_snf_owners_index] Derived indexes from {db.name}")
-    build_state_top_owners(db_path=db)
-    build_state_owner_index_lists(db_path=db)
-    from ownership.owner_profile import write_public_owner_search_catalog_file  # noqa: E402
+    print(f"[build_snf_owners_index] Canonical materialization from {db.name}")
+    from ownership.canonical_store import materialize_canonical_store  # noqa: E402
+    from ownership.owner_profile import snf_owners_csv_path  # noqa: E402
 
-    n_ct = write_public_owner_search_catalog_file()
-    print(f"[build_snf_owners_index] ct_owner_search_catalog: {n_ct:,} rows")
-    from ownership.owner_indexability import refresh_owner_indexability_cache  # noqa: E402
-
-    refresh_owner_indexability_cache()
+    csv_path = snf_owners_csv_path()
+    release = csv_path.name if csv_path else None
+    stats = materialize_canonical_store(db_path=db, source_release=release)
+    print(
+        f"[build_snf_owners_index] canonical done in {stats.get('stages', {}).get('total_s')}s "
+        f"indexability={stats.get('indexability')} search={stats.get('search_lite_rows')}"
+    )
 
 
 def build_sqlite_from_csv(*, out_path: Path) -> None:
@@ -218,6 +219,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
     from ownership.role_classification import (  # noqa: E402
         accumulate_facility_link,
         facility_link_counts_from_buckets,
+        intersect_facility_link_buckets,
     )
 
     owner_link_buckets: dict[str, dict[str, set[str]]] = {}
@@ -253,7 +255,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
                 meta[ow_pac] = {
                     "associate_id": ow_pac,
                     "name": _owner_display_name(row),
-                    "profile_url": associate_profile_url(ow_pac),
+                    "profile_url": associate_profile_url(ow_pac, _owner_display_name(row)),
                 }
     finally:
         conn.close()
@@ -263,14 +265,16 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
         rows: list[dict[str, Any]] = []
         for pac, ccns in owners.items():
             m = meta.get(pac) or {}
-            buckets = owner_link_buckets.get(pac) or {"any": ccns}
-            counts = facility_link_counts_from_buckets(buckets)
+            buckets = owner_link_buckets.get(pac) or {"any": set(ccns)}
+            state_buckets = intersect_facility_link_buckets(buckets, ccns)
+            counts = facility_link_counts_from_buckets(state_buckets)
             counts["facility_count"] = len(ccns)
             rows.append(
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    "profile_url": m.get("profile_url")
+                    or associate_profile_url(pac, str(m.get("name") or "")),
                     **counts,
                 }
             )
@@ -284,7 +288,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
 
 
 def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
-    """Full owner/control org lists for state index pages (NY/CT public; FL draft)."""
+    """Full owner/control org lists for state index pages (all U.S. states + D.C.)."""
     from ownership.state_owner_index import STATE_OWNER_INDEX_STATES  # noqa: E402
     from ownership.owner_profile import (  # noqa: E402
         OWNER_PAC_COL,
@@ -311,6 +315,7 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
     from ownership.role_classification import (  # noqa: E402
         accumulate_facility_link,
         facility_link_counts_from_buckets,
+        intersect_facility_link_buckets,
     )
 
     owner_link_buckets: dict[str, dict[str, set[str]]] = {}
@@ -346,10 +351,11 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
             accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
             by_state[fac_st].setdefault(ow_pac, set()).add(ccn_norm)
             if ow_pac not in meta:
+                disp = _owner_display_name(row)
                 meta[ow_pac] = {
                     "associate_id": ow_pac,
-                    "name": _owner_display_name(row),
-                    "profile_url": associate_profile_url(ow_pac),
+                    "name": disp,
+                    "profile_url": associate_profile_url(ow_pac, disp),
                 }
     finally:
         conn.close()
@@ -360,14 +366,16 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
         rows: list[dict[str, Any]] = []
         for pac, ccns in owners.items():
             m = meta.get(pac) or {}
-            buckets = owner_link_buckets.get(pac) or {"any": ccns}
-            counts = facility_link_counts_from_buckets(buckets)
+            buckets = owner_link_buckets.get(pac) or {"any": set(ccns)}
+            state_buckets = intersect_facility_link_buckets(buckets, ccns)
+            counts = facility_link_counts_from_buckets(state_buckets)
             counts["facility_count"] = len(ccns)
             rows.append(
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    "profile_url": m.get("profile_url")
+                    or associate_profile_url(pac, str(m.get("name") or "")),
                     "facility_count_total": len(total_by_pac.get(pac) or set()),
                     **counts,
                 }
@@ -384,7 +392,10 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
 
 
 if __name__ == "__main__":
-    if "--index-only" in sys.argv:
+    if "--state-owner-index" in sys.argv:
+        build_state_owner_index_lists()
+        build_state_top_owners()
+    elif "--index-only" in sys.argv:
         build_derived_indexes()
     elif "--promote-db" in sys.argv:
         if not promote_build_db():

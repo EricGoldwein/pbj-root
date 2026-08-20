@@ -1,6 +1,6 @@
 # Ownership layer — methodology & audit reference (internal)
 
-Last reviewed: 2026-05-28. Public surfaces: `/owners/`, `/owners/ny`, `/owners/ct`, `/owners/<10-digit-pac>`, provider/state ownership blocks. Public states: **CT + NY** (`ownership/beta_gate.py`).
+Last reviewed: 2026-08-20. Public surfaces: `/owners/`, `/owners/<st>`, `/owners/<10-digit-pac>/<slug>`, provider/state ownership blocks. Public states (production gate): **CT + FL + NJ + NY** (`ownership/beta_gate.py`). Nationwide publication remains held pending ownership publication-risk audit.
 
 This document is for developers and QA. It does not change user-facing copy.
 
@@ -144,7 +144,42 @@ Spec mirror: `ownership/PORTFOLIO_METRICS.md`.
 5. **Provider-info HPRD** may differ slightly from quarterly PBJ rollups on facility pages.
 6. **State assignment:** Build uses `search_index`; runtime fallback `top_owner_organizations_for_state` prefers provider_info state — rare rank/count drift if artifacts stale.
 7. **CHOW facility name** may be transaction-time; provider page may show current name.
-8. **National profiles** outside CT/NY: `noindex, follow` or suppressed per `owner_indexability.py`.
+8. **Indexability:** thin single-facility pages without extra context use `noindex, follow`; suppress → 404 (`owner_indexability.py`).
+9. **Owner-page cold path:** enrichment uses `ownership_provider_info_paths()` (latest snapshot + newest Norm only). Do **not** re-add historical `provider_info_combined.csv` to that hot path.
+
+---
+
+## 11. Cross-system map (pbj-root ↔ PBJapp ↔ Superdynamic)
+
+These are **related but not one shared runtime database**.
+
+| Surface | Ownership source | Entity model | Geography | Staffing join |
+|---------|------------------|--------------|-----------|---------------|
+| **Public `/owners/*`** (pbj-root) | `SNF_All_Owners*.csv` → `snf_owners_lookup.sqlite` (+ indexes); CHOW via `chow_index.json` | CMS **PAC** (10-digit); not CMS affiliated_entity_id | Facility state via CCN→provider_info/search_index; owner address state is fallback | Provider-info HPRD/stars on `legal_exact` only |
+| **Public `/entity/{id}`** (pbj-root) | CMS **affiliated entity** / chain performance + search_index `e[]` | Integer **entity_id** (CMS affiliated entity) | Facility states from roster | Entity portfolio uses provider_info keyed by CCN |
+| **Provider page ownership block** | Same SNF sqlite + CHOW via `page_integrations.lookup_cms_ownership_for_provider` | PAC links to `/owners/{pac}/{slug}` | Facility CCN geography | Same as provider page PBJ/provider-info |
+| **PBJapp source/pipeline** | Authoritative archives under `PBJapp/ownership/_sources/*`; syncs SNF CSV to pbj-root via `scripts/sync_to_pbj_root.py` | PAC + enrollment bridge derived tables | From enrollments/CCN bridge | Separate from public profiles |
+| **Superdynamic facility dashboard** | Primary contacts: **`NH_Ownership_*.csv`** (Care Compare ownership contacts); PAC enrichment from facility SNF slice / national SNF CSV; CHOW from `chow_index.json` (pbj-root-built) | Mix: NH contact names + optional PAC; affiliated_entity_id from provider history | Facility-centric (CCN state/city) | Facility PBJ in dashboard; ownership panel is contacts/CHOW, not portfolio means |
+
+**Stable IDs today**
+
+- Facility: **CCN** (shared everywhere)
+- CMS owner/control party: **ASSOCIATE ID - OWNER** (PAC) — public owner pages
+- CMS enrollment party: **ASSOCIATE ID** — enrollment profiles / CHOW buyers-sellers often this
+- CMS affiliated entity / chain: **entity_id** on `/entity/{id}` — **different** namespace from PAC
+- No single internal “Entity UUID” spanning PAC + affiliated_entity + NH contact strings
+
+**Highest-risk drift**
+
+1. Superdynamic **NH_Ownership** vs public **SNF_All_Owners** (different CMS products; roles/names can disagree).
+2. Public entity pages vs owner PAC pages (affiliated_entity ≠ owner PAC).
+3. CHOW index built in pbj-root, consumed by PBJapp/Superdynamic without a formal version handshake.
+4. Profile facility counts (names) vs state index counts (distinct CCNs).
+5. Provider-info period vs PBJ quarterly period on facility pages.
+
+**Preferred direction (no mega-migration yet)**
+
+Keep PAC as public owner identity; keep CCN as facility identity; keep affiliated_entity_id as chain/entity identity; treat relationships as typed edges (ownership_interest / operational_control / chow_buyer / chow_seller / affiliated_entity). Derive portfolios from edges. Do not collapse NH contacts, SNF All Owners, and affiliated entities into one “owner” table without provenance columns.
 
 ---
 

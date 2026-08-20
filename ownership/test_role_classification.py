@@ -23,6 +23,8 @@ from ownership.role_classification import (  # noqa: E402
     classify_owner_record,
     consolidate_owner_rows,
     enrich_control_party,
+    facility_link_counts_from_buckets,
+    intersect_facility_link_buckets,
     party_sort_key,
     sort_control_parties,
 )
@@ -171,6 +173,19 @@ class RoleClassificationTests(unittest.TestCase):
         self.assertEqual(parties[0]["name"], "Bob")
         self.assertEqual(parties[1]["name"], "Ann")
         self.assertEqual(parties[2]["name"], "Zed")
+
+    def test_intersect_facility_link_buckets_scopes_role_counts(self) -> None:
+        national = {
+            "any": {"tx1", "tx2", "ca1"},
+            CATEGORY_OWNERSHIP: {"tx1", "ca1", "ny1"},
+            CATEGORY_OPERATIONAL: {"tx2", "ca1"},
+        }
+        tx = {"tx1", "tx2"}
+        scoped = intersect_facility_link_buckets(national, tx)
+        counts = facility_link_counts_from_buckets(scoped)
+        self.assertEqual(counts["facility_count"], 2)
+        self.assertEqual(counts["facility_count_ownership_interest"], 1)
+        self.assertEqual(counts["facility_count_operational_control"], 1)
 
 
 if __name__ == "__main__":

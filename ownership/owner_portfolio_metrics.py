@@ -93,6 +93,44 @@ def _provider_info_csv_paths() -> list[Path]:
     return paths
 
 
+def _is_historical_provider_info_dump(path: Path) -> bool:
+    """True for the multi-quarter provider_info_combined.csv (often ~800MB+)."""
+    return path.name.lower() == "provider_info_combined.csv"
+
+
+def ownership_provider_info_paths() -> list[Path]:
+    """
+    Provider-info files for ownership enrichment / CCN crosswalks (hot path).
+
+    Prefer the deploy snapshot + newest monthly Norm. Skip the historical
+    ``provider_info_combined.csv`` dump when any slim snapshot exists — scanning
+    that file alone dominated owner-page cold starts (~90s+ locally).
+    """
+    seen: set[Path] = set()
+    ordered: list[Path] = []
+
+    def _add(path: Path) -> None:
+        if path.is_file() and path not in seen:
+            ordered.append(path)
+            seen.add(path)
+
+    latest = _REPO / "provider_info_combined_latest.csv"
+    _add(latest)
+    provider_dir = _REPO / "provider_info"
+    if provider_dir.is_dir():
+        for path in sorted(provider_dir.glob("ProviderInfoNorm_*.csv"), reverse=True)[:1]:
+            _add(path)
+    _add(_REPO / "provider_info_norm.csv")
+
+    if ordered:
+        return ordered
+
+    # Last resort: any available path including historical dump.
+    for path in _provider_info_csv_paths():
+        _add(path)
+    return ordered
+
+
 def provider_info_crosswalk_paths() -> list[Path]:
     """
     Provider files for ownership CCN / legal-name crosswalks.
@@ -102,11 +140,11 @@ def provider_info_crosswalk_paths() -> list[Path]:
     """
     seen: set[Path] = set()
     ordered: list[Path] = []
-    for path in _provider_info_csv_paths():
+    for path in ownership_provider_info_paths():
         if "combined" in path.name.lower() and path.is_file() and path not in seen:
             ordered.append(path)
             seen.add(path)
-    for path in _provider_info_csv_paths():
+    for path in ownership_provider_info_paths():
         if path.is_file() and path not in seen:
             ordered.append(path)
             seen.add(path)
@@ -260,17 +298,18 @@ def _provider_info_rows_from_path(path: Path) -> dict[str, dict[str, str]]:
 @lru_cache(maxsize=1)
 def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
     """
-    Provider-info row per CCN merged across snapshots.
+    Provider-info row per CCN for ownership portfolio enrichment.
 
-    Monthly ProviderInfoNorm exports are read last (fresh names/ratings) but may omit
-    mailing address; older combined snapshots backfill street/zip when newer rows are blank.
-    Verified from: ProviderInfoNorm_2026_05.csv vs provider_info_combined_latest.csv (CCN 365394).
+    Uses ``ownership_provider_info_paths()`` (latest snapshot + newest Norm).
+    Newer files overwrite non-empty fields. Does not scan the historical
+    multi-quarter ``provider_info_combined.csv`` when a slim snapshot exists.
     """
-    paths = [p for p in _provider_info_csv_paths() if p.is_file()]
+    paths = ownership_provider_info_paths()
     if not paths:
         return {}
 
     merged: dict[str, dict[str, str]] = {}
+    # Paths are newest-first; reverse so newer rows win on merge.
     for path in reversed(paths):
         for ccn, row in _provider_info_rows_from_path(path).items():
             if ccn in merged:

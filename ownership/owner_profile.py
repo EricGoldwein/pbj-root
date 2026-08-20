@@ -561,14 +561,44 @@ def classify_associate_id(associate_id: str) -> str:
     return "none"
 
 
+def owner_display_slug(display_name: str | None) -> str:
+    """Human-readable URL slug from an owner/entity display name (descriptive only)."""
+    raw = format_org_display(str(display_name or "").strip()) or str(display_name or "").strip()
+    if not raw:
+        return "owner"
+    slug = re.sub(r"[^a-z0-9]+", "-", raw.lower())
+    slug = re.sub(r"-{2,}", "-", slug).strip("-")
+    return slug or "owner"
+
+
 def associate_profile_url(associate_id: str, org_name: str = "") -> str:
-    """URL for a CMS associate ID (enrollment or owner/control profile at /owners/{pac})."""
+    """
+    Canonical CMS owner profile path.
+
+    Durable identity is the 10-digit PAC. When a display name is known, include the
+    descriptive slug: /owners/{pac}/{slug}. ID-only /owners/{pac} remains valid and
+    301-redirects to the current canonical slug at request time.
+    """
     pac = normalize_associate_id(associate_id)
     if len(pac) == 10:
+        name = (org_name or "").strip()
+        if name:
+            return f"/owners/{pac}/{owner_display_slug(name)}"
         return f"/owners/{pac}"
     if (org_name or "").strip() or (associate_id or "").strip():
         return "/owner"
     return ""
+
+
+def owner_profile_canonical_path(profile: dict[str, Any] | None) -> str:
+    """Canonical /owners/{pac}/{slug} path for a loaded profile dict."""
+    if not profile:
+        return ""
+    pac = normalize_associate_id(str(profile.get("associate_id") or ""))
+    if len(pac) != 10:
+        return ""
+    name = str(profile.get("display_name") or "").strip()
+    return associate_profile_url(pac, name)
 
 
 def _owner_pac_in_lookup(pac: str) -> bool:
@@ -676,7 +706,7 @@ def _build_control_parties(enrollment_rows: Sequence[dict[str, Any]]) -> list[di
             "roles": roles_fmt or base.get("roles") or [],
             "pcts": pcts or base.get("pcts") or [],
             "association_dates": dates or base.get("association_dates") or [],
-            "profile_url": associate_profile_url(owner_pac),
+            "profile_url": associate_profile_url(owner_pac, _owner_display_name(first)),
             "is_owner_control_pac": _owner_pac_in_lookup(owner_pac),
         }
         return enrich_control_party(party)
@@ -796,7 +826,7 @@ def _ownership_lookup_from_enrollment_pac(
     return {
         "enrollment_pac": pac,
         "enrollment_name": enrollment_name,
-        "enrollment_profile_url": associate_profile_url(pac),
+        "enrollment_profile_url": associate_profile_url(pac, enrollment_name),
         "control_parties": parties,
         "matched_via": matched_via,
         **_ownership_source_fields(path),
@@ -908,7 +938,9 @@ def _snf_coowners_on_shared_enrollments(
                         "associate_id": ow_pac,
                         "name": names.get(ow_pac) or ow_pac,
                         "count": len(en_set),
-                        "profile_url": associate_profile_url(ow_pac),
+                        "profile_url": associate_profile_url(
+                            ow_pac, names.get(ow_pac) or ""
+                        ),
                     }
                 )
             coowners.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
@@ -960,7 +992,7 @@ def _snf_coowners_on_shared_enrollments(
                 "associate_id": ow_pac,
                 "name": names.get(ow_pac) or ow_pac,
                 "count": len(en_set),
-                "profile_url": associate_profile_url(ow_pac),
+                "profile_url": associate_profile_url(ow_pac, names.get(ow_pac) or ""),
             }
         )
     out.sort(key=lambda x: (-int(x.get("count") or 0), str(x.get("name") or "")))
@@ -1024,9 +1056,13 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
         oid = normalize_associate_id(associate_id)
         if len(oid) == 10:
             row["associate_id"] = oid
-            row["profile_url"] = profile_url or associate_profile_url(oid)
+            row["profile_url"] = profile_url or associate_profile_url(
+                oid, name or str(row.get("name") or "")
+            )
         if name and (not row["name"] or len(str(name)) > len(str(row["name"]))):
             row["name"] = format_org_display(name)
+            if len(oid) == 10:
+                row["profile_url"] = profile_url or associate_profile_url(oid, row["name"])
 
     for rec in profile.get("chow_transactions") or []:
         role = str(rec.get("chow_role") or "")
@@ -1202,10 +1238,11 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
             return
         accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
         if ow_pac not in owner_meta:
+            disp = _owner_display_name(row)
             owner_meta[ow_pac] = {
                 "associate_id": ow_pac,
-                "name": _owner_display_name(row),
-                "profile_url": associate_profile_url(ow_pac),
+                "name": disp,
+                "profile_url": associate_profile_url(ow_pac, disp),
             }
 
     conn = _sqlite_conn()
@@ -1241,7 +1278,8 @@ def top_owner_organizations_for_state(state_code: str, limit: int = 8) -> list[d
             {
                 "associate_id": pac,
                 "name": meta.get("name") or pac,
-                "profile_url": meta.get("profile_url") or associate_profile_url(pac),
+                "profile_url": meta.get("profile_url")
+                or associate_profile_url(pac, str(meta.get("name") or "")),
                 **counts,
             }
         )
@@ -1486,8 +1524,9 @@ _CT_OWNER_SEARCH_GZ = _OWNERSHIP_DIR / "ct_owner_search_catalog.json.gz"
 
 def _build_public_owner_search_catalog_entries() -> list[dict[str, str]]:
     """
-    Searchable PACs for ownership profiles in public-launch states (Connecticut).
-    Prefer ct_owner_search_catalog.json.gz from scripts/build_snf_owners_index.py on deploy.
+    Searchable PACs for ownership profiles in public-gate states
+    (see OWNERSHIP_PUBLIC_STATES). Prefer ct_owner_search_catalog.json.gz from
+    scripts/build_snf_owners_index.py on deploy.
     """
     from ownership.beta_gate import OWNERSHIP_PUBLIC_STATES
 
@@ -1642,7 +1681,7 @@ def search_public_owner_profiles(
                     {
                         "associate_id": pac,
                         "name": name,
-                        "profile_url": associate_profile_url(pac),
+                        "profile_url": associate_profile_url(pac, name),
                     }
                 ]
         return []
@@ -1668,7 +1707,7 @@ def search_public_owner_profiles(
             {
                 "associate_id": pac,
                 "name": name,
-                "profile_url": associate_profile_url(pac),
+                "profile_url": associate_profile_url(pac, name),
             }
         )
     return out

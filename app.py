@@ -6671,12 +6671,12 @@ if csrf_protect:
 
 
 def generate_owner_profile_html(profile, *, robots_meta=None):
-    """Public CMS profile at /owners/<pac> — enrollment, owner/control, or CHOW fallback."""
+    """Public CMS profile at /owners/<pac>/<slug> — enrollment, owner/control, or CHOW fallback."""
     from ownership.owner_profile_html import render_owner_profile_body
 
-    body, page_title, meta_desc, _canon_suffix = render_owner_profile_body(profile)
+    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(profile)
     base = _public_site_origin()
-    canon = base + _canon_suffix
+    canon = base + canon_suffix
     display_name = str(profile.get('display_name') or 'Organization').strip()
     n_fac = len(profile.get('facilities') or [])
     owner_json_ld = _owner_page_json_ld_scripts(
@@ -6685,11 +6685,16 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
         facility_count=n_fac,
         meta_description=meta_desc,
     )
+    og_owner = f'{base}/og-owner-pbj320.png'
     layout = get_pbj_site_layout(
         page_title,
         meta_desc,
         canon,
         robots_meta=robots_meta,
+        og_image_url=og_owner,
+        og_image_width=1200,
+        og_image_height=630,
+        og_image_alt=f'{display_name} — nursing home ownership on PBJ320',
         extra_head=owner_json_ld + (
             f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
@@ -6701,15 +6706,44 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
-def cms_owner_profile_page(owner_id):
-    """CMS ownership profile by 10-digit PAC (Connecticut public launch only)."""
-    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+def cms_owner_profile_page(owner_id, requested_slug=None):
+    """CMS ownership profile by 10-digit PAC; optional slug is descriptive only."""
+    from ownership.owner_profile import (
+        associate_profile_url,
+        load_owner_profile_resolved,
+        normalize_associate_id,
+        owner_profile_canonical_path,
+    )
+    from ownership.owner_indexability import (
+        classification_for_pac,
+        load_owner_indexability_cache,
+        owner_robots_meta,
+    )
 
     pac = normalize_associate_id(owner_id)
     if len(pac) != 10 or not pac.isdigit():
         return redirect(f'/owner/{owner_id}', code=302)
     if not HAS_PANDAS:
         return 'Pandas not available. Owner pages require pandas.', 503
+
+    req_path = (request.path or '').rstrip('/') or '/'
+    qs = request.query_string.decode() if request.query_string else ''
+
+    # Fast 301 path: resolve slug from deploy indexability cache without loading
+    # the full profile / provider-info enrichment (avoids multi-second cold starts
+    # when the client only needs ID→canonical redirect).
+    cache_row = (load_owner_indexability_cache() or {}).get(pac) or {}
+    cache_class = str(cache_row.get('classification') or '').strip()
+    cache_name = str(cache_row.get('owner_name') or '').strip()
+    if cache_class == 'suppress':
+        from flask import abort
+        abort(404)
+    if cache_name and cache_class in ('index', 'noindex_follow'):
+        fast_canon = associate_profile_url(pac, cache_name)
+        if fast_canon and req_path != fast_canon.rstrip('/'):
+            target = f'{fast_canon}?{qs}' if qs else fast_canon
+            return redirect(target, code=301)
+
     try:
         profile = load_owner_profile_resolved(pac)
     except Exception as _owner_load_err:
@@ -6728,7 +6762,6 @@ def cms_owner_profile_page(owner_id):
     if not profile_is_visible(profile):
         from flask import abort
         abort(404)
-    from ownership.owner_indexability import classification_for_pac, owner_robots_meta
 
     index_class, _index_reason, _index_meta = classification_for_pac(pac, profile)
     if index_class == 'suppress':
@@ -6737,6 +6770,14 @@ def cms_owner_profile_page(owner_id):
     robots_meta = owner_robots_meta(index_class)
     if not profile_has_public_state(profile):
         robots_meta = 'noindex, follow'
+
+    canon_path = owner_profile_canonical_path(profile)
+    if canon_path and req_path != canon_path.rstrip('/'):
+        target = canon_path
+        if qs:
+            target = f'{target}?{qs}'
+        return redirect(target, code=301)
+
     try:
         html = generate_owner_profile_html(profile, robots_meta=robots_meta)
     except Exception as _owner_render_err:
@@ -7004,10 +7045,13 @@ def owners_state_index_route():
 
 @app.route('/owners/<path:subpath>')
 def owners_legacy_router(subpath):
-    """/owners/<pac> CMS profiles; /owners/<state> indexes; other paths → FEC or locked-state message."""
-    segment = (subpath or '').strip().split('/')[0]
-    if segment.isdigit() and len(segment) == 10 and subpath.strip() == segment:
-        return cms_owner_profile_page(segment)
+    """/owners/<pac>[/<slug>] CMS profiles; /owners/<state> indexes; other paths → FEC or locked-state message."""
+    parts = [p for p in (subpath or '').strip('/').split('/') if p]
+    segment = parts[0] if parts else ''
+    if segment.isdigit() and len(segment) == 10:
+        # Durable ID; optional descriptive slug (wrong/missing slug → 301 to canonical).
+        requested_slug = parts[1] if len(parts) >= 2 else None
+        return cms_owner_profile_page(segment, requested_slug=requested_slug)
     if subpath.startswith('api/'):
         return redirect(f'/owner/api/{subpath[4:]}', code=302)
     from ownership.state_owner_index import resolve_state_owner_index_slug
@@ -9577,7 +9621,7 @@ def get_latest_provider_info_for_ccn(ccn):
     """Return (quarter_cy, row_dict) for the latest provider-info quarter available for a CCN."""
     return _latest_provider_info_row_for_ccn(ccn)
 
-def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None, route_context_overrides=None):
+def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head='', robots_meta=None, route_context_overrides=None, og_image_url=None, og_image_width=None, og_image_height=None, og_image_alt=None):
     """Return dict with head, nav, content_open, content_close for provider/entity/state pages. Matches index.html tone, colors, and footer."""
     base = _public_site_origin()
     canon = canonical_url or base
@@ -9588,7 +9632,14 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
         overrides=route_context_overrides,
     )
     _combined_extra_head = _route_context_tag + audience_assets_head() + (extra_head or '')
-    og_image = f'{base}/og-image-1200x630.png'
+    og_image = (og_image_url or '').strip() or f'{base}/og-image-1200x630.png'
+    og_dim_tags = ''
+    if og_image_width:
+        og_dim_tags += f'<meta property="og:image:width" content="{html.escape(str(og_image_width), quote=True)}">\n'
+    if og_image_height:
+        og_dim_tags += f'<meta property="og:image:height" content="{html.escape(str(og_image_height), quote=True)}">\n'
+    if og_image_alt:
+        og_dim_tags += f'<meta property="og:image:alt" content="{html.escape(str(og_image_alt), quote=True)}">\n'
     robots_line = ''
     if robots_meta:
         robots_line = f'<meta name="robots" content="{html.escape(str(robots_meta), quote=True)}">\n'
@@ -9605,7 +9656,7 @@ def get_pbj_site_layout(page_title, meta_description, canonical_url, extra_head=
 <meta property="og:url" content="{canon}">
 <meta property="og:type" content="website">
 <meta property="og:image" content="{og_image}">
-<meta property="og:site_name" content="PBJ320">
+{og_dim_tags}<meta property="og:site_name" content="PBJ320">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{html.escape(page_title)}">
 <meta name="twitter:description" content="{html.escape(meta_description)}">

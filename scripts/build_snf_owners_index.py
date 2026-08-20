@@ -253,7 +253,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
                 meta[ow_pac] = {
                     "associate_id": ow_pac,
                     "name": _owner_display_name(row),
-                    "profile_url": associate_profile_url(ow_pac),
+                    "profile_url": associate_profile_url(ow_pac, _owner_display_name(row)),
                 }
     finally:
         conn.close()
@@ -270,7 +270,8 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    "profile_url": m.get("profile_url")
+                    or associate_profile_url(pac, str(m.get("name") or "")),
                     **counts,
                 }
             )
@@ -284,7 +285,7 @@ def build_state_top_owners(*, db_path: Path | None = None) -> None:
 
 
 def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
-    """Full owner/control org lists for state index pages (NY/CT public; FL draft)."""
+    """Full owner/control org lists for state index pages (all U.S. states + D.C.)."""
     from ownership.state_owner_index import STATE_OWNER_INDEX_STATES  # noqa: E402
     from ownership.owner_profile import (  # noqa: E402
         OWNER_PAC_COL,
@@ -346,10 +347,11 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
             accumulate_facility_link(owner_link_buckets, ow_pac, ccn_norm, row)
             by_state[fac_st].setdefault(ow_pac, set()).add(ccn_norm)
             if ow_pac not in meta:
+                disp = _owner_display_name(row)
                 meta[ow_pac] = {
                     "associate_id": ow_pac,
-                    "name": _owner_display_name(row),
-                    "profile_url": associate_profile_url(ow_pac),
+                    "name": disp,
+                    "profile_url": associate_profile_url(ow_pac, disp),
                 }
     finally:
         conn.close()
@@ -367,7 +369,8 @@ def build_state_owner_index_lists(*, db_path: Path | None = None) -> None:
                 {
                     "associate_id": pac,
                     "name": m.get("name") or pac,
-                    "profile_url": m.get("profile_url") or associate_profile_url(pac),
+                    "profile_url": m.get("profile_url")
+                    or associate_profile_url(pac, str(m.get("name") or "")),
                     "facility_count_total": len(total_by_pac.get(pac) or set()),
                     **counts,
                 }

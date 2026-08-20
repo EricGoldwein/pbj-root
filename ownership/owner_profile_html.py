@@ -17,6 +17,7 @@ import re
 from ownership.beta_gate import profile_has_public_state, ownership_public_enabled_for_state
 from ownership.state_owner_index import PUBLIC_OWNER_INDEX_SLUGS, STATE_INDEX_META
 from ownership.owner_fec_section import render_owner_fec_contributions_section
+from ownership.owner_profile import owner_profile_canonical_path
 from utils.seo_utils import owner_page_seo_from_profile
 from ownership.display_format import (
     cms_rating_stars_html,
@@ -720,7 +721,7 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
       {render_owner_fec_contributions_section(profile)}
       </div>
     """
-    return body, page_title, meta_desc, f"/owners/{pac}"
+    return body, page_title, meta_desc, owner_profile_canonical_path(profile) or f"/owners/{pac}"
 
 
 def _states_meta_html(profile: dict[str, Any]) -> str:

@@ -1825,17 +1825,23 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
 }
 
 .owner-associates-collapsible {
-  margin: 0.35rem 0 1.25rem;
+  margin: 0.35rem 0 0.85rem;
   border: 1px solid rgba(100, 116, 139, 0.32);
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.55);
+}
+
+/* Suppress shared .owner-collapsible ▸ so only the far-right caret shows. */
+.owner-associates-collapsible > summary::before {
+  content: none;
+  display: none;
 }
 
 .owner-associates-summary {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.5rem 0.65rem;
+  padding: 0.45rem 0.65rem;
   cursor: pointer;
   list-style: none;
 }
@@ -1853,15 +1859,21 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
 }
 
 .owner-associates-caret {
-  display: inline-block;
-  margin-left: 0.35rem;
-  font-size: 0.75rem;
+  flex: 0 0 auto;
+  margin-left: 0.15rem;
+  width: 1rem;
+  text-align: center;
+  font-size: 0.72rem;
+  line-height: 1;
   color: #94a3b8;
-  transition: transform 0.15s ease;
 }
 
-.owner-associates-collapsible[open] .owner-associates-caret {
-  transform: rotate(180deg);
+.owner-associates-caret::before {
+  content: "▾";
+}
+
+.owner-associates-collapsible[open] .owner-associates-caret::before {
+  content: "▴";
 }
 
 .owner-associates-info {
@@ -1877,50 +1889,65 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
 
 .owner-associate-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
 }
 
 .owner-associate-table thead th {
   position: static;
   top: auto;
   z-index: 1;
-  padding: 0.35rem 0.65rem;
+  padding: 0.28rem 0.55rem;
   text-align: left;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   color: #94a3b8;
   background: rgba(30, 41, 59, 0.95);
-  border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+  border-bottom: 1px solid rgba(100, 116, 139, 0.28);
 }
 
 .owner-associate-table tbody td {
-  padding: 0.4rem 0.65rem;
-  border-bottom: 1px solid rgba(100, 116, 139, 0.18);
+  padding: 0.28rem 0.55rem;
+  border-bottom: 1px solid rgba(100, 116, 139, 0.16);
   vertical-align: middle;
+  line-height: 1.25;
 }
 
 .owner-associate-table tbody tr:last-child td {
   border-bottom: none;
 }
 
+.owner-associate-col-name {
+  width: auto;
+}
+
 .owner-associate-col-shared {
-  width: 4.5rem;
+  width: 5.75rem;
   white-space: nowrap;
+  text-align: right;
   color: #cbd5e1;
+  font-variant-numeric: tabular-nums;
+}
+
+.owner-associate-table thead th.owner-associate-col-shared {
+  text-align: right;
 }
 
 .owner-associate-col-link {
-  width: 8.5rem;
+  width: 11.5rem;
   color: #94a3b8;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .owner-associate-name {
   font-weight: 600;
-  font-size: 0.86rem;
+  font-size: 0.84rem;
   color: #e2e8f0;
   text-decoration: none;
 }
@@ -3425,7 +3452,20 @@ button.owner-flag:hover {
 .owner-m-card--associate {
   flex-direction: column;
   align-items: stretch;
-  gap: 0.15rem;
+  gap: 0.12rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.owner-m-card--associate .owner-m-card__title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.owner-m-card--associate .owner-m-card__meta {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  line-height: 1.3;
 }
 
 .owner-table-view-toggle {
@@ -5824,9 +5864,9 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 }
 
 .owner-fec-section {
-  margin-top: 2rem;
-  padding-top: 1.35rem;
-  border-top: 1px solid rgba(100, 116, 139, 0.35);
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
 }
 
 .owner-fec-hub {

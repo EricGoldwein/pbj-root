@@ -660,7 +660,7 @@ def _associate_mobile_card(r: dict[str, Any], *, n_facilities: int) -> str:
     else:
         name_html = f'<span class="owner-m-card__title">{html.escape(name)}</span>'
     shared = html.escape(_associate_shared_facilities_cell(r, n_facilities=n_facilities))
-    link_type = html.escape(_associate_source_label(r) or "—")
+    link_type = html.escape(_associate_source_label_short(r) or "—")
     meta = f'<span class="owner-m-card__meta">{shared} shared · {link_type}</span>'
     return (
         '<li class="owner-m-card owner-m-card--associate">'
@@ -1050,7 +1050,7 @@ def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -
     chow = int(r.get("chow_count") or 0)
     if snf:
         if n_facilities and snf <= n_facilities:
-            return f"{snf}/{n_facilities}"
+            return f"{snf} / {n_facilities}"
         return str(snf)
     if chow:
         return f"{chow} CHOW"
@@ -1058,15 +1058,41 @@ def _associate_shared_facilities_cell(r: dict[str, Any], *, n_facilities: int) -
 
 
 def _associate_source_label(r: dict[str, Any]) -> str:
+    """Desktop relationship column — concise, single-line when possible."""
     bits: list[str] = []
     if int(r.get("snf_shared") or 0):
         if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
-            bits.append("Shared ownership")
+            bits.append("Shared ownership interest")
         else:
             bits.append("Co-enrollee")
     if int(r.get("chow_count") or 0):
         bits.append("CHOW party")
     return " · ".join(bits) if bits else "Related"
+
+
+def _associate_source_label_short(r: dict[str, Any]) -> str:
+    """Mobile meta line — shorter relationship wording."""
+    bits: list[str] = []
+    if int(r.get("snf_shared") or 0):
+        if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
+            bits.append("Ownership interest")
+        else:
+            bits.append("Co-enrollee")
+    if int(r.get("chow_count") or 0):
+        bits.append("CHOW party")
+    return " · ".join(bits) if bits else "Related"
+
+
+def _associates_summary_html(*, count_html: str, associates_help: str) -> str:
+    """One far-right disclosure chevron; hide native/details ::before via CSS."""
+    return (
+        '<summary class="owner-associates-summary">'
+        '<span class="owner-associates-summary-label">Related CMS associates'
+        f"{count_html}</span>"
+        f"{associates_help}"
+        '<span class="owner-associates-caret" aria-hidden="true"></span>'
+        "</summary>"
+    )
 
 
 def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) -> str:
@@ -1100,13 +1126,11 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
                 f' data-associates-pac="{html.escape(pac, quote=True)}"'
                 f' data-associates-url="/owners/api/related-associates/{html.escape(pac, quote=True)}">'
                 '<details class="owner-collapsible owner-associates-collapsible">'
-                '<summary class="owner-associates-summary">'
-                '<span class="owner-associates-summary-label">Related CMS associates'
-                '<span class="owner-associates-count"></span>'
-                ' <span class="owner-associates-caret" aria-hidden="true">▾</span></span>'
-                f"{associates_help}"
-                "</summary>"
-                '<div class="owner-associates-panel" data-associates-panel>'
+                + _associates_summary_html(
+                    count_html='<span class="owner-associates-count"></span>',
+                    associates_help=associates_help,
+                )
+                + '<div class="owner-associates-panel" data-associates-panel>'
                 '<div class="owner-associates-loading pbj-meta-line" hidden>Loading…</div>'
                 "</div>"
                 "</details>"
@@ -1155,8 +1179,9 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
         '<div class="owner-associates-table-wrap">'
         '<table class="owner-associate-table"><thead><tr>'
         '<th class="owner-associate-col-name">Name</th>'
-        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">Shared</th>'
-        '<th class="owner-associate-col-link">Type</th>'
+        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">'
+        "Shared facilities</th>"
+        '<th class="owner-associate-col-link">Relationship</th>'
         "</tr></thead><tbody>"
         + "".join(trs)
         + "</tbody></table></div>"
@@ -1168,13 +1193,11 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
     return (
         '<div class="owner-associates-block" data-associates-loaded="1">'
         '<details class="owner-collapsible owner-associates-collapsible">'
-        '<summary class="owner-associates-summary">'
-        f'<span class="owner-associates-summary-label">Related CMS associates'
-        f'<span class="owner-associates-count"> · {n_show}</span>'
-        ' <span class="owner-associates-caret" aria-hidden="true">▾</span></span>'
-        f"{associates_help}"
-        "</summary>"
-        f'<div class="owner-associates-panel" data-associates-panel>{dual}</div>'
+        + _associates_summary_html(
+            count_html=f'<span class="owner-associates-count"> · {n_show}</span>',
+            associates_help=associates_help,
+        )
+        + f'<div class="owner-associates-panel" data-associates-panel>{dual}</div>'
         "</details>"
         "</div>"
     )
@@ -1208,8 +1231,9 @@ def render_related_associates_fragment(profile: dict[str, Any]) -> str:
         '<div class="owner-associates-table-wrap">'
         '<table class="owner-associate-table"><thead><tr>'
         '<th class="owner-associate-col-name">Name</th>'
-        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">Shared</th>'
-        '<th class="owner-associate-col-link">Type</th>'
+        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">'
+        "Shared facilities</th>"
+        '<th class="owner-associate-col-link">Relationship</th>'
         "</tr></thead><tbody>"
         + "".join(trs)
         + "</tbody></table></div>"

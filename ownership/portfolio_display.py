@@ -431,12 +431,13 @@ def portfolio_snapshot_section_html(
         mean_stf = ps.get("mean_staffing_rating")
 
     cards: list[str] = []
+    # Always bind before distribution render (owner + entity paths).
+    dist_prefix = "entityDist" if context == "entity" else "ownerDist"
     if context == "entity":
         _efac, ovr_help, _ehprd, stf_help = _entity_snapshot_help(ps)
         hprd_help = entity_weighted_hprd_help_body(
             ps, wmean=wmean, umean=umean, chain_hprd=chain_hprd
         )
-        dist_prefix = "entityDist"
         aria = "Entity portfolio metrics"
         hprd_label = "Weighted total nurse HPRD" if n >= 2 else "Total nurse HPRD"
         if wmean is not None:
@@ -455,6 +456,85 @@ def portfolio_snapshot_section_html(
                     html.escape(f"{umean:.2f}"),
                     hprd_label,
                     hprd_help.replace("Resident-weighted", "Unweighted"),
+                )
+            )
+        if mean_ovr is not None and n >= 2:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Avg overall rating",
+                    html.escape(f"{mean_ovr:.1f}"),
+                    "Avg overall rating",
+                    ovr_help,
+                    tone="warn",
+                )
+            )
+        elif mean_ovr is not None and n == 1:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Overall rating",
+                    html.escape(f"{mean_ovr:.1f}"),
+                    "Overall rating",
+                    "CMS overall star rating for this facility.",
+                    tone="warn",
+                )
+            )
+        if mean_stf is not None and n >= 2:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Avg staffing rating",
+                    html.escape(f"{mean_stf:.1f}"),
+                    "Avg staffing rating",
+                    stf_help,
+                )
+            )
+    else:
+        fac_help, ovr_help, hprd_help, stf_help = _owner_snapshot_help(ps)
+        aria = (
+            "Ownership-interest facility metrics"
+            if uses_ownership_portfolio_language
+            else "Linked-facility metrics"
+        )
+        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
+        hprd_eligible = str(ps.get("hprd_eligible_label") or "").strip()
+        if hprd_eligible:
+            hprd_help = f"{hprd_eligible}. {hprd_help}"
+        hprd_sub = ""
+        if n_hprd > 0:
+            hprd_sub = (
+                f"{n_hprd} qualifying facilit"
+                f"{'y' if n_hprd == 1 else 'ies'}"
+            )
+        cards.append(
+            snapshot_metric_card_html(
+                "Linked facilities"
+                if not uses_ownership_portfolio_language
+                else "Ownership-interest facilities",
+                str(n),
+                "Linked facilities"
+                if not uses_ownership_portfolio_language
+                else "Ownership-interest facilities",
+                fac_help,
+                tone="accent",
+                value_title="Distinct CMS-linked facilities nationwide",
+                label_short="Facilities",
+            )
+        )
+        n_states = int(ps.get("n_states") or 0)
+        if not n_states:
+            n_states = len(list(ps.get("by_state") or []))
+        if n_states:
+            cards.append(
+                snapshot_metric_card_html(
+                    "States",
+                    str(n_states),
+                    "",
+                    "",
+                    action_attrs=(
+                        'data-owner-states-open aria-haspopup="dialog" '
+                        'aria-controls="ownerStatesPopover" '
+                        f'aria-label="{n_states} states - facilities by state"'
+                    ),
+                    label_short="States",
                 )
             )
         if wmean is not None:
@@ -526,6 +606,7 @@ def portfolio_snapshot_section_html(
         {dist_html}
         {roster_note}
       </section>"""
+
 
 
 def entity_portfolio_block_html(

@@ -10,6 +10,7 @@ if __name__ == "__main__" and not __package__:
 
 import html
 import json
+from urllib.parse import urlencode
 from typing import Any
 
 import re

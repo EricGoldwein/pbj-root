@@ -41,8 +41,8 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         body, layout = render_state_owner_index_body("CT", get_canonical_slug=lambda s: "connecticut")
         self.assertIn(layout["subtitle"], body)
         self.assertIn("owners-state-hero-rail", body)
-        self.assertIn("Ownership &amp; Control Search", body)
-        self.assertIn("owners-state-h1--split", body)
+        self.assertIn("ownership &amp; control", body)
+        self.assertIn("owners-state-h1--balanced", body)
         self.assertIn("Largest CT ownership-interest portfolios", body)
         self.assertIn("About this Connecticut ownership index", body)
         self.assertGreater(body.find("owners-state-method"), body.find("owners-state-panels"))
@@ -130,7 +130,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
         self.assertIn("Largest NY ownership-interest portfolios", body)
         self.assertIn("Largest New York ownership-interest portfolios", body)
         self.assertIn("Recent ownership changes", body)
-        self.assertIn("Ownership &amp; Control Search", body)
+        self.assertIn("ownership &amp; control", body)
         self.assertIn("About this New York ownership index", body)
         self.assertIn("owners-state-method-trigger", body)
         self.assertIn("PBJ320 maps CMS nursing home ownership records", body)
@@ -138,15 +138,15 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
     def test_portfolio_facility_count_labels(self):
         self.assertEqual(
             format_portfolio_facility_count("NJ", {"facility_count": 53, "facility_count_total": 72}),
-            "53 in NJ · 72 total",
+            "53 facilities",
         )
         self.assertEqual(
             format_portfolio_facility_count("NJ", {"facility_count": 37, "facility_count_total": 37}),
-            "37 in NJ",
+            "37 facilities",
         )
         self.assertEqual(
             format_portfolio_facility_count("NY", {"facility_count": 12}),
-            "12 in NY",
+            "12 facilities",
         )
         self.assertEqual(
             format_portfolio_facility_count(
@@ -154,7 +154,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
                 {"facility_count": 3, "facility_count_total": 3},
                 state_name="Texas",
             ),
-            "3 in Texas",
+            "3 facilities",
         )
 
     def test_state_ranking_uses_in_state_ownership_interest(self):
@@ -194,7 +194,7 @@ class StateOwnerIndexSeoTests(unittest.TestCase):
                 {"facility_count": ranked[1]["facility_count_rank"], "facility_count_total": ranked[1]["facility_count_rank"]},
                 state_name="Texas",
             ),
-            "3 in Texas",
+            "3 facilities",
         )
 
     def test_chow_feed_dates_include_year(self) -> None:

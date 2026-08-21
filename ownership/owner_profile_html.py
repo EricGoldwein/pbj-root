@@ -750,6 +750,25 @@ def render_owner_profile_body(
     return body, page_title, meta_desc, owner_profile_canonical_path(profile) or f"/owners/{pac}"
 
 
+
+def _cms_source_link_html(kind: str, pac: str) -> str:
+    """Outbound CMS Ownership dataset filter for this associate PAC."""
+    pac = (pac or "").strip()
+    if kind not in ("owner_control", "both") or not pac:
+        return ""
+    href = (
+        "https://data.cms.gov/data-api/v1/dataset/"
+        "afe44b85-cc6d-40d7-b5df-00ae8910d1d2/data?"
+        + urlencode({"filter[ASSOCIATE ID - OWNER]": pac})
+    )
+    return (
+        f'<a class="owner-cms-source" href="{html.escape(href, quote=True)}" '
+        'target="_blank" rel="noopener noreferrer">'
+        'CMS source <span aria-hidden="true">↗</span></a>'
+    )
+
+
+
 def _states_meta_html(profile: dict[str, Any]) -> str:
     ps = profile.get("portfolio_summary") or {}
     n_states = int(ps.get("n_states") or 0)
@@ -801,17 +820,17 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
             f"</li>"
         )
     return f"""
-      <div class="owner-states-popover" id="ownerStatesPopover" hidden role="dialog"
-           aria-labelledby="ownerStatesPopoverTitle">
-        <div class="owner-states-popover-card">
-          <header class="owner-states-popover-header">
+      <dialog class="owner-states-modal" id="ownerStatesPopover" aria-labelledby="ownerStatesPopoverTitle">
+        <div class="owner-states-modal-card">
+          <header class="owner-states-modal-header">
             <h2 id="ownerStatesPopoverTitle">Facilities by state</h2>
-            <button type="button" class="owner-states-popover-close" data-owner-states-close aria-label="Close">×</button>
+            <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
           </header>
-          <ul class="owner-states-popover-list">{"".join(rows)}</ul>
+          <div class="owner-states-modal-body">
+            <ul class="owner-states-popover-list">{"".join(rows)}</ul>
+          </div>
         </div>
-      </div>
-      <div class="owner-states-sheet-backdrop" id="ownerStatesSheetBackdrop" hidden data-owner-states-close></div>"""
+      </dialog>"""
 
 
 def _pac_meta_html(
@@ -1023,9 +1042,8 @@ def _owner_profile_header_html(
         if len(enrollment_ids) > 2:
             ids += f" (+{len(enrollment_ids) - 2})"
         meta_bits.append(f"Enrollment ID {ids}")
-    # States: prefer plain text count; keep interactive trigger when multi-state.
-    if states_meta:
-        meta_bits.append(states_meta)
+    # States live in the summary metric strip (interactive card), not the meta line.
+    _ = states_meta
 
     meta_inner = ' <span class="owner-meta-sep" aria-hidden="true">·</span> '.join(meta_bits)
     meta_row = (
@@ -1034,6 +1052,8 @@ def _owner_profile_header_html(
 
     back_link = _owner_index_back_link_html(profile)
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
+    cms_source = _cms_source_link_html(kind, pac)
+    cms_html = f'<div class="owner-profile-header-actions">{cms_source}</div>' if cms_source else ""
     return f"""
       <header class="owner-profile-header owner-profile-header--compact">
         {back_html}
@@ -1042,6 +1062,7 @@ def _owner_profile_header_html(
           {descriptor_row}
           {meta_row}
         </div>
+        {cms_html}
       </header>"""
 
 

@@ -64,7 +64,7 @@ STATE_OWNER_INDEX_SLUGS: dict[str, str] = {
 
 STATE_OWNER_INDEX_STATES: frozenset[str] = OWNERSHIP_PUBLIC_STATES | STATE_OWNER_INDEX_DRAFT_STATES
 
-_STATE_INDEX_H1_SUFFIX = " Nursing Home Ownership & Control Search"
+_STATE_INDEX_H1_SUFFIX = " nursing home ownership & control"
 
 
 def state_index_subtitle(state_name: str) -> str:
@@ -89,12 +89,12 @@ def _build_state_index_meta_entry(state_code: str, state_name: str) -> dict[str,
         "state_page_slug": state_page_slug(state_code, state_name),
         "h1": state_index_h1(state_name),
         "subtitle": state_index_subtitle(state_name),
-        "title": f"{state_name} Nursing Home Ownership & Control Search | PBJ320",
+        "title": f"{state_name} Nursing Home Ownership & Control | PBJ320",
         "meta_description": (
             f"Search {state_name} CMS ownership interests, managing/control parties, PAC IDs, "
             "and staffing context using public CMS ownership and PBJ staffing data."
         ),
-        "hub_link_label": f"{state_name} nursing home ownership search",
+        "hub_link_label": f"{state_name} nursing home ownership & control",
     }
 
 
@@ -112,7 +112,7 @@ def state_index_layout_meta(state_code: str) -> dict[str, str]:
     state_name = meta.get("name") or st
     slug = meta.get("slug") or st.lower()
     return {
-        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership & Control Search | PBJ320",
+        "page_title": meta.get("title") or f"{state_name} Nursing Home Ownership & Control | PBJ320",
         "meta_description": meta.get("meta_description")
         or (
             f"Search {state_name} CMS ownership interests, managing/control parties, PAC IDs, "
@@ -355,10 +355,10 @@ def format_portfolio_facility_count(
     total_n = int(total_raw) if total_raw is not None else in_n
     if not st:
         n = total_n or in_n
-        return f"{n} total facilit{'y' if n == 1 else 'ies'}"
+        return f"{n} facilit{'y' if n == 1 else 'ies'}"
     if total_n > in_n:
-        return f"{in_n} in {place} · {total_n} total"
-    return f"{in_n} in {place}"
+        return f"{in_n} facilit{'y' if in_n == 1 else 'ies'}"
+    return f"{in_n} facilit{'y' if in_n == 1 else 'ies'}"
 
 
 @lru_cache(maxsize=1)

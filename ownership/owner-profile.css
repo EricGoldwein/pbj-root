@@ -4946,7 +4946,8 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
   white-space: nowrap;
   flex-shrink: 0;
   text-align: right;
-  max-width: 42%;
+  margin-left: auto;
+  max-width: 46%;
   line-height: 1.25;
   pointer-events: none;
 }
@@ -6489,5 +6490,113 @@ button.owner-m-card-own-pct.owner-role-pct-btn:focus-visible {
 
   .owner-fec-results-title {
     font-size: 1rem;
+  }
+}
+
+
+/* Flattened ratings block (no nested card chrome) */
+.owner-dist-section {
+  max-width: 28rem;
+  margin: 0.75rem 0 0;
+}
+.owner-dist-section .owner-dist-head,
+.owner-dist-section .owner-dist-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.45rem;
+}
+.owner-dist-section .owner-dist-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: #e2e8f0;
+}
+.owner-dist-section .owner-dist-chart {
+  margin: 0;
+}
+.owner-dist-section .owner-dist-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.owner-cms-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 550;
+  color: #93c5fd;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.owner-cms-source:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
+}
+.owner-profile-header--compact {
+  display: grid;
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+}
+@media (min-width: 720px) {
+  .owner-profile-header--compact {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .owner-profile-header-actions {
+    justify-self: end;
+    padding-top: 0.15rem;
+  }
+}
+.owner-snapshot-card--action {
+  appearance: none;
+  -webkit-appearance: none;
+  text-align: inherit;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.owner-snapshot-card--action:hover {
+  border-color: rgba(147, 197, 253, 0.55);
+}
+.owner-snapshot-label-short { display: none; }
+.owner-snapshot-label-full { display: inline; }
+@media (max-width: 640px) {
+  .owner-portfolio-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+  }
+  .owner-snapshot-label-full { display: none; }
+  .owner-snapshot-label-short { display: inline; }
+  .owner-snapshot-label {
+    font-size: 0.68rem;
+  }
+  .owner-snapshot-value {
+    font-size: 1.05rem;
+  }
+  .owner-states-modal[open] {
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0;
+  }
+  .owner-states-modal-card {
+    width: 100%;
+    max-width: none;
+    border-radius: 14px 14px 0 0;
+    max-height: min(70vh, 28rem);
+  }
+  .owner-states-modal-body {
+    max-height: min(58vh, 22rem);
+    overflow: auto;
+  }
+  .owner-states-popover-row {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.55rem 0.85rem;
   }
 }

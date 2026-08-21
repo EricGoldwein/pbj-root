@@ -391,17 +391,11 @@ def _render_largest_portfolios_title(state_code: str) -> str:
 
 
 def _render_state_h1(h1: str) -> str:
-    """Two-line mobile stack: '{state} Nursing Home' / 'Ownership & Control Search'."""
-    suffix = " Ownership & Control Search"
-    if h1.endswith(suffix):
-        primary = html.escape(h1[: -len(suffix)])
-        return (
-            '<h1 class="owners-state-h1 owners-state-h1--split">'
-            f'<span class="owners-state-h1-primary">{primary}</span>'
-            '<span class="owners-state-h1-secondary">Ownership &amp; Control Search</span>'
-            "</h1>"
-        )
-    return f'<h1 class="owners-state-h1">{html.escape(h1)}</h1>'
+    """Single balanced H1 — no orphaned search line on mobile."""
+    return (
+        f'<h1 class="owners-state-h1 owners-state-h1--balanced">'
+        f"{html.escape(h1)}</h1>"
+    )
 
 
 def _render_try_search_hints(try_pool: list[dict[str, Any]], *, state_slug: str, state_code: str = "") -> str:
@@ -452,7 +446,7 @@ def _render_top_orgs(rows: list[dict[str, Any]], *, state_code: str, state_name:
         total_n = int(row.get("facility_count_total") or in_n)
         if not st:
             # National hub: primary number is nationwide ownership-interest (card defines measure).
-            count_lbl = f"{oi_n}" if oi_n > 0 else format_portfolio_facility_count(st, row)
+            count_lbl = (f"{oi_n} facilit{'y' if oi_n == 1 else 'ies'}" if oi_n > 0 else format_portfolio_facility_count(st, row))
             count_tip = (
                 f"{oi_n or total_n or in_n} distinct CMS-linked ownership-interest facilities nationwide"
             )
@@ -719,7 +713,7 @@ def render_owners_hub_index_body(
         else ""
     )
 
-    page_title = "Nursing Home Ownership & Control Search | PBJ320"
+    page_title = "Nursing Home Ownership & Control | PBJ320"
     meta_description = (
         "Search CMS nursing home ownership and control entities nationwide by name or PAC. "
         "Explore largest ownership-interest portfolios and recent ownership changes across all states."
@@ -777,7 +771,7 @@ def render_owners_hub_index_body(
       <div class="owners-state-intro">
         <header class="owners-state-hero">
           <div class="owners-state-hero-copy">
-            <h1 class="owners-state-h1">Nursing home ownership &amp; control search</h1>
+            <h1 class="owners-state-h1 owners-state-h1--balanced">Nursing home ownership &amp; control</h1>
             <div class="owners-state-hero-rail" aria-hidden="true"></div>
             <p class="owners-state-subtitle">{html.escape(subtitle)}</p>
             {meta_html}

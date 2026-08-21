@@ -138,11 +138,12 @@ def name_search_rank(query: str, record_name: str) -> int | None:
     """
     Lower rank is better. None if no match.
 
+    Lexical ranks (exact 10-digit PAC is handled separately by the search engine):
     0 = exact normalized full-name match
     1 = exact surname match for a person (single-token query == last token)
     2 = full-name prefix (record starts with query)
     3 = exact organization / leading-token match
-    4 = ordered token match (e.g. first+last with middle initial)
+    4 = ordered token / prefix-token match
     5 = broader contains (substring inside a longer token/name)
     """
     if not name_search_matches(query, record_name):

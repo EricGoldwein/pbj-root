@@ -9,8 +9,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 from pathlib import Path
-from collections.abc import Iterator
-from typing import Any, cast
+from typing import Any
 
 import pandas as pd
 
@@ -142,12 +141,23 @@ def ownership_provider_info_paths() -> list[Path]:
     never on the hot path.
     """
     seen: set[Path] = set()
+    seen_sig: set[tuple[int, int]] = set()
     ordered: list[Path] = []
 
     def _add(path: Path) -> None:
-        if path.is_file() and path not in seen and not _is_historical_provider_info_dump(path):
-            ordered.append(path)
-            seen.add(path)
+        if not path.is_file() or path in seen or _is_historical_provider_info_dump(path):
+            return
+        try:
+            st = path.stat()
+            sig = (int(st.st_size), int(getattr(st, "st_mtime_ns", int(st.st_mtime * 1e9))))
+        except OSError:
+            return
+        # Skip byte-identical copies (common: Norm copied to combined_latest).
+        if sig in seen_sig:
+            return
+        ordered.append(path)
+        seen.add(path)
+        seen_sig.add(sig)
 
     # Policy-configured Norm first when present and on disk.
     try:
@@ -306,42 +316,95 @@ def _merge_provider_lookup_row(
     return merged
 
 
-def _provider_info_rows_from_path(path: Path) -> dict[str, dict[str, str]]:
+def _provider_info_rows_from_path(
+    path: Path,
+    *,
+    needed_ccns: frozenset[str] | None = None,
+) -> dict[str, dict[str, str]]:
+    """Load provider-info rows keyed by CCN.
+
+    Optional ``needed_ccns`` keeps only those CCNs (still streams the full CSV once).
+    Uses vectorized parse — avoids per-row ``DataFrame.iterrows`` on the hot path.
+    """
     header = pd.read_csv(path, nrows=0).columns.tolist()
     col_map = _provider_info_col_map(header)
     usecols_tuple: tuple[str, ...] = tuple(c for c in col_map.values() if c)
-    if not col_map["ccn"]:
+    ccn_col = col_map.get("ccn")
+    if not ccn_col:
         return {}
 
-    out: dict[str, dict[str, str]] = {}
     qcol = "CY_Qtr" if "CY_Qtr" in header else ("quarter" if "quarter" in header else None)
-    read_cols: tuple[str, ...] = usecols_tuple
+    read_cols: list[str] = list(usecols_tuple)
     if qcol and qcol not in read_cols:
-        read_cols = read_cols + (qcol,)
+        read_cols.append(qcol)
 
-    csv_kwargs: dict[str, Any] = {
-        "filepath_or_buffer": path,
-        "dtype": str,
-        "chunksize": 100_000,
-        "low_memory": False,
-        "encoding": "latin-1",
-        "usecols": read_cols,
-    }
-    for chunk in cast(Iterator[pd.DataFrame], pd.read_csv(**csv_kwargs)):
-        if qcol and qcol in chunk.columns:
-            chunk = chunk.sort_values(qcol).groupby(col_map["ccn"], as_index=False).last()
-        for _, row in chunk.iterrows():
-            raw_ccn = str(row.get(col_map["ccn"]) or "").strip()
-            if "." in raw_ccn:
-                raw_ccn = raw_ccn.split(".")[0]
-            ccn = raw_ccn.zfill(6)[-6:] if raw_ccn.isdigit() else ""
-            if not ccn:
-                continue
-            parsed = _provider_info_row_dict(row, col_map)
-            if ccn in out:
-                out[ccn] = _merge_provider_lookup_row(out[ccn], parsed)
-            else:
-                out[ccn] = parsed
+    df = pd.read_csv(
+        path,
+        dtype=str,
+        low_memory=False,
+        encoding="latin-1",
+        usecols=read_cols,
+    )
+    if df.empty:
+        return {}
+
+    ccn_raw = df[ccn_col].fillna("").astype(str).str.strip().str.split(".").str[0]
+    mask = ccn_raw.str.isdigit()
+    if not bool(mask.any()):
+        return {}
+    df = df.loc[mask].copy()
+    df["_ccn"] = ccn_raw.loc[mask].str.zfill(6).str[-6:]
+    if needed_ccns is not None:
+        df = df[df["_ccn"].isin(needed_ccns)]
+        if df.empty:
+            return {}
+    if qcol and qcol in df.columns:
+        df = df.sort_values(qcol).groupby("_ccn", as_index=False).last()
+
+    def _cell(rec: dict[str, Any], key: str) -> str:
+        col = col_map.get(key)
+        if not col:
+            return ""
+        val = rec.get(col)
+        if val is None:
+            return ""
+        s = str(val).strip()
+        if s.lower() in ("nan", "none"):
+            return ""
+        return s
+
+    out: dict[str, dict[str, str]] = {}
+    for rec in df.to_dict("records"):
+        ccn = str(rec.get("_ccn") or "")
+        if not ccn:
+            continue
+        state = _cell(rec, "state").upper()[:2]
+        parsed = {
+            "state": state,
+            "county": _cell(rec, "county"),
+            "city": _cell(rec, "city"),
+            "beds": _cell(rec, "beds"),
+            "census": _cell(rec, "census"),
+            "hprd": _cell(rec, "hprd"),
+            "overall_rating": _cell(rec, "overall"),
+            "staffing_rating": _cell(rec, "staffing"),
+            "health_inspection_rating": _cell(rec, "health_inspection"),
+            "qm_rating": _cell(rec, "qm"),
+            "sff": _cell(rec, "sff"),
+            "sff_status": _cell(rec, "sff"),
+            "abuse_icon": _cell(rec, "abuse"),
+            "provider_name": _cell(rec, "provider_name"),
+            "provider_address": _cell(rec, "provider_address"),
+            "zip_code": _cell(rec, "zip_code"),
+            "latitude": _cell(rec, "latitude"),
+            "longitude": _cell(rec, "longitude"),
+            "processing_date": _cell(rec, "processing_date"),
+            "quarter": _cell(rec, "quarter"),
+        }
+        if ccn in out:
+            out[ccn] = _merge_provider_lookup_row(out[ccn], parsed)
+        else:
+            out[ccn] = parsed
     return out
 
 
@@ -424,13 +487,23 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
         return {}
 
     merged: dict[str, dict[str, str]] = {}
+    loaded_sizes: set[int] = set()
     # Newest first: establish Norm values, then fill blanks from older slim sources.
     for path in paths:
+        try:
+            size = int(path.stat().st_size)
+        except OSError:
+            size = -1
+        # Skip byte-identical copies of an already-loaded snapshot (same size).
+        if size > 0 and size in loaded_sizes and merged:
+            continue
         for ccn, row in _provider_info_rows_from_path(path).items():
             if ccn in merged:
                 merged[ccn] = _merge_provider_lookup_row(merged[ccn], row)
             else:
                 merged[ccn] = row
+        if size > 0:
+            loaded_sizes.add(size)
     return merged
 
 
@@ -511,6 +584,11 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
 
 
 def enrich_facilities(facilities: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Enrich all facility rows using one process-cached CCN→provider bulk lookup."""
+    if not facilities:
+        return []
+    # Ensure process-wide lookup is warm; row enrichment is O(n) dict gets.
+    _ccn_provider_lookup()
     return [enrich_facility_row(f) for f in facilities]
 
 

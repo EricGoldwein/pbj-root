@@ -51,10 +51,8 @@ _FEC_URL = "https://fec.gov/"
 def _largest_portfolios_title(state_code: str) -> tuple[str, str]:
     st = (state_code or "").strip().upper()[:2]
     if not st:
-        return (
-            "Largest ownership-interest portfolios",
-            "Largest ownership-interest portfolios",
-        )
+        # National hub: short title; measure explained via ⓘ.
+        return ("Largest portfolios", "Largest portfolios")
     meta = STATE_INDEX_META.get(st) or {}
     name = (meta.get("name") or st).strip()
     short = f"Largest {st} ownership-interest portfolios"
@@ -376,10 +374,18 @@ def _render_largest_portfolios_title(state_code: str) -> str:
     """Short state abbrev in panel header; full state name when layout has room."""
     st = (state_code or "").strip().upper()[:2]
     short, long = _largest_portfolios_title(st)
+    help_btn = ""
+    if not st:
+        tip = "Ranked by facilities with CMS-reported ownership-interest relationships."
+        help_btn = (
+            f'<button type="button" class="owners-hub-panel-info" title="{html.escape(tip, quote=True)}" '
+            f'aria-label="{html.escape(tip, quote=True)}">\u24d8</button>'
+        )
     return (
         '<h2 id="ownersStateTopHeading" class="owners-state-panel-title">'
         f'<span class="owners-state-panel-title-short">{html.escape(short)}</span>'
         f'<span class="owners-state-panel-title-long">{html.escape(long)}</span>'
+        f"{help_btn}"
         "</h2>"
     )
 
@@ -445,8 +451,8 @@ def _render_top_orgs(rows: list[dict[str, Any]], *, state_code: str, state_name:
         in_n = int(row.get("facility_count") or 0)
         total_n = int(row.get("facility_count_total") or in_n)
         if not st:
-            # National hub: primary number is nationwide ownership-interest.
-            count_lbl = f"{oi_n} ownership-interest" if oi_n > 0 else format_portfolio_facility_count(st, row)
+            # National hub: primary number is nationwide ownership-interest (card defines measure).
+            count_lbl = f"{oi_n}" if oi_n > 0 else format_portfolio_facility_count(st, row)
             count_tip = (
                 f"{oi_n or total_n or in_n} distinct CMS-linked ownership-interest facilities nationwide"
             )

@@ -1185,15 +1185,16 @@ def build_related_associates(profile: dict[str, Any], *, limit: int = 20) -> lis
 
 
 def _attach_portfolio_metrics(profile: dict[str, Any]) -> dict[str, Any]:
-    """Enrich facilities with provider info; add portfolio + control-party summaries."""
+    """Enrich facilities with provider info; add portfolio + control-party summaries.
+
+    Related associates stay deferred (lazy inline fetch) so first paint stays light.
+    """
     from ownership.owner_portfolio_metrics import (
         build_portfolio_summary,
         enrich_facilities,
         sort_control_parties_for_display,
         summarize_control_parties,
     )
-
-    profile["related_associates"] = build_related_associates(profile)
 
     if profile.get("facilities"):
         profile["facilities"] = enrich_facilities(profile["facilities"])
@@ -1739,18 +1740,131 @@ def public_owner_associate_ids_for_sitemap() -> list[str]:
     return _indexable_pacs()
 
 
+@lru_cache(maxsize=1)
+def _owner_search_meta_table() -> dict[str, tuple[str, str, int]]:
+    """PAC → (classification, segment, facility_count) from sqlite (empty if missing)."""
+    conn = _sqlite_conn()
+    if not conn:
+        return {}
+    out: dict[str, tuple[str, str, int]] = {}
+    try:
+        try:
+            rows = conn.execute(
+                """
+                SELECT s.pac AS pac,
+                       s.classification AS classification,
+                       s.segment AS segment,
+                       COALESCE(i.facility_count, 0) AS facility_count
+                FROM owner_search_lite s
+                LEFT JOIN pac_indexability i ON i.pac = s.pac
+                """
+            )
+            for row in rows:
+                pac = normalize_associate_id(str(row["pac"] or ""))
+                if len(pac) != 10:
+                    continue
+                try:
+                    n = int(row["facility_count"] or 0)
+                except (TypeError, ValueError):
+                    n = 0
+                out[pac] = (str(row["classification"] or ""), str(row["segment"] or ""), n)
+            if out:
+                return out
+        except Exception:
+            out = {}
+        for row in conn.execute("SELECT pac, facility_count FROM pac_indexability"):
+            pac = normalize_associate_id(str(row["pac"] or ""))
+            if len(pac) != 10:
+                continue
+            try:
+                n = int(row["facility_count"] or 0)
+            except (TypeError, ValueError):
+                n = 0
+            out[pac] = ("", "", n)
+    except Exception:
+        return {}
+    return out
+
+
+@lru_cache(maxsize=1)
+def _owner_search_engine() -> dict[str, Any]:
+    """Process-once search indexes over the public owner catalog (no profile loads)."""
+    from ownership.name_search import (
+        looks_like_person_name,
+        normalize_search_tokens,
+        _norm_search_key,
+    )
+
+    catalog = _public_owner_search_catalog()
+    meta = _owner_search_meta_table()
+    oi_segments = frozenset({"ownership_interest_only", "mixed_ownership_plus_other"})
+
+    entries: list[dict[str, Any]] = []
+    by_pac: dict[str, int] = {}
+    by_surname: dict[str, list[int]] = {}
+    by_token: dict[str, list[int]] = {}
+    by_first: dict[str, list[int]] = {}
+
+    for pac, name, key, states in catalog:
+        classification, segment, fac_n = meta.get(pac) or ("", "", 0)
+        tokens = normalize_search_tokens(name)
+        person = looks_like_person_name(name)
+        surname = tokens[-1] if person and len(tokens) >= 2 else ""
+        first = tokens[0] if tokens else ""
+        idx = len(entries)
+        entries.append(
+            {
+                "pac": pac,
+                "name": name,
+                "key": key,
+                "states": states,
+                "tokens": tokens,
+                "person": person,
+                "surname": surname,
+                "fac": int(fac_n or 0),
+                "indexable": classification == "index",
+                "oi": segment in oi_segments,
+            }
+        )
+        by_pac[pac] = idx
+        if surname:
+            by_surname.setdefault(surname, []).append(idx)
+        if first:
+            by_first.setdefault(first, []).append(idx)
+        # token inverted index (skip very short)
+        for tok in set(tokens):
+            if len(tok) >= 2:
+                by_token.setdefault(tok, []).append(idx)
+
+    return {
+        "entries": entries,
+        "by_pac": by_pac,
+        "by_surname": by_surname,
+        "by_token": by_token,
+        "by_first": by_first,
+    }
+
+
 def search_public_owner_profiles(
     query: str,
     *,
     limit: int = 12,
     state_code: str | None = None,
 ) -> list[dict[str, str]]:
-    """Name or 10-digit PAC search for publicly launched ownership states (CT + NY)."""
+    """Name or 10-digit PAC search for publicly launched ownership states."""
     q = (query or "").strip()
     if not q:
         return []
-    catalog = _public_owner_search_catalog()
-    if not catalog:
+
+    from ownership.name_search import (
+        name_search_rank,
+        normalize_search_tokens,
+        _norm_search_key,
+    )
+
+    engine = _owner_search_engine()
+    entries: list[dict[str, Any]] = engine["entries"]
+    if not entries:
         return []
 
     st_filter = (state_code or "").strip().upper()[:2] or None
@@ -1760,42 +1874,79 @@ def search_public_owner_profiles(
 
     pac_q = normalize_associate_id(q)
     if len(pac_q) == 10 and pac_q.isdigit():
-        for pac, name, _, states in catalog:
-            if pac == pac_q and _in_state(states):
-                return [
-                    {
-                        "associate_id": pac,
-                        "name": name,
-                        "profile_url": associate_profile_url(pac, name),
-                    }
-                ]
+        idx = engine["by_pac"].get(pac_q)
+        if idx is None:
+            return []
+        e = entries[idx]
+        if not _in_state(e["states"]):
+            return []
+        return [
+            {
+                "associate_id": e["pac"],
+                "name": e["name"],
+                "profile_url": associate_profile_url(e["pac"], e["name"]),
+            }
+        ]
+
+    q_tokens = normalize_search_tokens(q)
+    qnorm = _norm_search_key(q)
+    if len(qnorm) < 2 and len(q_tokens) < 1:
         return []
 
-    from ownership.name_search import name_search_rank, normalize_search_tokens
+    # Candidate gathering: avoid full catalog scan when possible.
+    candidate_idxs: set[int] = set()
+    if len(q_tokens) == 1:
+        tok = q_tokens[0]
+        for idx in engine["by_surname"].get(tok, []):
+            candidate_idxs.add(idx)
+        for idx in engine["by_token"].get(tok, []):
+            candidate_idxs.add(idx)
+        for idx in engine["by_first"].get(tok, []):
+            candidate_idxs.add(idx)
+        # Substring fallback only if sparse (e.g. ARLANDA)
+        if len(candidate_idxs) < 40:
+            for i, e in enumerate(entries):
+                if tok in e["key"] or tok in (e["name"] or "").upper():
+                    candidate_idxs.add(i)
+    elif q_tokens:
+        # Intersection-ish: start from rarest token / first token bucket
+        seed = engine["by_first"].get(q_tokens[0]) or engine["by_token"].get(q_tokens[0]) or []
+        candidate_idxs.update(seed)
+        if len(candidate_idxs) < 80:
+            for tok in q_tokens[1:]:
+                for idx in engine["by_token"].get(tok, []):
+                    candidate_idxs.add(idx)
+        if len(candidate_idxs) < 30:
+            # prefix scan on name key
+            for i, e in enumerate(entries):
+                if e["key"].startswith(qnorm) or qnorm in e["key"]:
+                    candidate_idxs.add(i)
+    else:
+        candidate_idxs.update(range(len(entries)))
 
-    qnorm = _norm_org_key(q)
-    if len(qnorm) < 2 and len(normalize_search_tokens(q)) < 1:
-        return []
-
-    scored: list[tuple[int, int, int, str, str]] = []
-    for pac, name, key, states in catalog:
-        if not _in_state(states):
+    scored: list[tuple[int, int, int, int, str, str, str]] = []
+    for idx in candidate_idxs:
+        e = entries[idx]
+        if not _in_state(e["states"]):
             continue
-        rank = name_search_rank(q, name)
+        rank = name_search_rank(q, e["name"])
         if rank is None:
             continue
-        # Tie-break: more linked facilities first (deterministic relevance), then shorter name.
-        scored.append((rank, 0, len(name), pac, name))
-
-    # Batch facility counts for tie-break among scored hits (sqlite indexability).
-    fac_counts = _pac_facility_counts([pac for _, _, _, pac, _ in scored])
-    scored = [
-        (rank, -(int(fac_counts.get(pac) or 0)), namelen, pac, name)
-        for rank, _, namelen, pac, name in scored
-    ]
-    scored.sort(key=lambda x: (x[0], x[1], x[2], x[4].lower()))
+        # Tie-break: indexable, ownership-interest, facility count, alpha
+        scored.append(
+            (
+                rank,
+                0 if e["indexable"] else 1,
+                0 if e["oi"] else 1,
+                -int(e["fac"] or 0),
+                str(e["name"] or "").lower(),
+                e["pac"],
+                e["name"],
+            )
+        )
+    scored.sort()
     out: list[dict[str, str]] = []
-    for _, _, _, pac, name in scored[: max(1, limit)]:
+    for _, _, _, _, _, pac, name in scored[: max(1, limit)]:
         out.append(
             {
                 "associate_id": pac,
@@ -1809,23 +1960,8 @@ def search_public_owner_profiles(
 @lru_cache(maxsize=1)
 def _pac_facility_count_table() -> dict[str, int]:
     """PAC → facility_count from pac_indexability (empty if DB missing)."""
-    conn = _sqlite_conn()
-    if not conn:
-        return {}
-    out: dict[str, int] = {}
-    try:
-        for row in conn.execute("SELECT pac, facility_count FROM pac_indexability"):
-            pac = normalize_associate_id(str(row["pac"] or ""))
-            if len(pac) != 10:
-                continue
-            try:
-                n = int(row["facility_count"] or 0)
-            except (TypeError, ValueError):
-                n = 0
-            out[pac] = n
-    except Exception:
-        return {}
-    return out
+    meta = _owner_search_meta_table()
+    return {pac: int(t[2] or 0) for pac, t in meta.items()}
 
 
 def _pac_facility_counts(pacs: list[str]) -> dict[str, int]:

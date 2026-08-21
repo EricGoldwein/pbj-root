@@ -135,6 +135,42 @@
 
       });
 
+      // Prefetch highlighted result on hover/focus delay to warm profile cold path.
+      (function bindPrefetch(link) {
+        var timer = null;
+        var done = false;
+        function clear() {
+          if (timer) {
+            window.clearTimeout(timer);
+            timer = null;
+          }
+        }
+        function run() {
+          if (done) return;
+          var href = (link.getAttribute('href') || '').trim();
+          if (!href || href.indexOf('/owners/') !== 0) return;
+          done = true;
+          try {
+            var pre = document.createElement('link');
+            pre.rel = 'prefetch';
+            pre.href = href;
+            pre.as = 'document';
+            document.head.appendChild(pre);
+          } catch (err) {}
+          try {
+            fetch(href, { credentials: 'same-origin', priority: 'low' }).catch(function () {});
+          } catch (err2) {}
+        }
+        function schedule() {
+          clear();
+          timer = window.setTimeout(run, 180);
+        }
+        link.addEventListener('mouseenter', schedule);
+        link.addEventListener('focus', schedule);
+        link.addEventListener('mouseleave', clear);
+        link.addEventListener('blur', clear);
+      })(btn);
+
       li.appendChild(btn);
 
       list.appendChild(li);

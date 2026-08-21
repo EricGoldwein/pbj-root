@@ -42,6 +42,7 @@ FACILITIES_FILTER_MIN = 12
 FACILITIES_MOBILE_PREVIEW = 12
 FACILITIES_MOBILE_FILTER_MIN = 8
 FACILITIES_DESKTOP_PREVIEW = 15
+FACILITIES_SHOW_MORE_BATCH = 50
 
 _FLAG_EXPLAINERS: dict[str, tuple[str, str]] = {
     "sff": sff_flag_explainer_tuple("sff"),
@@ -673,8 +674,9 @@ def render_owner_profile_body(
 ) -> tuple[str, str, str, str]:
     """Return (body_html, page_title, meta_desc, canonical_path_suffix).
 
-    When include_heavy is False (default), skip associates / dual-PAC / FEC blocks and
-    paginate the facilities table for a faster first paint.
+    Default page: fast summary + initial facilities batch + inline deferred sections.
+    ``include_heavy`` (?full=1) remains for backwards compatibility: preloads associates
+    and expands the facilities table. Users never need ?full=1 for a complete profile.
     """
     kind = profile.get("profile_kind") or "owner_control"
     name = html.escape(format_org_display(profile.get("display_name") or "Organization"))
@@ -696,37 +698,30 @@ def render_owner_profile_body(
     preview_banner = _internal_preview_banner_html(profile)
     portfolio_html = _portfolio_snapshot_html(profile)
     owners_primary_html = _owners_primary_section_html(profile, kind, ow_label)
-    # Full facility table only when explicitly requested (?full=1).
-    fac_for_table = facilities if include_heavy else facilities
     facilities_html = _facilities_sections_html(
         profile,
         kind,
-        fac_for_table,
+        facilities,
         ow_label,
         skip_control_parties=bool(owners_primary_html),
         force_full_table=include_heavy,
     )
 
-    deferred_html = ""
-    if include_heavy:
-        associates_html = _related_associates_html(profile)
-        owner_section_html = _owner_dual_section_html(profile, kind)
-        fec_html = render_owner_fec_contributions_section(profile)
-        deferred_bits: list[str] = []
-        if associates_html.strip():
-            deferred_bits.append(associates_html)
-        if owner_section_html.strip():
-            deferred_bits.append(owner_section_html)
-        if fec_html.strip():
-            deferred_bits.append(fec_html)
-        if deferred_bits:
-            deferred_html = "".join(deferred_bits)
-    else:
-        deferred_html = (
-            '<p class="owner-below-fold-link pbj-meta-line">'
-            '<a href="?full=1">Load related parties, dual-PAC detail &amp; contributions</a>'
-            "</p>"
-        )
+    # Dual-PAC detail + FEC shell always on-page; associates collapsed (prefetch only for ?full=1).
+    if include_heavy and not profile.get("related_associates"):
+        from ownership.owner_profile import build_related_associates
+
+        profile["related_associates"] = build_related_associates(profile)
+    associates_html = _related_associates_html(
+        profile, preload=include_heavy or bool(profile.get("related_associates"))
+    )
+    owner_section_html = _owner_dual_section_html(profile, kind)
+    fec_html = render_owner_fec_contributions_section(profile)
+    deferred_html = "".join(
+        bit
+        for bit in (associates_html, owner_section_html, fec_html)
+        if bit and bit.strip()
+    )
 
     header_html = _owner_profile_header_html(
         profile,
@@ -789,6 +784,7 @@ def _states_meta_html(profile: dict[str, Any]) -> str:
 
 
 def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
+    """Compact Facilities-by-state popover (desktop) / bottom sheet (mobile)."""
     ps = profile.get("portfolio_summary") or {}
     by_state: list[tuple[str, int]] = list(ps.get("by_state") or [])
     if not by_state:
@@ -796,34 +792,26 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
         if not states:
             return ""
         by_state = [(st, 0) for st in states]
-    rows = []
-    total = 0
+    rows: list[str] = []
     for st, cnt in by_state:
-        total += cnt
         rows.append(
-            f"<tr><td>{html.escape(st)}</td><td class=\"num\">{cnt if cnt else '—'}</td></tr>"
+            f'<li class="owner-states-popover-row">'
+            f'<span class="owner-states-popover-st">{html.escape(str(st))}</span>'
+            f'<span class="owner-states-popover-n">{cnt if cnt else "—"}</span>'
+            f"</li>"
         )
-    total_row = (
-        f'<tr class="owner-states-total"><td><strong>Total</strong></td>'
-        f'<td class="num"><strong>{total or len(by_state)}</strong></td></tr>'
-        if total
-        else ""
-    )
     return f"""
-      <dialog class="owner-states-modal" id="ownerStatesModal" aria-labelledby="ownerStatesModalTitle">
-        <div class="owner-states-modal-card">
-          <header class="owner-states-modal-header">
-            <h2 id="ownerStatesModalTitle">By state</h2>
-            <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
+      <div class="owner-states-popover" id="ownerStatesPopover" hidden role="dialog"
+           aria-labelledby="ownerStatesPopoverTitle">
+        <div class="owner-states-popover-card">
+          <header class="owner-states-popover-header">
+            <h2 id="ownerStatesPopoverTitle">Facilities by state</h2>
+            <button type="button" class="owner-states-popover-close" data-owner-states-close aria-label="Close">×</button>
           </header>
-          <div class="chow-table-scroll chow-table-scroll--touch owner-states-modal-body">
-            <table class="chow-table owner-states-table">
-              <thead><tr><th>State</th><th class="num">#</th></tr></thead>
-              <tbody>{"".join(rows)}{total_row}</tbody>
-            </table>
-          </div>
+          <ul class="owner-states-popover-list">{"".join(rows)}</ul>
         </div>
-      </dialog>"""
+      </div>
+      <div class="owner-states-sheet-backdrop" id="ownerStatesSheetBackdrop" hidden data-owner-states-close></div>"""
 
 
 def _pac_meta_html(
@@ -1073,17 +1061,57 @@ def _associate_source_label(r: dict[str, Any]) -> str:
     bits: list[str] = []
     if int(r.get("snf_shared") or 0):
         if r.get("shared_ownership_interest") or r.get("is_ownership_interest"):
-            bits.append("Shared ownership interest")
+            bits.append("Shared ownership")
         else:
-            bits.append("Co-enrollee / shared facility association")
+            bits.append("Co-enrollee")
     if int(r.get("chow_count") or 0):
-        bits.append("CHOW transaction party")
-    return " · ".join(bits) if bits else "Related CMS association"
+        bits.append("CHOW party")
+    return " · ".join(bits) if bits else "Related"
 
 
-def _related_associates_html(profile: dict[str, Any]) -> str:
-    """Co-owners and CHOW counterparties — compact list below the facilities portfolio."""
+def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) -> str:
+    """Collapsed Related CMS associates — fetch once on open unless preloaded."""
+    pac = str(profile.get("associate_id") or "").strip()
     rows = profile.get("related_associates") or []
+    n_fac = int((profile.get("portfolio_summary") or {}).get("n_facilities") or 0)
+    has_chow = bool(profile.get("chow_transactions"))
+    if not preload:
+        if not pac or (n_fac < 1 and not has_chow):
+            return ""
+        if not rows:
+            # Deferred shell — content filled by JS on first open.
+            associates_help = _info_button(
+                "Related CMS associates",
+                (
+                    "Parties that appear with this PAC on CMS records.\n\n"
+                    "Shared ownership: co-disclosed ownership-interest parties on "
+                    "the same nursing home enrollments.\n\n"
+                    "Co-enrollee: appear together on CMS enrollment or owner rows "
+                    "without implying affiliate, partner, parent, or subsidiary status.\n\n"
+                    "CHOW party: buyer or seller counterparties on CMS-reported "
+                    "ownership-change filings.\n\n"
+                    "Sources: CMS SNF All Owners; CMS CHOW filings."
+                ),
+                label="?",
+                cls="owner-info-btn owner-info-btn--section owner-associates-info",
+            )
+            return (
+                f'<div class="owner-associates-block"'
+                f' data-associates-pac="{html.escape(pac, quote=True)}"'
+                f' data-associates-url="/owners/api/related-associates/{html.escape(pac, quote=True)}">'
+                '<details class="owner-collapsible owner-associates-collapsible">'
+                '<summary class="owner-associates-summary">'
+                '<span class="owner-associates-summary-label">Related CMS associates'
+                '<span class="owner-associates-count"></span>'
+                ' <span class="owner-associates-caret" aria-hidden="true">▾</span></span>'
+                f"{associates_help}"
+                "</summary>"
+                '<div class="owner-associates-panel" data-associates-panel>'
+                '<div class="owner-associates-loading pbj-meta-line" hidden>Loading…</div>'
+                "</div>"
+                "</details>"
+                "</div>"
+            )
     if not rows:
         return ""
 
@@ -1101,7 +1129,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         shared = html.escape(_associate_shared_facilities_cell(r, n_facilities=n_facilities))
         link_type = html.escape(_associate_source_label(r) or "—")
         trs.append(
-            f"<tr><td class=\"owner-associate-col-name\">{name_html}</td>"
+            f'<tr><td class="owner-associate-col-name">{name_html}</td>'
             f'<td class="num owner-associate-col-shared">{shared}</td>'
             f'<td class="owner-associate-col-link">{link_type}</td></tr>'
         )
@@ -1112,12 +1140,11 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         "Related CMS associates",
         (
             "Parties that appear with this PAC on CMS records.\n\n"
-            "Shared ownership interest: co-disclosed ownership-interest parties on "
+            "Shared ownership: co-disclosed ownership-interest parties on "
             "the same nursing home enrollments.\n\n"
-            "Co-enrollee / shared facility association: appear together on CMS "
-            "enrollment or owner rows without implying affiliate, partner, parent, "
-            "or subsidiary status.\n\n"
-            "CHOW transaction party: buyer or seller counterparties on CMS-reported "
+            "Co-enrollee: appear together on CMS enrollment or owner rows "
+            "without implying affiliate, partner, parent, or subsidiary status.\n\n"
+            "CHOW party: buyer or seller counterparties on CMS-reported "
             "ownership-change filings.\n\n"
             "Sources: CMS SNF All Owners; CMS CHOW filings."
         ),
@@ -1129,7 +1156,7 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         '<table class="owner-associate-table"><thead><tr>'
         '<th class="owner-associate-col-name">Name</th>'
         '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">Shared</th>'
-        '<th class="owner-associate-col-link">Link</th>'
+        '<th class="owner-associate-col-link">Type</th>'
         "</tr></thead><tbody>"
         + "".join(trs)
         + "</tbody></table></div>"
@@ -1139,18 +1166,57 @@ def _related_associates_html(profile: dict[str, Any]) -> str:
         mobile_html=_owner_mobile_card_list(mobile_cards, "owner-mobile-card-list--associates"),
     )
     return (
-        '<div class="owner-associates-block">'
-        f'<div class="owner-associates-head">'
-        f'<span class="owner-associates-head-label">Related CMS associates · {n_show}</span>'
-        f"{associates_help}"
-        f"</div>"
+        '<div class="owner-associates-block" data-associates-loaded="1">'
         '<details class="owner-collapsible owner-associates-collapsible">'
-        f'<summary class="owner-associates-summary">'
-        f'<span class="owner-associates-summary-label">Show related CMS associates</span>'
-        f"</summary>"
-        f"{dual}"
+        '<summary class="owner-associates-summary">'
+        f'<span class="owner-associates-summary-label">Related CMS associates'
+        f'<span class="owner-associates-count"> · {n_show}</span>'
+        ' <span class="owner-associates-caret" aria-hidden="true">▾</span></span>'
+        f"{associates_help}"
+        "</summary>"
+        f'<div class="owner-associates-panel" data-associates-panel>{dual}</div>'
         "</details>"
         "</div>"
+    )
+
+
+def render_related_associates_fragment(profile: dict[str, Any]) -> str:
+    """API helper: associates table/cards only (no details chrome)."""
+    rows = profile.get("related_associates") or []
+    if not rows:
+        return ""
+    n_facilities = int((profile.get("portfolio_summary") or {}).get("n_facilities") or 0)
+    trs: list[str] = []
+    mobile_cards: list[str] = []
+    for r in rows[:20]:
+        name = format_org_display(str(r.get("name") or "—"))
+        url = str(r.get("profile_url") or "").strip()
+        name_html = (
+            f'<a class="owner-associate-name" href="{html.escape(url)}">{html.escape(name)}</a>'
+            if url
+            else f'<span class="owner-associate-name">{html.escape(name)}</span>'
+        )
+        shared = html.escape(_associate_shared_facilities_cell(r, n_facilities=n_facilities))
+        link_type = html.escape(_associate_source_label(r) or "—")
+        trs.append(
+            f'<tr><td class="owner-associate-col-name">{name_html}</td>'
+            f'<td class="num owner-associate-col-shared">{shared}</td>'
+            f'<td class="owner-associate-col-link">{link_type}</td></tr>'
+        )
+        mobile_cards.append(_associate_mobile_card(r, n_facilities=n_facilities))
+    desktop = (
+        '<div class="owner-associates-table-wrap">'
+        '<table class="owner-associate-table"><thead><tr>'
+        '<th class="owner-associate-col-name">Name</th>'
+        '<th class="num owner-associate-col-shared" title="Shared nursing homes with this owner">Shared</th>'
+        '<th class="owner-associate-col-link">Type</th>'
+        "</tr></thead><tbody>"
+        + "".join(trs)
+        + "</tbody></table></div>"
+    )
+    return _owner_table_dual(
+        desktop_html=desktop,
+        mobile_html=_owner_mobile_card_list(mobile_cards, "owner-mobile-card-list--associates"),
     )
 
 
@@ -1543,15 +1609,6 @@ def _owner_facilities_table_html(
             '<span class="owner-table-filter-count" id="ownerFacilitiesFilterCountMobile" hidden></span>'
             "</div>"
         )
-    show_more_btn = ""
-    list_extra_class = ""
-    if n > FACILITIES_MOBILE_PREVIEW:
-        list_extra_class = " owner-mobile-card-list--collapsed"
-        show_more_btn = (
-            f'<button type="button" class="owner-facilities-show-more owner-table-only-mobile" '
-            f'id="ownerFacilitiesShowMore" data-total="{n}" data-preview="{FACILITIES_MOBILE_PREVIEW}">'
-            f"Show all {n} facilities</button>"
-        )
     title = _facilities_portfolio_title(profile)
     heading = (
         f'<div class="owner-facilities-header">'
@@ -1560,15 +1617,26 @@ def _owner_facilities_table_html(
     )
     preview_n = len(fac_list) if force_full_table else min(FACILITIES_DESKTOP_PREVIEW, n)
     fac_slice = fac_list if force_full_table else fac_list[:preview_n]
+    rest_count = 0 if force_full_table else max(0, n - preview_n)
     owner_rows = _facilities_owner_rows(fac_slice)
     mobile_cards = [_facility_mobile_card(f) for f in fac_slice]
-    rest_count = 0 if force_full_table else max(0, n - preview_n)
+    pac_raw = str(profile.get("associate_id") or pac or "").strip()
+
+    show_more_btn = ""
+    if rest_count and pac_raw:
+        show_more_btn = (
+            f'<button type="button" class="owner-facilities-show-more" '
+            f'id="ownerFacilitiesShowMore" data-total="{n}" data-shown="{preview_n}" '
+            f'data-batch="{FACILITIES_SHOW_MORE_BATCH}" '
+            f'data-facilities-url="/owners/api/owner-facilities/{html.escape(pac_raw, quote=True)}">'
+            f"Show more</button>"
+        )
+
     mobile_list = (
-        f'<ul class="owner-mobile-card-list owner-mobile-card-list--facilities{list_extra_class}" '
-        f'role="list" id="ownerFacilitiesMobileList" data-preview="{FACILITIES_MOBILE_PREVIEW}">'
+        '<ul class="owner-mobile-card-list owner-mobile-card-list--facilities" '
+        f'role="list" id="ownerFacilitiesMobileList" data-preview="{preview_n}">'
         + "".join(mobile_cards)
         + "</ul>"
-        + show_more_btn
     )
 
     def _desk(rows: list[str]) -> str:
@@ -1580,15 +1648,14 @@ def _owner_facilities_table_html(
             + "</tbody></table></div>"
         )
 
+    footer = ""
     if rest_count:
-        desktop = (
-            _desk(owner_rows)
-            + f'<p class="owner-table-footer">Showing {preview_n} of {n} facilities · '
-            f'<a class="owner-full-table-link" href="?full=1#ownerFacilitiesPortfolio">'
-            f"Load all {n}</a></p>"
+        footer = (
+            f'<p class="owner-table-footer" id="ownerFacilitiesFooter">'
+            f'<span id="ownerFacilitiesShownLabel">Showing {preview_n} of {n}</span>'
+            f"{show_more_btn}</p>"
         )
-    else:
-        desktop = _desk(owner_rows)
+    desktop = _desk(owner_rows)
     dual = _owner_table_dual(
         desktop_html=desktop,
         mobile_html=mobile_toolbar + mobile_list,
@@ -1598,9 +1665,31 @@ def _owner_facilities_table_html(
         'aria-label="Facilities in this portfolio">'
         + heading
         + dual
+        + footer
         + _facilities_match_note(profile)
         + "</section>"
     )
+
+
+def render_owner_facilities_batch_html(
+    profile: dict[str, Any], *, offset: int = 0, limit: int = 50
+) -> dict[str, Any]:
+    """HTML row/card batch for inline Show more (sqlite-backed profile facilities)."""
+    fac_list = list(profile.get("facilities") or [])
+    n = len(fac_list)
+    start = max(0, int(offset))
+    take = max(1, min(200, int(limit)))
+    batch = fac_list[start : start + take]
+    next_offset = start + len(batch)
+    return {
+        "total": n,
+        "offset": start,
+        "next_offset": next_offset,
+        "done": next_offset >= n,
+        "rows_html": "".join(_facilities_owner_rows(batch)),
+        "cards_html": "".join(_facility_mobile_card(f) for f in batch),
+        "count": len(batch),
+    }
 
 
 def _table_with_preview(

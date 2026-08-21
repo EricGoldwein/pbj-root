@@ -7032,6 +7032,57 @@ def owners_cms_search_api():
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
+@app.route('/owners/api/related-associates/<pac>')
+def owners_related_associates_api(pac):
+    """Deferred related-associates fragment for owner profiles (sqlite-backed, no CSV reopen)."""
+    from flask import jsonify
+
+    from ownership.owner_profile import (
+        build_related_associates,
+        load_owner_profile_resolved,
+        normalize_associate_id,
+    )
+    from ownership.owner_profile_html import render_related_associates_fragment
+
+    pac_n = normalize_associate_id(pac)
+    if len(pac_n) != 10:
+        return jsonify({'html': '', 'count': 0}), 400
+    profile = load_owner_profile_resolved(pac_n)
+    if not profile:
+        return jsonify({'html': '', 'count': 0}), 404
+    rows = build_related_associates(profile)
+    profile['related_associates'] = rows
+    return jsonify({
+        'html': render_related_associates_fragment(profile),
+        'count': len(rows),
+    })
+
+
+@app.route('/owners/api/owner-facilities/<pac>')
+def owners_owner_facilities_api(pac):
+    """Incremental facility rows/cards for owner-profile Show more (stays on page)."""
+    from flask import jsonify
+
+    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+    from ownership.owner_profile_html import render_owner_facilities_batch_html
+
+    pac_n = normalize_associate_id(pac)
+    if len(pac_n) != 10:
+        return jsonify({'error': 'invalid pac'}), 400
+    try:
+        offset = int(request.args.get('offset') or 0)
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        limit = int(request.args.get('limit') or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    profile = load_owner_profile_resolved(pac_n)
+    if not profile:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify(render_owner_facilities_batch_html(profile, offset=offset, limit=limit))
+
+
 @app.route('/owners')
 @app.route('/owners/')
 def owners_cms_index():

@@ -1,4 +1,4 @@
-"""Tests for owner portfolio summary plausibility rules."""
+﻿"""Tests for owner portfolio summary plausibility rules."""
 from __future__ import annotations
 
 import sys
@@ -104,9 +104,9 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         ps_small = _summary(
             [_fac(overall="5", matched=True), _fac(overall="3", matched=True)]
         )
-        self.assertNotIn("owner-dist-card", _portfolio_distribution_html(ps_small))
+        self.assertNotIn("owner-dist-section", _portfolio_distribution_html(ps_small))
         ps_large = _summary([_fac(overall="5", matched=True) for _ in range(5)])
-        self.assertIn("owner-dist-card", _portfolio_distribution_html(ps_large))
+        self.assertIn("owner-dist-section", _portfolio_distribution_html(ps_large))
         from ownership.owner_profile_html import _portfolio_state_distribution
 
         self.assertEqual("", _portfolio_state_distribution([("NY", 1)], 1))

@@ -127,16 +127,7 @@
     
     .nav-toggle {
       display: none;
-      flex-direction: column;
       cursor: pointer;
-      gap: 4px;
-    }
-    
-    .nav-toggle span {
-      width: 25px;
-      height: 3px;
-      background: white;
-      transition: all 0.3s ease;
     }
     
     /* Content */
@@ -152,31 +143,14 @@
       padding: 50px 60px;
       margin-bottom: 30px;
       border: 1px solid rgba(148, 163, 184, 0.3);
-      box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-      transition: all 0.3s ease;
+      box-shadow: 0 4px 18px rgba(15, 23, 42, 0.08);
+      transition: box-shadow 0.3s ease;
       position: relative;
       overflow: hidden;
     }
     
-    .content-box::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #1e40af, #3b82f6, #60a5fa);
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    
     .content-box:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    }
-    
-    .content-box:hover::before {
-      opacity: 1;
+      box-shadow: 0 6px 22px rgba(15, 23, 42, 0.10);
     }
     
     .content-box header h1 {
@@ -303,8 +277,8 @@
       background: white;
       border-radius: 12px;
       overflow: hidden;
-      border: 2px solid #e2e8f0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
     }
     
     .content-box th,
@@ -908,42 +882,6 @@
         color: white !important;
       }
       
-      .nav-menu {
-        position: fixed;
-        top: 60px;
-        left: -100%;
-        width: 100%;
-        height: calc(100vh - 60px);
-        background: #0f172a;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: stretch;
-        padding: 0;
-        gap: 0;
-        transition: left 0.3s ease;
-        border-top: 1px solid rgba(255,255,255,0.1);
-      }
-      
-      .nav-menu.active {
-        left: 0;
-      }
-      
-      .nav-link {
-        padding: 18px 24px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        text-align: left;
-        font-size: 1rem;
-      }
-      
-      .nav-link:hover {
-        background: rgba(96, 165, 250, 0.1);
-        border-left: 3px solid #60a5fa;
-      }
-      
-      .nav-toggle {
-        display: flex;
-      }
-      
       .content-box {
         padding: 20px;
         margin-bottom: 15px;
@@ -1122,7 +1060,7 @@
       </header>
       
       <h3>About the PBJ Dashboard</h3>
-      <p>Staffing data is a key indicator of nursing home quality, revealing how much care residents receive and what resources facilities commit. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="/"><strong>PBJ320 stitches together nine years of federal CMS staffing files&mdash;billions of data points from Payroll-Based Journal (PBJ) submissions&mdash;into interactive visualizations</strong></a>, so you can see how staffing has changed over time and bring data-driven context to what's happening inside 15,000+ U.S. nursing homes.</p>
+      <p>Staffing data is a key indicator of nursing home quality, showing how much care residents receive and how facilities staff that care. Yet most public data shows only the latest quarter, offering a narrow and incomplete view. <a href="/"><strong>PBJ320 stitches together federal CMS staffing data since 2017 into interactive visualizations</strong></a>, so you can see how staffing has changed over time and put current conditions in context across 15,000+ U.S. nursing homes. PBJ320 also connects that staffing history with public ownership data to show who is associated with each facility.</p>
       
       <h3>Who it helps</h3>
       <ul class="about-help-list">
@@ -1131,10 +1069,6 @@
         <li><strong>Advocates &amp; families</strong><span class="about-help-desc">See how a nursing home stacks up over time for residents and loved ones.</span></li>
         <li><strong>Providers</strong><span class="about-help-desc">Use historical staffing data to identify gaps, benchmark performance, and support quality improvement efforts.</span></li>
       </ul>
-      
-      <a href="https://www.publichealth.columbia.edu/news/alumni-make-data-shine-public-health-dashboards" target="_blank" class="columbia-link">
-        <div class="premium-section" style="font-size: 0.95rem;">Read about the PBJ Dashboard in Columbia Public Health, "Alumni Make Data Shine with Public Health Dashboards".</div>
-      </a>
       
       <h3>What you can explore</h3>
       <table>
@@ -1151,11 +1085,11 @@
           </tr>
           <tr>
             <td><strong><a href="/provider/335513">Facility</a></strong></td>
-            <td>Quarterly staffing, contract share, census, ratings, and risk indicators (search any CCN from the <a href="/">home page</a>)</td>
+            <td>Staffing, contract share, census, ratings, and historical facility indicators.</td>
           </tr>
           <tr>
-            <td><strong>Ownership group</strong></td>
-            <td id="ownership-group-copy">Loading latest ownership-group snapshot...</td>
+            <td><strong><a href="/owners">Owners</a></strong></td>
+            <td>Nursing home owners, ownership roles, portfolios, and related facilities.</td>
           </tr>
         </tbody>
       </table>
@@ -1164,6 +1098,7 @@
       <ul class="about-label-list">
         <li><strong>Payroll-Based Journal (PBJ) Staffing Data</strong> <span id="quarter-count">33</span> quarters of daily data, aggregated for clarity (<a href="/phoebe">what is PBJ?</a>)</li>
         <li><strong>CMS Provider Info</strong> 5-star ratings, enforcement data, and other key indicators</li>
+        <li><strong>CMS SNF Ownership</strong> owner identities, ownership roles, and facility relationships (<a href="https://data.cms.gov/provider-characteristics/hospitals-and-other-facilities/skilled-nursing-facility-all-owners" target="_blank" rel="noopener">CMS SNF All Owners</a>)</li>
         <li><strong>CMS Affiliated Entity</strong> quality and performance metrics for affiliated nursing home groups (<a href="/entity/237">example entity page</a>)</li>
         <li><strong>CMS Citations (Premium)</strong> citation data and inspection reports, categorized by date, type, severity, and more</li>
       </ul>
@@ -1173,7 +1108,7 @@
     
     <div class="content-box seagate-case-study">
       <h2>How PBJ Data Reveals Chronic Understaffing: The Seagate Case</h2>
-      <p>In September, a Brooklyn nursing home made national headlines after the violent death of an 89-year-old Holocaust survivor. Federal records point to a deeper problem: <strong>Seagate Rehabilitation and Nursing Center</strong> has been marked by <strong>chronic understaffing&mdash;one of thousands of U.S. nursing homes with similar conditions</strong>. In the 1,279 days since New York implemented a 3.50 HPRD minimum, Seagate has fallen below the threshold every single day, according to CMS Payroll-Based Journal (PBJ) data.</p>
+      <p>In September 2025, a Brooklyn nursing home made national headlines after the violent death of an 89-year-old Holocaust survivor. Federal records point to a deeper problem: <strong>Seagate Rehabilitation and Nursing Center</strong> has been marked by <strong>chronic understaffing&mdash;one of thousands of U.S. nursing homes with similar conditions</strong>. Since New York&rsquo;s staffing standard took effect, Seagate has fallen below the 3.50 HPRD threshold on every reported PBJ day reviewed, according to CMS Payroll-Based Journal (PBJ) data.</p>
       
       <div class="seagate-image-container">
         <img src="/seagate_staffing_pbj.png" alt="Seagate Rehabilitation and Nursing Center staffing data showing chronic understaffing below New York's 3.50 HPRD minimum" class="seagate-image">
@@ -1209,7 +1144,7 @@
       <div class="note-box">
         <strong>* HPRD Explained:</strong> This metric reflects the staffing ratio at a facility in terms of staff hours per resident. Example: A nursing home with 100 residents providing 350 staffing hours per day would have a 3.5 HPRD (350 &divide; 100). See <a href="/what-is-hprd">what is HPRD?</a><br><br>
         A <a href="https://www.justice.gov/sites/default/files/elderjustice/legacy/2015/07/12/Appropriateness_of_Minimum_Nurse_Staffing_Ratios_in_Nursing_Homes.pdf" target="_blank" rel="noopener noreferrer">2001 CMS report to Congress</a> identified 4.1 HPRD as a level discussed in that staffing adequacy study, not a current federal minimum. Facilities with higher-acuity residents&mdash;such as those with complex medical needs or limited mobility&mdash;generally require more staffing. Staffing levels can also vary significantly by day and shift.<br><br>
-        Some states have their own standards (e.g., New Jersey, California, and New York each set a 3.5 HPRD minimum), though enforcement and definitions vary. Note: A federal 3.48 HPRD minimum was recently overturned by a court in 2025.
+        There is currently no federal numerical HPRD minimum in effect. Some states maintain their own staffing standards, with definitions and enforcement varying by state. See <a href="https://www.macpac.gov/publication/state-policies-related-to-nursing-facility-staffing/" target="_blank" rel="noopener">MACPAC State Staffing Standards</a> and <a href="/data-sources">methodology</a>.
       </div>
       
       <h3>Transparency Note</h3>
@@ -1219,7 +1154,7 @@
         <li>A facility reported bad data to CMS (more common than you'd think).</li>
         <li>Or I made a coding error (it happens).</li>
       </ul>
-      <p>Either way, I want to be the first to know. If you spot something that looks off, please let me know so I can squash the bug and set things right.</p>
+      <p>Either way, I want to be the first to know. If something looks wrong, <a href="/corrections" data-pbj-corrections-open>submit a correction</a> so I can check the source data and code.</p>
     </div>
     
     <!-- Phoebe J: ALLOWED - About page PBJ explainer/educational. Optional translation aid only. Never on Press/Attorneys. -->
@@ -1244,39 +1179,6 @@
       
     </div>
   </div>
-
-    <!-- Context / credibility - moved above footer -->
-    <section style="
-      background: rgba(255,255,255,0.8);
-      padding: 30px 20px;
-      margin: 40px auto 30px;
-      border-radius: 12px;
-      max-width: 1100px;
-      text-align: center;
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    ">
-      <p style="
-        color: #475569;
-        margin: 0 auto 1rem;
-        line-height: 1.5;
-        text-align: center;
-        max-width: 720px;
-        font-size: 0.9rem;
-      ">
-        <strong style="color: #1e293b;">320 Consulting</strong> maintains the PBJ Dashboard, a free public resource tracking federal staffing data across ~15,000 U.S. nursing homes. As seen in Columbia Public Health, Positive Aging, Aging in America News, and WTVR CBS.
-      </p>
-      <p style="
-        color: #475569;
-        margin: 0 auto;
-        line-height: 1.55;
-        text-align: center;
-        max-width: 720px;
-        font-size: 0.95rem;
-      ">
-        <a href="/premium?open=demo" style="color:#1e40af; font-weight:600; text-decoration:none;">Request a PBJ320 Premium demo</a> for litigation, research, or investigative use, or <a href="/premium" style="color:#1e40af; font-weight:500;">explore Premium</a>.
-      </p>
-    </section>
 
   <footer class="footer" id="site-footer" style="padding: 1.25rem 1rem;"><!-- Injected by /pbj-site-universal.js --></footer>
 
@@ -1316,51 +1218,6 @@
         .catch(error => {
           console.error('Error fetching quarter count:', error);
           // Keep the default value (33) if fetch fails
-        });
-
-      Promise.all([
-        fetch('/api/entity-summary/237').then(response => response.ok ? response.json() : Promise.reject(new Error('Entity summary unavailable'))),
-        fetch('/search_index.json').then(response => response.ok ? response.json() : Promise.resolve({}))
-      ])
-        .then(([data, searchIndex]) => {
-          const ownershipCopyElement = document.getElementById('ownership-group-copy');
-          if (!ownershipCopyElement) return;
-          const fCount = Number(data && data.facilities_count);
-          const sCount = Number(data && data.states_count);
-          const avgStar = (data && data.average_overall_rating !== null && data.average_overall_rating !== undefined)
-            ? Number(data.average_overall_rating)
-            : null;
-          const entityId = Number(data && data.entity_id);
-          let entityName = String((data && data.entity_name) || '').trim();
-          try {
-            const entities = (searchIndex && Array.isArray(searchIndex.e)) ? searchIndex.e : [];
-            const canonical = entities.find(e => Number(e && e.id) === entityId || Number(e && e.linkId) === entityId);
-            if (canonical && canonical.n) {
-              entityName = String(canonical.n).trim();
-            }
-          } catch (error) {
-            console.error('Error reading canonical entity name from search index:', error);
-          }
-          if (!entityName) entityName = 'this ownership group';
-          if (entityName === entityName.toUpperCase()) {
-            entityName = entityName
-              .toLowerCase()
-              .replace(/\b\w/g, c => c.toUpperCase());
-          }
-          const fText = Number.isFinite(fCount) ? fCount.toLocaleString('en-US') : '\u2014';
-          const sText = Number.isFinite(sCount) ? sCount.toLocaleString('en-US') : '\u2014';
-          const starText = (avgStar !== null && Number.isFinite(avgStar)) ? avgStar.toFixed(1) + '-star average' : 'ratings available';
-          const safeEntityName = entityName.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          const entityLink = Number.isFinite(entityId)
-            ? '<strong><a href="/entity/' + entityId + '">' + safeEntityName + '</a></strong>'
-            : '<strong>' + safeEntityName + '</strong>';
-          ownershipCopyElement.innerHTML = 'Essential data on any chain and its facilities (e.g., ' + entityLink + ' \u2192 ' + fText + ' facilities in ' + sText + ' states, ' + starText + ')';
-        })
-        .catch(error => {
-          console.error('Error fetching ownership group summary:', error);
-          const ownershipCopyElement = document.getElementById('ownership-group-copy');
-          if (!ownershipCopyElement) return;
-          ownershipCopyElement.innerHTML = 'Essential data on any chain and its facilities.';
         });
     });
   </script>

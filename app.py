@@ -6465,7 +6465,9 @@ def serve_substack():
 @app.route('/pbj-site-universal.js')
 def serve_pbj_site_universal():
     """Single source for contact number and footer; injects into #site-footer on static pages."""
-    return _static_cache_headers(send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript'))
+    resp = send_from_directory(APP_ROOT, 'pbj-site-universal.js', mimetype='application/javascript')
+    resp.headers['ETag'] = f'W/"pbj-universal-{PBJ_SITE_UNIVERSAL_JS_VERSION}"'
+    return _static_cache_headers(resp, max_age=3600, immutable=False)
 
 
 @app.route('/pbj-audience.js')
@@ -6688,23 +6690,9 @@ if csrf_protect:
 
 def generate_owner_profile_html(profile, *, robots_meta=None):
     """Public CMS profile at /owners/<pac>/<slug> — enrollment, owner/control, or CHOW fallback."""
-    from flask import request
-
     from ownership.owner_profile_html import render_owner_profile_body
 
-    include_heavy = False
-    try:
-        include_heavy = str(request.args.get("full") or "").strip().lower() in (
-            "1",
-            "true",
-            "yes",
-            "all",
-        )
-    except Exception:
-        include_heavy = False
-    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(
-        profile, include_heavy=include_heavy
-    )
+    body, page_title, meta_desc, canon_suffix = render_owner_profile_body(profile)
     base = _public_site_origin()
     canon = base + canon_suffix
     display_name = str(profile.get('display_name') or 'Organization').strip()
@@ -6857,64 +6845,59 @@ def fec_owner_proxy(path):
 app.register_blueprint(fec_owner_bp)
 
 
-def _owners_hub_index_json_ld(*, page_title: str, meta_description: str) -> str:
+def _owners_hub_index_json_ld() -> str:
     base = _public_site_origin()
     page_url = f'{base}/owners'
     return _explainer_page_json_ld_scripts(
-        page_title=page_title,
+        page_title='Nursing Home Ownership Indexes | PBJ320',
         page_url=page_url,
-        description=meta_description,
+        description=(
+            'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida '
+            'with PBJ320 staffing context.'
+        ),
         breadcrumb_name='Ownership',
     )
 
 
 def _owners_cms_index_html():
-    """Public ownership hub — nationwide CMS search + national portfolios/CHOW panels."""
-    from ownership.state_owner_index import resolve_state_owner_index_slug
-    from ownership.state_owner_index_html import render_owners_hub_index_body
-    from ownership.us_states import US_STATE_CODES
-
-    raw_st = (request.args.get('st') or request.args.get('state') or '').strip()
-    if raw_st:
-        state_code = None
-        if len(raw_st) == 2:
-            candidate = raw_st.upper()
-            state_code = candidate if candidate in US_STATE_CODES else None
-        else:
-            resolved = resolve_state_owner_index_slug(raw_st.lower())
-            state_code = resolved if resolved in US_STATE_CODES else None
-        if state_code:
-            return redirect(f'/owners/{state_code.lower()}', code=302)
-
-    body, layout_meta = render_owners_hub_index_body(
-        None,
-        get_canonical_slug=get_canonical_slug,
-    )
+    """Public ownership index — links to NY/CT/FL state browse pages (not a national database)."""
     layout = get_pbj_site_layout(
-        layout_meta['page_title'],
-        layout_meta['meta_description'],
-        _public_site_origin() + layout_meta['canonical_path'],
+        'Nursing Home Ownership Indexes | PBJ320',
+        'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida with PBJ320 '
+        'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
+        _public_site_origin() + '/owners',
         extra_head=(
-            _owners_hub_index_json_ld(
-                page_title=layout_meta['page_title'],
-                meta_description=layout_meta['meta_description'],
-            )
-            + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
+            _owners_hub_index_json_ld()
             + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
         route_context_overrides={'kind': 'ownership'},
     )
-    hub_js_v = _static_asset_version('owners-hub.js')
-    script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
-    return (
-        layout['head']
-        + layout['nav']
-        + layout['content_open']
-        + body
-        + script
-        + layout['content_close']
-        + '</body></html>'
-    )
+    body = '''
+    <div class="owners-hub owners-hub-index">
+      <h1>Nursing home ownership indexes</h1>
+      <p class="owners-hub-lead">
+        PBJ320 links CMS SNF All Owners filings to Payroll-Based Journal (PBJ) staffing patterns at the
+        owner and facility level. These indexes help you find reported ownership-linked entities — not
+        ultimate beneficial ownership.
+      </p>
+      <p class="owners-state-unlock-note">
+        <strong>Available now:</strong> state ownership indexes for
+        <a href="/owners/ny">New York</a>, <a href="/owners/nj">New Jersey</a>,
+        <a href="/owners/ct">Connecticut</a>, and <a href="/owners/fl">Florida</a>.
+      </p>
+      <ul class="owners-hub-state-cards">
+        <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/nj"><span class="owners-hub-state-card-title">New Jersey</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+        <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
+      </ul>
+      <p class="owners-hub-aside">
+        Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
+        <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
+      </p>
+    </div>
+    '''
+    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
 def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_description: str, canonical_path: str) -> str:
@@ -6996,7 +6979,7 @@ def _owners_state_locked_html(state_name: str = ''):
     body = render_state_owner_index_locked_body(state_name)
     layout = get_pbj_site_layout(
         'Ownership index not available | PBJ320',
-        'Ownership index pages are currently available for all 50 states and D.C. on PBJ320.',
+        'Ownership index pages are currently available for New York, Connecticut, and Florida on PBJ320.',
         _public_site_origin() + '/owners',
         extra_head=f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">',
         robots_meta='noindex, follow',
@@ -7030,57 +7013,6 @@ def owners_cms_search_api():
             'suggestions': state_owner_index_search_suggestions(q, state_code, limit=limit),
         })
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
-
-
-@app.route('/owners/api/related-associates/<pac>')
-def owners_related_associates_api(pac):
-    """Deferred related-associates fragment for owner profiles (sqlite-backed, no CSV reopen)."""
-    from flask import jsonify
-
-    from ownership.owner_profile import (
-        build_related_associates,
-        load_owner_profile_resolved,
-        normalize_associate_id,
-    )
-    from ownership.owner_profile_html import render_related_associates_fragment
-
-    pac_n = normalize_associate_id(pac)
-    if len(pac_n) != 10:
-        return jsonify({'html': '', 'count': 0}), 400
-    profile = load_owner_profile_resolved(pac_n)
-    if not profile:
-        return jsonify({'html': '', 'count': 0}), 404
-    rows = build_related_associates(profile)
-    profile['related_associates'] = rows
-    return jsonify({
-        'html': render_related_associates_fragment(profile),
-        'count': len(rows),
-    })
-
-
-@app.route('/owners/api/owner-facilities/<pac>')
-def owners_owner_facilities_api(pac):
-    """Incremental facility rows/cards for owner-profile Show more (stays on page)."""
-    from flask import jsonify
-
-    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
-    from ownership.owner_profile_html import render_owner_facilities_batch_html
-
-    pac_n = normalize_associate_id(pac)
-    if len(pac_n) != 10:
-        return jsonify({'error': 'invalid pac'}), 400
-    try:
-        offset = int(request.args.get('offset') or 0)
-    except (TypeError, ValueError):
-        offset = 0
-    try:
-        limit = int(request.args.get('limit') or 50)
-    except (TypeError, ValueError):
-        limit = 50
-    profile = load_owner_profile_resolved(pac_n)
-    if not profile:
-        return jsonify({'error': 'not found'}), 404
-    return jsonify(render_owner_facilities_batch_html(profile, offset=offset, limit=limit))
 
 
 @app.route('/owners')
@@ -13165,7 +13097,7 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
   }}
   .pbj-provider-premium-bridge__request {{ font-size: 0.76rem; }}
 }}
-.navbar {{ background: rgba(10, 15, 26, 0.92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
+.navbar {{ background: rgba(10, 15, 26, 0.92); padding: 0; padding-top: env(safe-area-inset-top, 0); position: sticky; top: 0; z-index: 1000; border-bottom: 1px solid rgba(148, 163, 184, 0.22); }}
 .nav-container {{ max-width: 1200px; margin: 0 auto; padding: 0 clamp(12px, 4vw, 20px); display: flex; justify-content: space-between; align-items: center; height: 60px; min-width: 0; box-sizing: border-box; }}
 .nav-brand {{ display: flex; align-items: center; color: #eef2f7; font-size: 1.2rem; font-weight: 700; min-width: 0; line-height: 1.2; }}
 .nav-brand a {{ color: inherit; text-decoration: none; display: flex; align-items: center; transition: opacity 0.2s ease; min-width: 0; }}
@@ -13345,43 +13277,6 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     margin-bottom: 0.15rem;
     padding-bottom: 0.2rem;
   }}
-  .nav-menu {{
-    display: flex !important;
-    flex-direction: column;
-    position: fixed;
-    top: 60px;
-    left: -100%;
-    right: 0;
-    width: 100%;
-    max-width: 100%;
-    height: calc(100vh - 60px);
-    background: rgba(10, 15, 26, 0.98);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 0;
-    gap: 0;
-    border-top: 1px solid rgba(71, 85, 105, 0.45);
-    border-bottom: none;
-    z-index: 999;
-    transition: left 0.25s ease;
-    align-items: stretch;
-    justify-content: flex-start;
-  }}
-  .nav-menu.active {{ left: 0; }}
-  .nav-link {{
-    padding: 18px 24px;
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    border-bottom: 1px solid rgba(30, 41, 59, 0.55);
-    font-size: 1rem;
-  }}
-  .nav-link--ownership-beta {{ display: flex !important; }}
-  .nav-toggle {{ display: flex; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; cursor: pointer; }}
-  .nav-toggle span {{ width: 25px; height: 3px; background: #e2e8f0; }}
-  .nav-toggle.active span:nth-child(1) {{ transform: rotate(45deg) translate(5px,5px); }}
-  .nav-toggle.active span:nth-child(2) {{ opacity: 0; }}
-  .nav-toggle.active span:nth-child(3) {{ transform: rotate(-45deg) translate(7px,-6px); }}
   .pbj-infobox {{ float: none; width: 100%; margin: 1rem 0; }}
   .infobox {{ float: none; width: 100%; margin: 1em 0; }}
   .state-key-metrics-row {{ grid-template-columns: repeat(2, 1fr); }}

@@ -371,7 +371,17 @@ def signup(
 
     threading.Thread(
         target=_notify_admin_signup,
-        args=(email, cta_variant, results),
+        kwargs={
+            'email': email,
+            'cta_variant': cta_variant,
+            'results': results,
+            'context': ctx,
+            'name': name,
+            'organization': organization,
+            'role': role,
+            'source_url': source_url,
+            'contact_created': contact_created,
+        },
         daemon=True,
     ).start()
     _sync_loops_async(contact_id, email, results, ctx)
@@ -714,7 +724,83 @@ def conversion_report_queries() -> dict[str, str]:
     }
 
 
-def _notify_admin_signup(email: str, cta_variant: str, results: list[dict[str, Any]]) -> None:
+def format_admin_signup_notification(
+    email: str,
+    cta_variant: str,
+    results: list[dict[str, Any]],
+    *,
+    context: dict[str, Any] | None = None,
+    name: str | None = None,
+    organization: str | None = None,
+    role: str | None = None,
+    source_url: str | None = None,
+    contact_created: bool = False,
+) -> tuple[str, str]:
+    """Build admin alert subject/body for a new audience signup."""
+    ctx = dict(context or {})
+    page_url = (source_url or ctx.get('sourceUrl') or ctx.get('source_url') or '').strip()
+    lines = [
+        'PBJ320 audience signup',
+        '',
+        f'Email: {email}',
+    ]
+    if name and name.strip():
+        lines.append(f'Name: {name.strip()}')
+    if organization and organization.strip():
+        lines.append(f'Organization: {organization.strip()}')
+    if role and role.strip():
+        lines.append(f'Role: {role.strip()}')
+    lines.append(f'CTA: {cta_variant}')
+    lines.append(f'New contact: {"yes" if contact_created else "no (existing)"}')
+    lines.append('')
+    lines.append('Subscriptions:')
+    for row in results:
+        sub_type = row.get('subscriptionType') or 'unknown'
+        result = row.get('result') or 'unknown'
+        rt = row.get('resourceType')
+        rid = row.get('resourceId')
+        if rt and rid:
+            lines.append(f'  - {sub_type} ({rt}: {rid}) [{result}]')
+        else:
+            lines.append(f'  - {sub_type} [{result}]')
+    facility_name = (ctx.get('facilityName') or ctx.get('facility_name') or '').strip()
+    ccn = (ctx.get('ccn') or ctx.get('resourceId') or '').strip()
+    state_abbr = (ctx.get('stateAbbr') or ctx.get('state_abbr') or '').strip()
+    state_name = (ctx.get('stateName') or ctx.get('state_name') or '').strip()
+    page_type = (ctx.get('pageType') or ctx.get('page_type') or '').strip()
+    chain_id = (ctx.get('chainId') or ctx.get('entityId') or '').strip()
+    context_lines: list[str] = []
+    if facility_name:
+        context_lines.append(f'Facility: {facility_name}')
+    if ccn:
+        context_lines.append(f'CCN: {ccn}')
+    if state_name or state_abbr:
+        context_lines.append(f'State: {state_name or state_abbr}' + (f' ({state_abbr})' if state_name and state_abbr else ''))
+    if chain_id:
+        context_lines.append(f'Chain/entity: {chain_id}')
+    if page_type:
+        context_lines.append(f'Page type: {page_type}')
+    if page_url:
+        context_lines.append(f'Source URL: {page_url}')
+    if context_lines:
+        lines.extend(['', 'Context:'])
+        lines.extend(context_lines)
+    subject = f'PBJ320 audience signup: {email}'
+    return subject, '\n'.join(lines) + '\n'
+
+
+def _notify_admin_signup(
+    email: str,
+    cta_variant: str,
+    results: list[dict[str, Any]],
+    *,
+    context: dict[str, Any] | None = None,
+    name: str | None = None,
+    organization: str | None = None,
+    role: str | None = None,
+    source_url: str | None = None,
+    contact_created: bool = False,
+) -> None:
     try:
         import smtplib
 
@@ -727,10 +813,19 @@ def _notify_admin_signup(email: str, cta_variant: str, results: list[dict[str, A
         user = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_USER', '').strip()
         password = os.environ.get('SUBSCRIBE_NOTIFY_SMTP_PASSWORD', '').strip()
         from_addr = os.environ.get('SUBSCRIBE_NOTIFY_FROM', user or 'noreply@pbj320.com').strip()
-        types = ', '.join(r['subscriptionType'] for r in results)
-        body = f'PBJ320 audience signup\n\nCTA: {cta_variant}\nSubscriptions: {types}\n'
+        subject, body = format_admin_signup_notification(
+            email,
+            cta_variant,
+            results,
+            context=context,
+            name=name,
+            organization=organization,
+            role=role,
+            source_url=source_url,
+            contact_created=contact_created,
+        )
         msg = (
-            f'Subject: PBJ320 audience signup\r\nFrom: {from_addr}\r\n'
+            f'Subject: {subject}\r\nFrom: {from_addr}\r\n'
             f'To: {", ".join(to_list)}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n{body}'
         )
         with smtplib.SMTP(host, port, timeout=10) as s:

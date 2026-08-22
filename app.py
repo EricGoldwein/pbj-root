@@ -6845,59 +6845,64 @@ def fec_owner_proxy(path):
 app.register_blueprint(fec_owner_bp)
 
 
-def _owners_hub_index_json_ld() -> str:
+def _owners_hub_index_json_ld(*, page_title: str, meta_description: str) -> str:
     base = _public_site_origin()
     page_url = f'{base}/owners'
     return _explainer_page_json_ld_scripts(
-        page_title='Nursing Home Ownership Indexes | PBJ320',
+        page_title=page_title,
         page_url=page_url,
-        description=(
-            'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida '
-            'with PBJ320 staffing context.'
-        ),
+        description=meta_description,
         breadcrumb_name='Ownership',
     )
 
 
 def _owners_cms_index_html():
-    """Public ownership index — links to NY/CT/FL state browse pages (not a national database)."""
+    """Public ownership hub — nationwide CMS search + national portfolios/CHOW panels."""
+    from ownership.state_owner_index import resolve_state_owner_index_slug
+    from ownership.state_owner_index_html import render_owners_hub_index_body
+    from ownership.us_states import US_STATE_CODES
+
+    raw_st = (request.args.get('st') or request.args.get('state') or '').strip()
+    if raw_st:
+        state_code = None
+        if len(raw_st) == 2:
+            candidate = raw_st.upper()
+            state_code = candidate if candidate in US_STATE_CODES else None
+        else:
+            resolved = resolve_state_owner_index_slug(raw_st.lower())
+            state_code = resolved if resolved in US_STATE_CODES else None
+        if state_code:
+            return redirect(f'/owners/{state_code.lower()}', code=302)
+
+    body, layout_meta = render_owners_hub_index_body(
+        None,
+        get_canonical_slug=get_canonical_slug,
+    )
     layout = get_pbj_site_layout(
-        'Nursing Home Ownership Indexes | PBJ320',
-        'Browse reported CMS nursing home ownership entities in New York, Connecticut, and Florida with PBJ320 '
-        'staffing-focused owner profiles, facility counts, and Payroll-Based Journal context.',
-        _public_site_origin() + '/owners',
+        layout_meta['page_title'],
+        layout_meta['meta_description'],
+        _public_site_origin() + layout_meta['canonical_path'],
         extra_head=(
-            _owners_hub_index_json_ld()
+            _owners_hub_index_json_ld(
+                page_title=layout_meta['page_title'],
+                meta_description=layout_meta['meta_description'],
+            )
+            + f'<link rel="stylesheet" href="/chow.css?v={_static_asset_version("chow.css")}">'
             + f'<link rel="stylesheet" href="/owner-profile.css?v={_static_asset_version("owner-profile.css")}">'
         ),
         route_context_overrides={'kind': 'ownership'},
     )
-    body = '''
-    <div class="owners-hub owners-hub-index">
-      <h1>Nursing home ownership indexes</h1>
-      <p class="owners-hub-lead">
-        PBJ320 links CMS SNF All Owners filings to Payroll-Based Journal (PBJ) staffing patterns at the
-        owner and facility level. These indexes help you find reported ownership-linked entities — not
-        ultimate beneficial ownership.
-      </p>
-      <p class="owners-state-unlock-note">
-        <strong>Available now:</strong> state ownership indexes for
-        <a href="/owners/ny">New York</a>, <a href="/owners/nj">New Jersey</a>,
-        <a href="/owners/ct">Connecticut</a>, and <a href="/owners/fl">Florida</a>.
-      </p>
-      <ul class="owners-hub-state-cards">
-        <li><a class="owners-hub-state-card" href="/owners/ny"><span class="owners-hub-state-card-title">New York</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/nj"><span class="owners-hub-state-card-title">New Jersey</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/ct"><span class="owners-hub-state-card-title">Connecticut</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-        <li><a class="owners-hub-state-card" href="/owners/fl"><span class="owners-hub-state-card-title">Florida</span><span class="owners-hub-state-card-sub">Owners &amp; staffing patterns</span></a></li>
-      </ul>
-      <p class="owners-hub-aside">
-        Open a profile by 10-digit CMS associate ID (PAC) at <code>/owners/&lt;PAC&gt;</code>, or from a
-        <a href="/">facility search</a> / <a href="/state/new-york">state staffing page</a> when ownership is listed.
-      </p>
-    </div>
-    '''
-    return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
+    hub_js_v = _static_asset_version('owners-hub.js')
+    script = f'<script src="/owners-hub.js?v={hub_js_v}" defer></script>'
+    return (
+        layout['head']
+        + layout['nav']
+        + layout['content_open']
+        + body
+        + script
+        + layout['content_close']
+        + '</body></html>'
+    )
 
 
 def _owners_state_index_json_ld(state_code: str, *, page_title: str, meta_description: str, canonical_path: str) -> str:
@@ -7013,6 +7018,57 @@ def owners_cms_search_api():
             'suggestions': state_owner_index_search_suggestions(q, state_code, limit=limit),
         })
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
+
+
+@app.route('/owners/api/related-associates/<pac>')
+def owners_related_associates_api(pac):
+    """Deferred related-associates fragment for owner profiles (sqlite-backed, no CSV reopen)."""
+    from flask import jsonify
+
+    from ownership.owner_profile import (
+        build_related_associates,
+        load_owner_profile_resolved,
+        normalize_associate_id,
+    )
+    from ownership.owner_profile_html import render_related_associates_fragment
+
+    pac_n = normalize_associate_id(pac)
+    if len(pac_n) != 10:
+        return jsonify({'html': '', 'count': 0}), 400
+    profile = load_owner_profile_resolved(pac_n)
+    if not profile:
+        return jsonify({'html': '', 'count': 0}), 404
+    rows = build_related_associates(profile)
+    profile['related_associates'] = rows
+    return jsonify({
+        'html': render_related_associates_fragment(profile),
+        'count': len(rows),
+    })
+
+
+@app.route('/owners/api/owner-facilities/<pac>')
+def owners_owner_facilities_api(pac):
+    """Incremental facility rows/cards for owner-profile Show more (stays on page)."""
+    from flask import jsonify
+
+    from ownership.owner_profile import load_owner_profile_resolved, normalize_associate_id
+    from ownership.owner_profile_html import render_owner_facilities_batch_html
+
+    pac_n = normalize_associate_id(pac)
+    if len(pac_n) != 10:
+        return jsonify({'error': 'invalid pac'}), 400
+    try:
+        offset = int(request.args.get('offset') or 0)
+    except (TypeError, ValueError):
+        offset = 0
+    try:
+        limit = int(request.args.get('limit') or 50)
+    except (TypeError, ValueError):
+        limit = 50
+    profile = load_owner_profile_resolved(pac_n)
+    if not profile:
+        return jsonify({'error': 'not found'}), 404
+    return jsonify(render_owner_facilities_batch_html(profile, offset=offset, limit=limit))
 
 
 @app.route('/owners')

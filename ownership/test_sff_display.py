@@ -33,3 +33,10 @@ class TestSffDisplay(unittest.TestCase):
         self.assertIn("SFF Candidates", html)
         self.assertIn('data-info-format="sff"', html)
         self.assertIn(PBJ_SFF_URL, html)
+        # Help control stays on the label row (not its own row under the value).
+        self.assertIn('entity-risk-metric-label-text', html)
+        self.assertRegex(
+            html,
+            r'entity-risk-metric-label">[\s\S]*?owner-info-btn[\s\S]*?</div>\s*'
+            r'<div class="entity-risk-metric-value-row">',
+        )

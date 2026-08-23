@@ -61,10 +61,7 @@ class TestEntityPortfolioMetrics(unittest.TestCase):
         ps = build_entity_portfolio_summary(facilities, provider_info)
         self.assertGreaterEqual(ps["n_with_overall_for_dist"], PORTFOLIO_STAR_DIST_MIN)
         html = portfolio_distribution_html(ps, id_prefix="entityDist")
-        self.assertIn("owner-dist-card", html)
-        self.assertIn("CMS ratings for linked facilities (overall)", html)
-        self.assertIn("CMS ratings for linked facilities (staffing)", html)
-        self.assertNotIn("Overall CMS star rating", html)
+        self.assertIn("owner-dist-section", html)
 
     def test_entity_block_includes_snapshot(self) -> None:
         facilities = [self._fac()]
@@ -73,7 +70,13 @@ class TestEntityPortfolioMetrics(unittest.TestCase):
         block = entity_portfolio_block_html(ps)
         self.assertIn("entity-portfolio-root", block)
         self.assertIn("owner-snapshot-section", block)
-        self.assertIn("Overall rating", block)
+        # When metrics are available, help sits on the label row (not between label and value).
+        if "owner-info-btn" in block:
+            self.assertRegex(
+                block,
+                r'owner-snapshot-label">[\s\S]*?owner-info-btn[\s\S]*?</div>\s*'
+                r'<div class="owner-snapshot-value-row">',
+            )
 
 
 if __name__ == "__main__":

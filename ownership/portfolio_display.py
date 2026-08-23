@@ -48,36 +48,35 @@ def snapshot_metric_card_html(
     *,
     tone: str = "",
     value_title: str = "",
-    sublabel: str = "",
     action_attrs: str = "",
     label_short: str = "",
+    sub_html: str = "",
 ) -> str:
     tone_cls = f" owner-snapshot-card--{tone}" if tone else ""
     value_tip = html.escape(value_title, quote=True) if value_title else ""
     value_attrs = f' title="{value_tip}" aria-label="{value_tip}"' if value_tip else ""
-    sub_html = (
-        f'<div class="owner-snapshot-sublabel">{html.escape(sublabel)}</div>'
-        if (sublabel or "").strip()
-        else ""
-    )
     label_full = html.escape(label)
+    help_html = (
+        info_button_html(help_title, help_body) if (help_title and help_body) else ""
+    )
     if label_short:
-        label_inner = (
+        label_text = (
             f'<span class="owner-snapshot-label-full">{label_full}</span>'
             f'<span class="owner-snapshot-label-short">{html.escape(label_short)}</span>'
         )
     else:
-        label_inner = label_full
-    help_html = (
-        info_button_html(help_title, help_body) if (help_title and help_body) else ""
+        label_text = f'<span class="owner-snapshot-label-text">{label_full}</span>'
+    # Keep ? on the same row as the label (never its own row between label and value).
+    label_html = (
+        f'<div class="owner-snapshot-label">{label_text}{help_html}</div>'
     )
+    sub = f'<div class="owner-snapshot-sub">{sub_html}</div>' if sub_html else ""
     inner = (
-        f'<div class="owner-snapshot-label-row">'
-        f'<div class="owner-snapshot-label">{label_inner}</div>'
-        f"{help_html}"
-        f"</div>"
+        f"{label_html}"
+        f'<div class="owner-snapshot-value-row">'
         f'<div class="owner-snapshot-value"{value_attrs}>{value}</div>'
-        f"{sub_html}"
+        "</div>"
+        f"{sub}"
     )
     if action_attrs:
         return (
@@ -85,6 +84,7 @@ def snapshot_metric_card_html(
             f"{action_attrs}>{inner}</button>"
         )
     return f'<div class="owner-snapshot-card{tone_cls}">{inner}</div>'
+
 
 def portfolio_distribution_list_html(
     counts: dict[int, int],
@@ -156,11 +156,11 @@ def portfolio_state_distribution_html(
             f"</li>"
         )
     return (
-        '<section class="owner-dist-card" aria-label="Facilities by state">'
-        '<div class="owner-dist-card-head">'
+        '<section class="owner-dist-section" aria-label="Facilities by state">'
+        '<div class="owner-dist-head">'
         '<h3 class="owner-dist-title">Facilities by state</h3>'
         "</div>"
-        f'<ul class="owner-dist-list">{"".join(rows)}</ul>'
+        f'<div class="owner-dist-chart"><ul class="owner-dist-list">{"".join(rows)}</ul></div>'
         "</section>"
     )
 
@@ -208,7 +208,6 @@ def portfolio_distribution_html(
     id_prefix: str = "ownerDist",
     include_state_fallback: bool = False,
 ) -> str:
-    # Care Compare stars are facility context, not owner-period performance.
     overall_title = "Overall"
     staffing_title = "Staffing"
     overall_list = ""
@@ -439,7 +438,7 @@ def portfolio_snapshot_section_html(
             ps, wmean=wmean, umean=umean, chain_hprd=chain_hprd
         )
         aria = "Entity portfolio metrics"
-        hprd_label = "Weighted total nurse HPRD" if n >= 2 else "Total nurse HPRD"
+        hprd_label = "Weighted nurse HPRD" if n >= 2 else "Nurse HPRD"
         if wmean is not None:
             cards.append(
                 snapshot_metric_card_html(
@@ -447,15 +446,17 @@ def portfolio_snapshot_section_html(
                     html.escape(f"{wmean:.2f}"),
                     hprd_label,
                     hprd_help,
+                    label_short="Nurse HPRD",
                 )
             )
         elif umean is not None:
             cards.append(
                 snapshot_metric_card_html(
-                    "Avg total nurse HPRD" if n >= 2 else "Total nurse HPRD",
+                    "Avg nurse HPRD" if n >= 2 else "Nurse HPRD",
                     html.escape(f"{umean:.2f}"),
                     hprd_label,
                     hprd_help.replace("Resident-weighted", "Unweighted"),
+                    label_short="Nurse HPRD",
                 )
             )
         if mean_ovr is not None and n >= 2:
@@ -466,6 +467,7 @@ def portfolio_snapshot_section_html(
                     "Avg overall rating",
                     ovr_help,
                     tone="warn",
+                    label_short="Overall rating",
                 )
             )
         elif mean_ovr is not None and n == 1:
@@ -476,6 +478,7 @@ def portfolio_snapshot_section_html(
                     "Overall rating",
                     "CMS overall star rating for this facility.",
                     tone="warn",
+                    label_short="Overall rating",
                 )
             )
         if mean_stf is not None and n >= 2:
@@ -485,6 +488,7 @@ def portfolio_snapshot_section_html(
                     html.escape(f"{mean_stf:.1f}"),
                     "Avg staffing rating",
                     stf_help,
+                    label_short="Staffing rating",
                 )
             )
     else:
@@ -498,30 +502,20 @@ def portfolio_snapshot_section_html(
         hprd_eligible = str(ps.get("hprd_eligible_label") or "").strip()
         if hprd_eligible:
             hprd_help = f"{hprd_eligible}. {hprd_help}"
-        hprd_sub = ""
-        if n_hprd > 0:
-            hprd_sub = (
-                f"{n_hprd} qualifying facilit"
-                f"{'y' if n_hprd == 1 else 'ies'}"
-            )
+        n_states = int(ps.get("n_states") or 0)
+        if not n_states:
+            n_states = len(list(ps.get("by_state") or []))
         cards.append(
             snapshot_metric_card_html(
-                "Linked facilities"
-                if not uses_ownership_portfolio_language
-                else "Ownership-interest facilities",
+                "Linked facilities",
                 str(n),
-                "Linked facilities"
-                if not uses_ownership_portfolio_language
-                else "Ownership-interest facilities",
+                "Linked facilities",
                 fac_help,
                 tone="accent",
                 value_title="Distinct CMS-linked facilities nationwide",
                 label_short="Facilities",
             )
         )
-        n_states = int(ps.get("n_states") or 0)
-        if not n_states:
-            n_states = len(list(ps.get("by_state") or []))
         if n_states:
             cards.append(
                 snapshot_metric_card_html(
@@ -531,44 +525,70 @@ def portfolio_snapshot_section_html(
                     "",
                     action_attrs=(
                         'data-owner-states-open aria-haspopup="dialog" '
-                        'aria-controls="ownerStatesPopover" '
-                        f'aria-label="{n_states} states - facilities by state"'
+                        'aria-controls="ownerStatesModal" '
+                        f'aria-label="{n_states} states — facilities by state"'
                     ),
                     label_short="States",
                 )
             )
-        if wmean is not None:
-            hprd_label = (
-                "Weighted nurse HPRD"
-                if n_hprd >= 2 or (n_hprd == 0 and n >= 2)
-                else "Nurse HPRD"
+        if mean_ovr is not None and n >= 2:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Avg overall rating",
+                    html.escape(f"{mean_ovr:.1f}"),
+                    "Avg overall rating",
+                    ovr_help,
+                    tone="warn",
+                    label_short="Overall rating",
+                )
             )
+        elif mean_ovr is not None and n == 1:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Overall rating",
+                    html.escape(f"{mean_ovr:.1f}"),
+                    "Overall rating",
+                    "CMS overall star rating for this facility.",
+                    tone="warn",
+                    label_short="Overall rating",
+                )
+            )
+        if wmean is not None:
+            hprd_label = "Weighted nurse HPRD" if n >= 2 else "Nurse HPRD"
+            hprd_sub = ""
+            if n_hprd and n_hprd != n:
+                hprd_sub = (
+                    f"{n_hprd} qualifying facilit{'y' if n_hprd == 1 else 'ies'}"
+                )
             cards.append(
                 snapshot_metric_card_html(
                     hprd_label,
                     html.escape(f"{wmean:.2f}"),
                     hprd_label,
                     hprd_help,
-                    sublabel=hprd_sub,
-                    value_title=hprd_sub or hprd_eligible or hprd_label,
                     label_short="Nurse HPRD",
+                    sub_html=html.escape(hprd_sub) if hprd_sub else "",
                 )
             )
         elif umean is not None:
-            hprd_label = (
-                "Avg nurse HPRD"
-                if n_hprd >= 2 or (n_hprd == 0 and n >= 2)
-                else "Nurse HPRD"
-            )
+            hprd_label = "Avg nurse HPRD" if n >= 2 else "Nurse HPRD"
             cards.append(
                 snapshot_metric_card_html(
                     hprd_label,
                     html.escape(f"{umean:.2f}"),
                     hprd_label,
                     hprd_help.replace("Resident-weighted", "Unweighted"),
-                    sublabel=hprd_sub,
-                    value_title=hprd_sub or hprd_eligible or hprd_label,
                     label_short="Nurse HPRD",
+                )
+            )
+        if mean_stf is not None and n >= 2:
+            cards.append(
+                snapshot_metric_card_html(
+                    "Avg staffing rating",
+                    html.escape(f"{mean_stf:.1f}"),
+                    "Avg staffing rating",
+                    stf_help,
+                    label_short="Staffing rating",
                 )
             )
 

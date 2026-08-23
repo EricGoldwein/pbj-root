@@ -991,24 +991,9 @@ def get_facility_risk_from_search_index(ccn):
 
 def get_entity_name_from_search_index(entity_id):
     """Return canonical entity name for an entity ID from search_index.json."""
-    try:
-        target = int(entity_id)
-    except Exception:
-        return ''
-    data = _get_search_index_data()
-    if not data:
-        return ''
-    try:
-        for row in (data.get('e') or []):
-            rid = row.get('id')
-            rlink = row.get('linkId')
-            if (rid is not None and int(rid) == target) or (rlink is not None and int(rlink) == target):
-                nm = str(row.get('n') or '').strip()
-                if nm:
-                    return capitalize_entity_name(nm)
-    except Exception:
-        return ''
-    return ''
+    from canonical_urls import get_entity_name_from_search_index as _cu_get_entity_name
+
+    return _cu_get_entity_name(entity_id)
 
 @app.before_request
 def _mem_route_timer():
@@ -7252,6 +7237,13 @@ def _build_sitemap_xml() -> str:
         f'<changefreq>weekly</changefreq><priority>0.65</priority></url>'
     )
     try:
+        from canonical_urls import (
+            entity_url,
+            get_facility_name_from_search_index,
+            owner_url,
+            provider_url,
+        )
+        from ownership.owner_profile import associate_profile_url
         from ownership.owner_indexability import (
             load_owner_indexability_cache,
             log_owner_indexability_summary,
@@ -7263,22 +7255,34 @@ def _build_sitemap_xml() -> str:
             count_excluded=False
         )
         for ccn in provider_ccns:
+            fac_name = get_facility_name_from_search_index(ccn)
+            path = provider_url(ccn, fac_name)
             urls.append(
-                f'  <url><loc>{base}/provider/{ccn}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                f'  <url><loc>{base}{path}</loc><lastmod>{quarter_lastmod}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
             )
         data = _get_search_index_data()
         if data:
             for ent in (data.get('e') or []):
+                if ent and ent.get('id') is not None and ent.get('linkId') is not None:
+                    continue  # alias IDs redirect to canonical entity
                 if ent and ent.get('id') is not None:
+                    eid = ent.get('id')
+                    ename = str(ent.get('n') or '').strip()
+                    path = entity_url(eid, ename)
                     urls.append(
-                        f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                        f'  <url><loc>{base}{path}</loc><lastmod>{quarter_lastmod}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
                     )
         owner_cache = load_owner_indexability_cache()
         for pac in public_owner_associate_ids_for_sitemap(cache_only=True):
+            cache_row = (owner_cache or {}).get(pac) or {}
+            owner_name = str(cache_row.get('owner_name') or '').strip()
+            path = associate_profile_url(pac, owner_name)
+            if not path or path == '/owners':
+                path = owner_url(pac, owner_name)
             urls.append(
-                f'  <url><loc>{base}/owners/{pac}</loc><lastmod>{today}</lastmod>'
+                f'  <url><loc>{base}{path}</loc><lastmod>{today}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.55</priority></url>'
             )
         log_owner_indexability_summary(
@@ -7368,6 +7372,8 @@ def _build_sitemap_xml_minimal() -> str:
     robots_blocked = sitemap_paths_blocked_by_robots(ROBOTS_TXT)
     urls = _sitemap_static_url_lines(base, today, quarter_lastmod)
     try:
+        from canonical_urls import entity_url, get_facility_name_from_search_index, provider_url
+        from canonical_urls import entity_url, get_facility_name_from_search_index, provider_url
         from ownership.owner_indexability import provider_ccns_for_sitemap
 
         for ccn in provider_ccns_for_sitemap(count_excluded=False):
@@ -11005,9 +11011,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   background: var(--pbj-ov-elevated, #181F2E); border: 1px solid var(--pbj-ov-border, #2A3448);
 }}
 .pbj-metric__label {{
-  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.28rem 0.35rem;
+  display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 0.28rem 0.35rem;
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #94a3b8; line-height: 1.2;
+  color: #94a3b8; line-height: 1.2; max-width: 100%; min-width: 0;
 }}
 .pbj-metric__icon {{
   width: 0.9rem; height: 0.9rem; color: #64748b; flex-shrink: 0; opacity: 0.95;
@@ -11187,10 +11193,11 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   margin: 0.28rem 0 0; font-size: 0.7rem; line-height: 1.3; color: rgba(148, 163, 184, 0.78);
 }}
 .pbj-entity-hr-insight {{
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.75rem;
-  align-items: start;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.75rem;
   margin: 0.55rem 0 0;
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
@@ -11199,11 +11206,14 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   font-size: 0.84rem;
   line-height: 1.4;
   color: rgba(230, 235, 243, 0.9);
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }}
 .pbj-entity-hr-insight__badge {{
-  grid-column: 1;
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 0.28rem;
   margin: 0;
   padding: 0.22rem 0.5rem;
@@ -11214,14 +11224,16 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.32);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 9.5rem;
+  line-height: 1.2;
   align-self: start;
 }}
 .pbj-entity-hr-insight__badge .pbj-entity-hr-insight__icon {{
   width: 0.85rem; height: 0.85rem; flex-shrink: 0; opacity: 0.95;
 }}
 .pbj-entity-hr-insight__copy {{
-  grid-column: 2;
+  flex: 1 1 auto;
   min-width: 0;
 }}
 .pbj-entity-hr-insight__text {{
@@ -12861,9 +12873,15 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
     font-size: 0.5rem !important; flex-wrap: nowrap !important; gap: 0.12rem 0.14rem;
+    align-items: center;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label .pbj-info-chip {{
-    display: none !important;
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    margin-left: 0;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label-text {{
+    flex: 0 1 auto; min-width: 0; white-space: nowrap;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
     display: grid;
@@ -13001,20 +13019,24 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     margin: 0.28rem 0 0; font-size: 0.66rem; line-height: 1.3; color: rgba(148, 163, 184, 0.72);
   }}
   .pbj-entity-hr-insight {{
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 0.55rem;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start;
+    gap: 0.55rem;
     margin-top: 0.45rem;
     width: 100%;
     box-sizing: border-box;
   }}
   .pbj-entity-hr-insight__badge {{
-    grid-column: 1;
+    flex: 0 1 auto;
+    max-width: 8.5rem;
     margin: 0;
     align-self: start;
+    white-space: normal;
   }}
   .pbj-entity-hr-insight__copy {{
-    grid-column: 2;
+    flex: 1 1 auto;
     min-width: 0;
   }}
   .pbj-page-summary-meta .pbj-meta-sep {{
@@ -27829,6 +27851,13 @@ def _rewrite_site_script_versions(response):
 # Premium marketing page + assets — register after other /<slug> routes so /premium is not treated as a state.
 register_premium_routes(app, APP_ROOT)
 register_audience_routes(app, validate_csrf_fn=validate_csrf if HAS_CSRF else None)
+
+try:
+    from canonical_page_routes import register_canonical_page_routes
+
+    register_canonical_page_routes(app)
+except ImportError:
+    pass
 
 try:
     from preview_catalog_routes import register_preview_catalog_routes

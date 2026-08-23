@@ -21,6 +21,12 @@ def test_homepage_kind():
 
 
 def test_provider_kind():
+    ctx = resolve_public_route_context('/provider/015009/example-facility')
+    assert ctx['kind'] == 'provider'
+    assert ctx['ccn'] == '015009'
+
+
+def test_provider_id_only_kind():
     ctx = resolve_public_route_context('/provider/015009')
     assert ctx['kind'] == 'provider'
     assert ctx['ccn'] == '015009'
@@ -42,6 +48,12 @@ def test_state_kind_usa():
 
 
 def test_entity_kind():
+    ctx = resolve_public_route_context('/entity/237/example-chain')
+    assert ctx['kind'] == 'entity'
+    assert ctx['entityId'] == 237
+
+
+def test_entity_id_only_kind():
     ctx = resolve_public_route_context('/entity/237')
     assert ctx['kind'] == 'entity'
     assert ctx['entityId'] == 237

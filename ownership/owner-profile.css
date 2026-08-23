@@ -524,8 +524,9 @@
 
 @media (max-width: 420px) {
   .entity-portfolio-root .owner-portfolio-grid,
+  .entity-portfolio-root .owner-portfolio-grid--3,
   .entity-portfolio-root .entity-portfolio-grid--3 {
-    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
@@ -636,6 +637,38 @@
   text-transform: uppercase;
   color: var(--owner-muted, #94a3b8);
   margin-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.owner-snapshot-label-text,
+.owner-snapshot-label-full {
+  min-width: 0;
+}
+
+.owner-snapshot-label-short {
+  display: none;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .owner-snapshot-label-full {
+    display: none;
+  }
+
+  .owner-snapshot-label-short {
+    display: inline;
+  }
+}
+
+.owner-snapshot-label .owner-info-btn {
+  flex: 0 0 auto;
+  margin-left: 0;
+  align-self: center;
 }
 
 .owner-snapshot-label-short {
@@ -704,9 +737,10 @@
 .owner-snapshot-value-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.2rem;
   margin-top: auto;
+  flex-wrap: nowrap;
 }
 
 .owner-snapshot-value-row .owner-snapshot-value {
@@ -1026,9 +1060,15 @@ button.owner-flag.owner-flag--abuse:hover,
 
 .entity-high-risk-metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.85rem;
   margin-top: 0.75rem;
+}
+
+@media (min-width: 720px) {
+  .entity-high-risk-metrics-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .entity-risk-metric-card {
@@ -1054,6 +1094,44 @@ button.owner-flag.owner-flag--abuse:hover,
   color: var(--owner-muted, #94a3b8);
   line-height: 1.25;
   margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.entity-risk-metric-label-text {
+  min-width: 0;
+}
+
+.entity-risk-metric-label .owner-info-btn {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
+/* Keep PBJ320 high-risk insight badge + copy side-by-side on narrow viewports. */
+.pbj-entity-hr-insight {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+}
+
+.pbj-entity-hr-insight__badge {
+  flex: 0 1 auto;
+  max-width: 9.5rem;
+  white-space: normal;
+  line-height: 1.2;
+}
+
+.pbj-entity-hr-insight__copy {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .entity-risk-metric-value-row {
@@ -2397,11 +2475,14 @@ button.owner-flag:hover {
     line-height: 1.1;
   }
 
-  .owner-snapshot-value-row .owner-info-btn {
+  .owner-snapshot-label .owner-info-btn,
+  .owner-snapshot-value-row .owner-info-btn,
+  .entity-risk-metric-label .owner-info-btn {
     min-width: 1rem;
     height: 1rem;
     font-size: 0.65rem;
-    margin-left: 0.1rem;
+    margin-left: 0;
+    flex: 0 0 auto;
   }
 
   .owner-facility-state-inline {

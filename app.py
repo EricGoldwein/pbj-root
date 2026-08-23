@@ -991,24 +991,9 @@ def get_facility_risk_from_search_index(ccn):
 
 def get_entity_name_from_search_index(entity_id):
     """Return canonical entity name for an entity ID from search_index.json."""
-    try:
-        target = int(entity_id)
-    except Exception:
-        return ''
-    data = _get_search_index_data()
-    if not data:
-        return ''
-    try:
-        for row in (data.get('e') or []):
-            rid = row.get('id')
-            rlink = row.get('linkId')
-            if (rid is not None and int(rid) == target) or (rlink is not None and int(rlink) == target):
-                nm = str(row.get('n') or '').strip()
-                if nm:
-                    return capitalize_entity_name(nm)
-    except Exception:
-        return ''
-    return ''
+    from canonical_urls import get_entity_name_from_search_index as _cu_get_entity_name
+
+    return _cu_get_entity_name(entity_id)
 
 @app.before_request
 def _mem_route_timer():
@@ -7252,6 +7237,13 @@ def _build_sitemap_xml() -> str:
         f'<changefreq>weekly</changefreq><priority>0.65</priority></url>'
     )
     try:
+        from canonical_urls import (
+            entity_url,
+            get_facility_name_from_search_index,
+            owner_url,
+            provider_url,
+        )
+        from ownership.owner_profile import associate_profile_url
         from ownership.owner_indexability import (
             load_owner_indexability_cache,
             log_owner_indexability_summary,
@@ -7263,22 +7255,34 @@ def _build_sitemap_xml() -> str:
             count_excluded=False
         )
         for ccn in provider_ccns:
+            fac_name = get_facility_name_from_search_index(ccn)
+            path = provider_url(ccn, fac_name)
             urls.append(
-                f'  <url><loc>{base}/provider/{ccn}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                f'  <url><loc>{base}{path}</loc><lastmod>{quarter_lastmod}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
             )
         data = _get_search_index_data()
         if data:
             for ent in (data.get('e') or []):
+                if ent and ent.get('id') is not None and ent.get('linkId') is not None:
+                    continue  # alias IDs redirect to canonical entity
                 if ent and ent.get('id') is not None:
+                    eid = ent.get('id')
+                    ename = str(ent.get('n') or '').strip()
+                    path = entity_url(eid, ename)
                     urls.append(
-                        f'  <url><loc>{base}/entity/{ent.get("id")}</loc><lastmod>{quarter_lastmod}</lastmod>'
+                        f'  <url><loc>{base}{path}</loc><lastmod>{quarter_lastmod}</lastmod>'
                         f'<changefreq>monthly</changefreq><priority>0.6</priority></url>'
                     )
         owner_cache = load_owner_indexability_cache()
         for pac in public_owner_associate_ids_for_sitemap(cache_only=True):
+            cache_row = (owner_cache or {}).get(pac) or {}
+            owner_name = str(cache_row.get('owner_name') or '').strip()
+            path = associate_profile_url(pac, owner_name)
+            if not path or path == '/owners':
+                path = owner_url(pac, owner_name)
             urls.append(
-                f'  <url><loc>{base}/owners/{pac}</loc><lastmod>{today}</lastmod>'
+                f'  <url><loc>{base}{path}</loc><lastmod>{today}</lastmod>'
                 f'<changefreq>monthly</changefreq><priority>0.55</priority></url>'
             )
         log_owner_indexability_summary(
@@ -7368,6 +7372,8 @@ def _build_sitemap_xml_minimal() -> str:
     robots_blocked = sitemap_paths_blocked_by_robots(ROBOTS_TXT)
     urls = _sitemap_static_url_lines(base, today, quarter_lastmod)
     try:
+        from canonical_urls import entity_url, get_facility_name_from_search_index, provider_url
+        from canonical_urls import entity_url, get_facility_name_from_search_index, provider_url
         from ownership.owner_indexability import provider_ccns_for_sitemap
 
         for ccn in provider_ccns_for_sitemap(count_excluded=False):
@@ -27829,6 +27835,13 @@ def _rewrite_site_script_versions(response):
 # Premium marketing page + assets — register after other /<slug> routes so /premium is not treated as a state.
 register_premium_routes(app, APP_ROOT)
 register_audience_routes(app, validate_csrf_fn=validate_csrf if HAS_CSRF else None)
+
+try:
+    from canonical_page_routes import register_canonical_page_routes
+
+    register_canonical_page_routes(app)
+except ImportError:
+    pass
 
 try:
     from preview_catalog_routes import register_preview_catalog_routes

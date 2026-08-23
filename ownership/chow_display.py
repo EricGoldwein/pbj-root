@@ -150,7 +150,9 @@ def _default_facility_link(rec: dict[str, Any]) -> str:
     else:
         fac = format_org_display(fac_raw) if fac_raw and fac_raw != "—" else "—"
     if ccn.isdigit():
-        return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
+        from canonical_urls import provider_url
+
+        return f'<a href="{html.escape(provider_url(ccn, fac))}">{html.escape(fac)}</a>'
     return html.escape(fac)
 
 

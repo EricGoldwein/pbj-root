@@ -1745,6 +1745,19 @@
     return d.innerHTML;
   }
 
+  function pbjSlugifyName(name, fallback) {
+    var raw = String(name || '').trim().toLowerCase();
+    if (!raw) return fallback || 'page';
+    var slug = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-');
+    return slug || fallback || 'page';
+  }
+
+  function pbjProviderUrl(ccn, name) {
+    var c = String(ccn || '').trim();
+    if (!c) return '';
+    return '/provider/' + encodeURIComponent(c) + '/' + pbjSlugifyName(name, 'facility');
+  }
+
   function titleCaseFacility(str) {
     if (!str) return '';
     return String(str)
@@ -1780,7 +1793,7 @@
       var hint = document.getElementById('ai-facility-next-step');
       var link = document.getElementById('ai-facility-open-link');
       if (hint) hint.hidden = false;
-      if (link) link.href = '/provider/' + encodeURIComponent(String(row.c));
+      if (link) link.href = pbjProviderUrl(String(row.c), row.n || 'Facility');
     }
 
     function renderFacilityResults(query) {

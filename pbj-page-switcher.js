@@ -27,6 +27,19 @@
       .join(' ');
   }
 
+  function pbjSlugifyName(name, fallback) {
+    var raw = String(name || '').trim().toLowerCase();
+    if (!raw) return fallback || 'page';
+    var slug = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-');
+    return slug || fallback || 'page';
+  }
+
+  function pbjEntityUrl(id, name) {
+    var eid = String(id || '').trim();
+    if (!eid) return '';
+    return '/entity/' + encodeURIComponent(eid) + '/' + pbjSlugifyName(name, 'entity');
+  }
+
   function minQueryLen(mode, q) {
     var s = String(q || '').trim();
     if (!s) return mode === 'state' ? 1 : 2;
@@ -190,7 +203,7 @@
           (fc === 1 ? '' : 's');
       }
       out.push({
-        url: '/entity/' + encodeURIComponent(String(h.id)),
+        url: pbjEntityUrl(h.id, h.row.n || 'Chain'),
         title: title,
         meta: meta,
       });

@@ -26,9 +26,9 @@ _STATE_NAME_TO_CODE: dict[str, str] = {
 _STATE_CODE_TO_NAME: dict[str, str] = {v: k.title() for k, v in _STATE_NAME_TO_CODE.items()}
 _USA_SLUGS = frozenset({'usa', 'us', 'national', 'united-states', 'united states'})
 
-_PROVIDER_RE = re.compile(r'^/provider/(\d{6})$')
+_PROVIDER_RE = re.compile(r'^/provider/(\d{6})(?:/[^/]+)?$')
 _STATE_RE = re.compile(r'^/state/([^/]+)$')
-_ENTITY_RE = re.compile(r'^/entity/(\d+)$')
+_ENTITY_RE = re.compile(r'^/entity/(\d+)(?:/[^/]+)?$')
 _OWNERS_PAC_RE = re.compile(r'^/owners/(\d{10})(?:/[^/]+)?$')
 
 _SLUG_TO_STATE_CODE: dict[str, str] = {'usa': 'USA'}

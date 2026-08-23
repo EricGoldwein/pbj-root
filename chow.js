@@ -6,6 +6,17 @@
  */
 (function () {
   'use strict';
+  function pbjSlugifyName(name, fallback) {
+    var raw = String(name || '').trim().toLowerCase();
+    if (!raw) return fallback || 'page';
+    var slug = raw.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-');
+    return slug || fallback || 'page';
+  }
+  function pbjProviderUrl(ccn, name) {
+    var c = String(ccn || '').trim();
+    if (!c) return '';
+    return '/provider/' + encodeURIComponent(c) + '/' + pbjSlugifyName(name, 'facility');
+  }
   var allRecords = [];
   var summary = {};
   var meta = {};
@@ -610,7 +621,7 @@
     var ccn = String(r.ccn || '').replace(/\D/g, '').slice(-6).padStart(6, '0');
     var fac = formatOrgName(r.facility_display_name || r.buyer_dba_name || ccn || '—');
     if (ccn && /^\d{6}$/.test(ccn)) {
-      return '<a href="/provider/' + esc(ccn) + '">' + esc(fac) + '</a>';
+      return '<a href="' + esc(pbjProviderUrl(ccn, fac)) + '">' + esc(fac) + '</a>';
     }
     return esc(fac);
   }
@@ -682,7 +693,7 @@
     if (!n) return '—';
     if (n === 1) {
       var c0 = keys[0];
-      return '<a href="/provider/' + esc(c0) + '">' + esc(byCcn[c0]) + '</a>';
+      return '<a href="' + esc(pbjProviderUrl(c0, byCcn[c0])) + '">' + esc(byCcn[c0]) + '</a>';
     }
     var items = keys
       .sort(function (a, b) {
@@ -690,7 +701,7 @@
       })
       .slice(0, 8)
       .map(function (ccn) {
-        return '<li><a href="/provider/' + esc(ccn) + '">' + esc(byCcn[ccn]) + '</a></li>';
+        return '<li><a href="' + esc(pbjProviderUrl(ccn, byCcn[ccn])) + '">' + esc(byCcn[ccn]) + '</a></li>';
       });
     if (n > 8) {
       items.push('<li class="chow-party-ev-more">+ ' + formatCount(n - 8) + ' more facilities</li>');

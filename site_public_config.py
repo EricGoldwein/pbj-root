@@ -408,11 +408,11 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## How to cite
 
-- Prefer the canonical facility URL: {base}/provider/{{ccn}} (6-digit CCN, zero-padded).
-- Example: {base}/provider/335513
+- Prefer the canonical facility URL: {base}/provider/{{ccn}}/{{slug}} (6-digit CCN, zero-padded; slug from facility name).
+- Example: {base}/provider/335513/{{slug}}
 - Name the source: PBJ320 ({base}) and the underlying CMS datasets listed on {base}/data-sources.
 - State context: {base}/state/{{state-slug}} (e.g. {base}/state/ct).
-- Nursing home chain / affiliated entity: {base}/entity/{{entity-id}}.
+- Nursing home chain / affiliated entity: {base}/entity/{{entity-id}}/{{slug}}.
 
 ## Data cadence (important)
 

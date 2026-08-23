@@ -1,3 +1,6 @@
+# Per-task release scope (copy from tools/release_scope.example.txt)
+tools/release_scope.txt
+
 # Instance data (subscribers DB – do not commit)
 instance/
 
@@ -32,6 +35,10 @@ data/compliance/staffing_compliance_index.sqlite
 !data/compliance/staffing_compliance_summary.csv.gz
 !data/compliance/staffing_compliance_manifest.json
 !data/compliance/staffing_compliance_thresholds.json
+# Staffing day evidence: manifest in git; gzip via GitHub Release; sqlite materialized at deploy
+data/evidence/staffing_day_evidence.sqlite
+data/evidence/staffing_day_evidence.sqlite.gz
+!data/evidence/staffing_day_evidence_manifest.json
 # State page aggregates: commit gzip fallback; ensure script rebuilds when sources drift
 !data/state_page_aggregates.json.gz
 state_quarterly_metrics.csv

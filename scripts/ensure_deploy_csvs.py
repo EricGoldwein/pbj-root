@@ -286,6 +286,11 @@ def main() -> int:
             rc_idx = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
             if rc_idx != 0:
                 _log(f'ensure_deploy_csvs: WARN build_staffing_compliance_runtime_index exited {rc_idx}')
+    seb_script = os.path.join(APP_ROOT, 'scripts', 'ensure_staffing_evidence_bundle.py')
+    if os.path.isfile(seb_script):
+        rc_seb = subprocess.call([sys.executable, seb_script], cwd=APP_ROOT)
+        if rc_seb != 0:
+            _log(f'ensure_deploy_csvs: WARN ensure_staffing_evidence_bundle exited {rc_seb}')
     if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
         _log('ensure_deploy_csvs: building provider lookup indexes...')
         import subprocess

@@ -1,0 +1,35 @@
+{
+  "bundle_schema_version": 2,
+  "schema": "day_fact",
+  "artifact_id": "staffing-day-evidence-cy2026q1-v1",
+  "built_at": "2026-08-23T22:54:02.918052+00:00",
+  "quarters_in_bundle": [
+    "CY2026Q1"
+  ],
+  "metrics": [
+    "CNA_HPRD",
+    "RN_HPRD",
+    "LPN_HPRD",
+    "Total_Nurse_Aide_HPRD",
+    "Total_RN_HPRD"
+  ],
+  "ein_included": false,
+  "row_count": 1303639,
+  "facility_count": 14487,
+  "skipped_invalid_ccn_rows": 0,
+  "duplicate_policy": "fail_build",
+  "ccn_read_policy": "PROVNUM_as_string_reject_float_scientific",
+  "build_elapsed_s": 3319.2,
+  "distribution": {
+    "method": "github_release",
+    "github_repo": "EricGoldwein/pbj-root",
+    "release_tag": "staffing-evidence-cy2026q1-v1",
+    "asset_name": "staffing_day_evidence_CY2026Q1.sqlite.gz",
+    "sqlite_gz_bytes": 68407612,
+    "sqlite_gz_sha256": "7e8944cbbb9786719f160d23d7f0aa7389660dc649e5f981827d1e6af3dc0ade"
+  },
+  "sources": {
+    "build_script": "PBJapp/scripts/build_public_staffing_day_evidence.py",
+    "calculation": "day_evidence_lib.build_hprd_evidence (values stored at build)"
+  }
+}

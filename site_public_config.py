@@ -420,6 +420,53 @@ def build_llms_txt(origin: str | None = None) -> str:
 - **Provider Information** (Five-Star ratings, turnover, ownership type, case-mix): may reflect a **newer** CMS snapshot than the PBJ quarter on the same page. Do not assume all fields share one posting date.
 - Case-mix on historic PBJ quarters may be omitted by design; see {base}/data-sources.
 
+## Machine-readable interfaces
+
+- MCP (read-only research tools): {base}/mcp
+- Agent overview: {base}/agents
+- Site guide (this file): {base}/llms.txt
+- Facility JSON: {base}/api/public/provider/{{ccn}}.json
+- Owner JSON: {base}/api/public/owners/{{pac}}.json
+
+## Identifier conventions
+
+- **CCN** — 6-character CMS Certification Number (zero-padded), e.g. `366395`
+- **PAC / associate ID** — 10-digit CMS associate identifier for SNF ownership records
+
+## Canonical URL patterns
+
+- Facility: {base}/provider/{{ccn}}/{{slug}}
+- Owner: {base}/owners/{{pac}}/{{slug}}
+- Entity: {base}/entity/{{entity-id}}/{{slug}}
+
+## MCP tools (read-only)
+
+- `search_facilities` — search nursing homes by name, CCN, city, state, ZIP, or owner PAC
+- `get_facility` — structured facility profile with quarterly staffing and CMS context
+- `compare_facilities` — compare explicit CCNs; state percentile context when supported
+- `search_owners` — search CMS SNF owner records
+- `get_owner_portfolio` — facilities for a PAC under active ownership release policy
+- `get_staffing_evidence` — audit-ready CMS PBJ daily evidence (precomputed handoff)
+
+## Recommended agent workflow
+
+1. `search_facilities` or `search_owners` to find entities
+2. `get_facility` or `get_owner_portfolio` for structured detail
+3. `compare_facilities` when comparing explicit CCNs
+4. `get_staffing_evidence` when audit-ready daily provenance is required
+5. Cite the canonical PBJ320 page URL returned in each response
+
+## Provenance
+
+MCP responses include CMS dataset, reporting quarter or work date, and whether values are CMS-published or PBJ320-derived. Daily evidence payloads are precomputed by PBJapp (`day_evidence_lib`) at bundle build time; pbj-root does not recalculate HPRD.
+
+## Limitations
+
+- Read-only; bounded result limits (default 20, max 60)
+- No geo-radius search; no invented peer cohorts
+- Employee Detail / EIN-level records are excluded from public MCP v0
+- Daily evidence availability follows the deployed evidence bundle quarters
+
 ## Machine-readable hints on facility pages
 
 - Each public facility page includes JSON-LD (`MedicalOrganization`) with CMS CCN, city/county/state when available, up to the **last four PBJ quarters** of staffing (census, total nurse HPRD, RN HPRD, nurse aide HPRD, contract % where reported), then optional **PBJ320 facility flags**, **Latest CMS ratings** (Five-Star only), and associated entity links only when the provider page already shows that chain link.

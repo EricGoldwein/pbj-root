@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>PBJ320 for AI agents | Machine-readable nursing home research</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Connect AI assistants to PBJ320 structured nursing home staffing and ownership data from CMS sources.">
+  <link rel="canonical" href="https://www.pbj320.com/agents">
+  <link rel="icon" type="image/png" href="/pbj_favicon.png">
+  <link rel="stylesheet" href="/public-trust.css?v=1">
+</head>
+<body class="pbj-public-trust-page">
+  <div class="container">
+    <header class="hero">
+      <h1>PBJ320 for AI agents</h1>
+      <p class="lead">PBJ320 makes federal nursing-home staffing and ownership data available in structured form for research assistants and AI agents.</p>
+    </header>
+
+    <section>
+      <h2>Connect</h2>
+      <p>Public read-only MCP endpoint:</p>
+      <pre class="code-block"><code>https://www.pbj320.com/mcp</code></pre>
+      <p>Machine-readable site guide: <a href="/llms.txt">/llms.txt</a></p>
+    </section>
+
+    <section>
+      <h2>What you can ask</h2>
+      <ul>
+        <li>Find nursing homes in Ohio by name or CCN.</li>
+        <li>Summarize latest quarterly staffing for CCN <code>366395</code>.</li>
+        <li>Show facilities associated with a CMS owner PAC.</li>
+        <li>Compare two or more facilities by explicit CCN list.</li>
+        <li>Retrieve CMS PBJ daily evidence for a specific date and metric.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Sources</h2>
+      <p>PBJ320 responses identify the underlying CMS source, reporting period, and PBJ320 methodology when a value is derived.</p>
+      <p><strong>Source:</strong> CMS Payroll-Based Journal<br>
+         <strong>Period:</strong> shown per response (quarter or work date)<br>
+         <strong>Analysis:</strong> PBJ320 (when derived)<br>
+         <strong>Evidence:</strong> <code>get_staffing_evidence</code> tool for audit-ready daily provenance</p>
+    </section>
+
+    <section>
+      <h2>Methodology</h2>
+      <p>Full definitions and dataset notes: <a href="/data-sources">Data sources &amp; methodology</a>.</p>
+    </section>
+
+    <section>
+      <h2>Limitations</h2>
+      <ul>
+        <li>Read-only research API; not a bulk data export service.</li>
+        <li>Staffing quarters and ownership releases follow PBJ320 production release policy.</li>
+        <li>Daily evidence covers bundled PBJ quarters; Employee Detail is not included in MCP v0.</li>
+        <li>No geo-radius search or invented peer cohorts—use explicit CCNs or documented state percentiles.</li>
+      </ul>
+    </section>
+
+    <p class="footer-links"><a href="/">Home</a> · <a href="/data-sources">Data sources</a> · <a href="/contact">Contact</a></p>
+  </div>
+</body>
+</html>

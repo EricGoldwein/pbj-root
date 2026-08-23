@@ -2303,6 +2303,61 @@ def llms_txt():
     return build_llms_txt(_public_site_origin()), 200, {'Content-Type': 'text/plain; charset=utf-8'}
 
 
+@app.route('/agents')
+@app.route('/agents/')
+def agents_page():
+    return _serve_public_html('agents.html')
+
+
+@app.route('/mcp', methods=['GET', 'POST', 'OPTIONS'])
+def mcp_endpoint():
+    from flask import request
+    from mcp.http_handler import handle_mcp_http
+
+    if request.method == 'OPTIONS':
+        resp = make_response('', 204)
+        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, Accept, Mcp-Session-Id'
+        return resp
+    return handle_mcp_http(request)
+
+
+@app.route('/api/public/provider/<ccn>.json')
+def public_provider_json(ccn):
+    from flask import jsonify
+    from pbj_public_query.facility import get_facility_record
+    from pbj_public_query.provenance import attach_citation_envelope
+
+    rec = get_facility_record(ccn)
+    if not rec:
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
+    payload = attach_citation_envelope(
+        {'ok': True, **rec},
+        canonical_url=rec.get('canonical_url', ''),
+        quarter=(rec.get('period') or {}).get('quarter'),
+        methodology_url='/data-sources#methodology',
+    )
+    return jsonify(payload)
+
+
+@app.route('/api/public/owners/<pac>.json')
+def public_owner_json(pac):
+    from flask import jsonify
+    from pbj_public_query.owner import get_owner_portfolio
+    from pbj_public_query.provenance import attach_citation_envelope
+
+    rec = get_owner_portfolio(pac)
+    if not rec:
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
+    payload = attach_citation_envelope(
+        {'ok': True, **rec},
+        canonical_url=rec.get('canonical_url', ''),
+        ownership_release=rec.get('ownership_release'),
+        methodology_url='/data-sources#ownership',
+    )
+    return jsonify(payload)
+
+
 @app.route('/cms-payroll-based-journal')
 def cms_payroll_based_journal_redirect():
     """Hidden for now; plain-language PBJ overview lives on /phoebe."""

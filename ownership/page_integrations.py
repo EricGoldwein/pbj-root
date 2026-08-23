@@ -181,7 +181,9 @@ def _facility_link_from_record(rec: dict[str, Any]) -> str:
         fac_label = _format_org_display(fac_raw) if fac_raw and fac_raw != "—" else "—"
     fac = fac_label
     if ccn.isdigit():
-        return f'<a href="/provider/{html.escape(ccn)}">{html.escape(fac)}</a>'
+        from canonical_urls import provider_url
+
+        return f'<a href="{html.escape(provider_url(ccn, fac))}">{html.escape(fac)}</a>'
     return html.escape(fac)
 
 

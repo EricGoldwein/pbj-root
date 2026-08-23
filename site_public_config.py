@@ -349,7 +349,7 @@ def sitemap_loc_is_allowed(loc: str, robots_disallow_prefixes: set[str] | None =
 PUBLIC_CONTACT_EMAIL = (os.environ.get('PBJ_PUBLIC_CONTACT_EMAIL') or 'eric@320insight.com').strip()
 
 # Bump when pbj-site-universal.js changes (footer, Premium nav, shell styles).
-PBJ_SITE_UNIVERSAL_JS_VERSION = '73'
+PBJ_SITE_UNIVERSAL_JS_VERSION = '76'
 
 # Bump when public-search.js changes (global header search overlay).
 PBJ_PUBLIC_SEARCH_JS_VERSION = '4'
@@ -408,11 +408,11 @@ def build_llms_txt(origin: str | None = None) -> str:
 
 ## How to cite
 
-- Prefer the canonical facility URL: {base}/provider/{{ccn}} (6-digit CCN, zero-padded).
-- Example: {base}/provider/335513
+- Prefer the canonical facility URL: {base}/provider/{{ccn}}/{{slug}} (6-digit CCN, zero-padded; slug from facility name).
+- Example: {base}/provider/335513/{{slug}}
 - Name the source: PBJ320 ({base}) and the underlying CMS datasets listed on {base}/data-sources.
 - State context: {base}/state/{{state-slug}} (e.g. {base}/state/ct).
-- Nursing home chain / affiliated entity: {base}/entity/{{entity-id}}.
+- Nursing home chain / affiliated entity: {base}/entity/{{entity-id}}/{{slug}}.
 
 ## Data cadence (important)
 

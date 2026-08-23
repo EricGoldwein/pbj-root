@@ -129,7 +129,7 @@ def parse_effective_date(raw: str) -> tuple[str, int | None]:
 
 
 def owner_url_for_associate(associate_id: str, org_name: str = "") -> str:
-    """Link to /owners/{pac} — profile page resolves enrollment vs owner/control PAC."""
+    """Link to /owners/{pac}/{slug} — profile page resolves enrollment vs owner/control PAC."""
     try:
         from ownership.owner_profile import associate_profile_url
 
@@ -139,6 +139,15 @@ def owner_url_for_associate(associate_id: str, org_name: str = "") -> str:
         if pac:
             return f"/owners/{pac}"
         return owner_search_url(org_name)
+
+
+def _provider_canonical_path(ccn: str, facility_name: str = "") -> str:
+    try:
+        from canonical_urls import provider_url
+
+        return provider_url(ccn, facility_name) if ccn else ""
+    except Exception:
+        return f"/provider/{ccn}" if ccn else ""
 
 
 def owner_search_url(org_name: str) -> str:
@@ -316,7 +325,7 @@ def build_records(raw_rows: list[dict]) -> tuple[list[dict], dict]:
                 "facility_display_name": facility_display,
                 "buyer_normalized": buyer_norm,
                 "seller_normalized": seller_norm,
-                "provider_url": f"/provider/{ccn}" if ccn else "",
+                "provider_url": _provider_canonical_path(ccn, facility_display),
                 "buyer_owner_url": buyer_owner_url,
                 "seller_owner_url": seller_owner_url,
                 "buyer_associate_kind": buyer_assoc_kind,

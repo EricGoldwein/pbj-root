@@ -14,6 +14,7 @@ from typing import Any
 
 import re
 
+from canonical_urls import provider_url
 from ownership.beta_gate import profile_has_public_state, ownership_public_enabled_for_state
 from ownership.state_owner_index import PUBLIC_OWNER_INDEX_SLUGS, STATE_INDEX_META
 from ownership.owner_fec_section import render_owner_fec_contributions_section
@@ -497,8 +498,9 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
     legal_esc = html.escape(legal_raw)
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
+    link_label = provider_raw or legal_raw
     href = (
-        f"/provider/{html.escape(ccn)}"
+        html.escape(provider_url(ccn, link_label))
         if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
         else ""
     )
@@ -621,7 +623,7 @@ def _ownership_timeline_item_html(rec: dict[str, Any]) -> str:
     fac_esc = html.escape(fac_raw)
     if ccn.isdigit():
         fac_html = (
-            f'<a class="owner-timeline-facility" href="/provider/{html.escape(ccn)}">{fac_esc}</a>'
+            f'<a class="owner-timeline-facility" href="{html.escape(provider_url(ccn, fac_raw))}">{fac_esc}</a>'
         )
     else:
         fac_html = f'<span class="owner-timeline-facility">{fac_esc}</span>'
@@ -725,36 +727,8 @@ def render_owner_profile_body(profile: dict[str, Any]) -> tuple[str, str, str, s
 
 
 def _states_meta_html(profile: dict[str, Any]) -> str:
-    ps = profile.get("portfolio_summary") or {}
-    n_states = int(ps.get("n_states") or 0)
-    states = list(profile.get("states") or [])
-    if not n_states:
-        n_states = len(states)
-    if not n_states:
-        return ""
-    if n_states == 1:
-        st = (states[0] if states else "").strip().upper()[:2]
-        if not st:
-            by_state = ps.get("by_state") or []
-            if by_state:
-                st = str(by_state[0][0] or "").strip().upper()[:2]
-        if st:
-            try:
-                from app import STATE_CODE_TO_NAME, get_canonical_slug
-
-                label = STATE_CODE_TO_NAME.get(st, st)
-                slug = get_canonical_slug(st)
-            except Exception:
-                label, slug = st, st.lower()
-            return (
-                f'<a class="owner-state-link" href="/state/{html.escape(slug)}">'
-                f"{html.escape(label)}</a>"
-            )
-    label = "state" if n_states == 1 else "states"
-    return (
-        f'<button type="button" class="owner-states-trigger" data-owner-states-open '
-        f'aria-haspopup="dialog">{n_states} {label}</button>'
-    )
+    """Legacy meta-line states control — unused once States is a summary metric."""
+    return ""
 
 
 def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
@@ -766,33 +740,101 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
             return ""
         by_state = [(st, 0) for st in states]
     rows = []
-    total = 0
     for st, cnt in by_state:
-        total += cnt
         rows.append(
-            f"<tr><td>{html.escape(st)}</td><td class=\"num\">{cnt if cnt else '—'}</td></tr>"
+            f'<li class="owner-states-row">'
+            f'<span class="owner-states-code">{html.escape(st)}</span>'
+            f'<span class="owner-states-count">{cnt if cnt else "—"}</span>'
+            f"</li>"
         )
-    total_row = (
-        f'<tr class="owner-states-total"><td><strong>Total</strong></td>'
-        f'<td class="num"><strong>{total or len(by_state)}</strong></td></tr>'
-        if total
-        else ""
-    )
     return f"""
       <dialog class="owner-states-modal" id="ownerStatesModal" aria-labelledby="ownerStatesModalTitle">
-        <div class="owner-states-modal-card">
+        <div class="owner-states-modal-card" role="document">
           <header class="owner-states-modal-header">
-            <h2 id="ownerStatesModalTitle">By state</h2>
+            <h2 id="ownerStatesModalTitle">Facilities by state</h2>
             <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
           </header>
-          <div class="chow-table-scroll chow-table-scroll--touch owner-states-modal-body">
-            <table class="chow-table owner-states-table">
-              <thead><tr><th>State</th><th class="num">#</th></tr></thead>
-              <tbody>{"".join(rows)}{total_row}</tbody>
-            </table>
+          <div class="owner-states-modal-body">
+            <ul class="owner-states-list" role="list">{"".join(rows)}</ul>
           </div>
         </div>
       </dialog>"""
+
+
+def _cms_snf_owners_filtered_url(pac: str) -> str:
+    """CMS SNF All Owners API filtered to this owner PAC (ASSOCIATE ID - OWNER)."""
+    from urllib.parse import urlencode
+
+    pac_s = str(pac or "").strip()
+    if len(pac_s) != 10 or not pac_s.isdigit():
+        return ""
+    base = (
+        "https://data.cms.gov/data-api/v1/dataset/"
+        "afe44b85-cc6d-40d7-b5df-00ae8910d1d2/data"
+    )
+    return f"{base}?{urlencode({'filter[ASSOCIATE ID - OWNER]': pac_s})}"
+
+
+def _cms_source_badge_html(pac: str) -> str:
+    href = _cms_snf_owners_filtered_url(pac)
+    if not href:
+        return ""
+    return (
+        f'<a class="owner-cms-source" href="{html.escape(href, quote=True)}" '
+        'target="_blank" rel="noopener noreferrer" '
+        'title="CMS SNF All Owners records for this owner PAC">'
+        "CMS source <span aria-hidden=\"true\">↗</span></a>"
+    )
+
+
+def _max_ownership_pct_display(profile: dict[str, Any]) -> str:
+    """Highest reported ownership % across facility rows (e.g. '100%')."""
+    best: float | None = None
+    best_raw = ""
+    for fac in profile.get("facilities") or []:
+        raw = str(fac.get("pct") or "").strip()
+        if not raw or raw in ("—", "-", "n/a", "N/A", "nan"):
+            continue
+        num_s = raw.replace("%", "").replace(",", "").strip()
+        try:
+            val = float(num_s)
+        except ValueError:
+            continue
+        if best is None or val > best:
+            best = val
+            best_raw = f"{int(val)}%" if val == int(val) else f"{val:g}%"
+    if best is None:
+        return ""
+    return best_raw
+
+
+def _header_role_line_html(profile: dict[str, Any], *, page_help: str) -> str:
+    """Compact role / ownership interest line under type · PAC."""
+    seg = str(profile.get("publication_segment") or "").strip()
+    role_labels = {
+        "ownership_interest_only": "CMS ownership interest",
+        "mixed_ownership_plus_other": "Mixed CMS roles",
+        "control_managerial_no_ownership": "Managing/control",
+        "governance_only": "Officer/director",
+        "administrative_enrollment_style": "Enrollment associate",
+        "financial_only": "Financial interest",
+        "chow_enrollment_party": "CHOW party",
+        "other_or_unclassified": "CMS associate",
+        "unknown_placeholder": "CMS associate",
+    }
+    role = role_labels.get(seg) or str(profile.get("publication_descriptor") or "").strip()
+    if not role:
+        return ""
+    pct = _max_ownership_pct_display(profile)
+    bits = [html.escape(role)]
+    if pct:
+        bits.append(f"up to {html.escape(pct)}")
+    text = " · ".join(bits)
+    return (
+        f'<div class="owner-profile-role-line">'
+        f'<span class="owner-profile-role-text">{text}</span>{page_help}'
+        f"</div>"
+    )
 
 
 def _pac_meta_html(
@@ -972,43 +1014,45 @@ def _owner_profile_header_html(
     en_label: str,
     ow_label: str,
 ) -> str:
+    _ = states_meta  # States live in the summary strip; keep signature stable.
     page_help = _info_button(
         "PBJ320 Ownership",
         _owner_page_help_body(profile, kind, en_label=en_label, ow_label=ow_label),
-        label="?",
+        label="ⓘ",
         cls="owner-info-btn owner-info-btn--section owner-page-help",
     )
-    pac_meta = _pac_meta_html(
-        profile,
-        kind,
-        pac,
-        html.escape(en_label),
-        html.escape(ow_label),
-        page_help=page_help,
-    )
-    meta_parts: list[str] = []
-    if owner_type:
-        meta_parts.append(f'<span class="owner-profile-type">{owner_type}</span>')
-    if states_meta:
-        meta_parts.append(states_meta)
+    type_label = _format_party_type(owner_type) if owner_type else ""
+    if kind == "owner_control":
+        pac_label = ow_label or "Owner PAC"
+    elif kind == "enrollment":
+        pac_label = en_label or "Enrollment PAC"
+    elif kind == "both":
+        pac_label = "PAC"
+    else:
+        pac_label = ow_label or en_label or "PAC"
+    meta_bits: list[str] = []
+    if type_label and type_label != "—":
+        meta_bits.append(html.escape(type_label))
+    if pac:
+        meta_bits.append(f"{html.escape(pac_label)} {pac}")
     meta_row = (
-        f'<div class="owner-profile-meta-row">{"".join(meta_parts)}</div>'
-        if meta_parts
+        f'<div class="owner-profile-meta-row">'
+        f'<span class="owner-profile-meta-line">{" · ".join(meta_bits)}</span>'
+        f"</div>"
+        if meta_bits
+        else ""
+    )
+    role_line = _header_role_line_html(profile, page_help=page_help)
+    cms_source = ""
+    if kind in ("owner_control", "both"):
+        cms_source = _cms_source_badge_html(profile.get("associate_id") or pac)
+    aside = (
+        f'<div class="owner-profile-header-aside">{cms_source}</div>'
+        if cms_source
         else ""
     )
     back_link = _owner_index_back_link_html(profile)
-    header_actions = ""
-    if pac_meta:
-        header_actions = (
-            f'<div class="owner-profile-header-aside">'
-            f'<div class="owner-profile-header-actions">{pac_meta}</div>'
-            "</div>"
-        )
     back_html = f'<div class="owner-profile-back-wrap">{back_link}</div>' if back_link else ""
-    desc = str(profile.get("publication_descriptor") or "").strip()
-    descriptor_html = (
-        f'<p class="owner-profile-descriptor">{html.escape(desc)}</p>' if desc else ""
-    )
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         {back_html}
@@ -1020,12 +1064,12 @@ def _owner_profile_header_html(
               <span class="owner-profile-brand-suffix">Ownership</span>
             </span>
           </div>
+          {aside}
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
-            {descriptor_html}
             {meta_row}
+            {role_line}
           </div>
-          {header_actions}
         </div>
       </header>"""
 
@@ -1270,8 +1314,9 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     legal_esc = html.escape(legal_raw)
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
+    link_label_raw = provider_raw or legal_raw
     href = (
-        f"/provider/{html.escape(ccn)}"
+        html.escape(provider_url(ccn, link_label_raw))
         if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
         else ""
     )
@@ -1774,7 +1819,7 @@ def _ownership_transactions_html(profile: dict[str, Any], pac: str, is_chow_only
         fac_esc = html.escape(fac_raw)
         if ccn:
             fac_cell = (
-                f'<a class="owner-tx-facility" href="/provider/{html.escape(ccn)}" '
+                f'<a class="owner-tx-facility" href="{html.escape(provider_url(ccn, fac_raw))}" '
                 f'title="View staffing data for {fac_esc}">{fac_esc}</a>'
             )
         else:

@@ -10953,9 +10953,9 @@ body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans
   background: var(--pbj-ov-elevated, #181F2E); border: 1px solid var(--pbj-ov-border, #2A3448);
 }}
 .pbj-metric__label {{
-  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 0.28rem 0.35rem;
+  display: inline-flex; align-items: center; flex-wrap: nowrap; gap: 0.28rem 0.35rem;
   font-size: 0.64rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  color: #94a3b8; line-height: 1.2;
+  color: #94a3b8; line-height: 1.2; max-width: 100%; min-width: 0;
 }}
 .pbj-metric__icon {{
   width: 0.9rem; height: 0.9rem; color: #64748b; flex-shrink: 0; opacity: 0.95;
@@ -11135,10 +11135,11 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   margin: 0.28rem 0 0; font-size: 0.7rem; line-height: 1.3; color: rgba(148, 163, 184, 0.78);
 }}
 .pbj-entity-hr-insight {{
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  column-gap: 0.75rem;
-  align-items: start;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+  gap: 0.75rem;
   margin: 0.55rem 0 0;
   padding: 0.5rem 0.6rem;
   border-radius: 8px;
@@ -11147,11 +11148,14 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   font-size: 0.84rem;
   line-height: 1.4;
   color: rgba(230, 235, 243, 0.9);
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
 }}
 .pbj-entity-hr-insight__badge {{
-  grid-column: 1;
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 0.28rem;
   margin: 0;
   padding: 0.22rem 0.5rem;
@@ -11162,14 +11166,16 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.32);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 9.5rem;
+  line-height: 1.2;
   align-self: start;
 }}
 .pbj-entity-hr-insight__badge .pbj-entity-hr-insight__icon {{
   width: 0.85rem; height: 0.85rem; flex-shrink: 0; opacity: 0.95;
 }}
 .pbj-entity-hr-insight__copy {{
-  grid-column: 2;
+  flex: 1 1 auto;
   min-width: 0;
 }}
 .pbj-entity-hr-insight__text {{
@@ -12809,9 +12815,15 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label {{
     font-size: 0.5rem !important; flex-wrap: nowrap !important; gap: 0.12rem 0.14rem;
+    align-items: center;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label .pbj-info-chip {{
-    display: none !important;
+    display: inline-flex !important;
+    flex: 0 0 auto;
+    margin-left: 0;
+  }}
+  .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__label-text {{
+    flex: 0 1 auto; min-width: 0; white-space: nowrap;
   }}
   .pbj-takeaway-metrics .pbj-metric--ratings .pbj-metric__ratings-row {{
     display: grid;
@@ -12949,20 +12961,24 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
     margin: 0.28rem 0 0; font-size: 0.66rem; line-height: 1.3; color: rgba(148, 163, 184, 0.72);
   }}
   .pbj-entity-hr-insight {{
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 0.55rem;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    align-items: flex-start;
+    gap: 0.55rem;
     margin-top: 0.45rem;
     width: 100%;
     box-sizing: border-box;
   }}
   .pbj-entity-hr-insight__badge {{
-    grid-column: 1;
+    flex: 0 1 auto;
+    max-width: 8.5rem;
     margin: 0;
     align-self: start;
+    white-space: normal;
   }}
   .pbj-entity-hr-insight__copy {{
-    grid-column: 2;
+    flex: 1 1 auto;
     min-width: 0;
   }}
   .pbj-page-summary-meta .pbj-meta-sep {{

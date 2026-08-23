@@ -75,10 +75,12 @@ def entity_risk_metric_card_html(
     info = sff_info_button_html(explainer_kind) if explainer_kind in SFF_EXPLAINERS else ""
     return (
         f'<div class="entity-risk-metric-card{tone_cls}">'
-        f'<div class="entity-risk-metric-label">{html.escape(label)}</div>'
+        f'<div class="entity-risk-metric-label">'
+        f'<span class="entity-risk-metric-label-text">{html.escape(label)}</span>'
+        f"{info}"
+        "</div>"
         f'<div class="entity-risk-metric-value-row">'
         f'<div class="entity-risk-metric-value">{html.escape(value)}</div>'
-        f"{info}"
         "</div></div>"
     )
 

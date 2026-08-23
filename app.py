@@ -11213,7 +11213,7 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
 .pbj-entity-hr-insight__badge {{
   display: inline-flex;
   align-items: center;
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   gap: 0.28rem;
   margin: 0;
   padding: 0.22rem 0.5rem;
@@ -11224,8 +11224,8 @@ button.pbj-info-chip:focus-visible {{ outline: 2px solid rgba(165, 180, 252, 0.8
   color: #fbbf24;
   background: rgba(251, 191, 36, 0.12);
   border: 1px solid rgba(251, 191, 36, 0.32);
-  white-space: normal;
-  max-width: 9.5rem;
+  white-space: nowrap;
+  max-width: none;
   line-height: 1.2;
   align-self: start;
 }}
@@ -13020,24 +13020,26 @@ button.pbj-casemix-cmi-trigger.pbj-cmi-tier--high {{
   }}
   .pbj-entity-hr-insight {{
     display: flex !important;
-    flex-direction: row !important;
+    flex-direction: column !important;
     flex-wrap: nowrap !important;
-    align-items: flex-start;
-    gap: 0.55rem;
+    align-items: stretch;
+    gap: 0.45rem;
     margin-top: 0.45rem;
     width: 100%;
     box-sizing: border-box;
   }}
   .pbj-entity-hr-insight__badge {{
-    flex: 0 1 auto;
-    max-width: 8.5rem;
+    display: inline-flex;
+    flex: 0 0 auto;
+    max-width: none;
     margin: 0;
-    align-self: start;
-    white-space: normal;
+    align-self: flex-start;
+    white-space: nowrap;
   }}
   .pbj-entity-hr-insight__copy {{
     flex: 1 1 auto;
     min-width: 0;
+    width: 100%;
   }}
   .pbj-page-summary-meta .pbj-meta-sep {{
     color: var(--pbj-ov-muted, #9DA9BC); margin: 0 0.05rem;
@@ -13399,7 +13401,9 @@ a.custom-report-cta:focus-visible {{ outline: 2px solid rgba(129, 140, 248, 0.75
     letter-spacing: -0.012em;
   }}
   .pbj-page-footer-sources .pbj-sources-sep {{ margin: 0 0.08rem; }}
-  .entity-chain-metrics {{ grid-template-columns: repeat(2, 1fr) !important; gap: 0.75rem !important; }}
+  .entity-chain-metrics {{ grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 0.75rem !important; }}
+  .entity-chain-metrics:has(> :nth-child(2):last-child) {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
+  .entity-chain-metrics:has(> :nth-child(4)) {{ grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }}
   .pbj-chart-container {{ padding: 12px; }}
   .pbj-chart-container.pbj-casemix-card {{ padding: 0.48rem 0.52rem 0.42rem; margin: 12px 0; }}
   .pbj-casemix-total-nums {{ font-size: 0.64rem; }}

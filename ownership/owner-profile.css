@@ -516,16 +516,24 @@
 }
 
 @media (max-width: 639px) {
-  .entity-portfolio-root .owner-portfolio-grid,
-  .entity-portfolio-root .owner-portfolio-grid--3 {
+  /* Keep 3 equal columns for the common Nurse HPRD / Overall / Staffing trio. */
+  .entity-portfolio-root .owner-portfolio-grid--3,
+  .entity-portfolio-root .entity-portfolio-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .entity-portfolio-root .owner-portfolio-grid:not(.owner-portfolio-grid--3):not(.entity-portfolio-grid--3) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
 
 @media (max-width: 420px) {
-  .entity-portfolio-root .owner-portfolio-grid,
   .entity-portfolio-root .owner-portfolio-grid--3,
   .entity-portfolio-root .entity-portfolio-grid--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .entity-portfolio-root .owner-portfolio-grid:not(.owner-portfolio-grid--3):not(.entity-portfolio-grid--3) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
@@ -1110,28 +1118,54 @@ button.owner-flag.owner-flag--abuse:hover,
   margin-left: 0;
 }
 
-/* Keep PBJ320 high-risk insight badge + copy side-by-side on narrow viewports. */
+/* High-risk takeaway chip: badge stays one line; stack under badge on mobile. */
 .pbj-entity-hr-insight {
   display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: nowrap !important;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: flex-start;
-  gap: 0.55rem;
+  gap: 0.75rem;
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
 }
 
 .pbj-entity-hr-insight__badge {
-  flex: 0 1 auto;
-  max-width: 9.5rem;
-  white-space: normal;
+  display: inline-flex !important;
+  align-items: center;
+  flex: 0 0 auto !important;
+  gap: 0.28rem;
+  max-width: none !important;
+  white-space: nowrap !important;
   line-height: 1.2;
 }
 
 .pbj-entity-hr-insight__copy {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .pbj-entity-hr-insight {
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    align-items: stretch;
+    gap: 0.45rem;
+  }
+
+  .pbj-entity-hr-insight__badge {
+    align-self: flex-start;
+    flex: 0 0 auto !important;
+    max-width: none !important;
+    white-space: nowrap !important;
+  }
+
+  .pbj-entity-hr-insight__copy,
+  .pbj-entity-hr-insight__text {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+  }
 }
 
 .entity-risk-metric-value-row {

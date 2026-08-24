@@ -189,6 +189,44 @@ def _sqlite_pac_in_column(pac: str, column: str) -> bool:
     return row is not None
 
 
+@lru_cache(maxsize=256)
+def _canonical_facility_matches_for_pac(pac: str) -> dict[str, tuple[str, str]]:
+    """Facility organization name -> (CCN, match method) from the deploy-built store.
+
+    Owner pages used to rebuild national legal-name and provider-name crosswalks
+    on the first request to a worker.  The canonical release build has already
+    resolved those exact relationships, so use its PAC-indexed rows and retain
+    the CSV resolver only as a compatibility fallback when the table is absent.
+    """
+    conn = _sqlite_conn()
+    pac = normalize_associate_id(pac)
+    if not conn or len(pac) != 10:
+        return {}
+    try:
+        rows = conn.execute(
+            'SELECT facility_org_name, ccn, ccn_method '
+            'FROM current_relationships WHERE pac = ?',
+            (pac,),
+        ).fetchall()
+    except sqlite3.Error:
+        return {}
+
+    out: dict[str, tuple[str, str]] = {}
+    for row in rows:
+        name = _norm_org_key(row[0])
+        ccn = _norm_ccn_key(row[1])
+        if name and ccn and name not in out:
+            out[name] = (ccn, _clean(row[2]))
+    return out
+
+
+def _profile_facility_match(pac: str, facility_name: str) -> tuple[str, str]:
+    match = _canonical_facility_matches_for_pac(pac).get(_norm_org_key(facility_name))
+    if match:
+        return match
+    return _resolve_ccn_with_method(facility_name)
+
+
 def snf_owners_source_citation(path: Path | None = None) -> str:
     """Human-readable CMS source line (release month only — no filename in UI copy)."""
     p = path or snf_owners_csv_path()
@@ -1360,7 +1398,7 @@ def _build_enrollment_profile(pac: str, enrollment_rows: Sequence[dict[str, Any]
         if key in seen_fac:
             continue
         seen_fac.add(key)
-        ccn, match_method = _resolve_ccn_with_method(fac_name)
+        ccn, match_method = _profile_facility_match(pac, fac_name)
         facilities.append(
             {
                 "facility_name": fac_name,
@@ -1414,7 +1452,7 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
         if key in seen:
             continue
         seen.add(key)
-        ccn, match_method = _resolve_ccn_with_method(fac_name)
+        ccn, match_method = _profile_facility_match(pac, fac_name)
         from ownership.role_classification import classify_owner_record, normalize_role_code
 
         role_info = classify_owner_record(row)

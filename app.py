@@ -6746,6 +6746,39 @@ def generate_owner_profile_html(profile, *, robots_meta=None):
     return layout['head'] + layout['nav'] + layout['content_open'] + body + layout['content_close'] + '</body></html>'
 
 
+_OWNER_PROFILE_HTML_CACHE_MAX = 256
+_owner_profile_html_cache = OrderedDict()
+_owner_profile_html_cache_lock = threading.Lock()
+
+
+def _owner_profile_response(html_text, robots_meta=None):
+    resp = make_response(html_text)
+    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
+    # Ownership pages are backed by deploy-versioned CMS release artifacts.
+    # Let browsers reuse briefly and the edge reuse longer; a new deploy starts
+    # with a fresh origin/cache key while stale-while-revalidate avoids stalls.
+    resp.headers['Cache-Control'] = 'public, max-age=300, s-maxage=3600, stale-while-revalidate=86400'
+    if robots_meta:
+        resp.headers['X-Robots-Tag'] = robots_meta
+    return resp
+
+
+def _owner_profile_html_cache_get(pac):
+    with _owner_profile_html_cache_lock:
+        entry = _owner_profile_html_cache.get(pac)
+        if entry is not None:
+            _owner_profile_html_cache.move_to_end(pac)
+        return entry
+
+
+def _owner_profile_html_cache_put(pac, html_text, robots_meta):
+    with _owner_profile_html_cache_lock:
+        _owner_profile_html_cache[pac] = (html_text, robots_meta)
+        _owner_profile_html_cache.move_to_end(pac)
+        while len(_owner_profile_html_cache) > _OWNER_PROFILE_HTML_CACHE_MAX:
+            _owner_profile_html_cache.popitem(last=False)
+
+
 def cms_owner_profile_page(owner_id, requested_slug=None):
     """CMS ownership profile by 10-digit PAC; optional slug is descriptive only."""
     from ownership.owner_profile import (
@@ -6783,6 +6816,11 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
         if fast_canon and req_path != fast_canon.rstrip('/'):
             target = f'{fast_canon}?{qs}' if qs else fast_canon
             return redirect(target, code=301)
+
+    cached_page = _owner_profile_html_cache_get(pac)
+    if cached_page is not None:
+        cached_html, cached_robots = cached_page
+        return _owner_profile_response(cached_html, cached_robots)
 
     try:
         profile = load_owner_profile_resolved(pac)
@@ -6828,12 +6866,8 @@ def cms_owner_profile_page(owner_id, requested_slug=None):
             'CMS ownership profile is temporarily unavailable. Please retry shortly.',
             503,
         )
-    resp = make_response(html)
-    resp.headers['Content-Type'] = 'text/html; charset=utf-8'
-    resp.headers['Cache-Control'] = 'no-cache, must-revalidate'
-    if robots_meta:
-        resp.headers['X-Robots-Tag'] = robots_meta
-    return resp
+    _owner_profile_html_cache_put(pac, html, robots_meta)
+    return _owner_profile_response(html, robots_meta)
 
 
 @fec_owner_bp.route('', defaults={'path': ''})

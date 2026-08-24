@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -16,17 +17,34 @@ def _match_query(value: str, q: str) -> bool:
     return q.lower() in (value or '').lower()
 
 
+def _text_match_score(
+    value: str,
+    q: str,
+    exact: int,
+    prefix: int,
+    word_prefix: int,
+    substring: int,
+) -> int:
+    text = (value or '').strip().lower()
+    query = (q or '').strip().lower()
+    if not text or not query:
+        return 0
+    if text == query:
+        return exact
+    if text.startswith(query):
+        return prefix
+    words = [word for word in re.split(r'[^a-z0-9]+', text) if word]
+    if any(word.startswith(query) for word in words):
+        return word_prefix
+    return substring if query in text else 0
+
+
 def facility_base_score(row: dict, q: str) -> int:
     """Mirror public-search.js facilityBaseScore — verified from: public-search.js."""
-    score = 0
-    if _match_query(str(row.get('c') or ''), q):
-        score += 140
-    if _match_query(str(row.get('n') or ''), q):
-        score += 100
-    if _match_query(str(row.get('y') or ''), q):
-        score += 35
-    if _match_query(str(row.get('s') or ''), q):
-        score += 20
+    score = _text_match_score(str(row.get('c') or ''), q, 1000, 800, 0, 0)
+    score += _text_match_score(str(row.get('n') or ''), q, 600, 500, 300, 100)
+    score += _text_match_score(str(row.get('y') or ''), q, 90, 70, 55, 35)
+    score += _text_match_score(str(row.get('s') or ''), q, 50, 40, 30, 20)
     return score
 
 
@@ -101,6 +119,20 @@ def test_fa_on_ny_page_includes_non_ny_matches():
     assert sum(1 for r in results if r.get('s') == 'NY') <= MAX_BOOST_STATE_IN_RESULTS
 
 
-def test_ccn_partial_match_scores_highest():
+def test_ccn_prefix_match_scores_highest():
     row = {'n': 'Example', 'c': '335513', 'y': 'NYC', 's': 'NY'}
-    assert facility_base_score(row, '3355') == 140
+    assert facility_base_score(row, '3355') == 800
+
+
+def test_name_prefix_beats_word_prefix_and_incidental_location_match():
+    direct = {'n': 'HANCEVILLE NURSING & REHAB CENTER', 'c': '015073', 'y': 'HANCEVILLE', 's': 'AL'}
+    later_word = {'n': 'APERION CARE HANOVER', 'c': '145333', 'y': 'CHICAGO', 's': 'IL'}
+    city_only = {'n': 'BRICKYARD HEALTHCARE', 'c': '155000', 'y': 'HARTFORD CITY', 's': 'IN'}
+    assert facility_base_score(direct, 'ha') > facility_base_score(later_word, 'ha')
+    assert facility_base_score(later_word, 'ha') > facility_base_score(city_only, 'ha')
+
+
+def test_ha_results_begin_with_direct_name_prefixes():
+    results = top_facilities('ha', None)
+    assert results
+    assert all(str(row.get('n') or '').lower().startswith('ha') for row in results[:3])

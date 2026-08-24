@@ -499,12 +499,25 @@
     return state.indexLoadPromise;
   }
 
+  function textMatchScore(value, q, exactScore, prefixScore, wordPrefixScore, substringScore) {
+    var text = String(value || '').trim().toLowerCase();
+    var query = String(q || '').trim().toLowerCase();
+    if (!text || !query) return 0;
+    if (text === query) return exactScore;
+    if (text.indexOf(query) === 0) return prefixScore;
+    var words = text.split(/[^a-z0-9]+/);
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].indexOf(query) === 0) return wordPrefixScore;
+    }
+    return text.indexOf(query) !== -1 ? substringScore : 0;
+  }
+
   function facilityBaseScore(row, q) {
     var score = 0;
-    if (matchQuery(row.c, q)) score += 140;
-    if (matchQuery(row.n, q)) score += 100;
-    if (matchQuery(row.y, q)) score += 35;
-    if (matchQuery(row.s, q)) score += 20;
+    score += textMatchScore(row.c, q, 1000, 800, 0, 0);
+    score += textMatchScore(row.n, q, 600, 500, 300, 100);
+    score += textMatchScore(row.y, q, 90, 70, 55, 35);
+    score += textMatchScore(row.s, q, 50, 40, 30, 20);
     return score;
   }
 

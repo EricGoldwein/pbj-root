@@ -938,9 +938,13 @@ def lookup_cms_ownership_for_provider(
     # provider request; legacy/name fallbacks below remain for incomplete stores.
     if ccn_norm:
         canonical_pac = _enrollment_pac_for_ccn_canonical(ccn_norm)
-        if canonical_pac:
+        # The compact build artifact has broader CCN coverage than the
+        # publication relationship table.  It must run before org-name maps;
+        # otherwise one missing canonical row hydrates a nationwide fallback.
+        indexed_pac = canonical_pac or _ccn_to_enrollment_pac().get(ccn_norm)
+        if indexed_pac:
             hit = _ownership_lookup_from_enrollment_pac(
-                canonical_pac,
+                indexed_pac,
                 matched_via=f"ccn:{ccn_norm}",
             )
             if hit:
@@ -961,7 +965,7 @@ def lookup_cms_ownership_for_provider(
         if hit:
             return hit
     if ccn_norm:
-        pac = _ccn_to_enrollment_pac().get(ccn_norm) or _enrollment_pac_for_ccn_sqlite(ccn_norm, dba)
+        pac = _enrollment_pac_for_ccn_sqlite(ccn_norm, dba)
         if pac and pac not in tried:
             hit = _ownership_lookup_from_enrollment_pac(pac, matched_via=f"ccn:{ccn_norm}")
             if hit:

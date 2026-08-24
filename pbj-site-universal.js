@@ -1617,8 +1617,8 @@
     var c = String(ccn || '').toLowerCase();
     var query = String(q || '').trim().toLowerCase();
     if (!c || !query) return 0;
-    if (c === query) return 200;
-    if (c.indexOf(query) === 0) return 160;
+    if (c === query) return 1000;
+    if (c.indexOf(query) === 0) return 800;
     if (isDigitOnlyQuery(query)) return 0;
     if (c.indexOf(query) !== -1) return 40;
     return 0;
@@ -2048,11 +2048,24 @@
     return state.indexLoadPromise;
   }
 
+  function textMatchScore(value, q, exactScore, prefixScore, wordPrefixScore, substringScore) {
+    var text = String(value || '').trim().toLowerCase();
+    var query = String(q || '').trim().toLowerCase();
+    if (!text || !query) return 0;
+    if (text === query) return exactScore;
+    if (text.indexOf(query) === 0) return prefixScore;
+    var words = text.split(/[^a-z0-9]+/);
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].indexOf(query) === 0) return wordPrefixScore;
+    }
+    return text.indexOf(query) !== -1 ? substringScore : 0;
+  }
+
   function facilityBaseScore(row, q) {
     var score = ccnMatchScore(row.c, q);
-    if (matchQuery(row.n, q)) score += 100;
-    if (matchQuery(row.y, q)) score += 35;
-    if (matchQuery(row.s, q)) score += 20;
+    score += textMatchScore(row.n, q, 600, 500, 300, 100);
+    score += textMatchScore(row.y, q, 90, 70, 55, 35);
+    score += textMatchScore(row.s, q, 50, 40, 30, 20);
     return score;
   }
 

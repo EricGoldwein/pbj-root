@@ -76,6 +76,28 @@ class CanonicalFacilityMatchTests(unittest.TestCase):
         self.assertEqual(actual, expected)
         targeted.assert_called_once_with("7618113481", matched_via="ccn:335513")
 
+    def test_provider_lookup_uses_compact_ccn_artifact_before_org_map(self):
+        expected = {"enrollment_pac": "2769643345", "control_parties": []}
+        with patch.object(
+            owner_profile, "_enrollment_pac_for_ccn_canonical", return_value=""
+        ), patch.object(
+            owner_profile,
+            "_ccn_to_enrollment_pac",
+            return_value={"395507": "2769643345"},
+        ), patch.object(
+            owner_profile,
+            "_ownership_lookup_from_enrollment_pac",
+            return_value=expected,
+        ) as targeted, patch.object(
+            owner_profile,
+            "_enrollment_org_to_pac",
+            side_effect=AssertionError("national org-name map should not load"),
+        ):
+            actual = owner_profile.lookup_cms_ownership_for_provider(ccn="395507")
+
+        self.assertEqual(actual, expected)
+        targeted.assert_called_once_with("2769643345", matched_via="ccn:395507")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1605,7 +1605,7 @@
       }
       .home-premium-cta {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         justify-content: center;
         align-items: center;
         width: 100%;
@@ -1614,10 +1614,13 @@
         font-size: clamp(0.6rem, 2.7vw, 0.72rem);
         line-height: 1.25;
         gap: 0;
-        white-space: nowrap;
+        white-space: normal;
       }
       .home-premium-cta-line {
-        white-space: nowrap;
+        display: block;
+        max-width: 100%;
+        text-align: center;
+        white-space: normal;
       }
       .home-premium-cta-action {
         white-space: nowrap;
@@ -1628,6 +1631,15 @@
       }
       .footer a {
         -webkit-tap-highlight-color: transparent;
+      }
+    }
+    @media (max-width: 360px) {
+      .home-search-card .home-search-input {
+        padding-right: 8px;
+        padding-left: 36px;
+      }
+      .home-search-wrap .search-icon-wrap {
+        left: 10px;
       }
     }
     .phoebe-link {
@@ -2778,9 +2790,9 @@
           }
           var isMobile = window.innerWidth <= 768;
           if (mode === 'facility') {
-            // Desktop: full CCN wording; ≤768: shorter so the placeholder fits the field.
+            // Desktop: full CCN wording; mobile: concise enough for the shared search row.
             input.placeholder = isMobile
-              ? 'Nursing home name or 6-digit ID'
+              ? 'Name or CCN'
               : 'Nursing home name or 6-digit CCN';
           } else if (mode === 'chain') {
             input.placeholder = 'Chain name or ID';

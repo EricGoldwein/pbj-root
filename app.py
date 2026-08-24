@@ -25292,8 +25292,12 @@ def _provider_cold_render_semaphore():
 
 
 def _provider_cold_render_wait_seconds() -> float:
-    """Seconds to wait for HTML render slot (data lookups run outside this lock)."""
-    default = '45' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '25'
+    """Seconds to wait for admission to all provider cache-miss work."""
+    # A single Render worker has four request threads. Parking the other three
+    # behind a cold render starves /healthz and causes the platform to kill an
+    # otherwise-live instance. Fail fast in production; the 503 response
+    # already carries Retry-After and a refresh page.
+    default = '0' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '25'
     try:
         return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', default)))
     except (TypeError, ValueError):
@@ -25587,21 +25591,6 @@ def _provider_page_impl(ccn):
             provider_section_record,
         )
 
-        init_provider_sections()
-        _ensure_provider_indexes_hydrated()
-        t_sec = time.perf_counter()
-        facility_df = load_facility_quarterly_for_provider(prov)
-        _log_mem('route_provider_facility_df')
-        provider_section_record('facility_quarterly', t_sec)
-        if facility_df is None or facility_df.empty:
-            timer.status = 404
-            timer.outcome = 'not_found'
-            abort(404)
-        t_sec = time.perf_counter()
-        provider_info_row = _provider_info_row_for_ccn(prov)
-        _log_mem('route_provider_provider_info')
-        provider_section_record('provider_info', t_sec)
-
         sem = _provider_cold_render_semaphore()
         t_queue = time.perf_counter()
         wait_s = _provider_cold_render_wait_seconds()
@@ -25625,6 +25614,21 @@ def _provider_page_impl(ccn):
             timer.outcome = 'cache_hit_race'
             timer.status = 200
             return hit
+
+        init_provider_sections()
+        _ensure_provider_indexes_hydrated()
+        t_sec = time.perf_counter()
+        facility_df = load_facility_quarterly_for_provider(prov)
+        _log_mem('route_provider_facility_df')
+        provider_section_record('facility_quarterly', t_sec)
+        if facility_df is None or facility_df.empty:
+            timer.status = 404
+            timer.outcome = 'not_found'
+            abort(404)
+        t_sec = time.perf_counter()
+        provider_info_row = _provider_info_row_for_ccn(prov)
+        _log_mem('route_provider_provider_info')
+        provider_section_record('provider_info', t_sec)
 
         timer.outcome = 'cold_render_started'
         if provider_perf_log_enabled():

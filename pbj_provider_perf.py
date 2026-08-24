@@ -26,7 +26,7 @@ _DEFAULT_AI_CRAWLER_MARKERS = (
     'amazonbot',
 )
 
-_GOOGLEBOT_MARKERS = ('googlebot', 'google-inspectiontool', 'adsbot-google')
+_GOOGLEBOT_MARKERS = ('googlebot', 'google-inspectiontool', 'adsbot-google', 'googleother')
 _BINGBOT_MARKERS = ('bingbot', 'msnbot', 'adidxbot')
 
 # Off by default — critical provider sections must not be skipped for real users.

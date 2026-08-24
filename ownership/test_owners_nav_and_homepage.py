@@ -72,6 +72,19 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn("homeMount.closest('.home-subscribe-band')", audience_js)
         self.assertIn("homeBand.hidden = true", audience_js)
 
+    def test_provider_cold_admission_protects_health_thread(self) -> None:
+        app = (_ROOT / "app.py").read_text(encoding="utf-8")
+        perf = (_ROOT / "pbj_provider_perf.py").read_text(encoding="utf-8")
+        route_start = app.index("def _provider_page_impl(")
+        route_end = app.index("def _state_page_impl(", route_start)
+        route = app[route_start:route_end]
+        self.assertLess(
+            route.index("acquired = sem.acquire"),
+            route.index("_ensure_provider_indexes_hydrated()"),
+        )
+        self.assertIn("default = '0' if (os.environ.get('RENDER')", app)
+        self.assertIn("'googleother'", perf)
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

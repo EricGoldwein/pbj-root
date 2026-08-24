@@ -25320,7 +25320,6 @@ def pbjpedia_index():
 _PROVIDER_PAGE_CACHE = {}
 _PROVIDER_PAGE_CACHE_MAX = 400
 _PROVIDER_PAGE_HTML_BUDGET_MB = float(os.environ.get('PBJ_PROVIDER_PAGE_HTML_BUDGET_MB', '140' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '50'))
-_PROVIDER_COLD_RENDER_SEM = None
 
 
 def _provider_page_html_budget_bytes() -> int:
@@ -25362,30 +25361,6 @@ def _enforce_provider_page_html_budget() -> dict:
             flush=True,
         )
     return _provider_page_html_cache_byte_stats()
-
-
-def _provider_cold_render_semaphore():
-    global _PROVIDER_COLD_RENDER_SEM
-    if _PROVIDER_COLD_RENDER_SEM is None:
-        try:
-            slots = max(1, int(os.environ.get('PBJ_PROVIDER_COLD_SLOTS', '1')))
-        except (TypeError, ValueError):
-            slots = 2
-        _PROVIDER_COLD_RENDER_SEM = threading.Semaphore(slots)
-    return _PROVIDER_COLD_RENDER_SEM
-
-
-def _provider_cold_render_wait_seconds() -> float:
-    """Seconds to wait for admission to all provider cache-miss work."""
-    # A single Render worker has four request threads. Parking the other three
-    # behind a cold render starves /healthz and causes the platform to kill an
-    # otherwise-live instance. Fail fast in production; the 503 response
-    # already carries Retry-After and a refresh page.
-    default = '0' if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else '25'
-    try:
-        return max(0.0, float(os.environ.get('PBJ_PROVIDER_COLD_WAIT', default)))
-    except (TypeError, ValueError):
-        return 45.0 if (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_ID')) else 25.0
 
 
 def _provider_page_cached_response(prov: str, now: float):
@@ -25435,34 +25410,6 @@ def _provider_page_cache_enabled():
 
 PBJ_CASEMIX_UI_REV = '14-split-7'
 PBJ_STAFFING_CHARTS_REV = '2'
-
-
-def _provider_busy_minimal_html(retry_after: str = '3') -> str:
-    """Minimal HTML when cold render queue is saturated (no full CSV work)."""
-    ra = html.escape(str(retry_after), quote=True)
-    return f'''<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PBJ320 — loading</title>
-<meta http-equiv="refresh" content="{ra}">
-<style>body{{font-family:system-ui,sans-serif;background:#0f0f12;color:#e4e4e7;margin:2rem;line-height:1.5}}</style>
-</head><body>
-<h1>Provider page is loading</h1>
-<p>Another facility page is being prepared. This page will retry automatically in {ra} seconds.</p>
-<p><a href="">Retry now</a> · <a href="/">Return to PBJ320 home</a></p>
-</body></html>'''
-
-
-def _provider_busy_response(retry_after: str = '3'):
-    return make_response(
-        _provider_busy_minimal_html(retry_after),
-        503,
-        {
-            'Content-Type': 'text/html; charset=utf-8',
-            'Retry-After': str(retry_after),
-            'X-PBJ-Provider-Cache': 'MISS',
-            'Cache-Control': 'no-store',
-        },
-    )
 
 
 def _provider_page_html_headers(*, cache_hit=False):
@@ -25575,9 +25522,6 @@ def _provider_page_impl(ccn):
     prov = normalize_ccn(ccn) or ''
     ua_class = classify_user_agent(request.headers.get('User-Agent', ''))
     timer = ProviderRequestTimer(prov or str(ccn or ''), ua_class=ua_class, pid=os.getpid())
-    sem = None
-    acquired = False
-
     try:
         if not HAS_PANDAS:
             timer.status = 503
@@ -25675,30 +25619,6 @@ def _provider_page_impl(ccn):
             provider_section_record,
         )
 
-        sem = _provider_cold_render_semaphore()
-        t_queue = time.perf_counter()
-        wait_s = _provider_cold_render_wait_seconds()
-        acquired = sem.acquire(timeout=wait_s) if wait_s > 0 else sem.acquire(blocking=False)
-        timer.queue_wait_ms = round((time.perf_counter() - t_queue) * 1000, 1)
-        if not acquired:
-            hit = _provider_page_cached_response(prov, now)
-            if hit is not None:
-                timer.cache = 'HIT'
-                timer.stale_serve = True
-                timer.outcome = 'cache_hit_after_queue_timeout'
-                timer.status = 200
-                return hit
-            timer.outcome = 'queue_rejected'
-            timer.status = 503
-            return _provider_busy_response('3')
-
-        hit = _provider_page_cached_response(prov, now)
-        if hit is not None:
-            timer.cache = 'HIT'
-            timer.outcome = 'cache_hit_race'
-            timer.status = 200
-            return hit
-
         init_provider_sections()
         _ensure_provider_indexes_hydrated()
         t_sec = time.perf_counter()
@@ -25771,8 +25691,6 @@ def _provider_page_impl(ccn):
                 timer.outcome = 'error'
         raise
     finally:
-        if acquired and sem is not None:
-            sem.release()
         timer.emit_log()
 
 def _state_page_impl(state_slug):

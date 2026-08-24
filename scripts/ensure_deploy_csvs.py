@@ -286,6 +286,36 @@ def main() -> int:
             rc_idx = subprocess.call([sys.executable, idx_script], cwd=APP_ROOT)
             if rc_idx != 0:
                 _log(f'ensure_deploy_csvs: WARN build_staffing_compliance_runtime_index exited {rc_idx}')
+    # Render's active service build command always runs this gate, but older
+    # dashboard-managed services do not automatically inherit later commands
+    # added to render.yaml.  Ensure the request-critical ownership SQLite store
+    # here so provider pages never fall back to multi-second CSV scans.
+    ownership_db = os.path.join(APP_ROOT, 'ownership', 'snf_owners_lookup.sqlite')
+    ownership_ok = False
+    if os.path.isfile(ownership_db) and os.path.getsize(ownership_db) > 0:
+        try:
+            import sqlite3
+
+            with sqlite3.connect(f'file:{ownership_db}?mode=ro', uri=True) as conn:
+                tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+                indexes = {row[1] for row in conn.execute('PRAGMA index_list("snf_owners")')}
+                ownership_ok = (
+                    'snf_owners' in tables
+                    and 'ccn_to_pacs' in tables
+                    and 'idx_enrollment_pac' in indexes
+                    and 'idx_owner_pac' in indexes
+                )
+        except Exception:
+            ownership_ok = False
+    if not ownership_ok:
+        ownership_script = os.path.join(APP_ROOT, 'scripts', 'build_snf_owners_index.py')
+        _log('ensure_deploy_csvs: building required ownership runtime index...')
+        rc_ownership = subprocess.call([sys.executable, ownership_script], cwd=APP_ROOT)
+        if rc_ownership != 0 or not os.path.isfile(ownership_db) or os.path.getsize(ownership_db) == 0:
+            _log('ensure_deploy_csvs: ERROR ownership runtime index build failed')
+            return 1
+    else:
+        _log('ensure_deploy_csvs: OK ownership runtime index')
     if os.environ.get('PBJ_SKIP_BUILD_PROVIDER_INDEXES', '').strip().lower() not in ('1', 'true', 'yes'):
         _log('ensure_deploy_csvs: building provider lookup indexes...')
         import subprocess

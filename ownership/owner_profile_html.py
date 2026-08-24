@@ -778,7 +778,6 @@ def _states_meta_html(profile: dict[str, Any]) -> str:
 
 
 def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
-    """Compact Facilities-by-state popover (desktop) / bottom sheet (mobile)."""
     ps = profile.get("portfolio_summary") or {}
     by_state: list[tuple[str, int]] = list(ps.get("by_state") or [])
     if not by_state:
@@ -786,26 +785,22 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
         if not states:
             return ""
         by_state = [(st, 0) for st in states]
-    rows: list[str] = []
+    rows = []
     for st, cnt in by_state:
         rows.append(
-            f'<li class="owner-states-popover-row">'
-            f'<span class="owner-states-popover-st">{html.escape(str(st))}</span>'
-            f'<span class="owner-states-popover-n">{cnt if cnt else "—"}</span>'
+            f'<li class="owner-states-row">'
+            f'<span class="owner-states-code">{html.escape(st)}</span>'
+            f'<span class="owner-states-count">{cnt if cnt else "—"}</span>'
             f"</li>"
         )
     return f"""
-      <dialog class="owner-states-modal" id="ownerStatesPopover" aria-labelledby="ownerStatesPopoverTitle">
-        <div class="owner-states-modal-card">
-          <header class="owner-states-modal-header">
-            <h2 id="ownerStatesPopoverTitle">Facilities by state</h2>
-            <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
-          </header>
-          <div class="owner-states-modal-body">
-            <ul class="owner-states-popover-list">{"".join(rows)}</ul>
-          </div>
+      <div class="owner-states-popover" id="ownerStatesPopover" hidden role="dialog"
+           aria-labelledby="ownerStatesPopoverTitle">
+        <div class="owner-states-popover-card">
+          <h2 class="owner-states-popover-title" id="ownerStatesPopoverTitle">Facilities by state</h2>
+          <ul class="owner-states-list" role="list">{"".join(rows)}</ul>
         </div>
-      </dialog>"""
+      </div>"""
 
 
 def _cms_snf_owners_filtered_url(pac: str) -> str:

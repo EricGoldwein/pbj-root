@@ -1006,8 +1006,26 @@ def _primary_owner_state_code(profile: dict[str, Any]) -> str:
     return ""
 
 
+def _owner_public_state_codes(profile: dict[str, Any]) -> list[str]:
+    """Distinct published state slices represented by an owner profile."""
+    codes: list[str] = []
+    by_state = (profile.get("portfolio_summary") or {}).get("by_state") or []
+    candidates = [row[0] for row in by_state if row] + list(profile.get("states") or [])
+    for raw in candidates:
+        code = str(raw or "").strip().upper()[:2]
+        if code and code not in codes and ownership_public_enabled_for_state(code):
+            codes.append(code)
+    return codes
+
+
 def _owner_index_back_link_html(profile: dict[str, Any]) -> str:
-    """Compact link to state ownership index (e.g. /owners/ny)."""
+    """Back to one state index only when the profile is genuinely single-state."""
+    public_states = _owner_public_state_codes(profile)
+    if len(public_states) > 1:
+        return (
+            '<a class="owner-profile-back" href="/owners" '
+            'title="Back to nursing home ownership search">← Owners</a>'
+        )
     st = _primary_owner_state_code(profile)
     if not st or not ownership_public_enabled_for_state(st):
         return ""

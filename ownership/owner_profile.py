@@ -582,6 +582,100 @@ def _fetch_rows_for_pac(pac: str) -> tuple[tuple[dict[str, Any], ...], tuple[dic
     return tuple(enrollment_rows), tuple(owner_rows)
 
 
+@lru_cache(maxsize=1)
+def _ccn_to_enrollment_ids() -> dict[str, tuple[str, ...]]:
+    """Exact CCN -> enrollment IDs from the policy-selected, release-matched bridge."""
+    from ownership.ownership_release_policy import resolve_bridge_lookup_path
+
+    path = resolve_bridge_lookup_path(_REPO)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    enrollment_to_ccn = payload.get("enrollment_to_ccn")
+    if not isinstance(enrollment_to_ccn, dict):
+        return {}
+
+    out: dict[str, list[str]] = {}
+    for enrollment_id, raw in enrollment_to_ccn.items():
+        if not isinstance(raw, dict):
+            continue
+        ccn_norm = _norm_ccn_key(str(raw.get("ccn_canonical") or ""))
+        eid = str(enrollment_id or "").strip()
+        if ccn_norm and eid:
+            out.setdefault(ccn_norm, []).append(eid)
+    return {ccn: tuple(sorted(set(eids))) for ccn, eids in out.items()}
+
+
+@lru_cache(maxsize=256)
+def _fetch_rows_for_enrollment_ids(
+    enrollment_ids: tuple[str, ...],
+) -> tuple[dict[str, Any], ...]:
+    """Fetch All Owners rows for exact CMS enrollment IDs, never a shared enrollment PAC."""
+    eids = tuple(
+        sorted(
+            {
+                str(eid or "").strip()
+                for eid in enrollment_ids
+                if str(eid or "").strip()
+            }
+        )
+    )
+    if not eids:
+        return ()
+
+    conn = _sqlite_conn()
+    if conn:
+        placeholders = ", ".join("?" for _ in eids)
+        try:
+            return tuple(
+                _sqlite_row_to_dict(r)
+                for r in conn.execute(
+                    f'SELECT * FROM "{_OWNERS_TABLE}" WHERE "ENROLLMENT ID" IN ({placeholders})',
+                    eids,
+                )
+            )
+        except Exception:
+            pass
+
+    rows: list[dict[str, Any]] = []
+    try:
+        header = pd.read_csv(
+            str(snf_owners_csv_path()),
+            dtype=str,
+            encoding="latin-1",
+            low_memory=False,
+            nrows=0,
+        ).columns.tolist()
+        cols = tuple(c for c in _CSV_USECOLS if c in header)
+        for chunk in _read_owners_csv_chunks(usecols=cols, chunksize=150_000):
+            if "ENROLLMENT ID" not in chunk.columns:
+                continue
+            mask = chunk["ENROLLMENT ID"].astype(str).isin(eids)
+            if mask.any():
+                rows.extend(_row_to_dict(r) for _, r in chunk.loc[mask].iterrows())
+    except Exception:
+        return ()
+    return tuple(rows)
+
+
+def facility_ownership_rows_for_ccn(
+    ccn: str,
+) -> tuple[tuple[str, ...], tuple[dict[str, Any], ...]]:
+    """Canonical facility ownership scope: exact CCN -> release-matched EIDs -> owner rows."""
+    ccn_norm = _norm_ccn_key(ccn)
+    if not ccn_norm:
+        return (), ()
+    try:
+        enrollment_ids = _ccn_to_enrollment_ids().get(ccn_norm, ())
+    except Exception:
+        # Facility ownership fails closed when bridge policy/artifacts are unavailable.
+        return (), ()
+    if not enrollment_ids:
+        return (), ()
+    rows = _fetch_rows_for_enrollment_ids(enrollment_ids)
+    allowed = set(enrollment_ids)
+    scoped = tuple(r for r in rows if _clean(r.get("ENROLLMENT ID")) in allowed)
+    return enrollment_ids, scoped
+
+
 def classify_associate_id(associate_id: str) -> str:
     """
     Return profile class: enrollment | owner_control | both | none.
@@ -864,44 +958,33 @@ def _enrollment_pac_for_ccn_sqlite(ccn_norm: str, provider_name: str = "") -> st
     return ""
 
 
-@lru_cache(maxsize=2048)
-def _enrollment_pac_for_ccn_canonical(ccn_norm: str) -> str:
-    """Resolve one facility through the deploy-built CCN index in constant time."""
-    conn = _sqlite_conn()
-    ccn_norm = _norm_ccn_key(ccn_norm)
-    if not conn or not ccn_norm:
-        return ""
-    try:
-        row = conn.execute(
-            "SELECT pac FROM ccn_to_pacs "
-            "WHERE ccn = ? AND link_kind = 'enrollment' LIMIT 1",
-            (ccn_norm,),
-        ).fetchone()
-    except sqlite3.Error:
-        return ""
-    pac = normalize_associate_id(row[0] if row else "")
-    return pac if len(pac) == 10 else ""
-
-
-def _ownership_lookup_from_enrollment_pac(
-    pac: str,
-    *,
-    matched_via: str,
-) -> dict[str, Any] | None:
-    if len(pac) != 10:
+def _ownership_lookup_for_facility_ccn(ccn: str) -> dict[str, Any] | None:
+    """Facility-scoped ownership evidence; deliberately distinct from PAC-wide owner profiles."""
+    ccn_norm = _norm_ccn_key(ccn)
+    enrollment_ids, scoped_rows = facility_ownership_rows_for_ccn(ccn_norm)
+    if not enrollment_ids or not scoped_rows:
         return None
-    en_rows, _ = _fetch_rows_for_pac(pac)
-    if not en_rows:
-        return None
-    enrollment_name = _clean(en_rows[0].get("ORGANIZATION NAME")) or matched_via
-    parties = _build_control_parties(en_rows)
+
+    enrollment_pacs = sorted(
+        {
+            normalize_associate_id(r.get(ENROLLMENT_PAC_COL))
+            for r in scoped_rows
+            if normalize_associate_id(r.get(ENROLLMENT_PAC_COL))
+        }
+    )
+    pac = enrollment_pacs[0] if enrollment_pacs else ""
+    enrollment_name = _clean(scoped_rows[0].get("ORGANIZATION NAME")) or f"CCN {ccn_norm}"
+    parties = _build_control_parties(scoped_rows)
     path = snf_owners_csv_path()
     return {
         "enrollment_pac": pac,
+        "enrollment_pacs": enrollment_pacs,
+        "enrollment_ids": list(enrollment_ids),
         "enrollment_name": enrollment_name,
         "enrollment_profile_url": associate_profile_url(pac, enrollment_name),
         "control_parties": parties,
-        "matched_via": matched_via,
+        "raw_owner_row_count": len(scoped_rows),
+        "matched_via": f"ccn:{ccn_norm}",
         **_ownership_source_fields(path),
     }
 
@@ -925,52 +1008,18 @@ def lookup_cms_ownership_for_provider(
     ccn: str = "",
 ) -> dict[str, Any] | None:
     """
-    Match facility to CMS SNF All Owners enrollment via legal/DBA name or CCN crosswalk.
-    Returns enrollment PAC, display name, and deduped control parties.
+    Return facility-scoped CMS ownership using the release-matched CCN/EID bridge.
+
+    Provider/facility scope must never fall back to a shared enrollment PAC. Name
+    parameters remain for call compatibility and display callers, but are not an
+    authoritative ownership join.
     """
     pi = provider_info_row or {}
     ccn_norm = _norm_ccn_key(ccn) or _norm_ccn_key(str(pi.get("ccn") or pi.get("PROVNUM") or ""))
-    legal = _clean(legal_business_name) or _clean(pi.get("legal_business_name"))
-    dba = _clean(provider_name) or _clean(pi.get("provider_name"))
-
-    # Normal production path: the release build already materializes CCN ->
-    # enrollment PAC.  Avoid rebuilding nationwide legal-name maps on a cold
-    # provider request; legacy/name fallbacks below remain for incomplete stores.
-    if ccn_norm:
-        canonical_pac = _enrollment_pac_for_ccn_canonical(ccn_norm)
-        # The compact build artifact has broader CCN coverage than the
-        # publication relationship table.  It must run before org-name maps;
-        # otherwise one missing canonical row hydrates a nationwide fallback.
-        indexed_pac = canonical_pac or _ccn_to_enrollment_pac().get(ccn_norm)
-        if indexed_pac:
-            hit = _ownership_lookup_from_enrollment_pac(
-                indexed_pac,
-                matched_via=f"ccn:{ccn_norm}",
-            )
-            if hit:
-                return hit
-
-    if not legal and ccn_norm:
-        legal = _ccn_to_legal_business_name().get(ccn_norm) or ""
-    index = _enrollment_org_to_pac()
-    tried: set[str] = set()
-    for matched_name in (legal, dba):
-        if not matched_name:
-            continue
-        pac = index.get(_norm_org_key(matched_name))
-        if not pac or pac in tried:
-            continue
-        tried.add(pac)
-        hit = _ownership_lookup_from_enrollment_pac(pac, matched_via=matched_name)
-        if hit:
-            return hit
-    if ccn_norm:
-        pac = _enrollment_pac_for_ccn_sqlite(ccn_norm, dba)
-        if pac and pac not in tried:
-            hit = _ownership_lookup_from_enrollment_pac(pac, matched_via=f"ccn:{ccn_norm}")
-            if hit:
-                return hit
-    return None
+    del provider_name, legal_business_name
+    if not ccn_norm:
+        return None
+    return _ownership_lookup_for_facility_ccn(ccn_norm)
 
 
 def _portfolio_enrollment_pacs(profile: dict[str, Any]) -> set[str]:

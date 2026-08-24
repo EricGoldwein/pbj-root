@@ -864,6 +864,25 @@ def _enrollment_pac_for_ccn_sqlite(ccn_norm: str, provider_name: str = "") -> st
     return ""
 
 
+@lru_cache(maxsize=2048)
+def _enrollment_pac_for_ccn_canonical(ccn_norm: str) -> str:
+    """Resolve one facility through the deploy-built CCN index in constant time."""
+    conn = _sqlite_conn()
+    ccn_norm = _norm_ccn_key(ccn_norm)
+    if not conn or not ccn_norm:
+        return ""
+    try:
+        row = conn.execute(
+            "SELECT pac FROM ccn_to_pacs "
+            "WHERE ccn = ? AND link_kind = 'enrollment' LIMIT 1",
+            (ccn_norm,),
+        ).fetchone()
+    except sqlite3.Error:
+        return ""
+    pac = normalize_associate_id(row[0] if row else "")
+    return pac if len(pac) == 10 else ""
+
+
 def _ownership_lookup_from_enrollment_pac(
     pac: str,
     *,
@@ -912,9 +931,23 @@ def lookup_cms_ownership_for_provider(
     pi = provider_info_row or {}
     ccn_norm = _norm_ccn_key(ccn) or _norm_ccn_key(str(pi.get("ccn") or pi.get("PROVNUM") or ""))
     legal = _clean(legal_business_name) or _clean(pi.get("legal_business_name"))
+    dba = _clean(provider_name) or _clean(pi.get("provider_name"))
+
+    # Normal production path: the release build already materializes CCN ->
+    # enrollment PAC.  Avoid rebuilding nationwide legal-name maps on a cold
+    # provider request; legacy/name fallbacks below remain for incomplete stores.
+    if ccn_norm:
+        canonical_pac = _enrollment_pac_for_ccn_canonical(ccn_norm)
+        if canonical_pac:
+            hit = _ownership_lookup_from_enrollment_pac(
+                canonical_pac,
+                matched_via=f"ccn:{ccn_norm}",
+            )
+            if hit:
+                return hit
+
     if not legal and ccn_norm:
         legal = _ccn_to_legal_business_name().get(ccn_norm) or ""
-    dba = _clean(provider_name) or _clean(pi.get("provider_name"))
     index = _enrollment_org_to_pac()
     tried: set[str] = set()
     for matched_name in (legal, dba):

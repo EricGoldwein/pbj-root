@@ -51,6 +51,7 @@ def snapshot_metric_card_html(
     action_attrs: str = "",
     label_short: str = "",
     sub_html: str = "",
+    label_suffix_html: str = "",
 ) -> str:
     tone_cls = f" owner-snapshot-card--{tone}" if tone else ""
     value_tip = html.escape(value_title, quote=True) if value_title else ""
@@ -68,7 +69,7 @@ def snapshot_metric_card_html(
         label_text = f'<span class="owner-snapshot-label-text">{label_full}</span>'
     # Keep ? on the same row as the label (never its own row between label and value).
     label_html = (
-        f'<div class="owner-snapshot-label">{label_text}{help_html}</div>'
+        f'<div class="owner-snapshot-label">{label_text}{help_html}{label_suffix_html}</div>'
     )
     sub = f'<div class="owner-snapshot-sub">{sub_html}</div>' if sub_html else ""
     inner = (
@@ -508,18 +509,20 @@ def portfolio_snapshot_section_html(
             )
         )
         if n_states:
+            states_help = (
+                '<button type="button" class="owner-info-btn owner-states-help" '
+                'data-owner-states-open aria-haspopup="dialog" aria-expanded="false" '
+                'aria-controls="ownerStatesPopover" '
+                f'aria-label="Facilities by state ({n_states} states)">?</button>'
+            )
             cards.append(
                 snapshot_metric_card_html(
                     "States",
                     str(n_states),
                     "",
                     "",
-                    action_attrs=(
-                        'data-owner-states-open aria-haspopup="dialog" '
-                        'aria-controls="ownerStatesModal" '
-                        f'aria-label="{n_states} states — facilities by state"'
-                    ),
                     label_short="States",
+                    label_suffix_html=states_help,
                 )
             )
         if mean_ovr is not None and n >= 2:

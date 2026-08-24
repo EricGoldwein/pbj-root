@@ -2244,8 +2244,8 @@
       <div class="home-shell">
         <header class="map-header">
           <p class="map-eyebrow">
-            <span class="map-eyebrow-desktop">Open-access CMS data · Facility staffing · 15,000+ providers</span>
-            <span class="map-eyebrow-mobile">Open-access CMS data · Facility staffing</span>
+            <span class="map-eyebrow-desktop">Open-access CMS data · Nursing home staffing · 15,000+ providers</span>
+            <span class="map-eyebrow-mobile">Open-access CMS data · Nursing home staffing</span>
           </p>
           <h1 class="map-title"><img src="pbj_favicon.png" alt="PBJ" loading="eager" style="height: 1em; vertical-align: middle; margin-right: 8px;"><span class="map-title-full">PBJ Nursing Home Staffing Dashboard</span><span class="map-title-mobile">PBJ Nursing Home<br>Staffing Dashboard</span></h1>
 
@@ -2273,7 +2273,7 @@
                   <span class="search-icon-wrap" aria-hidden="true">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                   </span>
-                  <input type="search" id="homeSearchInput" class="home-search-input" placeholder="Provider name or 6-digit ID" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="homeSearchResults" aria-expanded="false" aria-label="Search nursing homes">
+                  <input type="search" id="homeSearchInput" class="home-search-input" placeholder="Nursing home name or 6-digit CCN" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="homeSearchResults" aria-expanded="false" aria-label="Search nursing homes">
                 </div>
                 <button type="button" id="homeSearchInfoBtn" class="home-search-info-btn home-search-info-btn--in-row" aria-label="Search help" title="Search help">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
@@ -2358,8 +2358,8 @@
   </section>
 
   <div class="hero-premium-cta hero-premium-cta--after-subscribe">
-    <a href="/premium" class="home-premium-cta" aria-label="PBJ320 Premium: daily staffing, ownership, and employee-level detail">
-      <span class="home-premium-cta-line">Daily staffing, ownership, employee-level detail <span class="home-premium-cta-action">→ PBJ320 Premium</span></span>
+    <a href="/premium" class="home-premium-cta" aria-label="PBJ320 Premium: daily staffing, employee-level detail, and punch-card comparisons">
+      <span class="home-premium-cta-line">Daily staffing, employee-level detail, punch-card comparisons <span class="home-premium-cta-action">→ PBJ320 Premium</span></span>
     </a>
   </div>
 
@@ -2786,7 +2786,10 @@
           }
           var isMobile = window.innerWidth <= 768;
           if (mode === 'facility') {
-            input.placeholder = isMobile ? 'Provider name / CCN' : 'Provider name or 6-digit ID';
+            // Desktop: full CCN wording; ≤768: shorter so the placeholder fits the field.
+            input.placeholder = isMobile
+              ? 'Nursing home name or 6-digit ID'
+              : 'Nursing home name or 6-digit CCN';
           } else if (mode === 'chain') {
             input.placeholder = 'Chain name or ID';
           } else if (mode === 'owners') {

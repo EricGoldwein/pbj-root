@@ -11,7 +11,6 @@
       if (!tabs.length || tabs.length !== panels.length) return;
 
       function activate(index) {
-        var heading = wrap.querySelector('[data-owner-dist-title]');
         tabs.forEach(function (tab, i) {
           var on = i === index;
           tab.classList.toggle('is-active', on);
@@ -19,9 +18,6 @@
           tab.tabIndex = on ? 0 : -1;
           panels[i].hidden = !on;
           panels[i].classList.toggle('is-active', on);
-          if (on && heading && tab.getAttribute('data-dist-title')) {
-            heading.textContent = tab.getAttribute('data-dist-title');
-          }
         });
       }
 
@@ -243,10 +239,108 @@
     });
   }
 
+  var statesPopover = document.getElementById('ownerStatesPopover');
+  var statesOpenBtns = document.querySelectorAll('[data-owner-states-open]');
+  var statesActiveBtn = null;
+
+  function setStatesExpanded(open) {
+    statesOpenBtns.forEach(function (btn) {
+      btn.setAttribute('aria-expanded', open && btn === statesActiveBtn ? 'true' : 'false');
+    });
+  }
+
+  function closeStatesPopover() {
+    if (!statesPopover || statesPopover.hidden) return;
+    statesPopover.hidden = true;
+    statesPopover.style.left = '';
+    statesPopover.style.top = '';
+    setStatesExpanded(false);
+    statesActiveBtn = null;
+  }
+
+  function positionStatesPopover(btn) {
+    if (!statesPopover || !btn) return;
+    var pad = 8;
+    var gap = 6;
+    statesPopover.hidden = false;
+    statesPopover.style.visibility = 'hidden';
+    statesPopover.style.left = '0px';
+    statesPopover.style.top = '0px';
+    var rect = btn.getBoundingClientRect();
+    var popRect = statesPopover.getBoundingClientRect();
+    var left = rect.left;
+    var top = rect.bottom + gap;
+    // Prefer beneath/right of the ?; flip/clamp to stay in viewport.
+    if (left + popRect.width > window.innerWidth - pad) {
+      left = Math.max(pad, rect.right - popRect.width);
+    }
+    if (left < pad) left = pad;
+    if (top + popRect.height > window.innerHeight - pad) {
+      top = Math.max(pad, rect.top - popRect.height - gap);
+    }
+    if (top < pad) top = pad;
+    statesPopover.style.left = Math.round(left + window.scrollX) + 'px';
+    statesPopover.style.top = Math.round(top + window.scrollY) + 'px';
+    statesPopover.style.visibility = '';
+  }
+
+  function openStatesPopover(btn) {
+    if (!statesPopover) return;
+    statesActiveBtn = btn;
+    positionStatesPopover(btn);
+    setStatesExpanded(true);
+  }
+
+  function toggleStatesPopover(btn) {
+    if (!statesPopover) return;
+    if (!statesPopover.hidden && statesActiveBtn === btn) {
+      closeStatesPopover();
+      return;
+    }
+    openStatesPopover(btn);
+  }
+
+  if (statesPopover && statesOpenBtns.length) {
+    // Ensure absolute positioning is relative to the document, not a transformed ancestor.
+    if (statesPopover.parentElement !== document.body) {
+      document.body.appendChild(statesPopover);
+    }
+    statesOpenBtns.forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleStatesPopover(btn);
+      });
+    });
+    document.addEventListener('click', function (e) {
+      if (statesPopover.hidden) return;
+      if (e.target.closest('#ownerStatesPopover')) return;
+      if (e.target.closest('[data-owner-states-open]')) return;
+      closeStatesPopover();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeStatesPopover();
+    });
+    window.addEventListener('resize', function () {
+      if (!statesPopover.hidden && statesActiveBtn) positionStatesPopover(statesActiveBtn);
+    });
+    window.addEventListener(
+      'scroll',
+      function () {
+        if (!statesPopover.hidden && statesActiveBtn) positionStatesPopover(statesActiveBtn);
+      },
+      true
+    );
+  }
+
+  // Legacy dialog fallback (older markup).
   var dlg = document.getElementById('ownerStatesModal');
   if (dlg) {
     document.querySelectorAll('[data-owner-states-open]').forEach(function (btn) {
+      if (btn.getAttribute('data-states-legacy-bound')) return;
+      btn.setAttribute('data-states-legacy-bound', '1');
       btn.addEventListener('click', function () {
+        if (statesPopover) return;
         if (typeof dlg.showModal === 'function') {
           dlg.showModal();
         } else {

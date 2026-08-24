@@ -748,17 +748,13 @@ def _states_breakdown_modal_html(profile: dict[str, Any]) -> str:
             f"</li>"
         )
     return f"""
-      <dialog class="owner-states-modal" id="ownerStatesModal" aria-labelledby="ownerStatesModalTitle">
-        <div class="owner-states-modal-card" role="document">
-          <header class="owner-states-modal-header">
-            <h2 id="ownerStatesModalTitle">Facilities by state</h2>
-            <button type="button" class="owner-states-modal-close" data-owner-states-close aria-label="Close">×</button>
-          </header>
-          <div class="owner-states-modal-body">
-            <ul class="owner-states-list" role="list">{"".join(rows)}</ul>
-          </div>
+      <div class="owner-states-popover" id="ownerStatesPopover" hidden role="dialog"
+           aria-labelledby="ownerStatesPopoverTitle">
+        <div class="owner-states-popover-card">
+          <h2 class="owner-states-popover-title" id="ownerStatesPopoverTitle">Facilities by state</h2>
+          <ul class="owner-states-list" role="list">{"".join(rows)}</ul>
         </div>
-      </dialog>"""
+      </div>"""
 
 
 def _cms_snf_owners_filtered_url(pac: str) -> str:
@@ -1056,20 +1052,20 @@ def _owner_profile_header_html(
     return f"""
       <header class="owner-profile-header owner-profile-header--branded">
         {back_html}
-        <div class="owner-profile-header-top">
-          <div class="owner-profile-brand" aria-label="PBJ320 Ownership">
-            <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
-            <span class="owner-profile-brand-lockup">
-              <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
-              <span class="owner-profile-brand-suffix">Ownership</span>
-            </span>
-          </div>
-          {aside}
+        <div class="owner-profile-brand" aria-label="PBJ320 Ownership">
+          <img class="owner-profile-brand-icon" src="/pbj_favicon.png" alt="" width="28" height="28" decoding="async">
+          <span class="owner-profile-brand-lockup">
+            <span class="owner-profile-brand-mark"><span class="owner-profile-brand-pbj">PBJ</span><span class="owner-profile-brand-320">320</span></span>
+            <span class="owner-profile-brand-suffix">Ownership</span>
+          </span>
+        </div>
+        <div class="owner-profile-header-main">
           <div class="owner-profile-header-identity">
             <h1 class="owner-profile-name">{name}</h1>
             {meta_row}
             {role_line}
           </div>
+          {aside}
         </div>
       </header>"""
 

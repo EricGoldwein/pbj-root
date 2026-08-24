@@ -93,6 +93,19 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn("_PANDAS_INIT_LOCK.acquire(blocking=False)", app)
         self.assertIn("'Service is warming up; retry shortly.'", app)
 
+    def test_provider_cold_path_avoids_national_entity_rebuild_and_dead_end(self) -> None:
+        app = (_ROOT / "app.py").read_text(encoding="utf-8")
+        integrations = (_ROOT / "ownership" / "page_integrations.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("load_entity_facilities(eid, attach_quarterly_metrics=False)", app)
+        self.assertIn("entity_id, entity_name, raw_quarter, attach_metrics=False", app)
+        self.assertIn("@lru_cache(maxsize=32)\ndef _collect_cmi_series", app)
+        self.assertIn('cms_lookup_complete=True', app)
+        self.assertIn('if cms is None and not cms_lookup_complete:', integrations)
+        self.assertIn('This page will retry automatically in {ra} seconds.', app)
+        self.assertIn("return _provider_busy_response('3')", app)
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

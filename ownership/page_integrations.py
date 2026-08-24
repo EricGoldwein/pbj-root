@@ -825,6 +825,7 @@ def render_provider_ownership_chow_block(
     provider_info_row: dict[str, Any] | None = None,
     state_code: str = "",
     cms: dict[str, Any] | None = None,
+    cms_lookup_complete: bool = False,
 ) -> str:
     """CMS all-owners + CHOW footer for provider pages (collapsed by default)."""
     from ownership.owner_profile import lookup_cms_ownership_for_provider
@@ -852,7 +853,7 @@ def render_provider_ownership_chow_block(
         or ""
     ).strip().upper()
     chow_all = chow_records_for_ccn(ccn_norm, limit=0) if ccn_norm else []
-    if cms is None:
+    if cms is None and not cms_lookup_complete:
         cms = lookup_cms_ownership_for_provider(pi, ccn=ccn_norm)
 
     if not ownership_type and chow_flag != "Y" and not chow_all and not cms:

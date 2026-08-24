@@ -602,7 +602,10 @@ def _entity_portfolio_ai_line(entity_id) -> str:
     except (TypeError, ValueError):
         return ''
     try:
-        _en, facilities = load_entity_facilities(eid, attach_quarterly_metrics=True)
+        # This line only needs roster/state counts and CMS chain stars. Attaching
+        # PBJ rows here used to rebuild a national latest-HPRD map on a provider
+        # cold request even though none of those values are consumed below.
+        _en, facilities = load_entity_facilities(eid, attach_quarterly_metrics=False)
         if not facilities:
             return ''
         chain_perf = load_chain_performance() or {}
@@ -15201,8 +15204,15 @@ def _provider_snapshot_implied_cy_qtr(path):
     return None
 
 
+@lru_cache(maxsize=32)
 def _collect_cmi_series_from_provider_csv(path, target_cy, state_code=None):
-    """Return (cmi_series, ratio_series) for one quarter; empty series if file lacks usable CMI columns."""
+    """Return cached CMI series for one quarter and optional state.
+
+    A provider render asks for the same national/state slice first while choosing
+    a source and again while calculating its statistics.  Caching the immutable
+    read result prevents those source-selection probes from doubling the large
+    provider CSV scans on the first provider request.
+    """
     try:
         head = pd.read_csv(path, nrows=0)
     except Exception:
@@ -15266,6 +15276,7 @@ def _collect_cmi_series_from_provider_csv(path, target_cy, state_code=None):
     return cmi_s, ratio_s
 
 
+@lru_cache(maxsize=32)
 def _pick_cmi_reference_source_path(target_cy, state_code=None, *, min_cmi_n):
     """First CSV with enough same-quarter CMI rows; falls back past empty Norm snapshots to combined."""
     for path in _cmi_reference_source_paths():
@@ -18017,7 +18028,11 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
     entity_summary_html = ''
     if entity_id and entity_name:
         _t_ent = time.perf_counter()
-        entity_summary_html = _provider_entity_summary_html(entity_id, entity_name, raw_quarter)
+        # Keep the provider click path roster-only. Network staffing comparisons
+        # belong on the entity page and can require a national quarterly scan.
+        entity_summary_html = _provider_entity_summary_html(
+            entity_id, entity_name, raw_quarter, attach_metrics=False
+        )
         _psec('entity', _t_ent)
     orientation_parts = []
     if state_hprd_numeric is not None and reported_total is not None:
@@ -18161,24 +18176,27 @@ def generate_provider_page_html(ccn, facility_df, provider_info_row):
             ownership_public_enabled_for_state,
         )
 
+        _cms_for_provider = None
+        if ownership_beta_enabled_for_state(state_code):
+            from ownership.owner_profile import lookup_cms_ownership_for_provider
+
+            _cms_for_provider = lookup_cms_ownership_for_provider(
+                provider_info_row or pi_header, ccn=prov
+            )
         _provider_ownership_chow_block = render_provider_ownership_chow_block(
             prov,
             provider_info_row=provider_info_row or pi_header,
             state_code=state_code or '',
+            cms=_cms_for_provider,
+            cms_lookup_complete=True,
         )
-        if ownership_beta_enabled_for_state(state_code):
-            from ownership.owner_profile import lookup_cms_ownership_for_provider
-
-            _cms_for_subtitle = lookup_cms_ownership_for_provider(
-                provider_info_row or pi_header, ccn=prov
-            )
-            if _cms_for_subtitle:
-                _provider_owners_subtitle_btn, _provider_owners_subtitle_modal = (
-                    render_provider_owners_subtitle_control(
-                        _cms_for_subtitle.get('control_parties') or [],
-                        ccn=prov,
-                    )
+        if _cms_for_provider:
+            _provider_owners_subtitle_btn, _provider_owners_subtitle_modal = (
+                render_provider_owners_subtitle_control(
+                    _cms_for_provider.get('control_parties') or [],
+                    ccn=prov,
                 )
+            )
         _ownership_chow_ai = (
             chow_summary_line_for_ccn(prov)
             if ownership_public_enabled_for_state(state_code)
@@ -25385,22 +25403,22 @@ PBJ_CASEMIX_UI_REV = '14-split-7'
 PBJ_STAFFING_CHARTS_REV = '2'
 
 
-def _provider_busy_minimal_html(retry_after: str = '30') -> str:
+def _provider_busy_minimal_html(retry_after: str = '3') -> str:
     """Minimal HTML when cold render queue is saturated (no full CSV work)."""
     ra = html.escape(str(retry_after), quote=True)
     return f'''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PBJ320 — loading</title>
-<meta http-equiv="refresh" content="{ra};url=">
+<meta http-equiv="refresh" content="{ra}">
 <style>body{{font-family:system-ui,sans-serif;background:#0f0f12;color:#e4e4e7;margin:2rem;line-height:1.5}}</style>
 </head><body>
 <h1>Provider page is loading</h1>
-<p>Another facility page is being prepared. Please retry in a few seconds.</p>
-<p><a href="/">Return to PBJ320 home</a></p>
+<p>Another facility page is being prepared. This page will retry automatically in {ra} seconds.</p>
+<p><a href="">Retry now</a> · <a href="/">Return to PBJ320 home</a></p>
 </body></html>'''
 
 
-def _provider_busy_response(retry_after: str = '30'):
+def _provider_busy_response(retry_after: str = '3'):
     return make_response(
         _provider_busy_minimal_html(retry_after),
         503,
@@ -25638,7 +25656,7 @@ def _provider_page_impl(ccn):
                 return hit
             timer.outcome = 'queue_rejected'
             timer.status = 503
-            return _provider_busy_response('30')
+            return _provider_busy_response('3')
 
         hit = _provider_page_cached_response(prov, now)
         if hit is not None:

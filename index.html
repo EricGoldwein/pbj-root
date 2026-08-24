@@ -2259,7 +2259,6 @@
               <button type="button" id="searchTabFacility" aria-pressed="true" class="search-mode-tab active">Provider</button>
               <button type="button" id="searchTabChain" aria-pressed="false" class="search-mode-tab">Chain</button>
               <button type="button" id="searchTabState" aria-pressed="false" class="search-mode-tab">State</button>
-              <button type="button" id="searchTabOwners" aria-pressed="false" class="search-mode-tab">Owners</button>
             </div>
             </div>
             <div class="home-search-row-and-phoebe">
@@ -2680,7 +2679,6 @@
         const tabFacility = document.getElementById('searchTabFacility');
         const tabChain = document.getElementById('searchTabChain');
         const tabState = document.getElementById('searchTabState');
-        const tabOwners = document.getElementById('searchTabOwners');
         const infoBtn = document.getElementById('homeSearchInfoBtn');
         const infoBtnMobile = document.getElementById('homeSearchInfoBtnMobile');
         const infoPopup = document.getElementById('homeSearchInfoPopup');
@@ -2764,25 +2762,19 @@
           if (name.indexOf(ql) !== -1) return 100;
           return 0;
         }
-        let ownersFetchSeq = 0;
         function setMode(mode) {
           searchMode = mode;
           tabFacility.classList.toggle('active', mode === 'facility');
           tabChain.classList.toggle('active', mode === 'chain');
           tabState.classList.toggle('active', mode === 'state');
-          if (tabOwners) tabOwners.classList.toggle('active', mode === 'owners');
           if (tabFacility) tabFacility.setAttribute('aria-pressed', mode === 'facility' ? 'true' : 'false');
           if (tabChain) tabChain.setAttribute('aria-pressed', mode === 'chain' ? 'true' : 'false');
           if (tabState) tabState.setAttribute('aria-pressed', mode === 'state' ? 'true' : 'false');
-          if (tabOwners) tabOwners.setAttribute('aria-pressed', mode === 'owners' ? 'true' : 'false');
           if (stateFilterWrap) {
-            stateFilterWrap.classList.toggle('inline', mode === 'facility' || mode === 'owners');
+            stateFilterWrap.classList.toggle('inline', mode === 'facility');
           }
           if (stateFilter) {
-            stateFilter.setAttribute(
-              'aria-label',
-              mode === 'owners' ? 'State filter for ownership search' : 'State filter for provider search'
-            );
+            stateFilter.setAttribute('aria-label', 'State filter for provider search');
           }
           var isMobile = window.innerWidth <= 768;
           if (mode === 'facility') {
@@ -2792,15 +2784,10 @@
               : 'Nursing home name or 6-digit CCN';
           } else if (mode === 'chain') {
             input.placeholder = 'Chain name or ID';
-          } else if (mode === 'owners') {
-            input.placeholder = isMobile ? 'Owner name / PAC' : 'Owner name or 10-digit PAC';
           } else {
             input.placeholder = 'State name or abbreviation';
           }
-          input.setAttribute(
-            'aria-label',
-            mode === 'owners' ? 'Search nursing home owners' : 'Search nursing homes'
-          );
+          input.setAttribute('aria-label', 'Search nursing homes');
           renderResults(input.value);
         }
         function ownerProfileUrl(item) {
@@ -2848,39 +2835,8 @@
           resultsEl.setAttribute('data-open', 'true');
           input.setAttribute('aria-expanded', 'true');
         }
-        function fetchOwnerSuggestions(q) {
-          var seq = ++ownersFetchSeq;
-          var url = '/owners/api/cms-search?q=' + encodeURIComponent(q);
-          var stateAbbr = (stateFilter && stateFilter.value) ? stateFilter.value.trim().toLowerCase() : '';
-          if (stateAbbr) url += '&state=' + encodeURIComponent(stateAbbr);
-          resultsEl.innerHTML = '<div style="padding:12px 14px;color:rgba(255,255,255,0.7);font-size:0.9rem;">Searching owners…</div>';
-          resultsEl.setAttribute('data-open', 'true');
-          input.setAttribute('aria-expanded', 'true');
-          fetch(url, { credentials: 'same-origin' })
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-              if (seq !== ownersFetchSeq || searchMode !== 'owners') return;
-              renderOwnerSuggestions((data && data.suggestions) || []);
-            })
-            .catch(function() {
-              if (seq !== ownersFetchSeq || searchMode !== 'owners') return;
-              resultsEl.innerHTML = '<div style="padding:12px 14px;color:rgba(255,255,255,0.6);font-size:0.9rem;">Owner search unavailable. Try again.</div>';
-              resultsEl.setAttribute('data-open', 'true');
-            });
-        }
         function renderResults(query) {
           const q = (query || '').trim();
-          if (searchMode === 'owners') {
-            var digits = q.replace(/\D/g, '');
-            if (q.length < 2 && digits.length !== 10 && digits.length !== 9 && digits.length !== 11) {
-              resultsEl.innerHTML = '';
-              resultsEl.removeAttribute('data-open');
-              input.setAttribute('aria-expanded', 'false');
-              return;
-            }
-            fetchOwnerSuggestions(q);
-            return;
-          }
           var minLen = searchMode === 'state' ? 1 : 2;
           if (q.length < minLen) {
             resultsEl.innerHTML = '';
@@ -2997,7 +2953,6 @@
         if (tabFacility) tabFacility.addEventListener('click', function() { setMode('facility'); });
         if (tabChain) tabChain.addEventListener('click', function() { setMode('chain'); });
         if (tabState) tabState.addEventListener('click', function() { setMode('state'); });
-        if (tabOwners) tabOwners.addEventListener('click', function() { setMode('owners'); });
         if (stateFilter) stateFilter.addEventListener('change', function() { renderResults(input.value); });
         input.addEventListener('input', function() {
           clearTimeout(debounceTimer);

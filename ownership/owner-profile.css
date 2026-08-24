@@ -19,10 +19,10 @@
 .owner-profile-header-top {
   display: grid;
   grid-template-columns: 1fr auto;
-  grid-template-rows: auto auto;
   align-items: start;
   column-gap: 0.65rem;
-  row-gap: 0.25rem;
+  min-height: 1.65rem;
+  margin-bottom: 0.3rem;
 }
 
 .owner-profile-header-main {
@@ -83,6 +83,15 @@
 
   .owner-profile-header-aside {
     align-self: flex-start;
+  }
+}
+
+@media (max-width: 700px) {
+  .owner-profile-header-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.35rem 0.65rem;
   }
 }
 

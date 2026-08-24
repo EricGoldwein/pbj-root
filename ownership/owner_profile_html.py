@@ -1102,13 +1102,15 @@ def _owner_profile_header_html(
     cms_html = f'<div class="owner-profile-header-actions">{cms_source}</div>' if cms_source else ""
     return f"""
       <header class="owner-profile-header owner-profile-header--compact">
-        {back_html}
+        <div class="owner-profile-header-top">
+          {back_html}
+          {cms_html}
+        </div>
         <div class="owner-profile-header-identity">
           <h1 class="owner-profile-name">{name}</h1>
           {descriptor_row}
           {meta_row}
         </div>
-        {cms_html}
       </header>"""
 
 

@@ -36,6 +36,16 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertNotIn("/owners/api/cms-search", html)
         self.assertNotIn("setMode('owners')", html)
 
+    def test_owner_cms_source_is_in_upper_header_row(self) -> None:
+        source = (_ROOT / "ownership" / "owner_profile_html.py").read_text(encoding="utf-8")
+        header_start = source.index('def _owner_profile_header_html(')
+        header_end = source.index('def _associate_shared_facilities_cell', header_start)
+        header = source[header_start:header_end]
+        top_start = header.index('<div class="owner-profile-header-top">')
+        identity_start = header.index('<div class="owner-profile-header-identity">')
+        self.assertIn("{cms_html}", header[top_start:identity_start])
+        self.assertNotIn("{cms_html}", header[identity_start:])
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

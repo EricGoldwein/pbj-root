@@ -225,6 +225,7 @@ except ImportError:
 # Defer pandas import so workers can respond to /health before heavy imports (Render port check).
 _pandas_module = None
 HAS_PANDAS = False
+_PANDAS_INIT_LOCK = threading.Lock()
 
 def get_pd():
     """Import pandas on first use so /health can respond before workers load it."""
@@ -1003,12 +1004,43 @@ def _mem_route_timer():
 
 @app.before_request
 def _ensure_pandas():
-    """Load pandas on first non-health request so /health can respond before workers load it (Render)."""
-    if request.path in _HEALTH_PROBE_PATHS or request.path in ('/warmup', '/sitemap.xml'):
+    """Initialize pandas once without parking every request thread behind its import lock."""
+    path = request.path or '/'
+    pandas_free_exact = {
+        '/', '/index.html', '/warmup', '/sitemap.xml', '/robots.txt',
+        '/search_index.json', '/pbj-site-universal.js', '/public-search.js',
+        '/pbj-audience.js', '/pbj-audience.css', '/api/audience/config',
+        '/api/subscribe/csrf',
+    }
+    static_suffixes = (
+        '.css', '.js', '.png', '.jpg', '.jpeg', '.webp', '.svg', '.ico',
+        '.woff', '.woff2', '.txt', '.xml',
+    )
+    if (
+        path in _HEALTH_PROBE_PATHS
+        or path in pandas_free_exact
+        or path.endswith(static_suffixes)
+        or (path.endswith('.json') and not path.startswith('/api/'))
+    ):
         return
     global pd
-    if pd is None:
-        pd = get_pd()
+    if pd is not None:
+        return
+    if not _PANDAS_INIT_LOCK.acquire(blocking=False):
+        return make_response(
+            'Service is warming up; retry shortly.',
+            503,
+            {
+                'Content-Type': 'text/plain; charset=utf-8',
+                'Retry-After': '2',
+                'Cache-Control': 'no-store',
+            },
+        )
+    try:
+        if pd is None:
+            pd = get_pd()
+    finally:
+        _PANDAS_INIT_LOCK.release()
 
 
 @app.before_request

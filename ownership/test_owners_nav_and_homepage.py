@@ -85,6 +85,14 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn("default = '0' if (os.environ.get('RENDER')", app)
         self.assertIn("'googleother'", perf)
 
+    def test_pandas_warmup_does_not_block_home_search_or_all_threads(self) -> None:
+        app = (_ROOT / "app.py").read_text(encoding="utf-8")
+        self.assertIn("_PANDAS_INIT_LOCK = threading.Lock()", app)
+        self.assertIn("'/search_index.json'", app)
+        self.assertIn("'/public-search.js'", app)
+        self.assertIn("_PANDAS_INIT_LOCK.acquire(blocking=False)", app)
+        self.assertIn("'Service is warming up; retry shortly.'", app)
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

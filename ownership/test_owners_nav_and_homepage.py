@@ -65,6 +65,13 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn("owner-associates-retry", js)
         self.assertIn('role="status"', html)
 
+    def test_mobile_ccn_hint_and_home_signup_remain_visible(self) -> None:
+        html = (_ROOT / "index.html").read_text(encoding="utf-8")
+        audience_js = (_ROOT / "pbj-audience.js").read_text(encoding="utf-8")
+        self.assertIn("? 'Name or 6-digit CCN'", html)
+        self.assertIn("homeMount.closest('.home-subscribe-band')", audience_js)
+        self.assertIn("homeBand.hidden = true", audience_js)
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

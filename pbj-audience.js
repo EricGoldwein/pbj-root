@@ -593,7 +593,13 @@
     }
     var homeMount = document.getElementById('pbj-audience-home');
     if (homeMount) {
-      mountSignup(homeMount, { variant: 'homepage_insights' });
+      if (hasSubscription(SUB_TYPES.PBJ320_INSIGHTS)) {
+        // Remove the heading and its spacing along with the redundant form.
+        var homeBand = homeMount.closest('.home-subscribe-band');
+        if (homeBand) homeBand.hidden = true;
+      } else {
+        mountSignup(homeMount, { variant: 'homepage_insights' });
+      }
     }
     var insightsMount = document.getElementById('pbj-audience-insights');
     if (insightsMount) {

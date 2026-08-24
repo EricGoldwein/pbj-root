@@ -1633,7 +1633,7 @@
         -webkit-tap-highlight-color: transparent;
       }
     }
-    @media (max-width: 360px) {
+    @media (max-width: 768px) {
       .home-search-card .home-search-input {
         padding-right: 8px;
         padding-left: 36px;
@@ -2792,7 +2792,7 @@
           if (mode === 'facility') {
             // Desktop: full CCN wording; mobile: concise enough for the shared search row.
             input.placeholder = isMobile
-              ? 'Name or CCN'
+              ? 'Name or 6-digit CCN'
               : 'Nursing home name or 6-digit CCN';
           } else if (mode === 'chain') {
             input.placeholder = 'Chain name or ID';

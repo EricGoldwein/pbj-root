@@ -46,6 +46,25 @@ class OwnersNavRegressionTests(unittest.TestCase):
         self.assertIn("{cms_html}", header[top_start:identity_start])
         self.assertNotIn("{cms_html}", header[identity_start:])
 
+    def test_current_provider_markup_is_cacheable(self) -> None:
+        app = (_ROOT / "app.py").read_text(encoding="utf-8")
+        for marker in (
+            "pbj-cmi-modal-related",
+            "pbj-casemix-cmi-strip--intoprow",
+            "pbj-takeaway-compliance-note",
+        ):
+            self.assertNotIn(f"if '{marker}' in body:", app)
+
+    def test_related_associates_has_cache_and_accessible_retry(self) -> None:
+        app = (_ROOT / "app.py").read_text(encoding="utf-8")
+        js = (_ROOT / "ownership" / "owner-profile.js").read_text(encoding="utf-8")
+        html = (_ROOT / "ownership" / "owner_profile_html.py").read_text(encoding="utf-8")
+        self.assertIn("_RELATED_ASSOCIATES_CACHE", app)
+        self.assertIn("X-PBJ-Related-Cache", app)
+        self.assertIn("aria-busy", js)
+        self.assertIn("owner-associates-retry", js)
+        self.assertIn('role="status"', html)
+
 
 class FailedAdpStubTests(unittest.TestCase):
     def test_failed_adp_stub_quarantined_not_ingested(self) -> None:

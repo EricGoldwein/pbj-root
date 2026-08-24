@@ -422,6 +422,64 @@
   font-weight: 600;
 }
 
+.owner-associates-loading {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.8rem 0.15rem;
+  color: var(--owner-muted, #94a3b8);
+  font-size: 0.82rem;
+}
+
+.owner-associates-loading-bars {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.owner-associates-loading-bars span {
+  display: block;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #334155 20%, #475569 45%, #334155 70%);
+  background-size: 220% 100%;
+  animation: owner-associates-loading 1.25s ease-in-out infinite;
+}
+
+.owner-associates-loading-bars span:nth-child(2) { width: 82%; }
+.owner-associates-loading-bars span:nth-child(3) { width: 68%; }
+
+@keyframes owner-associates-loading {
+  to { background-position: -220% 0; }
+}
+
+.owner-associates-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+}
+
+.owner-associates-error p { margin: 0; }
+
+.owner-associates-retry {
+  border: 1px solid #64748b;
+  border-radius: 7px;
+  padding: 0.35rem 0.65rem;
+  background: #1e293b;
+  color: #e2e8f0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.owner-associates-retry:hover { border-color: #94a3b8; }
+.owner-associates-retry:focus-visible { outline: 2px solid #818cf8; outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .owner-associates-loading-bars span { animation: none; }
+}
+
 /* Legacy dialog styles kept inert if an old modal markup appears. */
 .owner-states-modal {
   border: none;

@@ -382,7 +382,16 @@
       if (!url) return;
       loading = true;
       var tip = panel.querySelector('.owner-associates-loading');
+      if (!tip) {
+        panel.innerHTML =
+          '<div class="owner-associates-loading" role="status">' +
+          '<span class="owner-associates-loading-label">Loading related CMS associates…</span>' +
+          '<span class="owner-associates-loading-bars" aria-hidden="true">' +
+          '<span></span><span></span><span></span></span></div>';
+        tip = panel.querySelector('.owner-associates-loading');
+      }
       if (tip) tip.hidden = false;
+      panel.setAttribute('aria-busy', 'true');
       fetch(url, { credentials: 'same-origin', headers: { Accept: 'application/json' } })
         .then(function (res) {
           return res.json().then(function (data) {
@@ -403,10 +412,15 @@
         })
         .catch(function () {
           panel.innerHTML =
-            '<p class="pbj-meta-line">Could not load related associates. Try again.</p>';
+            '<div class="owner-associates-error" role="alert">' +
+            '<p>Related associates could not be loaded.</p>' +
+            '<button type="button" class="owner-associates-retry">Retry</button></div>';
+          var retry = panel.querySelector('.owner-associates-retry');
+          if (retry) retry.addEventListener('click', fetchAssociates);
         })
         .finally(function () {
           loading = false;
+          panel.removeAttribute('aria-busy');
         });
     }
 

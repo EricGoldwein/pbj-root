@@ -7005,9 +7005,15 @@ def owners_cms_search_api():
     return jsonify({'suggestions': search_public_owner_profiles(q, limit=limit, state_code=state_code)})
 
 
+_RELATED_ASSOCIATES_CACHE: OrderedDict[str, tuple[float, str, int]] = OrderedDict()
+_RELATED_ASSOCIATES_CACHE_LOCK = threading.Lock()
+_RELATED_ASSOCIATES_CACHE_TTL = 900
+_RELATED_ASSOCIATES_CACHE_MAX = 256
+
+
 @app.route('/owners/api/related-associates/<pac>')
 def owners_related_associates_api(pac):
-    """Deferred related-associates fragment for owner profiles (sqlite-backed, no CSV reopen)."""
+    """Deferred related-associates fragment, cached per PAC after first construction."""
     from flask import jsonify
 
     from ownership.owner_profile import (
@@ -7020,15 +7026,29 @@ def owners_related_associates_api(pac):
     pac_n = normalize_associate_id(pac)
     if len(pac_n) != 10:
         return jsonify({'html': '', 'count': 0}), 400
+    now = time.time()
+    with _RELATED_ASSOCIATES_CACHE_LOCK:
+        cached = _RELATED_ASSOCIATES_CACHE.get(pac_n)
+        if cached and now - cached[0] < _RELATED_ASSOCIATES_CACHE_TTL:
+            _RELATED_ASSOCIATES_CACHE.move_to_end(pac_n)
+            resp = jsonify({'html': cached[1], 'count': cached[2]})
+            resp.headers['X-PBJ-Related-Cache'] = 'HIT'
+            return resp
     profile = load_owner_profile_resolved(pac_n)
     if not profile:
         return jsonify({'html': '', 'count': 0}), 404
     rows = build_related_associates(profile)
     profile['related_associates'] = rows
-    return jsonify({
-        'html': render_related_associates_fragment(profile),
-        'count': len(rows),
-    })
+    fragment = render_related_associates_fragment(profile)
+    count = len(rows)
+    with _RELATED_ASSOCIATES_CACHE_LOCK:
+        _RELATED_ASSOCIATES_CACHE[pac_n] = (now, fragment, count)
+        _RELATED_ASSOCIATES_CACHE.move_to_end(pac_n)
+        while len(_RELATED_ASSOCIATES_CACHE) > _RELATED_ASSOCIATES_CACHE_MAX:
+            _RELATED_ASSOCIATES_CACHE.popitem(last=False)
+    resp = jsonify({'html': fragment, 'count': count})
+    resp.headers['X-PBJ-Related-Cache'] = 'MISS'
+    return resp
 
 
 @app.route('/owners/api/owner-facilities/<pac>')
@@ -25415,8 +25435,6 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
         return False
     if 'data-pbj-casemix-ui="14-split-7"' not in body and 'pbj-casemix-card' in body:
         return False
-    if 'pbj-cmi-modal-related' in body:
-        return False
     if 'Compliance note:' in body and 'data-owner-info' not in body:
         return False
     if 'PBJ daily staffing flags' in body:
@@ -25426,10 +25444,6 @@ def _provider_page_cache_hit_ok(prov: str, html: str, row: dict | None) -> bool:
     if 'pbj-casemix-card' in body and 'function caseMixHprdPairHtml' not in body:
         return False
     if 'pbj-casemix-card' in body and 'Case-Mix)</span>' not in body:
-        return False
-    if 'pbj-casemix-cmi-strip--intoprow' in body:
-        return False
-    if 'pbj-takeaway-compliance-note' in body:
         return False
     if "aside.className = 'pbj-casemix-breakdown-aside'" in body:
         return False

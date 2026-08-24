@@ -1199,8 +1199,11 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
                     count_html='<span class="owner-associates-count"></span>',
                     associates_help=associates_help,
                 )
-                + '<div class="owner-associates-panel" data-associates-panel>'
-                '<div class="owner-associates-loading pbj-meta-line" hidden>Loading…</div>'
+                + '<div class="owner-associates-panel" data-associates-panel aria-live="polite">'
+                '<div class="owner-associates-loading" role="status" hidden>'
+                '<span class="owner-associates-loading-label">Loading related CMS associates…</span>'
+                '<span class="owner-associates-loading-bars" aria-hidden="true">'
+                '<span></span><span></span><span></span></span></div>'
                 "</div>"
                 "</details>"
                 "</div>"

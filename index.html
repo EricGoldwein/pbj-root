@@ -2382,16 +2382,21 @@
         <input type="hidden" name="csrf_token" value="__CSRF_TOKEN_PLACEHOLDER__">
         <div class="f-group">
           <label for="popup-name">Name <span style="color:#f87171">*</span></label>
-          <input type="text" id="popup-name" name="name" required autocomplete="name" maxlength="200">
+          <input type="text" id="popup-name" name="name" required autocomplete="name" maxlength="100" minlength="2">
         </div>
         <div class="f-group">
           <label for="popup-email">Email <span style="color:#f87171">*</span></label>
-          <input type="email" id="popup-email" name="email" required autocomplete="email">
+          <input type="email" id="popup-email" name="email" required autocomplete="email" maxlength="254">
         </div>
         <div class="f-group">
           <label for="popup-message">Message <span style="color:#f87171">*</span></label>
-          <textarea id="popup-message" name="message" required placeholder="Facility or topic and your request…"></textarea>
+          <textarea id="popup-message" name="message" required minlength="10" maxlength="5000" placeholder="Facility or topic and your request…"></textarea>
         </div>
+        <div class="pbj-hp-field" aria-hidden="true" style="position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden;">
+          <label for="popup-company-website">Company website</label>
+          <input type="text" name="company_website" id="popup-company-website" value="" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="cf-turnstile pbj-turnstile" data-sitekey="__TURNSTILE_SITE_KEY_PLACEHOLDER__" data-action="pbj_request" data-appearance="interaction-only"></div>
         <div class="f-group f-row-submit">
           <label class="cb-wrap" for="popup-press">
             <input type="checkbox" id="popup-press" name="press" value="yes" aria-label="I am media">
@@ -2408,6 +2413,8 @@
 
   <footer class="footer" id="site-footer"><!-- Injected by /pbj-site-universal.js --></footer>
 
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="/contact-form-protect.js?v=1" defer></script>
   <script>
     // Deep links: ?facility= / ?ccn= / ?state= / ?entity= (server redirects too; this covers static/cached home)
     (function() {

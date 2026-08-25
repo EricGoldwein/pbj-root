@@ -41,3 +41,14 @@ services:
       # NY staffing report is public; token preview URLs 301 to /insights/ny-minimum-staffing
       - key: NY_STAFFING_REPORT_PREVIEW_REDIRECT
         value: "true"
+      # Contact form Turnstile — set secret values in Render Dashboard (do not commit).
+      - key: TURNSTILE_SITE_KEY
+        sync: false
+      - key: TURNSTILE_SECRET_KEY
+        sync: false
+      - key: TURNSTILE_EXPECTED_HOSTNAMES
+        sync: false
+      - key: CONTACT_PROTECTION_DB_PATH
+        sync: false
+      - key: CONTACT_RATE_HASH_PEPPER
+        sync: false

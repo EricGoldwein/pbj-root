@@ -2774,51 +2774,6 @@
           input.setAttribute('aria-label', 'Search nursing homes');
           renderResults(input.value);
         }
-        function ownerProfileUrl(item) {
-          var pac = String((item && item.associate_id) || '').replace(/\D/g, '');
-          if (pac.length === 9) pac = ('0000000000' + pac).slice(-10);
-          if (pac.length === 11) pac = pac.slice(-10);
-          var pname = String((item && (item.name || item.display_name)) || '').trim();
-          var url = String((item && item.profile_url) || '').trim();
-          if (url) return url;
-          if (pac.length !== 10) return '';
-          var slug = pname.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-          return slug ? ('/owners/' + pac + '/' + slug) : ('/owners/' + pac);
-        }
-        function renderOwnerSuggestions(items) {
-          var out = [];
-          (items || []).forEach(function(item) {
-            var url = ownerProfileUrl(item);
-            if (!url) return;
-            var name = String(item.name || item.display_name || item.associate_id || 'Owner').trim();
-            var pac = String(item.associate_id || '').trim();
-            var cnt = parseInt(item.facility_count, 10);
-            if (isNaN(cnt)) cnt = 0;
-            var totalCnt = parseInt(item.facility_count_total, 10);
-            if (isNaN(totalCnt) || totalCnt < cnt) totalCnt = cnt;
-            var stateAbbr = (stateFilter && stateFilter.value) ? stateFilter.value.trim().toUpperCase() : '';
-            var meta = '';
-            if (stateAbbr && cnt > 0) {
-              meta = cnt + ' ' + stateAbbr + (cnt === 1 ? ' facility' : ' facilities') +
-                (totalCnt > cnt ? ' (' + totalCnt + ' total)' : '');
-            } else if (pac && cnt > 0) {
-              meta = 'PAC ' + pac + ' · ' + cnt + ' linked';
-            } else if (pac) {
-              meta = 'PAC ' + pac;
-            }
-            var label = name + (meta ? ' — ' + meta : '');
-            out.push({ url: url, label: label, highRisk: false });
-          });
-          if (out.length === 0) {
-            resultsEl.innerHTML = '<div style="padding:12px 14px;color:rgba(255,255,255,0.6);font-size:0.9rem;">No owners match. Try a different name, PAC, or state filter.</div>';
-          } else {
-            resultsEl.innerHTML = out.map(function(r) {
-              return '<a href="' + escapeHtml(r.url) + '" role="option">' + escapeHtml(r.label) + '</a>';
-            }).join('');
-          }
-          resultsEl.setAttribute('data-open', 'true');
-          input.setAttribute('aria-expanded', 'true');
-        }
         function renderResults(query) {
           const q = (query || '').trim();
           var minLen = searchMode === 'state' ? 1 : 2;

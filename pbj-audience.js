@@ -166,7 +166,7 @@
     var spec = {
       variant: variant,
       primary: SUB_TYPES.PBJ320_INSIGHTS,
-      submitLabel: 'Subscribe',
+      submitLabel: variant === 'homepage_insights' ? 'Get PBJ320 Updates' : 'Subscribe',
       preferenceDefaults: [SUB_TYPES.PBJ320_INSIGHTS],
       isMultiProductModal: false
     };
@@ -349,7 +349,7 @@
 
     var formOptions = {};
     if (spec.variant === 'homepage_insights') {
-      formOptions.labelledBy = 'pbj-home-subscribe-title';
+      formOptions.labelledBy = 'updates';
     } else if (!options.popup && (spec.variant === 'email_updates_modal' || options.isModal)) {
       formOptions.labelledBy = 'pbj-subscribe-popup-title';
     }

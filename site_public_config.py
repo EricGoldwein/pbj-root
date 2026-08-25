@@ -355,7 +355,7 @@ PBJ_SITE_UNIVERSAL_JS_VERSION = '77'
 PBJ_PUBLIC_SEARCH_JS_VERSION = '4'
 
 # Bump when pbj-audience.js or pbj-audience.css changes.
-PBJ_AUDIENCE_JS_VERSION = '12'
+PBJ_AUDIENCE_JS_VERSION = '13'
 
 OPERATOR_LEGAL_NAME = '320 Consulting LLC'
 

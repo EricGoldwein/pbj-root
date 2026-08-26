@@ -103,7 +103,7 @@
     .loading.is-visible { display: block; }
     .error { color: var(--pbj-danger); }
     @media (max-width: 900px) { .card-shell { grid-template-columns: 1fr; } .card-media-wrap { height: 210px; } }
-    @media (max-width: 768px) { .nav-toggle { display: flex; } .nav-menu { display: none; flex-direction: column; position: absolute; top: 60px; left: 0; right: 0; background: var(--pbj-chrome); border-bottom: 1px solid var(--pbj-border-panel); padding: 1rem; gap: 12px; box-shadow: var(--pbj-shadow-card); } .nav-menu.active { display: flex; } }
+    @media (max-width: 768px) { .nav-toggle { display: flex; } }
   </style>
 </head>
 <body>
@@ -276,14 +276,6 @@
             errorEl.style.display = 'block';
           }
         });
-      var navToggle = document.getElementById('navToggle');
-      var navMenu = document.getElementById('navMenu');
-      if (navToggle && navMenu) {
-        navToggle.addEventListener('click', function() { navMenu.classList.toggle('active'); });
-        navToggle.addEventListener('keydown', function(e) {
-          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navMenu.classList.toggle('active'); }
-        });
-      }
     })();
   </script>
 </body>

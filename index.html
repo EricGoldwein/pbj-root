@@ -23,7 +23,6 @@
   
   <!-- Author and additional meta -->
   <meta name="author" content="320 Consulting">
-  <link rel="stylesheet" href="/static/pbj-nav-owners.css">
 
   <!-- Google tag (gtag.js) -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-NDPVY6TWBK"></script>
@@ -1201,30 +1200,10 @@
     .home-subscribe-band {
       max-width: 820px;
       margin: 0 auto;
-      padding: clamp(20px, 4vw, 32px) clamp(16px, 4vw, 24px) clamp(16px, 3vw, 24px);
+      padding: clamp(14px, 3vw, 20px) clamp(16px, 4vw, 24px) clamp(12px, 2.5vw, 18px);
       text-align: center;
       box-sizing: border-box;
       scroll-margin-top: 5rem;
-    }
-    .home-subscribe-band-title {
-      margin: 0 0 12px;
-      font-size: clamp(0.72rem, 2vw, 0.8rem);
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: rgba(226, 232, 240, 0.55);
-      line-height: 1.35;
-    }
-    .home-subscribe-band-title__short {
-      display: none;
-    }
-    @media (max-width: 639px) {
-      .home-subscribe-band-title__full {
-        display: none;
-      }
-      .home-subscribe-band-title__short {
-        display: inline;
-      }
     }
     .home-subscribe-band .hero-email-cta {
       margin: 0 auto;
@@ -1285,11 +1264,8 @@
     }
     @media (min-width: 769px) {
       .home-subscribe-band {
-        padding-top: 20px;
-        padding-bottom: 10px;
-      }
-      .home-subscribe-band-title {
-        margin-bottom: 8px;
+        padding-top: 16px;
+        padding-bottom: 8px;
       }
     }
     .hero-premium-cta--after-subscribe {
@@ -2361,10 +2337,6 @@
   </main>
 
   <section class="home-subscribe-band" id="updates" aria-label="PBJ320 updates and insights">
-    <h2 id="pbj-home-subscribe-title" class="home-subscribe-band-title">
-      <span class="home-subscribe-band-title__full">Get PBJ320 Staffing Data Updates</span>
-      <span class="home-subscribe-band-title__short">Get PBJ320 Updates</span>
-    </h2>
     <div id="pbj-audience-home"></div>
   </section>
 
@@ -2801,51 +2773,6 @@
           }
           input.setAttribute('aria-label', 'Search nursing homes');
           renderResults(input.value);
-        }
-        function ownerProfileUrl(item) {
-          var pac = String((item && item.associate_id) || '').replace(/\D/g, '');
-          if (pac.length === 9) pac = ('0000000000' + pac).slice(-10);
-          if (pac.length === 11) pac = pac.slice(-10);
-          var pname = String((item && (item.name || item.display_name)) || '').trim();
-          var url = String((item && item.profile_url) || '').trim();
-          if (url) return url;
-          if (pac.length !== 10) return '';
-          var slug = pname.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-          return slug ? ('/owners/' + pac + '/' + slug) : ('/owners/' + pac);
-        }
-        function renderOwnerSuggestions(items) {
-          var out = [];
-          (items || []).forEach(function(item) {
-            var url = ownerProfileUrl(item);
-            if (!url) return;
-            var name = String(item.name || item.display_name || item.associate_id || 'Owner').trim();
-            var pac = String(item.associate_id || '').trim();
-            var cnt = parseInt(item.facility_count, 10);
-            if (isNaN(cnt)) cnt = 0;
-            var totalCnt = parseInt(item.facility_count_total, 10);
-            if (isNaN(totalCnt) || totalCnt < cnt) totalCnt = cnt;
-            var stateAbbr = (stateFilter && stateFilter.value) ? stateFilter.value.trim().toUpperCase() : '';
-            var meta = '';
-            if (stateAbbr && cnt > 0) {
-              meta = cnt + ' ' + stateAbbr + (cnt === 1 ? ' facility' : ' facilities') +
-                (totalCnt > cnt ? ' (' + totalCnt + ' total)' : '');
-            } else if (pac && cnt > 0) {
-              meta = 'PAC ' + pac + ' · ' + cnt + ' linked';
-            } else if (pac) {
-              meta = 'PAC ' + pac;
-            }
-            var label = name + (meta ? ' — ' + meta : '');
-            out.push({ url: url, label: label, highRisk: false });
-          });
-          if (out.length === 0) {
-            resultsEl.innerHTML = '<div style="padding:12px 14px;color:rgba(255,255,255,0.6);font-size:0.9rem;">No owners match. Try a different name, PAC, or state filter.</div>';
-          } else {
-            resultsEl.innerHTML = out.map(function(r) {
-              return '<a href="' + escapeHtml(r.url) + '" role="option">' + escapeHtml(r.label) + '</a>';
-            }).join('');
-          }
-          resultsEl.setAttribute('data-open', 'true');
-          input.setAttribute('aria-expanded', 'true');
         }
         function renderResults(query) {
           const q = (query || '').trim();

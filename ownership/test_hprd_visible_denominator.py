@@ -45,7 +45,7 @@ def _fac(
         "hprd": hprd,
         "census": census,
         "pbj_matched": matched,
-        "hprd_attribution_status": attribution,
+        "hprd_portfolio_inclusion_status": attribution,
         "role_category": role_category,
         "overall_rating": "3",
         "staffing_rating": "3",
@@ -66,17 +66,15 @@ def _tax_bucket(cat: str) -> str:
 
 
 def _hprd_bucket(fac: dict) -> str:
-    status = str(fac.get("hprd_attribution_status") or "").strip()
+    status = str(fac.get("hprd_portfolio_inclusion_status") or "").strip()
+    if status != "supported":
+        return "uncertain" if status != "exclude" else "exclude"
     if not fac.get("pbj_matched"):
         return "missing_pbj"
-    if status == "exclude":
-        return "exclude"
-    if status == "supported":
-        h = _parse_float(fac.get("hprd"))
-        if h is None or not is_plausible_portfolio_hprd(h):
-            return "missing_pbj"
-        return "supported"
-    return "uncertain"
+    h = _parse_float(fac.get("hprd"))
+    if h is None or not is_plausible_portfolio_hprd(h):
+        return "missing_pbj"
+    return "supported"
 
 
 class HprdVisibleDenominatorTests(unittest.TestCase):
@@ -95,16 +93,17 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(ps.get("n_facilities"), 4)
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 2)
         html = portfolio_snapshot_section_html(ps, context="owner")
-        self.assertIn("2 qualifying facilities", html)
-        self.assertIn("owner-snapshot-sublabel", html)
+        self.assertIn("n = 2", html)
+        self.assertIn("owner-snapshot-sub", html)
         self.assertIn("Linked facilities", html)
-        self.assertNotIn("4 qualifying", html)
+        self.assertIn("Portfolio HPRD", html)
+        self.assertNotIn("4 of 4", html)
         self.assertIn(
-            "Owner-level PBJ staffing metrics use only qualifying facilities",
+            "does not establish responsibility for staffing",
             html,
         )
 
-    def test_control_only_shows_no_owner_hprd_mean(self) -> None:
+    def test_timing_uncertain_only_shows_no_portfolio_hprd_mean(self) -> None:
         facilities = [
             _fac(
                 ccn="000010",
@@ -114,7 +113,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
             _fac(
                 ccn="000011",
                 attribution="uncertain",
-                role_category="operational_control",
+                role_category="corporate_governance",
             ),
         ]
         with patch(
@@ -125,13 +124,14 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 0)
         self.assertIsNone(ps.get("wmean_hprd"))
         html = portfolio_snapshot_section_html(ps, context="owner")
-        self.assertNotIn("Weighted nurse HPRD", html)
-        self.assertNotIn("qualifying facilit", html)
+        self.assertNotIn("Portfolio HPRD", html)
+        self.assertNotIn("Weighted HPRD", html)
 
-    def test_mitchell_274_reconciles_to_two_supported_hprd(self) -> None:
-        """Exact taxonomy + HPRD eligibility reconciliation for PAC 0648429498."""
+    def test_mitchell_274_reconciles_to_portfolio_hprd(self) -> None:
+        """Exact taxonomy + exclusive Portfolio HPRD reconciliation for PAC 0648429498."""
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
+        from ownership.owner_portfolio_metrics import reconcile_portfolio_hprd_buckets
 
         profile = load_owner_profile_resolved("0648429498")
         self.assertIsNotNone(profile)
@@ -140,29 +140,20 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(len(facs), 274)
         tax = Counter(_tax_bucket(f.get("role_category")) for f in facs)
         self.assertEqual(sum(tax.values()), 274)
-        self.assertEqual(tax.get("ownership_interest"), 2)
-        self.assertEqual(tax.get("managing_control"), 45)
-        self.assertEqual(tax.get("governance"), 227)
-        self.assertEqual(tax.get("enrollment_admin", 0), 0)
-        oi = [f for f in facs if _tax_bucket(f.get("role_category")) == "ownership_interest"]
-        hprd = Counter(_hprd_bucket(f) for f in oi)
-        self.assertEqual(sum(hprd.values()), 2)
-        self.assertEqual(hprd.get("supported"), 2)
-        self.assertEqual(hprd.get("uncertain", 0), 0)
-        self.assertEqual(hprd.get("exclude", 0), 0)
-        self.assertEqual(hprd.get("missing_pbj", 0), 0)
+        self.assertEqual(tax.get("ownership_interest"), 1)
+        self.assertEqual(tax.get("managing_control"), 70)
+        self.assertEqual(tax.get("governance"), 203)
+        recon = reconcile_portfolio_hprd_buckets(facs)
+        self.assertTrue(recon["reconcile_ok"])
+        self.assertEqual(recon["bucket_sum"], 274)
         ps = profile.get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_facilities"), 274)
-        self.assertEqual(ps.get("n_hprd_supported_facilities"), 2)
+        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
+        self.assertEqual(n_hprd, recon["buckets"]["included"])
+        self.assertEqual(ps.get("hprd_terminal_buckets"), recon["buckets"])
         body, *_ = render_owner_profile_body(profile)
-        self.assertIn("2 qualifying facilities", body)
-        self.assertIn("owner-snapshot-sublabel", body)
-        self.assertIn("Weighted nurse HPRD", body)
-        self.assertIn(
-            "Owner-level PBJ staffing metrics use only qualifying facilities",
-            body,
-        )
-        self.assertNotIn("274 qualifying", body)
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn(f"n = {n_hprd}", body)
 
     def test_large_oi_profiles_denominator_matches_calc(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
@@ -183,9 +174,8 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
                 supported = int(ps.get("n_hprd_supported_facilities") or 0)
                 body, *_ = render_owner_profile_body(profile)
                 if supported > 0 and ps.get("wmean_hprd") is not None:
-                    noun = "facility" if supported == 1 else "facilities"
-                    self.assertIn(f"{supported} qualifying {noun}", body, msg=label)
-                    self.assertIn("owner-snapshot-sublabel", body)
+                    self.assertIn(f"n = {supported}", body, msg=label)
+                    self.assertIn("owner-snapshot-sub", body)
 
     def test_one_supported_facility_wording(self) -> None:
         facilities = [
@@ -199,22 +189,36 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
             ps = build_portfolio_summary(facilities)
         html = portfolio_snapshot_section_html(ps, context="owner")
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 1)
-        self.assertIn("1 qualifying facility", html)
-        self.assertNotIn("1 qualifying facilities", html)
+        self.assertIn("n = 1", html)
 
-    def test_soon_burnam_control_only_no_hprd_card(self) -> None:
+    def test_soon_burnam_portfolio_hprd_card(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
+        from ownership.owner_portfolio_metrics import reconcile_portfolio_hprd_buckets
 
         profile = load_owner_profile_resolved("9739195553")
         self.assertIsNotNone(profile)
         assert profile is not None
+        facs = list(profile.get("facilities") or [])
+        self.assertEqual(len(facs), 351)
+        recon = reconcile_portfolio_hprd_buckets(facs)
+        self.assertTrue(recon["reconcile_ok"])
+        self.assertEqual(recon["buckets"]["timing_excluded_or_uncertain"], 12)
+        self.assertEqual(recon["buckets"]["pbj_match_excluded"], 0)
+        self.assertEqual(recon["buckets"]["missing_hprd"], 5)
+        self.assertEqual(recon["buckets"]["included"], 334)
         ps = profile.get("portfolio_summary") or {}
-        self.assertEqual(int(ps.get("n_hprd_supported_facilities") or 0), 0)
+        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
+        self.assertEqual(n_hprd, 334)
+        self.assertEqual(ps.get("hprd_terminal_buckets"), recon["buckets"])
         body, title, *_ = render_owner_profile_body(profile)
-        self.assertNotIn("Weighted nurse HPRD", body)
-        self.assertNotIn("owner-snapshot-sublabel", body)
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 334", body)
         self.assertNotIn("Nursing Home Ownership Interest", title)
+        self.assertIn("Managing", title)
+        for f in facs:
+            self.assertIn("hprd_portfolio_inclusion_status", f)
+            self.assertNotIn("hprd_attribution_status", f)
 
     def test_chow_q2_meta_matches_coverage(self) -> None:
         import json
@@ -232,6 +236,89 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
             "ownership/Skilled Nursing Facility Change of Ownership.zip"
         )
         self.assertTrue(sha and str(sha).startswith("92e1cd6b"))
+
+    def test_burnam_facility_count_uses_ccn_dedup(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        fac_count = int(profile.get("facility_count") or 0)
+        self.assertGreaterEqual(fac_count, 350)
+
+    def test_burnam_all_facilities_have_ccns(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        for fac in profile.get("facilities") or []:
+            ccn = str(fac.get("ccn") or "").strip()
+            self.assertEqual(len(ccn), 6, f"Expected 6-digit CCN, got '{ccn}' for {fac.get('facility_name')}")
+            self.assertTrue(ccn.isdigit(), f"CCN should be digits: '{ccn}'")
+
+    def test_burnam_roles_consolidated_per_ccn(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        ccn_counts: dict[str, int] = {}
+        for fac in profile.get("facilities") or []:
+            ccn = str(fac.get("ccn") or "").strip()
+            if ccn:
+                ccn_counts[ccn] = ccn_counts.get(ccn, 0) + 1
+        for ccn, count in ccn_counts.items():
+            self.assertEqual(count, 1, f"CCN {ccn} appears {count} times; should be deduplicated")
+
+    def test_facility_stake_label_control_role_suppresses_zero_pct(self) -> None:
+        from ownership.role_classification import facility_stake_column_label
+
+        short, long = facility_stake_column_label(
+            role_raw="Managing Employee",
+            role_code="ME",
+            pct_raw="0",
+        )
+        self.assertNotIn("0%", short)
+        self.assertNotIn("0%", long)
+        self.assertIn("control", short.lower())
+
+        short2, long2 = facility_stake_column_label(
+            role_raw="Managing Employee",
+            role_code="ME",
+            pct_raw="0%",
+        )
+        self.assertNotIn("0%", short2)
+        self.assertNotIn("0%", long2)
+
+    def test_facility_stake_label_ownership_preserves_zero(self) -> None:
+        from ownership.role_classification import facility_stake_column_label
+
+        short, long = facility_stake_column_label(
+            role_raw="50% owner",
+            role_code="01",
+            pct_raw="0",
+        )
+        self.assertEqual(short, "0%")
+
+    def test_associates_summary_excludes_help_button(self) -> None:
+        from ownership.owner_profile_html import _associates_summary_html
+
+        html = _associates_summary_html(count_html="")
+        self.assertNotIn("<button", html)
+        self.assertIn("<summary", html)
+        self.assertIn("</summary>", html)
+
+    def test_burnam_role_stake_cells_are_not_zero(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+        from ownership.owner_profile_html import render_owner_profile_body
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        body, *_ = render_owner_profile_body(profile)
+        self.assertNotIn("0%</button>", body)
+        self.assertIn("control", body.lower())
 
 
 if __name__ == "__main__":

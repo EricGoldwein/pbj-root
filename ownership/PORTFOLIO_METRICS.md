@@ -1,11 +1,12 @@
 # Owner portfolio summary metrics
 
-Headline **Staffing (HPRD)** and **Overall rating** on `/owners/<pac>` profiles are computed in `owner_portfolio_metrics.build_portfolio_summary()`.
+Headline **Portfolio HPRD** on `/owners/<pac>` profiles is computed in
+`owner_portfolio_metrics.build_portfolio_summary()`.
 
 ## What is included
 
 - **Facilities in the table:** All rows linked from CMS SNF All Owners for the party (verified and tentative name matches).
-- **Facilities in portfolio means:** Only **PBJ-verified** rows (`legal_exact` CCN match: enrollment legal name equals provider-info legal name). Tentative name matches appear in the table but do not affect snapshot means.
+- **Facilities in Portfolio HPRD:** PBJ-verified rows whose CMS relationship to the profile began on or before the PBJ quarter start (**any role category**). Each CCN counts once. This is a descriptive linked-facility statistic, not owner-attributable staffing responsibility.
 
 ## Missing data (N/A)
 
@@ -13,49 +14,53 @@ Headline **Staffing (HPRD)** and **Overall rating** on `/owners/<pac>` profiles 
 |-----------|--------|
 | No HPRD in provider info | Facility omitted from HPRD means; still listed in table |
 | No overall star rating | Facility omitted from overall-rating mean |
-| No census and no certified beds | Included in **simple facility average**; omitted from **census-weighted** mean |
+| No census and no certified beds | Omitted from census-weighted Portfolio HPRD |
 | Not PBJ-verified | No PBJ columns; excluded from portfolio means |
+| Timing uncertain / after quarter start | Excluded from Portfolio HPRD |
 
-Previously, missing census/beds fell back to weight `1.0`, which could overweight small facilities with bad data. Weighted means now require census or beds.
+## Total nurse HPRD validity
 
-## Outlier exclusion
+Aligned with **current** CMS Five-Star / Care Compare Technical Users’ Guide full-quarter total-nurse exclusions (July 2026):
 
-Portfolio means exclude implausible values so a single bad provider-info row does not dominate a chain summary.
+- **Exclude** HPRD **≤ 0**
+- **Exclude** HPRD **> 12.0**
+- **Do not** exclude valid values merely because they are below 1.5 (the `<1.5` floor applied only before January 2022)
+- Source null/unavailable values are treated as missing (CMS already suppresses some invalid cells upstream)
 
-### Total nurse HPRD
+Constant: `PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW = 0.0`, `PORTFOLIO_HPRD_MAX = 12.0`. Weekend / nurse-aide component exclusions are **not** reproduced here unless those component fields are loaded and evaluated.
 
-Aligned with **CMS PBJ public-use file quarterly rules** ([PBJ explained](https://www.pbj320.com/phoebe); full PBJpedia reference not public yet):
+## Mutually exclusive terminal buckets
 
-- **Exclude** HPRD **&lt; 1.5** or **&gt; 12.0** hours per resident day
-- Values such as **0.5 HPRD** are always excluded (below the CMS aberrant-staffing floor)
+Every linked CCN is assigned exactly one of:
 
-Constants: `PORTFOLIO_HPRD_MIN = 1.5`, `PORTFOLIO_HPRD_MAX = 12.0`.
+1. `timing_excluded_or_uncertain`
+2. `pbj_match_excluded`
+3. `missing_hprd`
+4. `hprd_le_zero`
+5. `hprd_gt_12`
+6. `missing_invalid_weight`
+7. `included`
 
-CMS applies these limits to **quarterly facility aggregates** before publishing PUFs. Provider-info reported HPRD can still occasionally fall outside this range; we apply the same bounds at portfolio rollup time.
-
-### Overall star rating
-
-- **Exclude** ratings outside **1–5** (invalid or corrupt CMS fields)
-- Half-star CMS ratings are not used for overall stars (integer 1–5 only)
+Helpers: `classify_portfolio_hprd_terminal_bucket`, `reconcile_portfolio_hprd_buckets`.
 
 ## Weighted vs simple average
 
 | Metric | Weighted (shown on profile) | Simple average (internal) |
 |--------|----------------------------|---------------------------|
-| HPRD | Σ(HPRD × weight) / Σ(weight) | Mean of facility HPRDs |
-| Overall rating | Σ(rating × weight) / Σ(weight) | Mean of facility ratings |
+| HPRD | Σ(HPRD × weight) / Σ(weight) | Mean of contributing facility HPRDs |
 
-**Weight** = average daily census when published, else certified beds.
+**Weight** = average daily census when published, else certified beds. `n` equals the number of CCNs in the weighted mean.
 
 ## Quality counters
 
-`portfolio_summary` exposes counts for UI footnotes:
+`portfolio_summary` exposes:
 
-- `n_missing_hprd`, `n_missing_overall_rating`
-- `n_hprd_outlier_excluded`, `n_rating_outlier_excluded`
-- `n_missing_resident_weight` (verified facility with no census/beds for weighting)
+- `n_missing_hprd`, `n_hprd_le_zero_excluded`, `n_hprd_gt_12_excluded`
+- `n_missing_resident_weight`, `n_timing_excluded`, `n_timing_uncertain`
+- `hprd_terminal_buckets`, `n_obsolete_below_1_5_included`
+- `n_hprd_portfolio_facilities`, `hprd_numerator`, `hprd_weight_denominator`
 
 ## References
 
-- CMS PBJ inclusion/exclusion: 1.5–12 HPRD quarterly rule (see `PBJPedia/pbjpedia-methodology.md` when launched)
-- HPRD definition: see `PBJPedia/pbjpedia-metrics.md` / [What is HPRD?](https://www.pbj320.com/what-is-hprd)
+- CMS Five-Star Technical Users’ Guide (July 2026) — current full-quarter total-nurse exclusions
+- HPRD definition: [What is HPRD?](https://www.pbj320.com/what-is-hprd)

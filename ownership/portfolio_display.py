@@ -5,8 +5,8 @@ import html
 from typing import Any
 
 from ownership.owner_portfolio_metrics import (
+    PORTFOLIO_HPRD_CARD_HELP,
     PORTFOLIO_HPRD_MAX,
-    PORTFOLIO_HPRD_MIN,
     PORTFOLIO_OVERALL_RATING_MAX,
     PORTFOLIO_OVERALL_RATING_MIN,
     PORTFOLIO_STAR_DIST_MIN,
@@ -263,17 +263,7 @@ def _owner_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:
         "CMS ratings for linked facilities are facility context only — not contemporaneous "
         "owner-period performance."
     )
-    hprd_help = (
-        "Owner-level PBJ staffing metrics use only qualifying facilities. A facility is included "
-        "when CMS reports an ownership-interest relationship established by the start of the PBJ "
-        "reporting period and usable PBJ data are available. Managing/control and other non-equity "
-        "relationships are excluded from owner-level HPRD calculations, while relationships beginning "
-        "during the reporting period are treated as temporally uncertain. As a result, the HPRD "
-        "denominator may be smaller than the total number of facilities linked to a person or "
-        "organization. "
-        f"Resident-weighted average of qualifying facilities' latest PBJ total nurse HPRD "
-        f"(HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible)."
-    )
+    hprd_help = PORTFOLIO_HPRD_CARD_HELP
     stf_help = (
         "CMS staffing ratings for linked facilities are facility context only — not owner-period "
         "performance."
@@ -294,7 +284,8 @@ def entity_weighted_hprd_help_body(
     lines = [
         "Resident-weighted average of latest PBJ total nurse HPRD across roster facilities, "
         "weighted by census (or certified beds when census is missing). "
-        f"HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible.",
+        f"HPRD ≤ 0 or above {PORTFOLIO_HPRD_MAX:g} excluded (current CMS full-quarter "
+        "total-nurse rule; pre-2022 <1.5 floor not applied).",
     ]
     if chain_hprd is not None and wmean is not None and abs(chain_hprd - wmean) >= 0.01:
         lines.append(
@@ -400,7 +391,8 @@ def _entity_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:
     hprd_help = (
         "Resident-weighted average of latest PBJ total nurse HPRD across roster facilities, "
         "weighted by census (or certified beds when census is missing). "
-        f"HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible."
+        f"HPRD ≤ 0 or above {PORTFOLIO_HPRD_MAX:g} excluded (current CMS full-quarter "
+        "total-nurse rule; pre-2022 <1.5 floor not applied)."
     )
     stf_help = (
         "Simple average of CMS staffing star ratings (1–5) across roster facilities. "
@@ -499,10 +491,13 @@ def portfolio_snapshot_section_html(
             if uses_ownership_portfolio_language
             else "Linked-facility metrics"
         )
-        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
-        hprd_eligible = str(ps.get("hprd_eligible_label") or "").strip()
-        if hprd_eligible:
-            hprd_help = f"{hprd_eligible}. {hprd_help}"
+        n_hprd = int(
+            ps.get("n_hprd_portfolio_facilities")
+            or ps.get("n_hprd_supported_facilities")
+            or 0
+        )
+        # Exact card help only — do not prepend legacy "eligible_label" attribution copy.
+        hprd_help = PORTFOLIO_HPRD_CARD_HELP
         n_states = int(ps.get("n_states") or 0)
         if not n_states:
             n_states = len(list(ps.get("by_state") or []))
@@ -557,31 +552,27 @@ def portfolio_snapshot_section_html(
                 )
             )
         if wmean is not None:
-            hprd_label = "Weighted nurse HPRD" if n >= 2 else "Nurse HPRD"
-            hprd_sub = ""
-            if n_hprd and n_hprd != n:
-                hprd_sub = (
-                    f"{n_hprd} qualifying facilit{'y' if n_hprd == 1 else 'ies'}"
-                )
+            hprd_label = "Portfolio HPRD"
+            hprd_sub = f"n = {n_hprd}" if n_hprd else ""
             cards.append(
                 snapshot_metric_card_html(
                     hprd_label,
                     html.escape(f"{wmean:.2f}"),
                     hprd_label,
                     hprd_help,
-                    label_short="Nurse HPRD",
+                    label_short="Portfolio HPRD",
                     sub_html=html.escape(hprd_sub) if hprd_sub else "",
                 )
             )
         elif umean is not None:
-            hprd_label = "Avg nurse HPRD" if n >= 2 else "Nurse HPRD"
+            hprd_label = "Portfolio HPRD"
             cards.append(
                 snapshot_metric_card_html(
                     hprd_label,
                     html.escape(f"{umean:.2f}"),
                     hprd_label,
-                    hprd_help.replace("Resident-weighted", "Unweighted"),
-                    label_short="Nurse HPRD",
+                    hprd_help,
+                    label_short="Portfolio HPRD",
                 )
             )
         if mean_stf is not None and n >= 2:
@@ -623,10 +614,12 @@ def portfolio_snapshot_section_html(
 
     return f"""
       <section class="owner-snapshot-section" aria-label="{html.escape(aria)}">
-        <div class="owner-portfolio-grid {grid_cols}" aria-label="Portfolio summary metrics">
-          {"".join(cards)}
+        <div class="owner-snapshot-layout">
+          <div class="owner-portfolio-grid {grid_cols}" aria-label="Portfolio summary metrics">
+            {"".join(cards)}
+          </div>
+          {f'<div class="owner-snapshot-dist">{dist_html}</div>' if dist_html else ""}
         </div>
-        {dist_html}
         {roster_note}
       </section>"""
 

@@ -332,6 +332,7 @@ def materialize_canonical_store(
         ENROLLMENT_PAC_COL,
         OWNER_PAC_COL,
         _ccn_to_state_from_search_index,
+        _enrollment_to_ccn_bridge,
         _facility_name_to_ccn,
         _legal_business_name_to_ccn,
         _norm_ccn_key,
@@ -370,6 +371,7 @@ def materialize_canonical_store(
     name_ccn = _facility_name_to_ccn()
     ccn_state = _ccn_to_state_from_search_index()
     org_ccn_cache: dict[str, tuple[str, str]] = {}
+    e2c_bridge = _enrollment_to_ccn_bridge()
     stats["stages"]["crosswalk_load_s"] = round(time.perf_counter() - t0, 3)
 
     release = source_release or SOURCE_RELEASE_DEFAULT
@@ -431,15 +433,24 @@ def materialize_canonical_store(
             fac = str(row.get("ORGANIZATION NAME") or "").strip()
             if not fac:
                 continue
-            key = _norm_org_key(fac)
-            if key in org_ccn_cache:
-                ccn, method = org_ccn_cache[key]
+
+            eid_raw = str(row.get("ENROLLMENT ID") or "").strip()
+            eid = eid_raw if eid_raw and eid_raw.lower() not in ("nan", "none", "") else ""
+            ccn_from_bridge = _norm_ccn_key(e2c_bridge.get(eid, "")) if eid else ""
+
+            if ccn_from_bridge:
+                ccn = ccn_from_bridge
+                method = "enrollment_exact"
             else:
-                ccn = legal_ccn.get(key) or name_ccn.get(key) or ""
-                method = "legal_exact" if key in legal_ccn else ("name_exact" if key in name_ccn else "")
-                if not ccn:
-                    ccn, method = _resolve_ccn_with_method(fac)
-                org_ccn_cache[key] = (ccn or "", method or "")
+                key = _norm_org_key(fac)
+                if key in org_ccn_cache:
+                    ccn, method = org_ccn_cache[key]
+                else:
+                    ccn = legal_ccn.get(key) or name_ccn.get(key) or ""
+                    method = "legal_exact" if key in legal_ccn else ("name_exact" if key in name_ccn else "")
+                    if not ccn:
+                        ccn, method = _resolve_ccn_with_method(fac)
+                    org_ccn_cache[key] = (ccn or "", method or "")
             if not ccn:
                 unresolved += 1
                 continue

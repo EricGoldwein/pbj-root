@@ -33,7 +33,7 @@ _ORG_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
 _CCN_ENROLLMENT_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
 _OWNERS_TABLE = "snf_owners"
 
-_CCN_MATCH_METHOD_RANK = {"legal_exact": 3, "name_exact": 2, "fuzzy": 1, "": 0}
+_CCN_MATCH_METHOD_RANK = {"enrollment_exact": 4, "legal_exact": 3, "name_exact": 2, "fuzzy": 1, "": 0}
 
 ENROLLMENT_PAC_COL = "ASSOCIATE ID"
 OWNER_PAC_COL = "ASSOCIATE ID - OWNER"
@@ -602,6 +602,28 @@ def _ccn_to_enrollment_ids() -> dict[str, tuple[str, ...]]:
         if ccn_norm and eid:
             out.setdefault(ccn_norm, []).append(eid)
     return {ccn: tuple(sorted(set(eids))) for ccn, eids in out.items()}
+
+
+@lru_cache(maxsize=1)
+def _enrollment_to_ccn_bridge() -> dict[str, str]:
+    """Enrollment ID -> canonical CCN from the release-matched bridge."""
+    from ownership.ownership_release_policy import resolve_bridge_lookup_path
+
+    path = resolve_bridge_lookup_path(_REPO)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    enrollment_to_ccn = payload.get("enrollment_to_ccn")
+    if not isinstance(enrollment_to_ccn, dict):
+        return {}
+
+    out: dict[str, str] = {}
+    for enrollment_id, raw in enrollment_to_ccn.items():
+        if not isinstance(raw, dict):
+            continue
+        ccn_norm = _norm_ccn_key(str(raw.get("ccn_canonical") or ""))
+        eid = str(enrollment_id or "").strip()
+        if ccn_norm and eid:
+            out[eid] = ccn_norm
+    return out
 
 
 @lru_cache(maxsize=256)
@@ -1474,24 +1496,43 @@ def _build_enrollment_profile(pac: str, enrollment_rows: Sequence[dict[str, Any]
         _clean(first.get("ORGANIZATION NAME")) or "Unknown enrollment organization"
     )
     enrollment_ids = sorted({_clean(r.get("ENROLLMENT ID")) for r in enrollment_rows if _clean(r.get("ENROLLMENT ID"))})
-    facilities: list[dict[str, str]] = []
-    seen_fac: set[str] = set()
+
+    e2c = _enrollment_to_ccn_bridge()
+
+    ccn_groups: dict[str, list[dict[str, Any]]] = {}
     for row in enrollment_rows:
+        eid = _clean(row.get("ENROLLMENT ID"))
+        ccn_from_bridge = _norm_ccn_key(e2c.get(eid, "")) if eid else ""
         fac_name = _clean(row.get("ORGANIZATION NAME"))
         if not fac_name:
             continue
-        key = fac_name.upper()
-        if key in seen_fac:
-            continue
-        seen_fac.add(key)
-        ccn, match_method = _profile_facility_match(pac, fac_name)
+        if ccn_from_bridge:
+            key = ccn_from_bridge
+        else:
+            resolved_ccn, _ = _profile_facility_match(pac, fac_name)
+            key = _norm_ccn_key(resolved_ccn) if resolved_ccn else _norm_org_key(fac_name)
+        ccn_groups.setdefault(key, []).append(row)
+
+    facilities: list[dict[str, Any]] = []
+    for ccn_key, rows in ccn_groups.items():
+        first_row = rows[0]
+        fac_name = _clean(first_row.get("ORGANIZATION NAME"))
+
+        is_ccn_key = len(ccn_key) == 6 and ccn_key.isdigit()
+        if is_ccn_key:
+            ccn_val = ccn_key
+            match_method = "enrollment_exact"
+        else:
+            resolved_ccn, match_method = _profile_facility_match(pac, fac_name)
+            ccn_val = resolved_ccn or ""
+
         facilities.append(
             {
                 "facility_name": fac_name,
-                "enrollment_id": _clean(row.get("ENROLLMENT ID")),
-                "state": _facility_state_for_row(row, ccn or ""),
-                "city": _clean(row.get("CITY - OWNER")),
-                "ccn": ccn or "",
+                "enrollment_id": _clean(first_row.get("ENROLLMENT ID")),
+                "state": _facility_state_for_row(first_row, ccn_val),
+                "city": _clean(first_row.get("CITY - OWNER")),
+                "ccn": ccn_val,
                 "ccn_match_method": match_method,
             }
         )
@@ -1528,37 +1569,111 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
     first = owner_rows[0]
     display_name = format_org_display(_owner_display_name(first))
     owner_type = _owner_party_type(first)
-    facilities: list[dict[str, str]] = []
-    seen: set[str] = set()
+
+    from ownership.role_classification import classify_owner_record, normalize_role_code
+
+    e2c = _enrollment_to_ccn_bridge()
+
+    ccn_groups: dict[str, list[dict[str, Any]]] = {}
     for row in owner_rows:
+        eid = _clean(row.get("ENROLLMENT ID"))
+        ccn_from_bridge = _norm_ccn_key(e2c.get(eid, "")) if eid else ""
         fac_name = _clean(row.get("ORGANIZATION NAME"))
         if not fac_name:
             continue
-        key = fac_name.upper()
-        if key in seen:
-            continue
-        seen.add(key)
-        ccn, match_method = _profile_facility_match(pac, fac_name)
-        from ownership.role_classification import classify_owner_record, normalize_role_code
+        if ccn_from_bridge:
+            key = ccn_from_bridge
+        else:
+            resolved_ccn, _ = _profile_facility_match(pac, fac_name)
+            key = _norm_ccn_key(resolved_ccn) if resolved_ccn else _norm_org_key(fac_name)
+        ccn_groups.setdefault(key, []).append(row)
 
-        role_info = classify_owner_record(row)
-        facilities.append(
-            {
-                "facility_name": fac_name,
-                "state": _facility_state_for_row(row, ccn or ""),
-                "city": _clean(row.get("CITY - OWNER")),
-                "role": format_role_text(_clean(row.get("ROLE TEXT - OWNER"))),
-                "role_code": role_info.get("role_code")
-                or normalize_role_code(row.get("ROLE CODE - OWNER")),
-                "role_category": role_info.get("role_category") or "",
-                "association_date": _clean(row.get("ASSOCIATION DATE - OWNER")),
-                "pct": _pct_from_row(row),
-                "enrollment_id": _clean(row.get("ENROLLMENT ID")),
-                "enrollment_pac": normalize_associate_id(row.get(ENROLLMENT_PAC_COL)),
-                "ccn": ccn or "",
-                "ccn_match_method": match_method,
+    facilities: list[dict[str, Any]] = []
+    for ccn_key, rows in ccn_groups.items():
+        first_row = rows[0]
+        fac_name = _clean(first_row.get("ORGANIZATION NAME"))
+
+        is_ccn_key = len(ccn_key) == 6 and ccn_key.isdigit()
+        if is_ccn_key:
+            ccn_val = ccn_key
+            match_method = "enrollment_exact"
+        else:
+            resolved_ccn, match_method = _profile_facility_match(pac, fac_name)
+            ccn_val = resolved_ccn or ""
+
+        roles_list: list[dict[str, str]] = []
+        seen_roles: set[tuple[str, str, str]] = set()
+        for r in rows:
+            ri = classify_owner_record(r)
+            role_entry = {
+                "role": format_role_text(_clean(r.get("ROLE TEXT - OWNER"))),
+                "role_code": ri.get("role_code")
+                or normalize_role_code(r.get("ROLE CODE - OWNER")),
+                "role_category": ri.get("role_category") or "",
+                "pct": _pct_from_row(r),
+                "association_date": _clean(r.get("ASSOCIATION DATE - OWNER")),
             }
+            # Dedup identical code+pct+assoc triples; keep distinct role dates.
+            rk = (
+                str(role_entry["role_code"] or ""),
+                str(role_entry["pct"] or ""),
+                str(role_entry["association_date"] or ""),
+            )
+            if rk in seen_roles:
+                continue
+            seen_roles.add(rk)
+            roles_list.append(role_entry)
+
+        # Display primary: category-rank (never CSV first-seen). Portfolio HPRD
+        # inclusion evaluates every role with that role's own association_date via roles[].
+        from ownership.role_classification import (
+            CATEGORY_RANK,
+            CODE_PRIORITY,
+            parse_ownership_pct,
         )
+
+        def _role_rank_key(rl: dict[str, str]) -> tuple[Any, ...]:
+            cat = str(rl.get("role_category") or "")
+            code = str(rl.get("role_code") or "")
+            pct = parse_ownership_pct(rl.get("pct"))
+            return (
+                CATEGORY_RANK.get(cat, 0),
+                CODE_PRIORITY.get(code, 0),
+                float(pct) if pct is not None else -1.0,
+            )
+
+        primary_role = max(roles_list, key=_role_rank_key) if roles_list else {
+            "role": "",
+            "role_code": "",
+            "role_category": "",
+            "pct": "",
+            "association_date": "",
+        }
+        role_labels = []
+        for rl in sorted(roles_list, key=_role_rank_key, reverse=True):
+            label = str(rl.get("role") or "").strip()
+            if label and label not in role_labels:
+                role_labels.append(label)
+        combined_role = "; ".join(role_labels) if role_labels else str(primary_role.get("role") or "")
+
+        facility: dict[str, Any] = {
+            "facility_name": fac_name,
+            "state": _facility_state_for_row(first_row, ccn_val),
+            "city": _clean(first_row.get("CITY - OWNER")),
+            "role": combined_role,
+            "role_code": primary_role.get("role_code") or "",
+            "role_category": primary_role.get("role_category") or "",
+            "association_date": primary_role.get("association_date") or "",
+            "pct": primary_role.get("pct") or "",
+            "enrollment_id": _clean(first_row.get("ENROLLMENT ID")),
+            "enrollment_pac": normalize_associate_id(first_row.get(ENROLLMENT_PAC_COL)),
+            "ccn": ccn_val,
+            "ccn_match_method": match_method,
+            "roles": roles_list,
+        }
+
+        facilities.append(facility)
+
     from ownership.role_classification import party_sort_key
 
     def _fac_sort_key(f: dict[str, str]) -> tuple[Any, ...]:

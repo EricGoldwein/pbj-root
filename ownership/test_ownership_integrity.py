@@ -267,18 +267,60 @@ class TemporalAttributionTests(unittest.TestCase):
             "exclude",
         )
 
-    def test_control_role_uncertain_regardless_of_timing(self) -> None:
+    def test_control_role_supported_when_timing_qualifies(self) -> None:
         start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        results = {}
         for assoc in ("01/01/2020", "01/01/2026", "02/15/2026", "04/01/2026"):
+            results[assoc] = relationship_supported_for_period(
+                assoc,
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="control_or_management",
+                role_code="43",
+            )
+        self.assertEqual(results["01/01/2020"], "supported")
+        self.assertEqual(results["01/01/2026"], "supported")
+        self.assertEqual(results["02/15/2026"], "uncertain")
+        self.assertEqual(results["04/01/2026"], "exclude")
+
+    def test_code_63_supported_when_timing_qualifies(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "01/01/2020",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="control_or_management",
+                role_code="63",
+            ),
+            "supported",
+        )
+
+    def test_governance_and_adp_and_managing_employees_qualify_by_timing(self) -> None:
+        """Portfolio HPRD is timing-only: any CMS role with assoc ≤ Q start is included."""
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        for kind, code in (
+            ("governance", "40"),
+            ("governance", "41"),
+            ("administrative", "72"),
+            ("control_or_management", "25"),
+            ("control_or_management", "42"),
+            ("financial", "36"),
+            ("other_or_unknown", "44"),
+        ):
             self.assertEqual(
                 relationship_supported_for_period(
-                    assoc,
+                    "01/01/2020",
                     start,
                     end,
                     metric_kind="pbj_hprd",
-                    relationship_kind="control_or_management",
+                    relationship_kind=kind,
+                    role_code=code,
                 ),
-                "uncertain" if assoc != "04/01/2026" else "exclude",
+                "supported",
+                msg=f"{kind}/{code}",
             )
 
     def test_care_compare_ratings_are_facility_context(self) -> None:

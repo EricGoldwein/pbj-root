@@ -69,7 +69,9 @@ class PortfolioSnapshotDistPrefixTests(unittest.TestCase):
             "publication_segment": "ownership_interest_only",
         }
         html = owner_portfolio_snapshot_html(profile)
-        self.assertIn("Ownership-interest facilities", html)
+        self.assertIn("Linked facilities", html)
+        self.assertIn("Portfolio HPRD", html)
+        self.assertIn("Ownership-interest facility metrics", html)
         self.assertIn("ownerDistTabOverall", html)
 
 

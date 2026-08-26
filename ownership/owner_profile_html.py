@@ -502,9 +502,10 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
     link_label = provider_raw or legal_raw
+    verified_methods = ("legal_exact", "name_exact", "fuzzy", "enrollment_exact")
     href = (
         html.escape(provider_url(ccn, link_label))
-        if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
+        if ccn.isdigit() and method in verified_methods
         else ""
     )
     primary_esc = provider_esc if provider_esc else legal_esc
@@ -578,7 +579,7 @@ def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
 
 def _facility_mobile_card(f: dict[str, Any]) -> str:
     method = str(f.get("ccn_match_method") or "")
-    verified = method == "legal_exact"
+    verified = method in ("legal_exact", "enrollment_exact")
     title_block = _facility_mobile_primary_block(f)
     metrics = _facility_mobile_metrics_block(f, verified=verified)
     search = " ".join(
@@ -985,8 +986,9 @@ def _owner_page_help_body(
         "Facility table: ownership %, CMS role, PBJ staffing (HPRD), star ratings, and flags "
         "where linked.\n\n"
         "Portfolio summary: PBJ-verified facilities only (enrollment legal name matches "
-        "provider-info). Means omit missing HPRD or stars; exclude implausible HPRD "
-        "(below 1.5 or above 12) and overall stars outside 1–5. Weighted means use census "
+        "provider-info). Means omit missing HPRD or stars; exclude total nurse HPRD "
+        "≤ 0 or above 12 (current CMS full-quarter rule; the pre-2022 <1.5 floor is not "
+        "applied) and overall stars outside 1–5. Weighted means use census "
         "when published, else certified beds.\n\n"
         f"Sources: {snf_src}; CMS PBJ; CMS provider data; PBJ320 CHOW index."
     )
@@ -1170,13 +1172,12 @@ def _associate_source_label_short(r: dict[str, Any]) -> str:
     return " · ".join(bits) if bits else "Related"
 
 
-def _associates_summary_html(*, count_html: str, associates_help: str) -> str:
+def _associates_summary_html(*, count_html: str) -> str:
     """One far-right disclosure chevron; hide native/details ::before via CSS."""
     return (
         '<summary class="owner-associates-summary">'
         '<span class="owner-associates-summary-label">Related CMS associates'
         f"{count_html}</span>"
-        f"{associates_help}"
         '<span class="owner-associates-caret" aria-hidden="true"></span>'
         "</summary>"
     )
@@ -1193,29 +1194,13 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
             return ""
         if not rows:
             # Deferred shell — content filled by JS on first open.
-            associates_help = _info_button(
-                "Related CMS associates",
-                (
-                    "Parties that appear with this PAC on CMS records.\n\n"
-                    "Shared ownership: co-disclosed ownership-interest parties on "
-                    "the same nursing home enrollments.\n\n"
-                    "Co-enrollee: appear together on CMS enrollment or owner rows "
-                    "without implying affiliate, partner, parent, or subsidiary status.\n\n"
-                    "CHOW party: buyer or seller counterparties on CMS-reported "
-                    "ownership-change filings.\n\n"
-                    "Sources: CMS SNF All Owners; CMS CHOW filings."
-                ),
-                label="?",
-                cls="owner-info-btn owner-info-btn--section owner-associates-info",
-            )
             return (
                 f'<div class="owner-associates-block"'
                 f' data-associates-pac="{html.escape(pac, quote=True)}"'
                 f' data-associates-url="/owners/api/related-associates/{html.escape(pac, quote=True)}">'
-                '<details class="owner-collapsible owner-associates-collapsible">'
+                + '<details class="owner-collapsible owner-associates-collapsible">'
                 + _associates_summary_html(
                     count_html='<span class="owner-associates-count"></span>',
-                    associates_help=associates_help,
                 )
                 + '<div class="owner-associates-panel" data-associates-panel aria-live="polite">'
                 '<div class="owner-associates-loading" role="status" hidden>'
@@ -1250,21 +1235,6 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
         mobile_cards.append(_associate_mobile_card(r, n_facilities=n_facilities))
 
     n_show = len(trs)
-    associates_help = _info_button(
-        "Related CMS associates",
-        (
-            "Parties that appear with this PAC on CMS records.\n\n"
-            "Shared ownership: co-disclosed ownership-interest parties on "
-            "the same nursing home enrollments.\n\n"
-            "Co-enrollee: appear together on CMS enrollment or owner rows "
-            "without implying affiliate, partner, parent, or subsidiary status.\n\n"
-            "CHOW party: buyer or seller counterparties on CMS-reported "
-            "ownership-change filings.\n\n"
-            "Sources: CMS SNF All Owners; CMS CHOW filings."
-        ),
-        label="?",
-        cls="owner-info-btn owner-info-btn--section owner-associates-info",
-    )
     desktop = (
         '<div class="owner-associates-table-wrap">'
         '<table class="owner-associate-table"><thead><tr>'
@@ -1282,10 +1252,9 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
     )
     return (
         '<div class="owner-associates-block" data-associates-loaded="1">'
-        '<details class="owner-collapsible owner-associates-collapsible">'
+        + '<details class="owner-collapsible owner-associates-collapsible">'
         + _associates_summary_html(
             count_html=f'<span class="owner-associates-count"> · {n_show}</span>',
-            associates_help=associates_help,
         )
         + f'<div class="owner-associates-panel" data-associates-panel>{dual}</div>'
         "</details>"
@@ -1370,9 +1339,11 @@ def _facilities_match_note(profile: dict[str, Any]) -> str:
             f"{suggested} {row_word} linked by facility name only; "
             "PBJ staffing and ratings show when the legal-name match is verified.</p>"
         )
+    unverified = n - verified
+    have = "facility has" if unverified == 1 else "facilities have"
     return (
-        f'<p class="owner-table-note">{n - verified} of {n} facilities have no verified PBJ link; '
-        "CMS ownership rows are still valid.</p>"
+        f'<p class="owner-table-note">{unverified} of {n} {have} no verified PBJ link; '
+        f"CMS ownership rows are still valid.</p>"
     )
 
 
@@ -1478,9 +1449,10 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
     link_label_raw = provider_raw or legal_raw
+    verified_methods = ("legal_exact", "name_exact", "fuzzy", "enrollment_exact")
     href = (
         html.escape(provider_url(ccn, link_label_raw))
-        if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
+        if ccn.isdigit() and method in verified_methods
         else ""
     )
 
@@ -1490,7 +1462,7 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         if href and link_label
         else ""
     )
-    verified = method == "legal_exact"
+    verified = method in ("legal_exact", "enrollment_exact")
     location_line = _facility_location_residents_line(f, verified=verified)
     if provider_esc and not same:
         if href:
@@ -1553,12 +1525,11 @@ def _pct_fallback_label(role_raw: str) -> str:
 
 
 def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
-    """Ownership %; tap opens CMS role + association date."""
+    """Role / stake cell; tap opens CMS role + association date."""
     role_raw = str(f.get("role") or "")
     role_text = format_role_text(role_raw) if role_raw else ""
     adate = _fmt_date_mdyy(f.get("association_date"))
     pct_raw = str(f.get("pct") or "").strip()
-    pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
 
     from ownership.role_classification import facility_stake_column_label
 
@@ -1567,14 +1538,19 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
         role_code=str(f.get("role_code") or ""),
         pct_raw=pct_raw,
     )
-    if pct:
-        pct_label_raw = _format_own_pct_label(pct)
-        pct_display = html.escape(short_lbl)
-        pct_title = html.escape(pct_label_raw)
-    else:
+
+    is_role_label = not short_lbl.endswith("%")
+    if is_role_label:
         pct_label_raw = long_lbl if long_lbl != "—" else ""
         pct_display = html.escape(short_lbl)
         pct_title = html.escape(long_lbl) if long_lbl != "—" else pct_display
+        pct = ""
+    else:
+        pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
+        pct_label_raw = _format_own_pct_label(pct) if pct else long_lbl
+        pct_display = html.escape(short_lbl)
+        pct_title = html.escape(pct_label_raw) if pct_label_raw else pct_display
+
     has_detail = bool(role_text) or (adate and adate != "—") or pct
     since_html = _role_since_html(f.get("association_date"))
 
@@ -1627,7 +1603,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     for f in fac_list:
         loc_html, loc_sort = _facility_location_cell(f)
         method = str(f.get("ccn_match_method") or "")
-        verified = method == "legal_exact"
+        verified = method in ("legal_exact", "enrollment_exact")
         hprd = html.escape(_fmt_hprd(f.get("hprd") if verified else None))
         stars_html, stars_sort = _cms_stars_cell(f, verified=verified)
         census = html.escape(_fmt_census(f.get("census") if verified else None))
@@ -1648,7 +1624,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
             f'<tr data-search="{html.escape(search)}" data-state="{html.escape(st_code)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
             f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
-            f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
+            f'<td class="owner-role-cell owner-col-role" data-label="Role / stake" data-sort="{role_sort}">{role_html}</td>'
             f'<td class="num owner-col-hprd" data-label="HPRD" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
             f'<td class="num owner-col-ratings" data-label="Ratings" data-sort="{html.escape(stars_sort)}">{stars_html}</td>'
             f'<td class="num owner-col-census" data-label="Census" data-sort="{_sort_attr(census if verified else "")}">{census}</td>'
@@ -1674,8 +1650,8 @@ def _owner_facilities_table_html(
     thead = (
         '<th data-sort="legal" class="sortable owner-col-facility">Facility <span class="sort-icon"></span></th>'
         '<th data-sort="county" class="sortable owner-col-location">Location <span class="sort-icon"></span></th>'
-        '<th data-sort="role" class="sortable num owner-col-role" title="Percent ownership">'
-        '% Own. <span class="sort-icon"></span></th>'
+        '<th data-sort="role" class="sortable num owner-col-role" title="Role or ownership percentage">'
+        'Role / stake <span class="sort-icon"></span></th>'
         '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Facility-reported PBJ total nurse HPRD">HPRD <span class="sort-icon"></span></th>'
         '<th data-sort="stars" class="sortable num owner-col-ratings">'
         'Ratings <span class="sort-icon"></span></th>'
@@ -1737,14 +1713,15 @@ def _owner_facilities_table_html(
     mobile_cards = [_facility_mobile_card(f) for f in fac_slice]
     pac_raw = str(profile.get("associate_id") or pac or "").strip()
 
-    show_more_btn = ""
+    page_btns = ""
     if rest_count and pac_raw:
-        show_more_btn = (
-            f'<button type="button" class="owner-facilities-show-more" '
-            f'id="ownerFacilitiesShowMore" data-total="{n}" data-shown="{preview_n}" '
-            f'data-batch="{FACILITIES_SHOW_MORE_BATCH}" '
-            f'data-facilities-url="/owners/api/owner-facilities/{html.escape(pac_raw, quote=True)}">'
-            f"Show more</button>"
+        page_btns = (
+            '<span class="owner-facilities-page-nav">'
+            f'<button type="button" class="owner-facilities-page-btn" '
+            f'id="ownerFacilitiesPagePrev" disabled aria-label="Previous page">&#8592; Prev</button>'
+            f'<button type="button" class="owner-facilities-page-btn" '
+            f'id="ownerFacilitiesPageNext" aria-label="Next page">Next &#8594;</button>'
+            '</span>'
         )
 
     mobile_list = (
@@ -1765,10 +1742,17 @@ def _owner_facilities_table_html(
 
     footer = ""
     if rest_count:
+        fac_url = (
+            f'/owners/api/owner-facilities/{html.escape(pac_raw, quote=True)}'
+            if pac_raw else ""
+        )
         footer = (
-            f'<p class="owner-table-footer" id="ownerFacilitiesFooter">'
-            f'<span id="ownerFacilitiesShownLabel">Showing {preview_n} of {n}</span>'
-            f"{show_more_btn}</p>"
+            f'<p class="owner-table-footer" id="ownerFacilitiesFooter"'
+            f' data-total="{n}" data-batch="{FACILITIES_SHOW_MORE_BATCH}"'
+            f' data-page-size="{FACILITIES_DESKTOP_PREVIEW}"'
+            f' data-facilities-url="{fac_url}">'
+            f'<span id="ownerFacilitiesShownLabel">1&ndash;{preview_n} of {n}</span>'
+            f"{page_btns}</p>"
         )
     desktop = _desk(owner_rows)
     dual = _owner_table_dual(

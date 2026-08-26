@@ -17,9 +17,10 @@ _REPO = Path(__file__).resolve().parent.parent
 
 _NORM_FILENAME_RE = re.compile(r"ProviderInfoNorm_(\d{4})_(\d{2})", re.IGNORECASE)
 
-# CMS PBJ quarterly aberrant-staffing limits (facility-quarter aggregate). See
-# PBJPedia methodology / ownership/PORTFOLIO_METRICS.md.
-PORTFOLIO_HPRD_MIN = 1.5
+# CMS Five-Star / Care Compare Technical Users' Guide (July 2026): for full-quarter
+# total nurse staffing, exclude zero HPRD and values greater than 12 HPRD.
+# The historical <1.5 HPRD exclusion applied only before January 2022 and is NOT used.
+PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW = 0.0
 PORTFOLIO_HPRD_MAX = 12.0
 PORTFOLIO_OVERALL_RATING_MIN = 1.0
 PORTFOLIO_OVERALL_RATING_MAX = 5.0
@@ -27,20 +28,109 @@ PORTFOLIO_OVERALL_RATING_MAX = 5.0
 PORTFOLIO_STAR_DIST_MIN = 5
 
 PORTFOLIO_METHODOLOGY_SUMMARY = (
-    "Portfolio means use only PBJ-verified facilities (CMS enrollment legal name matches "
-    "provider-info legal name). Missing HPRD or star ratings are omitted from means but the "
-    "facility remains in the table. Weighted means use average daily census when published, "
-    "otherwise certified beds; facilities with neither are included in the simple facility "
-    "average only, not the census-weighted mean. Total nurse HPRD values below "
-    f"{PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded as implausible "
-    "(aligned with CMS PBJ public-use quarterly exclusion rules). Overall star ratings outside "
+    "Portfolio HPRD is a descriptive linked-facility statistic (not owner-attributable "
+    "staffing responsibility). Means use PBJ-verified facilities whose CMS relationship "
+    "to the profile began on or before the PBJ quarter start (any role category), with "
+    "usable HPRD and a census or certified-beds weight. Each CCN counts once. Missing "
+    "HPRD or star ratings are omitted from means but the facility remains in the table. "
+    "Total nurse HPRD values ≤ "
+    f"{PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW:g} or above "
+    f"{PORTFOLIO_HPRD_MAX:g} HPRD are excluded (current CMS full-quarter total-nurse "
+    "exclusions; the pre-2022 <1.5 floor is not applied). Overall star ratings outside "
     f"{PORTFOLIO_OVERALL_RATING_MIN:g}–{PORTFOLIO_OVERALL_RATING_MAX:g} are excluded."
+)
+
+# Exact help body for the owner-profile Portfolio HPRD card (?).
+PORTFOLIO_HPRD_CARD_HELP = (
+    "Resident-weighted average nurse HPRD across CMS-linked facilities whose relationship "
+    "to this profile was in place by the start of the reporting quarter. Each facility is "
+    "counted once. Facilities with uncertain timing, an unverified PBJ match, or unusable "
+    "staffing data are excluded. This describes associated facilities and does not establish "
+    "responsibility for staffing."
+)
+
+# Mutually exclusive terminal buckets for Portfolio HPRD reconciliation.
+PORTFOLIO_HPRD_TERMINAL_BUCKETS = (
+    "timing_excluded_or_uncertain",
+    "pbj_match_excluded",
+    "missing_hprd",
+    "hprd_le_zero",
+    "hprd_gt_12",
+    "missing_invalid_weight",
+    "included",
 )
 
 
 def is_plausible_portfolio_hprd(hprd: float) -> bool:
-    """True when HPRD is in the CMS PBJ quarterly plausible range for total nurse staffing."""
-    return PORTFOLIO_HPRD_MIN <= hprd <= PORTFOLIO_HPRD_MAX
+    """
+    True when total nurse HPRD may enter Portfolio HPRD means.
+
+    Current CMS full-quarter total-nurse rule: exclude ≤ 0 and > 12.
+    Does not apply the obsolete pre-2022 <1.5 floor.
+    """
+    return hprd > PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW and hprd <= PORTFOLIO_HPRD_MAX
+
+
+def portfolio_hprd_value_exclusion_reason(hprd: float | None) -> str | None:
+    """Return a value-level exclusion reason, or None when the HPRD value is usable."""
+    if hprd is None:
+        return "missing_hprd"
+    if hprd <= PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW:
+        return "hprd_le_zero"
+    if hprd > PORTFOLIO_HPRD_MAX:
+        return "hprd_gt_12"
+    return None
+
+
+def classify_portfolio_hprd_terminal_bucket(facility: dict[str, Any]) -> str:
+    """
+    Assign one mutually exclusive Portfolio HPRD terminal category.
+
+    Priority:
+      1. timing excluded/uncertain (portfolio inclusion not supported)
+      2. PBJ-match excluded
+      3. missing HPRD
+      4. HPRD ≤ 0
+      5. HPRD > 12
+      6. missing/invalid weight
+      7. included
+    """
+    status = str(facility.get("hprd_portfolio_inclusion_status") or "").strip()
+    if status != "supported":
+        return "timing_excluded_or_uncertain"
+    if not facility.get("pbj_matched"):
+        return "pbj_match_excluded"
+    h = _parse_float(facility.get("hprd"))
+    reason = portfolio_hprd_value_exclusion_reason(h)
+    if reason is not None:
+        return reason
+    weight = _portfolio_metric_weight(facility)
+    if weight is None or weight <= 0:
+        return "missing_invalid_weight"
+    return "included"
+
+
+def reconcile_portfolio_hprd_buckets(
+    facilities: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Count mutually exclusive terminal buckets; must sum to len(facilities)."""
+    counts = {k: 0 for k in PORTFOLIO_HPRD_TERMINAL_BUCKETS}
+    obsolete_below_1_5_now_included = 0
+    for f in facilities:
+        bucket = classify_portfolio_hprd_terminal_bucket(f)
+        counts[bucket] = counts.get(bucket, 0) + 1
+        if bucket == "included":
+            h = _parse_float(f.get("hprd"))
+            if h is not None and 0.0 < h < 1.5:
+                obsolete_below_1_5_now_included += 1
+    total = len(facilities)
+    return {
+        "total_unique_ccns": total,
+        "buckets": counts,
+        "bucket_sum": sum(counts.values()),
+        "reconcile_ok": sum(counts.values()) == total,
+        "obsolete_below_1_5_now_included": obsolete_below_1_5_now_included,
+    }
 
 
 def is_plausible_overall_rating(rating: float) -> bool:
@@ -508,7 +598,7 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
 
 
 def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
-    """Add provider info when CCN is known; PBJ metrics only for legal_exact matches."""
+    """Add provider info when CCN is known; PBJ metrics for verified matches."""
     lookup = _ccn_provider_lookup()
     out = dict(fac)
     ccn = str(out.get("ccn") or "").strip().zfill(6)[-6:]
@@ -520,7 +610,7 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
         for k in ("provider_address", "zip_code", "city", "latitude", "longitude"):
             if pi.get(k) and not out.get(k):
                 out[k] = pi[k]
-    if method == "legal_exact" and ccn and pi:
+    if method in ("legal_exact", "enrollment_exact") and ccn and pi:
         if not out.get("state") and pi.get("state"):
             out["state"] = pi["state"]
         if not out.get("city") and pi.get("city"):
@@ -552,10 +642,11 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     elif method in ("name_exact", "fuzzy") and ccn:
         out["pbj_suggested"] = True
 
-    # Per-metric attribution: PBJ HPRD uses the facility/Norm PBJ quarter;
-    # Care Compare stars are facility context only (not owner-period performance).
+    # Portfolio HPRD: timing-only linked-facility inclusion vs PBJ quarter.
+    # Care Compare stars remain facility context only (not period performance).
     from ownership.relationship_period import (
-        attribution_status_for_facility,
+        portfolio_inclusion_status_for_facility,
+        rating_metric_context_status,
         parse_pbj_quarter_bounds,
     )
 
@@ -566,20 +657,16 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     else:
         metric_start, metric_end = bounds
     out["pbj_metric_quarter"] = q_label
-    out["hprd_attribution_status"] = attribution_status_for_facility(
+    out["hprd_portfolio_inclusion_status"] = portfolio_inclusion_status_for_facility(
         out,
         metric_start=metric_start,
         metric_end=metric_end,
         metric_kind="pbj_hprd",
     )
-    out["rating_attribution_status"] = attribution_status_for_facility(
-        out,
-        metric_start=metric_start,
-        metric_end=metric_end,
-        metric_kind="overall_rating",
+    # Ratings are facility-context only — not ownership/period attribution.
+    out["rating_metric_context_status"] = rating_metric_context_status(
+        metric_kind="overall_rating"
     )
-    # Legacy key: HPRD timing gate only (ratings no longer ride this flag).
-    out["attribution_status"] = out["hprd_attribution_status"]
     return out
 
 
@@ -660,10 +747,12 @@ def build_entity_portfolio_summary(
     if not facilities:
         return {}
     rows = [entity_facility_for_portfolio(f, provider_info) for f in facilities]
-    # Entity pages are facility-roster context (not ownership-period attribution).
+    # Entity pages are facility-roster context (not PAC relationship timing).
     for row in rows:
-        if row.get("pbj_matched") and not str(row.get("hprd_attribution_status") or "").strip():
-            row["hprd_attribution_status"] = "supported"
+        if row.get("pbj_matched") and not str(
+            row.get("hprd_portfolio_inclusion_status") or ""
+        ).strip():
+            row["hprd_portfolio_inclusion_status"] = "supported"
     return _rollup_portfolio_metrics(rows, context="entity")
 
 
@@ -699,7 +788,15 @@ def _rollup_portfolio_metrics(
     n_hprd_outlier_excluded = 0
     n_rating_outlier_excluded = 0
     n_missing_resident_weight = 0
-    n_attribution_excluded = 0
+    n_timing_excluded = 0
+    n_timing_uncertain = 0
+    n_hprd_le_zero_excluded = 0
+    n_hprd_gt_12_excluded = 0
+    n_hprd_weight_excluded = 0
+    n_obsolete_below_1_5_included = 0
+    hprd_weight_sum = 0.0
+    hprd_numerator = 0.0
+    terminal_bucket_counts = {k: 0 for k in PORTFOLIO_HPRD_TERMINAL_BUCKETS}
     for f in enriched:
         if f.get("pbj_matched"):
             pbj_matched += 1
@@ -718,44 +815,56 @@ def _rollup_portfolio_metrics(
         if sr is not None and sr <= 2:
             low_staff += 1
 
+        # Mutually exclusive Portfolio HPRD terminal classification (every CCN once).
+        bucket = classify_portfolio_hprd_terminal_bucket(f)
+        terminal_bucket_counts[bucket] = terminal_bucket_counts.get(bucket, 0) + 1
+
+        if bucket == "timing_excluded_or_uncertain":
+            status = str(f.get("hprd_portfolio_inclusion_status") or "").strip()
+            if status == "exclude":
+                n_timing_excluded += 1
+            else:
+                n_timing_uncertain += 1
+            if f.get("pbj_matched") and _parse_float(f.get("hprd")) is None:
+                n_missing_hprd += 1
+        elif bucket == "pbj_match_excluded":
+            pass
+        elif bucket == "missing_hprd":
+            n_missing_hprd += 1
+            n_hprd_weight_excluded += 1
+        elif bucket == "hprd_le_zero":
+            n_hprd_le_zero_excluded += 1
+            n_hprd_outlier_excluded += 1
+            n_hprd_weight_excluded += 1
+        elif bucket == "hprd_gt_12":
+            n_hprd_gt_12_excluded += 1
+            n_hprd_outlier_excluded += 1
+            n_hprd_weight_excluded += 1
+        elif bucket == "missing_invalid_weight":
+            n_missing_resident_weight += 1
+            n_hprd_weight_excluded += 1
+        elif bucket == "included":
+            h = _parse_float(f.get("hprd"))
+            weight = _portfolio_metric_weight(f)
+            assert h is not None and weight is not None
+            hprd_unweighted.append(h)
+            hprd_weighted.append((h, weight))
+            hprd_numerator += h * weight
+            hprd_weight_sum += weight
+            if 0.0 < h < 1.5:
+                n_obsolete_below_1_5_included += 1
+
         if not f.get("pbj_matched"):
+            # Ratings / distributions only for PBJ-matched facilities.
             continue
 
-        # Owner-attributed HPRD only: association timing + ownership_interest.
-        # Care Compare ratings stay on facility rows / distribution context and
-        # are NOT treated as contemporaneous owner performance means.
-        hprd_status = str(
-            f.get("hprd_attribution_status") or f.get("attribution_status") or ""
-        )
-        if hprd_status == "exclude":
-            n_attribution_excluded += 1
-        elif hprd_status == "supported":
-            weight = _portfolio_metric_weight(f)
-            if weight is None:
-                n_missing_resident_weight += 1
-            h = _parse_float(f.get("hprd"))
-            if h is None:
-                n_missing_hprd += 1
-            elif not is_plausible_portfolio_hprd(h):
-                n_hprd_outlier_excluded += 1
-            else:
-                hprd_unweighted.append(h)
-                if weight is not None:
-                    hprd_weighted.append((h, weight))
-        else:
-            # uncertain / facility_context / missing — skip owner HPRD mean
-            if _parse_float(f.get("hprd")) is None:
-                n_missing_hprd += 1
-
-        # Ratings: facility-context distributions only (not owner-period means).
-        # Keep star histograms for portfolio UI context; do not require timing gate.
+        # Ratings: facility-context distributions only (not period means).
         ovr = _parse_float(f.get("overall_rating"))
         if ovr is None:
             n_missing_overall_rating += 1
         elif not is_plausible_overall_rating(ovr):
             n_rating_outlier_excluded += 1
         else:
-            # Unweighted facility-context distribution; entity pages also keep means.
             star_bucket = int(round(ovr))
             if 1 <= star_bucket <= 5:
                 overall_star_counts[star_bucket] = overall_star_counts.get(star_bucket, 0) + 1
@@ -778,10 +887,8 @@ def _rollup_portfolio_metrics(
 
     wmean_hprd = None
     umean_hprd = None
-    if hprd_weighted:
-        tw = sum(w for _, w in hprd_weighted)
-        if tw > 0:
-            wmean_hprd = sum(h * w for h, w in hprd_weighted) / tw
+    if hprd_weighted and hprd_weight_sum > 0:
+        wmean_hprd = hprd_numerator / hprd_weight_sum
     if hprd_unweighted:
         umean_hprd = sum(hprd_unweighted) / len(hprd_unweighted)
 
@@ -829,38 +936,49 @@ def _rollup_portfolio_metrics(
         "n_missing_hprd": n_missing_hprd,
         "n_missing_overall_rating": n_missing_overall_rating,
         "n_hprd_outlier_excluded": n_hprd_outlier_excluded,
+        "n_hprd_le_zero_excluded": n_hprd_le_zero_excluded,
+        "n_hprd_gt_12_excluded": n_hprd_gt_12_excluded,
         "n_rating_outlier_excluded": n_rating_outlier_excluded,
         "n_missing_resident_weight": n_missing_resident_weight,
-        "n_attribution_excluded": n_attribution_excluded,
+        "n_timing_excluded": n_timing_excluded,
+        "n_timing_uncertain": n_timing_uncertain,
+        "n_timing_excluded_or_uncertain": n_timing_excluded + n_timing_uncertain,
+        "n_hprd_weight_excluded": n_hprd_weight_excluded,
+        "n_obsolete_below_1_5_included": n_obsolete_below_1_5_included,
+        "hprd_terminal_buckets": terminal_bucket_counts,
+        "hprd_numerator": round(hprd_numerator, 6) if hprd_weighted else None,
+        "hprd_weight_denominator": round(hprd_weight_sum, 6) if hprd_weighted else None,
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
         "pct_low_staffing_rating": pct_low_staffing,
-        # Owner pages omit Care Compare means as owner-period performance.
+        # Owner pages omit Care Compare means as period performance.
         # Entity pages keep facility-roster means (still facility context).
         "mean_overall_rating": mean_overall if context == "entity" else None,
         "umean_overall_rating": umean_overall if context == "entity" else None,
         "mean_staffing_rating": mean_staffing if context == "entity" else None,
         "umean_staffing_rating": umean_staffing if context == "entity" else None,
-        "ratings_attribution": "facility_context_only",
-        "hprd_attribution": (
+        "ratings_metric_scope": "facility_context_only",
+        "hprd_metric_scope": (
             "entity_facility_roster"
             if context == "entity"
-            else "pbj_quarter_full_period_ownership_interest_only"
+            else "portfolio_linked_facility_timing"
         ),
-        "n_hprd_supported_facilities": len(hprd_unweighted),
+        # n = CCNs contributing to the weighted mean (require weight + usable HPRD).
+        "n_hprd_supported_facilities": len(hprd_weighted),
+        "n_hprd_portfolio_facilities": len(hprd_weighted),
         "hprd_eligible_label": (
-            f"PBJ HPRD across {len(hprd_unweighted)} facilit"
-            f"{'y' if len(hprd_unweighted) == 1 else 'ies'}"
+            f"Portfolio HPRD across {len(hprd_weighted)} facilit"
+            f"{'y' if len(hprd_weighted) == 1 else 'ies'}"
             + (
                 " on this entity roster"
                 if context == "entity"
-                else " with supported ownership-period overlap"
+                else " with a CMS relationship in place by the PBJ quarter start"
             )
-            if hprd_unweighted
+            if hprd_weighted
             else (
                 "No PBJ HPRD values on this entity roster"
                 if context == "entity"
-                else "No facilities with supported ownership-period HPRD overlap"
+                else "No linked facilities with quarter-active timing and usable PBJ HPRD"
             )
         ),
         "overall_star_counts": overall_star_counts,

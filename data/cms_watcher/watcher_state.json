@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "last_run_at": null,
+  "sources": {},
+  "notes": "Read-only CMS watcher observation state. Not a production release manifest. Prefer ownership_release_policy.json / latest_quarter_data.json for canonical PBJ320 vintages."
+}

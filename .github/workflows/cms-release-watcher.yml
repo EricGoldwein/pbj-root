@@ -1,0 +1,55 @@
+# Read-only CMS release + PBJ320 downstream-freshness watcher.
+# Observes official CMS metadata and compares to committed production vintages.
+# Does NOT download datasets, rebuild indexes, mutate policy, or deploy.
+name: CMS release watcher
+
+on:
+  schedule:
+    # Daily 13:15 UTC — independent of CMS nextUpdateDate (releases can be early/late).
+    - cron: "15 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: cms-release-watcher
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need write token for optional state commit; default GITHUB_TOKEN works for same-repo.
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run watcher (observe + notify + persist state)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python -m cms_watcher --write-state --notify --json | tee /tmp/cms_watcher_report.json
+
+      - name: Commit watcher state if changed
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- data/cms_watcher/watcher_state.json; then
+            echo "No watcher state changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/cms_watcher/watcher_state.json
+          git commit -m "chore(cms-watcher): record observed CMS metadata fingerprints"
+          git push

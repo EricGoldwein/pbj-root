@@ -1170,13 +1170,12 @@ def _associate_source_label_short(r: dict[str, Any]) -> str:
     return " · ".join(bits) if bits else "Related"
 
 
-def _associates_summary_html(*, count_html: str, associates_help: str) -> str:
+def _associates_summary_html(*, count_html: str) -> str:
     """One far-right disclosure chevron; hide native/details ::before via CSS."""
     return (
         '<summary class="owner-associates-summary">'
         '<span class="owner-associates-summary-label">Related CMS associates'
         f"{count_html}</span>"
-        f"{associates_help}"
         '<span class="owner-associates-caret" aria-hidden="true"></span>'
         "</summary>"
     )
@@ -1212,10 +1211,10 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
                 f'<div class="owner-associates-block"'
                 f' data-associates-pac="{html.escape(pac, quote=True)}"'
                 f' data-associates-url="/owners/api/related-associates/{html.escape(pac, quote=True)}">'
-                '<details class="owner-collapsible owner-associates-collapsible">'
+                + associates_help
+                + '<details class="owner-collapsible owner-associates-collapsible">'
                 + _associates_summary_html(
                     count_html='<span class="owner-associates-count"></span>',
-                    associates_help=associates_help,
                 )
                 + '<div class="owner-associates-panel" data-associates-panel aria-live="polite">'
                 '<div class="owner-associates-loading" role="status" hidden>'
@@ -1282,10 +1281,10 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
     )
     return (
         '<div class="owner-associates-block" data-associates-loaded="1">'
-        '<details class="owner-collapsible owner-associates-collapsible">'
+        + associates_help
+        + '<details class="owner-collapsible owner-associates-collapsible">'
         + _associates_summary_html(
             count_html=f'<span class="owner-associates-count"> · {n_show}</span>',
-            associates_help=associates_help,
         )
         + f'<div class="owner-associates-panel" data-associates-panel>{dual}</div>'
         "</details>"
@@ -1553,12 +1552,11 @@ def _pct_fallback_label(role_raw: str) -> str:
 
 
 def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
-    """Ownership %; tap opens CMS role + association date."""
+    """Role / stake cell; tap opens CMS role + association date."""
     role_raw = str(f.get("role") or "")
     role_text = format_role_text(role_raw) if role_raw else ""
     adate = _fmt_date_mdyy(f.get("association_date"))
     pct_raw = str(f.get("pct") or "").strip()
-    pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
 
     from ownership.role_classification import facility_stake_column_label
 
@@ -1567,14 +1565,19 @@ def _role_ownership_cell(f: dict[str, Any]) -> tuple[str, str]:
         role_code=str(f.get("role_code") or ""),
         pct_raw=pct_raw,
     )
-    if pct:
-        pct_label_raw = _format_own_pct_label(pct)
-        pct_display = html.escape(short_lbl)
-        pct_title = html.escape(pct_label_raw)
-    else:
+
+    is_role_label = not short_lbl.endswith("%")
+    if is_role_label:
         pct_label_raw = long_lbl if long_lbl != "—" else ""
         pct_display = html.escape(short_lbl)
         pct_title = html.escape(long_lbl) if long_lbl != "—" else pct_display
+        pct = ""
+    else:
+        pct = _format_ownership_pct_value(pct_raw) if pct_raw else ""
+        pct_label_raw = _format_own_pct_label(pct) if pct else long_lbl
+        pct_display = html.escape(short_lbl)
+        pct_title = html.escape(pct_label_raw) if pct_label_raw else pct_display
+
     has_detail = bool(role_text) or (adate and adate != "—") or pct
     since_html = _role_since_html(f.get("association_date"))
 
@@ -1674,8 +1677,8 @@ def _owner_facilities_table_html(
     thead = (
         '<th data-sort="legal" class="sortable owner-col-facility">Facility <span class="sort-icon"></span></th>'
         '<th data-sort="county" class="sortable owner-col-location">Location <span class="sort-icon"></span></th>'
-        '<th data-sort="role" class="sortable num owner-col-role" title="Percent ownership">'
-        '% Own. <span class="sort-icon"></span></th>'
+        '<th data-sort="role" class="sortable num owner-col-role" title="Role or ownership percentage">'
+        'Role / stake <span class="sort-icon"></span></th>'
         '<th data-sort="hprd" class="sortable num owner-col-hprd" title="Facility-reported PBJ total nurse HPRD">HPRD <span class="sort-icon"></span></th>'
         '<th data-sort="stars" class="sortable num owner-col-ratings">'
         'Ratings <span class="sort-icon"></span></th>'

@@ -3393,8 +3393,11 @@ button.owner-flag:hover {
   font-size: 16px;
 }
 
-.owner-facilities-show-more {
+.owner-facilities-show-more[hidden] {
   display: none;
+}
+
+.owner-facilities-show-more {
   width: 100%;
   margin: 0.35rem 0 0.15rem;
   padding: 0.45rem 0.65rem;
@@ -3433,12 +3436,12 @@ button.owner-flag:hover {
     display: block;
   }
 
-  .owner-facilities-show-more {
+  .owner-facilities-show-more:not([hidden]) {
     display: block;
   }
 
   .owner-mobile-card-list--facilities.owner-mobile-card-list--collapsed
-    + .owner-facilities-show-more {
+    + .owner-facilities-show-more:not([hidden]) {
     display: block;
   }
 }

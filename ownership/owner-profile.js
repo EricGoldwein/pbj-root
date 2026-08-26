@@ -454,22 +454,27 @@
   var stateFilter = document.getElementById('ownerFacilitiesStateFilter');
   var filterCount = document.getElementById('ownerFacilitiesFilterCount');
   var filterCountMobile = document.getElementById('ownerFacilitiesFilterCountMobile');
-  var showMoreBtn = document.getElementById('ownerFacilitiesShowMore');
+  var footerEl = document.getElementById('ownerFacilitiesFooter');
+  var prevBtn = document.getElementById('ownerFacilitiesPagePrev');
+  var nextBtn = document.getElementById('ownerFacilitiesPageNext');
+  var pageCountEl = document.getElementById('ownerFacilitiesPageCount');
   var shownLabel = document.getElementById('ownerFacilitiesShownLabel');
-  var totalFacilities = showMoreBtn
-    ? parseInt(showMoreBtn.getAttribute('data-total') || String(rows.length), 10)
+  var totalFacilities = footerEl
+    ? parseInt(footerEl.getAttribute('data-total') || String(rows.length), 10)
     : rows.length;
-  var batchSize = showMoreBtn
-    ? parseInt(showMoreBtn.getAttribute('data-batch') || '50', 10)
+  var batchSize = footerEl
+    ? parseInt(footerEl.getAttribute('data-batch') || '50', 10)
     : 50;
-  var facilitiesUrl = showMoreBtn
-    ? showMoreBtn.getAttribute('data-facilities-url') || ''
+  var pageSize = footerEl
+    ? parseInt(footerEl.getAttribute('data-page-size') || '15', 10)
+    : 15;
+  var facilitiesUrl = footerEl
+    ? footerEl.getAttribute('data-facilities-url') || ''
     : '';
-  var nextOffset = showMoreBtn
-    ? parseInt(showMoreBtn.getAttribute('data-shown') || String(rows.length), 10)
-    : rows.length;
+  var nextOffset = rows.length;
   var facilitiesLoading = false;
   var facilitiesDone = !facilitiesUrl || nextOffset >= totalFacilities;
+  var currentPage = 0;
   var sortKey = 'legal';
   var sortDir = 'asc';
   var colIndex = {
@@ -488,18 +493,39 @@
       : [];
   }
 
-  function updateShownChrome() {
-    var shown = rows.length;
+  function showPage(page, filteredRows, filteredCards) {
+    var visRows = filteredRows || rows;
+    var visCards = filteredCards || mobileCards;
+    var isFiltered = !!filteredRows;
+    var total = isFiltered ? visRows.length : totalFacilities;
+    var loadedCount = visRows.length;
+    var totalPages = Math.max(1, Math.ceil(total / pageSize));
+    if (page < 0) page = 0;
+    if (page >= totalPages) page = totalPages - 1;
+    currentPage = page;
+    var start = page * pageSize;
+    var end = Math.min(start + pageSize, loadedCount);
+    visRows.forEach(function (tr, i) {
+      tr.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+    visCards.forEach(function (li, i) {
+      li.style.display = (i >= start && i < end) ? '' : 'none';
+    });
     if (shownLabel) {
-      shownLabel.textContent = facilitiesDone
-        ? shown + ' facilities'
-        : 'Showing ' + shown + ' of ' + totalFacilities;
+      shownLabel.innerHTML = total <= pageSize
+        ? total + ' facilities'
+        : (start + 1) + '&ndash;' + Math.min(start + pageSize, total) + ' of ' + total;
     }
-    if (showMoreBtn) {
-      showMoreBtn.setAttribute('data-shown', String(shown));
-      showMoreBtn.hidden = !!facilitiesDone;
-      showMoreBtn.disabled = !!facilitiesLoading;
-      showMoreBtn.textContent = facilitiesLoading ? 'Loading…' : 'Show more';
+    if (prevBtn) prevBtn.disabled = page <= 0 || facilitiesLoading;
+    if (nextBtn) {
+      var atEnd = isFiltered
+        ? end >= loadedCount
+        : page >= totalPages - 1;
+      nextBtn.disabled = atEnd || facilitiesLoading;
+      nextBtn.textContent = facilitiesLoading ? 'Loading\u2026' : 'Next \u2192';
+    }
+    if (pageCountEl) {
+      pageCountEl.textContent = '';
     }
   }
 
@@ -517,7 +543,6 @@
     nextOffset = parseInt(data.next_offset || nextOffset, 10) || nextOffset;
     facilitiesDone = !!data.done || nextOffset >= totalFacilities;
     refreshRowCaches();
-    updateShownChrome();
   }
 
   function fetchFacilitiesBatch(allRemaining) {
@@ -525,7 +550,6 @@
       return Promise.resolve(false);
     }
     facilitiesLoading = true;
-    updateShownChrome();
     var limit = allRemaining
       ? Math.max(batchSize, totalFacilities - nextOffset)
       : batchSize;
@@ -547,13 +571,10 @@
         appendHtmlBatch(data || {});
         return true;
       })
-      .catch(function () {
-        if (showMoreBtn) showMoreBtn.textContent = 'Retry';
-        return false;
-      })
+      .catch(function () { return false; })
       .finally(function () {
         facilitiesLoading = false;
-        updateShownChrome();
+        showPage(currentPage);
       });
   }
 
@@ -661,13 +682,24 @@
     var q = activeFilterQuery().toLowerCase();
     var st = activeStateFilter();
     function paint() {
+      var filteredRows = [];
+      var filteredCards = [];
       rows.forEach(function (tr) {
-        tr.style.display = rowMatchesFilters(tr, q, st) ? '' : 'none';
+        var match = rowMatchesFilters(tr, q, st);
+        tr.style.display = match ? '' : 'none';
+        if (match) filteredRows.push(tr);
       });
-      mobileCards.forEach(function (li) {
-        li.style.display = rowMatchesFilters(li, q, st) ? '' : 'none';
+      mobileCards.forEach(function (li, i) {
+        var match = rowMatchesFilters(li, q, st);
+        li.style.display = match ? '' : 'none';
+        if (match) filteredCards.push(li);
       });
       updateCounts();
+      if (q || st) {
+        showPage(0, filteredRows, filteredCards);
+      } else {
+        showPage(0);
+      }
     }
     if (q || st) {
       ensureAllFacilitiesLoaded().then(paint);
@@ -701,6 +733,7 @@
         }
         applySort();
         updateSortHeaders();
+        showPage(0);
       });
     });
   });
@@ -720,11 +753,22 @@
   if (stateFilter) {
     stateFilter.addEventListener('change', applyFilter);
   }
-  if (showMoreBtn) {
-    showMoreBtn.addEventListener('click', function () {
-      fetchFacilitiesBatch(false).then(function () {
-        applyFilter();
-      });
+  if (prevBtn) {
+    prevBtn.addEventListener('click', function () {
+      showPage(currentPage - 1);
+    });
+  }
+  if (nextBtn) {
+    nextBtn.addEventListener('click', function () {
+      var targetPage = currentPage + 1;
+      var needed = targetPage * pageSize;
+      if (needed < rows.length) {
+        showPage(targetPage);
+      } else if (!facilitiesDone && facilitiesUrl) {
+        fetchFacilitiesBatch(false).then(function () {
+          showPage(targetPage);
+        });
+      }
     });
   }
 
@@ -738,9 +782,17 @@
         on ? 'Switch to card view' : 'Switch to table view'
       );
     });
+    window.addEventListener('resize', function () {
+      if (window.innerWidth <= 520 && facilitiesSection.classList.contains('owner-facilities-section--table-view')) {
+        facilitiesSection.classList.remove('owner-facilities-section--table-view');
+        tableViewBtn.setAttribute('aria-pressed', 'false');
+        tableViewBtn.textContent = 'Table view';
+        tableViewBtn.setAttribute('aria-label', 'Switch to table view');
+      }
+    });
   }
 
   applySort();
   updateSortHeaders();
-  applyFilter();
+  showPage(0);
 })();

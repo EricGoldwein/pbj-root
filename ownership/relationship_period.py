@@ -245,7 +245,7 @@ def relationship_supported_for_period(
 
     kind = str(relationship_kind or "").strip() or "other_or_unknown"
     if metric_kind and mode == "owner_performance_candidate":
-        if kind != "ownership_interest":
+        if kind not in ("ownership_interest", "control_or_management"):
             return "uncertain"
         if timing == "association_began_on_or_before_period_start":
             return "supported"

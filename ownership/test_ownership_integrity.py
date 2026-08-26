@@ -267,19 +267,21 @@ class TemporalAttributionTests(unittest.TestCase):
             "exclude",
         )
 
-    def test_control_role_uncertain_regardless_of_timing(self) -> None:
+    def test_control_role_supported_when_timing_qualifies(self) -> None:
         start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        results = {}
         for assoc in ("01/01/2020", "01/01/2026", "02/15/2026", "04/01/2026"):
-            self.assertEqual(
-                relationship_supported_for_period(
-                    assoc,
-                    start,
-                    end,
-                    metric_kind="pbj_hprd",
-                    relationship_kind="control_or_management",
-                ),
-                "uncertain" if assoc != "04/01/2026" else "exclude",
+            results[assoc] = relationship_supported_for_period(
+                assoc,
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="control_or_management",
             )
+        self.assertEqual(results["01/01/2020"], "supported")
+        self.assertEqual(results["01/01/2026"], "supported")
+        self.assertEqual(results["02/15/2026"], "uncertain")
+        self.assertEqual(results["04/01/2026"], "exclude")
 
     def test_care_compare_ratings_are_facility_context(self) -> None:
         start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]

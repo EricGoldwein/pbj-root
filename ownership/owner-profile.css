@@ -351,9 +351,14 @@
 }
 
 .owner-table-footer {
-  margin: 0.5rem 0 0;
+  margin: 0.75rem 0 0.625rem;
+  padding: 0;
   font-size: 0.8rem;
   color: var(--owner-muted, #94a3b8);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
 /* Compact anchored States popover (not a centered modal). */
@@ -1178,6 +1183,24 @@ button.owner-flag.owner-flag--abuse:hover,
   max-width: 100%;
 }
 
+.owner-facilities-scroll .owner-facilities-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: visible;
+  overflow-y: visible;
+}
+
+.owner-facilities-scroll .owner-facilities-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.owner-facilities-scroll .owner-facilities-table thead th {
+  background: var(--chow-surface-inset, #0f172a);
+  box-shadow: 0 1px 0 var(--chow-border, rgba(148, 163, 184, 0.25));
+}
+
 .owner-facilities-table {
   font-size: 0.8rem;
 }
@@ -1538,6 +1561,30 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
   margin: 0 0 1.15rem;
 }
 
+.owner-snapshot-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@media (min-width: 900px) {
+  .owner-snapshot-layout {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+
+  .owner-snapshot-layout .owner-portfolio-grid {
+    flex: 0 1 58%;
+    min-width: 0;
+  }
+
+  .owner-snapshot-dist {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
 .owner-snapshot-heading {
   font-size: 1.05rem;
 }
@@ -1855,7 +1902,7 @@ button.owner-m-card-chip--place.owner-facility-location-btn {
   margin-top: 0.2rem;
   font-size: 0.72rem;
   font-weight: 500;
-  color: #fdba74;
+  color: #94a3b8;
   line-height: 1.25;
 }
 
@@ -3398,8 +3445,8 @@ button.owner-flag:hover {
 }
 
 .owner-facilities-show-more {
-  width: 100%;
-  margin: 0.35rem 0 0.15rem;
+  width: auto;
+  margin: 0;
   padding: 0.45rem 0.65rem;
   border-radius: 8px;
   border: 1px solid rgba(129, 140, 248, 0.45);
@@ -3408,11 +3455,50 @@ button.owner-flag:hover {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .owner-facilities-show-more:hover {
   background: rgba(99, 102, 241, 0.28);
   border-color: #818cf8;
+}
+
+.owner-facilities-page-btn {
+  width: auto;
+  margin: 0;
+  padding: 0.35rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid rgba(129, 140, 248, 0.45);
+  background: rgba(99, 102, 241, 0.18);
+  color: #e2e8f0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.owner-facilities-page-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.28);
+  border-color: #818cf8;
+}
+
+.owner-facilities-page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  border-color: rgba(129, 140, 248, 0.2);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.owner-facilities-page-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 @media (max-width: 699px) {
@@ -3438,6 +3524,7 @@ button.owner-flag:hover {
 
   .owner-facilities-show-more:not([hidden]) {
     display: block;
+    width: 100%;
   }
 
   .owner-mobile-card-list--facilities.owner-mobile-card-list--collapsed
@@ -3556,7 +3643,7 @@ button.owner-flag:hover {
 }
 
 .owner-table-view-toggle {
-  display: none;
+  display: inline-block;
   font-size: 0.78rem;
   font-weight: 600;
   padding: 0.34rem 0.55rem;
@@ -5057,6 +5144,12 @@ button.owners-hub-panel-info:focus-visible {
   }
 }
 
+@media (max-width: 899px) {
+  .owner-table-view-toggle {
+    display: none !important;
+  }
+}
+
 .owners-state-panel-title {
   font-size: 0.74rem;
   font-weight: 600;
@@ -6088,7 +6181,6 @@ button.owners-hub-panel-info:focus-visible {
 .owner-fec-section {
   margin-top: 2rem;
   padding-top: 1.35rem;
-  border-top: 1px solid rgba(100, 116, 139, 0.35);
 }
 
 .owner-fec-hub {

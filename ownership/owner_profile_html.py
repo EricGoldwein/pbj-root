@@ -1193,26 +1193,10 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
             return ""
         if not rows:
             # Deferred shell — content filled by JS on first open.
-            associates_help = _info_button(
-                "Related CMS associates",
-                (
-                    "Parties that appear with this PAC on CMS records.\n\n"
-                    "Shared ownership: co-disclosed ownership-interest parties on "
-                    "the same nursing home enrollments.\n\n"
-                    "Co-enrollee: appear together on CMS enrollment or owner rows "
-                    "without implying affiliate, partner, parent, or subsidiary status.\n\n"
-                    "CHOW party: buyer or seller counterparties on CMS-reported "
-                    "ownership-change filings.\n\n"
-                    "Sources: CMS SNF All Owners; CMS CHOW filings."
-                ),
-                label="?",
-                cls="owner-info-btn owner-info-btn--section owner-associates-info",
-            )
             return (
                 f'<div class="owner-associates-block"'
                 f' data-associates-pac="{html.escape(pac, quote=True)}"'
                 f' data-associates-url="/owners/api/related-associates/{html.escape(pac, quote=True)}">'
-                + associates_help
                 + '<details class="owner-collapsible owner-associates-collapsible">'
                 + _associates_summary_html(
                     count_html='<span class="owner-associates-count"></span>',
@@ -1250,21 +1234,6 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
         mobile_cards.append(_associate_mobile_card(r, n_facilities=n_facilities))
 
     n_show = len(trs)
-    associates_help = _info_button(
-        "Related CMS associates",
-        (
-            "Parties that appear with this PAC on CMS records.\n\n"
-            "Shared ownership: co-disclosed ownership-interest parties on "
-            "the same nursing home enrollments.\n\n"
-            "Co-enrollee: appear together on CMS enrollment or owner rows "
-            "without implying affiliate, partner, parent, or subsidiary status.\n\n"
-            "CHOW party: buyer or seller counterparties on CMS-reported "
-            "ownership-change filings.\n\n"
-            "Sources: CMS SNF All Owners; CMS CHOW filings."
-        ),
-        label="?",
-        cls="owner-info-btn owner-info-btn--section owner-associates-info",
-    )
     desktop = (
         '<div class="owner-associates-table-wrap">'
         '<table class="owner-associate-table"><thead><tr>'
@@ -1282,7 +1251,6 @@ def _related_associates_html(profile: dict[str, Any], *, preload: bool = False) 
     )
     return (
         '<div class="owner-associates-block" data-associates-loaded="1">'
-        + associates_help
         + '<details class="owner-collapsible owner-associates-collapsible">'
         + _associates_summary_html(
             count_html=f'<span class="owner-associates-count"> · {n_show}</span>',
@@ -1370,9 +1338,11 @@ def _facilities_match_note(profile: dict[str, Any]) -> str:
             f"{suggested} {row_word} linked by facility name only; "
             "PBJ staffing and ratings show when the legal-name match is verified.</p>"
         )
+    unverified = n - verified
+    have = "facility has" if unverified == 1 else "facilities have"
     return (
-        f'<p class="owner-table-note">{n - verified} of {n} facilities have no verified PBJ link; '
-        "CMS ownership rows are still valid.</p>"
+        f'<p class="owner-table-note">{unverified} of {n} {have} no verified PBJ link; '
+        f"CMS ownership rows are still valid.</p>"
     )
 
 
@@ -1742,14 +1712,15 @@ def _owner_facilities_table_html(
     mobile_cards = [_facility_mobile_card(f) for f in fac_slice]
     pac_raw = str(profile.get("associate_id") or pac or "").strip()
 
-    show_more_btn = ""
+    page_btns = ""
     if rest_count and pac_raw:
-        show_more_btn = (
-            f'<button type="button" class="owner-facilities-show-more" '
-            f'id="ownerFacilitiesShowMore" data-total="{n}" data-shown="{preview_n}" '
-            f'data-batch="{FACILITIES_SHOW_MORE_BATCH}" '
-            f'data-facilities-url="/owners/api/owner-facilities/{html.escape(pac_raw, quote=True)}">'
-            f"Show more</button>"
+        page_btns = (
+            '<span class="owner-facilities-page-nav">'
+            f'<button type="button" class="owner-facilities-page-btn" '
+            f'id="ownerFacilitiesPagePrev" disabled aria-label="Previous page">&#8592; Prev</button>'
+            f'<button type="button" class="owner-facilities-page-btn" '
+            f'id="ownerFacilitiesPageNext" aria-label="Next page">Next &#8594;</button>'
+            '</span>'
         )
 
     mobile_list = (
@@ -1770,10 +1741,17 @@ def _owner_facilities_table_html(
 
     footer = ""
     if rest_count:
+        fac_url = (
+            f'/owners/api/owner-facilities/{html.escape(pac_raw, quote=True)}'
+            if pac_raw else ""
+        )
         footer = (
-            f'<p class="owner-table-footer" id="ownerFacilitiesFooter">'
-            f'<span id="ownerFacilitiesShownLabel">Showing {preview_n} of {n}</span>'
-            f"{show_more_btn}</p>"
+            f'<p class="owner-table-footer" id="ownerFacilitiesFooter"'
+            f' data-total="{n}" data-batch="{FACILITIES_SHOW_MORE_BATCH}"'
+            f' data-page-size="{FACILITIES_DESKTOP_PREVIEW}"'
+            f' data-facilities-url="{fac_url}">'
+            f'<span id="ownerFacilitiesShownLabel">1&ndash;{preview_n} of {n}</span>'
+            f"{page_btns}</p>"
         )
     desktop = _desk(owner_rows)
     dual = _owner_table_dual(

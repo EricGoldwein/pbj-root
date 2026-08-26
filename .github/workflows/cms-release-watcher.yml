@@ -1,0 +1,46 @@
+# Read-only CMS release + PBJ320 downstream-freshness watcher.
+# Observes official CMS metadata and compares to committed production vintages.
+# Does NOT download datasets, rebuild indexes, mutate policy, commit, push, or deploy.
+#
+# Durable dedup = GitHub issues (open or closed) labeled cms-release-watcher.
+# Must never write the production branch (master auto-deploys Render service `pbj`).
+name: CMS release watcher
+
+on:
+  schedule:
+    # Daily 13:15 UTC — independent of CMS nextUpdateDate (releases can be early/late).
+    - cron: "15 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cms-release-watcher
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Run watcher (observe + issue notify; no git write)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # contents:read + issues:write only. No state persistence. No repo mutations.
+          python -m cms_watcher --notify --json | tee /tmp/cms_watcher_report.json
+          echo "Watcher finished without mutating the git working tree."

@@ -61,6 +61,7 @@ See `FOLDER_STRUCTURE_CANON.md`.
 - Upstream: `provider_info/`, `ownership/`, geo helpers
 - Derived: provider indexes, compliance sqlite, wrapped JSON
 - Contract: `pbj-contract/` for shared metric language
+- CMS freshness observe-only: `docs/CMS_RELEASE_WATCHER.md` (`python -m cms_watcher`)
 
 ## Related products (other repos)
 

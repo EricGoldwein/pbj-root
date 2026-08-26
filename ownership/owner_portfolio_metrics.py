@@ -20,9 +20,8 @@ _NORM_FILENAME_RE = re.compile(r"ProviderInfoNorm_(\d{4})_(\d{2})", re.IGNORECAS
 # CMS Five-Star / Care Compare Technical Users' Guide (July 2026): for full-quarter
 # total nurse staffing, exclude zero HPRD and values greater than 12 HPRD.
 # The historical <1.5 HPRD exclusion applied only before January 2022 and is NOT used.
+PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW = 0.0
 PORTFOLIO_HPRD_MAX = 12.0
-# Deprecated alias — do not use as an exclusion floor.
-PORTFOLIO_HPRD_MIN = 0.0
 PORTFOLIO_OVERALL_RATING_MIN = 1.0
 PORTFOLIO_OVERALL_RATING_MAX = 5.0
 # Min verified facilities with star ratings before portfolio bar charts render.
@@ -34,7 +33,8 @@ PORTFOLIO_METHODOLOGY_SUMMARY = (
     "to the profile began on or before the PBJ quarter start (any role category), with "
     "usable HPRD and a census or certified-beds weight. Each CCN counts once. Missing "
     "HPRD or star ratings are omitted from means but the facility remains in the table. "
-    "Total nurse HPRD values ≤ 0 or above "
+    "Total nurse HPRD values ≤ "
+    f"{PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW:g} or above "
     f"{PORTFOLIO_HPRD_MAX:g} HPRD are excluded (current CMS full-quarter total-nurse "
     "exclusions; the pre-2022 <1.5 floor is not applied). Overall star ratings outside "
     f"{PORTFOLIO_OVERALL_RATING_MIN:g}–{PORTFOLIO_OVERALL_RATING_MAX:g} are excluded."
@@ -68,14 +68,14 @@ def is_plausible_portfolio_hprd(hprd: float) -> bool:
     Current CMS full-quarter total-nurse rule: exclude ≤ 0 and > 12.
     Does not apply the obsolete pre-2022 <1.5 floor.
     """
-    return hprd > 0.0 and hprd <= PORTFOLIO_HPRD_MAX
+    return hprd > PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW and hprd <= PORTFOLIO_HPRD_MAX
 
 
 def portfolio_hprd_value_exclusion_reason(hprd: float | None) -> str | None:
     """Return a value-level exclusion reason, or None when the HPRD value is usable."""
     if hprd is None:
         return "missing_hprd"
-    if hprd <= 0.0:
+    if hprd <= PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW:
         return "hprd_le_zero"
     if hprd > PORTFOLIO_HPRD_MAX:
         return "hprd_gt_12"

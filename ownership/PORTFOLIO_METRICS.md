@@ -27,7 +27,7 @@ Aligned with **current** CMS Five-Star / Care Compare Technical Users’ Guide f
 - **Do not** exclude valid values merely because they are below 1.5 (the `<1.5` floor applied only before January 2022)
 - Source null/unavailable values are treated as missing (CMS already suppresses some invalid cells upstream)
 
-Constant: `PORTFOLIO_HPRD_MAX = 12.0`. Weekend / nurse-aide component exclusions are **not** reproduced here unless those component fields are loaded and evaluated.
+Constant: `PORTFOLIO_HPRD_EXCLUDE_AT_OR_BELOW = 0.0`, `PORTFOLIO_HPRD_MAX = 12.0`. Weekend / nurse-aide component exclusions are **not** reproduced here unless those component fields are loaded and evaluated.
 
 ## Mutually exclusive terminal buckets
 

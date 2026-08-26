@@ -27,14 +27,24 @@ PORTFOLIO_OVERALL_RATING_MAX = 5.0
 PORTFOLIO_STAR_DIST_MIN = 5
 
 PORTFOLIO_METHODOLOGY_SUMMARY = (
-    "Portfolio means use only PBJ-verified facilities (CMS enrollment legal name matches "
-    "provider-info legal name). Missing HPRD or star ratings are omitted from means but the "
-    "facility remains in the table. Weighted means use average daily census when published, "
-    "otherwise certified beds; facilities with neither are included in the simple facility "
-    "average only, not the census-weighted mean. Total nurse HPRD values below "
+    "Portfolio HPRD is a descriptive linked-facility statistic (not owner-attributable "
+    "staffing responsibility). Means use PBJ-verified facilities whose CMS relationship "
+    "to the profile began on or before the PBJ quarter start (any role category), with "
+    "usable HPRD and a census or certified-beds weight. Each CCN counts once. Missing "
+    "HPRD or star ratings are omitted from means but the facility remains in the table. "
+    "Total nurse HPRD values below "
     f"{PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} HPRD are excluded as implausible "
     "(aligned with CMS PBJ public-use quarterly exclusion rules). Overall star ratings outside "
     f"{PORTFOLIO_OVERALL_RATING_MIN:g}–{PORTFOLIO_OVERALL_RATING_MAX:g} are excluded."
+)
+
+# Exact help body for the owner-profile Portfolio HPRD card (?).
+PORTFOLIO_HPRD_CARD_HELP = (
+    "Resident-weighted average nurse HPRD across CMS-linked facilities whose relationship "
+    "to this profile was in place by the start of the reporting quarter. Each facility is "
+    "counted once. Facilities with uncertain timing, an unverified PBJ match, or unusable "
+    "staffing data are excluded. This describes associated facilities and does not establish "
+    "responsibility for staffing."
 )
 
 
@@ -552,9 +562,10 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     elif method in ("name_exact", "fuzzy") and ccn:
         out["pbj_suggested"] = True
 
-    # Per-metric attribution: PBJ HPRD uses the facility/Norm PBJ quarter;
-    # Care Compare stars are facility context only (not owner-period performance).
+    # Portfolio HPRD: timing-only linked-facility inclusion vs PBJ quarter.
+    # Care Compare stars remain facility context only (not period performance).
     from ownership.relationship_period import (
+        portfolio_inclusion_status_for_facility,
         attribution_status_for_facility,
         parse_pbj_quarter_bounds,
     )
@@ -566,20 +577,24 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
     else:
         metric_start, metric_end = bounds
     out["pbj_metric_quarter"] = q_label
-    out["hprd_attribution_status"] = attribution_status_for_facility(
+    inclusion = portfolio_inclusion_status_for_facility(
         out,
         metric_start=metric_start,
         metric_end=metric_end,
         metric_kind="pbj_hprd",
     )
+    # Primary: descriptive portfolio inclusion (any CMS role; timing gate only).
+    out["hprd_portfolio_inclusion_status"] = inclusion
+    # Legacy alias used by older rollup/tests — same portfolio timing value,
+    # not causal ownership/staffing attribution.
+    out["hprd_attribution_status"] = inclusion
     out["rating_attribution_status"] = attribution_status_for_facility(
         out,
         metric_start=metric_start,
         metric_end=metric_end,
         metric_kind="overall_rating",
     )
-    # Legacy key: HPRD timing gate only (ratings no longer ride this flag).
-    out["attribution_status"] = out["hprd_attribution_status"]
+    out["attribution_status"] = inclusion
     return out
 
 
@@ -660,9 +675,14 @@ def build_entity_portfolio_summary(
     if not facilities:
         return {}
     rows = [entity_facility_for_portfolio(f, provider_info) for f in facilities]
-    # Entity pages are facility-roster context (not ownership-period attribution).
+    # Entity pages are facility-roster context (not PAC relationship timing).
     for row in rows:
-        if row.get("pbj_matched") and not str(row.get("hprd_attribution_status") or "").strip():
+        if row.get("pbj_matched") and not str(
+            row.get("hprd_portfolio_inclusion_status")
+            or row.get("hprd_attribution_status")
+            or ""
+        ).strip():
+            row["hprd_portfolio_inclusion_status"] = "supported"
             row["hprd_attribution_status"] = "supported"
     return _rollup_portfolio_metrics(rows, context="entity")
 
@@ -700,6 +720,10 @@ def _rollup_portfolio_metrics(
     n_rating_outlier_excluded = 0
     n_missing_resident_weight = 0
     n_attribution_excluded = 0
+    n_timing_uncertain = 0
+    n_hprd_weight_excluded = 0
+    hprd_weight_sum = 0.0
+    hprd_numerator = 0.0
     for f in enriched:
         if f.get("pbj_matched"):
             pbj_matched += 1
@@ -721,33 +745,40 @@ def _rollup_portfolio_metrics(
         if not f.get("pbj_matched"):
             continue
 
-        # Owner-attributed HPRD only: association timing + ownership_interest.
-        # Care Compare ratings stay on facility rows / distribution context and
-        # are NOT treated as contemporaneous owner performance means.
+        # Portfolio HPRD: timing-eligible linked facilities (any CMS role).
+        # Not causal owner-attributable staffing responsibility.
         hprd_status = str(
-            f.get("hprd_attribution_status") or f.get("attribution_status") or ""
+            f.get("hprd_portfolio_inclusion_status")
+            or f.get("hprd_attribution_status")
+            or f.get("attribution_status")
+            or ""
         )
         if hprd_status == "exclude":
             n_attribution_excluded += 1
         elif hprd_status == "supported":
             weight = _portfolio_metric_weight(f)
-            if weight is None:
-                n_missing_resident_weight += 1
             h = _parse_float(f.get("hprd"))
             if h is None:
                 n_missing_hprd += 1
+                n_hprd_weight_excluded += 1
             elif not is_plausible_portfolio_hprd(h):
                 n_hprd_outlier_excluded += 1
+                n_hprd_weight_excluded += 1
+            elif weight is None:
+                n_missing_resident_weight += 1
+                n_hprd_weight_excluded += 1
             else:
                 hprd_unweighted.append(h)
-                if weight is not None:
-                    hprd_weighted.append((h, weight))
+                hprd_weighted.append((h, weight))
+                hprd_numerator += h * weight
+                hprd_weight_sum += weight
         else:
-            # uncertain / facility_context / missing — skip owner HPRD mean
+            # uncertain / facility_context / missing — skip Portfolio HPRD mean
+            n_timing_uncertain += 1
             if _parse_float(f.get("hprd")) is None:
                 n_missing_hprd += 1
 
-        # Ratings: facility-context distributions only (not owner-period means).
+        # Ratings: facility-context distributions only (not period means).
         # Keep star histograms for portfolio UI context; do not require timing gate.
         ovr = _parse_float(f.get("overall_rating"))
         if ovr is None:
@@ -778,10 +809,8 @@ def _rollup_portfolio_metrics(
 
     wmean_hprd = None
     umean_hprd = None
-    if hprd_weighted:
-        tw = sum(w for _, w in hprd_weighted)
-        if tw > 0:
-            wmean_hprd = sum(h * w for h, w in hprd_weighted) / tw
+    if hprd_weighted and hprd_weight_sum > 0:
+        wmean_hprd = hprd_numerator / hprd_weight_sum
     if hprd_unweighted:
         umean_hprd = sum(hprd_unweighted) / len(hprd_unweighted)
 
@@ -832,10 +861,14 @@ def _rollup_portfolio_metrics(
         "n_rating_outlier_excluded": n_rating_outlier_excluded,
         "n_missing_resident_weight": n_missing_resident_weight,
         "n_attribution_excluded": n_attribution_excluded,
+        "n_timing_uncertain": n_timing_uncertain,
+        "n_hprd_weight_excluded": n_hprd_weight_excluded,
+        "hprd_numerator": round(hprd_numerator, 6) if hprd_weighted else None,
+        "hprd_weight_denominator": round(hprd_weight_sum, 6) if hprd_weighted else None,
         "sff_count": sff_count,
         "low_staffing_rating_count": low_staff,
         "pct_low_staffing_rating": pct_low_staffing,
-        # Owner pages omit Care Compare means as owner-period performance.
+        # Owner pages omit Care Compare means as period performance.
         # Entity pages keep facility-roster means (still facility context).
         "mean_overall_rating": mean_overall if context == "entity" else None,
         "umean_overall_rating": umean_overall if context == "entity" else None,
@@ -845,22 +878,29 @@ def _rollup_portfolio_metrics(
         "hprd_attribution": (
             "entity_facility_roster"
             if context == "entity"
-            else "pbj_quarter_full_period_ownership_or_managing_control"
+            else "pbj_quarter_full_period_linked_facility"
         ),
-        "n_hprd_supported_facilities": len(hprd_unweighted),
+        "hprd_metric_scope": (
+            "entity_facility_roster"
+            if context == "entity"
+            else "portfolio_linked_facility_timing"
+        ),
+        # n = CCNs contributing to the weighted mean (require weight + usable HPRD).
+        "n_hprd_supported_facilities": len(hprd_weighted),
+        "n_hprd_portfolio_facilities": len(hprd_weighted),
         "hprd_eligible_label": (
-            f"PBJ HPRD across {len(hprd_unweighted)} facilit"
-            f"{'y' if len(hprd_unweighted) == 1 else 'ies'}"
+            f"Portfolio HPRD across {len(hprd_weighted)} facilit"
+            f"{'y' if len(hprd_weighted) == 1 else 'ies'}"
             + (
                 " on this entity roster"
                 if context == "entity"
-                else " with supported ownership-period overlap"
+                else " with a CMS relationship in place by the PBJ quarter start"
             )
-            if hprd_unweighted
+            if hprd_weighted
             else (
                 "No PBJ HPRD values on this entity roster"
                 if context == "entity"
-                else "No facilities with supported ownership-period HPRD overlap"
+                else "No linked facilities with quarter-active timing and usable PBJ HPRD"
             )
         ),
         "overall_star_counts": overall_star_counts,

@@ -1624,8 +1624,8 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
             seen_roles.add(rk)
             roles_list.append(role_entry)
 
-        # Display primary: category-rank (never CSV first-seen). HPRD attribution
-        # evaluates every role with that role's own association_date via roles[].
+        # Display primary: category-rank (never CSV first-seen). Portfolio HPRD
+        # inclusion evaluates every role with that role's own association_date via roles[].
         from ownership.role_classification import (
             CATEGORY_RANK,
             CODE_PRIORITY,

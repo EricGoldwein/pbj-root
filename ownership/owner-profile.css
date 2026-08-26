@@ -821,6 +821,7 @@
 .owner-snapshot-label-text,
 .owner-snapshot-label-full {
   min-width: 0;
+  white-space: nowrap;
 }
 
 .owner-snapshot-label-short {

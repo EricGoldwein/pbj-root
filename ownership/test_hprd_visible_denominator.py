@@ -45,6 +45,7 @@ def _fac(
         "hprd": hprd,
         "census": census,
         "pbj_matched": matched,
+        "hprd_portfolio_inclusion_status": attribution,
         "hprd_attribution_status": attribution,
         "role_category": role_category,
         "overall_rating": "3",
@@ -98,13 +99,14 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertIn("n = 2", html)
         self.assertIn("owner-snapshot-sub", html)
         self.assertIn("Linked facilities", html)
+        self.assertIn("Portfolio HPRD", html)
         self.assertNotIn("4 of 4", html)
         self.assertIn(
-            "Owner-level PBJ staffing metrics use only qualifying facilities",
+            "does not establish responsibility for staffing",
             html,
         )
 
-    def test_control_only_shows_no_owner_hprd_mean(self) -> None:
+    def test_timing_uncertain_only_shows_no_portfolio_hprd_mean(self) -> None:
         facilities = [
             _fac(
                 ccn="000010",
@@ -114,7 +116,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
             _fac(
                 ccn="000011",
                 attribution="uncertain",
-                role_category="operational_control",
+                role_category="corporate_governance",
             ),
         ]
         with patch(
@@ -125,12 +127,11 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 0)
         self.assertIsNone(ps.get("wmean_hprd"))
         html = portfolio_snapshot_section_html(ps, context="owner")
+        self.assertNotIn("Portfolio HPRD", html)
         self.assertNotIn("Weighted HPRD", html)
-        self.assertNotIn("qualifying facilit", html)
-        self.assertNotIn("of 4 facilit", html)
 
-    def test_mitchell_274_reconciles_to_supported_hprd(self) -> None:
-        """Exact taxonomy + HPRD eligibility reconciliation for PAC 0648429498."""
+    def test_mitchell_274_reconciles_to_portfolio_hprd(self) -> None:
+        """Exact taxonomy + Portfolio HPRD reconciliation for PAC 0648429498."""
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
 
@@ -149,11 +150,11 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         ps = profile.get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_facilities"), 274)
         n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
-        self.assertEqual(n_hprd, 68)
-        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.794, places=3)
+        self.assertEqual(n_hprd, 268)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.834, places=3)
         body, *_ = render_owner_profile_body(profile)
-        self.assertIn("Weighted HPRD", body)
-        self.assertIn("n = 68", body)
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 268", body)
 
     def test_large_oi_profiles_denominator_matches_calc(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
@@ -192,7 +193,7 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 1)
         self.assertIn("n = 1", html)
 
-    def test_soon_burnam_control_only_shows_hprd_card(self) -> None:
+    def test_soon_burnam_portfolio_hprd_card(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
 
@@ -202,23 +203,24 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         ps = profile.get("portfolio_summary") or {}
         n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
         wmean = ps.get("wmean_hprd")
-        self.assertEqual(n_hprd, 65)
-        self.assertAlmostEqual(wmean, 3.823, places=3)
+        self.assertEqual(n_hprd, 334)
+        self.assertAlmostEqual(wmean, 3.721, places=3)
         facs = list(profile.get("facilities") or [])
         self.assertEqual(len(facs), 351)
-        supported = [f for f in facs if f.get("hprd_attribution_status") == "supported"]
-        self.assertEqual(len(supported), 65)
-        # One CCN once: no duplicate CCNs among supported rows.
-        self.assertEqual(len({f.get("ccn") for f in supported}), 65)
-        for f in supported:
-            self.assertTrue(f.get("pbj_matched"))
-            self.assertTrue(f.get("hprd"))
-            self.assertTrue(f.get("census"))
-            codes = {str(r.get("role_code") or "") for r in (f.get("roles") or [])}
-            self.assertTrue(codes & {"43", "63"}, msg=f"expected 43/63 on {f.get('ccn')}")
+        supported = [
+            f
+            for f in facs
+            if str(
+                f.get("hprd_portfolio_inclusion_status")
+                or f.get("hprd_attribution_status")
+            )
+            == "supported"
+        ]
+        self.assertEqual(len(supported), 339)
+        self.assertEqual(len({f.get("ccn") for f in supported}), 339)
         body, title, *_ = render_owner_profile_body(profile)
-        self.assertIn("Weighted HPRD", body)
-        self.assertIn("n = 65", body)
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 334", body)
         self.assertNotIn("Nursing Home Ownership Interest", title)
         self.assertIn("Managing", title)
 

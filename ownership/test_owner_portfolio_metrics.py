@@ -128,8 +128,12 @@ class PortfolioPlausibilityTests(unittest.TestCase):
             ]
         )
         self.assertEqual(ps["n_missing_resident_weight"], 1)
+        self.assertEqual(ps["n_hprd_weight_excluded"], 1)
+        self.assertEqual(ps["n_hprd_portfolio_facilities"], 1)
+        # No-weight facilities are excluded from both weighted and unweighted means;
+        # n equals CCNs contributing to the weighted Portfolio HPRD.
         self.assertAlmostEqual(ps["wmean_hprd"], 4.0)
-        self.assertAlmostEqual(ps["umean_hprd"], 3.0)
+        self.assertAlmostEqual(ps["umean_hprd"], 4.0)
 
     def test_rating_outlier_excluded(self) -> None:
         ps = _summary(

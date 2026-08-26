@@ -1,9 +1,8 @@
-"""Role-aware CCN HPRD attribution: dual roles, role-specific dates, one weight."""
+"""Portfolio HPRD: timing-only linked-facility inclusion (any CMS role)."""
 from __future__ import annotations
 
 import sys
 import unittest
-from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,12 +11,14 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from ownership.owner_portfolio_metrics import (  # noqa: E402
+    PORTFOLIO_HPRD_CARD_HELP,
     build_portfolio_summary,
-    enrich_facility_row,
 )
+from ownership.portfolio_display import portfolio_snapshot_section_html  # noqa: E402
 from ownership.relationship_period import (  # noqa: E402
     attribution_status_for_facility,
     hprd_attribution_from_roles,
+    hprd_portfolio_inclusion_from_roles,
     parse_pbj_quarter_bounds,
     relationship_supported_for_period,
 )
@@ -29,149 +30,128 @@ def _bounds():
     return b
 
 
-class RoleAwareHprdAttributionTests(unittest.TestCase):
-    def test_dual_40_plus_63_qualifies_via_63_date(self) -> None:
+def _role(
+    code: str,
+    category: str,
+    assoc: str,
+    *,
+    role: str = "",
+) -> dict:
+    return {
+        "role": role or f"Role {code}",
+        "role_code": code,
+        "role_category": category,
+        "association_date": assoc,
+    }
+
+
+class PortfolioHprdInclusionTests(unittest.TestCase):
+    def test_active_governance_only_ccn_included(self) -> None:
         start, end = _bounds()
-        roles = [
-            {
-                "role": "Corporate Officer",
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2020",
-            },
-            {
-                "role": "Managing Control - Governing Body",
-                "role_code": "63",
-                "role_category": "operational_control",
-                "association_date": "06/01/2019",
-            },
-        ]
-        # Governance alone would not qualify; 63 with full-period date does.
+        roles = [_role("40", "corporate_governance", "01/01/2015")]
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
         self.assertEqual(
             relationship_supported_for_period(
-                "01/01/2020",
+                "01/01/2015",
                 start,
                 end,
                 metric_kind="pbj_hprd",
                 relationship_kind="governance",
                 role_code="40",
             ),
-            "uncertain",
-        )
-        self.assertEqual(
-            hprd_attribution_from_roles(roles, start, end),
             "supported",
         )
 
-    def test_dual_40_plus_43_qualifies_via_43_date(self) -> None:
+    def test_active_adp_only_ccn_included(self) -> None:
+        start, end = _bounds()
+        roles = [_role("72", "administrative_disclosure", "06/01/2019")]
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
+
+    def test_active_financial_other_role_ccn_included(self) -> None:
+        start, end = _bounds()
+        for code, cat in (
+            ("36", "financial_interest"),
+            ("37", "financial_interest"),
+            ("44", "other"),
+            ("25", "operational_control"),
+            ("42", "operational_control"),
+        ):
+            with self.subTest(code=code):
+                roles = [_role(code, cat, "01/01/2020")]
+                self.assertEqual(
+                    hprd_portfolio_inclusion_from_roles(roles, start, end),
+                    "supported",
+                )
+
+    def test_post_quarter_relationship_excluded(self) -> None:
+        start, end = _bounds()
+        roles = [_role("40", "corporate_governance", "05/01/2026")]
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "exclude")
+
+    def test_missing_timing_uncertain(self) -> None:
+        start, end = _bounds()
+        roles = [_role("43", "operational_control", "")]
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "uncertain")
+
+    def test_one_active_plus_one_later_includes_once(self) -> None:
         start, end = _bounds()
         roles = [
-            {
-                "role": "Corporate Officer",
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2018",
-            },
-            {
-                "role": "Operational/Managerial Control",
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "12/31/2025",
-            },
+            _role("40", "corporate_governance", "01/01/2018"),
+            _role("43", "operational_control", "05/01/2026"),
+        ]
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
+
+    def test_dual_40_plus_63_qualifies_via_earliest_timing(self) -> None:
+        start, end = _bounds()
+        roles = [
+            _role("40", "corporate_governance", "01/01/2020"),
+            _role("63", "operational_control", "06/01/2019"),
         ]
         self.assertEqual(hprd_attribution_from_roles(roles, start, end), "supported")
 
-    def test_role_specific_dates_not_shared_facility_date(self) -> None:
-        """Late governance date must not poison an earlier qualifying 43 date."""
+    def test_role_specific_dates_later_does_not_override_earlier(self) -> None:
         start, end = _bounds()
         roles = [
-            {
-                "role": "Corporate Officer",
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                # After quarter end — would be exclude if this date were used for 43.
-                "association_date": "05/01/2026",
-            },
-            {
-                "role": "Operational/Managerial Control",
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "01/01/2020",
-            },
+            _role("40", "corporate_governance", "05/01/2026"),
+            _role("72", "administrative_disclosure", "01/01/2020"),
         ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "supported")
-        # First-seen-only (40 after end) must not be the attribution rule.
-        self.assertEqual(
-            relationship_supported_for_period(
-                roles[0]["association_date"],
-                start,
-                end,
-                metric_kind="pbj_hprd",
-                relationship_kind="governance",
-                role_code="40",
-            ),
-            "uncertain",
-        )
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
 
-    def test_governance_only_visible_but_not_supported(self) -> None:
+    def test_early_40_plus_post_quarter_43_still_includes_via_40(self) -> None:
+        """Governance active by quarter start includes even if 43 is post-quarter."""
         start, end = _bounds()
         roles = [
-            {
-                "role": "Corporate Officer",
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2015",
-            },
-            {
-                "role": "Corporate Director",
-                "role_code": "41",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2016",
-            },
+            _role("40", "corporate_governance", "01/01/2015"),
+            _role("43", "operational_control", "05/01/2026"),
         ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "uncertain")
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
 
-    def test_qualifying_43_after_quarter_end_excludes(self) -> None:
+    def test_mid_quarter_plus_post_quarter_is_uncertain(self) -> None:
         start, end = _bounds()
         roles = [
-            {
-                "role": "Operational/Managerial Control",
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "05/01/2026",
-            }
+            _role("43", "operational_control", "02/15/2026"),
+            _role("63", "operational_control", "05/01/2026"),
         ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "exclude")
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "uncertain")
 
-    def test_one_ccn_one_weight_even_with_dual_qualifying_roles(self) -> None:
-        """Dual 43+63 on one CCN contributes a single weighted row."""
+    def test_duplicate_roles_never_duplicate_weight(self) -> None:
         facilities = [
             {
                 "ccn": "123456",
-                "facility_name": "Dual Control NH",
+                "facility_name": "Dual Role NH",
                 "state": "TX",
                 "ccn_match_method": "enrollment_exact",
                 "pbj_matched": True,
                 "hprd": "4.0",
                 "census": "100",
-                "role": "Operational/Managerial Control; Managing Control - Governing Body",
-                "role_code": "43",
-                "role_category": "operational_control",
+                "role_code": "40",
+                "role_category": "corporate_governance",
                 "association_date": "01/01/2020",
                 "roles": [
-                    {
-                        "role": "Operational/Managerial Control",
-                        "role_code": "43",
-                        "role_category": "operational_control",
-                        "association_date": "01/01/2020",
-                    },
-                    {
-                        "role": "Managing Control - Governing Body",
-                        "role_code": "63",
-                        "role_category": "operational_control",
-                        "association_date": "01/01/2019",
-                    },
+                    _role("40", "corporate_governance", "01/01/2020"),
+                    _role("63", "operational_control", "01/01/2019"),
                 ],
+                "hprd_portfolio_inclusion_status": "supported",
                 "hprd_attribution_status": "supported",
             }
         ]
@@ -182,85 +162,54 @@ class RoleAwareHprdAttributionTests(unittest.TestCase):
             ps = build_portfolio_summary(facilities)
         self.assertEqual(ps.get("n_facilities"), 1)
         self.assertEqual(ps.get("n_hprd_supported_facilities"), 1)
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
         self.assertAlmostEqual(ps.get("wmean_hprd"), 4.0)
+        self.assertAlmostEqual(ps.get("hprd_numerator"), 400.0)
+        self.assertAlmostEqual(ps.get("hprd_weight_denominator"), 100.0)
 
-    def test_attribution_status_for_facility_uses_roles_list(self) -> None:
-        start, end = _bounds()
-        fac = {
-            "role_code": "40",
-            "role_category": "corporate_governance",
-            "association_date": "05/01/2026",
-            "roles": [
-                {
-                    "role_code": "40",
-                    "role_category": "corporate_governance",
-                    "association_date": "05/01/2026",
-                },
-                {
-                    "role_code": "63",
-                    "role_category": "operational_control",
-                    "association_date": "01/01/2018",
-                },
-            ],
-        }
-        self.assertEqual(
-            attribution_status_for_facility(
-                fac, metric_start=start, metric_end=end, metric_kind="pbj_hprd"
-            ),
-            "supported",
-        )
-
-    def test_early_40_plus_post_quarter_43_excludes(self) -> None:
-        """Early governance + post-quarter 43 → exclude (no supported qualifying role)."""
-        start, end = _bounds()
-        roles = [
+    def test_unmatched_pbj_and_invalid_hprd_excluded(self) -> None:
+        facilities = [
             {
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2015",
+                "ccn": "000001",
+                "facility_name": "Unmatched",
+                "state": "TX",
+                "pbj_matched": False,
+                "hprd": "4.0",
+                "census": "100",
+                "hprd_portfolio_inclusion_status": "supported",
+                "hprd_attribution_status": "supported",
             },
             {
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "05/01/2026",
+                "ccn": "000002",
+                "facility_name": "Outlier",
+                "state": "TX",
+                "pbj_matched": True,
+                "hprd": "0.4",
+                "census": "100",
+                "hprd_portfolio_inclusion_status": "supported",
+                "hprd_attribution_status": "supported",
+            },
+            {
+                "ccn": "000003",
+                "facility_name": "Good",
+                "state": "TX",
+                "pbj_matched": True,
+                "hprd": "3.5",
+                "census": "50",
+                "hprd_portfolio_inclusion_status": "supported",
+                "hprd_attribution_status": "supported",
             },
         ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "exclude")
+        with patch(
+            "ownership.owner_portfolio_metrics.enrich_facilities",
+            side_effect=lambda rows: rows,
+        ):
+            ps = build_portfolio_summary(facilities)
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
+        self.assertEqual(ps.get("n_hprd_outlier_excluded"), 1)
+        self.assertAlmostEqual(ps.get("wmean_hprd"), 3.5)
 
-    def test_early_40_plus_post_quarter_63_excludes(self) -> None:
-        start, end = _bounds()
-        roles = [
-            {
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2015",
-            },
-            {
-                "role_code": "63",
-                "role_category": "operational_control",
-                "association_date": "04/15/2026",
-            },
-        ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "exclude")
-
-    def test_mid_quarter_plus_post_quarter_qualifying_is_uncertain(self) -> None:
-        """Mid-quarter 43 + post-quarter 63 → uncertain (qualifying uncertain beats exclude)."""
-        start, end = _bounds()
-        roles = [
-            {
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "02/15/2026",
-            },
-            {
-                "role_code": "63",
-                "role_category": "operational_control",
-                "association_date": "05/01/2026",
-            },
-        ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "uncertain")
-
-    def test_weighted_hprd_label_when_n_hprd_is_one(self) -> None:
+    def test_rendered_n_equals_contributing_ccn_count(self) -> None:
         from ownership.portfolio_display import portfolio_snapshot_section_html
 
         ps = {
@@ -270,81 +219,174 @@ class RoleAwareHprdAttributionTests(unittest.TestCase):
             "wmean_hprd": 3.5,
             "umean_hprd": 3.5,
             "n_hprd_supported_facilities": 1,
-            "hprd_eligible_label": "PBJ HPRD across 1 facility with supported ownership-period overlap",
+            "n_hprd_portfolio_facilities": 1,
             "by_state": [("TX", 6), ("CA", 4)],
             "overall_star_counts": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
             "staffing_star_counts": {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
         }
         html = portfolio_snapshot_section_html(ps, context="owner")
-        self.assertIn("Weighted HPRD", html)
+        self.assertIn("Portfolio HPRD", html)
         self.assertIn("n = 1", html)
-        self.assertIn("owner-snapshot-sub", html)
+        self.assertIn(PORTFOLIO_HPRD_CARD_HELP[:40], html)
+        self.assertNotIn("Weighted HPRD", html)
+        self.assertNotIn("owner-attributable", html.lower())
 
-    def test_one_ccn_multiple_qualifying_roles_single_weight_row(self) -> None:
-        """OI + 43 + 63 on one CCN still yields exactly one weighted contribution."""
+    def test_attribution_status_for_facility_uses_roles_list(self) -> None:
+        start, end = _bounds()
+        fac = {
+            "role_code": "40",
+            "role_category": "corporate_governance",
+            "association_date": "05/01/2026",
+            "roles": [
+                _role("40", "corporate_governance", "05/01/2026"),
+                _role("72", "administrative_disclosure", "01/01/2018"),
+            ],
+        }
+        self.assertEqual(
+            attribution_status_for_facility(
+                fac, metric_start=start, metric_end=end, metric_kind="pbj_hprd"
+            ),
+            "supported",
+        )
+
+    def test_one_ccn_multiple_roles_single_weight_row(self) -> None:
         facilities = [
             {
                 "ccn": "999001",
-                "facility_name": "Triple Role NH",
+                "facility_name": "Multi Role NH",
                 "state": "FL",
                 "ccn_match_method": "enrollment_exact",
                 "pbj_matched": True,
                 "hprd": "3.25",
                 "census": "80",
-                "role_code": "43",
-                "role_category": "operational_control",
+                "role_code": "40",
+                "role_category": "corporate_governance",
                 "association_date": "01/01/2018",
                 "roles": [
-                    {
-                        "role_code": "35",
-                        "role_category": "ownership_interest",
-                        "association_date": "01/01/2017",
-                    },
-                    {
-                        "role_code": "43",
-                        "role_category": "operational_control",
-                        "association_date": "01/01/2018",
-                    },
-                    {
-                        "role_code": "63",
-                        "role_category": "operational_control",
-                        "association_date": "01/01/2019",
-                    },
+                    _role("35", "ownership_interest", "01/01/2017"),
+                    _role("40", "corporate_governance", "01/01/2018"),
+                    _role("72", "administrative_disclosure", "01/01/2019"),
                 ],
+                "hprd_portfolio_inclusion_status": "supported",
                 "hprd_attribution_status": "supported",
-            },
-            {
-                "ccn": "999001",  # duplicate CCN must not double-count if present
-                "facility_name": "Triple Role NH Dup",
-                "state": "FL",
-                "ccn_match_method": "enrollment_exact",
-                "pbj_matched": True,
-                "hprd": "3.25",
-                "census": "80",
-                "role_code": "43",
-                "role_category": "operational_control",
-                "association_date": "01/01/2018",
-                "roles": [
-                    {
-                        "role_code": "43",
-                        "role_category": "operational_control",
-                        "association_date": "01/01/2018",
-                    }
-                ],
-                "hprd_attribution_status": "supported",
-            },
+            }
         ]
-        # Production rollup is per facility row; profile dedupes to one row per CCN.
-        # Assert the intended one-CCN universe (deduped) contributes once.
-        deduped = {f["ccn"]: f for f in facilities}
         with patch(
             "ownership.owner_portfolio_metrics.enrich_facilities",
             side_effect=lambda rows: rows,
         ):
-            ps = build_portfolio_summary(list(deduped.values()))
+            ps = build_portfolio_summary(facilities)
         self.assertEqual(ps.get("n_facilities"), 1)
-        self.assertEqual(ps.get("n_hprd_supported_facilities"), 1)
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
         self.assertAlmostEqual(ps.get("wmean_hprd"), 3.25)
+
+
+class PortfolioHprdLivePacTests(unittest.TestCase):
+    """Exact Burnam / Landa / Mitchell Portfolio HPRD results."""
+
+    def _reconcile(self, pac: str) -> dict:
+        from ownership.owner_profile import load_owner_profile_resolved
+        from ownership.owner_portfolio_metrics import (
+            _parse_float,
+            _portfolio_metric_weight,
+            is_plausible_portfolio_hprd,
+        )
+
+        profile = load_owner_profile_resolved(pac)
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        facs = list(profile.get("facilities") or [])
+        included = timing = pbj = hprd_w = 0
+        num = den = 0.0
+        for f in facs:
+            status = str(
+                f.get("hprd_portfolio_inclusion_status")
+                or f.get("hprd_attribution_status")
+                or ""
+            )
+            if not f.get("pbj_matched"):
+                pbj += 1
+                continue
+            if status == "supported":
+                h = _parse_float(f.get("hprd"))
+                w = _portfolio_metric_weight(f)
+                if h is None or not is_plausible_portfolio_hprd(h) or w is None:
+                    hprd_w += 1
+                else:
+                    included += 1
+                    num += h * w
+                    den += w
+            else:
+                timing += 1
+        total = len(facs)
+        self.assertEqual(total, included + timing + pbj + hprd_w)
+        wmean = num / den if den else None
+        return {
+            "profile": profile,
+            "total": total,
+            "included": included,
+            "timing": timing,
+            "pbj": pbj,
+            "hprd_w": hprd_w,
+            "num": num,
+            "den": den,
+            "wmean": wmean,
+        }
+
+    def test_burnam_exact_portfolio_hprd(self) -> None:
+        from ownership.owner_profile_html import render_owner_profile_body
+
+        r = self._reconcile("9739195553")
+        self.assertEqual(r["total"], 351)
+        self.assertEqual(r["timing"], 11)
+        self.assertEqual(r["pbj"], 1)
+        self.assertEqual(r["hprd_w"], 5)
+        self.assertEqual(r["included"], 334)
+        self.assertAlmostEqual(r["num"], 111895.126817, places=5)
+        self.assertAlmostEqual(r["den"], 30073.7, places=1)
+        self.assertAlmostEqual(r["wmean"], 3.720697048151707, places=9)
+        ps = r["profile"].get("portfolio_summary") or {}
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 334)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.721, places=3)
+        body, *_ = render_owner_profile_body(r["profile"])
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 334", body)
+        self.assertIn("3.72", body)
+        self.assertIn(PORTFOLIO_HPRD_CARD_HELP[:50], body)
+
+    def test_landa_exact_portfolio_hprd(self) -> None:
+        from ownership.owner_profile_html import render_owner_profile_body
+
+        r = self._reconcile("7810804515")
+        self.assertEqual(r["total"], 106)
+        self.assertEqual(r["timing"], 0)
+        self.assertEqual(r["pbj"], 0)
+        self.assertEqual(r["hprd_w"], 2)
+        self.assertEqual(r["included"], 104)
+        self.assertAlmostEqual(r["wmean"], 3.5244170631190554, places=9)
+        ps = r["profile"].get("portfolio_summary") or {}
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 104)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.524, places=3)
+        body, *_ = render_owner_profile_body(r["profile"])
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 104", body)
+
+    def test_mitchell_exact_portfolio_hprd(self) -> None:
+        from ownership.owner_profile_html import render_owner_profile_body
+
+        r = self._reconcile("0648429498")
+        self.assertEqual(r["total"], 274)
+        self.assertEqual(r["timing"], 0)
+        self.assertEqual(r["pbj"], 1)
+        self.assertEqual(r["hprd_w"], 5)
+        self.assertEqual(r["included"], 268)
+        self.assertAlmostEqual(r["wmean"], 3.8337529897117686, places=9)
+        ps = r["profile"].get("portfolio_summary") or {}
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 268)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.834, places=3)
+        body, *_ = render_owner_profile_body(r["profile"])
+        self.assertIn("Portfolio HPRD", body)
+        self.assertIn("n = 268", body)
 
 
 if __name__ == "__main__":

@@ -298,7 +298,8 @@ class TemporalAttributionTests(unittest.TestCase):
             "supported",
         )
 
-    def test_governance_and_adp_do_not_qualify_alone(self) -> None:
+    def test_governance_and_adp_and_managing_employees_qualify_by_timing(self) -> None:
+        """Portfolio HPRD is timing-only: any CMS role with assoc ≤ Q start is included."""
         start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
         for kind, code in (
             ("governance", "40"),
@@ -306,6 +307,8 @@ class TemporalAttributionTests(unittest.TestCase):
             ("administrative", "72"),
             ("control_or_management", "25"),
             ("control_or_management", "42"),
+            ("financial", "36"),
+            ("other_or_unknown", "44"),
         ):
             self.assertEqual(
                 relationship_supported_for_period(
@@ -316,7 +319,7 @@ class TemporalAttributionTests(unittest.TestCase):
                     relationship_kind=kind,
                     role_code=code,
                 ),
-                "uncertain",
+                "supported",
                 msg=f"{kind}/{code}",
             )
 

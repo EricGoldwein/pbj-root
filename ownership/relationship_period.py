@@ -1,5 +1,5 @@
 """
-Temporal attribution helpers for CMS association timing vs metric periods.
+Temporal helpers for CMS association timing vs metric periods.
 
 ## What ASSOCIATION DATE - OWNER establishes (CMS)
 
@@ -21,29 +21,28 @@ What the field **does not** establish:
 - That the associate held the relationship for an entire metric period.
 - That Care Compare star ratings or other survey-era metrics are contemporaneous
   with that association.
+- Causal responsibility for staffing outcomes.
 
-## PBJ quarterly HPRD attribution
+## Portfolio HPRD inclusion (descriptive, not attribution)
 
-A facility CCN is HPRD-eligible at most once. It qualifies when **at least one**
-CMS role on that CCN is a supported relationship for the PBJ quarter:
+The owner-profile **Portfolio HPRD** card is a descriptive statistic over
+CMS-linked facilities. A facility CCN is included at most once when **at least
+one** preserved CMS relationship for that PAC began on or before the **start**
+of the PBJ quarter — **regardless of role category** (ownership interest,
+managing control, officers/directors, governing body, managing employees, ADP,
+financial/security, or other CMS codes).
 
-- ``ownership_interest`` (CMS ownership-interest role codes), or
-- CMS role code **43** (OPERATIONAL/MANAGERIAL CONTROL), or
-- CMS role code **63** (MANAGING CONTROL - GOVERNING BODY)
+Each relationship is evaluated with **that role's own** ASSOCIATION DATE - OWNER
+(not CSV first-seen order, and not a single shared facility date). A later role
+must not override an earlier timing-qualifying relationship.
 
-Each role is evaluated with **that role's own** ASSOCIATION DATE - OWNER
-(not CSV first-seen order, and not a single shared facility date).
+Association after quarter end → ``exclude`` for that relationship.
+Association mid-quarter (after start, on/before end) or missing date →
+``uncertain`` until a national daily PBJ windowed HPRD loader exists
+(see PARTIAL_PERIOD_HPRD_*). Uncertain and exclude statuses are omitted from
+the Portfolio HPRD mean.
 
-Full-period ``supported`` for a qualifying role requires association_date on or
-before the **start** of the PBJ quarter.
-
-Association after quarter end → ``exclude`` for that qualifying role.
-Association mid-quarter (after start, on/before end) → ``uncertain`` until a
-national daily PBJ windowed HPRD loader exists (see PARTIAL_PERIOD_HPRD_*).
-
-Corporate governance alone (codes **40** OFFICER / **41** DIRECTOR) and other
-non-qualifying roles (e.g. **72** ADP OF THE SNF) stay visible on the profile
-but do **not** qualify the CCN for owner-level HPRD means.
+This is **not** owner-attributable / causal staffing responsibility.
 """
 from __future__ import annotations
 
@@ -60,8 +59,8 @@ PARTIAL_PERIOD_HPRD_NOTE = (
     "HPRD only; mid-quarter associations are uncertain, not manufactured means."
 )
 
-# CMS SNF All Owners Owner Role Code Reference Table — managing-control codes
-# that qualify for owner-level PBJ HPRD (in addition to ownership_interest).
+# Deprecated: role codes no longer gate Portfolio HPRD. Kept for import
+# compatibility with older call sites / notebooks.
 HPRD_QUALIFYING_MANAGING_CONTROL_CODES = frozenset({"43", "63"})
 
 AssociationTiming = Literal[
@@ -73,7 +72,8 @@ AssociationTiming = Literal[
 ]
 
 MetricAttributionMode = Literal[
-    "owner_performance_candidate",
+    "portfolio_linked_facility",  # Portfolio HPRD: timing-only linked-facility inclusion
+    "owner_performance_candidate",  # legacy alias of portfolio_linked_facility
     "facility_context_only",
     "unsupported",
 ]
@@ -89,8 +89,10 @@ RelationshipKind = Literal[
     "chow_party",
 ]
 
+# Portfolio inclusion statuses reused for the HPRD card gate.
+# "supported" means timing-eligible for portfolio inclusion — not causal attribution.
 AttributionStatus = Literal[
-    "supported",  # full-period attributable (OI / code 43 / code 63 + assoc ≤ Q start)
+    "supported",
     "partial_period_supported",  # reserved; not emitted while PARTIAL_PERIOD_HPRD_SUPPORTED is False
     "exclude",
     "uncertain",
@@ -142,10 +144,9 @@ def parse_pbj_quarter_bounds(quarter: Any) -> tuple[date, date] | None:
     m = _QUARTER_RE.search(s)
     if not m:
         m2 = re.search(r"(20\d{2})\s*Q\s*([1-4])", s, re.IGNORECASE)
-        if m2:
-            year, q = int(m2.group(1)), int(m2.group(2))
-        else:
+        if not m2:
             return None
+        year, q = int(m2.group(1)), int(m2.group(2))
     else:
         q = int(m.group(1))
         year = int(m.group(2))
@@ -180,23 +181,19 @@ def role_qualifies_for_owner_hprd(
     relationship_kind: RelationshipKind | str | None = None,
 ) -> bool:
     """
-    True when this CMS role may attribute owner-level PBJ HPRD.
+    Deprecated: Portfolio HPRD no longer role-gates.
 
-    Qualifying: ownership_interest category/kind, or CMS codes 43 / 63.
-    Codes 40/41 (governance), 72 (ADP), 25/42 (other managing-employee codes),
-    and other non-OI roles do not qualify on their own.
+    Always returns True. CMS relationship category is not used as evidence of
+    staffing responsibility. Prefer timing-only portfolio inclusion helpers.
     """
-    kind = str(relationship_kind or "").strip()
-    if kind == "ownership_interest":
-        return True
-    code = normalize_hprd_role_code(role_code)
-    return code in HPRD_QUALIFYING_MANAGING_CONTROL_CODES
+    del role_code, relationship_kind
+    return True
 
 
 def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
     kind = str(metric_kind or "").strip().lower()
     if kind in ("pbj_hprd", "pbj_nurse_hprd", "hprd", "reported_total_nurse_hprd"):
-        return "owner_performance_candidate"
+        return "portfolio_linked_facility"
     if kind.startswith("care_compare") or kind in (
         "overall_rating",
         "staffing_rating",
@@ -263,6 +260,20 @@ def association_timing_vs_period(
     return "association_began_on_or_before_period_start"
 
 
+def _timing_to_portfolio_status(timing: AssociationTiming) -> AttributionStatus:
+    if timing == "association_began_after_period_end":
+        return "exclude"
+    if timing in ("association_date_missing", "metric_period_unknown"):
+        return "uncertain"
+    if timing == "association_began_on_or_before_period_start":
+        return "supported"
+    if timing == "association_began_during_period":
+        if PARTIAL_PERIOD_HPRD_SUPPORTED:
+            return "partial_period_supported"
+        return "uncertain"
+    return "uncertain"
+
+
 def relationship_supported_for_period(
     association_start: Any,
     metric_start: Any,
@@ -273,18 +284,20 @@ def relationship_supported_for_period(
     metric_kind: str | None = None,
 ) -> AttributionStatus:
     """
-    Gate for one CMS role against a metric window.
+    Gate for one CMS relationship against a metric window.
 
-    PBJ HPRD qualifying roles (ownership_interest, or codes 43 / 63):
-      assoc ≤ quarter start → supported (full-period)
+    Portfolio HPRD (``pbj_hprd``): **timing only** — any CMS role category.
+      assoc ≤ quarter start → supported (portfolio-included)
       start < assoc ≤ end → uncertain (partial daily HPRD not available)
       assoc > end → exclude
-
-    Non-qualifying roles (governance 40/41, ADP 72, other control codes, etc.)
-    → uncertain for HPRD means (still visible on profiles).
+      missing / unknown period → uncertain
 
     Care Compare ratings → facility_context.
+
+    ``relationship_kind`` / ``role_code`` are accepted for call-site compatibility
+    and are **not** used to exclude relationships from Portfolio HPRD.
     """
+    del relationship_kind, role_code  # not an eligibility gate for Portfolio HPRD
     mode = metric_attribution_mode(metric_kind or "")
     if metric_kind and mode == "facility_context_only":
         return "facility_context"
@@ -292,36 +305,15 @@ def relationship_supported_for_period(
         return "facility_context"
 
     timing = association_timing_vs_period(association_start, metric_start, metric_end)
-    kind = str(relationship_kind or "").strip() or "other_or_unknown"
-    qualifies = role_qualifies_for_owner_hprd(
-        role_code=role_code, relationship_kind=kind
-    )
 
-    if metric_kind and mode == "owner_performance_candidate":
-        if not qualifies:
-            return "uncertain"
-        if timing == "association_began_after_period_end":
-            return "exclude"
-        if timing in ("association_date_missing", "metric_period_unknown"):
-            return "uncertain"
-        if timing == "association_began_on_or_before_period_start":
-            return "supported"
-        if timing == "association_began_during_period":
-            if PARTIAL_PERIOD_HPRD_SUPPORTED:
-                return "partial_period_supported"
-            return "uncertain"
-        return "uncertain"
+    if metric_kind and mode in (
+        "portfolio_linked_facility",
+        "owner_performance_candidate",
+    ):
+        return _timing_to_portfolio_status(timing)
 
     # Timing-only legacy path (no metric_kind): require full-period for "supported".
-    if timing == "association_began_after_period_end":
-        return "exclude"
-    if timing in ("association_date_missing", "metric_period_unknown"):
-        return "uncertain"
-    if timing == "association_began_on_or_before_period_start":
-        return "supported"
-    if timing == "association_began_during_period":
-        return "uncertain"
-    return "supported"
+    return _timing_to_portfolio_status(timing)
 
 
 def _role_dict_kind_and_code(role: dict[str, Any]) -> tuple[RelationshipKind, str]:
@@ -359,28 +351,25 @@ def _role_dict_kind_and_code(role: dict[str, Any]) -> tuple[RelationshipKind, st
     return kind, code
 
 
-def hprd_attribution_from_roles(
+def hprd_portfolio_inclusion_from_roles(
     roles: list[dict[str, Any]] | None,
     metric_start: Any,
     metric_end: Any,
 ) -> AttributionStatus:
     """
-    Aggregate per-role HPRD attribution for one CCN.
+    Aggregate per-role **portfolio inclusion** timing for one CCN.
 
-    Each role uses its own association_date. The CCN is ``supported`` if any
-    qualifying role is supported; never double-counts for weighting (caller
-    still weights the CCN once).
+    Every CMS role is eligible. Each role uses its own association_date.
+    The CCN is ``supported`` if any relationship began on/before quarter start.
+    Weighting still happens once per CCN at the rollup layer.
     """
     role_list = [r for r in (roles or []) if isinstance(r, dict)]
     if not role_list:
         return "uncertain"
 
-    qual_statuses: list[AttributionStatus] = []
+    statuses: list[AttributionStatus] = []
     for role in role_list:
         kind, code = _role_dict_kind_and_code(role)
-        qualifies = role_qualifies_for_owner_hprd(
-            role_code=code, relationship_kind=kind
-        )
         status = relationship_supported_for_period(
             role.get("association_date")
             or role.get("ASSOCIATION DATE - OWNER"),
@@ -390,29 +379,40 @@ def hprd_attribution_from_roles(
             role_code=code,
             metric_kind="pbj_hprd",
         )
-        if qualifies:
-            qual_statuses.append(status)
+        statuses.append(status)
 
-    if any(s == "supported" for s in qual_statuses):
+    if any(s == "supported" for s in statuses):
         return "supported"
-    if any(s == "partial_period_supported" for s in qual_statuses):
+    if any(s == "partial_period_supported" for s in statuses):
         return "partial_period_supported"
-    if any(s == "uncertain" for s in qual_statuses):
+    if any(s == "uncertain" for s in statuses):
         return "uncertain"
-    if any(s == "exclude" for s in qual_statuses):
+    if any(s == "exclude" for s in statuses):
         return "exclude"
-    # Governance-only / ADP / other non-qualifying: visible, not in HPRD mean.
     return "uncertain"
 
 
-def attribution_status_for_facility(
+def hprd_attribution_from_roles(
+    roles: list[dict[str, Any]] | None,
+    metric_start: Any,
+    metric_end: Any,
+) -> AttributionStatus:
+    """
+    Legacy name for :func:`hprd_portfolio_inclusion_from_roles`.
+
+    Returns portfolio timing inclusion — **not** causal owner attribution.
+    """
+    return hprd_portfolio_inclusion_from_roles(roles, metric_start, metric_end)
+
+
+def portfolio_inclusion_status_for_facility(
     facility: dict[str, Any],
     *,
     metric_start: date | None,
     metric_end: date | None,
     metric_kind: str = "pbj_hprd",
 ) -> AttributionStatus:
-    """Per-facility attribution for a specific metric kind."""
+    """Per-facility Portfolio HPRD inclusion (timing-only; any CMS role)."""
     if metric_start is None or metric_end is None:
         if metric_attribution_mode(metric_kind) == "facility_context_only":
             return "facility_context"
@@ -425,7 +425,7 @@ def attribution_status_for_facility(
 
     roles = facility.get("roles")
     if isinstance(roles, list) and roles:
-        return hprd_attribution_from_roles(roles, metric_start, metric_end)
+        return hprd_portfolio_inclusion_from_roles(roles, metric_start, metric_end)
 
     role_cat = facility.get("role_category") or facility.get("primary_role_category")
     return relationship_supported_for_period(
@@ -438,9 +438,31 @@ def attribution_status_for_facility(
     )
 
 
+def attribution_status_for_facility(
+    facility: dict[str, Any],
+    *,
+    metric_start: date | None,
+    metric_end: date | None,
+    metric_kind: str = "pbj_hprd",
+) -> AttributionStatus:
+    """
+    Compatibility wrapper.
+
+    For ``pbj_hprd``, returns **portfolio inclusion** timing status (not causal
+    ownership attribution). Prefer :func:`portfolio_inclusion_status_for_facility`
+    at new call sites.
+    """
+    return portfolio_inclusion_status_for_facility(
+        facility,
+        metric_start=metric_start,
+        metric_end=metric_end,
+        metric_kind=metric_kind,
+    )
+
+
 CMS_ASSOCIATION_DATE_DEFINITION = (
     "Date on which the owner became associated with the Skilled Nursing Facility "
     "(CMS SNF All Owners data dictionary). PECOS association start for an "
-    "ownership-interest and/or managing-control role — not an equity closing date "
-    "and not an association end date."
+    "associate↔enrollment relationship — not an equity closing date, not an "
+    "association end date, and not proof of staffing responsibility."
 )

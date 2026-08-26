@@ -26,17 +26,6 @@
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--pbj-canvas); color: var(--pbj-text); line-height: 1.6; min-height: 100vh; display: flex; flex-direction: column; }
     .skip-link { position: absolute; top: -100px; left: 1rem; z-index: 10000; padding: 0.75rem 1rem; background: var(--pbj-chrome-border); color: var(--pbj-white); font-weight: 600; text-decoration: none; border-radius: 8px; transition: top 0.2s ease; }
     .skip-link:focus { top: 1rem; }
-    .navbar { position: sticky; top: 0; z-index: 1000; }
-    .nav-container { max-width: 1200px; margin: 0 auto; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; height: 60px; }
-    .nav-brand a { color: var(--pbj-white); text-decoration: none; display: flex; align-items: center; font-size: 1.2rem; font-weight: 700; }
-    .nav-brand a:hover { color: #e2e8f0; }
-    .nav-menu { display: flex; gap: 30px; align-items: center; }
-    .nav-link { color: rgba(255, 255, 255, 0.88); text-decoration: none; font-weight: 500; transition: color 0.2s ease; padding: 8px 0; min-height: 44px; display: inline-flex; align-items: center; }
-    .nav-link:hover { color: #93c5fd; }
-    .nav-link.active { color: #60a5fa; font-weight: 600; }
-    .nav-link:focus-visible, .nav-toggle:focus-visible { outline: 2px solid var(--pbj-sky); outline-offset: 2px; border-radius: 4px; }
-    .nav-toggle { display: none; flex-direction: column; cursor: pointer; gap: 4px; padding: 12px; min-width: 44px; min-height: 44px; align-items: center; justify-content: center; }
-    .nav-toggle span { width: 25px; height: 3px; background: white; }
     .content { flex: 1; max-width: 1080px; margin: 0 auto; padding: 24px 16px 40px; width: 100%; }
     .header { margin-bottom: 1rem; background: linear-gradient(180deg, var(--pbj-panel-top) 0%, var(--pbj-panel-bottom) 100%); border: 1px solid var(--pbj-border-panel); border-radius: 12px; box-shadow: var(--pbj-shadow-header); padding: 0.9rem 1rem; }
     .header-title-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.35rem; }
@@ -103,7 +92,6 @@
     .loading.is-visible { display: block; }
     .error { color: var(--pbj-danger); }
     @media (max-width: 900px) { .card-shell { grid-template-columns: 1fr; } .card-media-wrap { height: 210px; } }
-    @media (max-width: 768px) { .nav-toggle { display: flex; } }
   </style>
 </head>
 <body>

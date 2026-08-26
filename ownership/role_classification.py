@@ -578,8 +578,32 @@ def facility_stake_column_label(
     role_code: str = "",
     pct_raw: str = "",
 ) -> tuple[str, str]:
-    """Portfolio % Own. cell: (short display, long title/aria)."""
+    """Portfolio Role / stake cell: (short display, long title/aria).
+
+    Control/officer roles always show their role label rather than a misleading
+    0 % ownership value.  The raw zero is preserved as secondary information.
+    """
     pct = str(pct_raw or "").strip()
+    info = classify_owner_record(
+        {ROLE_CODE_COL: role_code, ROLE_TEXT_COL: role_raw, PCT_COL: pct}
+    )
+    cat = info.get("role_category") or ""
+
+    is_zero_pct = False
+    if pct:
+        try:
+            v = float(pct.replace("%", "").replace(",", ""))
+            is_zero_pct = abs(v) < 1e-9
+        except ValueError:
+            pass
+
+    if cat != CATEGORY_OWNERSHIP and is_zero_pct:
+        long_lbl = format_role_short_for_classification(info)
+        short_lbl = format_role_ultra_short_for_classification(info)
+        if short_lbl:
+            return short_lbl, long_lbl or short_lbl
+        return "—", "—"
+
     if pct:
         try:
             v = float(pct.replace("%", "").replace(",", ""))
@@ -590,9 +614,7 @@ def facility_stake_column_label(
         except ValueError:
             short = pct if "%" in pct else f"{pct}%"
         return short, short
-    info = classify_owner_record(
-        {ROLE_CODE_COL: role_code, ROLE_TEXT_COL: role_raw, PCT_COL: pct}
-    )
+
     long_lbl = format_role_short_for_classification(info)
     short_lbl = format_role_ultra_short_for_classification(info)
     if short_lbl:

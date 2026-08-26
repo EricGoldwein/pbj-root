@@ -31,10 +31,12 @@ class BothProfileOwnerPrimaryTests(unittest.TestCase):
             f"(facilities={len(profile.get('facilities') or [])})",
         )
         self.assertGreaterEqual(len(profile.get("facilities") or []), 100)
-        # Enrollment side parked, not primary.
+        # Enrollment side parked, not primary. CCN dedup reveals more
+        # facilities than the old org-name dedup but still far fewer than
+        # the owner-control side.
         en = profile.get("enrollment_section") or {}
         self.assertTrue(en.get("facilities") is not None)
-        self.assertLessEqual(len(en.get("facilities") or []), 5)
+        self.assertLess(len(en.get("facilities") or []), n)
 
 
 if __name__ == "__main__":

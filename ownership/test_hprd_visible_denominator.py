@@ -233,6 +233,89 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         )
         self.assertTrue(sha and str(sha).startswith("92e1cd6b"))
 
+    def test_burnam_facility_count_uses_ccn_dedup(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        fac_count = int(profile.get("facility_count") or 0)
+        self.assertGreaterEqual(fac_count, 350)
+
+    def test_burnam_all_facilities_have_ccns(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        for fac in profile.get("facilities") or []:
+            ccn = str(fac.get("ccn") or "").strip()
+            self.assertEqual(len(ccn), 6, f"Expected 6-digit CCN, got '{ccn}' for {fac.get('facility_name')}")
+            self.assertTrue(ccn.isdigit(), f"CCN should be digits: '{ccn}'")
+
+    def test_burnam_roles_consolidated_per_ccn(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        ccn_counts: dict[str, int] = {}
+        for fac in profile.get("facilities") or []:
+            ccn = str(fac.get("ccn") or "").strip()
+            if ccn:
+                ccn_counts[ccn] = ccn_counts.get(ccn, 0) + 1
+        for ccn, count in ccn_counts.items():
+            self.assertEqual(count, 1, f"CCN {ccn} appears {count} times; should be deduplicated")
+
+    def test_facility_stake_label_control_role_suppresses_zero_pct(self) -> None:
+        from ownership.role_classification import facility_stake_column_label
+
+        short, long = facility_stake_column_label(
+            role_raw="Managing Employee",
+            role_code="ME",
+            pct_raw="0",
+        )
+        self.assertNotIn("0%", short)
+        self.assertNotIn("0%", long)
+        self.assertIn("control", short.lower())
+
+        short2, long2 = facility_stake_column_label(
+            role_raw="Managing Employee",
+            role_code="ME",
+            pct_raw="0%",
+        )
+        self.assertNotIn("0%", short2)
+        self.assertNotIn("0%", long2)
+
+    def test_facility_stake_label_ownership_preserves_zero(self) -> None:
+        from ownership.role_classification import facility_stake_column_label
+
+        short, long = facility_stake_column_label(
+            role_raw="50% owner",
+            role_code="01",
+            pct_raw="0",
+        )
+        self.assertEqual(short, "0%")
+
+    def test_associates_summary_excludes_help_button(self) -> None:
+        from ownership.owner_profile_html import _associates_summary_html
+
+        html = _associates_summary_html(count_html="")
+        self.assertNotIn("<button", html)
+        self.assertIn("<summary", html)
+        self.assertIn("</summary>", html)
+
+    def test_burnam_role_stake_cells_are_not_zero(self) -> None:
+        from ownership.owner_profile import load_owner_profile_resolved
+        from ownership.owner_profile_html import render_owner_profile_body
+
+        profile = load_owner_profile_resolved("9739195553")
+        self.assertIsNotNone(profile)
+        assert profile is not None
+        body, *_ = render_owner_profile_body(profile)
+        self.assertNotIn("0%</button>", body)
+        self.assertIn("control", body.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

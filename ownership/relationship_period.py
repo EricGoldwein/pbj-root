@@ -24,13 +24,26 @@ What the field **does not** establish:
 
 ## PBJ quarterly HPRD attribution
 
-Full-period ``supported`` requires:
-- relationship_kind == ownership_interest, AND
-- association_date on or before the **start** of the PBJ quarter.
+A facility CCN is HPRD-eligible at most once. It qualifies when **at least one**
+CMS role on that CCN is a supported relationship for the PBJ quarter:
 
-Association after quarter end → ``exclude``.
+- ``ownership_interest`` (CMS ownership-interest role codes), or
+- CMS role code **43** (OPERATIONAL/MANAGERIAL CONTROL), or
+- CMS role code **63** (MANAGING CONTROL - GOVERNING BODY)
+
+Each role is evaluated with **that role's own** ASSOCIATION DATE - OWNER
+(not CSV first-seen order, and not a single shared facility date).
+
+Full-period ``supported`` for a qualifying role requires association_date on or
+before the **start** of the PBJ quarter.
+
+Association after quarter end → ``exclude`` for that qualifying role.
 Association mid-quarter (after start, on/before end) → ``uncertain`` until a
 national daily PBJ windowed HPRD loader exists (see PARTIAL_PERIOD_HPRD_*).
+
+Corporate governance alone (codes **40** OFFICER / **41** DIRECTOR) and other
+non-qualifying roles (e.g. **72** ADP OF THE SNF) stay visible on the profile
+but do **not** qualify the CCN for owner-level HPRD means.
 """
 from __future__ import annotations
 
@@ -46,6 +59,10 @@ PARTIAL_PERIOD_HPRD_NOTE = (
     "day-level PBJ hours/census index. Ownership rollups currently use quarterly "
     "HPRD only; mid-quarter associations are uncertain, not manufactured means."
 )
+
+# CMS SNF All Owners Owner Role Code Reference Table — managing-control codes
+# that qualify for owner-level PBJ HPRD (in addition to ownership_interest).
+HPRD_QUALIFYING_MANAGING_CONTROL_CODES = frozenset({"43", "63"})
 
 AssociationTiming = Literal[
     "association_began_on_or_before_period_start",
@@ -73,7 +90,7 @@ RelationshipKind = Literal[
 ]
 
 AttributionStatus = Literal[
-    "supported",  # full-period owner-attributable (ownership_interest + assoc ≤ Q start)
+    "supported",  # full-period attributable (OI / code 43 / code 63 + assoc ≤ Q start)
     "partial_period_supported",  # reserved; not emitted while PARTIAL_PERIOD_HPRD_SUPPORTED is False
     "exclude",
     "uncertain",
@@ -140,6 +157,40 @@ def parse_pbj_quarter_bounds(quarter: Any) -> tuple[date, date] | None:
 def relationship_kind_from_role_category(role_category: Any) -> RelationshipKind:
     key = str(role_category or "").strip()
     return _ROLE_TO_KIND.get(key, "other_or_unknown")  # type: ignore[return-value]
+
+
+def normalize_hprd_role_code(raw: Any) -> str:
+    """Normalize a CMS owner role code to a 2-digit string (digits only)."""
+    if raw is None:
+        return ""
+    s = str(raw).strip()
+    if not s or s.lower() in ("nan", "none", "—", "-"):
+        return ""
+    digits = re.sub(r"\D", "", s)
+    if not digits:
+        return ""
+    if len(digits) >= 2:
+        return digits[-2:].zfill(2)
+    return digits.zfill(2)
+
+
+def role_qualifies_for_owner_hprd(
+    *,
+    role_code: Any = None,
+    relationship_kind: RelationshipKind | str | None = None,
+) -> bool:
+    """
+    True when this CMS role may attribute owner-level PBJ HPRD.
+
+    Qualifying: ownership_interest category/kind, or CMS codes 43 / 63.
+    Codes 40/41 (governance), 72 (ADP), 25/42 (other managing-employee codes),
+    and other non-OI roles do not qualify on their own.
+    """
+    kind = str(relationship_kind or "").strip()
+    if kind == "ownership_interest":
+        return True
+    code = normalize_hprd_role_code(role_code)
+    return code in HPRD_QUALIFYING_MANAGING_CONTROL_CODES
 
 
 def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
@@ -218,18 +269,21 @@ def relationship_supported_for_period(
     metric_end: Any,
     *,
     relationship_kind: RelationshipKind | str | None = None,
+    role_code: Any = None,
     metric_kind: str | None = None,
 ) -> AttributionStatus:
     """
-    Gate for owner aggregates.
+    Gate for one CMS role against a metric window.
 
-    PBJ HPRD + ownership_interest:
+    PBJ HPRD qualifying roles (ownership_interest, or codes 43 / 63):
       assoc ≤ quarter start → supported (full-period)
       start < assoc ≤ end → uncertain (partial daily HPRD not available)
       assoc > end → exclude
 
+    Non-qualifying roles (governance 40/41, ADP 72, other control codes, etc.)
+    → uncertain for HPRD means (still visible on profiles).
+
     Care Compare ratings → facility_context.
-    Control/governance/financial → uncertain for HPRD means (any timing).
     """
     mode = metric_attribution_mode(metric_kind or "")
     if metric_kind and mode == "facility_context_only":
@@ -238,14 +292,17 @@ def relationship_supported_for_period(
         return "facility_context"
 
     timing = association_timing_vs_period(association_start, metric_start, metric_end)
-    if timing == "association_began_after_period_end":
-        return "exclude"
-    if timing in ("association_date_missing", "metric_period_unknown"):
-        return "uncertain"
-
     kind = str(relationship_kind or "").strip() or "other_or_unknown"
+    qualifies = role_qualifies_for_owner_hprd(
+        role_code=role_code, relationship_kind=kind
+    )
+
     if metric_kind and mode == "owner_performance_candidate":
-        if kind not in ("ownership_interest", "control_or_management"):
+        if not qualifies:
+            return "uncertain"
+        if timing == "association_began_after_period_end":
+            return "exclude"
+        if timing in ("association_date_missing", "metric_period_unknown"):
             return "uncertain"
         if timing == "association_began_on_or_before_period_start":
             return "supported"
@@ -256,11 +313,96 @@ def relationship_supported_for_period(
         return "uncertain"
 
     # Timing-only legacy path (no metric_kind): require full-period for "supported".
+    if timing == "association_began_after_period_end":
+        return "exclude"
+    if timing in ("association_date_missing", "metric_period_unknown"):
+        return "uncertain"
     if timing == "association_began_on_or_before_period_start":
         return "supported"
     if timing == "association_began_during_period":
         return "uncertain"
     return "supported"
+
+
+def _role_dict_kind_and_code(role: dict[str, Any]) -> tuple[RelationshipKind, str]:
+    code = normalize_hprd_role_code(
+        role.get("role_code") or role.get("ROLE CODE - OWNER")
+    )
+    cat = str(
+        role.get("role_category")
+        or role.get("primary_role_category")
+        or ""
+    ).strip()
+    if not cat and (code or role.get("role") or role.get("ROLE TEXT - OWNER")):
+        try:
+            from ownership.role_classification import (
+                ROLE_CODE_COL,
+                ROLE_TEXT_COL,
+                classify_owner_record,
+            )
+
+            info = classify_owner_record(
+                {
+                    ROLE_CODE_COL: code or role.get("role_code"),
+                    ROLE_TEXT_COL: role.get("role")
+                    or role.get("ROLE TEXT - OWNER")
+                    or role.get("role_text_raw")
+                    or "",
+                }
+            )
+            cat = str(info.get("role_category") or "")
+            if not code:
+                code = normalize_hprd_role_code(info.get("role_code"))
+        except Exception:
+            cat = cat or ""
+    kind = relationship_kind_from_role_category(cat)
+    return kind, code
+
+
+def hprd_attribution_from_roles(
+    roles: list[dict[str, Any]] | None,
+    metric_start: Any,
+    metric_end: Any,
+) -> AttributionStatus:
+    """
+    Aggregate per-role HPRD attribution for one CCN.
+
+    Each role uses its own association_date. The CCN is ``supported`` if any
+    qualifying role is supported; never double-counts for weighting (caller
+    still weights the CCN once).
+    """
+    role_list = [r for r in (roles or []) if isinstance(r, dict)]
+    if not role_list:
+        return "uncertain"
+
+    qual_statuses: list[AttributionStatus] = []
+    for role in role_list:
+        kind, code = _role_dict_kind_and_code(role)
+        qualifies = role_qualifies_for_owner_hprd(
+            role_code=code, relationship_kind=kind
+        )
+        status = relationship_supported_for_period(
+            role.get("association_date")
+            or role.get("ASSOCIATION DATE - OWNER"),
+            metric_start,
+            metric_end,
+            relationship_kind=kind,
+            role_code=code,
+            metric_kind="pbj_hprd",
+        )
+        if qualifies:
+            qual_statuses.append(status)
+
+    if any(s == "supported" for s in qual_statuses):
+        return "supported"
+    if any(s == "partial_period_supported" for s in qual_statuses):
+        return "partial_period_supported"
+    if any(s == "uncertain" for s in qual_statuses):
+        return "uncertain"
+    if any(s == "exclude" for s in qual_statuses):
+        return "exclude"
+    # Governance-only / ADP / other non-qualifying: visible, not in HPRD mean.
+    return "uncertain"
 
 
 def attribution_status_for_facility(
@@ -275,12 +417,23 @@ def attribution_status_for_facility(
         if metric_attribution_mode(metric_kind) == "facility_context_only":
             return "facility_context"
         return "uncertain"
+
+    if metric_attribution_mode(metric_kind) == "facility_context_only":
+        return "facility_context"
+    if metric_attribution_mode(metric_kind) == "unsupported":
+        return "facility_context"
+
+    roles = facility.get("roles")
+    if isinstance(roles, list) and roles:
+        return hprd_attribution_from_roles(roles, metric_start, metric_end)
+
     role_cat = facility.get("role_category") or facility.get("primary_role_category")
     return relationship_supported_for_period(
         facility.get("association_date"),
         metric_start,
         metric_end,
         relationship_kind=relationship_kind_from_role_category(role_cat),
+        role_code=facility.get("role_code"),
         metric_kind=metric_kind,
     )
 

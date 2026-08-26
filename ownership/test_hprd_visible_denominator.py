@@ -141,18 +141,19 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(len(facs), 274)
         tax = Counter(_tax_bucket(f.get("role_category")) for f in facs)
         self.assertEqual(sum(tax.values()), 274)
-        self.assertEqual(tax.get("ownership_interest"), 2)
-        self.assertEqual(tax.get("managing_control"), 45)
-        self.assertEqual(tax.get("governance"), 227)
+        # Rank-primary after role-aware consolidation (not CSV first-seen).
+        self.assertEqual(tax.get("ownership_interest"), 1)
+        self.assertEqual(tax.get("managing_control"), 70)
+        self.assertEqual(tax.get("governance"), 203)
         self.assertEqual(tax.get("enrollment_admin", 0), 0)
         ps = profile.get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_facilities"), 274)
         n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
-        self.assertEqual(n_hprd, 45)
-        self.assertIsNotNone(ps.get("wmean_hprd"))
+        self.assertEqual(n_hprd, 68)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.794, places=3)
         body, *_ = render_owner_profile_body(profile)
         self.assertIn("Weighted HPRD", body)
-        self.assertIn("n = 45", body)
+        self.assertIn("n = 68", body)
 
     def test_large_oi_profiles_denominator_matches_calc(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
@@ -201,18 +202,23 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         ps = profile.get("portfolio_summary") or {}
         n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
         wmean = ps.get("wmean_hprd")
-        self.assertEqual(n_hprd, 9)
-        self.assertAlmostEqual(wmean, 3.61, places=2)
+        self.assertEqual(n_hprd, 65)
+        self.assertAlmostEqual(wmean, 3.823, places=3)
         facs = list(profile.get("facilities") or [])
+        self.assertEqual(len(facs), 351)
         supported = [f for f in facs if f.get("hprd_attribution_status") == "supported"]
-        self.assertEqual(len(supported), n_hprd)
+        self.assertEqual(len(supported), 65)
+        # One CCN once: no duplicate CCNs among supported rows.
+        self.assertEqual(len({f.get("ccn") for f in supported}), 65)
         for f in supported:
             self.assertTrue(f.get("pbj_matched"))
             self.assertTrue(f.get("hprd"))
             self.assertTrue(f.get("census"))
+            codes = {str(r.get("role_code") or "") for r in (f.get("roles") or [])}
+            self.assertTrue(codes & {"43", "63"}, msg=f"expected 43/63 on {f.get('ccn')}")
         body, title, *_ = render_owner_profile_body(profile)
         self.assertIn("Weighted HPRD", body)
-        self.assertIn("n = 9", body)
+        self.assertIn("n = 65", body)
         self.assertNotIn("Nursing Home Ownership Interest", title)
         self.assertIn("Managing", title)
 

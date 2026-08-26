@@ -277,11 +277,48 @@ class TemporalAttributionTests(unittest.TestCase):
                 end,
                 metric_kind="pbj_hprd",
                 relationship_kind="control_or_management",
+                role_code="43",
             )
         self.assertEqual(results["01/01/2020"], "supported")
         self.assertEqual(results["01/01/2026"], "supported")
         self.assertEqual(results["02/15/2026"], "uncertain")
         self.assertEqual(results["04/01/2026"], "exclude")
+
+    def test_code_63_supported_when_timing_qualifies(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        self.assertEqual(
+            relationship_supported_for_period(
+                "01/01/2020",
+                start,
+                end,
+                metric_kind="pbj_hprd",
+                relationship_kind="control_or_management",
+                role_code="63",
+            ),
+            "supported",
+        )
+
+    def test_governance_and_adp_do_not_qualify_alone(self) -> None:
+        start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]
+        for kind, code in (
+            ("governance", "40"),
+            ("governance", "41"),
+            ("administrative", "72"),
+            ("control_or_management", "25"),
+            ("control_or_management", "42"),
+        ):
+            self.assertEqual(
+                relationship_supported_for_period(
+                    "01/01/2020",
+                    start,
+                    end,
+                    metric_kind="pbj_hprd",
+                    relationship_kind=kind,
+                    role_code=code,
+                ),
+                "uncertain",
+                msg=f"{kind}/{code}",
+            )
 
     def test_care_compare_ratings_are_facility_context(self) -> None:
         start, end = parse_pbj_quarter_bounds("Q1 2026")  # type: ignore[misc]

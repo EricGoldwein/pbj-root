@@ -845,7 +845,7 @@ def _rollup_portfolio_metrics(
         "hprd_attribution": (
             "entity_facility_roster"
             if context == "entity"
-            else "pbj_quarter_full_period_ownership_interest_only"
+            else "pbj_quarter_full_period_ownership_or_managing_control"
         ),
         "n_hprd_supported_facilities": len(hprd_unweighted),
         "hprd_eligible_label": (

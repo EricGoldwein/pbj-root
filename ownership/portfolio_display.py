@@ -264,13 +264,16 @@ def _owner_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:
         "owner-period performance."
     )
     hprd_help = (
-        "Owner-level PBJ staffing metrics use only qualifying facilities. A facility is included "
-        "when CMS reports an ownership-interest or managing-control relationship established by "
-        "the start of the PBJ reporting period and usable PBJ data are available. Other non-equity "
-        "relationships (e.g., corporate governance) are excluded from owner-level HPRD calculations, "
-        "while relationships beginning during the reporting period are treated as temporally uncertain. "
-        "As a result, the HPRD denominator may be smaller than the total number of facilities linked "
-        "to a person or organization. "
+        "Owner-level PBJ staffing metrics use only qualifying facilities. A facility CCN is "
+        "included once when CMS reports at least one ownership-interest relationship or a "
+        "managing-control relationship (CMS role codes 43 Operational/Managerial Control or "
+        "63 Managing Control – Governing Body) with that role's association date on or before "
+        "the start of the PBJ reporting period and usable PBJ data are available. Corporate "
+        "officer/director roles (codes 40/41) and other non-qualifying relationships remain "
+        "visible but are excluded from owner-level HPRD. Relationships that begin during the "
+        "reporting period are temporally uncertain. "
+        "As a result, the HPRD denominator may be smaller than the total number of facilities "
+        "linked to a person or organization. "
         f"Resident-weighted average of qualifying facilities' latest PBJ total nurse HPRD "
         f"(HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible)."
     )

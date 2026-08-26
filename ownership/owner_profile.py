@@ -1601,48 +1601,76 @@ def _build_owner_control_profile(pac: str, owner_rows: list[dict[str, Any]]) -> 
             resolved_ccn, match_method = _profile_facility_match(pac, fac_name)
             ccn_val = resolved_ccn or ""
 
-        role_info = classify_owner_record(first_row)
         roles_list: list[dict[str, str]] = []
+        seen_roles: set[tuple[str, str, str]] = set()
         for r in rows:
             ri = classify_owner_record(r)
-            roles_list.append(
-                {
-                    "role": format_role_text(_clean(r.get("ROLE TEXT - OWNER"))),
-                    "role_code": ri.get("role_code")
-                    or normalize_role_code(r.get("ROLE CODE - OWNER")),
-                    "role_category": ri.get("role_category") or "",
-                    "pct": _pct_from_row(r),
-                    "association_date": _clean(r.get("ASSOCIATION DATE - OWNER")),
-                }
+            role_entry = {
+                "role": format_role_text(_clean(r.get("ROLE TEXT - OWNER"))),
+                "role_code": ri.get("role_code")
+                or normalize_role_code(r.get("ROLE CODE - OWNER")),
+                "role_category": ri.get("role_category") or "",
+                "pct": _pct_from_row(r),
+                "association_date": _clean(r.get("ASSOCIATION DATE - OWNER")),
+            }
+            # Dedup identical code+pct+assoc triples; keep distinct role dates.
+            rk = (
+                str(role_entry["role_code"] or ""),
+                str(role_entry["pct"] or ""),
+                str(role_entry["association_date"] or ""),
+            )
+            if rk in seen_roles:
+                continue
+            seen_roles.add(rk)
+            roles_list.append(role_entry)
+
+        # Display primary: category-rank (never CSV first-seen). HPRD attribution
+        # evaluates every role with that role's own association_date via roles[].
+        from ownership.role_classification import (
+            CATEGORY_RANK,
+            CODE_PRIORITY,
+            parse_ownership_pct,
+        )
+
+        def _role_rank_key(rl: dict[str, str]) -> tuple[Any, ...]:
+            cat = str(rl.get("role_category") or "")
+            code = str(rl.get("role_code") or "")
+            pct = parse_ownership_pct(rl.get("pct"))
+            return (
+                CATEGORY_RANK.get(cat, 0),
+                CODE_PRIORITY.get(code, 0),
+                float(pct) if pct is not None else -1.0,
             )
 
-        primary_role = roles_list[0]
+        primary_role = max(roles_list, key=_role_rank_key) if roles_list else {
+            "role": "",
+            "role_code": "",
+            "role_category": "",
+            "pct": "",
+            "association_date": "",
+        }
+        role_labels = []
+        for rl in sorted(roles_list, key=_role_rank_key, reverse=True):
+            label = str(rl.get("role") or "").strip()
+            if label and label not in role_labels:
+                role_labels.append(label)
+        combined_role = "; ".join(role_labels) if role_labels else str(primary_role.get("role") or "")
 
         facility: dict[str, Any] = {
             "facility_name": fac_name,
             "state": _facility_state_for_row(first_row, ccn_val),
             "city": _clean(first_row.get("CITY - OWNER")),
-            "role": primary_role["role"],
-            "role_code": primary_role["role_code"],
-            "role_category": primary_role["role_category"],
-            "association_date": primary_role["association_date"],
-            "pct": primary_role["pct"],
+            "role": combined_role,
+            "role_code": primary_role.get("role_code") or "",
+            "role_category": primary_role.get("role_category") or "",
+            "association_date": primary_role.get("association_date") or "",
+            "pct": primary_role.get("pct") or "",
             "enrollment_id": _clean(first_row.get("ENROLLMENT ID")),
             "enrollment_pac": normalize_associate_id(first_row.get(ENROLLMENT_PAC_COL)),
             "ccn": ccn_val,
             "ccn_match_method": match_method,
             "roles": roles_list,
         }
-
-        if len(rows) > 1:
-            seen_roles: set[str] = set()
-            unique_roles: list[dict[str, str]] = []
-            for rl in roles_list:
-                rk = (rl["role_code"], rl["pct"])
-                if rk not in seen_roles:
-                    seen_roles.add(rk)
-                    unique_roles.append(rl)
-            facility["roles"] = unique_roles
 
         facilities.append(facility)
 

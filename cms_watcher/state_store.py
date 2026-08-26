@@ -1,4 +1,8 @@
-"""Persist small watcher observation state (not production release truth)."""
+"""Optional local observation helpers (NOT used by GitHub Actions).
+
+Durable release dedup for the scheduled watcher is GitHub issues only.
+Do not commit watcher state to ``master`` — that branch auto-deploys Render.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+# Legacy path — must not be written by CI. Prefer issues for dedup.
 DEFAULT_STATE_REL = Path("data/cms_watcher/watcher_state.json")
 STATE_VERSION = 1
 
@@ -32,6 +37,7 @@ def load_state(path: Path) -> dict[str, Any]:
 
 
 def save_state(path: Path, state: dict[str, Any]) -> None:
+    """Write local scratch state only. Never call from the Actions workflow."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = dict(state)
     payload["version"] = STATE_VERSION

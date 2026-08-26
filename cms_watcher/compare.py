@@ -1,9 +1,9 @@
-"""Compare CMS observed state vs PBJ320 production + prior watcher state."""
+"""Compare CMS observed state vs PBJ320 production (no git-backed watcher state)."""
 
 from __future__ import annotations
 
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from .cms_fetch import CmsObservedState
@@ -166,9 +166,15 @@ def evaluate_source(
     *,
     cms: CmsObservedState | None,
     production: ProductionObservedState,
-    previous_fingerprint: str | None,
     check_error: str | None = None,
+    mark_new_release: bool = False,
+    mark_metadata_changed: bool = False,
 ) -> SourceEvaluation:
+    """Compare CMS vs production.
+
+    ``NEW_RELEASE`` is applied by the runner/notify path when an alertable CMS
+    fingerprint has no prior GitHub issue (open or closed) — not via git state.
+    """
     statuses: list[str] = []
     if check_error or cms is None:
         statuses.append("CHECK_FAILED")
@@ -178,7 +184,7 @@ def evaluate_source(
             statuses=statuses,
             cms=None,
             production=production.to_dict(),
-            previous_cms_fingerprint=previous_fingerprint,
+            previous_cms_fingerprint=None,
             affected_surfaces=list(source.surfaces),
             affected_downstream=[
                 {
@@ -193,12 +199,9 @@ def evaluate_source(
         )
 
     assert cms is not None
-    new_release = bool(previous_fingerprint) and previous_fingerprint != cms.raw_fingerprint
-    metadata_changed = new_release  # fingerprint includes modified/released/filename/url
-
-    if new_release:
+    if mark_new_release:
         statuses.append("NEW_RELEASE")
-    if metadata_changed and not new_release:
+    if mark_metadata_changed:
         statuses.append("METADATA_CHANGED")
 
     behind = production_behind(source, cms, production)
@@ -207,7 +210,7 @@ def evaluate_source(
     elif behind is False and not statuses:
         statuses.append("CURRENT")
     elif behind is False and statuses:
-        # CMS advanced relative to prior watcher state but production already matches CMS
+        # e.g. NEW_RELEASE annotated after the fact while production already matches
         pass
     elif behind is None:
         statuses.append("DOWNSTREAM_UNKNOWN")
@@ -263,7 +266,7 @@ def evaluate_source(
         statuses=statuses,
         cms=cms.to_dict(),
         production=production.to_dict(),
-        previous_cms_fingerprint=previous_fingerprint,
+        previous_cms_fingerprint=None,
         affected_surfaces=list(source.surfaces),
         affected_downstream=downstream_rows,
         summary=summary,

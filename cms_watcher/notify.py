@@ -1,19 +1,30 @@
-"""GitHub issue notifications for genuine new CMS releases (deduplicated)."""
+"""GitHub issue notifications — durable dedup via open+closed issues (no repo commits)."""
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 from .compare import SourceEvaluation
 
 ISSUE_LABEL = "cms-release-watcher"
 TITLE_PREFIX = "CMS release detected:"
+FINGERPRINT_RE = re.compile(
+    r"<!--\s*cms-release-watcher:([a-z0-9_]+):([^:\s]+)\s*-->",
+    re.I,
+)
+
+GhApi = Callable[..., Any]
+
+
+def fingerprint_marker(source_id: str, fingerprint: str) -> str:
+    return f"<!-- cms-release-watcher:{source_id}:{fingerprint} -->"
 
 
 def issue_title(evaluation: SourceEvaluation) -> str:
@@ -25,10 +36,13 @@ def issue_title(evaluation: SourceEvaluation) -> str:
 def issue_body(evaluation: SourceEvaluation) -> str:
     cms = evaluation.cms or {}
     prod = evaluation.production or {}
+    fp = str(cms.get("raw_fingerprint") or "")
     lines = [
         "## CMS release detected (read-only watcher)",
         "",
         f"**Source:** {evaluation.title} (`{evaluation.source_id}`)",
+        f"**Stable dataset key:** `{cms.get('stable_key')}`",
+        f"**CMS fingerprint:** `{fp}`",
         f"**Statuses:** {', '.join(evaluation.statuses)}",
         f"**Summary:** {evaluation.summary}",
         "",
@@ -61,15 +75,16 @@ def issue_body(evaluation: SourceEvaluation) -> str:
             "",
             "### Notes",
             "- This watcher does **not** download, ingest, rebuild indexes, mutate policy, or deploy.",
+            "- Durable dedup record is this issue (open or closed) keyed by the fingerprint marker below.",
             "- If freshness is `UNKNOWN`, prove activation via the Quarter Release Playbook / ownership policy before claiming CURRENT.",
             "",
-            f"<!-- cms-release-watcher:{evaluation.source_id}:{cms.get('raw_fingerprint', '')} -->",
+            fingerprint_marker(evaluation.source_id, fp),
         ]
     )
     return "\n".join(lines) + "\n"
 
 
-def _gh_api(
+def _default_gh_api(
     method: str,
     path: str,
     *,
@@ -107,7 +122,6 @@ def _repo_slug_from_env() -> str | None:
         ).strip()
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None
-    # https://github.com/org/repo.git or git@github.com:org/repo.git
     if out.endswith(".git"):
         out = out[:-4]
     if "github.com/" in out:
@@ -117,30 +131,54 @@ def _repo_slug_from_env() -> str | None:
     return None
 
 
-def find_open_issue(repo: str, title: str, token: str) -> dict[str, Any] | None:
-    q = f'repo:{repo} is:issue is:open label:{ISSUE_LABEL} in:title "{title}"'
-    path = f"/search/issues?q={urllib.parse.quote(q)}"
+def should_alert(evaluation: SourceEvaluation) -> bool:
+    """Alert only when production lags CMS (not on CURRENT / unknown-only checks)."""
+    if "CHECK_FAILED" in evaluation.statuses:
+        return False
+    return "PRODUCTION_BEHIND" in evaluation.statuses
+
+
+def find_issue_by_fingerprint(
+    repo: str,
+    source_id: str,
+    fingerprint: str,
+    token: str,
+    *,
+    gh_api: GhApi | None = None,
+) -> dict[str, Any] | None:
+    """Find open OR closed watcher issue for this source+fingerprint."""
+    api = gh_api or _default_gh_api
+    marker = fingerprint_marker(source_id, fingerprint)
+    # Search all issues (no is:open) so closed issues still dedupe.
+    q = f'repo:{repo} is:issue label:{ISSUE_LABEL} cms-release-watcher:{source_id}:'
+    path = f"/search/issues?q={urllib.parse.quote(q)}&per_page=50"
     try:
-        result = _gh_api("GET", path, token=token)
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        result = api("GET", path, token=token)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError, urllib.error.HTTPError):
         return None
     items = (result or {}).get("items") or []
     for item in items:
-        if item.get("title") == title:
+        body = item.get("body") or ""
+        if marker in body:
             return item
-    return items[0] if items else None
+        # Fallback: parse any watcher markers in body
+        for match in FINGERPRINT_RE.finditer(body):
+            if match.group(1) == source_id and match.group(2) == fingerprint:
+                return item
+    return None
 
 
-def ensure_label(repo: str, token: str) -> None:
+def ensure_label(repo: str, token: str, *, gh_api: GhApi | None = None) -> None:
+    api = gh_api or _default_gh_api
     owner, name = repo.split("/", 1)
     try:
-        _gh_api("GET", f"/repos/{owner}/{name}/labels/{urllib.parse.quote(ISSUE_LABEL)}", token=token)
+        api("GET", f"/repos/{owner}/{name}/labels/{urllib.parse.quote(ISSUE_LABEL)}", token=token)
         return
     except urllib.error.HTTPError as exc:
         if exc.code != 404:
             return
     try:
-        _gh_api(
+        api(
             "POST",
             f"/repos/{owner}/{name}/labels",
             token=token,
@@ -150,7 +188,7 @@ def ensure_label(repo: str, token: str) -> None:
                 "description": "Automated CMS release detection (read-only watcher)",
             },
         )
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except (urllib.error.URLError, TimeoutError, OSError, urllib.error.HTTPError):
         pass
 
 
@@ -160,15 +198,50 @@ def maybe_create_issue(
     token: str | None = None,
     repo: str | None = None,
     dry_run: bool = False,
+    gh_api: GhApi | None = None,
+    existing_issue: dict[str, Any] | None = None,
+    skip_remote_lookup: bool = False,
 ) -> dict[str, Any]:
-    """Create a deduplicated GitHub issue when NEW_RELEASE is present."""
-    if "NEW_RELEASE" not in evaluation.statuses:
-        return {"action": "skipped", "reason": "no NEW_RELEASE status"}
+    """Create one issue per CMS fingerprint when production is behind.
+
+    Dedup: open **and** closed issues with the same fingerprint marker.
+    Never commits to git / never touches Render.
+    """
+    if not should_alert(evaluation):
+        return {"action": "skipped", "reason": "not PRODUCTION_BEHIND"}
+
+    cms = evaluation.cms or {}
+    fingerprint = str(cms.get("raw_fingerprint") or "")
+    if not fingerprint:
+        return {"action": "skipped", "reason": "missing CMS fingerprint"}
 
     token = token or os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
     repo = repo or _repo_slug_from_env()
     title = issue_title(evaluation)
     body = issue_body(evaluation)
+
+    # Allow tests to inject an existing issue without GitHub.
+    existing = existing_issue
+    if existing is None and not skip_remote_lookup and token and repo and not dry_run:
+        existing = find_issue_by_fingerprint(
+            repo, evaluation.source_id, fingerprint, token, gh_api=gh_api
+        )
+    elif existing is None and not skip_remote_lookup and token and repo and dry_run:
+        # Dry-run still consults GitHub when credentials exist (safe read).
+        existing = find_issue_by_fingerprint(
+            repo, evaluation.source_id, fingerprint, token, gh_api=gh_api
+        )
+
+    if existing:
+        return {
+            "action": "exists",
+            "title": title,
+            "url": existing.get("html_url"),
+            "number": existing.get("number"),
+            "state": existing.get("state"),
+            "fingerprint": fingerprint,
+            "would_set_new_release": False,
+        }
 
     if dry_run or not token or not repo:
         return {
@@ -177,20 +250,29 @@ def maybe_create_issue(
             "title": title,
             "body": body,
             "repo": repo,
+            "fingerprint": fingerprint,
+            "would_set_new_release": True,
         }
 
-    ensure_label(repo, token)
-    existing = find_open_issue(repo, title, token)
+    api = gh_api or _default_gh_api
+    ensure_label(repo, token, gh_api=api)
+    # Re-check once more before create (race against another runner).
+    existing = find_issue_by_fingerprint(
+        repo, evaluation.source_id, fingerprint, token, gh_api=api
+    )
     if existing:
         return {
             "action": "exists",
             "title": title,
             "url": existing.get("html_url"),
             "number": existing.get("number"),
+            "state": existing.get("state"),
+            "fingerprint": fingerprint,
+            "would_set_new_release": False,
         }
 
     owner, name = repo.split("/", 1)
-    created = _gh_api(
+    created = api(
         "POST",
         f"/repos/{owner}/{name}/issues",
         token=token,
@@ -201,4 +283,6 @@ def maybe_create_issue(
         "title": title,
         "url": (created or {}).get("html_url"),
         "number": (created or {}).get("number"),
+        "fingerprint": fingerprint,
+        "would_set_new_release": True,
     }

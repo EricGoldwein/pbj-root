@@ -6,7 +6,7 @@
 
 Detect when CMS publishes a new distribution for registered nursing-home datasets, compare that to **what PBJ320 is actually serving**, and list which downstream systems/artifacts would need a human refresh.
 
-It does **not** download, normalize, rebuild indexes, clear caches, mutate `ownership_release_policy.json`, or deploy.
+It does **not** download, normalize, rebuild indexes, clear caches, mutate `ownership_release_policy.json`, commit to git, push, or deploy.
 
 ## Surfaces (kept separate)
 
@@ -24,25 +24,41 @@ It does **not** download, normalize, rebuild indexes, clear caches, mutate `owne
 # Dependency map
 python -m cms_watcher --print-dependency-graph
 
-# Live observe (no state write, no issues)
+# Live observe (no issues, no repo writes)
 python -m cms_watcher
 
-# Persist fingerprints + dry-run issue payloads
-python -m cms_watcher --write-state --dry-run-notify --json
+# Dry-run issue payloads (still no git writes)
+python -m cms_watcher --dry-run-notify --json
 
-# CI / Actions
-python -m cms_watcher --write-state --notify --json
+# CI / Actions (issues:write only; never commits)
+python -m cms_watcher --notify --json
 ```
 
-State file: `data/cms_watcher/watcher_state.json` (observation only; not a release manifest).
+## Durable state (not on `master`)
+
+| What | Where |
+|------|--------|
+| Release dedup | GitHub issues labeled `cms-release-watcher` (open **and** closed) |
+| Fingerprint marker | `<!-- cms-release-watcher:{source_id}:{fingerprint} -->` in issue body |
+| `last_checked_at` | Runtime JSON / stdout only — **never** committed |
+
+There is **no** committed `watcher_state.json`. Pushing mutable state to `master` would auto-deploy Render (`pbj`) and violate the watcher safety bar.
+
+## Workflow permissions
+
+```yaml
+permissions:
+  contents: read
+  issues: write
+```
 
 ## Statuses
 
 | Status | Meaning |
 |--------|---------|
 | `CURRENT` | Production vintage matches CMS current distribution vintage |
-| `NEW_RELEASE` | CMS fingerprint changed vs previous watcher state |
-| `METADATA_CHANGED` | Reserved / alias when fingerprint changes |
+| `NEW_RELEASE` | Alertable CMS fingerprint with **no** prior open/closed watcher issue (annotated at notify time) |
+| `METADATA_CHANGED` | Reserved for explicit annotation (not driven by a git state file) |
 | `PRODUCTION_BEHIND` | CMS vintage ahead of PBJ320 production vintage |
 | `DOWNSTREAM_STALE` | Source refresh would invalidate listed derived artifacts |
 | `DOWNSTREAM_UNKNOWN` | Cannot prove derived freshness from repo alone |
@@ -61,4 +77,4 @@ Runtime caches are **not** independent dataset vintages; they refresh from under
 
 ## Safety boundary
 
-Never: download CMS CSV/ZIP payloads, normalize, build SQLite/JSON indexes, change policy, change quarter metadata, commit datasets, trigger Render/Vercel.
+Never: download CMS CSV/ZIP payloads, normalize, build SQLite/JSON indexes, change policy, change quarter metadata, commit datasets, commit watcher state, push to `master`, or trigger Render/Vercel.

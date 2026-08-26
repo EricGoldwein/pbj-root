@@ -1,10 +1,15 @@
-"""CLI entry: observe CMS metadata vs PBJ320 production freshness."""
+"""CLI entry: observe CMS metadata vs PBJ320 production freshness.
+
+Never commits, pushes, or writes tracked production-branch state.
+Durable release dedup lives in GitHub issues (open or closed).
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -15,15 +20,9 @@ if str(_ROOT) not in sys.path:
 
 from cms_watcher.cms_fetch import fetch_cms_state  # noqa: E402
 from cms_watcher.compare import SourceEvaluation, evaluate_source  # noqa: E402
-from cms_watcher.notify import maybe_create_issue  # noqa: E402
+from cms_watcher.notify import maybe_create_issue, should_alert  # noqa: E402
 from cms_watcher.production_state import read_production_state  # noqa: E402
 from cms_watcher.registry import SOURCE_REGISTRY, dependency_graph_rows  # noqa: E402
-from cms_watcher.state_store import (  # noqa: E402
-    default_state_path,
-    load_state,
-    save_state,
-    update_source_observation,
-)
 
 
 def _print_dependency_graph() -> None:
@@ -36,16 +35,31 @@ def _print_dependency_graph() -> None:
         )
 
 
+def _annotate_new_release(evaluation: SourceEvaluation) -> None:
+    if "NEW_RELEASE" not in evaluation.statuses:
+        evaluation.statuses.insert(0, "NEW_RELEASE")
+    evaluation.summary = (
+        f"CMS CURRENT: "
+        f"{(evaluation.cms or {}).get('data_vintage_label') or (evaluation.cms or {}).get('distribution_filename') or '?'} "
+        f"| PBJ320 CURRENT: {(evaluation.production or {}).get('vintage_label') or 'UNKNOWN'} "
+        f"| STATUS: {', '.join(evaluation.statuses)}"
+    )
+
+
 def run_watch(
     *,
     root: Path,
-    state_path: Path,
-    write_state: bool,
     notify: bool,
     dry_run_notify: bool,
     source_ids: list[str] | None,
+    gh_api: Any | None = None,
+    existing_issues_by_fp: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    state = load_state(state_path)
+    """Observe CMS vs production. Never writes the git working tree.
+
+    ``last_checked_at`` is returned in the report only (runtime output).
+    """
+    checked_at = datetime.now(timezone.utc).isoformat()
     catalog_cache: dict[str, Any] = {}
     evaluations: list[SourceEvaluation] = []
     notify_results: list[dict[str, Any]] = []
@@ -56,8 +70,6 @@ def run_watch(
         selected = tuple(s for s in SOURCE_REGISTRY if s.source_id in wanted)
 
     for source in selected:
-        prev = (state.get("sources") or {}).get(source.source_id) or {}
-        prev_fp = prev.get("cms_fingerprint") if isinstance(prev, dict) else None
         production = read_production_state(source.source_id, root=root)
         cms = None
         err = None
@@ -70,37 +82,34 @@ def run_watch(
             source,
             cms=cms,
             production=production,
-            previous_fingerprint=prev_fp if isinstance(prev_fp, str) else None,
             check_error=err,
         )
-        evaluations.append(evaluation)
-
-        if cms is not None and write_state:
-            update_source_observation(
-                state,
-                source_id=source.source_id,
-                cms_fingerprint=cms.raw_fingerprint,
-                cms_snapshot=cms.to_dict(),
-                production_snapshot=production.to_dict(),
-                statuses=evaluation.statuses,
-            )
 
         if notify or dry_run_notify:
-            notify_results.append(
-                maybe_create_issue(
-                    evaluation,
-                    dry_run=dry_run_notify or not notify,
-                )
+            fp = str((evaluation.cms or {}).get("raw_fingerprint") or "")
+            injected = None
+            if existing_issues_by_fp is not None and fp:
+                injected = existing_issues_by_fp.get(f"{source.source_id}:{fp}")
+            note = maybe_create_issue(
+                evaluation,
+                dry_run=dry_run_notify or not notify,
+                gh_api=gh_api,
+                existing_issue=injected,
+                skip_remote_lookup=existing_issues_by_fp is not None,
             )
-
-    if write_state:
-        save_state(state_path, state)
+            notify_results.append(note)
+            # NEW_RELEASE = first alertable fingerprint with no prior open/closed issue.
+            if note.get("would_set_new_release") and should_alert(evaluation):
+                _annotate_new_release(evaluation)
+        evaluations.append(evaluation)
 
     report = {
+        "last_checked_at": checked_at,
         "evaluations": [e.to_dict() for e in evaluations],
         "notifications": notify_results,
-        "state_path": str(state_path),
-        "wrote_state": write_state,
+        "wrote_repo_files": False,
+        "git_commit": False,
+        "git_push": False,
     }
     return report
 
@@ -109,7 +118,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Read-only CMS release + PBJ320 downstream-freshness watcher. "
-            "Does not download datasets or rebuild artifacts."
+            "Does not download datasets, rebuild artifacts, commit, or push."
         )
     )
     parser.add_argument(
@@ -119,30 +128,19 @@ def main(argv: list[str] | None = None) -> int:
         help="pbj-root repository root (default: inferred)",
     )
     parser.add_argument(
-        "--state-file",
-        type=Path,
-        default=None,
-        help="Watcher state JSON (default: data/cms_watcher/watcher_state.json)",
-    )
-    parser.add_argument(
-        "--write-state",
-        action="store_true",
-        help="Persist updated CMS fingerprints to the state file",
-    )
-    parser.add_argument(
         "--notify",
         action="store_true",
-        help="Create deduplicated GitHub issues for NEW_RELEASE statuses",
+        help="Create deduplicated GitHub issues when PRODUCTION_BEHIND (no git writes)",
     )
     parser.add_argument(
         "--dry-run-notify",
         action="store_true",
-        help="Print issue payloads without calling GitHub",
+        help="Print issue payloads without creating issues",
     )
     parser.add_argument(
         "--json",
         action="store_true",
-        help="Emit machine-readable JSON report",
+        help="Emit machine-readable JSON report (includes last_checked_at)",
     )
     parser.add_argument(
         "--print-dependency-graph",
@@ -162,11 +160,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     root = args.root.resolve()
-    state_path = (args.state_file or default_state_path(root)).resolve()
     report = run_watch(
         root=root,
-        state_path=state_path,
-        write_state=args.write_state,
         notify=args.notify,
         dry_run_notify=args.dry_run_notify,
         source_ids=args.sources,
@@ -175,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
+        print(f"last_checked_at: {report['last_checked_at']}")
         for ev in report["evaluations"]:
             print("=" * 72)
             print(f"{ev['title']} ({ev['source_id']})")

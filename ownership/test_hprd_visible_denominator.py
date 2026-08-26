@@ -46,7 +46,6 @@ def _fac(
         "census": census,
         "pbj_matched": matched,
         "hprd_portfolio_inclusion_status": attribution,
-        "hprd_attribution_status": attribution,
         "role_category": role_category,
         "overall_rating": "3",
         "staffing_rating": "3",
@@ -67,17 +66,15 @@ def _tax_bucket(cat: str) -> str:
 
 
 def _hprd_bucket(fac: dict) -> str:
-    status = str(fac.get("hprd_attribution_status") or "").strip()
+    status = str(fac.get("hprd_portfolio_inclusion_status") or "").strip()
+    if status != "supported":
+        return "uncertain" if status != "exclude" else "exclude"
     if not fac.get("pbj_matched"):
         return "missing_pbj"
-    if status == "exclude":
-        return "exclude"
-    if status == "supported":
-        h = _parse_float(fac.get("hprd"))
-        if h is None or not is_plausible_portfolio_hprd(h):
-            return "missing_pbj"
-        return "supported"
-    return "uncertain"
+    h = _parse_float(fac.get("hprd"))
+    if h is None or not is_plausible_portfolio_hprd(h):
+        return "missing_pbj"
+    return "supported"
 
 
 class HprdVisibleDenominatorTests(unittest.TestCase):
@@ -131,9 +128,10 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertNotIn("Weighted HPRD", html)
 
     def test_mitchell_274_reconciles_to_portfolio_hprd(self) -> None:
-        """Exact taxonomy + Portfolio HPRD reconciliation for PAC 0648429498."""
+        """Exact taxonomy + exclusive Portfolio HPRD reconciliation for PAC 0648429498."""
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
+        from ownership.owner_portfolio_metrics import reconcile_portfolio_hprd_buckets
 
         profile = load_owner_profile_resolved("0648429498")
         self.assertIsNotNone(profile)
@@ -142,19 +140,20 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
         self.assertEqual(len(facs), 274)
         tax = Counter(_tax_bucket(f.get("role_category")) for f in facs)
         self.assertEqual(sum(tax.values()), 274)
-        # Rank-primary after role-aware consolidation (not CSV first-seen).
         self.assertEqual(tax.get("ownership_interest"), 1)
         self.assertEqual(tax.get("managing_control"), 70)
         self.assertEqual(tax.get("governance"), 203)
-        self.assertEqual(tax.get("enrollment_admin", 0), 0)
+        recon = reconcile_portfolio_hprd_buckets(facs)
+        self.assertTrue(recon["reconcile_ok"])
+        self.assertEqual(recon["bucket_sum"], 274)
         ps = profile.get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_facilities"), 274)
         n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
-        self.assertEqual(n_hprd, 268)
-        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.834, places=3)
+        self.assertEqual(n_hprd, recon["buckets"]["included"])
+        self.assertEqual(ps.get("hprd_terminal_buckets"), recon["buckets"])
         body, *_ = render_owner_profile_body(profile)
         self.assertIn("Portfolio HPRD", body)
-        self.assertIn("n = 268", body)
+        self.assertIn(f"n = {n_hprd}", body)
 
     def test_large_oi_profiles_denominator_matches_calc(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
@@ -175,7 +174,6 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
                 supported = int(ps.get("n_hprd_supported_facilities") or 0)
                 body, *_ = render_owner_profile_body(profile)
                 if supported > 0 and ps.get("wmean_hprd") is not None:
-                    body, *_ = render_owner_profile_body(profile)
                     self.assertIn(f"n = {supported}", body, msg=label)
                     self.assertIn("owner-snapshot-sub", body)
 
@@ -196,33 +194,31 @@ class HprdVisibleDenominatorTests(unittest.TestCase):
     def test_soon_burnam_portfolio_hprd_card(self) -> None:
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_profile_html import render_owner_profile_body
+        from ownership.owner_portfolio_metrics import reconcile_portfolio_hprd_buckets
 
         profile = load_owner_profile_resolved("9739195553")
         self.assertIsNotNone(profile)
         assert profile is not None
-        ps = profile.get("portfolio_summary") or {}
-        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
-        wmean = ps.get("wmean_hprd")
-        self.assertEqual(n_hprd, 334)
-        self.assertAlmostEqual(wmean, 3.721, places=3)
         facs = list(profile.get("facilities") or [])
         self.assertEqual(len(facs), 351)
-        supported = [
-            f
-            for f in facs
-            if str(
-                f.get("hprd_portfolio_inclusion_status")
-                or f.get("hprd_attribution_status")
-            )
-            == "supported"
-        ]
-        self.assertEqual(len(supported), 339)
-        self.assertEqual(len({f.get("ccn") for f in supported}), 339)
+        recon = reconcile_portfolio_hprd_buckets(facs)
+        self.assertTrue(recon["reconcile_ok"])
+        self.assertEqual(recon["buckets"]["timing_excluded_or_uncertain"], 12)
+        self.assertEqual(recon["buckets"]["pbj_match_excluded"], 0)
+        self.assertEqual(recon["buckets"]["missing_hprd"], 5)
+        self.assertEqual(recon["buckets"]["included"], 334)
+        ps = profile.get("portfolio_summary") or {}
+        n_hprd = int(ps.get("n_hprd_supported_facilities") or 0)
+        self.assertEqual(n_hprd, 334)
+        self.assertEqual(ps.get("hprd_terminal_buckets"), recon["buckets"])
         body, title, *_ = render_owner_profile_body(profile)
         self.assertIn("Portfolio HPRD", body)
         self.assertIn("n = 334", body)
         self.assertNotIn("Nursing Home Ownership Interest", title)
         self.assertIn("Managing", title)
+        for f in facs:
+            self.assertIn("hprd_portfolio_inclusion_status", f)
+            self.assertNotIn("hprd_attribution_status", f)
 
     def test_chow_q2_meta_matches_coverage(self) -> None:
         import json

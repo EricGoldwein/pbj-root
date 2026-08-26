@@ -59,8 +59,8 @@ PARTIAL_PERIOD_HPRD_NOTE = (
     "HPRD only; mid-quarter associations are uncertain, not manufactured means."
 )
 
-# Deprecated: role codes no longer gate Portfolio HPRD. Kept for import
-# compatibility with older call sites / notebooks.
+# Deprecated: role codes no longer gate Portfolio HPRD. Kept only so older
+# notebooks importing the name do not crash; do not use for eligibility.
 HPRD_QUALIFYING_MANAGING_CONTROL_CODES = frozenset({"43", "63"})
 
 AssociationTiming = Literal[
@@ -175,21 +175,6 @@ def normalize_hprd_role_code(raw: Any) -> str:
     return digits.zfill(2)
 
 
-def role_qualifies_for_owner_hprd(
-    *,
-    role_code: Any = None,
-    relationship_kind: RelationshipKind | str | None = None,
-) -> bool:
-    """
-    Deprecated: Portfolio HPRD no longer role-gates.
-
-    Always returns True. CMS relationship category is not used as evidence of
-    staffing responsibility. Prefer timing-only portfolio inclusion helpers.
-    """
-    del role_code, relationship_kind
-    return True
-
-
 def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
     kind = str(metric_kind or "").strip().lower()
     if kind in ("pbj_hprd", "pbj_nurse_hprd", "hprd", "reported_total_nurse_hprd"):
@@ -205,6 +190,14 @@ def metric_attribution_mode(metric_kind: str) -> MetricAttributionMode:
     if kind in ("census", "beds", "avg_residents", "certified_beds"):
         return "facility_context_only"
     return "unsupported"
+
+
+def rating_metric_context_status(*, metric_kind: str = "overall_rating") -> AttributionStatus:
+    """Care Compare / rating metrics are facility context only (never Portfolio HPRD)."""
+    mode = metric_attribution_mode(metric_kind)
+    if mode == "facility_context_only":
+        return "facility_context"
+    return "facility_context"
 
 
 def _resolve_period_bounds(
@@ -392,19 +385,6 @@ def hprd_portfolio_inclusion_from_roles(
     return "uncertain"
 
 
-def hprd_attribution_from_roles(
-    roles: list[dict[str, Any]] | None,
-    metric_start: Any,
-    metric_end: Any,
-) -> AttributionStatus:
-    """
-    Legacy name for :func:`hprd_portfolio_inclusion_from_roles`.
-
-    Returns portfolio timing inclusion — **not** causal owner attribution.
-    """
-    return hprd_portfolio_inclusion_from_roles(roles, metric_start, metric_end)
-
-
 def portfolio_inclusion_status_for_facility(
     facility: dict[str, Any],
     *,
@@ -434,28 +414,6 @@ def portfolio_inclusion_status_for_facility(
         metric_end,
         relationship_kind=relationship_kind_from_role_category(role_cat),
         role_code=facility.get("role_code"),
-        metric_kind=metric_kind,
-    )
-
-
-def attribution_status_for_facility(
-    facility: dict[str, Any],
-    *,
-    metric_start: date | None,
-    metric_end: date | None,
-    metric_kind: str = "pbj_hprd",
-) -> AttributionStatus:
-    """
-    Compatibility wrapper.
-
-    For ``pbj_hprd``, returns **portfolio inclusion** timing status (not causal
-    ownership attribution). Prefer :func:`portfolio_inclusion_status_for_facility`
-    at new call sites.
-    """
-    return portfolio_inclusion_status_for_facility(
-        facility,
-        metric_start=metric_start,
-        metric_end=metric_end,
         metric_kind=metric_kind,
     )
 

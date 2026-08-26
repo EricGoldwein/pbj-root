@@ -986,8 +986,9 @@ def _owner_page_help_body(
         "Facility table: ownership %, CMS role, PBJ staffing (HPRD), star ratings, and flags "
         "where linked.\n\n"
         "Portfolio summary: PBJ-verified facilities only (enrollment legal name matches "
-        "provider-info). Means omit missing HPRD or stars; exclude implausible HPRD "
-        "(below 1.5 or above 12) and overall stars outside 1–5. Weighted means use census "
+        "provider-info). Means omit missing HPRD or stars; exclude total nurse HPRD "
+        "≤ 0 or above 12 (current CMS full-quarter rule; the pre-2022 <1.5 floor is not "
+        "applied) and overall stars outside 1–5. Weighted means use census "
         "when published, else certified beds.\n\n"
         f"Sources: {snf_src}; CMS PBJ; CMS provider data; PBJ320 CHOW index."
     )

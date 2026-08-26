@@ -11,7 +11,6 @@ if str(_ROOT) not in sys.path:
 
 from ownership.owner_portfolio_metrics import (  # noqa: E402
     PORTFOLIO_HPRD_MAX,
-    PORTFOLIO_HPRD_MIN,
     _rollup_portfolio_metrics,
     is_plausible_overall_rating,
     is_plausible_portfolio_hprd,
@@ -34,8 +33,7 @@ def _fac(
         "census": census,
         "beds": beds,
         "pbj_matched": matched,
-        # Owner rollup only averages HPRD when ownership-period attribution is supported.
-        "hprd_attribution_status": "supported" if matched else "uncertain",
+        "hprd_portfolio_inclusion_status": "supported" if matched else "uncertain",
         "role_category": "ownership_interest",
     }
 
@@ -46,10 +44,11 @@ def _summary(rows: list[dict]) -> dict:
 
 
 class PortfolioPlausibilityTests(unittest.TestCase):
-    def test_hprd_bounds_match_cms(self) -> None:
-        self.assertFalse(is_plausible_portfolio_hprd(0.5))
-        self.assertFalse(is_plausible_portfolio_hprd(1.49))
-        self.assertTrue(is_plausible_portfolio_hprd(PORTFOLIO_HPRD_MIN))
+    def test_hprd_bounds_match_cms_current_rule(self) -> None:
+        self.assertFalse(is_plausible_portfolio_hprd(0.0))
+        self.assertTrue(is_plausible_portfolio_hprd(0.5))
+        self.assertTrue(is_plausible_portfolio_hprd(1.49))
+        self.assertTrue(is_plausible_portfolio_hprd(1.5))
         self.assertTrue(is_plausible_portfolio_hprd(PORTFOLIO_HPRD_MAX))
         self.assertFalse(is_plausible_portfolio_hprd(PORTFOLIO_HPRD_MAX + 0.01))
 
@@ -63,12 +62,23 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         ps = _summary(
             [
                 _fac(hprd="3.0", census="100"),
-                _fac(hprd="0.4", census="100"),
+                _fac(hprd="0.0", census="100"),
             ]
         )
-        self.assertEqual(ps["n_hprd_outlier_excluded"], 1)
+        self.assertEqual(ps["n_hprd_le_zero_excluded"], 1)
         self.assertAlmostEqual(ps["wmean_hprd"], 3.0)
         self.assertAlmostEqual(ps["umean_hprd"], 3.0)
+
+    def test_includes_valid_hprd_below_obsolete_1_5_floor(self) -> None:
+        ps = _summary(
+            [
+                _fac(hprd="3.0", census="100"),
+                _fac(hprd="0.5", census="100"),
+            ]
+        )
+        self.assertEqual(ps["n_hprd_portfolio_facilities"], 2)
+        self.assertEqual(ps["n_obsolete_below_1_5_included"], 1)
+        self.assertAlmostEqual(ps["wmean_hprd"], 1.75)
 
     def test_excludes_high_hprd_outlier(self) -> None:
         ps = _summary([_fac(hprd="3.0"), _fac(hprd="13.0")])

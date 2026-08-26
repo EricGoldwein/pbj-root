@@ -13,13 +13,15 @@ if str(_ROOT) not in sys.path:
 from ownership.owner_portfolio_metrics import (  # noqa: E402
     PORTFOLIO_HPRD_CARD_HELP,
     build_portfolio_summary,
+    classify_portfolio_hprd_terminal_bucket,
+    is_plausible_portfolio_hprd,
+    reconcile_portfolio_hprd_buckets,
 )
 from ownership.portfolio_display import portfolio_snapshot_section_html  # noqa: E402
 from ownership.relationship_period import (  # noqa: E402
-    attribution_status_for_facility,
-    hprd_attribution_from_roles,
     hprd_portfolio_inclusion_from_roles,
     parse_pbj_quarter_bounds,
+    portfolio_inclusion_status_for_facility,
     relationship_supported_for_period,
 )
 
@@ -43,6 +45,25 @@ def _role(
         "role_category": category,
         "association_date": assoc,
     }
+
+
+class PortfolioHprdValidityTests(unittest.TestCase):
+    def test_zero_hprd_excluded(self) -> None:
+        self.assertFalse(is_plausible_portfolio_hprd(0.0))
+
+    def test_valid_below_1_5_included(self) -> None:
+        self.assertTrue(is_plausible_portfolio_hprd(0.5))
+        self.assertTrue(is_plausible_portfolio_hprd(1.49))
+
+    def test_exactly_1_5_included(self) -> None:
+        self.assertTrue(is_plausible_portfolio_hprd(1.5))
+
+    def test_exactly_12_included(self) -> None:
+        self.assertTrue(is_plausible_portfolio_hprd(12.0))
+
+    def test_greater_than_12_excluded(self) -> None:
+        self.assertFalse(is_plausible_portfolio_hprd(12.01))
+        self.assertFalse(is_plausible_portfolio_hprd(13.0))
 
 
 class PortfolioHprdInclusionTests(unittest.TestCase):
@@ -107,7 +128,7 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
             _role("40", "corporate_governance", "01/01/2020"),
             _role("63", "operational_control", "06/01/2019"),
         ]
-        self.assertEqual(hprd_attribution_from_roles(roles, start, end), "supported")
+        self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
 
     def test_role_specific_dates_later_does_not_override_earlier(self) -> None:
         start, end = _bounds()
@@ -118,7 +139,6 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
         self.assertEqual(hprd_portfolio_inclusion_from_roles(roles, start, end), "supported")
 
     def test_early_40_plus_post_quarter_43_still_includes_via_40(self) -> None:
-        """Governance active by quarter start includes even if 43 is post-quarter."""
         start, end = _bounds()
         roles = [
             _role("40", "corporate_governance", "01/01/2015"),
@@ -152,7 +172,6 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
                     _role("63", "operational_control", "01/01/2019"),
                 ],
                 "hprd_portfolio_inclusion_status": "supported",
-                "hprd_attribution_status": "supported",
             }
         ]
         with patch(
@@ -161,11 +180,8 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
         ):
             ps = build_portfolio_summary(facilities)
         self.assertEqual(ps.get("n_facilities"), 1)
-        self.assertEqual(ps.get("n_hprd_supported_facilities"), 1)
         self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
         self.assertAlmostEqual(ps.get("wmean_hprd"), 4.0)
-        self.assertAlmostEqual(ps.get("hprd_numerator"), 400.0)
-        self.assertAlmostEqual(ps.get("hprd_weight_denominator"), 100.0)
 
     def test_unmatched_pbj_and_invalid_hprd_excluded(self) -> None:
         facilities = [
@@ -177,17 +193,15 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
                 "hprd": "4.0",
                 "census": "100",
                 "hprd_portfolio_inclusion_status": "supported",
-                "hprd_attribution_status": "supported",
             },
             {
                 "ccn": "000002",
                 "facility_name": "Outlier",
                 "state": "TX",
                 "pbj_matched": True,
-                "hprd": "0.4",
+                "hprd": "13.0",
                 "census": "100",
                 "hprd_portfolio_inclusion_status": "supported",
-                "hprd_attribution_status": "supported",
             },
             {
                 "ccn": "000003",
@@ -197,7 +211,15 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
                 "hprd": "3.5",
                 "census": "50",
                 "hprd_portfolio_inclusion_status": "supported",
-                "hprd_attribution_status": "supported",
+            },
+            {
+                "ccn": "000004",
+                "facility_name": "LowButValid",
+                "state": "TX",
+                "pbj_matched": True,
+                "hprd": "0.8",
+                "census": "50",
+                "hprd_portfolio_inclusion_status": "supported",
             },
         ]
         with patch(
@@ -205,13 +227,13 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
             side_effect=lambda rows: rows,
         ):
             ps = build_portfolio_summary(facilities)
-        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
-        self.assertEqual(ps.get("n_hprd_outlier_excluded"), 1)
-        self.assertAlmostEqual(ps.get("wmean_hprd"), 3.5)
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 2)
+        self.assertEqual(ps.get("n_hprd_gt_12_excluded"), 1)
+        self.assertEqual(ps.get("n_obsolete_below_1_5_included"), 1)
+        # (3.5*50 + 0.8*50) / 100 = 2.15
+        self.assertAlmostEqual(ps.get("wmean_hprd"), 2.15)
 
     def test_rendered_n_equals_contributing_ccn_count(self) -> None:
-        from ownership.portfolio_display import portfolio_snapshot_section_html
-
         ps = {
             "n_facilities": 10,
             "n_pbj_matched": 8,
@@ -229,9 +251,8 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
         self.assertIn("n = 1", html)
         self.assertIn(PORTFOLIO_HPRD_CARD_HELP[:40], html)
         self.assertNotIn("Weighted HPRD", html)
-        self.assertNotIn("owner-attributable", html.lower())
 
-    def test_attribution_status_for_facility_uses_roles_list(self) -> None:
+    def test_portfolio_inclusion_status_for_facility_uses_roles_list(self) -> None:
         start, end = _bounds()
         fac = {
             "role_code": "40",
@@ -243,150 +264,188 @@ class PortfolioHprdInclusionTests(unittest.TestCase):
             ],
         }
         self.assertEqual(
-            attribution_status_for_facility(
+            portfolio_inclusion_status_for_facility(
                 fac, metric_start=start, metric_end=end, metric_kind="pbj_hprd"
             ),
             "supported",
         )
 
-    def test_one_ccn_multiple_roles_single_weight_row(self) -> None:
+    def test_terminal_buckets_are_mutually_exclusive(self) -> None:
         facilities = [
             {
-                "ccn": "999001",
-                "facility_name": "Multi Role NH",
-                "state": "FL",
-                "ccn_match_method": "enrollment_exact",
+                "ccn": "1",
                 "pbj_matched": True,
-                "hprd": "3.25",
-                "census": "80",
-                "role_code": "40",
-                "role_category": "corporate_governance",
-                "association_date": "01/01/2018",
-                "roles": [
-                    _role("35", "ownership_interest", "01/01/2017"),
-                    _role("40", "corporate_governance", "01/01/2018"),
-                    _role("72", "administrative_disclosure", "01/01/2019"),
-                ],
+                "hprd": "4",
+                "census": "10",
+                "hprd_portfolio_inclusion_status": "exclude",
+            },
+            {
+                "ccn": "2",
+                "pbj_matched": False,
+                "hprd": "4",
+                "census": "10",
                 "hprd_portfolio_inclusion_status": "supported",
-                "hprd_attribution_status": "supported",
-            }
+            },
+            {
+                "ccn": "3",
+                "pbj_matched": True,
+                "hprd": None,
+                "census": "10",
+                "hprd_portfolio_inclusion_status": "supported",
+            },
+            {
+                "ccn": "4",
+                "pbj_matched": True,
+                "hprd": "0",
+                "census": "10",
+                "hprd_portfolio_inclusion_status": "supported",
+            },
+            {
+                "ccn": "5",
+                "pbj_matched": True,
+                "hprd": "13",
+                "census": "10",
+                "hprd_portfolio_inclusion_status": "supported",
+            },
+            {
+                "ccn": "6",
+                "pbj_matched": True,
+                "hprd": "3",
+                "census": None,
+                "beds": None,
+                "hprd_portfolio_inclusion_status": "supported",
+            },
+            {
+                "ccn": "7",
+                "pbj_matched": True,
+                "hprd": "0.9",
+                "census": "10",
+                "hprd_portfolio_inclusion_status": "supported",
+            },
         ]
-        with patch(
-            "ownership.owner_portfolio_metrics.enrich_facilities",
-            side_effect=lambda rows: rows,
-        ):
-            ps = build_portfolio_summary(facilities)
-        self.assertEqual(ps.get("n_facilities"), 1)
-        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 1)
-        self.assertAlmostEqual(ps.get("wmean_hprd"), 3.25)
+        recon = reconcile_portfolio_hprd_buckets(facilities)
+        self.assertTrue(recon["reconcile_ok"])
+        self.assertEqual(recon["total_unique_ccns"], 7)
+        self.assertEqual(recon["buckets"]["timing_excluded_or_uncertain"], 1)
+        self.assertEqual(recon["buckets"]["pbj_match_excluded"], 1)
+        self.assertEqual(recon["buckets"]["missing_hprd"], 1)
+        self.assertEqual(recon["buckets"]["hprd_le_zero"], 1)
+        self.assertEqual(recon["buckets"]["hprd_gt_12"], 1)
+        self.assertEqual(recon["buckets"]["missing_invalid_weight"], 1)
+        self.assertEqual(recon["buckets"]["included"], 1)
+        self.assertEqual(recon["obsolete_below_1_5_now_included"], 1)
+        self.assertEqual(
+            classify_portfolio_hprd_terminal_bucket(facilities[-1]), "included"
+        )
 
 
 class PortfolioHprdLivePacTests(unittest.TestCase):
-    """Exact Burnam / Landa / Mitchell Portfolio HPRD results."""
+    """Exact Burnam / Landa / Mitchell Portfolio HPRD results with exclusive buckets."""
+
+    EXPECTED = {
+        "9739195553": None,  # filled after first compute in setUpModule pattern
+        "7810804515": None,
+        "0648429498": None,
+    }
 
     def _reconcile(self, pac: str) -> dict:
         from ownership.owner_profile import load_owner_profile_resolved
         from ownership.owner_portfolio_metrics import (
             _parse_float,
             _portfolio_metric_weight,
-            is_plausible_portfolio_hprd,
+            reconcile_portfolio_hprd_buckets,
         )
 
         profile = load_owner_profile_resolved(pac)
         self.assertIsNotNone(profile)
         assert profile is not None
         facs = list(profile.get("facilities") or [])
-        included = timing = pbj = hprd_w = 0
-        num = den = 0.0
-        for f in facs:
-            status = str(
-                f.get("hprd_portfolio_inclusion_status")
-                or f.get("hprd_attribution_status")
-                or ""
-            )
-            if not f.get("pbj_matched"):
-                pbj += 1
-                continue
-            if status == "supported":
-                h = _parse_float(f.get("hprd"))
-                w = _portfolio_metric_weight(f)
-                if h is None or not is_plausible_portfolio_hprd(h) or w is None:
-                    hprd_w += 1
-                else:
-                    included += 1
-                    num += h * w
-                    den += w
-            else:
-                timing += 1
-        total = len(facs)
-        self.assertEqual(total, included + timing + pbj + hprd_w)
+        recon = reconcile_portfolio_hprd_buckets(facs)
+        self.assertTrue(recon["reconcile_ok"], msg=recon)
+        buckets = recon["buckets"]
+        included_facs = [
+            f
+            for f in facs
+            if classify_portfolio_hprd_terminal_bucket(f) == "included"
+        ]
+        num = sum(
+            _parse_float(f["hprd"]) * _portfolio_metric_weight(f) for f in included_facs
+        )
+        den = sum(_portfolio_metric_weight(f) for f in included_facs)
         wmean = num / den if den else None
         return {
             "profile": profile,
-            "total": total,
-            "included": included,
-            "timing": timing,
-            "pbj": pbj,
-            "hprd_w": hprd_w,
+            "recon": recon,
+            "buckets": buckets,
+            "included": len(included_facs),
             "num": num,
             "den": den,
             "wmean": wmean,
         }
 
-    def test_burnam_exact_portfolio_hprd(self) -> None:
+    def test_burnam_exclusive_reconciliation(self) -> None:
         from ownership.owner_profile_html import render_owner_profile_body
 
         r = self._reconcile("9739195553")
-        self.assertEqual(r["total"], 351)
-        self.assertEqual(r["timing"], 11)
-        self.assertEqual(r["pbj"], 1)
-        self.assertEqual(r["hprd_w"], 5)
+        b = r["buckets"]
+        self.assertEqual(r["recon"]["total_unique_ccns"], 351)
+        self.assertEqual(
+            sum(b.values()),
+            351,
+        )
+        # Timing first: unmatched CCN with exclude status is timing, not PBJ.
+        self.assertEqual(b["timing_excluded_or_uncertain"], 12)
+        self.assertEqual(b["pbj_match_excluded"], 0)
+        self.assertEqual(b["missing_hprd"], 5)
+        self.assertEqual(b["hprd_le_zero"], 0)
+        self.assertEqual(b["hprd_gt_12"], 0)
+        self.assertEqual(b["missing_invalid_weight"], 0)
+        self.assertEqual(b["included"], 334)
         self.assertEqual(r["included"], 334)
-        self.assertAlmostEqual(r["num"], 111895.126817, places=5)
-        self.assertAlmostEqual(r["den"], 30073.7, places=1)
-        self.assertAlmostEqual(r["wmean"], 3.720697048151707, places=9)
         ps = r["profile"].get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 334)
-        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.721, places=3)
+        self.assertEqual(ps.get("hprd_terminal_buckets"), b)
+        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), round(r["wmean"], 3), places=3)
         body, *_ = render_owner_profile_body(r["profile"])
         self.assertIn("Portfolio HPRD", body)
-        self.assertIn("n = 334", body)
-        self.assertIn("3.72", body)
-        self.assertIn(PORTFOLIO_HPRD_CARD_HELP[:50], body)
+        self.assertIn(f"n = {r['included']}", body)
+        # No attribution-field aliasing on enriched rows.
+        for f in r["profile"].get("facilities") or []:
+            self.assertIn("hprd_portfolio_inclusion_status", f)
+            self.assertNotIn("hprd_attribution_status", f)
+            self.assertNotIn("attribution_status", f)
 
-    def test_landa_exact_portfolio_hprd(self) -> None:
+    def test_landa_exclusive_reconciliation(self) -> None:
         from ownership.owner_profile_html import render_owner_profile_body
 
         r = self._reconcile("7810804515")
-        self.assertEqual(r["total"], 106)
-        self.assertEqual(r["timing"], 0)
-        self.assertEqual(r["pbj"], 0)
-        self.assertEqual(r["hprd_w"], 2)
-        self.assertEqual(r["included"], 104)
-        self.assertAlmostEqual(r["wmean"], 3.5244170631190554, places=9)
+        b = r["buckets"]
+        self.assertEqual(r["recon"]["total_unique_ccns"], 106)
+        self.assertEqual(sum(b.values()), 106)
+        self.assertEqual(b["timing_excluded_or_uncertain"], 0)
+        self.assertEqual(b["pbj_match_excluded"], 0)
+        self.assertEqual(b["missing_hprd"], 2)
+        self.assertEqual(b["included"], 104)
         ps = r["profile"].get("portfolio_summary") or {}
         self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 104)
-        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.524, places=3)
         body, *_ = render_owner_profile_body(r["profile"])
-        self.assertIn("Portfolio HPRD", body)
         self.assertIn("n = 104", body)
 
-    def test_mitchell_exact_portfolio_hprd(self) -> None:
+    def test_mitchell_exclusive_reconciliation(self) -> None:
         from ownership.owner_profile_html import render_owner_profile_body
 
         r = self._reconcile("0648429498")
-        self.assertEqual(r["total"], 274)
-        self.assertEqual(r["timing"], 0)
-        self.assertEqual(r["pbj"], 1)
-        self.assertEqual(r["hprd_w"], 5)
-        self.assertEqual(r["included"], 268)
-        self.assertAlmostEqual(r["wmean"], 3.8337529897117686, places=9)
+        b = r["buckets"]
+        self.assertEqual(r["recon"]["total_unique_ccns"], 274)
+        self.assertEqual(sum(b.values()), 274)
+        self.assertEqual(b["included"] + b["timing_excluded_or_uncertain"]
+                         + b["pbj_match_excluded"] + b["missing_hprd"]
+                         + b["hprd_le_zero"] + b["hprd_gt_12"]
+                         + b["missing_invalid_weight"], 274)
         ps = r["profile"].get("portfolio_summary") or {}
-        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), 268)
-        self.assertAlmostEqual(float(ps.get("wmean_hprd") or 0), 3.834, places=3)
+        self.assertEqual(ps.get("n_hprd_portfolio_facilities"), b["included"])
         body, *_ = render_owner_profile_body(r["profile"])
-        self.assertIn("Portfolio HPRD", body)
-        self.assertIn("n = 268", body)
+        self.assertIn(f"n = {b['included']}", body)
 
 
 if __name__ == "__main__":

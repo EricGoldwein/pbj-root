@@ -7,7 +7,6 @@ from typing import Any
 from ownership.owner_portfolio_metrics import (
     PORTFOLIO_HPRD_CARD_HELP,
     PORTFOLIO_HPRD_MAX,
-    PORTFOLIO_HPRD_MIN,
     PORTFOLIO_OVERALL_RATING_MAX,
     PORTFOLIO_OVERALL_RATING_MIN,
     PORTFOLIO_STAR_DIST_MIN,
@@ -285,7 +284,8 @@ def entity_weighted_hprd_help_body(
     lines = [
         "Resident-weighted average of latest PBJ total nurse HPRD across roster facilities, "
         "weighted by census (or certified beds when census is missing). "
-        f"HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible.",
+        f"HPRD ≤ 0 or above {PORTFOLIO_HPRD_MAX:g} excluded (current CMS full-quarter "
+        "total-nurse rule; pre-2022 <1.5 floor not applied).",
     ]
     if chain_hprd is not None and wmean is not None and abs(chain_hprd - wmean) >= 0.01:
         lines.append(
@@ -391,7 +391,8 @@ def _entity_snapshot_help(ps: dict[str, Any]) -> tuple[str, str, str, str]:
     hprd_help = (
         "Resident-weighted average of latest PBJ total nurse HPRD across roster facilities, "
         "weighted by census (or certified beds when census is missing). "
-        f"HPRD below {PORTFOLIO_HPRD_MIN:g} or above {PORTFOLIO_HPRD_MAX:g} excluded as implausible."
+        f"HPRD ≤ 0 or above {PORTFOLIO_HPRD_MAX:g} excluded (current CMS full-quarter "
+        "total-nurse rule; pre-2022 <1.5 floor not applied)."
     )
     stf_help = (
         "Simple average of CMS staffing star ratings (1–5) across roster facilities. "

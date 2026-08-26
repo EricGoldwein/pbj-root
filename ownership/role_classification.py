@@ -560,14 +560,28 @@ def party_stake_column_title(party: dict[str, Any]) -> str:
 
 
 def party_stake_column_label(party: dict[str, Any], *, modal: bool = False) -> str:
-    """Stake column: CMS % when reported; else role shorthand (not em dash)."""
+    """Stake column: CMS % when reported; else role shorthand (not em dash).
+
+    Control/officer roles always show the role label. Ownership-interest
+    roles with an explicit zero also show the role label rather than a
+    misleading '0%'.  The raw zero is preserved only in modal details.
+    """
     p = enrich_control_party(dict(party))
+    cat = str(p.get("role_categories") or [""])[0] if p.get("role_categories") else ""
     for raw in p.get("pcts") or []:
         lbl = ownership_pct_display_label(raw)
         if lbl:
             return lbl.replace(" ownership interest", "").strip()
         s = str(raw or "").strip()
         if s and s.lower() not in ("nan", "none", "—", "-", "n/a"):
+            is_zero = False
+            try:
+                v = float(s.replace("%", "").replace(",", ""))
+                is_zero = abs(v) < 1e-9
+            except ValueError:
+                pass
+            if is_zero:
+                continue
             return s if "%" in s else f"{s}%"
     return _party_stake_role_label(p, modal=modal)
 

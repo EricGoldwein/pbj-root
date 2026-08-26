@@ -140,13 +140,13 @@
       }
       var dl = document.createElement('dl');
       dl.className = 'owner-info-dl';
-      appendDlRow(dl, 'Reported stake', pctReported);
+      appendDlRow(dl, 'CMS-reported ownership percentage', pctReported);
       appendDlRow(dl, 'CMS role', roleText);
       appendDlRow(dl, 'Since', since);
       if (dl.children.length) infoBody.appendChild(dl);
       var note = document.createElement('p');
       note.className = 'owner-info-note';
-      note.textContent = 'CMS-reported ownership role for this facility.';
+      note.textContent = 'CMS-reported ownership or managing-control relationship for this facility.';
       infoBody.appendChild(note);
       return;
     }

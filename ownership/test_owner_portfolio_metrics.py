@@ -144,6 +144,82 @@ class PortfolioPlausibilityTests(unittest.TestCase):
         self.assertEqual(ps["overall_star_counts"].get(3), 1)
         self.assertEqual(ps["n_with_overall_for_dist"], 1)
 
+    def test_enrollment_exact_receives_full_enrichment(self) -> None:
+        """enrollment_exact CCNs must get provider enrichment, HPRD, stars, census, flags."""
+        from unittest.mock import patch
+
+        from ownership.owner_portfolio_metrics import enrich_facility_row
+
+        fake_lookup = {
+            "075001": {
+                "provider_name": "Sunrise Nursing Home",
+                "state": "TX",
+                "city": "Houston",
+                "county": "Harris",
+                "beds": "120",
+                "census": "105",
+                "hprd": "4.2",
+                "overall_rating": "4",
+                "staffing_rating": "5",
+                "health_inspection_rating": "3",
+                "qm_rating": "4",
+                "sff": "N",
+                "sff_status": "N",
+                "abuse_icon": "N",
+                "quarter": "2026 Q1",
+            }
+        }
+        fac = {
+            "ccn": "075001",
+            "ccn_match_method": "enrollment_exact",
+            "facility_name": "Sunrise Nursing",
+            "state": "TX",
+        }
+        with patch(
+            "ownership.owner_portfolio_metrics._ccn_provider_lookup",
+            return_value=fake_lookup,
+        ):
+            enriched = enrich_facility_row(fac)
+
+        self.assertTrue(enriched.get("pbj_matched"))
+        self.assertEqual(enriched.get("hprd"), "4.2")
+        self.assertEqual(enriched.get("overall_rating"), "4")
+        self.assertEqual(enriched.get("census"), "105")
+        self.assertEqual(enriched.get("provider_name"), "Sunrise Nursing Home")
+        self.assertEqual(enriched.get("county"), "Harris")
+        self.assertEqual(enriched.get("sff_status"), "N")
+        self.assertFalse(enriched.get("has_abuse"))
+
+    def test_enrollment_exact_generates_verified_link(self) -> None:
+        """enrollment_exact must produce a provider link in HTML tables."""
+        from ownership.owner_profile_html import _facilities_owner_rows
+
+        fac = {
+            "ccn": "075001",
+            "ccn_match_method": "enrollment_exact",
+            "facility_name": "Sunrise Nursing",
+            "provider_name": "Sunrise Nursing Home",
+            "state": "TX",
+            "city": "Houston",
+            "county": "Harris",
+            "role": "Managing Employee",
+            "role_code": "43",
+            "role_category": "operational_control",
+            "hprd": "4.2",
+            "census": "105",
+            "overall_rating": "4",
+            "staffing_rating": "5",
+            "flags": "",
+            "sff_status": "",
+            "has_abuse": False,
+            "pbj_matched": True,
+        }
+        rows = _facilities_owner_rows([fac])
+        self.assertEqual(len(rows), 1)
+        html = rows[0]
+        self.assertIn("/provider/075001/", html)
+        self.assertIn("Sunrise Nursing Home", html)
+
 
 if __name__ == "__main__":
     unittest.main()

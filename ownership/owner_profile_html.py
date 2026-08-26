@@ -502,9 +502,10 @@ def _facility_mobile_primary_block(f: dict[str, Any]) -> str:
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
     link_label = provider_raw or legal_raw
+    verified_methods = ("legal_exact", "name_exact", "fuzzy", "enrollment_exact")
     href = (
         html.escape(provider_url(ccn, link_label))
-        if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
+        if ccn.isdigit() and method in verified_methods
         else ""
     )
     primary_esc = provider_esc if provider_esc else legal_esc
@@ -578,7 +579,7 @@ def _facility_mobile_metrics_block(f: dict[str, Any], *, verified: bool) -> str:
 
 def _facility_mobile_card(f: dict[str, Any]) -> str:
     method = str(f.get("ccn_match_method") or "")
-    verified = method == "legal_exact"
+    verified = method in ("legal_exact", "enrollment_exact")
     title_block = _facility_mobile_primary_block(f)
     metrics = _facility_mobile_metrics_block(f, verified=verified)
     search = " ".join(
@@ -1477,9 +1478,10 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
     provider_esc = html.escape(provider_raw) if provider_raw else ""
     same = bool(provider_esc) and provider_esc.upper() == legal_esc.upper()
     link_label_raw = provider_raw or legal_raw
+    verified_methods = ("legal_exact", "name_exact", "fuzzy", "enrollment_exact")
     href = (
         html.escape(provider_url(ccn, link_label_raw))
-        if ccn.isdigit() and method in ("legal_exact", "name_exact", "fuzzy")
+        if ccn.isdigit() and method in verified_methods
         else ""
     )
 
@@ -1489,7 +1491,7 @@ def _facility_names_cell(f: dict[str, Any]) -> tuple[str, str]:
         if href and link_label
         else ""
     )
-    verified = method == "legal_exact"
+    verified = method in ("legal_exact", "enrollment_exact")
     location_line = _facility_location_residents_line(f, verified=verified)
     if provider_esc and not same:
         if href:
@@ -1630,7 +1632,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
     for f in fac_list:
         loc_html, loc_sort = _facility_location_cell(f)
         method = str(f.get("ccn_match_method") or "")
-        verified = method == "legal_exact"
+        verified = method in ("legal_exact", "enrollment_exact")
         hprd = html.escape(_fmt_hprd(f.get("hprd") if verified else None))
         stars_html, stars_sort = _cms_stars_cell(f, verified=verified)
         census = html.escape(_fmt_census(f.get("census") if verified else None))
@@ -1651,7 +1653,7 @@ def _facilities_owner_rows(fac_list: list[dict[str, Any]]) -> list[str]:
             f'<tr data-search="{html.escape(search)}" data-state="{html.escape(st_code)}">'
             f'<td class="owner-col-facility" data-label="Facility" data-sort="{names_sort}">{names_html}</td>'
             f'<td class="owner-col-location" data-label="Location" data-sort="{loc_sort}">{loc_html}</td>'
-            f'<td class="owner-role-cell owner-col-role" data-label="% Own." data-sort="{role_sort}">{role_html}</td>'
+            f'<td class="owner-role-cell owner-col-role" data-label="Role / stake" data-sort="{role_sort}">{role_html}</td>'
             f'<td class="num owner-col-hprd" data-label="HPRD" data-sort="{_sort_attr(hprd if verified else "")}">{hprd}</td>'
             f'<td class="num owner-col-ratings" data-label="Ratings" data-sort="{html.escape(stars_sort)}">{stars_html}</td>'
             f'<td class="num owner-col-census" data-label="Census" data-sort="{_sort_attr(census if verified else "")}">{census}</td>'

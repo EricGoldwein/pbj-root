@@ -33,7 +33,7 @@ _ORG_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_org_index.json.gz"
 _CCN_ENROLLMENT_INDEX_GZ = _OWNERSHIP_DIR / "snf_owners_ccn_index.json.gz"
 _OWNERS_TABLE = "snf_owners"
 
-_CCN_MATCH_METHOD_RANK = {"legal_exact": 3, "name_exact": 2, "fuzzy": 1, "": 0}
+_CCN_MATCH_METHOD_RANK = {"enrollment_exact": 4, "legal_exact": 3, "name_exact": 2, "fuzzy": 1, "": 0}
 
 ENROLLMENT_PAC_COL = "ASSOCIATE ID"
 OWNER_PAC_COL = "ASSOCIATE ID - OWNER"

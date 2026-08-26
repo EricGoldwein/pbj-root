@@ -508,7 +508,7 @@ def _ccn_provider_lookup() -> dict[str, dict[str, str]]:
 
 
 def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
-    """Add provider info when CCN is known; PBJ metrics only for legal_exact matches."""
+    """Add provider info when CCN is known; PBJ metrics for verified matches."""
     lookup = _ccn_provider_lookup()
     out = dict(fac)
     ccn = str(out.get("ccn") or "").strip().zfill(6)[-6:]
@@ -520,7 +520,7 @@ def enrich_facility_row(fac: dict[str, Any]) -> dict[str, Any]:
         for k in ("provider_address", "zip_code", "city", "latitude", "longitude"):
             if pi.get(k) and not out.get(k):
                 out[k] = pi[k]
-    if method == "legal_exact" and ccn and pi:
+    if method in ("legal_exact", "enrollment_exact") and ccn and pi:
         if not out.get("state") and pi.get("state"):
             out["state"] = pi["state"]
         if not out.get("city") and pi.get("city"):

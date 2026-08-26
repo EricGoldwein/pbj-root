@@ -31,12 +31,12 @@ class BothProfileOwnerPrimaryTests(unittest.TestCase):
             f"(facilities={len(profile.get('facilities') or [])})",
         )
         self.assertGreaterEqual(len(profile.get("facilities") or []), 100)
-        # Enrollment side parked, not primary. CCN dedup reveals more
-        # facilities than the old org-name dedup but still far fewer than
-        # the owner-control side.
+        # Enrollment side parked, not primary. CMS enrollment CSV has 25 rows
+        # for this PAC (each with a unique EID and distinct CCN via the bridge).
+        # Old org-name dedup collapsed these to ~1; CCN dedup restores them.
         en = profile.get("enrollment_section") or {}
         self.assertTrue(en.get("facilities") is not None)
-        self.assertLess(len(en.get("facilities") or []), n)
+        self.assertEqual(len(en.get("facilities") or []), 25)
 
 
 if __name__ == "__main__":

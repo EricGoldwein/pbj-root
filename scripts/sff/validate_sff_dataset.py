@@ -33,7 +33,7 @@ US_STATES = {
     "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC",
 }
 REQUIRED_CATEGORIES = {"SFF", "Candidate", "Graduate", "Terminated"}
-CCN_RE = re.compile(r"^\d{6}$")
+CCN_RE = re.compile(r"^[0-9A-Z]{6}$")
 
 
 def _sha256(path: Path) -> str:

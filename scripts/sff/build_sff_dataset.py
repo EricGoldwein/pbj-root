@@ -49,10 +49,10 @@ CSV_COLUMNS = [
 
 
 def _normalize_provider_number(value: str) -> str:
-    digits = "".join(ch for ch in (value or "").strip() if ch.isdigit())
-    if not digits:
+    normalized = "".join(ch for ch in (value or "").strip().upper() if ch.isalnum())
+    if not normalized:
         return ""
-    return digits.zfill(6)[-6:]
+    return normalized.zfill(6)[-6:]
 
 
 def _document_date_from_pdf(pdf_path: Path) -> dict[str, Any]:
